@@ -27,6 +27,9 @@ endfunction()
 
 add_subdirectory(runner)
 add_subdirectory(support/fake_platform)
+if(QIVEN3_HAL)
+  add_subdirectory(support/fake_hal)
+endif()
 
 # The AddressSanitizer runtime beside each test binary: every binary is
 # written to one directory.

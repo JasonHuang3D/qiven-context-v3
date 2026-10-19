@@ -131,4 +131,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 enable_testing()
 add_subdirectory(src/qiven3)
 add_subdirectory(src/platform)
+# QIVEN3_HAL off leaves the HAL, its fake and its cases out of the build (H6).
+if(QIVEN3_HAL)
+  add_subdirectory(src/hal)
+endif()
 add_subdirectory(tests)
