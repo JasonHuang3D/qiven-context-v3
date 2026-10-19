@@ -130,4 +130,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 enable_testing()
 add_subdirectory(src/qiven3)
+add_subdirectory(src/platform)
 add_subdirectory(tests)

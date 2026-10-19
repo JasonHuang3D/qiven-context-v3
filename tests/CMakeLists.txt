@@ -26,6 +26,7 @@ function(qiven3_add_cases target)
 endfunction()
 
 add_subdirectory(runner)
+add_subdirectory(support/fake_platform)
 
 # The AddressSanitizer runtime beside each test binary: every binary is
 # written to one directory.
