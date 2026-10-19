@@ -15,10 +15,24 @@ arrives with the code. Until then, this repository holds no specification.
 
 ## Building and running
 
-The build arrives with the first package of code: CMake and Ninja, C++20,
-`cmake --preset <name>` to configure out of the tree into `build/<name>/`,
-`cmake --build --preset <name>` to build and `ctest --preset <name>` to test.
-This section will name the presets and the pinned toolchain when they exist.
+CMake and Ninja, C++20: `cmake --preset <name>` configures out of the tree
+into `build/<name>/`, `cmake --build --preset <name>` builds and
+`ctest --preset <name>` tests. Nothing is installed.
+
+- Developer presets, on Windows with MSVC: `debug`, `release` (the build the
+  full suite runs on), `asan`, `fuzz`, `structure` and `nohal` (no HAL).
+  CI's: `ci-windows`, `linux-gcc`, `linux-clang` and `macos-clang`.
+- Test presets select by label: `full`, `fast`, `asan`, `fuzz`, `bench`,
+  `drill`, and `fake` for CI.
+- The developer presets pin the toolchain (`QIVEN3_PIN_TOOLS`): configure
+  fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
+  CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython
+  3.15.0. Run them from a shell that `vcvars64.bat -vcvars_ver=14.44.35207`
+  has set up.
+- Name the interpreter by the environment variable `QIVEN3_PYTHON`, or in an
+  untracked `CMakeUserPresets.json` by a preset that inherits one of these
+  and sets the cache variable `Python3_EXECUTABLE`. No machine path is ever
+  committed.
 
 ## What this repository never holds
 

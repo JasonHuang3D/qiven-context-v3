@@ -1,0 +1,174 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {"major": 3, "minor": 28, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"}
+    },
+    {
+      "name": "here",
+      "hidden": true,
+      "inherits": "base",
+      "description": "This machine: the pinned MSVC, SDK, CMake, Ninja and CPython, from a shell vcvars64.bat -vcvars_ver=14.44.35207 set up; the interpreter from QIVEN3_PYTHON or a user preset",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "QIVEN3_PIN_TOOLS": "ON",
+        "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "here",
+      "displayName": "Debug, MSVC",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug"}
+    },
+    {
+      "name": "release",
+      "inherits": "here",
+      "displayName": "Release with debug information, MSVC: the build the full suite runs on",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo"}
+    },
+    {
+      "name": "asan",
+      "inherits": "here",
+      "displayName": "AddressSanitizer, MSVC",
+      "description": "/fsanitize=address on every target; the runtime's DLL goes beside each test binary",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address"}
+    },
+    {
+      "name": "fuzz",
+      "inherits": "here",
+      "displayName": "libFuzzer with AddressSanitizer, MSVC",
+      "description": "/fsanitize=fuzzer,address and /INCREMENTAL:NO; builds the fuzz targets",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address"}
+    },
+    {
+      "name": "structure",
+      "inherits": "here",
+      "displayName": "Structure records, MSVC",
+      "description": "Includes: Ninja consumes the compiler's /showIncludes, so the build reruns each core source's compile_commands.json command with /showIncludes into a file. Names: dumpbin /symbols of each object. Link edges: CMake's --graphviz output. The structure tests read these files.",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_STRUCTURE": "ON"}
+    },
+    {
+      "name": "nohal",
+      "inherits": "here",
+      "displayName": "Without the HAL, MSVC (H6)",
+      "description": "QIVEN3_HAL off: no qiven3_hal, no HAL fake and no H case but H6",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_HAL": "OFF"}
+    },
+    {
+      "name": "ci",
+      "hidden": true,
+      "inherits": "base",
+      "description": "CI: the image's CMake and Ninja, no pin; every CI preset shares one build directory, which the fake test preset reads",
+      "binaryDir": "${sourceDir}/build/ci",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release"}
+    },
+    {
+      "name": "ci-windows",
+      "inherits": "ci",
+      "displayName": "CI on windows-2022, MSVC 19.44",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN3_COMPILER_LINE": "19.44"}
+    },
+    {
+      "name": "linux-gcc",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, g++ 14",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14"}
+    },
+    {
+      "name": "linux-clang",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, clang++ 18",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18"}
+    },
+    {
+      "name": "macos-clang",
+      "inherits": "ci",
+      "displayName": "CI on macos-15, Apple clang",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}
+    }
+  ],
+  "buildPresets": [
+    {"name": "debug", "configurePreset": "debug"},
+    {"name": "release", "configurePreset": "release"},
+    {"name": "asan", "configurePreset": "asan"},
+    {"name": "fuzz", "configurePreset": "fuzz"},
+    {"name": "structure", "configurePreset": "structure"},
+    {"name": "nohal", "configurePreset": "nohal"},
+    {"name": "ci-windows", "configurePreset": "ci-windows"},
+    {"name": "linux-gcc", "configurePreset": "linux-gcc"},
+    {"name": "linux-clang", "configurePreset": "linux-clang"},
+    {"name": "macos-clang", "configurePreset": "macos-clang"}
+  ],
+  "testPresets": [
+    {
+      "name": "here",
+      "hidden": true,
+      "output": {"outputOnFailure": true},
+      "execution": {"jobs": 12}
+    },
+    {
+      "name": "full",
+      "inherits": "here",
+      "displayName": "The full suite: every label but fuzz, bench and drill",
+      "configurePreset": "release",
+      "filter": {"exclude": {"label": "^(fuzz|bench|drill)$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "fast",
+      "inherits": "here",
+      "displayName": "The fast group: the label fast, within 60 s",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^fast$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "asan",
+      "inherits": "here",
+      "displayName": "The full suite's C++ cases under AddressSanitizer",
+      "configurePreset": "asan",
+      "filter": {"include": {"label": "^cxx$"}, "exclude": {"label": "^(fuzz|bench|drill)$"}}
+    },
+    {
+      "name": "fuzz",
+      "inherits": "here",
+      "displayName": "Each fuzz target for a bounded time",
+      "configurePreset": "fuzz",
+      "filter": {"include": {"label": "^fuzz$"}}
+    },
+    {
+      "name": "bench",
+      "inherits": "here",
+      "displayName": "FA3's benchmark",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^bench$"}}
+    },
+    {
+      "name": "drill",
+      "inherits": "here",
+      "displayName": "The live drill",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^drill$"}}
+    },
+    {
+      "name": "fake",
+      "displayName": "CI: the cases on the fakes, in the CI presets' shared build directory",
+      "configurePreset": "ci-windows",
+      "output": {"outputOnFailure": true},
+      "filter": {"include": {"label": "^fake$"}},
+      "execution": {"noTestsAction": "error"}
+    }
+  ]
+}
