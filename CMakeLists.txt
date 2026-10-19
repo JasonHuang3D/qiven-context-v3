@@ -82,6 +82,14 @@ else()
 endif()
 add_library(qiven3_flags INTERFACE)
 target_compile_options(qiven3_flags INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${qiven3_cxx_flags}>")
+# The linker's warnings are errors too, on the same targets.
+if(MSVC)
+  target_link_options(qiven3_flags INTERFACE /WX)
+elseif(APPLE)
+  target_link_options(qiven3_flags INTERFACE LINKER:-fatal_warnings)
+else()
+  target_link_options(qiven3_flags INTERFACE LINKER:--fatal-warnings)
+endif()
 
 # Configure reads __cplusplus itself, under the build's flags: a /std: the
 # compiler does not know only warns and leaves an older language.
@@ -116,4 +124,10 @@ endif()
 
 message(STATUS "qiven3: QIVEN3_HAL ${QIVEN3_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRUCTURE}")
 
+# Every binary in one directory: the tests find each there, and the
+# sanitizer's runtime sits beside them all.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+
+enable_testing()
 add_subdirectory(src/qiven3)
+add_subdirectory(tests)
