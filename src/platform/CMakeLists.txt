@@ -1,16 +1,19 @@
 # qiven3_platform: the contract, which core targets link (files joins it
-# with its package).
+# with its package). Its value types hold their text on v3's arenas.
 add_library(qiven3_platform STATIC
   platform.cpp
   platform.hpp
 )
 target_include_directories(qiven3_platform PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_platform PRIVATE qiven3_flags)
+target_link_libraries(qiven3_platform PUBLIC qiven3_memory PRIVATE qiven3_flags)
 
 # qiven3_platform_win: the Windows adapter, built on Windows alone; the one
 # product target that includes a Windows header or links a Windows library.
 if(WIN32)
   add_library(qiven3_platform_win STATIC
+    win/handles.cpp
+    win/paths.cpp
+    win/paths.hpp
     win/windows.cpp
     win/windows.hpp
   )
@@ -21,12 +24,12 @@ if(WIN32)
 endif()
 
 # qiven3_platform_current: current() and adapter_for, which a binary's main
-# alone links.
+# alone links; its header names the build's adapter type.
 add_library(qiven3_platform_current STATIC
   current.cpp
   current.hpp
 )
 target_link_libraries(qiven3_platform_current PUBLIC qiven3_platform PRIVATE qiven3_flags)
 if(WIN32)
-  target_link_libraries(qiven3_platform_current PRIVATE qiven3_platform_win)
+  target_link_libraries(qiven3_platform_current PUBLIC qiven3_platform_win)
 endif()

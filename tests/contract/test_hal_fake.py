@@ -20,4 +20,4 @@ class Fake(HalCases, unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
 
     def drive(self):
-        return Drive("--platform", "fake", "--root", self.root, "--hal", "fake")
+        return Drive("--root", self.root, "--hal", "fake")

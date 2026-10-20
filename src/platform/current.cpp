@@ -1,10 +1,14 @@
 #include "platform/current.hpp"
 
-#if defined(_WIN32)
-#include "platform/win/windows.hpp"
-#endif
-
 namespace qiven3::platform {
+namespace {
+
+[[noreturn]] void unsupported(std::string_view system) {
+    throw PlatformError(Code::unsupported, "current",
+                        Detail("no adapter for the system '").add(system).add("' is built here"));
+}
+
+}  // namespace
 
 std::string_view build_system() noexcept {
 #if defined(_WIN32)
@@ -18,21 +22,19 @@ std::string_view build_system() noexcept {
 #endif
 }
 
-std::unique_ptr<Platform> adapter_for(std::string_view system,
-                                      const std::optional<std::string>& config_dir) {
 #if defined(_WIN32)
-    if (system == "windows") {
-        return std::make_unique<win::WindowsPlatform>(config_dir);
+Current adapter_for(std::string_view system, std::optional<std::string_view> config_dir) {
+    if (system != "windows") {
+        unsupported(system);
     }
-#else
-    (void)config_dir;
-#endif
-    throw PlatformError(Code::unsupported, "current",
-                        "no adapter for the system '" + std::string(system) + "' is built here");
+    return Current(config_dir);
 }
 
-std::unique_ptr<Platform> current(const std::optional<std::string>& config_dir) {
-    return adapter_for(build_system(), config_dir);
-}
+Current current(std::optional<std::string_view> config_dir) { return adapter_for(build_system(), config_dir); }
+#else
+void adapter_for(std::string_view system, std::optional<std::string_view>) { unsupported(system); }
+
+void current(std::optional<std::string_view> config_dir) { adapter_for(build_system(), config_dir); }
+#endif
 
 }  // namespace qiven3::platform

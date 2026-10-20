@@ -1,5 +1,6 @@
-"""The platform's cases on the Windows adapter, here: those needing
-neither processes nor machine, as on the fake, and the machine cases.
+"""The platform's cases on the Windows adapter, here, through
+qiven3-drive-windows: those needing neither processes nor machine, as on
+the fake, and the machine cases.
 
 Its configuration location with no override is LocalAppData's qiven3, the
 known folder read here through the system's own call.
@@ -9,7 +10,9 @@ import sys
 import unittest
 
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
+from tests.drive.session import WINDOWS
 
 
 def local_app_data():
@@ -32,6 +35,9 @@ def local_app_data():
 
 class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
+    DRIVE = WINDOWS
+    # create and read are win/files', in package 5.
+    CREATE_READ = False
     TAGS = frozenset({"files", "processes", "machine"})
     ctest_labels = ("drive",)
 
@@ -41,14 +47,18 @@ class WindowsBinding(PlatformBinding):
         super().setUp()
 
     def drive_args(self, config=None, seed=None):
-        args = ["--platform", "windows"]
+        args = []
         if config is not None:
             args += ["--config", config]
         return args
 
     def default_config(self):
-        return local_app_data() + "\qiven3"
+        return local_app_data() + "\\qiven3"
+
+    def files_root(self):
+        return self.scratch
 
 
-class Windows(WindowsBinding, PlatformCases, PlatformRest, PlatformRestMachine, unittest.TestCase):
+class Windows(WindowsBinding, PlatformCases, PlatformRest, PlatformLast, PlatformRestMachine,
+              unittest.TestCase):
     pass

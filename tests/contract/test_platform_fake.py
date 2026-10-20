@@ -1,17 +1,22 @@
-"""The platform's cases on the fake, every system of the CI matrix.
+"""The platform's cases on the fake, every system of the CI matrix, through
+qiven3-drive-fake.
 
 The fake has files, and lacks processes and machine. Its configuration
-location with no override is the drive's, "<root>/qiven3".
+location with no override is the drive's, "<root>/qiven3"; its files'
+operations write under its root alone.
 """
 
 import unittest
 
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
+from tests.drive.session import FAKE
 
 
 class FakeBinding(PlatformBinding):
     ADAPTER = "fake"
+    DRIVE = FAKE
     TAGS = frozenset({"files"})
 
     def root(self):
@@ -20,7 +25,7 @@ class FakeBinding(PlatformBinding):
         return root
 
     def drive_args(self, config=None, seed=None):
-        args = ["--platform", "fake", "--root", str(self.root())]
+        args = ["--root", str(self.root())]
         if config is not None:
             args += ["--config", config]
         if seed is not None:
@@ -30,8 +35,11 @@ class FakeBinding(PlatformBinding):
     def default_config(self):
         return f"{self.root()}/qiven3"
 
+    def files_root(self):
+        return self.root()
 
-class Fake(FakeBinding, PlatformCases, PlatformRest, unittest.TestCase):
+
+class Fake(FakeBinding, PlatformCases, PlatformRest, PlatformLast, unittest.TestCase):
     ctest_labels = ("fake",)
 
 

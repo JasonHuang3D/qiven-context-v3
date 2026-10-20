@@ -1,13 +1,13 @@
 #include "support/fake_platform/fake_platform.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
-#include <sstream>
+#include <memory>
+#include <new>
+#include <optional>
 #include <system_error>
 
 namespace qiven3::platform::fake {
@@ -72,8 +72,13 @@ std::string sha256(const std::string& message) {
     return digest;
 }
 
-[[noreturn]] void fail(Code code, const char* operation, std::string detail) {
-    throw PlatformError(code, operation, std::move(detail));
+
+[[noreturn]] void fail(Code code, std::string_view operation, std::string_view detail) {
+    throw PlatformError(code, operation, detail);
+}
+
+[[noreturn]] void unsupported(std::string_view operation) {
+    fail(Code::unsupported, operation, "not implemented by the fake yet");
 }
 
 // The next code point of UTF-8 text from at, strictly; none for an invalid
@@ -94,17 +99,34 @@ std::optional<char32_t> code_point(std::string_view text, std::size_t& at) {
     return ok ? std::optional<char32_t>(cp) : std::nullopt;
 }
 
-fs::path to_path(const std::string& text) {
-    return fs::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size()));
+fs::path to_path(std::string_view text) {
+    std::u8string units;
+    units.reserve(text.size());
+    for (const char c : text) {
+        units.push_back(static_cast<char8_t>(c));
+    }
+    return fs::path(units);
 }
 
 std::string to_text(const fs::path& path) {
-    const std::u8string text = path.u8string();
-    return std::string(reinterpret_cast<const char*>(text.data()), text.size());
+    std::string text;
+    for (const char8_t c : path.u8string()) {
+        text.push_back(static_cast<char>(c));
+    }
+    return text;
+}
+
+// A path's text as UTF-8, strictly: path.
+void check_utf8(std::string_view operation, std::string_view text) {
+    for (std::size_t at = 0; at < text.size();) {
+        if (!code_point(text, at)) {
+            fail(Code::path, operation, "not UTF-8");
+        }
+    }
 }
 
 // A path the contract takes: UTF-8, no control character, absolute.
-fs::path checked(const char* operation, const std::string& text) {
+fs::path checked(std::string_view operation, std::string_view text) {
     for (std::size_t at = 0; at < text.size();) {
         const auto cp = code_point(text, at);
         if (!cp) {
@@ -124,144 +146,180 @@ fs::path checked(const char* operation, const std::string& text) {
 bool is_sep(char c) { return c == '/' || c == '\\'; }
 
 // Whether path is prefix or lies under it, by whole component.
-bool under(const std::string& path, const std::string& prefix) {
-    if (prefix.empty() || path.compare(0, prefix.size(), prefix) != 0) {
+bool under(std::string_view path, std::string_view prefix) {
+    if (prefix.empty() || !path.starts_with(prefix)) {
         return false;
     }
     return path.size() == prefix.size() || is_sep(prefix.back()) || is_sep(path[prefix.size()]);
 }
 
-std::string normal(const std::string& text) { return to_text(to_path(text).lexically_normal()); }
+std::string normal(std::string_view text) { return to_text(to_path(text).lexically_normal()); }
 
-class FakeOutput final : public Output {
-public:
-    explicit FakeOutput(Encoding encoding) : encoding_(encoding) {}
-    void write(std::string_view utf8) override {
-        std::lock_guard guard(mutex_);
-        for (std::size_t at = 0; at < utf8.size();) {
-            const std::size_t from = at;
-            const auto cp = code_point(utf8, at);
-            if (!cp || (encoding_ == Encoding::ascii && *cp > 0x7F)) {
-                bytes_ += '?';
-            } else {
-                bytes_.append(utf8.substr(from, at - from));
-            }
-        }
-    }
-    std::string bytes() const {
-        std::lock_guard guard(mutex_);
-        return bytes_;
-    }
+void set(String& out, std::string_view text) { out.assign(text.data(), text.size()); }
 
-private:
-    Encoding encoding_;
-    mutable std::mutex mutex_;
-    std::string bytes_;
-};
+void set(Reading& out, const FakeReading& reading) {
+    out.state = reading.state;
+    set(out.reason, reading.reason);
+}
 
 std::string joined(const Program& program) {
     std::string out;
     for (const std::string& line : program.lines) {
-        out += line + "\n";
+        out += line;
+        out += '\n';
     }
     return out;
 }
 
-// A program's run in memory: its lines, then its end; a hang or a flood
-// reaches the caller as deadline or output.
-class FakeChild final : public Child {
-public:
-    explicit FakeChild(Program program) : program_(std::move(program)) {}
-    std::optional<std::string> read_line(Seconds) override {
-        check("read_line");
-        if (killed_ || line_ >= program_.lines.size()) {
-            if (program_.hang && !killed_) {
-                fail(Code::deadline, "read_line", "the fake's program hangs");
-            }
-            return std::nullopt;
-        }
-        return program_.lines[line_++] + "\n";
-    }
-    void write(std::string_view) override { check("write"); }
-    void close_input() override {}
-    int wait(Seconds) override {
-        check("wait");
-        if (program_.hang && !killed_) {
-            fail(Code::deadline, "wait", "the fake's program hangs");
-        }
-        return killed_ ? 1 : program_.code;
-    }
-    void kill() override { killed_ = true; }
-
-private:
-    void check(const char* operation) const {
-        if (!program_.flood.empty() && !killed_) {
-            fail(Code::output, operation, program_.flood);
-        }
-    }
-    Program program_;
-    std::size_t line_ = 0;
-    bool killed_ = false;
-};
+// The system's error, by name and number, as a detail names it.
+std::string named(std::errc error) {
+    const std::error_code code = std::make_error_code(error);
+    return code.message() + " (errno " + std::to_string(code.value()) + ")";
+}
 
 }  // namespace
 
-std::string seed_block(std::uint64_t seed, std::uint64_t k) {
+std::array<std::uint8_t, 32> seed_block(std::uint64_t seed, std::uint64_t k) {
     std::string message;
     for (std::uint64_t value : {seed, k}) {
         for (int shift = 56; shift >= 0; shift -= 8) {
             message += static_cast<char>((value >> shift) & 0xFF);
         }
     }
-    return sha256(message);
+    const std::string digest = sha256(message);
+    std::array<std::uint8_t, 32> block{};
+    for (std::size_t i = 0; i < block.size(); ++i) {
+        block[i] = static_cast<std::uint8_t>(digest[i]);
+    }
+    return block;
 }
 
-FakePlatform::FakePlatform(Config config)
-    : config_(std::move(config)), output_(std::make_unique<FakeOutput>(config_.encoding)) {}
+// --- the handles ---
 
-FakePlatform::~FakePlatform() = default;
+FakePages::FakePages(FakePages&& other) noexcept
+    : owner_(std::exchange(other.owner_, nullptr)), first_(std::exchange(other.first_, nullptr)),
+      count_(std::exchange(other.count_, 0)) {}
 
-void FakePlatform::record(const char* operation) const {
-    std::lock_guard guard(mutex_);
-    calls_.emplace_back(operation);
+FakePages& FakePages::operator=(FakePages&& other) noexcept {
+    if (this != &other) {
+        give_back();
+        owner_ = std::exchange(other.owner_, nullptr);
+        first_ = std::exchange(other.first_, nullptr);
+        count_ = std::exchange(other.count_, 0);
+    }
+    return *this;
 }
 
-std::vector<std::string> FakePlatform::calls() const {
-    std::lock_guard guard(mutex_);
-    return calls_;
+FakePages::~FakePages() { give_back(); }
+
+void FakePages::give_back() noexcept {
+    if (first_ != nullptr) {
+        std::allocator<FakePage>().deallocate(first_, count_);
+        owner_->lent_ -= count_ * sizeof(FakePage);
+        first_ = nullptr;
+        count_ = 0;
+    }
 }
 
-std::string FakePlatform::written() const { return static_cast<FakeOutput&>(*output_).bytes(); }
+std::span<std::byte> FakePages::bytes() const noexcept {
+    return std::as_writable_bytes(std::span<FakePage>(first_, count_));
+}
 
-std::string FakePlatform::name() const {
+void FakeSink::write(std::string_view) { unsupported("write"); }
+void FakeSink::close() { unsupported("close"); }
+FakeSink FakeStaged::open(std::string_view) { unsupported("open"); }
+void FakeStaged::publish(std::string_view, Seconds) { unsupported("publish"); }
+void FakeStaged::discard() { unsupported("discard"); }
+void FakeLock::release() { unsupported("release"); }
+
+void FakeChild::check(std::string_view operation) const {
+    if (!program_.flood.empty() && !killed_) {
+        fail(Code::output, operation, program_.flood);
+    }
+}
+
+bool FakeChild::read_line(Seconds, String& out) {
+    out.clear();
+    check("read_line");
+    if (killed_ || line_ >= program_.lines.size()) {
+        if (program_.hang && !killed_) {
+            fail(Code::deadline, "read_line", "the fake's program hangs");
+        }
+        return false;
+    }
+    set(out, program_.lines[line_++]);
+    out.push_back('\n');
+    return true;
+}
+
+void FakeChild::write(std::string_view) { check("write"); }
+
+int FakeChild::wait(Seconds) {
+    check("wait");
+    if (program_.hang && !killed_) {
+        fail(Code::deadline, "wait", "the fake's program hangs");
+    }
+    return killed_ ? 1 : program_.code;
+}
+
+void FakeOutput::write(std::string_view utf8) {
+    for (std::size_t at = 0; at < utf8.size();) {
+        const std::size_t from = at;
+        const auto cp = code_point(utf8, at);
+        if (!cp || (encoding_ == Encoding::ascii && *cp > 0x7F)) {
+            bytes_ += '?';
+        } else {
+            bytes_.append(utf8.substr(from, at - from));
+        }
+    }
+}
+
+// --- the fake ---
+
+FakePlatform::FakePlatform(Config config) : config_(std::move(config)), output_(config_.encoding) {}
+
+void FakePlatform::record(std::string_view operation) const { calls_.emplace_back(operation); }
+
+void FakePlatform::set_read_error(std::string_view path, std::string_view detail) {
+    config_.read_errors.insert_or_assign(std::string(path), std::string(detail));
+}
+
+void FakePlatform::refuse_pages(std::size_t k) noexcept {
+    refuse_at_ = k == 0 ? 0 : pages_calls_ + k;
+}
+
+std::string_view FakePlatform::name() const {
     record("name");
     return "fake";
 }
 
-std::string FakePlatform::config_dir(bool create) {
+void FakePlatform::config_dir(bool create, String& out) {
     record("config_dir");
+    out.clear();
     if (config_.config_dir.empty()) {
         fail(Code::config, "config_dir", "the fake has no configuration directory");
     }
+    check_utf8("config_dir", config_.config_dir);
+    const fs::path path = to_path(config_.config_dir);
+    if (!path.is_absolute()) {
+        fail(Code::path, "config_dir", "the override is not absolute");
+    }
     if (create) {
-        const fs::path path = to_path(config_.config_dir);
         std::error_code error;
         const fs::file_status status = fs::status(path, error);
-        if (fs::is_directory(status)) {
-            return config_.config_dir;
-        }
-        if (fs::exists(status)) {
+        if (fs::exists(status) && !fs::is_directory(status)) {
             fail(Code::exists, "config_dir", "not a directory");
         }
-        if (!fs::create_directory(path, error) || error) {
+        if (!fs::is_directory(status) && (!fs::create_directory(path, error) || error)) {
             fail(Code::io, "config_dir", "create_directory: " + error.message());
         }
     }
-    return config_.config_dir;
+    set(out, config_.config_dir);
 }
 
-std::string FakePlatform::resolve(const std::string& path) {
+void FakePlatform::resolve(std::string_view path, String& out) {
     record("resolve");
+    out.clear();
     std::string text = to_text(checked("resolve", path));
     for (int hops = 0;; ++hops) {
         bool followed = false;
@@ -274,7 +332,8 @@ std::string FakePlatform::resolve(const std::string& path) {
             }
         }
         if (!followed) {
-            return text;
+            set(out, text);
+            return;
         }
         if (hops == 40) {
             fail(Code::path, "resolve", "links past 40 hops");
@@ -282,10 +341,19 @@ std::string FakePlatform::resolve(const std::string& path) {
     }
 }
 
-Facts FakePlatform::facts(const std::string& path) {
+void FakePlatform::normcase(std::string_view path, String& out) {
+    record("normcase");
+    out.clear();
+    check_utf8("normcase", path);
+    for (const char c : path) {
+        out.push_back(c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c);
+    }
+}
+
+void FakePlatform::facts(std::string_view path, Facts& out) {
     record("facts");
     const std::string text = to_text(checked("facts", path));
-    const Facts* best = &config_.default_facts;
+    const FakeFacts* best = &config_.default_facts;
     std::size_t length = 0;
     for (const auto& [prefix, readings] : config_.facts) {
         const std::string normed = normal(prefix);
@@ -294,31 +362,36 @@ Facts FakePlatform::facts(const std::string& path) {
             length = normed.size();
         }
     }
-    return *best;
+    set(out.volume, best->volume);
+    set(out.protection, best->protection);
+    set(out.file_history, best->file_history);
+    set(out.bitlocker, best->bitlocker);
 }
 
-std::optional<std::string> FakePlatform::synced(const std::string& path) {
+bool FakePlatform::synced(std::string_view path, String& out) {
     record("synced");
+    out.clear();
     const std::string text = to_text(checked("synced", path));
     for (const auto& [folder, client] : config_.synced) {
         if (under(text, normal(folder))) {
-            return client;
+            set(out, client);
+            return true;
         }
     }
-    return std::nullopt;
+    return false;
 }
 
-void FakePlatform::replace(const std::string&, std::string_view, Seconds) {
+void FakePlatform::replace(std::string_view, std::string_view, Seconds) {
     record("replace");
-    fail(Code::unsupported, "replace", "not implemented by the fake yet");
+    unsupported("replace");
 }
 
-std::unique_ptr<Staged> FakePlatform::stage(const std::string&) {
+FakeStaged FakePlatform::stage(std::string_view) {
     record("stage");
-    fail(Code::unsupported, "stage", "not implemented by the fake yet");
+    unsupported("stage");
 }
 
-void FakePlatform::create(const std::string& path, bool directory) {
+void FakePlatform::create(std::string_view path, bool directory) {
     record("create");
     const fs::path target = checked("create", path);
     if (config_.root.empty() || !under(to_text(target), normal(config_.root))) {
@@ -342,15 +415,15 @@ void FakePlatform::create(const std::string& path, bool directory) {
     const int failed = file == nullptr ? errno : 0;
 #endif
     if (failed != 0 || file == nullptr) {
-        const std::error_code why(failed, std::generic_category());
-        fail(why == std::errc::file_exists ? Code::exists : Code::io, "create",
-             "fopen wbx: " + why.message());
+        const auto why = static_cast<std::errc>(failed);
+        fail(why == std::errc::file_exists ? Code::exists : Code::io, "create", "fopen wbx: " + named(why));
     }
     std::fclose(file);
 }
 
-std::string FakePlatform::read(const std::string& path) {
+void FakePlatform::read(std::string_view path, String& out) {
     record("read");
+    out.clear();
     const fs::path target = checked("read", path);
     const auto planted = config_.read_errors.find(path);
     if (planted != config_.read_errors.end()) {
@@ -359,48 +432,54 @@ std::string FakePlatform::read(const std::string& path) {
     std::error_code error;
     const fs::file_status status = fs::status(target, error);
     if (!fs::is_regular_file(status)) {
-        fail(Code::io, "read", fs::exists(status) ? "not a file" : "not found");
+        fail(Code::io, "read", fs::exists(status) ? "not a file" : "not found: " + named(std::errc::no_such_file_or_directory));
+    }
+    const std::uintmax_t size = fs::file_size(target, error);
+    if (error) {
+        fail(Code::io, "read", "file_size: " + error.message());
     }
     std::ifstream in(target, std::ios::binary);
-    std::ostringstream bytes;
-    bytes << in.rdbuf();
-    if (!in.good() && !in.eof()) {
-        fail(Code::io, "read", "the stream failed");
+    out.resize(static_cast<std::size_t>(size));
+    in.read(out.data(), static_cast<std::streamsize>(size));
+    if (!in || in.gcount() != static_cast<std::streamsize>(size)) {
+        out.clear();
+        fail(Code::io, "read", "the stream read short");
     }
-    return bytes.str();
 }
 
-std::unique_ptr<Lock> FakePlatform::lock(const std::string&, Seconds) {
+FakeLock FakePlatform::lock(std::string_view, Seconds) {
     record("lock");
-    fail(Code::unsupported, "lock", "not implemented by the fake yet");
+    unsupported("lock");
 }
 
-std::string FakePlatform::program(const std::string& name) {
+void FakePlatform::program(std::string_view name, String& out) {
     record("program");
+    out.clear();
     const auto at = config_.found.find(name);
     if (at == config_.found.end()) {
-        fail(Code::start, "program", "no " + name + " on the fake's PATH");
+        fail(Code::start, "program", "no " + std::string(name) + " on the fake's PATH");
     }
-    return at->second;
+    set(out, at->second);
 }
 
-const Program& FakePlatform::find(const Command& command, const char* operation) const {
+const Program& FakePlatform::find(const Command& command, std::string_view operation) const {
     if (command.argv.empty()) {
         fail(Code::start, operation, "an empty argv");
     }
-    const auto at = config_.programs.find(command.argv);
+    const std::vector<std::string> argv(command.argv.begin(), command.argv.end());
+    const auto at = config_.programs.find(argv);
     if (at == config_.programs.end()) {
-        fail(Code::start, operation, "no such program: " + command.argv.front());
+        fail(Code::start, operation, "no such program: " + argv.front());
     }
     return at->second;
 }
 
-std::unique_ptr<Child> FakePlatform::start(const Command& command) {
+FakeChild FakePlatform::start(const Command& command) {
     record("start");
-    return std::make_unique<FakeChild>(find(command, "start"));
+    return FakeChild(find(command, "start"));
 }
 
-Ran FakePlatform::run(const Command& command, std::string_view) {
+void FakePlatform::run(const Command& command, std::string_view, Ran& out) {
     record("run");
     const Program& chosen = find(command, "run");
     if (!chosen.flood.empty()) {
@@ -409,58 +488,93 @@ Ran FakePlatform::run(const Command& command, std::string_view) {
     if (chosen.hang) {
         fail(Code::deadline, "run", "the fake's program hangs");
     }
-    Ran ran{chosen.code, joined(chosen), chosen.err};
-    if (ran.out.size() > command.caps.out) {
+    const std::string lines = joined(chosen);
+    if (lines.size() > command.caps.out) {
         fail(Code::output, "run", "out");
     }
-    if (ran.err.size() > command.caps.err) {
+    if (chosen.err.size() > command.caps.err) {
         fail(Code::output, "run", "err");
     }
-    return ran;
+    out.code = chosen.code;
+    set(out.out, lines);
+    set(out.err, chosen.err);
 }
 
-std::string FakePlatform::code_page() {
+void FakePlatform::code_page(String& out) {
     record("code_page");
-    return config_.code_page;
+    set(out, config_.code_page);
 }
 
-Output& FakePlatform::standard_output() {
+FakeOutput& FakePlatform::standard_output() {
     record("standard_output");
-    return *output_;
+    return output_;
 }
 
-std::vector<Row> FakePlatform::residual(const std::vector<std::string>& paths) {
+void FakePlatform::residual(std::span<const std::string_view> paths, Vector<Row>& out) {
     record("residual");
-    for (const std::string& path : paths) {
+    out.clear();
+    for (const std::string_view path : paths) {
         checked("residual", path);
     }
-    return config_.residual;
+    memory::Arena& arena = out.get_allocator().arena();
+    for (const FakeRow& row : config_.residual) {
+        Row& made = out.emplace_back(arena);
+        set(made.name, row.name);
+        set(made.applies, row.applies);
+        set(made.kept, row.kept);
+        set(made.how_long, row.how_long);
+        set(made.owner_can, row.owner_can);
+    }
 }
 
-std::string FakePlatform::random_bytes(std::size_t n) {
+void FakePlatform::random_bytes(std::span<std::byte> into) {
     record("random_bytes");
-    std::lock_guard guard(mutex_);
-    std::string out;
-    while (out.size() < n) {
-        if (pending_.empty()) {
+    for (std::byte& b : into) {
+        if (pending_at_ == pending_.size()) {
             pending_ = seed_block(config_.seed, block_++);
+            pending_at_ = 0;
         }
-        const std::size_t take = std::min(pending_.size(), n - out.size());
-        out += pending_.substr(0, take);
-        pending_.erase(0, take);
+        b = static_cast<std::byte>(pending_[pending_at_++]);
     }
-    return out;
+}
+
+// Volatile stores, which the compiler keeps.
+void FakePlatform::wipe(std::span<std::byte> bytes) noexcept {
+    record("wipe");
+    const std::span<volatile std::byte> kept(bytes.data(), bytes.size());
+    for (volatile std::byte& b : kept) {
+        b = std::byte{0};
+    }
 }
 
 std::chrono::sys_time<std::chrono::milliseconds> FakePlatform::now() {
     record("now");
-    std::lock_guard guard(mutex_);
     return std::chrono::floor<std::chrono::milliseconds>(config_.clock);
 }
 
-void FakePlatform::set_clock(std::chrono::sys_time<std::chrono::microseconds> clock) {
-    std::lock_guard guard(mutex_);
-    config_.clock = clock;
+FakePages FakePlatform::pages(std::size_t n) {
+    record("pages");
+    ++pages_calls_;
+    if (refuse_at_ != 0 && pages_calls_ == refuse_at_) {
+        fail(Code::memory, "pages", "the fake refuses this call");
+    }
+    if (n == 0) {
+        return FakePages();
+    }
+    const std::optional<std::size_t> padded = memory::add(n, sizeof(FakePage) - 1);
+    if (!padded) {
+        fail(Code::memory, "pages", "a count that cannot be rounded to whole pages");
+    }
+    const std::size_t count = *padded / sizeof(FakePage);
+    FakePage* first = nullptr;
+    try {
+        first = std::allocator<FakePage>().allocate(count);
+    } catch (const std::bad_alloc&) {
+        fail(Code::memory, "pages", "the standard library refused the pages");
+    }
+    std::uninitialized_value_construct_n(first, count);
+    lent_ += count * sizeof(FakePage);
+    return FakePages(*this, first, count);
 }
 
 }  // namespace qiven3::platform::fake

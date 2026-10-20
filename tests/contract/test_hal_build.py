@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive import binaries
-from tests.drive.session import has_hal
+from tests.drive.session import FAKE, has_hal
 
 HAL_TARGETS = re.compile(rb"qiven3_hal|\bhal\.cpp|fake_hal\.cpp|hal_ops\.cpp")
 LISTED = re.compile(r"^add_test\(\[==\[(.+?)\]==\]", re.MULTILINE)
@@ -38,11 +38,11 @@ class NoHal(unittest.TestCase):
 
         found = sorted(set(HAL_TARGETS.findall((build / "build.ninja").read_bytes())))
         self.assertEqual(found, [], "the nohal build names a HAL target or source")
-        drive = build / "bin" / binaries.path("qiven3-drive").name
+        drive = build / "bin" / binaries.path(FAKE).name
         self.assertTrue(drive.is_file(), drive)
         self.assertFalse(list((build / "bin").glob("*hal*")))
 
-        ran = binaries.run_file(drive, ["--platform", "fake", "--root", build, "--hal", "fake"])
+        ran = binaries.run_file(drive, ["--root", build, "--hal", "fake"])
         self.assertEqual(ran.status, 2)
         self.assertIn(b"no HAL in this build", ran.err)
 

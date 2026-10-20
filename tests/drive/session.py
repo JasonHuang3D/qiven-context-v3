@@ -1,4 +1,5 @@
-"""Drives qiven3-drive: a request a line in, a reply a line out.
+"""Drives a drive, qiven3-drive-fake or qiven3-drive-windows: a request a
+line in, a reply a line out.
 
 A request is the operation's name and its arguments; the reply's result
 comes back, or its typed error is raised as DriveError. Bytes cross as
@@ -13,12 +14,15 @@ from pathlib import Path
 
 from tests.drive import binaries
 
-DRIVE = "qiven3-drive"
+# The two drives: the fake's, built on every system, and the Windows
+# adapter's, built on Windows alone.
+FAKE = "qiven3-drive-fake"
+WINDOWS = "qiven3-drive-windows"
 
 
 class DriveError(Exception):
-    """A reply's error: kind "platform" or "hal" with code, operation and
-    detail; "request" or "exception" with detail alone."""
+    """A reply's error: kind "platform", "memory" or "hal" with code,
+    operation and detail; "request" or "exception" with detail alone."""
 
     def __init__(self, error):
         super().__init__(json.dumps(error, sort_keys=True))
@@ -54,14 +58,16 @@ def has_hal(build=None):
 
 
 class Drive:
-    """One qiven3-drive process; a context manager that ends it."""
+    """One drive process, `drive` the binary's name; a context manager that
+    ends it."""
 
-    def __init__(self, *args, env=None, program=None, timeout=binaries.TIMEOUT):
-        self.program = Path(program) if program else binaries.path(DRIVE)
+    def __init__(self, *args, drive=FAKE, env=None, cwd=None, program=None, timeout=binaries.TIMEOUT):
+        self.name = drive
+        self.program = Path(program) if program else binaries.path(drive)
         self.process = subprocess.Popen(
             [str(self.program), *map(str, args)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=env)
+            env=env, cwd=cwd)
         # A drive that hangs is killed, so the read below ends.
         self.watchdog = threading.Timer(timeout, self.process.kill)
         self.watchdog.daemon = True
@@ -94,7 +100,7 @@ class Drive:
         self.process.stdin.flush()
         line = self.process.stdout.readline()
         if not line.endswith(b"\n"):
-            raise RuntimeError(f"{DRIVE} ended without a reply to {op}: {line!r}")
+            raise RuntimeError(f"{self.name} ended without a reply to {op}: {line!r}")
         return json.loads(line)
 
     def call(self, op, **args):
@@ -129,9 +135,9 @@ def environment(**changes):
     return env
 
 
-def once(args, *requests, env=None):
+def once(args, *requests, drive=FAKE, env=None):
     """Runs the drive on these requests alone: its status and raw bytes."""
     data = b"".join(wire(r) for r in requests)
-    done = subprocess.run([str(binaries.path(DRIVE)), *map(str, args)], input=data,
+    done = subprocess.run([str(binaries.path(drive)), *map(str, args)], input=data,
                           capture_output=True, env=env, timeout=binaries.TIMEOUT, check=False)
     return binaries.Ran(done.returncode, done.stdout, done.stderr)

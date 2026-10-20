@@ -1,22 +1,26 @@
 #pragma once
 
-// The fake platform, qiven3_platform_fake: the contract on the C++ standard
-// library alone, so the seam is proved on every system. It is in memory but
-// for create and read, which work on real files (create under its scratch
-// root alone), and config_dir(true), which makes its configuration
-// directory. It reads no registry and starts no process. Each operation
-// called is kept in its record, in order.
+// The fake platform, qiven3_platform_fake: FakePlatform, a concrete type
+// satisfying the concept Platform on the C++ standard library alone, so the
+// seam is proved on every system. It is in memory but for create and read,
+// which work on real files (create under its scratch root alone), and
+// config_dir(true), which makes its configuration directory. Its pages are
+// the standard library's, aligned to 4,096 bytes and zeroed; its normcase
+// folds ASCII letters alone. It reads no registry and starts no process.
+// Each operation called is kept in its record, in order.
 //
 // replace, stage and lock come with the platform's files module, whose
 // hooks the fake's busy counts drive; until then each is PlatformError
 // unsupported.
+//
+// thread: one
 
+#include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <map>
-#include <memory>
-#include <mutex>
-#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,73 +41,209 @@ struct Program {
 
 // The fake's stream: UTF-8 bytes as given, or ASCII, each code point above
 // U+007F one '?'. An invalid UTF-8 byte is one '?' in either.
-enum class Encoding { utf8, ascii };
+enum class Encoding : std::uint8_t { utf8, ascii };
+
+struct FakeReading {
+    State state = State::unknown;
+    std::string reason = "fake";
+};
+
+struct FakeFacts {
+    std::string volume;
+    FakeReading protection, file_history, bitlocker;
+};
+
+struct FakeRow {
+    std::string name, applies, kept, how_long, owner_can;
+};
 
 struct Config {
     std::string root;        // the scratch root: create makes nothing outside it
     std::string config_dir;  // the configuration location
-    std::map<std::string, std::string> read_errors;  // path: read's io detail
-    std::vector<std::pair<std::string, Facts>> facts;  // by path prefix, the longest
-    Facts default_facts{"", {State::unknown, "fake"}, {State::unknown, "fake"},
-                        {State::unknown, "fake"}};
+    std::map<std::string, std::string, std::less<>> read_errors;  // path: read's io detail
+    std::vector<std::pair<std::string, FakeFacts>> facts;          // by path prefix, the longest
+    FakeFacts default_facts;
     std::vector<std::pair<std::string, std::string>> synced;  // folder, client's name
     std::vector<std::pair<std::string, std::string>> links;   // from, to: resolve follows
     std::string code_page = "cp65001";
     Encoding encoding = Encoding::utf8;
     std::map<std::vector<std::string>, Program> programs;  // by argv
-    std::map<std::string, std::string> found;  // program(name): its path
-    std::vector<Row> residual;
+    std::map<std::string, std::string, std::less<>> found;  // program(name): its path
+    std::vector<FakeRow> residual;
     std::uint64_t seed = 0;  // random_bytes' seed
     std::chrono::sys_time<std::chrono::microseconds> clock{};
 };
 
 // The k-th 32-byte block of seed s: SHA-256 over s and k, each an 8-byte
 // big-endian integer.
-std::string seed_block(std::uint64_t seed, std::uint64_t k);
+std::array<std::uint8_t, 32> seed_block(std::uint64_t seed, std::uint64_t k);
 
-class FakePlatform final : public Platform {
+class FakePlatform;
+
+// A page as the fake lends it: 4,096 bytes at a multiple of 4,096.
+struct alignas(4096) FakePage {
+    std::array<std::byte, 4096> bytes;
+};
+
+// The fake's pages, from std::allocator, value-initialized; the destructor
+// gives them back and the fake counts them back.
+class FakePages {
 public:
-    explicit FakePlatform(Config config);
-    ~FakePlatform() override;
-    FakePlatform(const FakePlatform&) = delete;
-    FakePlatform& operator=(const FakePlatform&) = delete;
+    FakePages() noexcept = default;
+    FakePages(FakePlatform& owner, FakePage* first, std::size_t count) noexcept
+        : owner_(&owner), first_(first), count_(count) {}
+    FakePages(FakePages&& other) noexcept;
+    FakePages& operator=(FakePages&& other) noexcept;
+    FakePages(const FakePages&) = delete;
+    FakePages& operator=(const FakePages&) = delete;
+    ~FakePages();
 
-    std::string name() const override;
-    std::string config_dir(bool create) override;
-    std::string resolve(const std::string& path) override;
-    Facts facts(const std::string& path) override;
-    std::optional<std::string> synced(const std::string& path) override;
-    void replace(const std::string& path, std::string_view data, Seconds deadline) override;
-    std::unique_ptr<Staged> stage(const std::string& directory) override;
-    void create(const std::string& path, bool directory) override;
-    std::string read(const std::string& path) override;
-    std::unique_ptr<Lock> lock(const std::string& path, Seconds deadline) override;
-    std::string program(const std::string& name) override;
-    std::unique_ptr<Child> start(const Command& command) override;
-    Ran run(const Command& command, std::string_view data) override;
-    std::string code_page() override;
-    Output& standard_output() override;
-    std::vector<Row> residual(const std::vector<std::string>& paths) override;
-    std::string random_bytes(std::size_t n) override;
-    std::chrono::sys_time<std::chrono::milliseconds> now() override;
-
-    // The test's clock; now() gives it truncated to milliseconds.
-    void set_clock(std::chrono::sys_time<std::chrono::microseconds> clock);
-    // The operations called, by the contract's names, in order.
-    std::vector<std::string> calls() const;
-    // The bytes written to standard_output().
-    std::string written() const;
+    [[nodiscard]] std::span<std::byte> bytes() const noexcept;
 
 private:
-    void record(const char* operation) const;
-    const Program& find(const Command& command, const char* operation) const;
+    void give_back() noexcept;
+    FakePlatform* owner_ = nullptr;
+    FakePage* first_ = nullptr;
+    std::size_t count_ = 0;
+};
+
+// The files' handles, unsupported until the platform's files module.
+class FakeSink {
+public:
+    FakeSink() noexcept = default;
+    FakeSink(FakeSink&&) noexcept = default;
+    FakeSink& operator=(FakeSink&&) noexcept = default;
+    FakeSink(const FakeSink&) = delete;
+    FakeSink& operator=(const FakeSink&) = delete;
+    ~FakeSink() = default;
+    void write(std::string_view bytes);
+    void close();
+};
+
+class FakeStaged {
+public:
+    FakeStaged() noexcept = default;
+    FakeStaged(FakeStaged&&) noexcept = default;
+    FakeStaged& operator=(FakeStaged&&) noexcept = default;
+    FakeStaged(const FakeStaged&) = delete;
+    FakeStaged& operator=(const FakeStaged&) = delete;
+    ~FakeStaged() = default;
+    FakeSink open(std::string_view path);
+    void publish(std::string_view name, Seconds deadline);
+    void discard();
+};
+
+class FakeLock {
+public:
+    FakeLock() noexcept = default;
+    FakeLock(FakeLock&&) noexcept = default;
+    FakeLock& operator=(FakeLock&&) noexcept = default;
+    FakeLock(const FakeLock&) = delete;
+    FakeLock& operator=(const FakeLock&) = delete;
+    ~FakeLock() = default;
+    void release();
+};
+
+// A program's run in memory: its lines, then its end; a hang or a flood
+// reaches the caller as deadline or output.
+class FakeChild {
+public:
+    explicit FakeChild(Program program) : program_(std::move(program)) {}
+    FakeChild(FakeChild&&) noexcept = default;
+    FakeChild& operator=(FakeChild&&) noexcept = default;
+    FakeChild(const FakeChild&) = delete;
+    FakeChild& operator=(const FakeChild&) = delete;
+    ~FakeChild() = default;
+
+    bool read_line(Seconds timeout, String& out);
+    void write(std::string_view bytes);
+    void close_input() noexcept {}
+    int wait(Seconds timeout);
+    void kill() noexcept { killed_ = true; }
+
+private:
+    void check(std::string_view operation) const;
+    Program program_;
+    std::size_t line_ = 0;
+    bool killed_ = false;
+};
+
+// The fake's standard output, keeping its bytes.
+class FakeOutput {
+public:
+    explicit FakeOutput(Encoding encoding) noexcept : encoding_(encoding) {}
+    void write(std::string_view utf8);
+    [[nodiscard]] const std::string& bytes() const noexcept { return bytes_; }
+
+private:
+    Encoding encoding_;
+    std::string bytes_;
+};
+
+class FakePlatform {
+public:
+    explicit FakePlatform(Config config);
+    FakePlatform(const FakePlatform&) = delete;
+    FakePlatform& operator=(const FakePlatform&) = delete;
+    FakePlatform(FakePlatform&&) = delete;
+    FakePlatform& operator=(FakePlatform&&) = delete;
+    ~FakePlatform() = default;
+
+    [[nodiscard]] std::string_view name() const;
+    void config_dir(bool create, String& out);
+    void resolve(std::string_view path, String& out);
+    void normcase(std::string_view path, String& out);
+    void facts(std::string_view path, Facts& out);
+    bool synced(std::string_view path, String& out);
+    void replace(std::string_view path, std::string_view data, Seconds deadline);
+    FakeStaged stage(std::string_view directory);
+    void create(std::string_view path, bool directory);
+    void read(std::string_view path, String& out);
+    FakeLock lock(std::string_view path, Seconds deadline);
+    void program(std::string_view name, String& out);
+    FakeChild start(const Command& command);
+    void run(const Command& command, std::string_view data, Ran& out);
+    void code_page(String& out);
+    FakeOutput& standard_output();
+    void residual(std::span<const std::string_view> paths, Vector<Row>& out);
+    void random_bytes(std::span<std::byte> into);
+    void wipe(std::span<std::byte> bytes) noexcept;
+    [[nodiscard]] std::chrono::sys_time<std::chrono::milliseconds> now();
+    [[nodiscard]] FakePages pages(std::size_t n);
+
+    // The test's clock; now() gives it truncated to milliseconds.
+    void set_clock(std::chrono::sys_time<std::chrono::microseconds> clock) noexcept { config_.clock = clock; }
+    // read's io for path, with this detail.
+    void set_read_error(std::string_view path, std::string_view detail);
+    // The k-th call of pages from now refuses, memory; 0 none.
+    void refuse_pages(std::size_t k) noexcept;
+    // The operations called, by the contract's names, in order.
+    [[nodiscard]] const std::vector<std::string>& calls() const noexcept { return calls_; }
+    // The bytes written to standard_output().
+    [[nodiscard]] const std::string& written() const noexcept { return output_.bytes(); }
+    // The bytes of the pages lent and not yet given back.
+    [[nodiscard]] std::size_t lent() const noexcept { return lent_; }
+
+private:
+    friend class FakePages;
+    void record(std::string_view operation) const;
+    const Program& find(const Command& command, std::string_view operation) const;
 
     Config config_;
-    mutable std::mutex mutex_;
     mutable std::vector<std::string> calls_;
     std::uint64_t block_ = 0;
-    std::string pending_;  // the drawn block's unread bytes
-    std::unique_ptr<Output> output_;
+    std::array<std::uint8_t, 32> pending_{};
+    std::size_t pending_at_ = 32;  // the drawn block's next byte
+    FakeOutput output_;
+    std::size_t lent_ = 0;
+    std::size_t pages_calls_ = 0;
+    std::size_t refuse_at_ = 0;
 };
+
+static_assert(Pages<FakePages> && Sink<FakeSink> && Staged<FakeStaged> && Lock<FakeLock> && Child<FakeChild>);
+static_assert(Platform<FakePlatform>);
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+static_assert(sizeof(FakePages) == 24, "the fake's Pages: its owner, address and count");
+#endif
 
 }  // namespace qiven3::platform::fake

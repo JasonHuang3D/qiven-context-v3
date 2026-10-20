@@ -72,6 +72,6 @@ class PlatformRestMachine:
         """stdout() to a pipe: the code page's bytes, '?' for a character it
         lacks, CRLF for LF."""
         self.needs("machine")
-        ran = once(self.drive_args(), {"op": "stdout", "text": CODE_PAGE_TEXT})
+        ran = once(self.drive_args(), {"op": "stdout", "text": CODE_PAGE_TEXT}, drive=self.DRIVE)
         self.assertEqual(ran.status, 0, ran.err)
         self.assertEqual(ran.out, CODE_PAGE_BYTES + b'{"ok":true}\n')
