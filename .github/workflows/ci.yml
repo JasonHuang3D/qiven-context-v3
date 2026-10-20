@@ -3,8 +3,11 @@
 # installs CPython 3.15.0 by its version and SHA-256, configures with its
 # preset, builds every target its system builds and runs the cases on the
 # fakes (ctest --preset fake); the safety jobs add their sanitizer or
-# analysis, and every finding fails the run. The full suite, the machine
-# cases among them, runs on a developer's machine, never here.
+# analysis, and every finding fails the run. A sanitizer enlarges frames, so
+# the frame bound and the clean-binaries check run on the builds with none:
+# linux-plain, macos-clang, windows-stack's /analyze and windows-msvc.
+# linux-msan is a trial of MemorySanitizer (msan.yml). The full suite, the
+# machine cases among them, runs on a developer's machine, never here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit
 # SHA of its own repository, its tag in a comment. No secret is read.
@@ -206,7 +209,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: [linux-gcc, linux-clang, linux-tsan, linux-fuzz]
+        preset: [linux-gcc, linux-clang, linux-tsan, linux-fuzz, linux-plain]
     defaults:
       run:
         shell: bash
@@ -247,7 +250,7 @@ jobs:
       - name: The tools this job runs
         run: |
           cmake --version; ninja --version
-          case "${{ matrix.preset }}" in linux-gcc) g++-14 --version ;; *) clang++-18 --version ;; esac
+          case "${{ matrix.preset }}" in linux-gcc|linux-plain) g++-14 --version ;; *) clang++-18 --version ;; esac
 
       - name: Configure (${{ matrix.preset }})
         run: cmake --preset ${{ matrix.preset }}
@@ -265,11 +268,16 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-fuzz' }}
         run: ctest --test-dir build/ci --output-on-failure --no-tests=ignore -L '^fuzz$'
 
-      # No clean-binaries check here: every Linux preset builds under a
-      # sanitizer, whose metadata (UndefinedBehaviorSanitizer's check
-      # locations, AddressSanitizer's module names) holds each source's
-      # path as the compiler was given it, which clang's prefix map does not
-      # reach; windows-msvc and macos-clang build without one and check.
+      # The clean-binaries check on linux-plain alone: a sanitizer's metadata
+      # (UndefinedBehaviorSanitizer's check locations, AddressSanitizer's
+      # module names) holds each source's path as the compiler was given it,
+      # which the prefix map does not reach. linux-plain builds with none,
+      # under the frame bound.
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-plain' }}
+        run: |
+          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
+          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
 
   macos:
     name: macos-clang

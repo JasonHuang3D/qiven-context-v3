@@ -138,6 +138,28 @@
       "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
+      "name": "linux-plain",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, g++ 14, no sanitizer: the frame bound and the clean-binaries check",
+      "description": "Uninstrumented, so -Wframe-larger-than=4096 is on, which every sanitizer preset leaves out; the workflow checks its binaries for the checkout's and the runner's paths",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14", "CMAKE_BUILD_TYPE": "RelWithDebInfo"}
+    },
+    {
+      "name": "linux-msan",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, clang++ 18: MemorySanitizer, a trial, against libc++ built under it",
+      "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS as well, so that CMake's own probes link against it",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "QIVEN3_SANITIZE": "memory", "QIVEN3_SYSTEM_HEAP": "ON",
+        "CMAKE_C_FLAGS": "-fsanitize=memory",
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -stdlib=libc++ -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -stdlib=libc++ -L$env{QIVEN3_LIBCXX}/lib"
+      }
+    },
+    {
       "name": "macos-clang",
       "inherits": "ci",
       "displayName": "CI on macos-15, Apple clang",
@@ -162,6 +184,8 @@
     {"name": "linux-clang", "configurePreset": "linux-clang"},
     {"name": "linux-tsan", "configurePreset": "linux-tsan"},
     {"name": "linux-fuzz", "configurePreset": "linux-fuzz"},
+    {"name": "linux-plain", "configurePreset": "linux-plain"},
+    {"name": "linux-msan", "configurePreset": "linux-msan"},
     {"name": "macos-clang", "configurePreset": "macos-clang"}
   ],
   "testPresets": [

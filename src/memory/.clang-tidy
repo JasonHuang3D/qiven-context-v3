@@ -1,0 +1,7 @@
+# The memory package's own configuration, on its parent's (B26): pointer
+# arithmetic is allowed in memory alone, which places and frees blocks by
+# offset, with its own cases, fault runs and poisoning under
+# AddressSanitizer. MSVC's C26481 stays on everywhere.
+InheritParentConfig: true
+Checks: >-
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic

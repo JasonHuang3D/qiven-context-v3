@@ -6,8 +6,8 @@ option(QIVEN3_HAL "Build qiven3_hal, its fake and its cases" ON)
 option(QIVEN3_STRUCTURE "Write the records the structure tests read" OFF)
 option(QIVEN3_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
 option(QIVEN3_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)
-set(QIVEN3_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address, fuzzer,address; elsewhere address,undefined, thread or fuzzer,address,undefined")
-set_property(CACHE QIVEN3_SANITIZE PROPERTY STRINGS "" "address" "fuzzer,address" "address,undefined" "thread" "fuzzer,address,undefined")
+set(QIVEN3_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address, fuzzer,address; elsewhere address,undefined, thread, fuzzer,address,undefined or memory")
+set_property(CACHE QIVEN3_SANITIZE PROPERTY STRINGS "" "address" "fuzzer,address" "address,undefined" "thread" "fuzzer,address,undefined" "memory")
 set(QIVEN3_ANALYZE "" CACHE STRING "Static analysis in the build, MSVC's: empty, stack or analysis")
 set_property(CACHE QIVEN3_ANALYZE PROPERTY STRINGS "" "stack" "analysis")
 set(QIVEN3_COMPILER_LINE "" CACHE STRING "When set, the compiler's major.minor line, for example 19.44")
@@ -89,9 +89,14 @@ if(MSVC)
   # At /W4, C4244 and C4267, the narrowing conversions, are errors by /WX.
   set(qiven3_cxx_flags /W4 /WX /permissive- /utf-8 /Zc:__cplusplus /EHsc /GR-)
 else()
-  # No frame of v3's own code passes 4,096 bytes.
   set(qiven3_cxx_flags -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
-    -Wshadow -Wframe-larger-than=4096 -Werror -finput-charset=UTF-8 -fno-rtti)
+    -Wshadow -Werror -finput-charset=UTF-8 -fno-rtti)
+  # No frame of v3's own code passes 4,096 bytes. The bound is measured on
+  # uninstrumented builds: a sanitizer enlarges frames, so a build under one
+  # leaves the bound out, and linux-plain and macos-clang enforce it.
+  if(NOT QIVEN3_SANITIZE)
+    list(APPEND qiven3_cxx_flags -Wframe-larger-than=4096)
+  endif()
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     list(APPEND qiven3_cxx_flags -Wthread-safety)
   endif()
@@ -101,7 +106,9 @@ target_compile_options(qiven3_flags INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${qiven
 if(MSVC)
   # /RTCs fills each frame with 0xcc; MSVC has no optimized equivalent.
   target_compile_options(qiven3_flags INTERFACE "$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:/RTCs>")
-else()
+elseif(NOT QIVEN3_SANITIZE MATCHES "memory")
+  # MemorySanitizer reports a read of a byte never written; the pattern
+  # would write every automatic one first, so its build leaves the fill out.
   target_compile_options(qiven3_flags INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:-ftrivial-auto-var-init=pattern>")
 endif()
 # The linker's warnings are errors too, on the same targets. Each binary
@@ -145,6 +152,11 @@ if(QIVEN3_SANITIZE)
     add_compile_options("-fsanitize=${qiven3_sanitizers}" -fno-sanitize-recover=all
       -fno-omit-frame-pointer)
     add_link_options("-fsanitize=${qiven3_sanitizers}")
+    # MemorySanitizer's report names where the unwritten bytes came from.
+    if(QIVEN3_SANITIZE STREQUAL "memory")
+      add_compile_options(-fsanitize-memory-track-origins=2)
+      add_link_options(-fsanitize-memory-track-origins=2)
+    endif()
   endif()
   message(STATUS "qiven3: sanitizers ${QIVEN3_SANITIZE}")
 endif()

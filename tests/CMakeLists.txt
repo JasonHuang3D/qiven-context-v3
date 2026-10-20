@@ -35,7 +35,10 @@ add_subdirectory(driver)
 add_subdirectory(unit)
 
 # The AddressSanitizer runtime beside each test binary: every binary is
-# written to one directory.
+# written to one directory. The listing step runs the case binaries, so it
+# waits for the copy (below): a binary started while the DLL is being
+# written fails to load it.
+set(qiven3_runtime_files "")
 if(MSVC AND QIVEN3_SANITIZE MATCHES "address")
   get_filename_component(qiven3_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -51,6 +54,7 @@ if(MSVC AND QIVEN3_SANITIZE MATCHES "address")
     DEPENDS "${qiven3_cl_dir}/${qiven3_asan_dll}"
     VERBATIM)
   add_custom_target(qiven3_asan_runtime ALL DEPENDS "${qiven3_bin}/${qiven3_asan_dll}")
+  list(APPEND qiven3_runtime_files "${qiven3_bin}/${qiven3_asan_dll}")
 endif()
 
 # The listing step's inputs: each case binary's labels and file.
@@ -79,7 +83,7 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN3_SKIP_CODE}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake"
   DEPENDS ${qiven3_case_binaries} qiven3_runner_demo qiven3_fail_demo qiven3_free_demo
-    "${qiven3_inputs_file}"
+    ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake" ${qiven3_python_files}
   COMMENT "Listing the C++ cases and the Python tests for CTest"
   VERBATIM)
