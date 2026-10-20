@@ -89,7 +89,7 @@ Hal& hal_of(Session& s) {
 
 std::string_view view(const memory::String& text) { return std::string_view(text.data(), text.size()); }
 
-hal::Device device_of(memory::Arena& arena, const Value& value) {
+hal::Device device_of(memory::Arena& arena, ArgView value) {
     hal::Device d(arena);
     const std::string id = text(value, "id"), back_end = text(value, "back_end"), name = text(value, "name");
     d.id.assign(id.data(), id.size());
@@ -109,7 +109,7 @@ Value device_value(const hal::Device& d) {
 }
 
 template <hal::Compute C>
-typename HalState<C>::Held& held(HalState<C>& h, const Value& request, std::string_view key) {
+typename HalState<C>::Held& held(HalState<C>& h, ArgView request, std::string_view key) {
     const std::int64_t id = integer(request, key);
     const auto found = h.buffers.find(id);
     if (found == h.buffers.end()) {
@@ -119,19 +119,19 @@ typename HalState<C>::Held& held(HalState<C>& h, const Value& request, std::stri
 }
 
 template <hal::Compute C>
-Result facts(HalState<C>& h, memory::Arena& arena, const Value&) {
+Result facts(HalState<C>& h, memory::Arena& arena, ArgView) {
     hal::Facts f(arena);
     h.computes[0]->facts(f);
     Value value;
     value.set("cpu_threads", static_cast<std::int64_t>(f.cpu_threads));
-    Value vectors = Value::array();
+    Value vectors = array();
     for (const hal::Vector v : all_vectors) {
         if (f.vectors.test(static_cast<std::size_t>(v))) {
-            vectors.push(Value(std::string(hal::name(v))));
+            vectors.push(scalar(hal::name(v)));
         }
     }
     value.set("vectors", std::move(vectors));
-    Value devices = Value::array();
+    Value devices = array();
     for (const hal::Device& d : f.devices) {
         devices.push(device_value(d));
     }
@@ -140,7 +140,7 @@ Result facts(HalState<C>& h, memory::Arena& arena, const Value&) {
 }
 
 template <hal::Compute C>
-Result device(HalState<C>& h, memory::Arena& arena, const Value& request) {
+Result device(HalState<C>& h, memory::Arena& arena, ArgView request) {
     hal::Device d(arena);
     const std::optional<hal::Gap> gap = h.computes[0]->device(text(request, "capability"), d);
     Value value;
@@ -155,13 +155,13 @@ Result device(HalState<C>& h, memory::Arena& arena, const Value& request) {
 }
 
 template <hal::Compute C>
-Result allocate(HalState<C>& h, memory::Arena& arena, const Value& request) {
+Result allocate(HalState<C>& h, memory::Arena& arena, ArgView request) {
     const std::size_t from = flag(request, "other", false) ? 1 : 0;
     const hal::Device d = device_of(arena, argument(request, "device"));
     auto buffer = h.computes[from]->allocate(d, static_cast<std::uint64_t>(integer(request, "size")));
     const std::int64_t id = h.next++;
     h.buffers.emplace(id, typename HalState<C>::Held{std::move(buffer), from});
-    return Value(id);
+    return scalar(id);
 }
 
 std::span<const std::byte> bytes_of(const std::string& data) {
@@ -169,7 +169,7 @@ std::span<const std::byte> bytes_of(const std::string& data) {
 }
 
 template <hal::Compute C>
-Result upload(HalState<C>& h, memory::Arena&, const Value& request) {
+Result upload(HalState<C>& h, memory::Arena&, ArgView request) {
     const std::string data = from_hex(text(request, "data"));
     h.computes[0]->upload(held(h, request, "buffer").buffer, bytes_of(data));
     return std::nullopt;
@@ -177,7 +177,7 @@ Result upload(HalState<C>& h, memory::Arena&, const Value& request) {
 
 // "size", the span's, is the buffer's when absent.
 template <hal::Compute C>
-Result download(HalState<C>& h, memory::Arena&, const Value& request) {
+Result download(HalState<C>& h, memory::Arena&, ArgView request) {
     const auto& buffer = held(h, request, "buffer").buffer;
     const std::int64_t size = integer(request, "size", static_cast<std::int64_t>(buffer.size()));
     if (size < 0) {
@@ -185,21 +185,21 @@ Result download(HalState<C>& h, memory::Arena&, const Value& request) {
     }
     std::string out(static_cast<std::size_t>(size), '\0');
     h.computes[0]->download(buffer, std::as_writable_bytes(std::span<char>(out.data(), out.size())));
-    return Value(to_hex(out));
+    return scalar(to_hex(out));
 }
 
 template <hal::Compute C>
-Result free_buffer(HalState<C>& h, memory::Arena&, const Value& request) {
+Result free_buffer(HalState<C>& h, memory::Arena&, ArgView request) {
     held(h, request, "buffer");
     h.buffers.erase(integer(request, "buffer"));
     return std::nullopt;
 }
 
 template <hal::Compute C>
-Result run(HalState<C>& h, memory::Arena& arena, const Value& request) {
+Result run(HalState<C>& h, memory::Arena& arena, ArgView request) {
     std::vector<typename C::Buffer*> buffers;
-    if (const Value* items = request.find("buffers")) {
-        for (const Value& item : items->as_array("buffers")) {
+    if (const std::optional<ArgView> items = request.find("buffers")) {
+        for (const ArgView item : items->as_array("buffers")) {
             const std::int64_t id = item.as_integer("buffers");
             const auto found = h.buffers.find(id);
             if (found == h.buffers.end()) {
@@ -209,13 +209,13 @@ Result run(HalState<C>& h, memory::Arena& arena, const Value& request) {
         }
     }
     std::vector<std::int64_t> scalars;
-    if (const Value* items = request.find("scalars")) {
-        for (const Value& item : items->as_array("scalars")) {
+    if (const std::optional<ArgView> items = request.find("scalars")) {
+        for (const ArgView item : items->as_array("scalars")) {
             scalars.push_back(item.as_integer("scalars"));
         }
     }
     std::array<std::uint32_t, 3> grid = {1, 1, 1};
-    if (const Value* items = request.find("grid")) {
+    if (const std::optional<ArgView> items = request.find("grid")) {
         const auto& values = items->as_array("grid");
         if (values.size() != 3) {
             throw RequestError("grid: three integers");
@@ -230,11 +230,11 @@ Result run(HalState<C>& h, memory::Arena& arena, const Value& request) {
     return std::nullopt;
 }
 
-Result hal_fake(Hal& h, memory::Arena&, const Value& request) {
+Result hal_fake(Hal& h, memory::Arena&, ArgView request) {
     hal::fake::Config config = base_config();
     config.cpu_threads = static_cast<unsigned>(integer(request, "threads", 1));
-    if (const Value* vectors = request.find("vectors")) {
-        for (const Value& item : vectors->as_array("vectors")) {
+    if (const std::optional<ArgView> vectors = request.find("vectors")) {
+        for (const ArgView item : vectors->as_array("vectors")) {
             bool known = false;
             for (const hal::Vector v : all_vectors) {
                 if (hal::name(v) == item.as_string("vectors")) {
@@ -247,16 +247,16 @@ Result hal_fake(Hal& h, memory::Arena&, const Value& request) {
             }
         }
     }
-    if (const Value* devices = request.find("devices")) {
-        for (const Value& item : devices->as_array("devices")) {
+    if (const std::optional<ArgView> devices = request.find("devices")) {
+        for (const ArgView item : devices->as_array("devices")) {
             config.devices.push_back(hal::fake::FakeDevice{text(item, "id"), text(item, "back_end"),
                                                            text(item, "name"),
                                                            static_cast<std::uint64_t>(integer(item, "memory"))});
         }
     }
-    if (const Value* gaps = request.find("gaps")) {
-        for (const std::string& key : gaps->keys()) {
-            const std::string& reason = gaps->find(key)->as_string("gaps");
+    if (const std::optional<ArgView> gaps = request.find("gaps")) {
+        for (const auto& [key, member] : gaps->as_object("gaps")) {
+            const std::string reason = member.as_string("gaps");
             bool known = false;
             for (const hal::Reason r : all_reasons) {
                 if (hal::name(r) == reason) {
@@ -273,7 +273,7 @@ Result hal_fake(Hal& h, memory::Arena&, const Value& request) {
     return std::nullopt;
 }
 
-Result hal_counts(Hal& h, memory::Arena&, const Value&) {
+Result hal_counts(Hal& h, memory::Arena&, ArgView) {
     const hal::fake::Counts& c = h.computes[0]->counts();
     Value value;
     value.set("allocations", static_cast<std::int64_t>(c.allocations));
@@ -283,12 +283,12 @@ Result hal_counts(Hal& h, memory::Arena&, const Value&) {
     return value;
 }
 
-using HalOperation = Result (*)(Hal&, memory::Arena&, const Value&);
+using HalOperation = Result (*)(Hal&, memory::Arena&, ArgView);
 
 // The operation on the session's HAL, its results in an arena over the
 // HAL's pages: the members' budget, or the request's.
 template <HalOperation F>
-Result bound(Session& s, const Value& request) {
+Result bound(Session& s, ArgView request) {
     Hal& h = hal_of(s);
     const std::size_t bytes = budget(request, member_budget);
     if (h.pages.size() < bytes) {

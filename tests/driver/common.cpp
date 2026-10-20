@@ -1,6 +1,7 @@
 // The drives' common half (driver/drive.hpp): options, request helpers,
-// adapter_for and current, the HAL's table, the replies, the record of each
-// request's arena and fault, and the loop's streams.
+// the requests and replies on json, adapter_for and current, the HAL's
+// table, the replies, the record of each request's arena and fault, and
+// the loop's streams.
 //
 // The streams stay in the C runtime's text mode: a request is canonical
 // JSON, whose strings escape every control character, so no CR and no
@@ -18,6 +19,7 @@
 #include "driver/drive.hpp"
 #include "memory/memory.hpp"
 #include "platform/current.hpp"
+#include "qiven3/utf.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "hal/hal.hpp"
@@ -27,7 +29,7 @@
 namespace qiven3::drive {
 namespace {
 
-std::optional<std::string> config_of(const Value& request) {
+std::optional<std::string> config_of(ArgView request) {
     return request.find("config") ? std::optional<std::string>(text(request, "config")) : std::nullopt;
 }
 
@@ -37,19 +39,19 @@ std::optional<std::string_view> view(const std::optional<std::string>& text) {
 
 // adapter_for and current as a command's main calls them: the made
 // adapter's name.
-std::optional<Value> adapter_for(Session&, const Value& request) {
+std::optional<Value> adapter_for(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return Value(std::string(platform::adapter_for(text(request, "system"), view(config)).name()));
+    return scalar(platform::adapter_for(text(request, "system"), view(config)).name());
 #else
     platform::adapter_for(text(request, "system"), view(config));
 #endif
 }
 
-std::optional<Value> current(Session&, const Value& request) {
+std::optional<Value> current(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return Value(std::string(platform::current(view(config)).name()));
+    return scalar(platform::current(view(config)).name());
 #else
     platform::current(view(config));
 #endif
@@ -114,30 +116,180 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
     return options;
 }
 
-const Value& argument(const Value& request, std::string_view key) {
-    const Value* found = request.find(key);
-    if (found == nullptr) {
+namespace {
+
+int nibble(char c) noexcept {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
+Value open_and_closed(json::Kind kind) {
+    Value value;
+    json::Writer<std::allocator<char>> writer(value);
+    writer.open(kind);
+    writer.close();
+    return value;
+}
+
+}  // namespace
+
+void ArgView::expect(json::Kind kind, std::string_view what, const char* name) const {
+    if (this->kind() != kind) {
+        throw RequestError(std::string(what) + ": not " + name);
+    }
+}
+
+std::optional<ArgView> ArgView::find(std::string_view key) const {
+    if (kind() != json::Kind::object) {
+        return std::nullopt;
+    }
+    const std::optional<json::Index> found = value_->find(at_, key);
+    return found ? std::optional<ArgView>(ArgView(*value_, *found)) : std::nullopt;
+}
+
+bool ArgView::as_boolean(std::string_view what) const {
+    expect(json::Kind::boolean, what, "true or false");
+    return value_->boolean(at_);
+}
+
+std::int64_t ArgView::as_integer(std::string_view what) const {
+    expect(json::Kind::integer, what, "an integer");
+    return value_->integer(at_);
+}
+
+std::string ArgView::as_string(std::string_view what) const {
+    expect(json::Kind::string, what, "a string");
+    return std::string(value_->text(at_));
+}
+
+std::vector<ArgView> ArgView::as_array(std::string_view what) const {
+    expect(json::Kind::array, what, "an array");
+    std::vector<ArgView> items;
+    items.reserve(value_->count(at_));
+    for (json::Index k = at_ + 1; k < value_->next(at_); k = value_->next(k)) {
+        items.emplace_back(*value_, k);
+    }
+    return items;
+}
+
+std::vector<std::pair<std::string, ArgView>> ArgView::as_object(std::string_view what) const {
+    expect(json::Kind::object, what, "an object");
+    std::vector<std::pair<std::string, ArgView>> members;
+    members.reserve(value_->count(at_));
+    for (json::Index k = at_ + 1; k < value_->next(at_); k = value_->next(k + 1)) {
+        members.emplace_back(std::string(value_->text(k)), ArgView(*value_, k + 1));
+    }
+    return members;
+}
+
+Value parse(std::string_view line) {
+    Value request;
+    try {
+        if (const std::optional<ParseCode> fault = utf::check(line)) {
+            throw ParseError{*fault};
+        }
+        json::scan(line, json::max_depth, request);
+    } catch (const ParseError& error) {
+        throw RequestError("the request: " + std::string(qiven3::name(error.code)));
+    }
+    // What json reads and canonical JSON has not: canon's walk refuses
+    // them in the strict parser.
+    for (json::Index k = 0; k < request.size(); ++k) {
+        if (request.kind(k) == json::Kind::null) {
+            throw RequestError("the request: null");
+        }
+        if (request.kind(k) == json::Kind::string && utf::check(request.text(k))) {
+            throw RequestError("the request: a lone surrogate escape");
+        }
+    }
+    return request;
+}
+
+std::string encode(const Value& reply) {
+    std::string out;
+    json::encode(reply, out);
+    return out;
+}
+
+Value scalar(std::string_view text) {
+    Value value;
+    json::Writer<std::allocator<char>> writer(value);
+    writer.string(text);
+    return value;
+}
+
+Value scalar(std::int64_t integer) {
+    Value value;
+    json::Writer<std::allocator<char>> writer(value);
+    writer.integer(integer);
+    return value;
+}
+
+Value array() { return open_and_closed(json::Kind::array); }
+
+Value object() { return open_and_closed(json::Kind::object); }
+
+std::string to_hex(std::string_view bytes) {
+    constexpr std::string_view digits = "0123456789abcdef";
+    std::string out;
+    out.reserve(bytes.size() * 2);
+    for (const char c : bytes) {
+        const auto u = static_cast<unsigned char>(c);
+        out += digits[u >> 4U];
+        out += digits[u & 0xFU];
+    }
+    return out;
+}
+
+std::string from_hex(std::string_view hex) {
+    if (hex.size() % 2 != 0) {
+        throw RequestError("hexadecimal of an odd length");
+    }
+    std::string out;
+    out.reserve(hex.size() / 2);
+    for (std::size_t i = 0; i < hex.size(); i += 2) {
+        const int high = nibble(hex[i]);
+        const int low = nibble(hex[i + 1]);
+        if (high < 0 || low < 0) {
+            throw RequestError("a character that is no hexadecimal digit");
+        }
+        out += static_cast<char>((high << 4) | low);
+    }
+    return out;
+}
+
+ArgView argument(ArgView request, std::string_view key) {
+    const std::optional<ArgView> found = request.find(key);
+    if (!found) {
         throw RequestError("the argument '" + std::string(key) + "' is missing");
     }
     return *found;
 }
 
-std::string text(const Value& request, std::string_view key) { return argument(request, key).as_string(key); }
+std::string text(ArgView request, std::string_view key) { return argument(request, key).as_string(key); }
 
-std::int64_t integer(const Value& request, std::string_view key, std::optional<std::int64_t> fallback) {
-    const Value* found = request.find(key);
-    if (found == nullptr && fallback) {
+std::int64_t integer(ArgView request, std::string_view key, std::optional<std::int64_t> fallback) {
+    const std::optional<ArgView> found = request.find(key);
+    if (!found && fallback) {
         return *fallback;
     }
     return argument(request, key).as_integer(key);
 }
 
-bool flag(const Value& request, std::string_view key, bool fallback) {
-    const Value* found = request.find(key);
-    return found == nullptr ? fallback : found->as_boolean(key);
+bool flag(ArgView request, std::string_view key, bool fallback) {
+    const std::optional<ArgView> found = request.find(key);
+    return found ? found->as_boolean(key) : fallback;
 }
 
-platform::Seconds deadline(const Value& request, std::string_view key) {
+platform::Seconds deadline(ArgView request, std::string_view key) {
     return platform::Seconds(static_cast<double>(integer(request, key, 5000)) / 1000.0);
 }
 
@@ -154,7 +306,7 @@ const Operations& operations() {
     return table;
 }
 
-std::optional<Value> common(Session& session, const std::string& name, const Value& request) {
+std::optional<Value> common(Session& session, const std::string& name, ArgView request) {
     const auto found = operations().find(name);
     if (found == operations().end()) {
         throw RequestError(name.starts_with("hal_") && !session.options().hal_fake
@@ -168,7 +320,7 @@ Value ok_reply(std::optional<Value> result) {
     Value out;
     out.set("ok", true);
     if (result) {
-        out.set("result", std::move(*result));
+        out.set("result", *result);
     }
     return out;
 }
@@ -176,23 +328,23 @@ Value ok_reply(std::optional<Value> result) {
 Value error_reply(Value error) {
     Value reply;
     reply.set("ok", false);
-    reply.set("error", std::move(error));
+    reply.set("error", error);
     return reply;
 }
 
 Value typed(std::string_view kind, std::string_view code, std::string_view operation, std::string_view detail) {
     Value error;
-    error.set("kind", std::string(kind));
-    error.set("code", std::string(code));
-    error.set("operation", std::string(operation));
-    error.set("detail", std::string(detail));
+    error.set("kind", kind);
+    error.set("code", code);
+    error.set("operation", operation);
+    error.set("detail", detail);
     return error;
 }
 
 Value plain(std::string_view kind, std::string_view detail) {
     Value error;
-    error.set("kind", std::string(kind));
-    error.set("detail", std::string(detail));
+    error.set("kind", kind);
+    error.set("detail", detail);
     return error;
 }
 
@@ -210,16 +362,14 @@ Value caught(std::string_view name) {
 #endif
     } catch (const RequestError& error) {
         return error_reply(plain("request", error.what()));
-    } catch (const WireError& error) {
-        return error_reply(plain("request", error.what()));
     } catch (const std::exception& error) {
         return error_reply(plain("exception", std::string(name) + ": " + error.what()));
     }
 }
 
-std::size_t budget(const Value& request, std::size_t stated) {
-    const Value* given = request.find("budget");
-    if (given == nullptr) {
+std::size_t budget(ArgView request, std::size_t stated) {
+    const std::optional<ArgView> given = request.find("budget");
+    if (!given) {
         return stated;
     }
     const std::int64_t bytes = given->as_integer("budget");
@@ -229,10 +379,10 @@ std::size_t budget(const Value& request, std::size_t stated) {
     return static_cast<std::size_t>(bytes);
 }
 
-void begin(Session& session, const Value& request) {
+void begin(Session& session, ArgView request) {
     session.metered() = Metered{};
-    const Value* fault = request.find("fault");
-    if (fault == nullptr) {
+    const std::optional<ArgView> fault = request.find("fault");
+    if (!fault) {
         return;
     }
 #if defined(QIVEN3_FAULTS)
@@ -258,7 +408,7 @@ Value finish(Session& session, Value reply, std::size_t held) {
         memory.set("budget", static_cast<std::int64_t>(metered.budget));
         memory.set("peak", static_cast<std::int64_t>(metered.peak));
         memory.set("left", static_cast<std::int64_t>(metered.left));
-        reply.set("memory", std::move(memory));
+        reply.set("memory", memory);
     }
     reply.set("held", static_cast<std::int64_t>(held));
 #if defined(QIVEN3_FAULTS)
@@ -269,7 +419,7 @@ Value finish(Session& session, Value reply, std::size_t held) {
         fault.set("of", faults.armed == &faults.allocation ? "allocation" : "platform");
         fault.set("calls", static_cast<std::int64_t>(faults.armed->calls()));
         fault.set("fired", faults.armed->fired());
-        reply.set("fault", std::move(fault));
+        reply.set("fault", fault);
         faults.armed = nullptr;
     }
     faults.allocation.disarm();

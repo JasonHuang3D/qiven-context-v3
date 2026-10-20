@@ -98,7 +98,7 @@ constexpr void encode(const Basic<A>& value, S& out) {
     for (Index k = 0; k < value.size(); ++k) {
         switch (value.kind(k)) {
         case Kind::null: bytes += 4; break;
-        case Kind::boolean: bytes += value.boolean(k) ? 4 : 5; break;
+        case Kind::boolean: bytes += value.boolean(k) ? std::size_t{4} : std::size_t{5}; break;
         case Kind::integer: bytes += detail::width(value.integer(k)); break;
         case Kind::string: bytes += detail::quoted(value.text(k)); break;
         case Kind::array: bytes += value.count(k) == 0 ? 2 : value.count(k) + 1; break;
@@ -405,7 +405,8 @@ private:
         if (ahead("NaN") || ahead("Infinity")) {
             return ParseCode::constant;
         }
-        for (const std::string_view word : {std::string_view("null"), std::string_view("true"), std::string_view("false")}) {
+        constexpr std::array<std::string_view, 3> words = {"null", "true", "false"};
+        for (const std::string_view word : words) {
             if (ahead(word)) {
                 at_ += word.size();
                 node();
@@ -464,7 +465,7 @@ private:
         }
         std::int64_t v = 0;
         for (std::size_t i = first; i < last; ++i) {
-            v = v * 10 + (s_[i] - '0');
+            v = v * 10 + (static_cast<std::int64_t>(s_[i]) - std::int64_t{'0'});
         }
         if (v > max_integer) {
             return ParseCode::int_range;

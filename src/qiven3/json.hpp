@@ -87,7 +87,7 @@ public:
     using Nodes = std::vector<Node, typename std::allocator_traits<A>::template rebind_alloc<Node>>;
     using Text = std::basic_string<char, std::char_traits<char>, A>;
 
-    constexpr explicit Basic(const A& allocator = A()) : nodes_(allocator), text_(allocator) {}
+    constexpr explicit Basic(const A& allocator = A()) noexcept : nodes_(allocator), text_(allocator) {}
 
     [[nodiscard]] constexpr A allocator() const noexcept { return text_.get_allocator(); }
     [[nodiscard]] constexpr bool empty() const noexcept { return nodes_.empty(); }
@@ -250,7 +250,7 @@ private:
 template <typename A>
 class Writer {
 public:
-    constexpr explicit Writer(Basic<A>& value) : value_(value) {
+    constexpr explicit Writer(Basic<A>& value) : value_(&value) {
         if (!value.empty()) {
             memory::fail_fast("json::Writer: a value not empty");
         }
@@ -259,30 +259,30 @@ public:
     constexpr void boolean(bool b) { scalar(Node::of(Kind::boolean, b ? 1U : 0U)); }
     constexpr void integer(std::int64_t v) { scalar(Node::of_integer(v)); }
     constexpr void string(std::string_view bytes) {
-        scalar(Node::of(Kind::string, value_.put_text(bytes), bytes.size()));
+        scalar(Node::of(Kind::string, value_->put_text(bytes), bytes.size()));
     }
     // A string written in parts: begin, then bytes and code points, then
     // end, which makes its node.
-    constexpr void begin() { start_ = value_.text_.size(); }
+    constexpr void begin() { start_ = value_->text_.size(); }
     constexpr void byte(char c) {
-        if (value_.text_.size() >= max_text) {
-            too_large(max_text, 1, value_.text_.size());
+        if (value_->text_.size() >= max_text) {
+            too_large(max_text, 1, value_->text_.size());
         }
-        value_.text_.push_back(c);
+        value_->text_.push_back(c);
     }
     constexpr void point(char32_t p) {
-        if (value_.text_.size() + 4 > max_text) {
-            too_large(max_text, 4, value_.text_.size());
+        if (value_->text_.size() + 4 > max_text) {
+            too_large(max_text, 4, value_->text_.size());
         }
-        utf::append(value_.text_, p);
+        utf::append(value_->text_, p);
     }
-    constexpr void end() { scalar(Node::of(Kind::string, start_, value_.text_.size() - start_)); }
+    constexpr void end() { scalar(Node::of(Kind::string, start_, value_->text_.size() - start_)); }
     constexpr void open(Kind kind) {
         if (open_ == max_depth) {
             memory::fail_fast("json::Writer: a 17th level");
         }
         scalar(Node::of(kind));
-        starts_.at(open_) = static_cast<Index>(value_.nodes_.size() - 1);
+        starts_.at(open_) = static_cast<Index>(value_->nodes_.size() - 1);
         counts_.at(open_) = 0;
         ++open_;
     }
@@ -291,21 +291,21 @@ public:
             memory::fail_fast("json::Writer: a close with no level open");
         }
         --open_;
-        Node& n = value_.nodes_.at(starts_.at(open_));
+        Node& n = value_->nodes_.at(starts_.at(open_));
         const std::size_t children = counts_.at(open_);
-        n = Node::of(n.kind(), n.kind() == Kind::object ? children / 2 : children, value_.nodes_.size());
+        n = Node::of(n.kind(), n.kind() == Kind::object ? children / 2 : children, value_->nodes_.size());
     }
     // Another whole value as one child.
     template <typename C>
     constexpr void value(const Basic<C>& other) {
-        value_.append(other, open_);
+        value_->append(other, open_);
         counted();
     }
     [[nodiscard]] constexpr std::size_t levels() const noexcept { return open_; }
 
 private:
     constexpr void scalar(Node n) {
-        value_.put(n);
+        value_->put(n);
         counted();
     }
     constexpr void counted() {
@@ -314,7 +314,7 @@ private:
         }
     }
 
-    Basic<A>& value_;
+    Basic<A>* value_;
     std::array<Index, max_depth> starts_{};
     std::array<std::size_t, max_depth> counts_{};
     std::size_t open_ = 0;

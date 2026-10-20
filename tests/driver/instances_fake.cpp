@@ -33,36 +33,36 @@ void make(std::optional<Fake>& into, const Options& options) {
     into.emplace(std::move(config));
 }
 
-Result set_clock(Drive& d, memory::Arena&, const Value& request) {
+Result set_clock(Drive& d, memory::Arena&, ArgView request) {
     d.platform().set_clock(
         std::chrono::sys_time<std::chrono::microseconds>(std::chrono::microseconds(integer(request, "us"))));
     return std::nullopt;
 }
 
-Result set_read_error(Drive& d, memory::Arena&, const Value& request) {
+Result set_read_error(Drive& d, memory::Arena&, ArgView request) {
     d.platform().set_read_error(text(request, "path"), text(request, "detail"));
     return std::nullopt;
 }
 
-Result refuse_pages(Drive& d, memory::Arena&, const Value& request) {
+Result refuse_pages(Drive& d, memory::Arena&, ArgView request) {
     d.platform().refuse_pages(ops::count(request, "at"));
     return std::nullopt;
 }
 
-Result calls(Drive& d, memory::Arena&, const Value&) {
-    Value names = Value::array();
+Result calls(Drive& d, memory::Arena&, ArgView) {
+    Value names = array();
     for (const std::string& call : d.platform().calls()) {
-        names.push(Value(call));
+        names.push(scalar(call));
     }
     return names;
 }
 
-Result written(Drive& d, memory::Arena&, const Value&) { return Value(to_hex(d.platform().written())); }
+Result written(Drive& d, memory::Arena&, ArgView) { return scalar(to_hex(d.platform().written())); }
 
 std::size_t lent_of(const Fake& fake) { return fake.lent(); }
 
-Result lent(Drive& d, memory::Arena&, const Value&) {
-    return Value(static_cast<std::int64_t>(d.platform().lent()));
+Result lent(Drive& d, memory::Arena&, ArgView) {
+    return scalar(static_cast<std::int64_t>(d.platform().lent()));
 }
 
 }  // namespace

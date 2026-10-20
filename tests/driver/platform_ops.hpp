@@ -35,9 +35,9 @@ template <platform::Platform P>
 class PlatformDrive {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
-    using Operation = std::optional<Value> (*)(PlatformDrive&, memory::Arena&, const Value&);
+    using Operation = std::optional<Value> (*)(PlatformDrive&, memory::Arena&, ArgView);
     // The operation's stated budget for this request, in bytes.
-    using Budget = std::size_t (*)(const Value&);
+    using Budget = std::size_t (*)(ArgView);
     // Makes the adapter in place from the options.
     using Make = void (*)(std::optional<P>&, const Options&);
     // The bytes of pages the adapter has lent and not had back, where it
@@ -55,7 +55,7 @@ public:
     }
     // One request's reply, never throwing: the platform's operations, then
     // the common ones; each with "held" and its arena's record.
-    Value reply(const Value& request);
+    Value reply(ArgView request);
     // The adapter, made at the first call.
     P& platform();
     std::map<std::int64_t, Pages>& held() noexcept { return held_; }
@@ -66,7 +66,7 @@ private:
         Operation operation = nullptr;
         Budget budget = nullptr;  // null: no arena, no pages
     };
-    Value run(const Entry& entry, const Value& request);
+    Value run(const Entry& entry, ArgView request);
     std::size_t holding() const;
 
     Session& session_;

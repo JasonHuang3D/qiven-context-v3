@@ -4,7 +4,11 @@
 // alone, qiven3-drive-windows: each core instantiated for its one adapter
 // (driver/platform_ops.hpp, in its instantiation file), with the HAL's fake.
 // Each reads a request a line from its standard input and writes a reply a
-// line to its standard output (driver/wire.hpp).
+// line to its standard output, each one JSON value in canonical form
+// (qiven3/json.hpp): keys sorted, no space, integers in decimal within
+// plus or minus 2^53 - 1, no float. A request also holds no null and no
+// lone surrogate escape, as canonical JSON has none. Bytes cross as
+// lowercase hexadecimal strings.
 //
 //   qiven3-drive-fake --root DIR [--seed N] [--config DIR] [--hal fake]
 //   qiven3-drive-windows [--config DIR] [--hal fake]
@@ -41,16 +45,20 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <concepts>
 #include <map>
+#include <memory>
 #include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
-#include "driver/wire.hpp"
 #include "memory/arena.hpp"
 #include "platform/platform.hpp"
+#include "qiven3/json.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "driver/hal_ops.hpp"
@@ -126,21 +134,74 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+// A request, and a reply: json's value, on the standard allocator, since
+// the drive's own values are no operation's and stay off its arena.
+using Value = json::Basic<std::allocator<char>>;
+
+// A request, or one of its nodes: the request and an index in it, made and
+// dropped within the request's call. Each read of another kind throws
+// RequestError naming what.
+class ArgView {
+public:
+    ArgView(const Value& value, json::Index at = 0) noexcept : value_(&value), at_(at) {}
+
+    [[nodiscard]] json::Kind kind() const { return value_->kind(at_); }
+    // An object's member, or none, as for a node of another kind.
+    [[nodiscard]] std::optional<ArgView> find(std::string_view key) const;
+    [[nodiscard]] bool as_boolean(std::string_view what) const;
+    [[nodiscard]] std::int64_t as_integer(std::string_view what) const;
+    [[nodiscard]] std::string as_string(std::string_view what) const;
+    [[nodiscard]] std::vector<ArgView> as_array(std::string_view what) const;
+    // An object's members, key and value, in the request's order.
+    [[nodiscard]] std::vector<std::pair<std::string, ArgView>> as_object(std::string_view what) const;
+
+private:
+    void expect(json::Kind kind, std::string_view what, const char* name) const;
+
+    const Value* value_;
+    json::Index at_;
+};
+
+// The line read as one request: RequestError for a line that is no
+// canonical value's text, as json reads it, or that holds a null or a
+// lone surrogate escape.
+Value parse(std::string_view line);
+// A reply's canonical bytes.
+std::string encode(const Value& reply);
+
+// A reply's parts: a string, an integer or a flag alone, and an empty
+// array or object, which set and push fill.
+Value scalar(std::string_view text);
+Value scalar(std::int64_t integer);
+template <std::same_as<bool> B>
+Value scalar(B flag) {
+    Value value;
+    json::Writer<std::allocator<char>>(value).boolean(flag);
+    return value;
+}
+Value array();
+Value object();
+
+// Bytes as lowercase hexadecimal, and back: RequestError for an odd length
+// or a character that is no hexadecimal digit.
+std::string to_hex(std::string_view bytes);
+std::string from_hex(std::string_view hex);
+
 // The request's argument: RequestError when it is absent.
-const Value& argument(const Value& request, std::string_view key);
+ArgView argument(ArgView request, std::string_view key);
 // The argument as text, an integer, a flag, or its default when absent.
-std::string text(const Value& request, std::string_view key);
-std::int64_t integer(const Value& request, std::string_view key, std::optional<std::int64_t> fallback = {});
-bool flag(const Value& request, std::string_view key, bool fallback);
+std::string text(ArgView request, std::string_view key);
+std::int64_t integer(ArgView request, std::string_view key, std::optional<std::int64_t> fallback = {});
+bool flag(ArgView request, std::string_view key, bool fallback);
 // An integer argument of milliseconds, 5000 when absent, as Seconds.
-platform::Seconds deadline(const Value& request, std::string_view key);
+platform::Seconds deadline(ArgView request, std::string_view key);
 
 // The request's budget: its "budget" when given, else the stated one.
-std::size_t budget(const Value& request, std::size_t stated);
+std::size_t budget(ArgView request, std::size_t stated);
 
 // Arms the countdown the request's "fault" names, or none; RequestError
 // for a fault built without QIVEN3_FAULTS. The record is cleared.
-void begin(Session& session, const Value& request);
+void begin(Session& session, ArgView request);
 // The reply with the request's record, its fault's and `held`; every
 // countdown disarmed.
 Value finish(Session& session, Value reply, std::size_t held);
@@ -173,13 +234,13 @@ std::optional<Value> on_arena(Session& session, std::span<std::byte> pages, F&& 
 }
 
 // The common operations: adapter_for and current, and the HAL's.
-using Operation = std::optional<Value> (*)(Session&, const Value& request);
+using Operation = std::optional<Value> (*)(Session&, ArgView request);
 using Operations = std::map<std::string, Operation, std::less<>>;
 void add_hal_operations(Operations& into);  // a build with the HAL alone
 const Operations& operations();
 
 // The common operation's result; RequestError for a name none has.
-std::optional<Value> common(Session& session, const std::string& name, const Value& request);
+std::optional<Value> common(Session& session, const std::string& name, ArgView request);
 
 // The replies.
 Value ok_reply(std::optional<Value> result);
@@ -204,8 +265,9 @@ int loop(Drive& drive) {
     while (next_line(line)) {
         Value answer;
         try {
-            answer = drive.reply(parse(line));
-        } catch (const WireError& error) {
+            const Value request = parse(line);
+            answer = drive.reply(request);
+        } catch (const RequestError& error) {
             answer = error_reply(plain("request", error.what()));
         }
         send(answer);

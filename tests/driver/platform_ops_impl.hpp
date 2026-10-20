@@ -41,9 +41,9 @@ inline Value reading(const platform::Reading& r) {
     return value;
 }
 
-inline std::vector<std::string> strings(const Value& request, std::string_view key) {
+inline std::vector<std::string> strings(ArgView request, std::string_view key) {
     std::vector<std::string> out;
-    for (const Value& item : argument(request, key).as_array(key)) {
+    for (const ArgView item : argument(request, key).as_array(key)) {
         out.push_back(item.as_string(key));
     }
     return out;
@@ -73,7 +73,7 @@ inline std::string printed(std::chrono::sys_time<std::chrono::milliseconds> t) {
            std::string(1, static_cast<char>('0' + ms / 100)) + two(ms % 100) + "Z";
 }
 
-inline std::size_t count(const Value& request, std::string_view key) {
+inline std::size_t count(ArgView request, std::string_view key) {
     const std::int64_t n = integer(request, key);
     if (n < 0) {
         throw RequestError(std::string(key) + ": a count, not negative");
@@ -94,33 +94,33 @@ template <class P>
 using Drive = PlatformDrive<P>;
 
 template <class P>
-Result name(Drive<P>& d, memory::Arena&, const Value&) {
-    return Value(std::string(d.platform().name()));
+Result name(Drive<P>& d, memory::Arena&, ArgView) {
+    return scalar(d.platform().name());
 }
 
 template <class P>
-Result config_dir(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result config_dir(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().config_dir(flag(request, "create", false), out);
-    return Value(copy(out));
+    return scalar(copy(out));
 }
 
 template <class P>
-Result resolve(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result resolve(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().resolve(text(request, "path"), out);
-    return Value(copy(out));
+    return scalar(copy(out));
 }
 
 template <class P>
-Result normcase(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result normcase(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().normcase(text(request, "path"), out);
-    return Value(copy(out));
+    return scalar(copy(out));
 }
 
 template <class P>
-Result facts(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result facts(Drive<P>& d, memory::Arena& arena, ArgView request) {
     platform::Facts f(arena);
     d.platform().facts(text(request, "path"), f);
     Value value;
@@ -132,47 +132,47 @@ Result facts(Drive<P>& d, memory::Arena& arena, const Value& request) {
 }
 
 template <class P>
-Result synced(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result synced(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
-    return d.platform().synced(text(request, "path"), out) ? Result(Value(copy(out))) : std::nullopt;
+    return d.platform().synced(text(request, "path"), out) ? Result(scalar(copy(out))) : std::nullopt;
 }
 
 template <class P>
-Result replace(Drive<P>& d, memory::Arena&, const Value& request) {
+Result replace(Drive<P>& d, memory::Arena&, ArgView request) {
     d.platform().replace(text(request, "path"), from_hex(text(request, "data")), deadline(request, "deadline"));
     return std::nullopt;
 }
 
 template <class P>
-Result create(Drive<P>& d, memory::Arena&, const Value& request) {
+Result create(Drive<P>& d, memory::Arena&, ArgView request) {
     d.platform().create(text(request, "path"), flag(request, "directory", false));
     return std::nullopt;
 }
 
 template <class P>
-Result read(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result read(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().read(text(request, "path"), out);
-    return Value(to_hex(out));
+    return scalar(to_hex(out));
 }
 
 template <class P>
-Result program(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result program(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().program(text(request, "name"), out);
-    return Value(copy(out));
+    return scalar(copy(out));
 }
 
 // run's command: argv, cwd, env as [name, value] pairs, the deadline and
 // the caps ({"out": n, "err": n}, 1 MiB each when absent).
 template <class P>
-Result run(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result run(Drive<P>& d, memory::Arena& arena, ArgView request) {
     const std::vector<std::string> argv = strings(request, "argv");
     const std::vector<std::string_view> argv_views = views(argv);
     const std::string cwd = request.find("cwd") ? text(request, "cwd") : std::string();
     std::vector<std::pair<std::string, std::string>> env;
-    if (const Value* given = request.find("env")) {
-        for (const Value& pair : given->as_array("env")) {
+    if (const std::optional<ArgView> given = request.find("env")) {
+        for (const ArgView pair : given->as_array("env")) {
             const auto& two_items = pair.as_array("env");
             if (two_items.size() != 2) {
                 throw RequestError("env: each item is [name, value]");
@@ -186,7 +186,7 @@ Result run(Drive<P>& d, memory::Arena& arena, const Value& request) {
     command.cwd = cwd;
     command.env = env_views;
     command.deadline = deadline(request, "deadline");
-    const Value* caps = request.find("caps");
+    const std::optional<ArgView> caps = request.find("caps");
     const std::int64_t mib = 1 << 20;
     command.caps.out = static_cast<std::uint64_t>(caps ? integer(*caps, "out", mib) : mib);
     command.caps.err = static_cast<std::uint64_t>(caps ? integer(*caps, "err", mib) : mib);
@@ -201,16 +201,16 @@ Result run(Drive<P>& d, memory::Arena& arena, const Value& request) {
 }
 
 template <class P>
-Result code_page(Drive<P>& d, memory::Arena& arena, const Value&) {
+Result code_page(Drive<P>& d, memory::Arena& arena, ArgView) {
     memory::String out = string(arena);
     d.platform().code_page(out);
-    return Value(copy(out));
+    return scalar(copy(out));
 }
 
 // The text through stdout(): on the Windows adapter, the drive's own
 // standard output, before this request's reply.
 template <class P>
-Result standard_output(Drive<P>& d, memory::Arena&, const Value& request) {
+Result standard_output(Drive<P>& d, memory::Arena&, ArgView request) {
     const std::string utf8 = text(request, "text");
     std::cout << std::flush;
     d.platform().standard_output().write(utf8);
@@ -218,12 +218,12 @@ Result standard_output(Drive<P>& d, memory::Arena&, const Value& request) {
 }
 
 template <class P>
-Result residual(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result residual(Drive<P>& d, memory::Arena& arena, ArgView request) {
     const std::vector<std::string> paths = strings(request, "paths");
     const std::vector<std::string_view> path_views = views(paths);
     memory::Vector<platform::Row> rows{memory::Allocator<platform::Row>(arena)};
     d.platform().residual(path_views, rows);
-    Value out = Value::array();
+    Value out = array();
     for (const platform::Row& row : rows) {
         Value value;
         value.set("name", copy(row.name));
@@ -237,14 +237,14 @@ Result residual(Drive<P>& d, memory::Arena& arena, const Value& request) {
 }
 
 template <class P>
-Result random_bytes(Drive<P>& d, memory::Arena& arena, const Value& request) {
+Result random_bytes(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String bytes(count(request, "n"), '\0', memory::Allocator<char>(arena));
     d.platform().random_bytes(std::as_writable_bytes(std::span<char>(bytes)));
-    return Value(to_hex(bytes));
+    return scalar(to_hex(bytes));
 }
 
 template <class P>
-Result now(Drive<P>& d, memory::Arena&, const Value&) {
+Result now(Drive<P>& d, memory::Arena&, ArgView) {
     const auto t = d.platform().now();
     Value value;
     value.set("ms", static_cast<std::int64_t>(t.time_since_epoch().count()));
@@ -254,7 +254,7 @@ Result now(Drive<P>& d, memory::Arena&, const Value&) {
 
 // pages(n), held by its id: its size and whether each byte is zero.
 template <class P>
-Result pages(Drive<P>& d, memory::Arena&, const Value& request) {
+Result pages(Drive<P>& d, memory::Arena&, ArgView request) {
     auto taken = d.platform().pages(count(request, "n"));
     Value value = pages_value(taken);
     const std::int64_t id = d.next_id();
@@ -264,7 +264,7 @@ Result pages(Drive<P>& d, memory::Arena&, const Value& request) {
 }
 
 template <class P>
-auto& held(Drive<P>& d, const Value& request) {
+auto& held(Drive<P>& d, ArgView request) {
     const auto found = d.held().find(integer(request, "id"));
     if (found == d.held().end()) {
         throw RequestError("no pages held by that id");
@@ -273,30 +273,30 @@ auto& held(Drive<P>& d, const Value& request) {
 }
 
 template <class P>
-Result pages_check(Drive<P>& d, memory::Arena&, const Value& request) {
+Result pages_check(Drive<P>& d, memory::Arena&, ArgView request) {
     return pages_value(held(d, request).second);
 }
 
 template <class P>
-Result pages_free(Drive<P>& d, memory::Arena&, const Value& request) {
+Result pages_free(Drive<P>& d, memory::Arena&, ArgView request) {
     d.held().erase(held(d, request).first);
     return std::nullopt;
 }
 
 // The stated budgets (driver/platform_ops.hpp): a sum past the size's
 // range asks every byte, which no system lends.
-inline std::size_t member(const Value&) { return member_budget; }
+inline std::size_t member(ArgView) { return member_budget; }
 
-inline std::size_t none(const Value&) { return 0; }
+inline std::size_t none(ArgView) { return 0; }
 
 inline std::size_t sum(std::size_t a, std::size_t b) { return memory::add(a, b).value_or(SIZE_MAX); }
 
-inline std::size_t read_budget(const Value& request) {
+inline std::size_t read_budget(ArgView request) {
     return request.find("size") ? sum(member_budget, count(request, "size")) : member_budget;
 }
 
-inline std::size_t run_budget(const Value& request) {
-    const Value* caps = request.find("caps");
+inline std::size_t run_budget(ArgView request) {
+    const std::optional<ArgView> caps = request.find("caps");
     const std::int64_t mib = 1 << 20;
     const auto cap = [&](std::string_view key) {
         const std::int64_t n = caps ? integer(*caps, key, mib) : mib;
@@ -371,7 +371,7 @@ std::size_t PlatformDrive<P>::holding() const {
 // The operation as its caller runs it: pages(budget), then the operation
 // on an arena over those bytes alone; the pages go back at the end.
 template <platform::Platform P>
-Value PlatformDrive<P>::run(const Entry& entry, const Value& request) {
+Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     P& p = platform();
 #if defined(QIVEN3_FAULTS)
     Faults& faults = session_.faults();
@@ -396,7 +396,7 @@ Value PlatformDrive<P>::run(const Entry& entry, const Value& request) {
 }
 
 template <platform::Platform P>
-Value PlatformDrive<P>::reply(const Value& request) {
+Value PlatformDrive<P>::reply(ArgView request) {
     std::string op;
     Value answer;
     try {

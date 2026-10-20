@@ -100,7 +100,7 @@ class PlatformLast:
             if self.ADAPTER != "fake":
                 # Pages the system refuses. Not on the fake: under the asan
                 # build's allocator such a request ends the process.
-                error = self.failure(d.call, "pages", n=1 << 62)
+                error = self.failure(d.call, "pages", n=(1 << 53) - 1)
                 self.assert_platform_error(error, "memory")
                 return
             before = d.call("lent")
