@@ -109,6 +109,13 @@ jobs:
             || { echo "msan: the install holds no libc++.a or __config_site"; find "$prefix" -maxdepth 3; exit 1; }
           calls=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' U __msan_' || true)
           [ "$calls" -gt 0 ] || { echo "msan: libc++.a calls no __msan_ function: not instrumented"; exit 1; }
+          # libc++abi inside libc++.a defines __cxa_throw; the unwinder stays
+          # outside it, which clang's driver links from libgcc_s.
+          abi=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' T __cxa_throw$' || true)
+          unwind=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' U _Unwind_RaiseException$' || true)
+          [ "$abi" -gt 0 ] || { echo "msan: libc++.a defines no __cxa_throw: libc++abi is not inside it"; exit 1; }
+          echo "msan: the install: $(cd "$prefix" && find include/c++/v1/__config_site lib -maxdepth 1 -type f | sort | tr '\n' ' ')"
+          echo "msan: libc++.a defines __cxa_throw ($abi), references _Unwind_RaiseException ($unwind)"
           echo "msan: libc++ $LLVM_SOURCE_VERSION built under MemorySanitizer in $((SECONDS - start)) s, $calls references to its runtime"
           echo "QIVEN3_LIBCXX=$prefix" >> "$GITHUB_ENV"
 
@@ -119,16 +126,57 @@ jobs:
           echo "vm.mmap_rnd_bits was $(sysctl -n vm.mmap_rnd_bits)"
           sudo sysctl -w vm.mmap_rnd_bits=28
 
+      # On a failure, each failed probe of CMake's configure log, at most 5
+      # and 80 lines each: its check, the flags it ran under, and its compile
+      # and link lines with their output.
       - name: Configure (linux-msan)
         id: configure
-        run: cmake --preset linux-msan
+        run: |
+          status=0
+          cmake --preset linux-msan || status=$?
+          log=build/ci/CMakeFiles/CMakeConfigureLog.yaml
+          if [ "$status" -ne 0 ] && [ -f "$log" ]; then
+            awk '
+              function flush() {
+                if (failed) {
+                  if (shown < 5) {
+                    shown++; print "msan: failed probe " shown ":" check
+                    n = split(body, lines, "\n")
+                    for (i = 1; i < n && i <= 80; i++) print lines[i]
+                    if (n - 1 > 80) print "  (" n - 81 " more lines)"
+                  } else { skipped++ }
+                }
+                probe = 0; failed = 0; keep = 0; inchecks = 0; check = ""; body = ""
+              }
+              /^  -$/ || /^\.\.\.$/ { flush(); next }
+              /^    kind: "try_(compile|run)-v1"$/ { probe = 1 }
+              probe && /^    checks:$/ { inchecks = 1; next }
+              inchecks && /^      - "/ { check = check " " substr($0, 9); next }
+              { inchecks = 0 }
+              probe && /^    cmakeVariables:$/ { keep = 1 }
+              probe && /^      exitCode: [1-9-]/ { failed = 1 }
+              keep { body = body $0 "\n" }
+              END { flush(); if (skipped) print "msan: " skipped " more failed probes"; if (!shown) print "msan: the configure log holds no failed probe" }
+            ' "$log"
+          elif [ "$status" -ne 0 ]; then
+            echo "msan: configure failed before it wrote $log"
+          fi
+          exit "$status"
 
       # -k 0: every failing source shows in one run, not the first alone.
       # The build's last step runs each case binary's --list under the
-      # sanitizer.
+      # sanitizer. On a failure, the first 10 failed edges follow, each with
+      # its command and output, at most 200 lines in all.
       - name: Build every target
         id: build
-        run: cmake --build --preset linux-msan -- -k 0
+        run: |
+          status=0
+          cmake --build --preset linux-msan -- -k 0 2>&1 | tee "$RUNNER_TEMP/build.log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "msan: the build failed: $(grep -c '^FAILED: ' "$RUNNER_TEMP/build.log" || true) failed edges; the first:"
+            awk '/^FAILED: /{ edges++; on = edges <= 10 } /^\[[0-9]+\/[0-9]+\] /{ on = 0 } on' "$RUNNER_TEMP/build.log" | head -200 || true
+          fi
+          exit "$status"
 
       - name: The cases on the fakes, under MemorySanitizer
         id: fake

@@ -149,13 +149,13 @@
       "name": "linux-msan",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, clang++ 18: MemorySanitizer, a trial, against libc++ built under it",
-      "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS as well, so that CMake's own probes link against it",
+      "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS and CMAKE_EXE_LINKER_FLAGS, so that CMake's own probes compile and link against it; -stdlib=libc++ on the link line alone, since under -nostdinc++ a compile leaves it unused, which -Werror fails",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "QIVEN3_SANITIZE": "memory", "QIVEN3_SYSTEM_HEAP": "ON",
         "CMAKE_C_FLAGS": "-fsanitize=memory",
-        "CMAKE_CXX_FLAGS": "-fsanitize=memory -stdlib=libc++ -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -stdlib=libc++ -L$env{QIVEN3_LIBCXX}/lib"
       }
     },
