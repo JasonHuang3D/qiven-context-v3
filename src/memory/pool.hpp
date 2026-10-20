@@ -7,7 +7,9 @@
 // Under QIVEN3_SYSTEM_HEAP each slot is its own allocation of the system
 // heap, freed at its free, so AddressSanitizer bounds and poisons it; the
 // span still bounds the count of slots, so the counts and the budget are
-// the same as without the option.
+// the same as without the option. Without it, under AddressSanitizer, the
+// span is poisoned but for the slots held (memory/poison.hpp): each freed
+// slot, the slots not yet cut, and every heap block's header.
 //
 // Pool: thread: one. Heap: thread: shared; its mutex guards its counts, its
 // cursor and its free lists.
@@ -42,7 +44,7 @@ public:
     Pool& operator=(const Pool&) = delete;
     Pool(Pool&&) = delete;
     Pool& operator=(Pool&&) = delete;
-    ~Pool() = default;
+    ~Pool();
 
     // One slot; with every slot held, MemoryError budget and nothing
     // changed.
@@ -91,7 +93,7 @@ public:
     Heap& operator=(const Heap&) = delete;
     Heap(Heap&&) = delete;
     Heap& operator=(Heap&&) = delete;
-    ~Heap() = default;
+    ~Heap();
 
     // n bytes (one if n is 0) at a multiple of slot_align; null past the
     // budget, as SQLite's allocator gives it, nothing changed.

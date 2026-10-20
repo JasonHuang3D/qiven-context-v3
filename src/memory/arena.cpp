@@ -5,6 +5,7 @@
 #include <new>
 
 #include "memory/fail.hpp"
+#include "memory/poison.hpp"
 
 namespace qiven3::memory {
 
@@ -14,7 +15,7 @@ constexpr bool power_of_two(std::size_t n) noexcept { return n != 0 && (n & (n -
 
 }  // namespace
 
-Arena::Arena(std::span<std::byte> pages) noexcept : pages_(pages) {}
+Arena::Arena(std::span<std::byte> pages) noexcept : pages_(pages) { poison(pages_); }
 
 Arena::~Arena() {
 #if defined(QIVEN3_SYSTEM_HEAP)
@@ -22,6 +23,7 @@ Arena::~Arena() {
         ::operator delete(block.p, std::align_val_t{block.align});
     }
 #endif
+    unpoison(pages_);
 }
 
 void* Arena::allocate(std::size_t n, std::size_t align) {
@@ -49,6 +51,8 @@ void* Arena::allocate(std::size_t n, std::size_t align) {
     blocks_.reserve(blocks_.size() + 1);
     at = ::operator new(bytes, std::align_val_t{align});
     blocks_.push_back(Block{at, align});
+#else
+    unpoison(pages_.subspan(start, bytes));
 #endif
     cursor_ = start + bytes;
     used_ += bytes;
@@ -73,10 +77,17 @@ void Arena::deallocate(void* p, std::size_t n) noexcept {
     }
     fail_fast("arena: a release of a block it does not hold");
 #else
+    // A block within the span's front the cursor has passed, placed by its
+    // offset, a difference of two pointers into the span; then poisoned.
     const std::less<const void*> before;
     if (pages_.empty() || before(p, &pages_.front()) || before(&pages_.back(), p)) {
         fail_fast("arena: a release of a block it does not hold");
     }
+    const auto at = static_cast<std::size_t>(static_cast<const std::byte*>(p) - pages_.data());
+    if (at >= cursor_ || bytes > cursor_ - at) {
+        fail_fast("arena: a release of a block it does not hold");
+    }
+    poison(pages_.subspan(at, bytes));
     used_ -= bytes;
 #endif
 }

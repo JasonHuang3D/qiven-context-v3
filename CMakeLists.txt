@@ -234,9 +234,12 @@ elseif(QIVEN3_ANALYZE)
   message(FATAL_ERROR "qiven3: QIVEN3_ANALYZE is '${QIVEN3_ANALYZE}'; it is empty, stack or analysis")
 endif()
 
-# Both options change the memory package's types, so every target sees them.
+# Both options change the memory package's types, so every target sees them;
+# QIVEN3_SYSTEM_HEAP all but the targets with QIVEN3_POISONED set, memory's
+# own code and cases built a second time on the span's own blocks
+# (tests/unit/CMakeLists.txt).
 if(QIVEN3_SYSTEM_HEAP)
-  add_compile_definitions(QIVEN3_SYSTEM_HEAP)
+  add_compile_definitions($<$<NOT:$<BOOL:$<TARGET_PROPERTY:QIVEN3_POISONED>>>:QIVEN3_SYSTEM_HEAP>)
 endif()
 if(QIVEN3_FAULTS)
   add_compile_definitions(QIVEN3_FAULTS)

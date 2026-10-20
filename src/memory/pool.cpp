@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "memory/fail.hpp"
+#include "memory/poison.hpp"
 
 // A block is an offset into the span, indexed through it. A pointer given
 // back is found in constant time from its offset in the span: placed inside
@@ -60,6 +61,24 @@ struct Header {
 static_assert(sizeof(Header) == slot_align);
 constexpr std::uint32_t held = 0x48454c44U;
 constexpr std::uint32_t freed = 0x46524545U;
+
+// The header before the payload at `at`, its bytes unpoisoned for the copy
+// alone: a caller never touches a header.
+Header read_header(std::span<std::byte> pages, std::size_t at) noexcept {
+    const std::span<std::byte> bytes = pages.subspan(at - slot_align, slot_align);
+    Header header{};
+    unpoison(bytes);
+    std::memcpy(&header, bytes.data(), slot_align);
+    poison(bytes);
+    return header;
+}
+
+void write_header(std::span<std::byte> pages, std::size_t at, const Header& header) noexcept {
+    const std::span<std::byte> bytes = pages.subspan(at - slot_align, slot_align);
+    unpoison(bytes);
+    std::memcpy(bytes.data(), &header, slot_align);
+    poison(bytes);
+}
 #endif
 
 constexpr std::size_t payload(std::size_t cls) noexcept { return std::size_t{16} << cls; }
@@ -79,7 +98,11 @@ std::optional<std::size_t> class_of(std::size_t n) noexcept {
 // Pool.
 
 Pool::Pool(std::size_t slot, std::span<std::byte> pages) noexcept
-    : pages_(aligned(pages)), slot_(round_up(slot)), capacity_(pages_.size() / slot_) {}
+    : pages_(aligned(pages)), slot_(round_up(slot)), capacity_(pages_.size() / slot_) {
+    poison(pages_);
+}
+
+Pool::~Pool() { unpoison(pages_); }
 
 void* Pool::allocate() {
 #if defined(QIVEN3_FAULTS)
@@ -98,13 +121,16 @@ void* Pool::allocate() {
         ++bumped_;
     }
 #else
+    // The slot is unpoisoned before its link is read: it is handed out.
     std::size_t index = free_head_;
     if (index != no_slot) {
+        unpoison(pages_.subspan(index * slot_, slot_));
         std::memcpy(&free_head_, pages_.subspan(index * slot_, sizeof free_head_).data(),
                     sizeof free_head_);
     } else if (bumped_ < capacity_) {
         index = bumped_;
         ++bumped_;
+        unpoison(pages_.subspan(index * slot_, slot_));
     } else {
         throw MemoryError::budget("pool", capacity_ * slot_, slot_, used_);
     }
@@ -134,6 +160,7 @@ void Pool::free(void* p) noexcept {
     const std::size_t index = *at / slot_;
     std::memcpy(pages_.subspan(index * slot_, sizeof free_head_).data(), &free_head_,
                 sizeof free_head_);
+    poison(pages_.subspan(index * slot_, slot_));
     free_head_ = index;
 #endif
     used_ -= slot_;
@@ -141,7 +168,9 @@ void Pool::free(void* p) noexcept {
 
 // Heap.
 
-Heap::Heap(std::span<std::byte> pages) noexcept : pages_(aligned(pages)) {}
+Heap::Heap(std::span<std::byte> pages) noexcept : pages_(aligned(pages)) { poison(pages_); }
+
+Heap::~Heap() { unpoison(pages_); }
 
 void Heap::hold() const noexcept {
     if (!mutex_.try_lock_for(heap_wait)) {
@@ -256,18 +285,16 @@ void* Heap::take(std::size_t n) noexcept {
     }
 #else
     std::size_t at = list;
-    Header header{};
     if (at != 0) {
-        std::memcpy(&header, pages_.subspan(at - slot_align, slot_align).data(), slot_align);
-        list = header.next;
+        list = read_header(pages_, at).next;
     } else if (slot <= pages_.size() - bump_) {
         at = bump_ + slot_align;
         bump_ += slot;
     } else {
         return nullptr;
     }
-    header = Header{static_cast<std::uint32_t>(*cls), held, at};
-    std::memcpy(pages_.subspan(at - slot_align, slot_align).data(), &header, slot_align);
+    write_header(pages_, at, Header{static_cast<std::uint32_t>(*cls), held, at});
+    unpoison(pages_.subspan(at, payload(*cls)));
     void* p = &pages_[at];
 #endif
     counts_.used += slot;
@@ -284,8 +311,8 @@ void Heap::give(void* p) noexcept {
     ::operator delete(p, std::align_val_t{slot_align});
     ++free_[block.cls];
 #else
-    const Header header{static_cast<std::uint32_t>(block.cls), freed, free_[block.cls]};
-    std::memcpy(pages_.subspan(block.at - slot_align, slot_align).data(), &header, slot_align);
+    write_header(pages_, block.at, Header{static_cast<std::uint32_t>(block.cls), freed, free_[block.cls]});
+    poison(pages_.subspan(block.at, payload(block.cls)));
     free_[block.cls] = block.at;
 #endif
     counts_.used -= slot_of(block.cls);
@@ -305,8 +332,7 @@ Heap::Block Heap::find(const void* p) const noexcept {
     if (!at || *at % slot_align != 0 || *at < slot_align || *at >= bump_) {
         fail_fast("heap: a block it does not hold");
     }
-    Header header{};
-    std::memcpy(&header, pages_.subspan(*at - slot_align, slot_align).data(), slot_align);
+    const Header header = read_header(pages_, *at);
     if (header.state != held || header.cls >= heap_classes || header.next != *at) {
         fail_fast("heap: a block it does not hold");
     }

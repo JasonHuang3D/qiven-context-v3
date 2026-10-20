@@ -120,9 +120,13 @@ PENDING = {
     ("B9", "tests/runner/runner.cpp", "crtdbg.h"): "a debug build's assertion reports go to stderr",
     ("B9", "tests/", "tests/"): "the test tree's own headers (runner/, support/, driver/), "
                                 "which its sources include",
+    ("B9", "src/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning of what memory's "
+                                                         "allocators hold, sanitizer/asan_interface.h, "
+                                                         "included under the sanitizer alone",
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t, the blocks "
                                             "B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena's, and std::nothrow",
+    ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
     **subset.PENDING,
 }
 EXEMPT = {

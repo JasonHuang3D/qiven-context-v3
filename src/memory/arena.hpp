@@ -8,7 +8,10 @@
 // Under QIVEN3_SYSTEM_HEAP each block is its own allocation of the system
 // heap, returned at its release or at the arena's end, so AddressSanitizer
 // bounds and poisons it; the cursor still runs through the span, so the
-// counts and the budget are the same as without the option.
+// counts and the budget are the same as without the option. Without it,
+// under AddressSanitizer, the span is poisoned but for the blocks held
+// (memory/poison.hpp): its padding, the space past the cursor and each
+// block given back.
 //
 // thread: one
 
@@ -38,6 +41,8 @@ public:
     [[nodiscard]] void* allocate(std::size_t n, std::size_t align);
     // Gives back a block's n bytes to the count. Its bytes stay in the span
     // until the arena's end; under QIVEN3_SYSTEM_HEAP the block is freed.
+    // A pointer outside the span's front the cursor has passed, or n past
+    // it, is a broken invariant.
     void deallocate(void* p, std::size_t n) noexcept;
 
     // The bytes of the blocks held now.

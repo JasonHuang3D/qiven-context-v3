@@ -8,6 +8,7 @@ add_library(qiven3_memory STATIC
   fail.hpp
   memory.cpp
   memory.hpp
+  poison.hpp
   pool.cpp
   pool.hpp
 )

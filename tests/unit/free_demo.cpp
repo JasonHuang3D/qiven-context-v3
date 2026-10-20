@@ -4,11 +4,12 @@
 // header too), one past the last block or past the span, or a block given
 // back twice, each a broken invariant; under QIVEN3_SYSTEM_HEAP a pool's
 // slot is the system heap's, whose AddressSanitizer reports the wrong free
-// instead. asan.*: a touch of a freed block, of an arena's block after the
-// arena's end, or past a block, which AddressSanitizer reports; skipped
-// without QIVEN3_SYSTEM_HEAP, where no tool would see it. A case that ends
-// prints "not caught"; one that passes its wrong free prints "past the wrong
-// free" first.
+// instead. asan.*: a touch of a freed block, of a heap block's header, of an
+// arena's block after the arena's end, past its cursor or in its padding,
+// which AddressSanitizer reports, the blocks the system heap's under
+// QIVEN3_SYSTEM_HEAP, or poisoned in the span (memory/poison.hpp); each
+// skipped where no tool would see it. A case that ends prints "not caught";
+// one that passes its wrong free prints "past the wrong free" first.
 
 #include <array>
 #include <cstddef>
@@ -20,6 +21,7 @@
 #include <vector>
 
 #include "memory/arena.hpp"
+#include "memory/poison.hpp"
 #include "memory/pool.hpp"
 #include "runner/runner.hpp"
 
@@ -48,7 +50,15 @@ void not_caught() {
     std::cout.flush();
 }
 
-#if defined(QIVEN3_SYSTEM_HEAP)
+// Whether AddressSanitizer sees a touch of v3's blocks: on the system heap,
+// or poisoned in the span.
+#if defined(QIVEN3_SYSTEM_HEAP) || QIVEN3_POISONING
+#define QIVEN3_SEEN 1
+#else
+#define QIVEN3_SEEN 0
+#endif
+
+#if QIVEN3_SEEN
 // Reads a byte the process may no longer touch, and prints it, so the read
 // stays in the build.
 void touch(const void* p) {
@@ -57,6 +67,10 @@ void touch(const void* p) {
 #endif
 
 }  // namespace
+
+#if !QIVEN3_SEEN
+constexpr const char* unseen = "not applicable: built without QIVEN3_SYSTEM_HEAP or AddressSanitizer";
+#endif
 
 QIVEN3_CASE(free, pool_foreign) {
     const auto mine = std::make_unique<Page>();
@@ -177,7 +191,7 @@ QIVEN3_CASE(free, heap_twice) {
 }
 
 QIVEN3_CASE(asan, pool_use_after_free) {
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
     Pool pool(48, pages->bytes);
     void* p = pool.allocate();
@@ -185,12 +199,12 @@ QIVEN3_CASE(asan, pool_use_after_free) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+    QIVEN3_SKIP(unseen);
 #endif
 }
 
 QIVEN3_CASE(asan, heap_use_after_free) {
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
     void* p = heap.allocate(100);
@@ -198,7 +212,22 @@ QIVEN3_CASE(asan, heap_use_after_free) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+    QIVEN3_SKIP(unseen);
+#endif
+}
+
+QIVEN3_CASE(asan, heap_header) {
+    // The first block's header, the span's first 16 bytes, its payload after.
+#if QIVEN3_POISONING
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(100);
+    touch(&pages->bytes[8]);
+    heap.free(p);
+    not_caught();
+#else
+    QIVEN3_SKIP("not applicable: a block's header is in the span, poisoned, only under "
+                "AddressSanitizer without QIVEN3_SYSTEM_HEAP");
 #endif
 }
 
@@ -213,13 +242,14 @@ QIVEN3_CASE(asan, arena_use_after_end) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+    QIVEN3_SKIP("not applicable: the block is the system heap's only under QIVEN3_SYSTEM_HEAP; in the "
+                "span, the arena's end gives the pages back to their owner unpoisoned");
 #endif
 }
 
 QIVEN3_CASE(asan, arena_past_block) {
-    // The arena's unused span past a block.
-#if defined(QIVEN3_SYSTEM_HEAP)
+    // The arena's unused span past a block: past its cursor.
+#if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
     Arena arena(pages->bytes);
     void* p = arena.allocate(100, 16);
@@ -227,6 +257,22 @@ QIVEN3_CASE(asan, arena_past_block) {
     arena.deallocate(p, 100);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+    QIVEN3_SKIP(unseen);
+#endif
+}
+
+QIVEN3_CASE(asan, arena_padding) {
+    // The padding between a block of 100 bytes and the next at 112.
+#if QIVEN3_SEEN
+    const auto pages = std::make_unique<Page>();
+    Arena arena(pages->bytes);
+    void* p = arena.allocate(100, 16);
+    void* q = arena.allocate(16, 16);
+    touch(byte_at(p, 112, 104));
+    arena.deallocate(q, 16);
+    arena.deallocate(p, 100);
+    not_caught();
+#else
+    QIVEN3_SKIP(unseen);
 #endif
 }
