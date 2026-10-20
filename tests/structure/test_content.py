@@ -36,7 +36,7 @@ PATTERNS = {
 COMPILED = {name: re.compile(pattern) for name, pattern in PATTERNS.items()}
 # The specification's own repository and file names, built here so that this
 # file holds none.
-PRIVATE = (re.compile(re.escape("qiven" + "-docs"), re.IGNORECASE), re.compile(r"\bFORMAT-[A-Z]+\.md\b"))
+PRIVATE = (re.compile(re.escape("qiven" + "-docs"), re.IGNORECASE), re.compile(r"\bFORMAT-[A-Z]+\b"))
 STOP = " \t\r\n\"'`<>|*?;,()[]{}"
 DRIVE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]):(?:\\|/)+([^\\/" + re.escape(STOP) + r":]+)")
 POSIX = re.compile(r"(?<![A-Za-z0-9_.:/~-])/([A-Za-z])/([^\\/" + re.escape(STOP) + r":]+)")

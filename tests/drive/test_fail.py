@@ -1,6 +1,8 @@
 """fail_fast ends the process at once: qiven3_fail_demo's one case, run as a
-process, exits with std::terminate's status and writes nothing after."""
+process, exits with std::terminate's status, abort's: 3 on Windows and
+SIGABRT elsewhere, and writes nothing after."""
 
+import signal
 import sys
 import unittest
 
@@ -18,7 +20,7 @@ class FailFast(unittest.TestCase):
             # abort() under the runner's settings: no message, no dialog.
             self.assertEqual(ran.status, 3)
         else:
-            self.assertLess(ran.status, 0)
+            self.assertEqual(ran.status, -signal.SIGABRT)
         self.assertEqual(ran.out.decode("utf-8").splitlines(), ["before"])
         self.assertEqual(ran.err, b"")
 

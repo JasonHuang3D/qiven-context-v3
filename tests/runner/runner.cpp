@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <set>
@@ -164,6 +165,10 @@ int main(int argc, char** argv) {
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
 #endif
+#else
+    // fail_fast's std::terminate ends the process by abort's signal, without
+    // the line the C++ runtime's own terminate handler writes first.
+    std::set_terminate([] { std::abort(); });
 #endif
     // Unbuffered, so what a case wrote before a crash is in the log.
     std::setvbuf(stdout, nullptr, _IONBF, 0);

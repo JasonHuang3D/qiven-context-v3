@@ -283,6 +283,10 @@ void ready_streams() {
     // A caller's mistake ends the drive through fail_fast: abort's status,
     // with no message and no fault report.
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#else
+    // Off Windows the C++ runtime's own terminate handler writes a line
+    // first; this one aborts at once and writes nothing.
+    std::set_terminate([] { std::abort(); });
 #endif
 }
 

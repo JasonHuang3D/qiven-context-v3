@@ -32,20 +32,50 @@ bool holds(const std::string& text, const char* part) {
     return text.find(part) != std::string::npos;
 }
 
+// The sample cases' bodies, at namespace scope: a lambda in a case taking its
+// own qiven3_ctx would shadow the case's.
+void sample_pass(Context& qiven3_ctx) { CHECK(1 + 1 == 2); }
+
+void sample_fail_counts(Context& qiven3_ctx) {
+    CHECK(1 == 2);
+    CHECK(2 == 3);
+    CHECK(3 == 3);
+}
+
+void sample_require_stops(Context& qiven3_ctx) {
+    REQUIRE(false);
+    reached = true;
+}
+
+void sample_check_eq(Context& qiven3_ctx) { CHECK_EQ(std::string("ab"), std::string("ac")); }
+
+void sample_counted_none_held(Context& qiven3_ctx) {
+    qiven3::memory::Arena& arena = qiven3_ctx.counted.arena(4096);
+    const qiven3::memory::String text("a text past the string's own small buffer",
+                                      qiven3::memory::Allocator<char>(arena));
+    CHECK(arena.used() > 0);
+    qiven3::memory::Pool& pool = qiven3_ctx.counted.pool(32, 4096);
+    pool.free(pool.allocate());
+    qiven3::memory::Heap& heap = qiven3_ctx.counted.heap(8192);
+    heap.free(heap.allocate(100));
+}
+
+void sample_counted_held(Context& qiven3_ctx) {
+    static_cast<void>(qiven3_ctx.counted.arena(4096).allocate(24, 8));
+    static_cast<void>(qiven3_ctx.counted.pool(32, 4096).allocate());
+    static_cast<void>(qiven3_ctx.counted.arena(64));
+}
+
 }  // namespace
 
 QIVEN3_CASE(runner, pass_status) {
-    const Ran r = run([](Context& qiven3_ctx) { CHECK(1 + 1 == 2); });
+    const Ran r = run(&sample_pass);
     CHECK_EQ(r.status, qiven3::test::exit_pass);
     CHECK_EQ(r.out, std::string("PASS sample.case\n"));
 }
 
 QIVEN3_CASE(runner, fail_counts) {
-    const Ran r = run([](Context& qiven3_ctx) {
-        CHECK(1 == 2);
-        CHECK(2 == 3);
-        CHECK(3 == 3);
-    });
+    const Ran r = run(&sample_fail_counts);
     CHECK_EQ(r.status, qiven3::test::exit_fail);
     CHECK(holds(r.out, "): CHECK failed: 1 == 2\n"));
     CHECK(holds(r.out, "): CHECK failed: 2 == 3\n"));
@@ -55,10 +85,7 @@ QIVEN3_CASE(runner, fail_counts) {
 
 QIVEN3_CASE(runner, require_stops) {
     reached = false;
-    const Ran r = run([](Context& qiven3_ctx) {
-        REQUIRE(false);
-        reached = true;
-    });
+    const Ran r = run(&sample_require_stops);
     CHECK_EQ(r.status, qiven3::test::exit_fail);
     CHECK(!reached);
     CHECK(holds(r.out, "stopped by a failed REQUIRE\n"));
@@ -82,7 +109,7 @@ QIVEN3_CASE(runner, exception_fails) {
 }
 
 QIVEN3_CASE(runner, check_eq_shows) {
-    const Ran r = run([](Context& qiven3_ctx) { CHECK_EQ(std::string("ab"), std::string("ac")); });
+    const Ran r = run(&sample_check_eq);
     CHECK_EQ(r.status, qiven3::test::exit_fail);
     CHECK(holds(r.out, "): CHECK_EQ failed: std::string(\"ab\") == std::string(\"ac\")\n"));
     CHECK(holds(r.out, "  left:  ab\n  right: ac\n"));
@@ -135,26 +162,13 @@ QIVEN3_SERIAL_CASE(runner, registry_holds_self) {
 }
 
 QIVEN3_CASE(runner, counted_none_held) {
-    const Ran r = run([](Context& qiven3_ctx) {
-        qiven3::memory::Arena& arena = qiven3_ctx.counted.arena(4096);
-        const qiven3::memory::String text("a text past the string's own small buffer",
-                                          qiven3::memory::Allocator<char>(arena));
-        CHECK(arena.used() > 0);
-        qiven3::memory::Pool& pool = qiven3_ctx.counted.pool(32, 4096);
-        pool.free(pool.allocate());
-        qiven3::memory::Heap& heap = qiven3_ctx.counted.heap(8192);
-        heap.free(heap.allocate(100));
-    });
+    const Ran r = run(&sample_counted_none_held);
     CHECK_EQ(r.status, qiven3::test::exit_pass);
     CHECK_EQ(r.out, std::string("PASS sample.case\n"));
 }
 
 QIVEN3_CASE(runner, counted_held) {
-    const Ran r = run([](Context& qiven3_ctx) {
-        static_cast<void>(qiven3_ctx.counted.arena(4096).allocate(24, 8));
-        static_cast<void>(qiven3_ctx.counted.pool(32, 4096).allocate());
-        static_cast<void>(qiven3_ctx.counted.arena(64));
-    });
+    const Ran r = run(&sample_counted_held);
     CHECK_EQ(r.status, qiven3::test::exit_fail);
     CHECK_EQ(r.out, std::string("held at the case's end: arena 1, 24 bytes\n"
                                 "held at the case's end: pool 1, 32 bytes\n"
