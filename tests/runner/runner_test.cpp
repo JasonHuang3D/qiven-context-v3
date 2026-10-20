@@ -133,3 +133,30 @@ QIVEN3_SERIAL_CASE(runner, registry_holds_self) {
     }
     CHECK(found);
 }
+
+QIVEN3_CASE(runner, counted_none_held) {
+    const Ran r = run([](Context& qiven3_ctx) {
+        qiven3::memory::Arena& arena = qiven3_ctx.counted.arena(4096);
+        const qiven3::memory::String text("a text past the string's own small buffer",
+                                          qiven3::memory::Allocator<char>(arena));
+        CHECK(arena.used() > 0);
+        qiven3::memory::Pool& pool = qiven3_ctx.counted.pool(32, 4096);
+        pool.free(pool.allocate());
+        qiven3::memory::Heap& heap = qiven3_ctx.counted.heap(8192);
+        heap.free(heap.allocate(100));
+    });
+    CHECK_EQ(r.status, qiven3::test::exit_pass);
+    CHECK_EQ(r.out, std::string("PASS sample.case\n"));
+}
+
+QIVEN3_CASE(runner, counted_held) {
+    const Ran r = run([](Context& qiven3_ctx) {
+        static_cast<void>(qiven3_ctx.counted.arena(4096).allocate(24, 8));
+        static_cast<void>(qiven3_ctx.counted.pool(32, 4096).allocate());
+        static_cast<void>(qiven3_ctx.counted.arena(64));
+    });
+    CHECK_EQ(r.status, qiven3::test::exit_fail);
+    CHECK_EQ(r.out, std::string("held at the case's end: arena 1, 24 bytes\n"
+                                "held at the case's end: pool 1, 32 bytes\n"
+                                "FAIL sample.case: 2 failed\n"));
+}

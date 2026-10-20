@@ -19,7 +19,7 @@ if(WIN32)
   )
   target_compile_definitions(qiven3_platform_win PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
   target_link_libraries(qiven3_platform_win
-    PUBLIC qiven3_platform
+    PUBLIC qiven3_platform qiven3_memory
     PRIVATE qiven3_flags kernel32 shell32 ole32 bcrypt)
 endif()
 
@@ -29,7 +29,7 @@ add_library(qiven3_platform_current STATIC
   current.cpp
   current.hpp
 )
-target_link_libraries(qiven3_platform_current PUBLIC qiven3_platform PRIVATE qiven3_flags)
+target_link_libraries(qiven3_platform_current PUBLIC qiven3_platform qiven3_memory PRIVATE qiven3_flags)
 if(WIN32)
   target_link_libraries(qiven3_platform_current PUBLIC qiven3_platform_win)
 endif()

@@ -1,5 +1,11 @@
 // The drives' common half (driver/drive.hpp): options, request helpers,
-// adapter_for and current, the HAL's table, the replies and the loop.
+// adapter_for and current, the HAL's table, the replies, the record of each
+// request's arena and fault, and the loop's streams.
+//
+// The streams stay in the C runtime's text mode: a request is canonical
+// JSON, whose strings escape every control character, so no CR and no
+// 0x1A comes raw, and a reply's line ending CRLF on Windows is JSON's
+// whitespace to its reader.
 
 #include <cstdio>
 #include <cstdlib>
@@ -17,10 +23,6 @@
 #include "hal/hal.hpp"
 #endif
 
-#if defined(_WIN32)
-#include <fcntl.h>
-#include <io.h>
-#endif
 
 namespace qiven3::drive {
 namespace {
@@ -210,29 +212,85 @@ Value caught(std::string_view name) {
     }
 }
 
-int loop(const std::function<Value(const Value&)>& reply) {
+std::size_t budget(const Value& request, std::size_t stated) {
+    const Value* given = request.find("budget");
+    if (given == nullptr) {
+        return stated;
+    }
+    const std::int64_t bytes = given->as_integer("budget");
+    if (bytes < 0) {
+        throw RequestError("budget: a count of bytes, not negative");
+    }
+    return static_cast<std::size_t>(bytes);
+}
+
+void begin(Session& session, const Value& request) {
+    session.metered() = Metered{};
+    const Value* fault = request.find("fault");
+    if (fault == nullptr) {
+        return;
+    }
+#if defined(QIVEN3_FAULTS)
+    const std::int64_t k = integer(*fault, "k");
+    const std::string of = text(*fault, "of");
+    Faults& faults = session.faults();
+    if (k < 0 || (of != "allocation" && of != "platform")) {
+        throw RequestError("fault: {\"k\": K, not negative, \"of\": \"allocation\" or \"platform\"}");
+    }
+    faults.armed = of == "allocation" ? &faults.allocation : &faults.platform;
+    faults.k = static_cast<std::size_t>(k);
+    faults.armed->arm(faults.k);
+#else
+    (void)session;
+    throw RequestError("not applicable: built without QIVEN3_FAULTS, so no fault");
+#endif
+}
+
+Value finish(Session& session, Value reply, std::size_t held) {
+    const Metered& metered = session.metered();
+    if (metered.counted) {
+        Value memory;
+        memory.set("budget", static_cast<std::int64_t>(metered.budget));
+        memory.set("peak", static_cast<std::int64_t>(metered.peak));
+        memory.set("left", static_cast<std::int64_t>(metered.left));
+        reply.set("memory", std::move(memory));
+    }
+    reply.set("held", static_cast<std::int64_t>(held));
+#if defined(QIVEN3_FAULTS)
+    Faults& faults = session.faults();
+    if (faults.armed != nullptr) {
+        Value fault;
+        fault.set("k", static_cast<std::int64_t>(faults.k));
+        fault.set("of", faults.armed == &faults.allocation ? "allocation" : "platform");
+        fault.set("calls", static_cast<std::int64_t>(faults.armed->calls()));
+        fault.set("fired", faults.armed->fired());
+        reply.set("fault", std::move(fault));
+        faults.armed = nullptr;
+    }
+    faults.allocation.disarm();
+    faults.platform.disarm();
+#endif
+    return reply;
+}
+
+void ready_streams() {
 #if defined(_WIN32)
     // A caller's mistake ends the drive through fail_fast: abort's status,
     // with no message and no fault report.
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-    // Bytes as they are: no CRLF for LF, no end of input at 0x1A.
-    _setmode(_fileno(stdin), _O_BINARY);
-    _setmode(_fileno(stdout), _O_BINARY);
 #endif
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        Value answer;
-        try {
-            answer = reply(parse(line));
-        } catch (const WireError& error) {
-            answer = error_reply(plain("request", error.what()));
-        }
-        std::cout << encode(answer) << '\n' << std::flush;
-    }
-    return 0;
 }
+
+bool next_line(std::string& line) {
+    if (!std::getline(std::cin, line)) {
+        return false;
+    }
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+    return true;
+}
+
+void send(const Value& reply) { std::cout << encode(reply) << '\n' << std::flush; }
 
 }  // namespace qiven3::drive

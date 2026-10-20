@@ -32,5 +32,5 @@ int main(int argc, char** argv) {
     }
     Session session(*options);
     PlatformDrive<qiven3::platform::Current> drive(session, make);
-    return loop([&drive](const Value& request) { return drive.reply(request); });
+    return loop(drive);
 }

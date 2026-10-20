@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <span>
 #include <string>
@@ -282,33 +283,65 @@ Result pages_free(Drive<P>& d, memory::Arena&, const Value& request) {
     return std::nullopt;
 }
 
+// The stated budgets (driver/platform_ops.hpp): a sum past the size's
+// range asks every byte, which no system lends.
+inline std::size_t member(const Value&) { return member_budget; }
+
+inline std::size_t none(const Value&) { return 0; }
+
+inline std::size_t sum(std::size_t a, std::size_t b) { return memory::add(a, b).value_or(SIZE_MAX); }
+
+inline std::size_t read_budget(const Value& request) {
+    return request.find("size") ? sum(member_budget, count(request, "size")) : member_budget;
+}
+
+inline std::size_t run_budget(const Value& request) {
+    const Value* caps = request.find("caps");
+    const std::int64_t mib = 1 << 20;
+    const auto cap = [&](std::string_view key) {
+        const std::int64_t n = caps ? integer(*caps, key, mib) : mib;
+        if (n < 0) {
+            throw RequestError(std::string(key) + ": a cap, not negative");
+        }
+        return static_cast<std::size_t>(n);
+    };
+    return sum(member_budget, sum(cap("out"), cap("err")));
+}
+
+#if defined(QIVEN3_FAULTS)
+// The adapter's fault points, which the fake alone has.
+template <class P>
+concept Faulted = requires(P& p, memory::Countdown* countdown) { p.attach(countdown); };
+#endif
+
 }  // namespace ops
 
 template <platform::Platform P>
-PlatformDrive<P>::PlatformDrive(Session& session, Make make) : session_(session), make_(make) {
-    const std::pair<const char*, Operation> table[] = {
-        {"name", ops::name<P>},
-        {"config_dir", ops::config_dir<P>},
-        {"resolve", ops::resolve<P>},
-        {"normcase", ops::normcase<P>},
-        {"facts", ops::facts<P>},
-        {"synced", ops::synced<P>},
-        {"replace", ops::replace<P>},
-        {"create", ops::create<P>},
-        {"read", ops::read<P>},
-        {"program", ops::program<P>},
-        {"run", ops::run<P>},
-        {"code_page", ops::code_page<P>},
-        {"stdout", ops::standard_output<P>},
-        {"residual", ops::residual<P>},
-        {"random_bytes", ops::random_bytes<P>},
-        {"now", ops::now<P>},
-        {"pages", ops::pages<P>},
-        {"pages_check", ops::pages_check<P>},
-        {"pages_free", ops::pages_free<P>},
+PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
+    : session_(session), make_(make), lent_(lent) {
+    const std::pair<const char*, Entry> table[] = {
+        {"name", {ops::name<P>, ops::member}},
+        {"config_dir", {ops::config_dir<P>, ops::member}},
+        {"resolve", {ops::resolve<P>, ops::member}},
+        {"normcase", {ops::normcase<P>, ops::member}},
+        {"facts", {ops::facts<P>, ops::member}},
+        {"synced", {ops::synced<P>, ops::member}},
+        {"replace", {ops::replace<P>, ops::member}},
+        {"create", {ops::create<P>, ops::member}},
+        {"read", {ops::read<P>, ops::read_budget}},
+        {"program", {ops::program<P>, ops::member}},
+        {"run", {ops::run<P>, ops::run_budget}},
+        {"code_page", {ops::code_page<P>, ops::member}},
+        {"stdout", {ops::standard_output<P>, ops::member}},
+        {"residual", {ops::residual<P>, ops::member}},
+        {"random_bytes", {ops::random_bytes<P>, ops::member}},
+        {"now", {ops::now<P>, ops::member}},
+        {"pages", {ops::pages<P>, ops::none}},
+        {"pages_check", {ops::pages_check<P>, ops::none}},
+        {"pages_free", {ops::pages_free<P>, ops::none}},
     };
-    for (const auto& [key, operation] : table) {
-        table_.emplace(key, operation);
+    for (const auto& [key, entry] : table) {
+        table_.emplace(key, entry);
     }
 }
 
@@ -321,23 +354,67 @@ P& PlatformDrive<P>::platform() {
 }
 
 template <platform::Platform P>
+std::size_t PlatformDrive<P>::holding() const {
+    if (!platform_) {
+        return 0;
+    }
+    if (lent_ != nullptr) {
+        return lent_(*platform_);
+    }
+    std::size_t bytes = 0;
+    for (const auto& [id, pages] : held_) {
+        bytes += pages.bytes().size();
+    }
+    return bytes;
+}
+
+// The operation as its caller runs it: pages(budget), then the operation
+// on an arena over those bytes alone; the pages go back at the end.
+template <platform::Platform P>
+Value PlatformDrive<P>::run(const Entry& entry, const Value& request) {
+    P& p = platform();
+#if defined(QIVEN3_FAULTS)
+    Faults& faults = session_.faults();
+    if constexpr (ops::Faulted<P>) {
+        p.attach(&faults.platform);
+    } else if (faults.armed == &faults.platform) {
+        throw RequestError("not applicable: this adapter has no fault points; the fake's calls fail in turn");
+    }
+#endif
+    if (entry.budget == nullptr) {
+        memory::Arena none{std::span<std::byte>{}};
+        return ok_reply(entry.operation(*this, none, request));
+    }
+    const std::size_t bytes = budget(request, entry.budget(request));
+    std::optional<Pages> pages;
+    if (bytes > 0) {
+        pages.emplace(p.pages(bytes));
+    }
+    const std::span<std::byte> span = pages ? pages->bytes().first(bytes) : std::span<std::byte>{};
+    return ok_reply(on_arena(session_, span,
+                             [&](memory::Arena& arena) { return entry.operation(*this, arena, request); }));
+}
+
+template <platform::Platform P>
 Value PlatformDrive<P>::reply(const Value& request) {
     std::string op;
+    Value answer;
     try {
         op = text(request, "op");
+        begin(session_, request);
         const auto found = table_.find(op);
-        if (found == table_.end()) {
-            return ok_reply(common(session_, op, request));
-        }
-        P& p = platform();
-        if (!pages_) {
-            pages_.emplace(p.pages(result_bytes));
-        }
-        memory::Arena arena(pages_->bytes());
-        return ok_reply(found->second(*this, arena, request));
+        answer = found == table_.end() ? ok_reply(common(session_, op, request)) : run(found->second, request);
     } catch (...) {
-        return caught(op);
+        answer = caught(op);
     }
+#if defined(QIVEN3_FAULTS)
+    if constexpr (ops::Faulted<P>) {
+        if (platform_) {
+            platform_->attach(nullptr);
+        }
+    }
+#endif
+    return finish(session_, std::move(answer), holding());
 }
 
 }  // namespace qiven3::drive

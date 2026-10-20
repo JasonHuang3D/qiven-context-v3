@@ -5,7 +5,8 @@ mixes these into a TestCase with its adapter: ADAPTER, the name it gives;
 DRIVE, the drive's binary; TAGS, what it has of files, processes and
 machine; drive_args(config, seed), the drive's arguments for it;
 default_config(), where its configuration location lies with no override;
-and files_root(), a directory its files' operations may write under. A
+files_root(), a directory its files' operations may write under; and
+COUNT_HANDLES, whether each drive's handle count is compared. A
 case needing a tag the adapter lacks is not applicable, a skip with the
 reason.
 
@@ -26,6 +27,9 @@ class PlatformBinding:
     ADAPTER = None
     DRIVE = FAKE
     TAGS = frozenset()
+    # Whether the drive's handles are counted before and after (the
+    # machine cases).
+    COUNT_HANDLES = False
 
     def setUp(self):
         super().setUp()
@@ -38,7 +42,8 @@ class PlatformBinding:
             self.skipTest(f"not applicable: {', '.join(lacking)}: the {self.ADAPTER} adapter lacks it")
 
     def drive(self, config=None, seed=None, env=None, cwd=None):
-        return Drive(*self.drive_args(config, seed), drive=self.DRIVE, env=env, cwd=cwd)
+        return Drive(*self.drive_args(config, seed), drive=self.DRIVE, env=env, cwd=cwd,
+                     count_handles=self.COUNT_HANDLES)
 
     def drive_args(self, config=None, seed=None):
         raise NotImplementedError

@@ -1,6 +1,6 @@
 // qiven3_runner_demo: one case per route of the runner, for
 // tests/drive/test_runner.py to run as processes. CTest never runs these
-// cases themselves: two of them fail and one crashes by design.
+// cases themselves: four of them fail and one crashes by design.
 
 #include <stdexcept>
 
@@ -37,4 +37,10 @@ QIVEN3_CASE(demo, crash) {
 
 QIVEN3_SERIAL_CASE(demo, serial) {
     CHECK(true);
+}
+
+// A block of a counted arena never given back: the count after the case
+// fails it.
+QIVEN3_CASE(demo, held) {
+    static_cast<void>(qiven3_ctx.counted.arena(4096).allocate(16, 8));
 }

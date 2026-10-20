@@ -103,5 +103,5 @@ class HalCases:
         else:
             self.assertEqual(ran.status, -signal.SIGABRT, ran)
         replies = [json.loads(line) for line in ran.out.splitlines()]
-        self.assertEqual(replies, [{"ok": True}, {"ok": True, "result": 1}])
+        self.assertEqual([(r["ok"], r.get("result")) for r in replies], [(True, None), (True, 1)])
         self.assertEqual(ran.err, b"")

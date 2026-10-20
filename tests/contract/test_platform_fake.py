@@ -10,6 +10,7 @@ import unittest
 
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_last import PlatformLast
+from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import FAKE
 
@@ -39,7 +40,7 @@ class FakeBinding(PlatformBinding):
         return self.root()
 
 
-class Fake(FakeBinding, PlatformCases, PlatformRest, PlatformLast, unittest.TestCase):
+class Fake(FakeBinding, PlatformCases, PlatformRest, PlatformLast, PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 

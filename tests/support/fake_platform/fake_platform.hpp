@@ -7,7 +7,8 @@
 // config_dir(true), which makes its configuration directory. Its pages are
 // the standard library's, aligned to 4,096 bytes and zeroed; its normcase
 // folds ASCII letters alone. It reads no registry and starts no process.
-// Each operation called is kept in its record, in order.
+// Each operation called is kept in its record, in order; under
+// QIVEN3_FAULTS each is a fault point (attach).
 //
 // replace, stage and lock come with the platform's files module, whose
 // hooks the fake's busy counts drive; until then each is PlatformError
@@ -223,6 +224,12 @@ public:
     [[nodiscard]] const std::string& written() const noexcept { return output_.bytes(); }
     // The bytes of the pages lent and not yet given back.
     [[nodiscard]] std::size_t lent() const noexcept { return lent_; }
+#if defined(QIVEN3_FAULTS)
+    // Each call but wipe, noexcept by the contract, asks the countdown
+    // first and, when it fires, fails as io, pages as memory; null
+    // detaches it.
+    void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+#endif
 
 private:
     friend class FakePages;
@@ -238,6 +245,9 @@ private:
     std::size_t lent_ = 0;
     std::size_t pages_calls_ = 0;
     std::size_t refuse_at_ = 0;
+#if defined(QIVEN3_FAULTS)
+    memory::Countdown* countdown_ = nullptr;
+#endif
 };
 
 static_assert(Pages<FakePages> && Sink<FakeSink> && Staged<FakeStaged> && Lock<FakeLock> && Child<FakeChild>);

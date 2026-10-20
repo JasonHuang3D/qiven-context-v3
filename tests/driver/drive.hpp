@@ -17,6 +17,18 @@
 // "exception" for any other exception, with its "detail". The drive goes
 // on after each.
 //
+// Each reply also gives "held", the bytes of the platform's pages the
+// drive holds after the request (the fake's count of pages lent and not
+// given back), and, for a request run on an arena, "memory": its "budget",
+// its "peak" and "left", the bytes the arena still held once the
+// operation's values were gone, 0 unless a value leaked. A request's
+// "budget" replaces the operation's stated one, so a case can plant one a
+// byte short. Under QIVEN3_FAULTS a request's "fault", {"k": K, "of":
+// "allocation" or "platform"}, fails the operation's K-th allocation on
+// its arena or its K-th call of the fake platform, K 0 failing none; the
+// reply's "fault" gives the calls counted and whether the K-th came.
+// Built without it, "fault" is refused, "not applicable:".
+//
 // The adapter is made at its first platform operation, so an adapter that
 // cannot be made is a reply. --config overrides the configuration
 // location; the fake's is otherwise "<root>/qiven3". --hal fake is refused
@@ -27,15 +39,17 @@
 // request helpers, adapter_for and current as a command's main calls them,
 // and the HAL's operations.
 
+#include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 
 #include "driver/wire.hpp"
+#include "memory/arena.hpp"
 #include "platform/platform.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
@@ -54,8 +68,29 @@ struct Options {
 // and --seed, which the Windows drive refuses.
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why);
 
-// The state the drive's common operations keep: its options and, in a
-// build with the HAL, the HAL's.
+// The stated budget of each operation of the platform's and the HAL's
+// members, host side; read adds the file's size, run its caps.
+inline constexpr std::size_t member_budget = std::size_t{64} << 10;
+
+// One request's arena: its budget, its peak and the bytes it still held
+// once the operation's values were gone. None for a request on no arena.
+struct Metered {
+    bool counted = false;
+    std::size_t budget = 0, peak = 0, left = 0;
+};
+
+#if defined(QIVEN3_FAULTS)
+// The countdowns a request's "fault" arms: its arena's allocations, or the
+// fake platform's calls. thread: one.
+struct Faults {
+    memory::Countdown allocation, platform;
+    memory::Countdown* armed = nullptr;
+    std::size_t k = 0;
+};
+#endif
+
+// The state the drive's common operations keep: its options, the request's
+// record and, in a build with the HAL, the HAL's.
 class Session {
 public:
     explicit Session(Options options) : options_(std::move(options)) {}
@@ -64,12 +99,20 @@ public:
     ~Session() = default;
 
     const Options& options() const noexcept { return options_; }
+    Metered& metered() noexcept { return metered_; }
+#if defined(QIVEN3_FAULTS)
+    Faults& faults() noexcept { return faults_; }
+#endif
 #if defined(QIVEN3_DRIVE_HAL)
     Hal& hal() noexcept { return hal_; }
 #endif
 
 private:
     Options options_;
+    Metered metered_;
+#if defined(QIVEN3_FAULTS)
+    Faults faults_;
+#endif
 #if defined(QIVEN3_DRIVE_HAL)
     Hal hal_;
 #endif
@@ -90,6 +133,43 @@ bool flag(const Value& request, std::string_view key, bool fallback);
 // An integer argument of milliseconds, 5000 when absent, as Seconds.
 platform::Seconds deadline(const Value& request, std::string_view key);
 
+// The request's budget: its "budget" when given, else the stated one.
+std::size_t budget(const Value& request, std::size_t stated);
+
+// Arms the countdown the request's "fault" names, or none; RequestError
+// for a fault built without QIVEN3_FAULTS. The record is cleared.
+void begin(Session& session, const Value& request);
+// The reply with the request's record, its fault's and `held`; every
+// countdown disarmed.
+Value finish(Session& session, Value reply, std::size_t held);
+
+// f(arena) on an arena over `pages`, the operation's budget: the arena's
+// peak and what it held after f's values were gone go to the session's
+// record, whether f returns or throws. Under QIVEN3_FAULTS the arena asks
+// the allocation countdown.
+template <class F>
+std::optional<Value> on_arena(Session& session, std::span<std::byte> pages, F&& f) {
+    memory::Arena arena(pages);
+#if defined(QIVEN3_FAULTS)
+    arena.attach(&session.faults().allocation);
+#endif
+    struct Note {
+        Note(Metered& m, memory::Arena& a) noexcept : metered(m), arena(a) {}
+        Note(const Note&) = delete;
+        Note& operator=(const Note&) = delete;
+        ~Note() {
+            metered.counted = true;
+            metered.budget = arena.budget();
+            metered.peak = arena.peak();
+            metered.left = arena.used();
+        }
+        Metered& metered;
+        memory::Arena& arena;
+    };
+    const Note note{session.metered(), arena};
+    return f(arena);
+}
+
 // The common operations: adapter_for and current, and the HAL's.
 using Operation = std::optional<Value> (*)(Session&, const Value& request);
 using Operations = std::map<std::string, Operation, std::less<>>;
@@ -107,8 +187,28 @@ Value plain(std::string_view kind, std::string_view detail);
 // The reply to the exception in flight, the operation `name`'s.
 Value caught(std::string_view name);
 
+// The request loop's halves: the streams made ready, once; the next line
+// of standard input, false at its end; a reply written as a line.
+void ready_streams();
+bool next_line(std::string& line);
+void send(const Value& reply);
+
 // The request loop over standard input and output, each line answered by
-// `reply`; the process's exit status.
-int loop(const std::function<Value(const Value&)>& reply);
+// drive.reply(request); the process's exit status.
+template <class Drive>
+int loop(Drive& drive) {
+    ready_streams();
+    std::string line;
+    while (next_line(line)) {
+        Value answer;
+        try {
+            answer = drive.reply(parse(line));
+        } catch (const WireError& error) {
+            answer = error_reply(plain("request", error.what()));
+        }
+        send(answer);
+    }
+    return 0;
+}
 
 }  // namespace qiven3::drive

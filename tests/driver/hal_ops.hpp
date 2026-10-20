@@ -18,10 +18,6 @@
 
 namespace qiven3::drive {
 
-// The bytes of the arena each HAL request's results take: the budget of
-// the HAL's members, host side.
-inline constexpr std::size_t hal_result_bytes = std::size_t{64} << 10;
-
 template <hal::Compute C>
 struct HalState {
     using Buffer = typename C::Buffer;
@@ -36,7 +32,7 @@ struct HalState {
     // Declared after the computes, so ended before them.
     std::map<std::int64_t, Held> buffers;
     std::int64_t next = 1;
-    std::vector<std::byte> pages;  // the results' arena's, taken at the first request
+    std::vector<std::byte> pages;  // the results' arena's, the members' budget at the first request
 };
 
 using Hal = HalState<hal::fake::FakeCompute>;

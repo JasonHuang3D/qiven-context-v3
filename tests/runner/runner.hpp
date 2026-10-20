@@ -1,16 +1,25 @@
 #pragma once
 
-// qiven3_runner: the test runner, on the standard library alone. A case is
-// registered by QIVEN3_CASE(group, name) as "group.name"; a case binary
+// qiven3_runner: the test runner, on the standard library and v3's memory.
+// A case is registered by QIVEN3_CASE(group, name) as "group.name"; a case binary
 // lists its cases with --list and runs one with --run NAME, the case's
-// result its exit status. Each case is its own CTest test.
+// result its exit status. Each case is its own CTest test. A case takes
+// v3's allocators from its context, qiven3_ctx.counted, which counts them
+// after it (Counted).
 
+#include <array>
+#include <cstddef>
+#include <deque>
+#include <optional>
 #include <ostream>
 #include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "memory/arena.hpp"
+#include "memory/pool.hpp"
 
 namespace qiven3::test {
 
@@ -22,10 +31,47 @@ inline constexpr int exit_usage = 2;
 // as skipped through SKIP_RETURN_CODE; the Python side gives the same code.
 inline constexpr int exit_skip = 125;
 
-// What a running case reports to: its failed checks, written as they fail.
+// The count after each case: the allocators a case takes from its context
+// outlive the case, and once it has ended, its values gone, each must hold
+// nothing, used() 0, or the case fails, each one holding bytes named with
+// its count. Each is over pages of its own, 4,096-byte aligned and zeroed,
+// as many bytes as asked.
+class Counted {
+public:
+    Counted() = default;
+    Counted(const Counted&) = delete;
+    Counted& operator=(const Counted&) = delete;
+    ~Counted() = default;
+
+    memory::Arena& arena(std::size_t bytes);
+    memory::Pool& pool(std::size_t slot, std::size_t bytes);
+    memory::Heap& heap(std::size_t bytes);
+    // A line to out for each allocator holding bytes; how many do.
+    int holding(std::ostream& out) const;
+
+private:
+    struct alignas(4096) Page {
+        std::array<std::byte, 4096> bytes{};
+    };
+    template <class A>
+    struct Owned {
+        explicit Owned(std::size_t bytes) : size(bytes), pages((bytes + sizeof(Page) - 1) / sizeof(Page)) {}
+        std::span<std::byte> span() { return std::as_writable_bytes(std::span<Page>(pages)).first(size); }
+        std::size_t size;
+        std::vector<Page> pages;
+        std::optional<A> allocator;  // ended before its pages
+    };
+    std::deque<Owned<memory::Arena>> arenas_;
+    std::deque<Owned<memory::Pool>> pools_;
+    std::deque<Owned<memory::Heap>> heaps_;
+};
+
+// What a running case reports to: its failed checks, written as they fail,
+// and the allocators it counts.
 struct Context {
     std::ostream& out;
     int failures = 0;
+    Counted counted{};
 };
 
 using CaseFn = void (*)(Context&);
@@ -82,8 +128,9 @@ bool check_eq(Context& ctx, const A& a, const B& b, const char* expr, const char
 }
 
 // Runs one case and gives its exit status: exit_pass, exit_fail or
-// exit_skip. An exception the case lets out is a failure; a crash is not
-// caught, so the status is the system's.
+// exit_skip. An exception the case lets out is a failure, as is an
+// allocator of its context holding bytes after it; a crash is not caught,
+// so the status is the system's.
 int run_case(const Case& c, std::ostream& out);
 
 // The runner's command line, with the binary's name dropped:

@@ -6,6 +6,7 @@ it needs machine). P19 to P22 and P25 come with the platform's files,
 facts and processes.
 """
 
+import json
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -74,4 +75,7 @@ class PlatformRestMachine:
         self.needs("machine")
         ran = once(self.drive_args(), {"op": "stdout", "text": CODE_PAGE_TEXT}, drive=self.DRIVE)
         self.assertEqual(ran.status, 0, ran.err)
-        self.assertEqual(ran.out, CODE_PAGE_BYTES + b'{"ok":true}\n')
+        self.assertEqual(ran.out[:len(CODE_PAGE_BYTES)], CODE_PAGE_BYTES)
+        reply = ran.out[len(CODE_PAGE_BYTES):]
+        self.assertEqual(len(reply.splitlines()), 1, reply)
+        self.assertTrue(json.loads(reply)["ok"], reply)

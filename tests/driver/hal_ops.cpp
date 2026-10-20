@@ -16,8 +16,9 @@
 //   add_i64: three buffers of int64 in the host's order, out = a + b.
 //
 // Each request's devices and facts are written into an arena over the HAL
-// state's own pages, and leave it as the reply's text before the arena
-// ends.
+// state's own pages, the members' budget of 64 KiB unless the request
+// gives its "budget", and leave it as the reply's text before the arena
+// ends; the arena's record goes to the reply (driver/drive.hpp).
 
 #include <array>
 #include <cstring>
@@ -80,7 +81,7 @@ Hal& hal_of(Session& s) {
     }
     Hal& h = s.hal();
     if (!h.computes[0]) {
-        h.pages.resize(hal_result_bytes);
+        h.pages.resize(member_budget);
         reset(h, base_config());
     }
     return h;
@@ -285,12 +286,16 @@ Result hal_counts(Hal& h, memory::Arena&, const Value&) {
 using HalOperation = Result (*)(Hal&, memory::Arena&, const Value&);
 
 // The operation on the session's HAL, its results in an arena over the
-// HAL's pages.
+// HAL's pages: the members' budget, or the request's.
 template <HalOperation F>
 Result bound(Session& s, const Value& request) {
     Hal& h = hal_of(s);
-    memory::Arena arena(h.pages);
-    return F(h, arena, request);
+    const std::size_t bytes = budget(request, member_budget);
+    if (h.pages.size() < bytes) {
+        h.pages.resize(bytes);
+    }
+    return on_arena(s, std::span<std::byte>(h.pages).first(bytes),
+                    [&](memory::Arena& arena) { return F(h, arena, request); });
 }
 
 }  // namespace

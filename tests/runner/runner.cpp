@@ -23,6 +23,41 @@ Registrar::Registrar(const char* group, const char* name, CaseFn fn, bool serial
     registry().push_back(Case{std::string(group) + "." + name, fn, serial});
 }
 
+memory::Arena& Counted::arena(std::size_t bytes) {
+    Owned<memory::Arena>& owned = arenas_.emplace_back(bytes);
+    return owned.allocator.emplace(owned.span());
+}
+
+memory::Pool& Counted::pool(std::size_t slot, std::size_t bytes) {
+    Owned<memory::Pool>& owned = pools_.emplace_back(bytes);
+    return owned.allocator.emplace(slot, owned.span());
+}
+
+memory::Heap& Counted::heap(std::size_t bytes) {
+    Owned<memory::Heap>& owned = heaps_.emplace_back(bytes);
+    return owned.allocator.emplace(owned.span());
+}
+
+int Counted::holding(std::ostream& out) const {
+    int found = 0;
+    const auto each = [&](const char* kind, const auto& list) {
+        std::size_t index = 0;
+        for (const auto& owned : list) {
+            ++index;
+            const std::size_t used = owned.allocator->used();
+            if (used != 0) {
+                ++found;
+                out << "held at the case's end: " << kind << " " << index << ", " << used << " bytes\n";
+            }
+        }
+    };
+    each("arena", arenas_);
+    each("pool", pools_);
+    each("heap", heaps_);
+    out.flush();
+    return found;
+}
+
 bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) {
     if (!ok) {
         ++ctx.failures;
@@ -49,6 +84,7 @@ int run_case(const Case& c, std::ostream& out) {
         ++ctx.failures;
         out << "exception of an unknown type\n";
     }
+    ctx.failures += ctx.counted.holding(out);
     if (ctx.failures == 0) {
         out << "PASS " << c.name << "\n";
         out.flush();

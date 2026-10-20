@@ -278,7 +278,14 @@ void FakeOutput::write(std::string_view utf8) {
 
 FakePlatform::FakePlatform(Config config) : config_(std::move(config)), output_(config_.encoding) {}
 
-void FakePlatform::record(std::string_view operation) const { calls_.emplace_back(operation); }
+void FakePlatform::record(std::string_view operation) const {
+    calls_.emplace_back(operation);
+#if defined(QIVEN3_FAULTS)
+    if (countdown_ != nullptr && operation != "wipe" && countdown_->fail()) {
+        fail(operation == "pages" ? Code::memory : Code::io, operation, "fault injected");
+    }
+#endif
+}
 
 void FakePlatform::set_read_error(std::string_view path, std::string_view detail) {
     config_.read_errors.insert_or_assign(std::string(path), std::string(detail));

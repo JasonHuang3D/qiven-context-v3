@@ -7,10 +7,11 @@ import unittest
 from pathlib import Path
 
 from tests.contract.hal_cases import HalCases
+from tests.contract.hal_memory import HalMemory
 from tests.drive.session import Drive, has_hal, once
 
 
-class Fake(HalCases, unittest.TestCase):
+class Fake(HalCases, HalMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
     def setUp(self):

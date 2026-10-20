@@ -5,7 +5,9 @@
 // The fake's own: set_clock, its clock in microseconds; set_read_error,
 // read's io for a path; refuse_pages, the k-th call of pages from now
 // refused; calls, its record; written, its stream's bytes; lent, the bytes
-// of the pages it has lent and not had back.
+// of the pages it has lent and not had back, which each reply's "held"
+// gives too. Under QIVEN3_FAULTS each of the fake's calls is a fault point
+// of a request's "fault" (driver/drive.hpp).
 
 #include <iostream>
 #include <string>
@@ -58,6 +60,8 @@ Result calls(Drive& d, memory::Arena&, const Value&) {
 
 Result written(Drive& d, memory::Arena&, const Value&) { return Value(to_hex(d.platform().written())); }
 
+std::size_t lent_of(const Fake& fake) { return fake.lent(); }
+
 Result lent(Drive& d, memory::Arena&, const Value&) {
     return Value(static_cast<std::int64_t>(d.platform().lent()));
 }
@@ -74,12 +78,12 @@ int main(int argc, char** argv) {
         return 2;
     }
     Session session(*options);
-    Drive drive(session, make);
+    Drive drive(session, make, lent_of);
     drive.add("set_clock", set_clock);
     drive.add("set_read_error", set_read_error);
     drive.add("refuse_pages", refuse_pages);
     drive.add("calls", calls);
     drive.add("written", written);
     drive.add("lent", lent);
-    return loop([&drive](const Value& request) { return drive.reply(request); });
+    return loop(drive);
 }

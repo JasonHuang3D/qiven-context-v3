@@ -1,10 +1,11 @@
-# qiven3_runner: the test runner and the main of every case binary.
+# qiven3_runner: the test runner and the main of every case binary, which
+# counts the allocators of v3's memory a case takes after it.
 add_library(qiven3_runner STATIC
   runner.cpp
   runner.hpp
 )
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(qiven3_runner PRIVATE qiven3_flags)
+target_link_libraries(qiven3_runner PUBLIC qiven3_memory PRIVATE qiven3_flags)
 if(WIN32)
   target_compile_definitions(qiven3_runner PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()

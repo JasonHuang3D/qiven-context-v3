@@ -93,8 +93,9 @@ class PlatformLast:
             self.assertEqual((first["size"], first["zero"]), (4096, True))
             second = d.call("pages", n=5000)
             self.assertEqual((second["size"], second["zero"]), (8192, True))
-            self.assertEqual(d.call("pages", n=4096)["size"], 4096)
-            for held in (first, second):
+            third = d.call("pages", n=4096)
+            self.assertEqual(third["size"], 4096)
+            for held in (first, second, third):
                 self.assertIsNone(d.call("pages_free", id=held["id"]))
             if self.ADAPTER != "fake":
                 # Pages the system refuses. Not on the fake: under the asan
@@ -110,7 +111,9 @@ class PlatformLast:
             self.assertEqual(d.call("lent"), before + 4096)
             d.call("pages_free", id=first["id"])
             self.assertEqual(d.call("lent"), before)
-            self.assertEqual(d.call("pages", n=1)["size"], 4096)
+            last = d.call("pages", n=1)
+            self.assertEqual(last["size"], 4096)
+            d.call("pages_free", id=last["id"])
 
     def test_P29_normcase(self):
         """normcase of the text's paths: on the adapter, the table's forms;

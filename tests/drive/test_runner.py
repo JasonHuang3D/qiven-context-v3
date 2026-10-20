@@ -7,6 +7,7 @@ import unittest
 
 from tests import SKIP_CODE
 from tests.drive import binaries
+from tests.drive.session import build_option
 
 DEMO = "qiven3_runner_demo"
 
@@ -48,13 +49,26 @@ class Routes(unittest.TestCase):
         self.assertEqual(ran.status, SKIP_CODE)
         self.assertEqual(lines(ran.out), ["SKIP demo.skip: not applicable: the demo's skip"])
 
+    def test_held(self):
+        """A case ending with a counted arena holding bytes fails."""
+        ran = binaries.run(DEMO, ["--run", "demo.held"])
+        self.assertEqual(ran.status, 1)
+        self.assertEqual(lines(ran.out),
+                         ["held at the case's end: arena 1, 16 bytes", "FAIL demo.held: 1 failed"])
+
     def test_crash(self):
+        """A crash is not caught: the system's status, or, in a build under
+        AddressSanitizer, whose runtime reports the access and exits 1, that
+        status and its report."""
         ran = binaries.run(DEMO, ["--run", "demo.crash"])
-        if sys.platform == "win32":
+        self.assertEqual(ran.out, b"")
+        if "address" in (build_option("QIVEN3_SANITIZE") or ""):
+            self.assertEqual(ran.status, 1)
+            self.assertIn(b"AddressSanitizer", ran.err)
+        elif sys.platform == "win32":
             self.assertEqual(ran.status, 0xC0000005)  # STATUS_ACCESS_VIOLATION
         else:
             self.assertEqual(ran.status, -signal.SIGSEGV)
-        self.assertEqual(ran.out, b"")
 
     def test_list(self):
         ran = binaries.run(DEMO, ["--list"])
@@ -66,6 +80,7 @@ class Routes(unittest.TestCase):
                 "demo.crash",
                 "demo.exception",
                 "demo.fail",
+                "demo.held",
                 "demo.pass",
                 "demo.require",
                 "demo.serial\tserial",
