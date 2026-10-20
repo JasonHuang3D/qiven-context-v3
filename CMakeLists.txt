@@ -183,8 +183,19 @@ if(MSVC)
   # A static library takes the librarian's options, not the linker's.
   string(APPEND CMAKE_STATIC_LINKER_FLAGS " /Brepro")
 else()
+  # The toolchain's directory is the one above the compiler's bin/; for a
+  # compiler in the system's /usr/bin, Apple's among them, it is /usr, never
+  # the root, which would match every path. Of the maps that match a path,
+  # gcc and clang take the last, so the source directory's comes last.
   get_filename_component(qiven3_toolchain_dir "${CMAKE_CXX_COMPILER}/../.." ABSOLUTE)
-  set(qiven3_path_maps "${PROJECT_SOURCE_DIR}=." "${qiven3_toolchain_dir}=toolchain")
+  if(qiven3_toolchain_dir STREQUAL "/")
+    set(qiven3_toolchain_dir "/usr")
+  endif()
+  set(qiven3_path_maps "${qiven3_toolchain_dir}=toolchain")
+  if(IS_ABSOLUTE "${CMAKE_OSX_SYSROOT}")
+    list(APPEND qiven3_path_maps "${CMAKE_OSX_SYSROOT}=sdk")
+  endif()
+  list(APPEND qiven3_path_maps "${PROJECT_SOURCE_DIR}=.")
   foreach(map IN LISTS qiven3_path_maps)
     add_compile_options("-ffile-prefix-map=${map}")
   endforeach()

@@ -1,0 +1,317 @@
+# The CI matrix: Windows with MSVC, Linux with gcc and with clang, macOS with
+# Apple clang on pull requests, and the safety jobs. Each job checks out,
+# installs CPython 3.15.0 by its version and SHA-256, configures with its
+# preset, builds every target its system builds and runs the cases on the
+# fakes (ctest --preset fake); the safety jobs add their sanitizer or
+# analysis, and every finding fails the run. The full suite, the machine
+# cases among them, runs on a developer's machine, never here.
+#
+# Standard GitHub-hosted runners only. Each action is pinned by a full commit
+# SHA of its own repository, its tag in a comment. No secret is read.
+
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push cancels the older run of the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CPython 3.15.0, each file's SHA-256 as python.org's release page lists
+  # it: the Windows installer (64-bit), the macOS installer and the XZ
+  # source tarball, which Linux builds.
+  PYTHON_VERSION: "3.15.0"
+  PYTHON_WINDOWS_SHA256: 67d9a63eb145a34aa939f02eadbf8c57f21fcdd6decb901ccac578d2d1f01d6f
+  PYTHON_MACOS_SHA256: 7c7e7eca61cbfa5f0c6f80cd594cddbfd492f4e8b3fb87e3d9fa1efebaec43ed
+  PYTHON_SOURCE_SHA256: ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575
+  # LLVM 19.1.7's Windows installer, whose release signature verifies by
+  # LLVM's release keys, and the clang-tidy.exe it installs.
+  LLVM_VERSION: "19.1.7"
+  LLVM_WINDOWS_SHA256: f19ae5bc4823ac69ec01dc2ded503ec80a04ad2208dda1595d1f0413c148ef90
+  CLANG_TIDY_SHA256: 231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc89836e8d5d77a
+  CTEST_PARALLEL_LEVEL: "4"
+  # Clean binaries: no binary, library, object or debug file of the build
+  # holds the checkout's path, in UTF-8 or UTF-16, either slash, any case,
+  # with or without its root. Arguments: the build directory, then each
+  # path. The build's CMakeCache.txt, which holds the checkout's path, is the
+  # check's control: it must be caught. CMake's own probes of the compiler,
+  # under the build's top CMakeFiles/, are built without the project's flags.
+  CLEAN_CHECK: |
+    import sys
+    from pathlib import Path
+    build = Path(sys.argv[1])
+    needles = {}
+    for value in sys.argv[2:]:
+        bare = value.split(":", 1)[-1] if value[1:2] == ":" else value
+        for whole in (value, bare.lstrip("/\\")):
+            for form in {whole, whole.replace("\\", "/"), whole.replace("/", "\\")}:
+                form = form.rstrip("/\\").lower()
+                if form:
+                    needles.update({form.encode("utf-8"): form, form.encode("utf-16-le"): form + " (UTF-16)"})
+    def held(path):
+        data = path.read_bytes().lower()
+        return sorted({text for needle, text in needles.items() if needle in data})
+    if not held(build / "CMakeCache.txt"):
+        sys.exit("clean: the control, CMakeCache.txt, holds none of the paths")
+    kinds = {".exe", ".dll", ".pdb", ".lib", ".obj", ".a", ".o", ""}
+    files = [p for p in sorted(build.rglob("*")) if p.is_file() and p.suffix.lower() in kinds
+             and (p.suffix or p.parent.name == "bin") and p.relative_to(build).parts[0] != "CMakeFiles"]
+    bad = [(p, held(p)) for p in files]
+    bad = [(p, h) for p, h in bad if h]
+    for p, h in bad:
+        print(f"clean: {p.relative_to(build)} holds {', '.join(h)}")
+    print(f"clean: {len(files)} files read, {len(bad)} holding a path; the control caught")
+    sys.exit(1 if bad else 0)
+
+jobs:
+  windows:
+    name: ${{ matrix.job }}
+    runs-on: windows-2022
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job: windows-msvc
+            preset: ci-windows
+            clean: true
+          - job: windows-asan
+            preset: ci-asan
+          - job: windows-stack
+            preset: ci-stack
+          - job: windows-analysis
+            preset: ci-analysis
+            analysis: true
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython 3.15.0, python.org's installer, by its SHA-256
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $installer = Join-Path $env:RUNNER_TEMP "python-$env:PYTHON_VERSION-amd64.exe"
+          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/$env:PYTHON_VERSION/python-$env:PYTHON_VERSION-amd64.exe" -OutFile $installer
+          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          if ($digest -ne $env:PYTHON_WINDOWS_SHA256) { throw "the installer's SHA-256 is $digest, the pin $env:PYTHON_WINDOWS_SHA256" }
+          $target = Join-Path $env:RUNNER_TEMP "python-$env:PYTHON_VERSION"
+          $options = '/quiet', 'InstallAllUsers=0', "TargetDir=$target", 'PrependPath=0', 'Include_launcher=0',
+            'Include_test=0', 'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0', 'AssociateFiles=0'
+          $run = Start-Process -FilePath $installer -ArgumentList $options -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "the installer exited $($run.ExitCode)" }
+          $python = Join-Path $target 'python.exe'
+          & $python -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
+          "QIVEN3_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: LLVM 19.1.7's clang-tidy, its installer by its SHA-256
+        if: matrix.analysis
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
+          $release = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION"
+          Invoke-WebRequest -Uri "$release/LLVM-$env:LLVM_VERSION-win64.exe" -OutFile $installer
+          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
+          if ($digest -ne $env:LLVM_WINDOWS_SHA256) { throw "the installer's SHA-256 is $digest, the pin $env:LLVM_WINDOWS_SHA256" }
+          $target = Join-Path $env:RUNNER_TEMP "llvm-$env:LLVM_VERSION"
+          # NSIS: /D comes last, unquoted. The image's own LLVM is not taken.
+          $run = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$target" -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "the installer exited $($run.ExitCode)" }
+          $tidy = Join-Path $target 'bin\clang-tidy.exe'
+          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $tidy).Hash.ToLowerInvariant()
+          if ($digest -ne $env:CLANG_TIDY_SHA256) { throw "clang-tidy.exe's SHA-256 is $digest, the pin $env:CLANG_TIDY_SHA256" }
+          $version = (& $tidy --version) -join "`n"
+          if ($version -notmatch "LLVM version $([regex]::Escape($env:LLVM_VERSION))\b") { throw "clang-tidy: $version" }
+          Write-Output $version
+          "QIVEN3_CLANG_TIDY=$tidy" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: MSVC's environment, vcvars64.bat -vcvars_ver=14.44
+        id: msvc
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $script = Join-Path $env:RUNNER_TEMP 'vcvars.cmd'
+          Set-Content -LiteralPath $script -Encoding ascii -Value @(
+            "@call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" -vcvars_ver=14.44 >nul || exit /b 1", '@set')
+          $lines = & cmd.exe /d /c $script
+          foreach ($line in $lines) {
+            if ($line -match '^([^=]+)=(.*)$' -and [Environment]::GetEnvironmentVariable($Matches[1]) -ne $Matches[2]) {
+              "$($Matches[1])=$($Matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+
+      - name: The tools this job runs
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          Write-Output "Visual Studio $env:VSCMD_VER, toolset $env:VCToolsVersion, SDK $env:WindowsSDKVersion"
+          (Get-Command cl.exe).Source; (Get-Command cmake.exe).Source; (Get-Command ninja.exe).Source
+          cmake --version; ninja --version
+
+      - name: Configure (${{ matrix.preset }})
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $extra = @()
+          if ($env:QIVEN3_CLANG_TIDY) { $extra += "-DQIVEN3_CLANG_TIDY=$env:QIVEN3_CLANG_TIDY" }
+          cmake --preset ${{ matrix.preset }} @extra
+
+      - name: Build every target
+        id: build
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --build --preset ${{ matrix.preset }}
+
+      - name: The cases on the fakes
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ctest --preset fake
+
+      - name: The analysis tools' controls
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.analysis }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ctest --preset ci-analysis --no-tests=error
+
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.clean }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $check = Join-Path $env:RUNNER_TEMP 'clean_check.py'
+          Set-Content -LiteralPath $check -Value $env:CLEAN_CHECK -Encoding utf8
+          & $env:QIVEN3_PYTHON -I $check build/ci $env:GITHUB_WORKSPACE $env:RUNNER_TEMP
+
+      - name: The structure tests, B1 to B31, the safe subset's token rules among them
+        if: ${{ !cancelled() && steps.msvc.outcome == 'success' && matrix.analysis }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --preset ci-windows -B build/ci-structure -DQIVEN3_STRUCTURE=ON
+          cmake --build build/ci-structure
+          ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^tests[.]structure[.]' -LE '^analysis$'
+
+  linux:
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [linux-gcc, linux-clang, linux-tsan, linux-fuzz]
+    defaults:
+      run:
+        shell: bash
+    env:
+      # LeakSanitizer is AddressSanitizer's on Linux; use-after-return by its
+      # flag. Every report ends the process with a failing status.
+      ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:abort_on_error=0
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython 3.15.0, built from python.org's source by its SHA-256
+        run: |
+          tarball="$RUNNER_TEMP/Python-$PYTHON_VERSION.tar.xz"
+          curl -fsSL -o "$tarball" "https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.xz"
+          echo "$PYTHON_SOURCE_SHA256  $tarball" | sha256sum -c -
+          tar -xJf "$tarball" -C "$RUNNER_TEMP"
+          prefix="$RUNNER_TEMP/python-$PYTHON_VERSION"
+          cd "$RUNNER_TEMP/Python-$PYTHON_VERSION"
+          ./configure --prefix="$prefix" --without-ensurepip --disable-test-modules > configure.log
+          make -s -j"$(nproc)" > make.log 2>&1 || { tail -50 make.log; exit 1; }
+          make -s install > install.log 2>&1 || { tail -50 install.log; exit 1; }
+          python="$prefix/bin/python3.15"
+          "$python" -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
+          echo "QIVEN3_PYTHON=$python" >> "$GITHUB_ENV"
+
+      # The sanitizers' shadow memory fails to map under the kernel's 32 bits
+      # of mmap randomisation; 28 is the default they were built for.
+      - name: Address space randomisation the sanitizers map under
+        run: |
+          echo "vm.mmap_rnd_bits was $(sysctl -n vm.mmap_rnd_bits)"
+          sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: The tools this job runs
+        run: |
+          cmake --version; ninja --version
+          case "${{ matrix.preset }}" in linux-gcc) g++-14 --version ;; *) clang++-18 --version ;; esac
+
+      - name: Configure (${{ matrix.preset }})
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build every target
+        id: build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: The cases on the fakes, under the preset's sanitizers
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --preset fake
+
+      - name: Each fuzz target from its seeded corpus
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-fuzz' }}
+        run: ctest --test-dir build/ci --output-on-failure --no-tests=ignore -L '^fuzz$'
+
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && (matrix.preset == 'linux-gcc' || matrix.preset == 'linux-clang') }}
+        run: |
+          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
+          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+
+  macos:
+    name: macos-clang
+    # On pull requests alone: a scheduled run can stop unseen.
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython 3.15.0, python.org's installer, by its SHA-256
+        run: |
+          pkg="$RUNNER_TEMP/python-$PYTHON_VERSION-macos11.pkg"
+          curl -fsSL -o "$pkg" "https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-macos11.pkg"
+          echo "$PYTHON_MACOS_SHA256  $pkg" | shasum -a 256 -c -
+          sudo installer -pkg "$pkg" -target /
+          python="/Library/Frameworks/Python.framework/Versions/3.15/bin/python3.15"
+          "$python" -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
+          echo "QIVEN3_PYTHON=$python" >> "$GITHUB_ENV"
+
+      - name: The tools this job runs
+        run: |
+          cmake --version; ninja --version; clang++ --version; xcode-select -p
+
+      - name: Configure (macos-clang)
+        run: cmake --preset macos-clang
+
+      - name: Build every target
+        id: build
+        run: cmake --build --preset macos-clang
+
+      - name: The cases on the fakes
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --preset fake
+
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
+          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"

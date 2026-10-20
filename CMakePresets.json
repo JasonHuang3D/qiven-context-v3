@@ -80,9 +80,9 @@
       "name": "ci",
       "hidden": true,
       "inherits": "base",
-      "description": "CI: the image's CMake and Ninja, no pin; every CI preset shares one build directory, which the fake test preset reads",
+      "description": "CI: the image's CMake and Ninja, no pin; every CI preset shares one build directory, which the fake test preset reads; the interpreter, CPython 3.15.0, from QIVEN3_PYTHON, which the workflow sets",
       "binaryDir": "${sourceDir}/build/ci",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_FAULTS": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"}
     },
     {
       "name": "ci-windows",

@@ -172,27 +172,35 @@ QIVEN3_CASE(memory, container_budget) {
     CHECK_EQ(arena.peak(), peak);
 }
 
+// Takes the mutex within wait and gives it back: whether it was taken. Each
+// lock is taken in a condition, where clang's thread-safety analysis follows
+// try_lock_for's result; each thread is a std::thread joined in place, since
+// libc++ before 20 keeps std::jthread experimental.
+bool taken(qiven3::memory::Mutex& mutex, std::chrono::milliseconds wait) {
+    if (mutex.try_lock_for(wait)) {
+        mutex.unlock();
+        return true;
+    }
+    return false;
+}
+
 QIVEN3_CASE(memory, mutex_deadline) {
     qiven3::memory::Mutex mutex;
-    REQUIRE(mutex.try_lock_for(std::chrono::milliseconds(10)));
+    bool first = false;
     bool other = true;
-    {
-        std::jthread waiter([&] {
-            other = mutex.try_lock_for(std::chrono::milliseconds(20));
-            if (other) {
-                mutex.unlock();
-            }
-        });
+    if (mutex.try_lock_for(std::chrono::milliseconds(10))) {
+        first = true;
+        {
+            std::thread waiter([&] { other = taken(mutex, std::chrono::milliseconds(20)); });
+            waiter.join();
+        }
+        mutex.unlock();
     }
+    REQUIRE(first);
     CHECK(!other);
-    mutex.unlock();
     {
-        std::jthread waiter([&] {
-            other = mutex.try_lock_for(std::chrono::milliseconds(1000));
-            if (other) {
-                mutex.unlock();
-            }
-        });
+        std::thread waiter([&] { other = taken(mutex, std::chrono::milliseconds(1000)); });
+        waiter.join();
     }
     CHECK(other);
 }

@@ -20,10 +20,19 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 `ctest --preset <name>` tests. Nothing is installed.
 
 - Developer presets, on Windows with MSVC: `debug`, `release` (the build the
-  full suite runs on), `asan`, `fuzz`, `structure` and `nohal` (no HAL).
-  CI's: `ci-windows`, `linux-gcc`, `linux-clang` and `macos-clang`.
-- Test presets select by label: `full`, `fast`, `asan`, `fuzz`, `bench`,
-  `drill`, and `fake` for CI.
+  full suite runs on), `asan`, `fuzz`, `structure` (the structure records),
+  `stack` (the frame bound), `analysis` (static analysis, then clang-tidy)
+  and `nohal` (no HAL).
+- CI's presets, which share `build/ci`: `ci-windows`, `ci-asan`, `ci-stack`
+  and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
+  (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
+  `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
+  `macos-clang`. `.github/workflows/ci.yml` runs them on every push and pull
+  request, macOS on pull requests alone, each job installing CPython 3.15.0
+  by its SHA-256.
+- Test presets select by label: `full`, `fast`, `structure`, `asan`,
+  `fuzz`, `bench`, `drill` and `analysis`; and, for CI, `fake` (the cases on
+  the fakes) and `ci-analysis`.
 - The developer presets pin the toolchain (`QIVEN3_PIN_TOOLS`): configure
   fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython

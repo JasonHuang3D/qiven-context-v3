@@ -236,7 +236,9 @@ QIVEN3_CASE(heap, threads) {
     Heap heap(bytes);
     std::atomic<std::size_t> nulls{0};
     {
-        std::vector<std::jthread> threads;
+        // std::thread, joined here: libc++ before 20 keeps std::jthread
+        // experimental.
+        std::vector<std::thread> threads;
         for (int t = 0; t < 4; ++t) {
             threads.emplace_back([&heap, &nulls, t] {
                 std::vector<void*> held;
@@ -255,6 +257,9 @@ QIVEN3_CASE(heap, threads) {
                     heap.free(p);
                 }
             });
+        }
+        for (std::thread& thread : threads) {
+            thread.join();
         }
     }
     CHECK_EQ(nulls.load(std::memory_order_relaxed), 0U);
