@@ -4,6 +4,8 @@ project(qiven3 LANGUAGES C CXX)
 option(QIVEN3_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones" OFF)
 option(QIVEN3_HAL "Build qiven3_hal, its fake and its cases" ON)
 option(QIVEN3_STRUCTURE "Write the records the structure tests read" OFF)
+option(QIVEN3_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
+option(QIVEN3_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)
 set(QIVEN3_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address, or fuzzer,address")
 set_property(CACHE QIVEN3_SANITIZE PROPERTY STRINGS "" "address" "fuzzer,address")
 set(QIVEN3_COMPILER_LINE "" CACHE STRING "When set, the compiler's major.minor line, for example 19.44")
@@ -122,13 +124,23 @@ if(QIVEN3_SANITIZE)
   message(STATUS "qiven3: sanitizers ${QIVEN3_SANITIZE}")
 endif()
 
-message(STATUS "qiven3: QIVEN3_HAL ${QIVEN3_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRUCTURE}")
+# Both options change the memory package's types, so every target sees them.
+if(QIVEN3_SYSTEM_HEAP)
+  add_compile_definitions(QIVEN3_SYSTEM_HEAP)
+endif()
+if(QIVEN3_FAULTS)
+  add_compile_definitions(QIVEN3_FAULTS)
+endif()
+
+message(STATUS "qiven3: QIVEN3_HAL ${QIVEN3_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRUCTURE}, "
+  "QIVEN3_SYSTEM_HEAP ${QIVEN3_SYSTEM_HEAP}, QIVEN3_FAULTS ${QIVEN3_FAULTS}")
 
 # Every binary in one directory: the tests find each there, and the
 # sanitizer's runtime sits beside them all.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 enable_testing()
+add_subdirectory(src/memory)
 add_subdirectory(src/qiven3)
 add_subdirectory(src/platform)
 # QIVEN3_HAL off leaves the HAL, its fake and its cases out of the build (H6).
