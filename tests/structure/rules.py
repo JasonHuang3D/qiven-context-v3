@@ -6,8 +6,9 @@ build's records (records.py writes and reads them), and strings,
 identifiers and #include directives from the sources by the rules' lexer
 (lexer.py); no rule reads C++ by a regular expression. The one text rule
 is B1's, a substring search for sqlite3. check() applies every rule to one
-tree, v3's or the planted one, and gives its findings. PENDING holds each
-allowance the text lacks, with its reason.
+tree, v3's or the planted one, and gives its findings. STATED holds the
+allowances the text states beyond the rows' cells, and PENDING each one the
+text lacks, each with its reason.
 """
 
 import os
@@ -64,10 +65,10 @@ CONTRACT = "src/platform/platform.hpp"
 # delete, start a process or read or set the environment, each with its
 # wide form; not fwrite or fputc, which every reading object names.
 B17_NAMES = frozenset("""
-fopen fopen_s _fsopen freopen _open _sopen_s _creat _write _chsize_s _locking rename remove _unlink
-_mkdir _rmdir system _popen getenv _dupenv_s _putenv _putenv_s
-_wfopen _wfopen_s _wfsopen _wfreopen _wopen _wsopen_s _wcreat _wrename _wremove _wunlink _wmkdir
-_wrmdir _wsystem _wpopen _wgetenv _wdupenv_s _wputenv _wputenv_s
+fopen fopen_s _fsopen freopen freopen_s _fdopen tmpfile _open _sopen _sopen_s _creat _write _chsize
+_chsize_s _locking rename remove _unlink _mkdir _rmdir system _popen getenv _dupenv_s _putenv _putenv_s
+_wfopen _wfopen_s _wfsopen _wfreopen _wfreopen_s _wfdopen _wopen _wsopen _wsopen_s _wcreat _wrename
+_wremove _wunlink _wmkdir _wrmdir _wsystem _wpopen _wgetenv _wdupenv_s _wputenv _wputenv_s
 """.split())
 SPAWN_EXEC = ("_spawn", "_wspawn", "_exec", "_wexec")
 FS_PREFIX = "__std_fs_"
@@ -75,8 +76,8 @@ FS_PREFIX = "__std_fs_"
 FS_READS = frozenset("__std_fs_" + n for n in (
     "get_stats", "directory_iterator_open", "directory_iterator_advance", "directory_iterator_close",
     "convert_narrow_to_wide", "convert_wide_to_narrow"))
-# Names the linker defines itself, which no object or library does: an
-# x64 jump table's base, at /O2. The text's B17 lacks them, until it grows them.
+# Names the linker defines itself, which no object or library does: the
+# image's base, which an x64 jump table at /O2 names.
 LINKER_NAMES = frozenset(("__ImageBase",))
 WRITE_CLASSES = ("basic_ofstream", "basic_fstream", "_Recursive_dir_enum_impl")
 STREAM_MODES = frozenset(("out", "app", "trunc", "noreplace"))
@@ -90,8 +91,8 @@ GIT_PREFIXES = ("git ", "refs/", "GIT_", "GCM_")
 GIT_COMMANDS = frozenset(("cat-file", "rev-parse", "hash-object", "ls-tree", "commit-tree", "ls-remote",
                           "update-ref", "fast-import"))
 CRT_IO_HEADERS = frozenset(("io.h", "direct.h", "process.h", "conio.h"))
-PROCESS_NAMES = frozenset(("system", "_wsystem", "_popen", "_wpopen", "ShellExecuteW", "WinExec", "fork",
-                           "posix_spawn"))
+PROCESS_NAMES = frozenset(("system", "_wsystem", "_popen", "_wpopen", "ShellExecuteW", "ShellExecuteExW",
+                           "WinExec", "fork", "posix_spawn"))
 NET_HEADERS = ("winsock2.h", "ws2tcpip.h", "winhttp.h", "wininet.h", "sys/socket.h", "netdb.h")
 NET_LIBS = frozenset(("ws2_32", "winhttp", "wininet"))
 LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_extension"))
@@ -111,24 +112,31 @@ ALLOWED = {
             "qiven3"),
     **subset.ALLOWED,
 }
-# Allowances the text lacks, (rule, file, what): each with its reason, until
-# the text grows it. A file or a what ending in / is a prefix.
-PENDING = {
+# The allowances the text states beyond the rows' cells, (rule, file, what),
+# each with its reason; the subset's cells' are subset.CELLS. A file or a
+# what ending in / is a prefix, and a file ending in . a module's files. B5's what is the header or the import, B9's
+# the header, B17's the header its include finding names.
+STATED = {
     ("B5", "tests/runner/runner.cpp", "windows.h"): "SetErrorMode: a crash ends a case with its status, "
                                                     "and no dialog waits for a person",
     ("B5", "tests/runner/runner.cpp", "__imp_SetErrorMode"): "as its <windows.h>",
-    ("B9", "tests/runner/runner.cpp", "crtdbg.h"): "a debug build's assertion reports go to stderr",
-    ("B9", "tests/", "tests/"): "the test tree's own headers (runner/, support/, driver/), "
-                                "which its sources include",
+    ("B9", "tests/runner/runner.cpp", "crtdbg.h"): "a debug build's assertion reports go to standard error",
+    ("B9", "tests/", "tests/runner/"): "the test tree's own headers, which its sources include",
+    ("B9", "tests/", "tests/support/"): "as tests/runner/'s",
+    ("B9", "tests/", "tests/driver/"): "as tests/runner/'s",
+    ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
+                                            "heap's blocks B19 allows memory/arena and memory/pool",
+    ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
+}
+# Allowances the text lacks, (rule, file, what), each with its reason, until
+# the text grows it.
+PENDING = {
     ("B9", "src/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning of what memory's "
                                                          "allocators hold, sanitizer/asan_interface.h, "
                                                          "included under the sanitizer alone",
-    ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t, the blocks "
-                                            "B19 allows memory/arena and memory/pool",
-    ("B17", "src/memory/pool.cpp", "new"): "as arena's, and std::nothrow",
     ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
-    **subset.PENDING,
 }
+ALLOWANCES = (*subset.CELLS, *STATED, *PENDING)
 EXEMPT = {
     "B1": (STRUCTURE, "tests/audit/read_audit"),
     "B2": (STRUCTURE,),
@@ -168,11 +176,11 @@ def under(path, prefixes):
 def allowed(rule, where, what=None):
     if under(where, ALLOWED.get(rule, ())):
         return True
-    return any(r == rule and match(where, f) and match(what, w) for r, f, w in PENDING)
+    return any(r == rule and match(where, f) and match(what, w) for r, f, w in ALLOWANCES)
 
 
 def match(value, key):
-    return value is not None and (value == key or (key.endswith("/") and value.startswith(key)))
+    return value is not None and (value == key or (key.endswith(("/", ".")) and value.startswith(key)))
 
 
 def is_instantiation(path):

@@ -1,6 +1,7 @@
 """The content rule: no file of the checkout but those .gitignore (and the
 checkout's own exclude file) names holds a path of this machine, a hit of
-the secret check's nine patterns, or the specification's private names.
+the secret check's nine patterns, or a name of the specification's own
+repository: its name, its directories' and its files'.
 
 The paths are read when the test runs, so that it holds none: the
 checkout's own, the user profile, the interpreter's and the toolchain's
@@ -34,9 +35,44 @@ PATTERNS = {
                      r"[^ \t\r\n;&'\"]+",
 }
 COMPILED = {name: re.compile(pattern) for name, pattern in PATTERNS.items()}
-# The specification's own repository and file names, built here so that this
-# file holds none.
-PRIVATE = (re.compile(re.escape("qiven" + "-docs"), re.IGNORECASE), re.compile(r"\bFORMAT-[A-Z]+\b"))
+# The specification's own repository: its name, its directories, its files'
+# stems, each held here in pieces, so that this file holds none, and joined
+# by private_names() when the test runs.
+REPOSITORY = ("qiven", "docs")
+DIRECTORIES = (("rulings",), ("law",), ("proposal",), ("context", "v3"), ("law", "compiler"), ("test", "runner"),
+               ("work", "line"))
+# The stems in capitals, each a name with .md or without; the format files'
+# and the readings' are families, a word or a number after the stem.
+CAPITALS = (("cognition",), ("challenge",), ("core", "challenge"), ("cxx", "survey"), ("prior", "art"),
+            ("oplaw",), ("qidx",), ("qrev",), ("qlaw",), ("qtest",))
+FAMILIES = ((("format",), "-[A-Z]+"), (("core", "reading"), "(?:-[0-9]+)?"))
+# The rulings' stems, in small letters, with .md or without, in any case.
+RULINGS = (("cognition", "format"), ("cold", "start", "gaps"), ("consent", "round", "1"), ("context", "v3", "start"),
+           ("contract", "03", "discharge"), ("docs", "restructure"), ("docs", "restructure", "discharge"),
+           ("law", "landing", "discharge"), ("retrieval", "line"), ("work", "line", "defects", "discharge"))
+# Stems that are words, refused with .md alone; the readme and the format
+# document, which the public tree holds as well, are not refused.
+WORDS = ("arch", "cont", "eng", "work")
+BEFORE, AFTER = r"(?<![A-Za-z0-9_-])", r"(?![A-Za-z0-9_])"
+
+
+def private_names():
+    """The patterns of the specification repository's names."""
+    def name(parts):
+        return re.escape("-".join(parts))
+
+    def either(names):
+        return "(?:" + "|".join(names) + ")"
+
+    families = [name(stem).upper() + more for stem, more in FAMILIES]
+    return (re.compile(name(REPOSITORY), re.IGNORECASE),
+            re.compile(BEFORE + either(name(d) for d in DIRECTORIES) + "/"),
+            re.compile(BEFORE + either([name(c).upper() for c in CAPITALS] + families) + AFTER),
+            re.compile(BEFORE + either(name(r) for r in RULINGS) + AFTER, re.IGNORECASE),
+            re.compile(BEFORE + either(w.upper() for w in WORDS) + r"\.md" + AFTER))
+
+
+PRIVATE = private_names()
 STOP = " \t\r\n\"'`<>|*?;,()[]{}"
 DRIVE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]):(?:\\|/)+([^\\/" + re.escape(STOP) + r":]+)")
 POSIX = re.compile(r"(?<![A-Za-z0-9_.:/~-])/([A-Za-z])/([^\\/" + re.escape(STOP) + r":]+)")
@@ -92,7 +128,7 @@ def content_findings(root, files, paths):
                 found.append((rel, "a hit of " + name))
         for pattern in PRIVATE:
             if pattern.search(text):
-                found.append((rel, "the specification's private name"))
+                found.append((rel, "a name of the specification's repository"))
     return sorted(set(found))
 
 
@@ -115,12 +151,23 @@ class Content(unittest.TestCase):
             "posix.md": f"cd /{drive.lower()}/{first}\n",
             "profile.txt": os.environ["USERPROFILE"] + "\\Documents\n",
             "interpreter.json": '{"python": "' + sys.base_prefix.replace("\\", "\\\\") + '"}\n',
-            "private.md": "the " + "qiven" + "-docs repository and " + "FORMAT-" + "CODE.md\n",
+            "repository.md": "the " + "qiven" + "-DOCS repository\n",
+            "format.md": "see " + "FORMAT-" + "CODE.md\n",
+            "reading.txt": "CORE-" + "READING-3 F183\n",
+            "reading.cpp": "// CORE-" + "READING\n",
+            "capitals.md": "COGNI" + "TION §12\n",
+            "law.md": "the " + "Q" + "LAW.md text\n",
+            "ruling.py": "x = '" + "Cognition" + "-Format.md'\n",
+            "directory.txt": "rulings" + "/a.md\n",
+            "context.cmake": "# proposal" + "/context" + "-v3/\n",
+            "word.md": "AR" + "CH.md\n",
             "key.txt": "-----BEGIN " + "RSA PRIVATE KEY-----\n",
             "token.py": "t = '" + "ghp_" + "A" * 36 + "'\n",
             "password.ini": "Server=db;Password=" + "p" * 8 + ";\n",
             "clean.txt": f"{none}:\\no-such\\x /{none.lower()}/x C:/Users/ABC docs/FORMAT.md "
-                         + "ghp_" + "A" * 35 + " password: see the vault " + "https://example.com:8080/a@b\n",
+                         + "ghp_" + "A" * 35 + " password: see the vault " + "https://example.com:8080/a@b\n"
+                         + "README.md cognition, a challenge, ARCH, QTest, a law firm, work-line, the "
+                         + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n",
             "build/machine.txt": str(rules.ROOT),
         }
         with tempfile.TemporaryDirectory() as scratch:
@@ -131,8 +178,11 @@ class Content(unittest.TestCase):
                 (root / name).write_bytes(text.encode("utf-8"))
             found = content_findings(root, rules.source_files(root), machine_paths())
         files = {rel for rel, _ in found}
+        names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
+                 "directory.txt", "context.cmake", "word.md"}
         self.assertEqual(files, {"checkout.txt", "slash.py", "drive.cpp", "posix.md", "profile.txt",
-                                 "interpreter.json", "private.md", "key.txt", "token.py", "password.ini"})
+                                 "interpreter.json", "key.txt", "token.py", "password.ini"} | names)
+        self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
         self.assertIn(("drive.cpp", "a drive path whose first directory this machine has"), found)
         self.assertIn(("posix.md", "a drive path whose first directory this machine has"), found)
         hits = {why for _, why in found if why.startswith("a hit of ")}

@@ -315,17 +315,19 @@ add_library(qiven3_reader_instances STATIC src/reader/instances.cpp)
 target_link_libraries(qiven3_reader_instances PRIVATE qiven3_platform_win)
 add_library(qiven3_unit_plant STATIC tests/unit/sqlite_text_test.cpp tests/unit/long_test.cpp
   tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/goldens.cpp
-  tests/support/goldens/write.cpp)
+  tests/support/goldens/write.cpp tests/runner/runner.cpp)
 """
 
 DLLIMPORT = 'extern "C" __declspec(dllimport) '
 PLANTS = {
     "third_party/sqlite/sqlite3.h": "#pragma once\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n"
-        "int sqlite3_libversion_number(void);\n#ifdef __cplusplus\n}\n#endif\n",
+        "int sqlite3_libversion_number(void);\nint sqlite3_config(int, ...);\n#ifdef __cplusplus\n}\n#endif\n",
     "third_party/sqlite/sqlite3.c": "#include <windows.h>\n#include <process.h>\n#include \"sqlite3.h\"\n"
         "int sqlite3_libversion_number(void) {\n    HANDLE h = CreateFileW(L\"x\", 0, 0, 0, 3, 0, 0);\n"
-        "    return h == INVALID_HANDLE_VALUE ? 0 : (int)GetACP();\n}\n",
-    "src/platform/platform.hpp": "#pragma once\nnamespace qiven3::platform { int contract(); }\n",
+        "    return h == INVALID_HANDLE_VALUE ? 0 : (int)GetACP();\n}\n"
+        "int sqlite3_config(int op, ...) { return op; }\n",
+    "src/platform/platform.hpp": "#pragma once\n#include <span>\n#include <string_view>\nnamespace qiven3::platform {\n"
+        "int contract();\nstruct Command { std::span<const std::string_view> argv; std::string_view cwd; };\n}\n",
     "src/platform/platform.cpp": "#include \"platform/platform.hpp\"\nint qiven3::platform::contract() { return 0; }\n",
     "src/platform/win/windows.hpp": "#pragma once\nnamespace qiven3::platform::win {\n"
         "struct WindowsPlatform { unsigned code_page() const; };\n}\n",
@@ -335,11 +337,13 @@ PLANTS = {
         "void*, int, unsigned long, void*, const wchar_t*, void*, void*);\n"
         "int start() { return CreateProcessW(nullptr, nullptr, nullptr, nullptr, 0, 0, nullptr, nullptr, nullptr, "
         "nullptr); }\nconst char* git() { return \"git\"; }\n",
-    "src/hal/hal.hpp": "#pragma once\nnamespace qiven3::hal { inline int devices() { return 0; } }\n",
+    "src/hal/hal.hpp": "#pragma once\n#include <string_view>\nnamespace qiven3::hal {\n"
+        "inline int devices() { return 0; }\ntemplate <class B> struct Launch { std::string_view kernel; };\n}\n",
     "src/forget/forget.hpp": "#pragma once\nint forget_plan();\n",
     "src/forget/system.cpp": "#include <cstdlib>\n#include \"forget/forget.hpp\"\n"
         "int forget_plan() { return std::system(\"x\"); }\n",
-    "src/store/sqlite.cpp": "#include \"sqlite3.h\"\nint store_version() { return sqlite3_libversion_number(); }\n",
+    "src/store/sqlite.cpp": "#include \"sqlite3.h\"\nint store_version() "
+        "{ return sqlite3_libversion_number() + sqlite3_config(1); }\n",
     "src/store/hal_include.cpp": "#include \"hal/hal.hpp\"\nint store_devices() { return qiven3::hal::devices(); }\n",
     "src/store/rev_parse.cpp": "const char* store_rev() { return \"rev-parse\"; }\n",
     "src/store/forget_include.cpp": "#include \"forget/forget.hpp\"\nint store_forget() { return forget_plan(); }\n",
@@ -350,6 +354,10 @@ PLANTS = {
     "src/entry/sqlite_include.cpp": "#include \"sqlite3.h\"\nint entry_version() { return 0; }\n",
     "src/entry/load_library.cpp": DLLIMPORT + "void* __stdcall LoadLibraryW(const wchar_t*);\n"
         "void* entry_load() { return LoadLibraryW(L\"x.dll\"); }\n",
+    "src/entry/load_library_ex.cpp": DLLIMPORT + "void* __stdcall LoadLibraryExW(const wchar_t*, void*, unsigned);\n"
+        "void* entry_load_ex() { return LoadLibraryExW(L\"x.dll\", nullptr, 0); }\n",
+    "src/entry/shell_execute.cpp": DLLIMPORT + "int __stdcall ShellExecuteExW(void*);\n"
+        "int entry_shell() { return ShellExecuteExW(nullptr); }\n",
     "src/entry/git.cpp": "const char* entry_git() { return \"git\"; }\n",
     "src/entry/windows_include.cpp": "#include <windows.h>\nunsigned entry_acp() { return GetACP(); }\n",
     "src/entry/get_acp.cpp": "extern \"C\" unsigned __stdcall GetACP();\nunsigned entry_acp_by_hand() "
@@ -388,6 +396,7 @@ PLANTS = {
         "// LoadLibraryW, CreateProcessW, _locking, <io.h>, <winsock2.h>, \"../x.hpp\",\n"
         "// hal/hal.hpp, qiven3/mapcheck.hpp, entry/secret.hpp, p.replace(a, b).\n"
         "#include <string>\n#include <string_view>\n#include \"platform/platform.hpp\"\n"
+        "extern \"C\" char __ImageBase;\nconst void* clean_base() { return &__ImageBase; }\n"
         "std::string clean_names() {\n"
         "    std::string s = \"<windows.h> GetACP std::rename std::system std::ios::out LoadLibraryW\";\n"
         "    s += \"CreateProcessW _locking <io.h> <winsock2.h> ../x.hpp hal/hal.hpp qiven3/mapcheck.hpp\";\n"
@@ -405,8 +414,22 @@ PLANTS = {
     "tests/support/goldens/goldens.cpp": "const char* goldens_registry() { return \"tests/goldens/v1/registry.json\"; }\n",
     "tests/support/goldens/write.cpp": "#include <cstdio>\nvoid* goldens_write() "
         "{ return std::fopen(\"tests/goldens/v1/x\", \"w\"); }\n",
+    "tests/runner/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n#include \"support/plant/joined.hpp\"\n"
+        "#include \"runner/runner.hpp\"\n#include \"driver/drive.hpp\"\n"
+        "int runner_quiet() { _CrtSetReportMode(0, 0); return int(SetErrorMode(1)); }\n",
+    "tests/unit/own_test.cpp": "#include \"unit/own.hpp\"\n", "tests/unit/own.hpp": "\n",
+    "tests/runner/runner.hpp": "#pragma once\n", "tests/driver/drive.hpp": "#pragma once\n",
+    "tests/unit/dbg_test.cpp": "#include <crtdbg.h>\n",
+    ".clang-tidy": "Checks: '-*,cppcoreguidelines-*,-cppcoreguidelines-pro-bounds-pointer-arithmetic'\n",
+    "src/entry/.clang-tidy": "Checks: >-\n  -cppcoreguidelines-pro-bounds-*,\n  -bugprone-*\n",
+    "src/memory/.clang-tidy": "# B26\nChecks: -cppcoreguidelines-pro-bounds-pointer-arithmetic\n",
+    "analysis.ruleset": '<RuleSet Name="plant"><Rules><Rule Id="C26481" Action="None" /></Rules></RuleSet>\n',
     "../outside/outside.hpp": "#pragma once\ninline int outside() { return 0; }\n",
 }
+# B17's names the C runtime adds to fopen's, each declared by hand.
+B17_ADDED = ("freopen_s", "_fdopen", "tmpfile", "_sopen", "_chsize")
+PLANTS.update({f"src/entry/crt_{n.lstrip('_')}.cpp": DLLIMPORT + f"int __cdecl {n}(int);\n"
+               f"int entry_{n.lstrip('_')}() {{ return {n}(0); }}\n" for n in B17_ADDED})
 
 # Each plant's finding, (rule, file or target, kind), the kind B17's.
 PLANTED = [
@@ -417,9 +440,9 @@ PLANTED = [
     ("B5", "src/entry/windows_include.cpp", ""), ("B5", "qiven3_location", ""),
     ("B6", "src/entry/io_include.cpp", ""), ("B6", "src/entry/locking.cpp", ""),
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
-    ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
-    ("B9", "src/entry/outside.cpp", ""),
-    ("B10", "src/entry/load_library.cpp", ""),
+    ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
+    ("B9", "src/entry/outside.cpp", ""), ("B9", "tests/unit/own_test.cpp", ""), ("B9", "tests/unit/dbg_test.cpp", ""),
+    ("B10", "src/entry/load_library.cpp", ""), ("B10", "src/entry/load_library_ex.cpp", ""),
     ("B11", "src/entry/dotdot.cpp", ""),
     ("B12", "src/store/forget_include.cpp", ""), ("B12", "qiven3_store", ""),
     ("B13", "src/reader/secret_include.cpp", ""), ("B13", "src/reader/replace_call.cpp", ""),
@@ -434,13 +457,17 @@ PLANTED = [
     ("B17", "src/entry/get_acp.cpp", "name"), ("B17", "src/entry/ofstream.cpp", "name"),
     ("B17", "src/entry/stream_mode.cpp", "mode"), ("B17", "src/app/instances.cpp", "include"),
     ("B17", "src/app/instances.cpp", "name"), ("B17", "qiven3_location", "link"),
+    ("B17", "src/entry/malloc.hpp", "include"), ("B17", "src/memory/new.hpp", "include"),
+    *(("B17", f"src/entry/crt_{n.lstrip('_')}.cpp", "name") for n in B17_ADDED),
+    ("B26", ".clang-tidy", "tidy"), ("B26", "src/entry/.clang-tidy", "tidy"), ("B26", "analysis.ruleset", "ruleset"),
 ]
 # Files and targets with no finding: the clean file, the allowances, the exemptions.
 CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
     "src/platform/win/process.cpp", "src/platform/win/windows.cpp", "src/qiven3/mapcheck.cpp",
     "third_party/sqlite/sqlite3.c", "src/store/sqlite.cpp", "tests/support/goldens/goldens.cpp",
-    "qiven3_base", "qiven3_platform_win", "qiven3_sqlite",
+    "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "tests/runner/runner.cpp", "src/platform/platform.hpp",
+    "src/hal/hal.hpp", "src/memory/.clang-tidy",
 ]
 
 # The safe subset's plants (subset.py), headers no target compiles: each of
@@ -463,12 +490,19 @@ SUBSET_PLANTS = {
     "src/entry/casts.hpp": "#pragma once\ninline long entry_bits(const double* d) "
         "{ return *reinterpret_cast<const long*>(d); }\n"
         "inline int* entry_unconst(const int* p) { return const_cast<int*>(p); }\n",
-    "src/entry/varargs.hpp": "#pragma once\n#include <cstdarg>\ninline int entry_first(int n, ...) {\n"
+    "src/entry/varargs.hpp": "#pragma once\n#include <cstdarg>\n"
+        "inline int entry_config() { return sqlite3_config(1); }\ninline int entry_first(int n, ...) {\n"
         "    va_list args;\n    va_start(args, n);\n    int v = va_arg(args, int);\n    va_end(args);\n"
         "    return v;\n}\n",
+    "src/store/sqlite.hpp": "#pragma once\ninline int store_db(void* db) { return sqlite3_db_config(db, 1); }\n",
     "src/entry/union.hpp": "#pragma once\nunion EntryBits { float f; unsigned u; };\n",
     "src/entry/thread.hpp": "#pragma once\n#include <thread>\n"
         "inline void entry_spawn() { std::thread t([] {}); t.detach(); }\n",
+    "src/entry/joined.hpp": "#include <thread>\ninline void entry_join() { std::thread t([] {}); t.join(); }\n",
+    "tests/support/plant/joined.hpp": "#pragma once\n#include <thread>\n"
+        "inline void support_join() { std::thread t([] {}); if (t.joinable()) { t.join(); } }\n",
+    "tests/support/plant/unjoined.hpp": "#pragma once\n#include <thread>\n"
+        "inline void support_spawn() { { std::thread t([] {}); } t.join(); }\n",
     "src/entry/globals.hpp": "#pragma once\ninline thread_local int entry_depth = 0;\nint entry_count = 0;\n"
         "struct EntryCounter { static int made; };\n",
     "src/entry/nolint.hpp": "#pragma once\ninline int entry_lint() { return 0; }  // NOLINT(bugprone-*)\n"
@@ -486,7 +520,13 @@ SUBSET_PLANTS = {
         "inline int* scope_new() { int* p = new int(1); if (!p) { std::abort(); } return p; }\n",
     "src/memory/arena.hpp": "#pragma once\n#include <cstddef>\n"
         "inline void* arena_block(std::size_t n) { return ::operator new(n, std::align_val_t{64}); }\n"
-        "inline void arena_drop(void* p) { ::operator delete(p, std::align_val_t{64}); }\n",
+        "inline void arena_drop(void* p) { ::operator delete(p, std::align_val_t{64}); }\n"
+        "class Arena { std::span<std::byte> pages_; };\n",
+    "src/memory/arena.cpp": "#include <new>\n", "src/memory/pool.cpp": "#include <new>\n",
+    "src/memory/new.hpp": "#pragma once\n#include <new>\n",
+    "src/memory/pool.hpp": "#pragma once\n#include <cstddef>\n#include <span>\n"
+        "class Pool { std::span<std::byte> pages_; };\nclass Heap { std::span<std::byte> pages_; };\n",
+    "src/memory/borrow.hpp": "#pragma once\n#include <span>\nclass Pool { std::span<int> held; };\n",
     "src/memory/construct.hpp": "#pragma once\n#include <memory>\n"
         "inline int* memory_place(void* p) { return new (p) int(1); }\n"
         "inline void memory_end(int* p) { std::destroy_at(p); }\n",
@@ -526,19 +566,22 @@ SUBSET_PLANTED = [
     ("B19", "tests/support/plant/support_new.hpp", "new"),
     ("B20", "src/entry/placement.hpp", "placement"), ("B20", "src/entry/placement.hpp", "construct"),
     ("B21", "src/entry/casts.hpp", ""), ("B22", "src/entry/varargs.hpp", ""), ("B23", "src/entry/union.hpp", ""),
-    ("B24", "src/entry/thread.hpp", ""),
+    ("B22", "src/entry/varargs.hpp", "call"), ("B22", "src/store/sqlite.hpp", "call"),
+    ("B24", "src/entry/thread.hpp", "detach"), ("B24", "src/entry/thread.hpp", "thread"),
+    ("B24", "src/entry/joined.hpp", "thread"), ("B24", "tests/support/plant/unjoined.hpp", "thread"),
     ("B25", "src/entry/globals.hpp", "thread_local"), ("B25", "src/entry/globals.hpp", "object"),
     ("B25", "src/entry/globals.hpp", "static"),
     ("B27", "src/entry/nolint.hpp", "nolint"), ("B27", "src/entry/nolint.hpp", "pragma"),
     ("B27", "src/entry/nolint.hpp", "suppress"),
-    ("B28", "src/entry/command.hpp", ""),
+    ("B28", "src/entry/command.hpp", ""), ("B28", "src/memory/borrow.hpp", ""),
     ("B29", "src/entry/mutex.hpp", ""), ("B29", "src/entry/mutex.hpp", "lock"),
     ("B29", "src/entry/mutex.hpp", "infinite"),
     ("B30", "src/entry/clock.hpp", ""), ("B31", "src/entry/abort.hpp", ""),
 ]
 SUBSET_CLEAN = [
     "tests/unit/scope_test.hpp", "src/memory/arena.hpp", "src/memory/construct.hpp", "src/memory/fail.hpp",
-    "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp",
+    "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp", "src/memory/arena.cpp", "src/memory/pool.cpp",
+    "src/memory/pool.hpp", "tests/support/plant/joined.hpp",
 ]
 PLANTS.update(SUBSET_PLANTS)
 PLANTED += SUBSET_PLANTED

@@ -1,6 +1,7 @@
 """The safe subset's token rules, B18 to B31 but B26, as data, and their
 checker, which rules.py's check() runs over each tree, v3's and the planted
-one.
+one; and B26's half that reads no C++: the analysis configuration turns
+pointer arithmetic off in B26's modules alone.
 
 Each rule reads the tokens of rules.py's lexer: keywords, identifiers and
 punctuators outside comments and literals, and outside the preprocessor's
@@ -15,8 +16,11 @@ text's and then the tokens' own:
   neither tool sees placement new (test_analysis.py);
 - B21: a C-style cast, and a pun by static_cast through void*;
 - B22: a C variadic function's declaration or call, which tokens cannot tell
-  from a pack or a fold;
-- B23: a union's member read; B24: a library's own threads;
+  from a pack or a fold; the tokens read SQLite's own variadic functions'
+  calls by name, so that store/sqlite calls sqlite3_config alone;
+- B23: a union's member read; B24: a library's own threads; a test's
+  std::thread passes when a join is called in its block, whichever thread
+  it joins;
 - B25: a function's mutable local static; then an object at namespace
   scope or a static member whose declaration holds parentheses (an
   initializer's, a function pointer's, alignas), or declared after a class
@@ -30,6 +34,9 @@ text's and then the tokens' own:
 - for every rule, a name a macro hides; a macro of capitals is read as one.
 """
 
+from fnmatch import fnmatchcase
+from xml.etree import ElementTree
+
 from tests.structure.lexer import lex
 
 SCOPE = ("src/", "tests/support/")
@@ -39,6 +46,9 @@ C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_
 B20_NAMES = frozenset(("construct_at", "destroy_at"))
 B21_NAMES = frozenset(("reinterpret_cast", "const_cast"))
 B22_NAMES = frozenset(("va_list", "va_start", "va_arg", "va_copy", "va_end"))
+# SQLite's variadic functions, called by name: sqlite3_config is store/sqlite's alone.
+SQLITE_VARIADIC = frozenset(("sqlite3_config", "sqlite3_db_config", "sqlite3_vtab_config", "sqlite3_mprintf",
+                             "sqlite3_snprintf", "sqlite3_str_appendf", "sqlite3_log", "sqlite3_test_control"))
 B24_NAMES = frozenset(("CreateThread", "_beginthread", "_beginthreadex", "pthread_create"))
 B28_VIEWS = frozenset(("string_view", "u8string_view", "u16string_view", "u32string_view", "wstring_view",
                        "basic_string_view", "span"))
@@ -62,19 +72,28 @@ ALLOWED = {
     "B30": ("src/platform/win/",),
     "B31": ("src/memory/fail.",),
 }
-# Allowances the text lacks, (rule, file, what), each with its reason, until
-# the text grows it; rules.py's PENDING takes them.
-PENDING = {
+# What the rows' cells allow by name, (rule, file, what), each with its
+# reason; rules.py's allowed() reads them. B22: SQLite declares
+# sqlite3_config variadic, the one place its interface needs varargs. B28:
+# the borrowing types, each with its lifetime rule.
+CELLS = {
+    ("B22", "src/store/sqlite.", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
     ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
-                                                     "views of the caller's text, passed by const reference "
-                                                     "into start() or run() and used within that call",
+                                                     "views of the caller's text and buffers, passed by const "
+                                                     "reference into start() or run() and used within that call",
     ("B28", "src/hal/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",
-    ("B28", "src/memory/arena.hpp", "Arena"): "the operation's pages, lent by their owner, a platform Pages "
-                                              "handle that outlives the arena; memory sits below the "
-                                              "platform and cannot hold the handle's type",
+    ("B28", "src/memory/arena.hpp", "Arena"): "the span of pages its owner lends, a platform Pages value that "
+                                              "outlives the arena, which ends before its pages; memory sits "
+                                              "below the platform and cannot hold that type",
     ("B28", "src/memory/pool.hpp", "Pool"): "as Arena's",
     ("B28", "src/memory/pool.hpp", "Heap"): "as Arena's",
 }
+# B26's modules, each with its own cases or fuzzed, where the analysis
+# configuration may turn pointer arithmetic off; a directory's .clang-tidy
+# serves a module that is a directory, memory alone.
+B26_MODULES = ("src/memory/", "src/qiven3/digest.", "src/entry/matcher.", "src/qiven3/canon.", "src/qiven3/json.")
+B26_TIDY = "cppcoreguidelines-pro-bounds-pointer-arithmetic"
+B26_MSVC = "C26481"
 
 
 def directive_lines(tokens, text):
@@ -284,7 +303,23 @@ def after_std(tokens, i):
     return i >= 2 and tokens[i - 1][1] == "::" and tokens[i - 2][1] == "std"
 
 
-def token_rules(tokens, comments, skip, subset, out):
+def joined(tokens, i):
+    """A join called through . or -> after tokens[i], before its block ends."""
+    depth = 0
+    for j in range(i + 1, len(tokens) - 1):
+        value = tokens[j][1]
+        if value == "{":
+            depth += 1
+        elif value == "}":
+            if depth == 0:
+                return False
+            depth -= 1
+        elif value == "join" and tokens[j - 1][1] in (".", "->") and tokens[j + 1][1] == "(":
+            return True
+    return False
+
+
+def token_rules(tokens, comments, skip, subset, test, out):
     for text, line in comments:
         words = "".join(c if c.isalnum() or c == "_" else " " for c in text).split()
         if subset and any(w.startswith("NOLINT") for w in words):
@@ -322,10 +357,17 @@ def token_rules(tokens, comments, skip, subset, out):
             out("B21", "", line, value)
         elif value in B22_NAMES:
             out("B22", "", line, value)
+        elif value in SQLITE_VARIADIC and is_call(tokens, i):
+            out("B22", "call", line, value + " called, a variadic function", value)
         elif value == "union":
             out("B23", "", line, "union")
-        elif value == "detach" or value in B24_NAMES or (value == "thread" and after_std(tokens, i)):
-            out("B24", "", line, "std::thread" if value == "thread" else value)
+        elif value == "detach":
+            out("B24", "detach", line, "detach")
+        elif value in B24_NAMES:
+            out("B24", "create", line, value)
+        elif value == "thread" and after_std(tokens, i) and not (test and joined(tokens, i)):
+            out("B24", "thread", line, "std::thread, joined in no block of a test's" if test
+                else "std::thread, where core's threads are std::jthread")
         elif value == "thread_local":
             out("B25", "thread_local", line, "thread_local")
         elif value == "suppress" and prev == "::" and i >= 2 and tokens[i - 2][1] == "gsl":
@@ -349,9 +391,46 @@ def token_rules(tokens, comments, skip, subset, out):
             out("B31", "", line, value)
 
 
+def tidy_checks(text):
+    """The entries of a .clang-tidy file's Checks, in their order."""
+    entries, inside = [], False
+    for row in text.splitlines():
+        stripped = row.split("#", 1)[0].strip()
+        if not row[:1].isspace() and ":" in stripped:
+            key, _, value = stripped.partition(":")
+            inside = key.strip() == "Checks"
+            stripped = value.strip()
+        if inside:
+            entries += [e.strip(" '\"") for e in stripped.replace(">-", "").split(",")]
+    return [e for e in entries if e]
+
+
+def config_rules(root, files, add):
+    """B26's configuration: a .clang-tidy whose Checks leave pointer
+    arithmetic's check off, a parent's being on, outside a module of B26's
+    that is a directory; and a rule set that turns C26481 off, for every file."""
+    for rel in files:
+        name = rel.rsplit("/", 1)[-1]
+        text = (root / rel).read_bytes().decode("utf-8", "replace")
+        if name == ".clang-tidy":
+            on = True
+            for entry in tidy_checks(text):
+                if fnmatchcase(B26_TIDY, entry.lstrip("-")):
+                    on = not entry.startswith("-")
+            where = rel[:-len(name)]
+            if not on and not (where and any(m.endswith("/") and where.startswith(m) for m in B26_MODULES)):
+                add("B26", rel, "tidy", f"{B26_TIDY} off outside B26's modules", None)
+        elif name.endswith(".ruleset"):
+            for rule in ElementTree.fromstring(text.lstrip("﻿")).iter("Rule"):
+                if rule.get("Id") == B26_MSVC and rule.get("Action") == "None":
+                    add("B26", rel, "ruleset", f"{B26_MSVC} off for every file", None)
+
+
 def check(root, files, add):
-    """B18 to B31 but B26 over a tree's files; add(rule, where, kind, detail,
-    what) takes each finding, what the name PENDING matches, B28's type's."""
+    """B18 to B31 but B26 over a tree's files, and B26's configuration;
+    add(rule, where, kind, detail, what) takes each finding, what the name
+    an allowance matches: B22's function's, B28's type's."""
+    config_rules(root, files, add)
     for rel in files:
         if not rel.endswith(CXX):
             continue
@@ -363,6 +442,6 @@ def check(root, files, add):
             add(rule, rel, kind, f"line {line}: {detail}", what)
 
         skip = directive_lines(tokens, text)
-        token_rules(tokens, comments, skip, subset, out)
+        token_rules(tokens, comments, skip, subset, rel.startswith("tests/"), out)
         if subset:
             object_rules([t for t in tokens if t[2] not in skip], out)
