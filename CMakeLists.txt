@@ -75,12 +75,15 @@ if(Python3_EXECUTABLE)
   message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
 endif()
 
-# The flags of every core and test target, through qiven3_flags.
+# The flags of every core and test target, through qiven3_flags. RTTI is
+# off: no code of v3's uses dynamic_cast or typeid, and no standard facility
+# v3 uses needs RTTI. MSVC still compiles typeid of a type with no virtual
+# function under /GR-, so the structure check bans both names either way.
 if(MSVC)
-  set(qiven3_cxx_flags /W4 /WX /permissive- /utf-8 /Zc:__cplusplus /EHsc)
+  set(qiven3_cxx_flags /W4 /WX /permissive- /utf-8 /Zc:__cplusplus /EHsc /GR-)
 else()
   set(qiven3_cxx_flags -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
-    -Wshadow -Werror -finput-charset=UTF-8)
+    -Wshadow -Werror -finput-charset=UTF-8 -fno-rtti)
 endif()
 add_library(qiven3_flags INTERFACE)
 target_compile_options(qiven3_flags INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${qiven3_cxx_flags}>")

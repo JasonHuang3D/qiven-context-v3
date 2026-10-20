@@ -1,10 +1,14 @@
-"""The HAL's cases H1 to H5, each defined once over a compute binding
-(contract/test_hal_fake.py): drive(), a drive whose HAL the case gives its
-device set by hal_fake. H6 is the build's (contract/test_hal_build.py); H7
+"""The HAL's cases H1 to H5 and H8, each defined once over a compute
+binding (contract/test_hal_fake.py): drive(), a drive whose HAL the case
+gives its device set by hal_fake, and drive_once(requests), the drive run on
+those requests alone. H6 is the build's (contract/test_hal_build.py); H7
 comes with the first feature that builds a back end.
 """
 
+import json
+import signal
 import struct
+import sys
 
 from tests.drive.session import DriveError
 
@@ -37,10 +41,8 @@ class HalCases:
         a gap, not_built. A gap is a value, not an error."""
         with self.drive() as d:
             d.call("hal_fake", threads=1, devices=[CPU])
-            self.assertEqual(d.call("hal_device", capability="gpu"),
-                             {"gap": {"capability": "gpu", "reason": "no_device"}})
-            self.assertEqual(d.call("hal_device", capability="cuda"),
-                             {"gap": {"capability": "cuda", "reason": "not_built"}})
+            self.assertEqual(d.call("hal_device", capability="gpu"), {"gap": {"reason": "no_device"}})
+            self.assertEqual(d.call("hal_device", capability="cuda"), {"gap": {"reason": "not_built"}})
             self.assertEqual(d.call("hal_device", capability="cpu"), {"device": CPU})
 
     def test_H3_memory(self):
@@ -79,3 +81,27 @@ class HalCases:
             self.assertEqual(list(struct.unpack(f"={len(a)}q", out)), [x + y for x, y in zip(a, b)])
             self.assertEqual(d.call("hal_counts"),
                              {"allocations": 3, "uploads": 2, "downloads": 1, "runs": 1})
+
+    def test_H8_a_callers_mistake(self):
+        """Through the drive, upload into a buffer another fake gave: the
+        drive's process ends at once through memory::fail_fast, exit status
+        3 on Windows, SIGABRT elsewhere; no reply to it or after it. The
+        control, the drive's own buffer, is answered and the drive ends 0."""
+        def requests(other):
+            return ({"op": "hal_fake", "devices": [CPU]},
+                    {"op": "hal_allocate", "device": CPU, "size": 8, "other": other},
+                    {"op": "hal_upload", "buffer": 1, "data": "00" * 8},
+                    {"op": "hal_counts"})
+
+        control = self.drive_once(*requests(False))
+        self.assertEqual(control.status, 0, control)
+        self.assertEqual([json.loads(line)["ok"] for line in control.out.splitlines()], [True] * 4)
+
+        ran = self.drive_once(*requests(True))
+        if sys.platform == "win32":
+            self.assertEqual(ran.status, 3, ran)
+        else:
+            self.assertEqual(ran.status, -signal.SIGABRT, ran)
+        replies = [json.loads(line) for line in ran.out.splitlines()]
+        self.assertEqual(replies, [{"ok": True}, {"ok": True, "result": 1}])
+        self.assertEqual(ran.err, b"")

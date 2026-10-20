@@ -1,21 +1,10 @@
 #include "hal/hal.hpp"
 
-#include <utility>
+#include "memory/fail.hpp"
 
 namespace qiven3::hal {
-namespace {
 
-std::string message(Code code, const std::string& operation, const std::string& detail) {
-    std::string text = operation + ": " + std::string(code_name(code));
-    if (!detail.empty()) {
-        text += ": " + detail;
-    }
-    return text;
-}
-
-}  // namespace
-
-std::string_view vector_name(Vector vector) noexcept {
+std::string_view name(Vector vector) noexcept {
     switch (vector) {
     case Vector::sse2:
         return "sse2";
@@ -35,7 +24,21 @@ std::string_view vector_name(Vector vector) noexcept {
     return "unknown";
 }
 
-std::string_view code_name(Code code) noexcept {
+std::string_view name(Reason reason) noexcept {
+    switch (reason) {
+    case Reason::no_device:
+        return "no_device";
+    case Reason::no_driver:
+        return "no_driver";
+    case Reason::not_built:
+        return "not_built";
+    case Reason::not_pinned:
+        return "not_pinned";
+    }
+    return "unknown";
+}
+
+std::string_view name(Code code) noexcept {
     switch (code) {
     case Code::memory:
         return "memory";
@@ -49,25 +52,30 @@ std::string_view code_name(Code code) noexcept {
     return "unknown";
 }
 
-void Kernels::add(std::string name, Reference reference) {
-    if (!reference) {
-        throw std::invalid_argument("kernel " + name + ": no reference");
+void Kernels::add(std::string_view name, Reference reference) noexcept {
+    if (reference == nullptr) {
+        memory::fail_fast("hal::Kernels::add: a null reference");
     }
-    if (references_.contains(name)) {
-        throw std::invalid_argument("kernel " + name + ": added twice");
+    if (name.empty() || name.size() > kernel_name_bytes) {
+        memory::fail_fast("hal::Kernels::add: a name empty or past kernel_name_bytes");
     }
-    references_.emplace(std::move(name), std::move(reference));
+    if (find(name) != nullptr) {
+        memory::fail_fast("hal::Kernels::add: a name added twice");
+    }
+    if (size_ == entries_.size()) {
+        memory::fail_fast("hal::Kernels::add: a kernel past kernels_max");
+    }
+    entries_[size_] = Entry{memory::Inline<kernel_name_bytes>(name), reference};
+    ++size_;
 }
 
-const Reference* Kernels::find(std::string_view name) const {
-    auto found = references_.find(name);
-    return found == references_.end() ? nullptr : &found->second;
+const Reference* Kernels::find(std::string_view name) const noexcept {
+    for (std::size_t at = 0; at < size_; ++at) {
+        if (entries_[at].name.view() == name) {
+            return &entries_[at].reference;
+        }
+    }
+    return nullptr;
 }
-
-HalError::HalError(Code code, std::string operation, std::string detail)
-    : std::runtime_error(message(code, operation, detail)),
-      code_(code),
-      operation_(std::move(operation)),
-      detail_(std::move(detail)) {}
 
 }  // namespace qiven3::hal

@@ -1,224 +1,225 @@
 #include "support/fake_hal/fake_hal.hpp"
 
 #include <algorithm>
-#include <exception>
-#include <mutex>
+#include <array>
+#include <charconv>
 #include <new>
 #include <stdexcept>
-#include <type_traits>
-#include <utility>
+
+#include "memory/fail.hpp"
 
 namespace qiven3::hal::fake {
-
-struct FakeCompute::State {
-    std::mutex mutex;
-    std::map<std::string, std::uint64_t, std::less<>> used;  // by device id
-    Counts counts;
-};
-
 namespace {
 
-bool known_reason(const std::string& reason) {
-    return reason == "no_device" || reason == "no_driver" || reason == "not_built" ||
-           reason == "not_pinned";
-}
-
-bool matches(std::string_view capability, const Device& device) {
+bool matches(std::string_view capability, const FakeDevice& device) {
     if (capability == "gpu") {
         return device.back_end != "cpu";
     }
     return device.back_end == capability;
 }
 
-class FakeBuffer final : public Buffer {
+void write(const FakeDevice& from, Device& out) {
+    out.id.assign(from.id.data(), from.id.size());
+    out.back_end.assign(from.back_end.data(), from.back_end.size());
+    out.name.assign(from.name.data(), from.name.size());
+    out.memory = from.memory;
+}
+
+// A HalError's detail composed in place, with no heap; the excess dropped.
+class Text {
 public:
-    FakeBuffer(std::shared_ptr<FakeCompute::State> state, std::string device, std::uint64_t size)
-        : state_(std::move(state)), device_(std::move(device)),
-          bytes_(static_cast<std::size_t>(size)) {}
-
-    ~FakeBuffer() override {
-        std::lock_guard<std::mutex> guard(state_->mutex);
-        state_->used[device_] -= bytes_.size();
+    Text& add(std::string_view text) noexcept {
+        const std::size_t n = std::min(text.size(), bytes_.size() - size_);
+        std::copy_n(text.data(), n, bytes_.data() + size_);
+        size_ += n;
+        return *this;
     }
-
-    FakeBuffer(const FakeBuffer&) = delete;
-    FakeBuffer& operator=(const FakeBuffer&) = delete;
-
-    std::uint64_t size() const override { return bytes_.size(); }
-
-    const FakeCompute::State* state() const { return state_.get(); }
-    const std::string& device() const { return device_; }
-    std::span<std::byte> bytes() { return bytes_; }
-    std::span<const std::byte> bytes() const { return bytes_; }
+    Text& number(std::uint64_t value) noexcept {
+        std::array<char, 20> digits{};
+        const auto done = std::to_chars(digits.data(), digits.data() + digits.size(), value);
+        return add(std::string_view(digits.data(), static_cast<std::size_t>(done.ptr - digits.data())));
+    }
+    [[nodiscard]] std::string_view view() const noexcept { return std::string_view(bytes_.data(), size_); }
 
 private:
-    std::shared_ptr<FakeCompute::State> state_;
-    std::string device_;
-    std::vector<std::byte> bytes_;
+    std::array<char, detail_bytes> bytes_{};
+    std::size_t size_ = 0;
 };
+
+HalError sizes(std::string_view operation, std::size_t span, std::uint64_t buffer) noexcept {
+    Text text;
+    text.add("a span of ").number(span).add(" bytes, a buffer of ").number(buffer);
+    return HalError(Code::size, operation, text.view());
+}
 
 }  // namespace
 
-FakeCompute::FakeCompute(Config config)
-    : config_(std::move(config)), state_(std::make_shared<State>()) {
-    std::set<std::string> ids;
-    for (const Device& device : config_.devices) {
-        if (!ids.insert(device.id).second) {
-            throw std::invalid_argument("fake compute: device " + device.id + " given twice");
-        }
-        state_->used[device.id] = 0;
-    }
-    for (const auto& [capability, reason] : config_.gaps) {
-        if (!known_reason(reason)) {
-            throw std::invalid_argument("fake compute: gap " + capability + ": reason " + reason);
-        }
-    }
+FakeBuffer::FakeBuffer(FakeBuffer&& other) noexcept
+    : bytes_(std::move(other.bytes_)), owner_(std::exchange(other.owner_, nullptr)), device_(other.device_) {
+    other.bytes_.clear();
 }
 
-FakeCompute::~FakeCompute() = default;
-
-Facts FakeCompute::facts() {
-    return Facts{config_.cpu_threads, config_.vectors, config_.devices};
+FakeBuffer& FakeBuffer::operator=(FakeBuffer&& other) noexcept {
+    if (this != &other) {
+        release();
+        bytes_ = std::move(other.bytes_);
+        other.bytes_.clear();
+        owner_ = std::exchange(other.owner_, nullptr);
+        device_ = other.device_;
+    }
+    return *this;
 }
 
-std::variant<Device, Gap> FakeCompute::device(std::string_view capability) {
-    for (const Device& device : config_.devices) {
-        if (matches(capability, device)) {
-            return device;
-        }
+FakeBuffer::~FakeBuffer() { release(); }
+
+void FakeBuffer::release() noexcept {
+    if (owner_ != nullptr) {
+        owner_->used[device_] -= bytes_.size();
+        --owner_->live;
+        owner_ = nullptr;
     }
-    std::string name(capability);
-    if (auto gap = config_.gaps.find(name); gap != config_.gaps.end()) {
-        return Gap{name, gap->second};
-    }
-    if (capability == "gpu") {
-        for (const auto& [back_end, reason] : config_.gaps) {
-            if (back_end != "cpu" && back_end != "gpu") {
-                return Gap{name, reason};
+    bytes_ = std::vector<std::byte>();
+}
+
+FakeCompute::FakeCompute(Config config) : config_(std::move(config)) {
+    for (std::size_t at = 0; at < config_.devices.size(); ++at) {
+        for (std::size_t before = 0; before < at; ++before) {
+            if (config_.devices[before].id == config_.devices[at].id) {
+                memory::fail_fast("hal::fake::FakeCompute: a device id given twice");
             }
         }
     }
-    bool kind = capability == "cpu" || capability == "gpu";
-    return Gap{name, kind ? "no_device" : "not_built"};
+    state_.used.assign(config_.devices.size(), 0);
 }
 
-const Device& FakeCompute::known(const Device& d, const char* operation) const {
-    for (const Device& device : config_.devices) {
-        if (device.id == d.id) {
-            return device;
+FakeCompute::~FakeCompute() {
+    if (state_.live != 0) {
+        memory::fail_fast("hal::fake::FakeCompute: ended with its buffers live");
+    }
+}
+
+void FakeCompute::facts(Facts& out) const {
+    out.cpu_threads = config_.cpu_threads;
+    out.vectors = config_.vectors;
+    out.devices.clear();
+    out.devices.reserve(config_.devices.size());
+    for (const FakeDevice& from : config_.devices) {
+        Device& device = out.devices.emplace_back(out.devices.get_allocator().arena());
+        write(from, device);
+    }
+}
+
+std::optional<Gap> FakeCompute::device(std::string_view capability, Device& out) const {
+    for (const FakeDevice& device : config_.devices) {
+        if (matches(capability, device)) {
+            write(device, out);
+            return std::nullopt;
         }
     }
-    throw std::invalid_argument(std::string(operation) + ": no device " + d.id);
+    for (const auto& [name, reason] : config_.gaps) {
+        if (name == capability) {
+            return Gap{reason};
+        }
+    }
+    if (capability == "gpu") {
+        for (const auto& [name, reason] : config_.gaps) {
+            if (name != "cpu" && name != "gpu") {
+                return Gap{reason};
+            }
+        }
+    }
+    return Gap{capability == "cpu" || capability == "gpu" ? Reason::no_device : Reason::not_built};
 }
 
-std::unique_ptr<Buffer> FakeCompute::allocate(const Device& d, std::uint64_t size) {
-    const Device& device = known(d, "allocate");
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    std::uint64_t used = state_->used[device.id];
-    std::uint64_t available = device.memory - std::min(used, device.memory);
+std::size_t FakeCompute::known(const Device& d) const noexcept {
+    for (std::size_t at = 0; at < config_.devices.size(); ++at) {
+        if (std::string_view(config_.devices[at].id) == std::string_view(d.id)) {
+            return at;
+        }
+    }
+    memory::fail_fast("hal::fake::FakeCompute: a device this compute was not given");
+}
+
+void FakeCompute::ours(const FakeBuffer& b) const noexcept {
+    if (b.owner_ != &state_) {
+        memory::fail_fast("hal::fake::FakeCompute: a buffer this compute did not give");
+    }
+}
+
+FakeBuffer FakeCompute::allocate(const Device& d, std::uint64_t size) {
+    const std::size_t at = known(d);
+    const std::uint64_t given = config_.devices[at].memory;
+    const std::uint64_t available = given - std::min(state_.used[at], given);
     if (size > available) {
-        throw HalError(Code::memory, "allocate",
-                       std::to_string(size) + " bytes, " + std::to_string(available) +
-                           " free on " + device.id);
+        Text text;
+        text.number(size).add(" bytes, ").number(available).add(" free on ").add(config_.devices[at].id);
+        throw HalError(Code::memory, "allocate", text.view());
     }
-    if (static_cast<std::uint64_t>(static_cast<std::size_t>(size)) != size) {
-        throw HalError(Code::memory, "allocate",
-                       std::to_string(size) + " bytes: past the host's size");
-    }
-    std::unique_ptr<Buffer> buffer;
+    std::vector<std::byte> bytes;
     try {
-        buffer = std::make_unique<FakeBuffer>(state_, device.id, size);
+        bytes.resize(static_cast<std::size_t>(size));
     } catch (const std::bad_alloc&) {
-        throw HalError(Code::memory, "allocate",
-                       std::to_string(size) + " bytes: host memory exhausted");
+        throw HalError(Code::memory, "allocate", "host memory exhausted");
     } catch (const std::length_error&) {
-        throw HalError(Code::memory, "allocate",
-                       std::to_string(size) + " bytes: past the host's size");
+        throw HalError(Code::memory, "allocate", "past the host's size");
     }
-    state_->used[device.id] = used + size;
-    ++state_->counts.allocations;
-    return buffer;
+    state_.used[at] += size;
+    ++state_.live;
+    ++state_.counts.allocations;
+    return FakeBuffer(state_, at, std::move(bytes));
 }
 
-namespace {
-
-template <typename B>
-auto& ours(B& b, const FakeCompute::State* state, const char* operation) {
-    using Fake = std::conditional_t<std::is_const_v<B>, const FakeBuffer, FakeBuffer>;
-    auto* fake = dynamic_cast<Fake*>(&b);
-    if (fake == nullptr || fake->state() != state) {
-        throw std::invalid_argument(std::string(operation) + ": not this compute's buffer");
+void FakeCompute::upload(FakeBuffer& b, std::span<const std::byte> bytes) {
+    ours(b);
+    if (bytes.size() != b.size()) {
+        throw sizes("upload", bytes.size(), b.size());
     }
-    return *fake;
+    std::copy(bytes.begin(), bytes.end(), b.bytes_.begin());
+    ++state_.counts.uploads;
 }
 
-std::string sizes(std::size_t span, std::uint64_t buffer) {
-    return "a span of " + std::to_string(span) + " bytes, a buffer of " +
-           std::to_string(buffer);
-}
-
-}  // namespace
-
-void FakeCompute::upload(Buffer& b, std::span<const std::byte> bytes) {
-    FakeBuffer& buffer = ours(b, state_.get(), "upload");
-    if (bytes.size() != buffer.size()) {
-        throw HalError(Code::size, "upload", sizes(bytes.size(), buffer.size()));
+void FakeCompute::download(const FakeBuffer& b, std::span<std::byte> bytes) {
+    ours(b);
+    if (bytes.size() != b.size()) {
+        throw sizes("download", bytes.size(), b.size());
     }
-    std::copy(bytes.begin(), bytes.end(), buffer.bytes().begin());
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    ++state_->counts.uploads;
+    std::copy(b.bytes_.begin(), b.bytes_.end(), bytes.begin());
+    ++state_.counts.downloads;
 }
 
-void FakeCompute::download(const Buffer& b, std::span<std::byte> bytes) {
-    const FakeBuffer& buffer = ours(b, state_.get(), "download");
-    if (bytes.size() != buffer.size()) {
-        throw HalError(Code::size, "download", sizes(bytes.size(), buffer.size()));
+void FakeCompute::run(const Device& d, const Launch<FakeBuffer>& launch) {
+    const std::size_t at = known(d);
+    for (const FakeBuffer* b : launch.buffers) {
+        if (b == nullptr) {
+            memory::fail_fast("hal::fake::FakeCompute::run: a null buffer");
+        }
+        ours(*b);
+        if (b->device_ != at) {
+            memory::fail_fast("hal::fake::FakeCompute::run: a buffer of another device");
+        }
     }
-    std::span<const std::byte> source = buffer.bytes();
-    std::copy(source.begin(), source.end(), bytes.begin());
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    ++state_->counts.downloads;
-}
-
-void FakeCompute::run(const Device& d, const Launch& launch) {
-    const Device& device = known(d, "run");
     const Reference* reference = config_.kernels.find(launch.kernel);
     if (reference == nullptr) {
-        throw HalError(Code::kernel, "run", "no kernel " + launch.kernel);
+        Text text;
+        text.add("no kernel ").add(launch.kernel);
+        throw HalError(Code::kernel, "run", text.view());
     }
     std::vector<std::span<std::byte>> views;
     views.reserve(launch.buffers.size());
-    for (Buffer* b : launch.buffers) {
-        if (b == nullptr) {
-            throw std::invalid_argument("run: a null buffer");
-        }
-        FakeBuffer& buffer = ours(*b, state_.get(), "run");
-        if (buffer.device() != device.id) {
-            throw std::invalid_argument("run: a buffer of " + buffer.device() + " on " +
-                                        device.id);
-        }
-        views.push_back(buffer.bytes());
+    for (FakeBuffer* b : launch.buffers) {
+        views.emplace_back(b->bytes_);
     }
-    try {
-        (*reference)(views, launch.scalars, launch.grid);
-    } catch (const HalError&) {
-        throw;
-    } catch (const std::exception& error) {
-        throw HalError(Code::launch, "run", launch.kernel + ": " + error.what());
-    }
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    ++state_->counts.runs;
+    (*reference)(views, launch.scalars, launch.grid);
+    ++state_.counts.runs;
 }
 
-Counts FakeCompute::counts() const {
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    return state_->counts;
-}
-
-std::uint64_t FakeCompute::used(std::string_view device_id) const {
-    std::lock_guard<std::mutex> guard(state_->mutex);
-    auto found = state_->used.find(device_id);
-    return found == state_->used.end() ? 0 : found->second;
+std::uint64_t FakeCompute::used(std::string_view device_id) const noexcept {
+    for (std::size_t at = 0; at < config_.devices.size(); ++at) {
+        if (config_.devices[at].id == device_id) {
+            return state_.used[at];
+        }
+    }
+    return 0;
 }
 
 }  // namespace qiven3::hal::fake

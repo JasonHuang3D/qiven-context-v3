@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from tests.contract.hal_cases import HalCases
-from tests.drive.session import Drive, has_hal
+from tests.drive.session import Drive, has_hal, once
 
 
 class Fake(HalCases, unittest.TestCase):
@@ -21,3 +21,6 @@ class Fake(HalCases, unittest.TestCase):
 
     def drive(self):
         return Drive("--root", self.root, "--hal", "fake")
+
+    def drive_once(self, *requests):
+        return once(["--root", self.root, "--hal", "fake"], *requests)

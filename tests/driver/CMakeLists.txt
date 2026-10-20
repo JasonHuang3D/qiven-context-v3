@@ -14,9 +14,9 @@ add_library(qiven3_drive_common STATIC
 target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests")
 target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven3_memory PRIVATE qiven3_flags qiven3_platform_current)
 if(QIVEN3_HAL)
-  target_sources(qiven3_drive_common PRIVATE hal_ops.cpp)
+  target_sources(qiven3_drive_common PRIVATE hal_ops.cpp hal_ops.hpp)
   target_compile_definitions(qiven3_drive_common PUBLIC QIVEN3_DRIVE_HAL)
-  target_link_libraries(qiven3_drive_common PRIVATE qiven3_hal_fake)
+  target_link_libraries(qiven3_drive_common PUBLIC qiven3_hal_fake)
 endif()
 
 add_executable(qiven3-drive-fake instances_fake.cpp)

@@ -23,13 +23,13 @@
 // by a build with QIVEN3_HAL off, which has no HAL operation.
 //
 // This header is the drive's common half, no adapter's: its options, the
-// session's state, the request helpers, adapter_for and current as a
-// command's main calls them, and the HAL's operations.
+// session's state (the HAL's, driver/hal_ops.hpp, in a build with it), the
+// request helpers, adapter_for and current as a command's main calls them,
+// and the HAL's operations.
 
 #include <cstdint>
 #include <functional>
 #include <map>
-#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -37,6 +37,10 @@
 
 #include "driver/wire.hpp"
 #include "platform/platform.hpp"
+
+#if defined(QIVEN3_DRIVE_HAL)
+#include "driver/hal_ops.hpp"
+#endif
 
 namespace qiven3::drive {
 
@@ -50,8 +54,8 @@ struct Options {
 // and --seed, which the Windows drive refuses.
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why);
 
-// The state the drive's common operations keep: its options, and state an
-// operation module keeps by its own key (the HAL's).
+// The state the drive's common operations keep: its options and, in a
+// build with the HAL, the HAL's.
 class Session {
 public:
     explicit Session(Options options) : options_(std::move(options)) {}
@@ -60,11 +64,15 @@ public:
     ~Session() = default;
 
     const Options& options() const noexcept { return options_; }
-    std::shared_ptr<void>& state(const std::string& key) { return state_[key]; }
+#if defined(QIVEN3_DRIVE_HAL)
+    Hal& hal() noexcept { return hal_; }
+#endif
 
 private:
     Options options_;
-    std::map<std::string, std::shared_ptr<void>> state_;
+#if defined(QIVEN3_DRIVE_HAL)
+    Hal hal_;
+#endif
 };
 
 // A request the drive cannot serve: the reply's kind "request".
@@ -83,7 +91,7 @@ bool flag(const Value& request, std::string_view key, bool fallback);
 platform::Seconds deadline(const Value& request, std::string_view key);
 
 // The common operations: adapter_for and current, and the HAL's.
-using Operation = std::function<std::optional<Value>(Session&, const Value& request)>;
+using Operation = std::optional<Value> (*)(Session&, const Value& request);
 using Operations = std::map<std::string, Operation, std::less<>>;
 void add_hal_operations(Operations& into);  // a build with the HAL alone
 const Operations& operations();

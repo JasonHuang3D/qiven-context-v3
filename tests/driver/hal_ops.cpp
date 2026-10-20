@@ -1,147 +1,133 @@
 // The drive's HAL operations, on the HAL's fake (--hal fake), in a build
-// with QIVEN3_HAL on alone.
+// with QIVEN3_HAL on alone (driver/hal_ops.hpp). The contract's operations
+// are templates on the compute C, instantiated for the fake; hal_fake and
+// hal_counts are the fake's own.
 //
-// hal_fake gives the fake its device set: "threads", "vectors" by name,
-// "devices" (each {"id", "back_end", "name", "memory"}) and "gaps" (a
-// capability's reason); the fake starts with 1 thread and nothing else. A
-// device crosses as that object; a buffer as the number allocate gave. The
-// kernels are the drive's own, each with its CPU reference:
+// hal_fake gives both fakes, the drive's and the other one, its device set:
+// "threads", "vectors" by name, "devices" (each {"id", "back_end", "name",
+// "memory"}) and "gaps" (a capability's reason), ending every buffer; the
+// fakes start with 1 thread and nothing else. A device crosses as that
+// object; a buffer as the number allocate gave. hal_allocate with "other"
+// true takes the buffer from the other fake; every other operation is the
+// drive's fake's, so an upload into that buffer is a caller's mistake and
+// ends the process. A device's reply is {"device": {...}}, a gap's
+// {"gap": {"reason": ...}}. The kernels are the drive's own, each with its
+// CPU reference:
 //   add_i64: three buffers of int64 in the host's order, out = a + b.
+//
+// Each request's devices and facts are written into an arena over the HAL
+// state's own pages, and leave it as the reply's text before the arena
+// ends.
 
 #include <array>
 #include <cstring>
-#include <map>
-#include <memory>
 #include <span>
-#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "driver/drive.hpp"
-#include "support/fake_hal/fake_hal.hpp"
+#include "memory/arena.hpp"
 
 namespace qiven3::drive {
 namespace {
 
 using Result = std::optional<Value>;
+using Fake = hal::fake::FakeCompute;
 
-constexpr hal::Vector all_vectors[] = {hal::Vector::sse2, hal::Vector::sse4_2, hal::Vector::avx,
-                                       hal::Vector::fma,  hal::Vector::avx2,   hal::Vector::avx512f,
-                                       hal::Vector::neon};
-
-struct Hal {
-    std::unique_ptr<hal::fake::FakeCompute> compute;
-    std::map<std::int64_t, std::unique_ptr<hal::Buffer>> buffers;
-    std::int64_t next = 1;
+constexpr std::array<hal::Vector, hal::vector_sets> all_vectors = {
+    hal::Vector::sse2, hal::Vector::sse4_2,  hal::Vector::avx,  hal::Vector::fma,
+    hal::Vector::avx2, hal::Vector::avx512f, hal::Vector::neon,
 };
 
-hal::Kernels kernels() {
-    hal::Kernels k;
-    k.add("add_i64", [](std::span<const std::span<std::byte>> buffers, std::span<const std::int64_t>,
-                        const std::array<std::uint32_t, 3>&) {
-        if (buffers.size() != 3 || buffers[0].size() != buffers[1].size() ||
-            buffers[0].size() != buffers[2].size() || buffers[0].size() % 8 != 0) {
-            throw std::invalid_argument("add_i64 takes three buffers of one size, of int64");
-        }
-        for (std::size_t at = 0; at < buffers[0].size(); at += 8) {
-            std::int64_t a = 0, b = 0;
-            std::memcpy(&a, buffers[0].data() + at, 8);
-            std::memcpy(&b, buffers[1].data() + at, 8);
-            const auto sum = static_cast<std::int64_t>(static_cast<std::uint64_t>(a) + static_cast<std::uint64_t>(b));
-            std::memcpy(buffers[2].data() + at, &sum, 8);
-        }
-    });
-    return k;
+constexpr std::array<hal::Reason, 4> all_reasons = {hal::Reason::no_device, hal::Reason::no_driver,
+                                                    hal::Reason::not_built, hal::Reason::not_pinned};
+
+void add_i64(std::span<const std::span<std::byte>> buffers, std::span<const std::int64_t>,
+             const std::array<std::uint32_t, 3>&) {
+    if (buffers.size() != 3 || buffers[0].size() != buffers[1].size() || buffers[0].size() != buffers[2].size() ||
+        buffers[0].size() % 8 != 0) {
+        throw hal::HalError(hal::Code::launch, "run", "add_i64 takes three buffers of one size, of int64");
+    }
+    for (std::size_t at = 0; at < buffers[0].size(); at += 8) {
+        std::int64_t a = 0, b = 0;
+        std::memcpy(&a, buffers[0].subspan(at, 8).data(), 8);
+        std::memcpy(&b, buffers[1].subspan(at, 8).data(), 8);
+        const auto sum = static_cast<std::int64_t>(static_cast<std::uint64_t>(a) + static_cast<std::uint64_t>(b));
+        std::memcpy(buffers[2].subspan(at, 8).data(), &sum, 8);
+    }
+}
+
+hal::fake::Config base_config() {
+    hal::fake::Config config;
+    config.kernels.add("add_i64", add_i64);
+    return config;
+}
+
+template <hal::Compute C>
+void reset(HalState<C>& h, const hal::fake::Config& config) {
+    h.buffers.clear();
+    for (std::optional<C>& compute : h.computes) {
+        compute.reset();
+        compute.emplace(config);
+    }
 }
 
 Hal& hal_of(Session& s) {
     if (!s.options().hal_fake) {
         throw RequestError("no HAL selected: --hal fake");
     }
-    std::shared_ptr<void>& slot = s.state("hal");
-    if (!slot) {
-        auto made = std::make_shared<Hal>();
-        hal::fake::Config config;
-        config.kernels = kernels();
-        made->compute = std::make_unique<hal::fake::FakeCompute>(std::move(config));
-        slot = made;
+    Hal& h = s.hal();
+    if (!h.computes[0]) {
+        h.pages.resize(hal_result_bytes);
+        reset(h, base_config());
     }
-    return *static_cast<Hal*>(slot.get());
+    return h;
 }
 
-hal::Device device_of(const Value& value) {
-    hal::Device d;
-    d.id = text(value, "id");
-    d.back_end = text(value, "back_end");
-    d.name = text(value, "name");
+std::string_view view(const memory::String& text) { return std::string_view(text.data(), text.size()); }
+
+hal::Device device_of(memory::Arena& arena, const Value& value) {
+    hal::Device d(arena);
+    const std::string id = text(value, "id"), back_end = text(value, "back_end"), name = text(value, "name");
+    d.id.assign(id.data(), id.size());
+    d.back_end.assign(back_end.data(), back_end.size());
+    d.name.assign(name.data(), name.size());
     d.memory = static_cast<std::uint64_t>(integer(value, "memory"));
     return d;
 }
 
 Value device_value(const hal::Device& d) {
     Value value;
-    value.set("id", d.id);
-    value.set("back_end", d.back_end);
-    value.set("name", d.name);
+    value.set("id", std::string(view(d.id)));
+    value.set("back_end", std::string(view(d.back_end)));
+    value.set("name", std::string(view(d.name)));
     value.set("memory", static_cast<std::int64_t>(d.memory));
     return value;
 }
 
-hal::Buffer& buffer_of(Hal& h, std::int64_t id) {
+template <hal::Compute C>
+typename HalState<C>::Held& held(HalState<C>& h, const Value& request, std::string_view key) {
+    const std::int64_t id = integer(request, key);
     const auto found = h.buffers.find(id);
     if (found == h.buffers.end()) {
         throw RequestError("no buffer " + std::to_string(id));
     }
-    return *found->second;
+    return found->second;
 }
 
-std::span<const std::byte> bytes_of(const std::string& data) {
-    return std::as_bytes(std::span<const char>(data.data(), data.size()));
-}
-
-Result hal_fake(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
-    hal::fake::Config config;
-    config.cpu_threads = static_cast<unsigned>(integer(request, "threads", 1));
-    if (const Value* vectors = request.find("vectors")) {
-        for (const Value& item : vectors->as_array("vectors")) {
-            bool known = false;
-            for (const hal::Vector v : all_vectors) {
-                if (hal::vector_name(v) == item.as_string("vectors")) {
-                    config.vectors.insert(v);
-                    known = true;
-                }
-            }
-            if (!known) {
-                throw RequestError("vectors: no set " + item.as_string("vectors"));
-            }
-        }
-    }
-    if (const Value* devices = request.find("devices")) {
-        for (const Value& item : devices->as_array("devices")) {
-            config.devices.push_back(device_of(item));
-        }
-    }
-    if (const Value* gaps = request.find("gaps")) {
-        for (const std::string& key : gaps->keys()) {
-            config.gaps[key] = gaps->find(key)->as_string("gaps");
-        }
-    }
-    config.kernels = kernels();
-    h.buffers.clear();
-    h.compute = std::make_unique<hal::fake::FakeCompute>(std::move(config));
-    return std::nullopt;
-}
-
-Result hal_facts(Session& s, const Value&) {
-    const hal::Facts f = hal_of(s).compute->facts();
+template <hal::Compute C>
+Result facts(HalState<C>& h, memory::Arena& arena, const Value&) {
+    hal::Facts f(arena);
+    h.computes[0]->facts(f);
     Value value;
     value.set("cpu_threads", static_cast<std::int64_t>(f.cpu_threads));
     Value vectors = Value::array();
-    for (const hal::Vector v : f.vectors) {
-        vectors.push(Value(std::string(hal::vector_name(v))));
+    for (const hal::Vector v : all_vectors) {
+        if (f.vectors.test(static_cast<std::size_t>(v))) {
+            vectors.push(Value(std::string(hal::name(v))));
+        }
     }
     value.set("vectors", std::move(vectors));
     Value devices = Value::array();
@@ -152,87 +138,142 @@ Result hal_facts(Session& s, const Value&) {
     return value;
 }
 
-Result hal_device(Session& s, const Value& request) {
-    const auto found = hal_of(s).compute->device(text(request, "capability"));
+template <hal::Compute C>
+Result device(HalState<C>& h, memory::Arena& arena, const Value& request) {
+    hal::Device d(arena);
+    const std::optional<hal::Gap> gap = h.computes[0]->device(text(request, "capability"), d);
     Value value;
-    if (const auto* d = std::get_if<hal::Device>(&found)) {
-        value.set("device", device_value(*d));
-    } else {
-        const auto& gap = std::get<hal::Gap>(found);
+    if (gap) {
         Value g;
-        g.set("capability", gap.capability);
-        g.set("reason", gap.reason);
+        g.set("reason", std::string(hal::name(gap->reason)));
         value.set("gap", std::move(g));
+    } else {
+        value.set("device", device_value(d));
     }
     return value;
 }
 
-Result hal_allocate(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
-    auto buffer = h.compute->allocate(device_of(argument(request, "device")),
-                                      static_cast<std::uint64_t>(integer(request, "size")));
+template <hal::Compute C>
+Result allocate(HalState<C>& h, memory::Arena& arena, const Value& request) {
+    const std::size_t from = flag(request, "other", false) ? 1 : 0;
+    const hal::Device d = device_of(arena, argument(request, "device"));
+    auto buffer = h.computes[from]->allocate(d, static_cast<std::uint64_t>(integer(request, "size")));
     const std::int64_t id = h.next++;
-    h.buffers.emplace(id, std::move(buffer));
+    h.buffers.emplace(id, typename HalState<C>::Held{std::move(buffer), from});
     return Value(id);
 }
 
-Result hal_upload(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
+std::span<const std::byte> bytes_of(const std::string& data) {
+    return std::as_bytes(std::span<const char>(data.data(), data.size()));
+}
+
+template <hal::Compute C>
+Result upload(HalState<C>& h, memory::Arena&, const Value& request) {
     const std::string data = from_hex(text(request, "data"));
-    h.compute->upload(buffer_of(h, integer(request, "buffer")), bytes_of(data));
+    h.computes[0]->upload(held(h, request, "buffer").buffer, bytes_of(data));
     return std::nullopt;
 }
 
 // "size", the span's, is the buffer's when absent.
-Result hal_download(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
-    const hal::Buffer& buffer = buffer_of(h, integer(request, "buffer"));
+template <hal::Compute C>
+Result download(HalState<C>& h, memory::Arena&, const Value& request) {
+    const auto& buffer = held(h, request, "buffer").buffer;
     const std::int64_t size = integer(request, "size", static_cast<std::int64_t>(buffer.size()));
     if (size < 0) {
         throw RequestError("size: not negative");
     }
     std::string out(static_cast<std::size_t>(size), '\0');
-    h.compute->download(buffer, std::as_writable_bytes(std::span<char>(out.data(), out.size())));
+    h.computes[0]->download(buffer, std::as_writable_bytes(std::span<char>(out.data(), out.size())));
     return Value(to_hex(out));
 }
 
-Result hal_free(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
-    buffer_of(h, integer(request, "buffer"));
+template <hal::Compute C>
+Result free_buffer(HalState<C>& h, memory::Arena&, const Value& request) {
+    held(h, request, "buffer");
     h.buffers.erase(integer(request, "buffer"));
     return std::nullopt;
 }
 
-Result hal_run(Session& s, const Value& request) {
-    Hal& h = hal_of(s);
-    hal::Launch launch;
-    launch.kernel = text(request, "kernel");
-    if (const Value* buffers = request.find("buffers")) {
-        for (const Value& item : buffers->as_array("buffers")) {
-            launch.buffers.push_back(&buffer_of(h, item.as_integer("buffers")));
+template <hal::Compute C>
+Result run(HalState<C>& h, memory::Arena& arena, const Value& request) {
+    std::vector<typename C::Buffer*> buffers;
+    if (const Value* items = request.find("buffers")) {
+        for (const Value& item : items->as_array("buffers")) {
+            const std::int64_t id = item.as_integer("buffers");
+            const auto found = h.buffers.find(id);
+            if (found == h.buffers.end()) {
+                throw RequestError("no buffer " + std::to_string(id));
+            }
+            buffers.push_back(&found->second.buffer);
         }
     }
-    if (const Value* scalars = request.find("scalars")) {
-        for (const Value& item : scalars->as_array("scalars")) {
-            launch.scalars.push_back(item.as_integer("scalars"));
+    std::vector<std::int64_t> scalars;
+    if (const Value* items = request.find("scalars")) {
+        for (const Value& item : items->as_array("scalars")) {
+            scalars.push_back(item.as_integer("scalars"));
         }
     }
-    launch.grid = {1, 1, 1};
-    if (const Value* grid = request.find("grid")) {
-        const auto& items = grid->as_array("grid");
-        if (items.size() != 3) {
+    std::array<std::uint32_t, 3> grid = {1, 1, 1};
+    if (const Value* items = request.find("grid")) {
+        const auto& values = items->as_array("grid");
+        if (values.size() != 3) {
             throw RequestError("grid: three integers");
         }
         for (std::size_t i = 0; i < 3; ++i) {
-            launch.grid[i] = static_cast<std::uint32_t>(items[i].as_integer("grid"));
+            grid.at(i) = static_cast<std::uint32_t>(values[i].as_integer("grid"));
         }
     }
-    h.compute->run(device_of(argument(request, "device")), launch);
+    const std::string kernel = text(request, "kernel");
+    const hal::Device d = device_of(arena, argument(request, "device"));
+    h.computes[0]->run(d, hal::Launch<typename C::Buffer>{kernel, buffers, scalars, grid});
     return std::nullopt;
 }
 
-Result hal_counts(Session& s, const Value&) {
-    const hal::fake::Counts c = hal_of(s).compute->counts();
+Result hal_fake(Hal& h, memory::Arena&, const Value& request) {
+    hal::fake::Config config = base_config();
+    config.cpu_threads = static_cast<unsigned>(integer(request, "threads", 1));
+    if (const Value* vectors = request.find("vectors")) {
+        for (const Value& item : vectors->as_array("vectors")) {
+            bool known = false;
+            for (const hal::Vector v : all_vectors) {
+                if (hal::name(v) == item.as_string("vectors")) {
+                    config.vectors.set(static_cast<std::size_t>(v));
+                    known = true;
+                }
+            }
+            if (!known) {
+                throw RequestError("vectors: no set " + item.as_string("vectors"));
+            }
+        }
+    }
+    if (const Value* devices = request.find("devices")) {
+        for (const Value& item : devices->as_array("devices")) {
+            config.devices.push_back(hal::fake::FakeDevice{text(item, "id"), text(item, "back_end"),
+                                                           text(item, "name"),
+                                                           static_cast<std::uint64_t>(integer(item, "memory"))});
+        }
+    }
+    if (const Value* gaps = request.find("gaps")) {
+        for (const std::string& key : gaps->keys()) {
+            const std::string& reason = gaps->find(key)->as_string("gaps");
+            bool known = false;
+            for (const hal::Reason r : all_reasons) {
+                if (hal::name(r) == reason) {
+                    config.gaps.emplace_back(key, r);
+                    known = true;
+                }
+            }
+            if (!known) {
+                throw RequestError("gaps: no reason " + reason);
+            }
+        }
+    }
+    reset(h, config);
+    return std::nullopt;
+}
+
+Result hal_counts(Hal& h, memory::Arena&, const Value&) {
+    const hal::fake::Counts& c = h.computes[0]->counts();
     Value value;
     value.set("allocations", static_cast<std::int64_t>(c.allocations));
     value.set("uploads", static_cast<std::int64_t>(c.uploads));
@@ -241,13 +282,30 @@ Result hal_counts(Session& s, const Value&) {
     return value;
 }
 
+using HalOperation = Result (*)(Hal&, memory::Arena&, const Value&);
+
+// The operation on the session's HAL, its results in an arena over the
+// HAL's pages.
+template <HalOperation F>
+Result bound(Session& s, const Value& request) {
+    Hal& h = hal_of(s);
+    memory::Arena arena(h.pages);
+    return F(h, arena, request);
+}
+
 }  // namespace
 
 void add_hal_operations(Operations& into) {
-    const std::pair<const char*, Result (*)(Session&, const Value&)> table[] = {
-        {"hal_fake", hal_fake},         {"hal_facts", hal_facts}, {"hal_device", hal_device},
-        {"hal_allocate", hal_allocate}, {"hal_upload", hal_upload}, {"hal_download", hal_download},
-        {"hal_free", hal_free},         {"hal_run", hal_run},     {"hal_counts", hal_counts},
+    const std::pair<const char*, Operation> table[] = {
+        {"hal_fake", bound<hal_fake>},
+        {"hal_facts", bound<facts<Fake>>},
+        {"hal_device", bound<device<Fake>>},
+        {"hal_allocate", bound<allocate<Fake>>},
+        {"hal_upload", bound<upload<Fake>>},
+        {"hal_download", bound<download<Fake>>},
+        {"hal_free", bound<free_buffer<Fake>>},
+        {"hal_run", bound<run<Fake>>},
+        {"hal_counts", bound<hal_counts>},
     };
     for (const auto& [key, operation] : table) {
         into.emplace(key, operation);

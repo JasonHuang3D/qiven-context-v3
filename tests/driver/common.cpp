@@ -2,6 +2,7 @@
 // adapter_for and current, the HAL's table, the replies and the loop.
 
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <stdexcept>
@@ -198,7 +199,7 @@ Value caught(std::string_view name) {
         return error_reply(typed("memory", memory::name(error.code), error.operation.view(), error.detail.view()));
 #if defined(QIVEN3_DRIVE_HAL)
     } catch (const hal::HalError& error) {
-        return error_reply(typed("hal", hal::code_name(error.code()), error.operation(), error.detail()));
+        return error_reply(typed("hal", hal::name(error.code), error.operation.view(), error.detail.view()));
 #endif
     } catch (const RequestError& error) {
         return error_reply(plain("request", error.what()));
@@ -211,6 +212,9 @@ Value caught(std::string_view name) {
 
 int loop(const std::function<Value(const Value&)>& reply) {
 #if defined(_WIN32)
+    // A caller's mistake ends the drive through fail_fast: abort's status,
+    // with no message and no fault report.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     // Bytes as they are: no CRLF for LF, no end of input at 0x1A.
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
