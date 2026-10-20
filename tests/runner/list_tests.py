@@ -13,6 +13,7 @@ import unittest
 # The labels of each package of tests/ that holds Python tests.
 PACKAGE_LABELS = {
     "drive": ("drive",),
+    "contract": ("drive",),
     "structure": ("fast",),
     "slow": ("slow",),
     "machine": ("machine",),

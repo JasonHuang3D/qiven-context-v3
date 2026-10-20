@@ -30,6 +30,7 @@ add_subdirectory(support/fake_platform)
 if(QIVEN3_HAL)
   add_subdirectory(support/fake_hal)
 endif()
+add_subdirectory(driver)
 
 # The AddressSanitizer runtime beside each test binary: every binary is
 # written to one directory.

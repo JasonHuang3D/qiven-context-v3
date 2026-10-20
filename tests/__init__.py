@@ -41,6 +41,8 @@ _exit = sys.exit
 
 def _exit_with_skip(status=None):
     if status in (None, 0) and _only_skipped(_Run.result):
+        for test, reason in _Run.result.skipped:
+            print(f"skipped {test.id()}: {reason}", file=sys.stderr)
         print(f"all selected tests skipped: exit status {SKIP_CODE}", file=sys.stderr)
         status = SKIP_CODE
     _exit(status)
