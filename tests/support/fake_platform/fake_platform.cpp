@@ -12,6 +12,10 @@
 
 #include "memory/fail.hpp"
 
+// The Guidelines' mark of an owning pointer, an alias of the type: the
+// stream create opens is held by it, as clang-tidy's owning-memory reads.
+namespace gsl { template <class T> using owner = T; }  // namespace gsl
+
 namespace qiven3::platform::fake {
 namespace fs = std::filesystem;
 namespace {
@@ -171,9 +175,6 @@ std::string joined(const Program& program) {
     }
     return out;
 }
-
-// A C stream's owner, which closes it.
-struct Closer { void operator()(std::FILE* file) const noexcept { static_cast<void>(std::fclose(file)); } };
 
 // The system's error, by name and number, as a detail names it.
 std::string named(std::errc error) {
@@ -421,18 +422,18 @@ void FakePlatform::create(std::string_view path, bool directory) {
     // An empty file by the system's exclusive create, so one of two racing
     // creates wins: "wbx" by _wfopen_s on Windows, for the path's UTF-16;
     // elsewhere fopen's "wbx", which the C library opens O_CREAT | O_EXCL.
-    std::FILE* raw = nullptr;
+    gsl::owner<std::FILE*> file = nullptr;
 #if defined(_WIN32)
-    const int code = _wfopen_s(&raw, target.c_str(), L"wbx");
+    const int code = _wfopen_s(&file, target.c_str(), L"wbx");
 #else
-    raw = std::fopen(target.c_str(), "wbx");
-    const int code = raw != nullptr ? 0 : errno;
+    file = std::fopen(target.c_str(), "wbx");
+    const int code = file != nullptr ? 0 : errno;
 #endif
-    const std::unique_ptr<std::FILE, Closer> file(raw);
-    if (!file) {
+    if (file == nullptr) {
         fail(code == EEXIST ? Code::exists : Code::io, "create",
              code == EEXIST ? "present" : "the file did not open: " + named(static_cast<std::errc>(code)));
     }
+    static_cast<void>(std::fclose(file));
 }
 
 void FakePlatform::read(std::string_view path, String& out) {

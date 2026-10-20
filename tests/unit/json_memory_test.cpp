@@ -63,7 +63,11 @@ QIVEN3_CASE(json, scan_budget) {
                   << ", budget " << budget << "\n";
         CHECK(peak <= budget);
         CHECK(peak >= 8 * nodes);
+#if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
         // A byte short: MemoryError budget, the caller's value unchanged.
+        // MSVC's debug containers allocate in their noexcept constructors,
+        // where scan's keys meet the short budget and the process ends, so
+        // this half runs where its iterators do not debug: asan, CI.
         Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
         json::Value v{Allocator<char>(shorter)};
         bool refused = false;
@@ -74,6 +78,9 @@ QIVEN3_CASE(json, scan_budget) {
         }
         CHECK(refused);
         CHECK(v.empty());
+#else
+        std::cout << "json.scan_budget: a byte short not run, under MSVC's debug containers\n";
+#endif
     }
 }
 
