@@ -13,8 +13,10 @@ from tests.drive import binaries
 LABELS = {"cxx", "py", "fast", "fake", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis"}
 # The structure tests start no process and read no machine fact: fast, and
-# not drive; every other Python test drives a binary.
+# not drive; but the analysis tools' controls, which run the tools on the
+# analysis build: analysis alone. Every other Python test drives a binary.
 STRUCTURE = "tests.structure."
+ANALYSIS = "tests.structure.test_analysis."
 SAMPLE = "tests.drive.samples."
 SELECT = "tests.drive.test_wiring.Select."
 
@@ -105,7 +107,9 @@ class Registered(unittest.TestCase):
                         ["-I", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-k", "*" + name],
                     )
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
-                    if name.startswith(STRUCTURE):
+                    if name.startswith(ANALYSIS):
+                        self.assertEqual(labels, {"py", "analysis"})
+                    elif name.startswith(STRUCTURE):
                         self.assertIn("fast", labels)
                         self.assertNotIn("drive", labels)
                     else:
@@ -118,13 +122,15 @@ class Registered(unittest.TestCase):
         tests = ctest_tests()
         presets = json.loads((binaries.ROOT / "CMakePresets.json").read_bytes())
         filters = {p["name"]: p.get("filter", {}) for p in presets["testPresets"]}
-        everything = set(tests)
+        analysis = labelled(tests, "analysis")
         expected = {
-            "full": everything,
+            "full": set(tests) - analysis,
             "fast": labelled(tests, "fast"),
             "asan": labelled(tests, "cxx"),
-            "structure": {name for name in tests if name.startswith(STRUCTURE)},
+            "structure": {name for name in tests if name.startswith(STRUCTURE)} - analysis,
+            "analysis": analysis,
         }
+        self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
         self.assertIn("runner.pass_status", expected["fast"])
         self.assertNotIn("tests.drive.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))

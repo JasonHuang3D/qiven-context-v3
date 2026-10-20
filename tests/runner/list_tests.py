@@ -2,9 +2,10 @@
 
 Run from the checkout's root as python -I tests/runner/list_tests.py. Each
 line is "<id>\t<labels by commas>\t<0 or 1>". A test's labels are its
-package's, below, and those its class names in ctest_labels; a class whose
-ctest_serial is true runs alone. A module that does not import, or a test
-in a package with no labels here, fails the listing, and so the build.
+package's, or its module's where MODULE_LABELS names it, below, and those
+its class names in ctest_labels; a class whose ctest_serial is true runs
+alone. A module that does not import, or a test in a package with no labels
+here, fails the listing, and so the build.
 """
 
 import sys
@@ -19,6 +20,11 @@ PACKAGE_LABELS = {
     "machine": ("machine",),
     "bench": ("bench",),
     "drill": ("drill",),
+}
+# A module whose labels are its own, in place of its package's: the analysis
+# tools' controls, which run on the analysis build alone.
+MODULE_LABELS = {
+    "structure.test_analysis": ("analysis",),
 }
 
 
@@ -46,7 +52,8 @@ def main():
             print(f"{test_id}: the package {package} has no labels", file=sys.stderr)
             failed = True
             continue
-        labels = PACKAGE_LABELS[package] + tuple(getattr(test, "ctest_labels", ()))
+        module = ".".join(test_id.split(".")[1:3])
+        labels = MODULE_LABELS.get(module, PACKAGE_LABELS[package]) + tuple(getattr(test, "ctest_labels", ()))
         serial = 1 if getattr(test, "ctest_serial", False) else 0
         print(f"{test_id}\t{','.join(labels)}\t{serial}")
     for error in loader.errors:

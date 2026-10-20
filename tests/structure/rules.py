@@ -1,4 +1,5 @@
-"""The structure rules, B1, B2 and B5 to B17, as data, and one checker.
+"""The structure rules, B1, B2 and B5 to B17, as data, and one checker,
+which also runs the safe subset's token rules, B18 to B31 (subset.py).
 
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
@@ -14,6 +15,7 @@ from collections import namedtuple
 from fnmatch import fnmatchcase
 from pathlib import Path
 
+from tests.structure import subset
 from tests.structure.lexer import lex
 from tests.structure.records import Records, command_include_dirs
 
@@ -107,6 +109,7 @@ ALLOWED = {
     "B14": ("tests/support/goldens",),
     "B16": ("src/app/main.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.", "tests/machine/mapcheck",
             "qiven3"),
+    **subset.ALLOWED,
 }
 # Allowances the text lacks, (rule, file, what): each with its reason, until
 # the text grows it. A file or a what ending in / is a prefix.
@@ -120,6 +123,7 @@ PENDING = {
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t, the blocks "
                                             "B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena's, and std::nothrow",
+    **subset.PENDING,
 }
 EXEMPT = {
     "B1": (STRUCTURE, "tests/audit/read_audit"),
@@ -494,6 +498,7 @@ def check(records, root=None):
     directive_rules(records, root, files, out)
     name_rules(records, goldens, out)
     link_rules(records, out)
+    subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what))
     return out.found
 
 

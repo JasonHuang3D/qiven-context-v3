@@ -443,6 +443,107 @@ CLEAN = [
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite",
 ]
 
+# The safe subset's plants (subset.py), headers no target compiles: each of
+# B18 to B31 but B26 broken, files of tests/ outside the subset's scope and of
+# tests/support/ inside it, the allowances, and a clean file naming each
+# finding in comments and strings.
+SUBSET_PLANTS = {
+    "src/entry/typeid.hpp": "#pragma once\n#include <typeinfo>\n"
+        "inline const char* entry_type(int x) { return typeid(x).name(); }\n",
+    "tests/unit/typeid_test.hpp": "#pragma once\ninline bool same(int x) { return typeid(x) == typeid(int); }\n",
+    "src/entry/new.hpp": "#pragma once\ninline int* entry_new() { return new int(1); }\n"
+        "inline void entry_delete(int* p) { delete p; }\n",
+    "src/entry/malloc.hpp": "#pragma once\n#include <cstdlib>\n#include <new>\n"
+        "inline void* entry_malloc() { return std::malloc(8); }\ninline void entry_free(void* p) { free(p); }\n"
+        "inline void* entry_operator() { return ::operator new(8); }\n",
+    "tests/support/plant/support_new.hpp": "#pragma once\ninline int* support_new() { return new int(2); }\n",
+    "src/entry/placement.hpp": "#pragma once\n#include <memory>\n#include <new>\n"
+        "inline int* entry_place(void* p) { return new (p) int(1); }\n"
+        "inline void entry_end(int* p) { std::destroy_at(p); }\n",
+    "src/entry/casts.hpp": "#pragma once\ninline long entry_bits(const double* d) "
+        "{ return *reinterpret_cast<const long*>(d); }\n"
+        "inline int* entry_unconst(const int* p) { return const_cast<int*>(p); }\n",
+    "src/entry/varargs.hpp": "#pragma once\n#include <cstdarg>\ninline int entry_first(int n, ...) {\n"
+        "    va_list args;\n    va_start(args, n);\n    int v = va_arg(args, int);\n    va_end(args);\n"
+        "    return v;\n}\n",
+    "src/entry/union.hpp": "#pragma once\nunion EntryBits { float f; unsigned u; };\n",
+    "src/entry/thread.hpp": "#pragma once\n#include <thread>\n"
+        "inline void entry_spawn() { std::thread t([] {}); t.detach(); }\n",
+    "src/entry/globals.hpp": "#pragma once\ninline thread_local int entry_depth = 0;\nint entry_count = 0;\n"
+        "struct EntryCounter { static int made; };\n",
+    "src/entry/nolint.hpp": "#pragma once\ninline int entry_lint() { return 0; }  // NOLINT(bugprone-*)\n"
+        "#pragma warning(disable : 26400)\n[[gsl::suppress(\"26400\")]] inline int entry_quiet() { return 0; }\n",
+    "src/entry/command.hpp": "#pragma once\n#include <string_view>\n"
+        "struct EntryCommand { std::string_view cwd; };\n",
+    "src/entry/mutex.hpp": "#pragma once\n#include <mutex>\nstruct EntryGuarded { std::mutex m; };\n"
+        "inline void entry_wait(std::timed_mutex& m) { m.lock(); m.unlock(); }\n"
+        "inline unsigned long entry_forever() { return INFINITE; }\n",
+    "src/entry/clock.hpp": "#pragma once\n#include <chrono>\n"
+        "inline auto entry_now() { return std::chrono::system_clock::now(); }\n",
+    "src/entry/abort.hpp": "#pragma once\n#include <cassert>\n#include <cstdlib>\n"
+        "inline void entry_stop(int x) { assert(x > 0); if (x > 1) { std::abort(); } std::exit(1); }\n",
+    "tests/unit/scope_test.hpp": "#pragma once\n#include <cstdlib>\n"
+        "inline int* scope_new() { int* p = new int(1); if (!p) { std::abort(); } return p; }\n",
+    "src/memory/arena.hpp": "#pragma once\n#include <cstddef>\n"
+        "inline void* arena_block(std::size_t n) { return ::operator new(n, std::align_val_t{64}); }\n"
+        "inline void arena_drop(void* p) { ::operator delete(p, std::align_val_t{64}); }\n",
+    "src/memory/construct.hpp": "#pragma once\n#include <memory>\n"
+        "inline int* memory_place(void* p) { return new (p) int(1); }\n"
+        "inline void memory_end(int* p) { std::destroy_at(p); }\n",
+    "src/memory/fail.hpp": "#pragma once\n#include <exception>\n"
+        "[[noreturn]] inline void fail_fast() noexcept { std::terminate(); }\n",
+    "src/platform/win/clock.hpp": "#pragma once\n#include <chrono>\n"
+        "inline auto win_now() { return std::chrono::system_clock::now(); }\n",
+    "src/qiven3/subset_clean.hpp": "#pragma once\n"
+        "// Names each subset rule's finding in comments and strings alone: typeid,\n"
+        "// dynamic_cast, new, delete, malloc, free, reinterpret_cast, const_cast,\n"
+        "// va_list, union, detach, std::thread, thread_local, a std::string_view\n"
+        "// member, std::mutex, lock(), INFINITE, system_clock, assert, abort, exit,\n"
+        "// std::terminate; and the forms each rule lets pass.\n"
+        "#include <chrono>\n#include <cstddef>\n#include <mutex>\n#include <span>\n"
+        "#include <string_view>\n#include <thread>\n#include <variant>\n"
+        "namespace qiven3::clean {\n"
+        "inline constexpr std::string_view names = \"typeid dynamic_cast new delete malloc free "
+        "reinterpret_cast const_cast va_list union detach std::thread thread_local std::mutex lock() "
+        "INFINITE system_clock assert abort exit\";\n"
+        "const int limit = 4;\nconst char* const label = \"x\";\nconstexpr std::chrono::seconds wait{5};\n"
+        "struct Holder {\n    Holder() = default;\n    Holder(const Holder&) = delete;\n"
+        "    Holder& operator=(const Holder&) = delete;\n    void free(void* p) noexcept;\n"
+        "    static constexpr std::string_view name = \"holder\";\n    static const int count;\n"
+        "    std::variant<int, float> value;\n    std::size_t exit_code = 0;\n};\n"
+        "inline void Holder::free(void* p) noexcept { static_cast<void>(p); }\n"
+        "struct TextView {\n    std::string_view text;\n    std::span<const std::byte> bytes;\n};\n"
+        "inline bool take(std::timed_mutex& m, Holder& h, void* p) {\n    h.free(p);\n"
+        "    std::jthread worker([] {});\n    if (!m.try_lock_for(wait)) {\n        return false;\n    }\n"
+        "    m.unlock();\n    const auto start = std::chrono::steady_clock::now();\n"
+        "    return std::chrono::steady_clock::now() >= start + wait && limit > 0;\n}\n"
+        "}  // namespace qiven3::clean\n",
+}
+SUBSET_PLANTED = [
+    ("B18", "src/entry/typeid.hpp", ""), ("B18", "tests/unit/typeid_test.hpp", ""),
+    ("B19", "src/entry/new.hpp", "new"), ("B19", "src/entry/new.hpp", "delete"),
+    ("B19", "src/entry/malloc.hpp", "c heap"), ("B19", "src/entry/malloc.hpp", "operator"),
+    ("B19", "tests/support/plant/support_new.hpp", "new"),
+    ("B20", "src/entry/placement.hpp", "placement"), ("B20", "src/entry/placement.hpp", "construct"),
+    ("B21", "src/entry/casts.hpp", ""), ("B22", "src/entry/varargs.hpp", ""), ("B23", "src/entry/union.hpp", ""),
+    ("B24", "src/entry/thread.hpp", ""),
+    ("B25", "src/entry/globals.hpp", "thread_local"), ("B25", "src/entry/globals.hpp", "object"),
+    ("B25", "src/entry/globals.hpp", "static"),
+    ("B27", "src/entry/nolint.hpp", "nolint"), ("B27", "src/entry/nolint.hpp", "pragma"),
+    ("B27", "src/entry/nolint.hpp", "suppress"),
+    ("B28", "src/entry/command.hpp", ""),
+    ("B29", "src/entry/mutex.hpp", ""), ("B29", "src/entry/mutex.hpp", "lock"),
+    ("B29", "src/entry/mutex.hpp", "infinite"),
+    ("B30", "src/entry/clock.hpp", ""), ("B31", "src/entry/abort.hpp", ""),
+]
+SUBSET_CLEAN = [
+    "tests/unit/scope_test.hpp", "src/memory/arena.hpp", "src/memory/construct.hpp", "src/memory/fail.hpp",
+    "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp",
+]
+PLANTS.update(SUBSET_PLANTS)
+PLANTED += SUBSET_PLANTED
+CLEAN += SUBSET_CLEAN
+
 
 def plant(tree):
     shutil.rmtree(tree.parent, ignore_errors=True)

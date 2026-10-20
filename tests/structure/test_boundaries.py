@@ -1,14 +1,17 @@
 """B1, B2, B12 to B14, B16 and B17 over every object, target and source
-file of the build, read from the structure build's records, and over the
-planted project: each plant reported, each rule reporting something, and
-the clean files, the allowances and the exemptions passing."""
+file of the build, read from the structure build's records, and B18 to B31
+but B26, the safe subset's token rules (subset.py), over every source file;
+and each over the planted project: each plant reported, each rule reporting
+something, and the clean files, the allowances and the exemptions passing.
+B26 has no token rule; the analysis tests read it (test_analysis.py)."""
 
 import sys
 import unittest
 
 from tests.structure import records, rules
 
-RULES = ("B1", "B2", "B12", "B13", "B14", "B16", "B17")
+RULES = ("B1", "B2", "B12", "B13", "B14", "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23", "B24", "B25",
+         "B27", "B28", "B29", "B30", "B31")
 B17_KINDS = ("include", "os", "name", "mode", "link")
 WINDOWS = unittest.skipUnless(sys.platform == "win32", "the structure records are MSVC's, read on Windows")
 

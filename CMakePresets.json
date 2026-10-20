@@ -192,7 +192,7 @@
       "inherits": "here",
       "displayName": "The structure tests, on the structure build, whose records they read",
       "configurePreset": "structure",
-      "filter": {"include": {"name": "^tests[.]structure[.]"}},
+      "filter": {"include": {"name": "^tests[.]structure[.]"}, "exclude": {"label": "^analysis$"}},
       "execution": {"noTestsAction": "error"}
     },
     {
@@ -228,7 +228,8 @@
       "inherits": "here",
       "displayName": "The analysis tools' controls, after the analysis build",
       "configurePreset": "analysis",
-      "filter": {"include": {"label": "^analysis$"}}
+      "filter": {"include": {"label": "^analysis$"}},
+      "execution": {"noTestsAction": "error"}
     },
     {
       "name": "fake",
