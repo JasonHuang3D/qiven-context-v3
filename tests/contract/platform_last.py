@@ -1,13 +1,16 @@
 """The platform's cases P27 to P30, each defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
-Here: P27 (create and read), P28 (pages) and P29 (normcase). P30 (wipe)
+Here: P27 (create and read, and two drives' creates racing), P28 (pages)
+and P29 (normcase). P30 (wipe)
 comes with package 2's digest.Key, its first user. The Windows adapter's
 create and read are its module win/files', in package 5; until then a
 binding with CREATE_READ false checks that each answers unsupported, and
 the case is skipped.
 """
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 # normcase's vectors: each path, and its form on the Windows adapter, by
@@ -22,6 +25,11 @@ NORMCASE = (
     ("C:\\\uff21", "c:\\\uff41"),
     ("C:\\\U00010400", "c:\\\U00010428"),
 )
+
+# P27's race: the paths two drives create at once, and how long a drive
+# waits for the other at each.
+RACES = 64
+GATE_S = 30
 
 # Every byte value, a CRLF and the C runtime's end of text among them.
 WHOLE = bytes(range(256)) + b"\r\n\x1a\x00tail"
@@ -84,6 +92,31 @@ class PlatformLast:
                 error = self.failure(d.call, "read", path=str(written))
                 self.assert_platform_error(error, "io")
                 self.assertEqual(error.detail, planted)
+
+    def test_P27_create_race(self):
+        """Two drives on one root create the same absent files, each pair of
+        creates released together: of each pair one makes the empty file and
+        the other finds it present, never both."""
+        self.needs("files")
+        if not self.CREATE_READ:
+            self.skipTest("until package 5: the Windows adapter's create is win/files'")
+        paths = [Path(self.files_root()) / f"raced-{k}" for k in range(RACES)]
+        gate = threading.Barrier(2, timeout=GATE_S)
+
+        def creates(d):
+            outcomes = []
+            for path in paths:
+                gate.wait()
+                reply = d.reply("create", path=str(path))
+                outcomes.append("made" if reply.get("ok") else (reply["error"]["kind"], reply["error"]["code"]))
+            return outcomes
+
+        with self.drive() as first, self.drive() as second, ThreadPoolExecutor(2) as pool:
+            both = list(pool.map(creates, (first, second)))
+        for path, pair in zip(paths, zip(*both)):
+            with self.subTest(path=path.name):
+                self.assertEqual(sorted(pair, key=str), [("platform", "exists"), "made"])
+                self.assertEqual(path.read_bytes(), b"")
 
     def test_P28_pages(self):
         """pages(1), then pages(5000); the fake set to refuse the second; on

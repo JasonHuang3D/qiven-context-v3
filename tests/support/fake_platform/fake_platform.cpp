@@ -1,6 +1,8 @@
 #include "support/fake_platform/fake_platform.hpp"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -71,7 +73,6 @@ std::string sha256(const std::string& message) {
     }
     return digest;
 }
-
 
 [[noreturn]] void fail(Code code, std::string_view operation, std::string_view detail) {
     throw PlatformError(code, operation, detail);
@@ -170,6 +171,9 @@ std::string joined(const Program& program) {
     }
     return out;
 }
+
+// A C stream's owner, which closes it.
+struct Closer { void operator()(std::FILE* file) const noexcept { static_cast<void>(std::fclose(file)); } };
 
 // The system's error, by name and number, as a detail names it.
 std::string named(std::errc error) {
@@ -414,11 +418,20 @@ void FakePlatform::create(std::string_view path, bool directory) {
         }
         return;
     }
-    // An empty file by a stream, which owns its handle: the fake's root has
-    // one writer, so the check above stands for an exclusive create.
-    const std::ofstream out(target, std::ios::binary);
-    if (!out) {
-        fail(Code::io, "create", "the stream did not open");
+    // An empty file by the system's exclusive create, so one of two racing
+    // creates wins: "wbx" by _wfopen_s on Windows, for the path's UTF-16;
+    // elsewhere fopen's "wbx", which the C library opens O_CREAT | O_EXCL.
+    std::FILE* raw = nullptr;
+#if defined(_WIN32)
+    const int code = _wfopen_s(&raw, target.c_str(), L"wbx");
+#else
+    raw = std::fopen(target.c_str(), "wbx");
+    const int code = raw != nullptr ? 0 : errno;
+#endif
+    const std::unique_ptr<std::FILE, Closer> file(raw);
+    if (!file) {
+        fail(code == EEXIST ? Code::exists : Code::io, "create",
+             code == EEXIST ? "present" : "the file did not open: " + named(static_cast<std::errc>(code)));
     }
 }
 
