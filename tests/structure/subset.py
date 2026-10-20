@@ -405,15 +405,27 @@ def tidy_checks(text):
     return [e for e in entries if e]
 
 
+def tidy_inherits(text):
+    """A .clang-tidy file's InheritParentConfig, true or not."""
+    for row in text.splitlines():
+        key, _, value = row.split("#", 1)[0].partition(":")
+        if not row[:1].isspace() and key.strip() == "InheritParentConfig":
+            return value.strip(" '\"").lower() == "true"
+    return False
+
+
 def config_rules(root, files, add):
     """B26's configuration: a .clang-tidy whose Checks leave pointer
-    arithmetic's check off, a parent's being on, outside a module of B26's
-    that is a directory; and a rule set that turns C26481 off, for every file."""
+    arithmetic's check off, outside a module of B26's that is a directory;
+    and a rule set that turns C26481 off, for every file. A file that
+    inherits its parent's configuration starts from the parent's checks,
+    which the parent's own file is read for; one that does not starts from
+    clang-tidy's defaults, where the check is off."""
     for rel in files:
         name = rel.rsplit("/", 1)[-1]
         text = (root / rel).read_bytes().decode("utf-8", "replace")
         if name == ".clang-tidy":
-            on = True
+            on = tidy_inherits(text)
             for entry in tidy_checks(text):
                 if fnmatchcase(B26_TIDY, entry.lstrip("-")):
                     on = not entry.startswith("-")

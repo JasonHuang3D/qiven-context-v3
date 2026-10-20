@@ -3,10 +3,10 @@
 // table, the replies, the record of each request's arena and fault, and
 // the loop's streams.
 //
-// The streams stay in the C runtime's text mode: a request is canonical
-// JSON, whose strings escape every control character, so no CR and no
-// 0x1A comes raw, and a reply's line ending CRLF on Windows is JSON's
-// whitespace to its reader.
+// The standard streams are binary on every system: each reply ends in LF
+// alone, so the bytes a test compares do not depend on the system; on
+// Windows _setmode takes the C runtime's text mode off both before the
+// first request. A request's CR before its LF is dropped.
 
 #include <cstdio>
 #include <cstdlib>
@@ -23,6 +23,11 @@
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "hal/hal.hpp"
+#endif
+
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
 #endif
 
 
@@ -433,6 +438,9 @@ void ready_streams() {
     // A caller's mistake ends the drive through fail_fast: abort's status,
     // with no message and no fault report.
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    if (_setmode(_fileno(stdin), _O_BINARY) == -1 || _setmode(_fileno(stdout), _O_BINARY) == -1) {
+        memory::fail_fast("the drive's standard streams did not take binary mode");
+    }
 #else
     // Off Windows the C++ runtime's own terminate handler writes a line
     // first; this one aborts at once and writes nothing.

@@ -114,8 +114,9 @@ ALLOWED = {
 }
 # The allowances the text states beyond the rows' cells, (rule, file, what),
 # each with its reason; the subset's cells' are subset.CELLS. A file or a
-# what ending in / is a prefix, and a file ending in . a module's files. B5's what is the header or the import, B9's
-# the header, B17's the header its include finding names.
+# what ending in / is a prefix, and a file ending in . a module's files.
+# B5's what is the header or the import, B6's and B9's the header, B17's
+# the header its include finding names.
 STATED = {
     ("B5", "tests/runner/runner.cpp", "windows.h"): "SetErrorMode: a crash ends a case with its status, "
                                                     "and no dialog waits for a person",
@@ -127,15 +128,20 @@ STATED = {
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
+    ("B9", "src/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
+                                                         "memory's allocators hold, "
+                                                         "sanitizer/asan_interface.h, included under the "
+                                                         "sanitizer alone",
+    ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
+    ("B6", "tests/driver/common.cpp", "io.h"): "_setmode, the drives' binary standard streams: the C "
+                                               "runtime opens them in text mode, and freopen with no "
+                                               "path fails",
+    ("B9", "tests/driver/common.cpp", "io.h"): "as B6's",
+    ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
 }
 # Allowances the text lacks, (rule, file, what), each with its reason, until
-# the text grows it.
-PENDING = {
-    ("B9", "src/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning of what memory's "
-                                                         "allocators hold, sanitizer/asan_interface.h, "
-                                                         "included under the sanitizer alone",
-    ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
-}
+# the text grows it: none.
+PENDING = {}
 ALLOWANCES = (*subset.CELLS, *STATED, *PENDING)
 EXEMPT = {
     "B1": (STRUCTURE, "tests/audit/read_audit"),
@@ -385,7 +391,7 @@ def direct_include(by, path, kind, name, out):
     if kind == "sdk":
         out.add("B5", by, detail=f"a Windows SDK header, {name}", what=base)
     if kind != "v3" and base in CRT_IO_HEADERS:
-        out.add("B6", by, detail=f"the C runtime's {name}")
+        out.add("B6", by, detail=f"the C runtime's {name}", what=base)
     if kind != "v3" and name.endswith(NET_HEADERS):
         out.add("B8", by, detail=f"the network's {name}")
     if kind == "other" and base != "sqlite3.h":
