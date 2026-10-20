@@ -56,6 +56,20 @@
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_STRUCTURE": "ON"}
     },
     {
+      "name": "stack",
+      "inherits": "here",
+      "displayName": "The frame bound, MSVC: /analyze's C6262 at 4,096 bytes, an error",
+      "description": "/analyze /analyze:stacksize4096 over v3's own sources, by stack.ruleset: C6262 alone",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "stack"}
+    },
+    {
+      "name": "analysis",
+      "inherits": "here",
+      "displayName": "Static analysis, MSVC: the Core Guidelines checker, then clang-tidy",
+      "description": "/analyze with EspXEngine.dll and analysis.ruleset over v3's own sources; then the target qiven3_tidy runs clang-tidy, by .clang-tidy, over compile_commands.json's sources of src/ and tests/support/",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "analysis"}
+    },
+    {
       "name": "nohal",
       "inherits": "here",
       "displayName": "Without the HAL, MSVC (H6)",
@@ -78,18 +92,50 @@
       "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN3_COMPILER_LINE": "19.44"}
     },
     {
+      "name": "ci-asan",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-2022, MSVC 19.44: as asan",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "ci-stack",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-2022, MSVC 19.44: as stack",
+      "cacheVariables": {"QIVEN3_ANALYZE": "stack"}
+    },
+    {
+      "name": "ci-analysis",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-2022, MSVC 19.44: as analysis",
+      "cacheVariables": {"QIVEN3_ANALYZE": "analysis"}
+    },
+    {
       "name": "linux-gcc",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, g++ 14",
+      "displayName": "CI on ubuntu-24.04, g++ 14: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-clang",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, clang++ 18",
+      "displayName": "CI on ubuntu-24.04, clang++ 18: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "linux-tsan",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, clang++ 18: ThreadSanitizer alone",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
+    },
+    {
+      "name": "linux-fuzz",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-24.04, clang++ 18: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "macos-clang",
@@ -105,10 +151,17 @@
     {"name": "asan", "configurePreset": "asan"},
     {"name": "fuzz", "configurePreset": "fuzz"},
     {"name": "structure", "configurePreset": "structure"},
+    {"name": "stack", "configurePreset": "stack"},
+    {"name": "analysis", "configurePreset": "analysis", "targets": ["all", "qiven3_tidy"]},
     {"name": "nohal", "configurePreset": "nohal"},
     {"name": "ci-windows", "configurePreset": "ci-windows"},
+    {"name": "ci-asan", "configurePreset": "ci-asan"},
+    {"name": "ci-stack", "configurePreset": "ci-stack"},
+    {"name": "ci-analysis", "configurePreset": "ci-analysis", "targets": ["all", "qiven3_tidy"]},
     {"name": "linux-gcc", "configurePreset": "linux-gcc"},
     {"name": "linux-clang", "configurePreset": "linux-clang"},
+    {"name": "linux-tsan", "configurePreset": "linux-tsan"},
+    {"name": "linux-fuzz", "configurePreset": "linux-fuzz"},
     {"name": "macos-clang", "configurePreset": "macos-clang"}
   ],
   "testPresets": [
@@ -121,9 +174,9 @@
     {
       "name": "full",
       "inherits": "here",
-      "displayName": "The full suite: every label but fuzz, bench and drill",
+      "displayName": "The full suite: every label but fuzz, bench, drill and analysis",
       "configurePreset": "release",
-      "filter": {"exclude": {"label": "^(fuzz|bench|drill)$"}},
+      "filter": {"exclude": {"label": "^(fuzz|bench|drill|analysis)$"}},
       "execution": {"noTestsAction": "error"}
     },
     {
@@ -139,7 +192,7 @@
       "inherits": "here",
       "displayName": "The full suite's C++ cases under AddressSanitizer",
       "configurePreset": "asan",
-      "filter": {"include": {"label": "^cxx$"}, "exclude": {"label": "^(fuzz|bench|drill)$"}}
+      "filter": {"include": {"label": "^cxx$"}, "exclude": {"label": "^(fuzz|bench|drill|analysis)$"}}
     },
     {
       "name": "fuzz",
@@ -163,12 +216,26 @@
       "filter": {"include": {"label": "^drill$"}}
     },
     {
+      "name": "analysis",
+      "inherits": "here",
+      "displayName": "The analysis tools' controls, after the analysis build",
+      "configurePreset": "analysis",
+      "filter": {"include": {"label": "^analysis$"}}
+    },
+    {
       "name": "fake",
       "displayName": "CI: the cases on the fakes, in the CI presets' shared build directory",
       "configurePreset": "ci-windows",
       "output": {"outputOnFailure": true},
       "filter": {"include": {"label": "^fake$"}},
       "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "ci-analysis",
+      "displayName": "CI: the analysis tools' controls, in the CI presets' shared build directory",
+      "configurePreset": "ci-analysis",
+      "output": {"outputOnFailure": true},
+      "filter": {"include": {"label": "^analysis$"}}
     }
   ]
 }

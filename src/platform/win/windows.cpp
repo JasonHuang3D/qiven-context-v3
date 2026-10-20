@@ -49,8 +49,9 @@ std::size_t wide(std::string_view operation, std::string_view text, std::span<wc
     if (text.size() > static_cast<std::size_t>(INT_MAX)) {
         fail(Code::path, operation, "longer than the conversion takes");
     }
-    const int size = static_cast<int>(text.size());
-    const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), size, nullptr, 0);
+    // Each call takes the text's size beside its bytes, never a terminator.
+    const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()),
+                                      nullptr, 0);
     if (n <= 0) {
         failed(Code::path, operation, "not UTF-8: MultiByteToWideChar", GetLastError());
     }
@@ -58,7 +59,7 @@ std::size_t wide(std::string_view operation, std::string_view text, std::span<wc
     if (length >= into.size()) {
         fail(Code::path, operation, "longer than 32,767 UTF-16 units");
     }
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), size, into.data(), n);
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), into.data(), n);
     into[length] = L'\0';
     return length;
 }
@@ -108,7 +109,7 @@ std::size_t final_path(std::span<wchar_t> path, std::size_t length, std::span<wc
 // converted alone, since the call writes one '?' per UTF-16 unit, into a
 // buffer of the code page's widest character per unit.
 template <class Flush>
-void encode(std::span<const wchar_t> text, std::span<char> into, std::size_t& held, Flush&& flush) {
+void encode(std::span<const wchar_t> text, std::span<char> into, std::size_t& held, Flush& flush) {
     const UINT acp = GetACP();
     CPINFO info{};
     const std::size_t widest =
@@ -161,9 +162,9 @@ void add_error(Detail& detail, unsigned long error) noexcept {
         {1113, "ERROR_NO_UNICODE_TRANSLATION"}, {1920, "ERROR_CANT_ACCESS_FILE"},
         {1921, "ERROR_CANT_RESOLVE_FILENAME"},
     }};
-    for (const auto& [number, name] : names) {
-        if (number == error) {
-            detail.add(name).add(" (").number(error).add(")");
+    for (const auto& entry : names) {
+        if (entry.first == error) {
+            detail.add(entry.second).add(" (").number(error).add(")");
             return;
         }
     }
@@ -189,7 +190,7 @@ WindowsPlatform::WindowsPlatform(std::optional<std::string_view> config_dir) {
         }
     }
     scratch_ = pages((2 * units + extra) * sizeof(wchar_t));
-    if (extra > 0) {
+    if (extra > 0 && config_dir) {
         const std::span<wchar_t> into = paths::scratch(scratch_).subspan(2 * units, extra);
         MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, config_dir->data(),
                             static_cast<int>(config_dir->size()), into.data(), static_cast<int>(extra));

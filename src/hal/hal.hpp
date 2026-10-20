@@ -83,7 +83,7 @@ struct Launch {
     std::string_view kernel;
     std::span<B* const> buffers;
     std::span<const std::int64_t> scalars;
-    std::array<std::uint32_t, 3> grid;
+    std::array<std::uint32_t, 3> grid{};
 };
 
 // facts(out): the CPU's threads and vector sets, the devices each back end

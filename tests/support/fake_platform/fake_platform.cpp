@@ -1,14 +1,14 @@
 #include "support/fake_platform/fake_platform.hpp"
 
 #include <algorithm>
-#include <cerrno>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <new>
 #include <optional>
 #include <system_error>
+
+#include "memory/fail.hpp"
 
 namespace qiven3::platform::fake {
 namespace fs = std::filesystem;
@@ -276,7 +276,7 @@ void FakeOutput::write(std::string_view utf8) {
 
 // --- the fake ---
 
-FakePlatform::FakePlatform(Config config) : config_(std::move(config)), output_(config_.encoding) {}
+FakePlatform::FakePlatform(const Config& config) : config_(config), output_(config_.encoding) {}
 
 void FakePlatform::record(std::string_view operation) const {
     calls_.emplace_back(operation);
@@ -414,18 +414,12 @@ void FakePlatform::create(std::string_view path, bool directory) {
         }
         return;
     }
-    std::FILE* file = nullptr;
-#if defined(_WIN32)
-    const int failed = _wfopen_s(&file, target.c_str(), L"wbx");
-#else
-    file = std::fopen(target.c_str(), "wbx");
-    const int failed = file == nullptr ? errno : 0;
-#endif
-    if (failed != 0 || file == nullptr) {
-        const auto why = static_cast<std::errc>(failed);
-        fail(why == std::errc::file_exists ? Code::exists : Code::io, "create", "fopen wbx: " + named(why));
+    // An empty file by a stream, which owns its handle: the fake's root has
+    // one writer, so the check above stands for an exclusive create.
+    const std::ofstream out(target, std::ios::binary);
+    if (!out) {
+        fail(Code::io, "create", "the stream did not open");
     }
-    std::fclose(file);
 }
 
 void FakePlatform::read(std::string_view path, String& out) {
@@ -441,11 +435,12 @@ void FakePlatform::read(std::string_view path, String& out) {
     if (!fs::is_regular_file(status)) {
         fail(Code::io, "read", fs::exists(status) ? "not a file" : "not found: " + named(std::errc::no_such_file_or_directory));
     }
-    const std::uintmax_t size = fs::file_size(target, error);
-    if (error) {
-        fail(Code::io, "read", "file_size: " + error.message());
+    // The size by the stream, which reads it from the open file.
+    std::ifstream in(target, std::ios::binary | std::ios::ate);
+    const std::streamoff size = in ? static_cast<std::streamoff>(in.tellg()) : -1;
+    if (size < 0 || !in.seekg(0)) {
+        fail(Code::io, "read", "the stream did not open");
     }
-    std::ifstream in(target, std::ios::binary);
     out.resize(static_cast<std::size_t>(size));
     in.read(out.data(), static_cast<std::streamsize>(size));
     if (!in || in.gcount() != static_cast<std::streamsize>(size)) {
@@ -547,7 +542,11 @@ void FakePlatform::random_bytes(std::span<std::byte> into) {
 
 // Volatile stores, which the compiler keeps.
 void FakePlatform::wipe(std::span<std::byte> bytes) noexcept {
-    record("wipe");
+    try {
+        record("wipe");
+    } catch (...) {
+        memory::fail_fast("fake::FakePlatform::wipe: the record failed");
+    }
     const std::span<volatile std::byte> kept(bytes.data(), bytes.size());
     for (volatile std::byte& b : kept) {
         b = std::byte{0};

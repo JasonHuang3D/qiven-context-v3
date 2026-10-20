@@ -183,7 +183,7 @@ private:
 
 class FakePlatform {
 public:
-    explicit FakePlatform(Config config);
+    explicit FakePlatform(const Config& config);
     FakePlatform(const FakePlatform&) = delete;
     FakePlatform& operator=(const FakePlatform&) = delete;
     FakePlatform(FakePlatform&&) = delete;

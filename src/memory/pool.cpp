@@ -181,7 +181,10 @@ void* Heap::resize(void* p, std::size_t n) noexcept {
     const std::size_t from = find(p).cls;
     const std::optional<std::size_t> to = class_of(n == 0 ? 1 : n);
     void* q = p;
-    if (!to || *to != from) {
+    if (!to) {
+        // Past every class: take(n) would refuse it too.
+        q = nullptr;
+    } else if (*to != from) {
         q = take(n);
         if (q != nullptr) {
             std::memcpy(q, p, payload(from) < payload(*to) ? payload(from) : payload(*to));

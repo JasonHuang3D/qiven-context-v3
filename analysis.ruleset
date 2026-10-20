@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="qiven3 analysis" Description="The native recommended rules, the Core Guidelines checker and its lifetime rules" ToolsVersion="17.0">
+  <Include Path="NativeRecommendedRules.ruleset" Action="Default" />
+  <Include Path="CppCoreCheckRules.ruleset" Action="Default" />
+  <Include Path="CppCoreCheckLifetimeRules.ruleset" Action="Default" />
+  <Rules AnalyzerId="Microsoft.Analyzers.NativeCodeAnalysis" RuleNamespace="Microsoft.Rules.Native">
+    <!-- They ask for the Guidelines Support Library's gsl::at, gsl::narrow and
+         gsl::not_null, which v3 does not take: the hardened library checks
+         indexing, and the conversion errors narrowing. -->
+    <Rule Id="C26446" Action="None" />
+    <Rule Id="C26472" Action="None" />
+    <Rule Id="C26429" Action="None" />
+    <!-- The same for a std::array indexed by a value not constant: it asks
+         for gsl::at. -->
+    <Rule Id="C26482" Action="None" />
+    <!-- False on v3's code: it takes the pointer that data(), c_str() or a
+         checked iterator's -> returns as possibly null, where a view of a
+         null pointer and a size of 0 is valid. -->
+    <Rule Id="C26823" Action="None" />
+    <!-- It reads SAL's lock annotations, which v3 does not write: its lock
+         macros are clang's, checked by -Wthread-safety. Without them it
+         finds memory::Mutex's own unlock. -->
+    <Rule Id="C26110" Action="None" />
+    <!-- Style: noexcept, const or constexpr where they could be. -->
+    <Rule Id="C26440" Action="None" />
+    <Rule Id="C26496" Action="None" />
+    <Rule Id="C26497" Action="None" />
+    <Rule Id="C26814" Action="None" />
+    <Rule Id="C26461" Action="None" />
+  </Rules>
+</RuleSet>

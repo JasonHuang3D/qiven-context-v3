@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <new>
+#include <span>
 #include <stdexcept>
 
 #include "memory/fail.hpp"
@@ -29,15 +29,24 @@ void write(const FakeDevice& from, Device& out) {
 class Text {
 public:
     Text& add(std::string_view text) noexcept {
-        const std::size_t n = std::min(text.size(), bytes_.size() - size_);
-        std::copy_n(text.data(), n, bytes_.data() + size_);
+        const std::span<char> rest = std::span<char>(bytes_).subspan(size_);
+        const std::size_t n = std::min(text.size(), rest.size());
+        std::ranges::copy_n(text.begin(), static_cast<std::ptrdiff_t>(n), rest.begin());
         size_ += n;
         return *this;
     }
+    // In decimal: the digits from the last, written from the end.
     Text& number(std::uint64_t value) noexcept {
         std::array<char, 20> digits{};
-        const auto done = std::to_chars(digits.data(), digits.data() + digits.size(), value);
-        return add(std::string_view(digits.data(), static_cast<std::size_t>(done.ptr - digits.data())));
+        std::size_t first = digits.size();
+        do {
+            --first;
+            digits[first] = static_cast<char>('0' + value % 10);
+            value /= 10;
+        } while (value != 0);
+        std::string_view text(digits.data(), digits.size());
+        text.remove_prefix(first);
+        return add(text);
     }
     [[nodiscard]] std::string_view view() const noexcept { return std::string_view(bytes_.data(), size_); }
 
@@ -55,15 +64,12 @@ HalError sizes(std::string_view operation, std::size_t span, std::uint64_t buffe
 }  // namespace
 
 FakeBuffer::FakeBuffer(FakeBuffer&& other) noexcept
-    : bytes_(std::move(other.bytes_)), owner_(std::exchange(other.owner_, nullptr)), device_(other.device_) {
-    other.bytes_.clear();
-}
+    : bytes_(std::exchange(other.bytes_, {})), owner_(std::exchange(other.owner_, nullptr)), device_(other.device_) {}
 
 FakeBuffer& FakeBuffer::operator=(FakeBuffer&& other) noexcept {
     if (this != &other) {
         release();
-        bytes_ = std::move(other.bytes_);
-        other.bytes_.clear();
+        bytes_ = std::exchange(other.bytes_, {});
         owner_ = std::exchange(other.owner_, nullptr);
         device_ = other.device_;
     }

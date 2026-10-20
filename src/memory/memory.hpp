@@ -20,6 +20,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "memory/fail.hpp"
+
 // The thread-safety attributes, read by clang's -Wthread-safety and empty
 // for gcc and MSVC.
 #if defined(__clang__)
@@ -197,13 +199,21 @@ public:
     Mutex() = default;
     Mutex(const Mutex&) = delete;
     Mutex& operator=(const Mutex&) = delete;
+    Mutex(Mutex&&) = delete;
+    Mutex& operator=(Mutex&&) = delete;
     ~Mutex() = default;
 
+    // The system's lock failing is a broken invariant, never an exception
+    // out of a noexcept caller.
     template <typename Rep, typename Period>
-    [[nodiscard]] bool try_lock_for(std::chrono::duration<Rep, Period> wait) QIVEN3_TRY_ACQUIRE(true) {
-        return mutex_.try_lock_for(wait);
+    [[nodiscard]] bool try_lock_for(std::chrono::duration<Rep, Period> wait) noexcept QIVEN3_TRY_ACQUIRE(true) {
+        try {
+            return mutex_.try_lock_for(wait);
+        } catch (...) {
+            fail_fast("memory::Mutex: the system's lock failed");
+        }
     }
-    void unlock() QIVEN3_RELEASE() { mutex_.unlock(); }
+    void unlock() noexcept QIVEN3_RELEASE() { mutex_.unlock(); }
 
 private:
     std::timed_mutex mutex_;
