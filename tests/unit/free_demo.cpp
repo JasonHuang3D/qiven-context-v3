@@ -1,0 +1,232 @@
+// The frees that end the process, run as processes by tests/drive/test_free.py;
+// never CTest tests themselves. free.*: a wrong pointer given back to a pool
+// or a heap, another allocator's, a block's interior (a heap's with a copied
+// header too), one past the last block or past the span, or a block given
+// back twice, each a broken invariant; under QIVEN3_SYSTEM_HEAP a pool's
+// slot is the system heap's, whose AddressSanitizer reports the wrong free
+// instead. asan.*: a touch of a freed block, of an arena's block after the
+// arena's end, or past a block, which AddressSanitizer reports; skipped
+// without QIVEN3_SYSTEM_HEAP, where no tool would see it. A case that ends
+// prints "not caught"; one that passes its wrong free prints "past the wrong
+// free" first.
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <memory>
+#include <span>
+#include <vector>
+
+#include "memory/arena.hpp"
+#include "memory/pool.hpp"
+#include "runner/runner.hpp"
+
+namespace {
+
+using qiven3::memory::Arena;
+using qiven3::memory::Heap;
+using qiven3::memory::Pool;
+
+struct alignas(4096) Page {
+    std::array<std::byte, 4096> bytes{};
+};
+
+// A block's byte at `at`, by a span over the block, never by arithmetic.
+void* byte_at(void* block, std::size_t size, std::size_t at) {
+    return &std::span<std::byte>(static_cast<std::byte*>(block), size + 1)[at];
+}
+
+void past() {
+    std::cout << "past the wrong free\n";
+    std::cout.flush();
+}
+
+void not_caught() {
+    std::cout << "not caught\n";
+    std::cout.flush();
+}
+
+#if defined(QIVEN3_SYSTEM_HEAP)
+// Reads a byte the process may no longer touch, and prints it, so the read
+// stays in the build.
+void touch(const void* p) {
+    std::cout << static_cast<int>(*static_cast<const unsigned char*>(p)) << "\n";
+}
+#endif
+
+}  // namespace
+
+QIVEN3_CASE(free, pool_foreign) {
+    const auto mine = std::make_unique<Page>();
+    const auto theirs = std::make_unique<Page>();
+    Pool pool(48, mine->bytes);
+    Pool other(48, theirs->bytes);
+    void* held = pool.allocate();
+    void* p = other.allocate();
+    pool.free(p);
+    past();
+    other.free(p);
+    pool.free(held);
+    not_caught();
+}
+
+QIVEN3_CASE(free, pool_interior) {
+    const auto pages = std::make_unique<Page>();
+    Pool pool(48, pages->bytes);
+    void* p = pool.allocate();
+    pool.free(byte_at(p, 48, 16));
+    past();
+    pool.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, pool_one_past) {
+    // One past the one slot handed out: the next slot's place, not yet cut.
+    const auto pages = std::make_unique<Page>();
+    Pool pool(48, pages->bytes);
+    void* p = pool.allocate();
+    pool.free(byte_at(p, 48, 48));
+    past();
+    pool.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, pool_past_span) {
+    const auto pages = std::make_unique<Page>();
+    Pool pool(4096, pages->bytes);
+    void* p = pool.allocate();
+    pool.free(byte_at(p, 4096, 4096));
+    past();
+    pool.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_foreign) {
+    const auto mine = std::make_unique<Page>();
+    const auto theirs = std::make_unique<Page>();
+    Heap heap(mine->bytes);
+    Heap other(theirs->bytes);
+    void* held = heap.allocate(100);
+    void* p = other.allocate(100);
+    heap.free(p);
+    past();
+    other.free(p);
+    heap.free(held);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_interior) {
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(128);
+    for (std::size_t i = 0; i < 128; ++i) {
+        *static_cast<std::byte*>(byte_at(p, 128, i)) = std::byte{0x5a};
+    }
+    heap.free(byte_at(p, 128, 16));
+    past();
+    heap.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_interior_forged) {
+    // An interior pointer whose preceding bytes copy a held block's header,
+    // its class and its state, but not its own offset.
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(128);
+    constexpr std::array<std::uint32_t, 4> forged{0, 0x48454c44U, 0, 0};
+    std::memcpy(p, forged.data(), sizeof forged);
+    heap.free(byte_at(p, 128, 16));
+    past();
+    heap.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_one_past) {
+    // One past the last block: the front of the span not yet cut.
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(128);
+    heap.free(byte_at(p, 128, 128));
+    past();
+    heap.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_past_span) {
+    // The span's one block of 2,048 bytes ends 2,032 bytes short of its end.
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(2048);
+    heap.free(byte_at(p, 4096 - 16, 4096 - 16));
+    past();
+    heap.free(p);
+    not_caught();
+}
+
+QIVEN3_CASE(free, heap_twice) {
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(100);
+    heap.free(p);
+    heap.free(p);
+    past();
+    not_caught();
+}
+
+QIVEN3_CASE(asan, pool_use_after_free) {
+#if defined(QIVEN3_SYSTEM_HEAP)
+    const auto pages = std::make_unique<Page>();
+    Pool pool(48, pages->bytes);
+    void* p = pool.allocate();
+    pool.free(p);
+    touch(p);
+    not_caught();
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+#endif
+}
+
+QIVEN3_CASE(asan, heap_use_after_free) {
+#if defined(QIVEN3_SYSTEM_HEAP)
+    const auto pages = std::make_unique<Page>();
+    Heap heap(pages->bytes);
+    void* p = heap.allocate(100);
+    heap.free(p);
+    touch(p);
+    not_caught();
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+#endif
+}
+
+QIVEN3_CASE(asan, arena_use_after_end) {
+#if defined(QIVEN3_SYSTEM_HEAP)
+    const auto pages = std::make_unique<Page>();
+    void* p = nullptr;
+    {
+        Arena arena(pages->bytes);
+        p = arena.allocate(100, 16);
+    }
+    touch(p);
+    not_caught();
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+#endif
+}
+
+QIVEN3_CASE(asan, arena_past_block) {
+    // The arena's unused span past a block.
+#if defined(QIVEN3_SYSTEM_HEAP)
+    const auto pages = std::make_unique<Page>();
+    Arena arena(pages->bytes);
+    void* p = arena.allocate(100, 16);
+    touch(byte_at(p, 100, 100));
+    arena.deallocate(p, 100);
+    not_caught();
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_SYSTEM_HEAP");
+#endif
+}

@@ -8,9 +8,12 @@
 
 #include "memory/fail.hpp"
 
-// Neither Pool nor Heap computes with a pointer: a block is an offset into
-// the span, indexed through it, and a pointer given back is found by a
-// binary search of the span's own addresses, compared by std::less.
+// A block is an offset into the span, indexed through it. A pointer given
+// back is found in constant time from its offset in the span: placed inside
+// the span by std::less first, then subtracted from the span's start, a
+// difference of two pointers into one array, the pointer arithmetic memory
+// alone may use. std::less is the address order on every target v3 builds
+// for, so a pointer it places inside the span is one of the span's.
 
 namespace qiven3::memory {
 
@@ -30,24 +33,13 @@ std::span<std::byte> aligned(std::span<std::byte> pages) noexcept {
 }
 
 #if !defined(QIVEN3_SYSTEM_HEAP)
-// The k below count with &pages[k * grain] == p; empty if none.
-std::optional<std::size_t> index_of(std::span<std::byte> pages, std::size_t grain,
-                                    std::size_t count, const void* p) noexcept {
+// p's offset in pages, in constant time; empty if p is not one of its bytes.
+std::optional<std::size_t> offset_of(std::span<std::byte> pages, const void* p) noexcept {
     const std::less<const void*> before;
-    std::size_t low = 0;
-    std::size_t high = count;
-    while (low < high) {
-        const std::size_t mid = low + (high - low) / 2;
-        const void* at = &pages[mid * grain];
-        if (before(at, p)) {
-            low = mid + 1;
-        } else if (before(p, at)) {
-            high = mid;
-        } else {
-            return mid;
-        }
+    if (pages.empty() || before(p, pages.data()) || before(&pages.back(), p)) {
+        return std::nullopt;
     }
-    return std::nullopt;
+    return static_cast<std::size_t>(static_cast<const std::byte*>(p) - pages.data());
 }
 #endif
 
@@ -58,7 +50,8 @@ std::size_t round_up(std::size_t n) noexcept {
 
 #if !defined(QIVEN3_SYSTEM_HEAP)
 // A heap block's header, before its payload: its class, its state and, when
-// free, the next free payload of its class.
+// free, the next free payload of its class; when held, its own payload's
+// offset, which find() checks.
 struct Header {
     std::uint32_t cls = 0;
     std::uint32_t state = 0;
@@ -132,13 +125,16 @@ void Pool::free(void* p) noexcept {
     ::operator delete(p, std::align_val_t{slot_align});
     ++free_count_;
 #else
-    const std::optional<std::size_t> index = index_of(pages_, slot_, bumped_, p);
-    if (!index) {
+    // A slot's start, among those handed out: not an interior byte, nor
+    // past the last slot cut.
+    const std::optional<std::size_t> at = offset_of(pages_, p);
+    if (!at || *at % slot_ != 0 || *at / slot_ >= bumped_) {
         fail_fast("pool: a free of a slot it does not hold");
     }
-    std::memcpy(pages_.subspan(*index * slot_, sizeof free_head_).data(), &free_head_,
+    const std::size_t index = *at / slot_;
+    std::memcpy(pages_.subspan(index * slot_, sizeof free_head_).data(), &free_head_,
                 sizeof free_head_);
-    free_head_ = *index;
+    free_head_ = index;
 #endif
     used_ -= slot_;
 }
@@ -270,7 +266,7 @@ void* Heap::take(std::size_t n) noexcept {
     } else {
         return nullptr;
     }
-    header = Header{static_cast<std::uint32_t>(*cls), held, 0};
+    header = Header{static_cast<std::uint32_t>(*cls), held, at};
     std::memcpy(pages_.subspan(at - slot_align, slot_align).data(), &header, slot_align);
     void* p = &pages_[at];
 #endif
@@ -303,16 +299,18 @@ Heap::Block Heap::find(const void* p) const noexcept {
     }
     return Block{found->second, 0};
 #else
-    const std::optional<std::size_t> index = index_of(pages_, slot_align, bump_ / slot_align, p);
-    Header header{};
-    if (index && *index > 0) {
-        std::memcpy(&header, pages_.subspan((*index - 1) * slot_align, slot_align).data(),
-                    slot_align);
-    }
-    if (!index || header.state != held || header.cls >= heap_classes) {
+    // A payload follows its header, at a multiple of slot_align within the
+    // span's front cut into slots; its header names it held, at this offset.
+    const std::optional<std::size_t> at = offset_of(pages_, p);
+    if (!at || *at % slot_align != 0 || *at < slot_align || *at >= bump_) {
         fail_fast("heap: a block it does not hold");
     }
-    return Block{header.cls, *index * slot_align};
+    Header header{};
+    std::memcpy(&header, pages_.subspan(*at - slot_align, slot_align).data(), slot_align);
+    if (header.state != held || header.cls >= heap_classes || header.next != *at) {
+        fail_fast("heap: a block it does not hold");
+    }
+    return Block{header.cls, *at};
 #endif
 }
 

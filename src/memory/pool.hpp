@@ -47,8 +47,9 @@ public:
     // One slot; with every slot held, MemoryError budget and nothing
     // changed.
     [[nodiscard]] void* allocate();
-    // Gives back a slot of this pool's; any other pointer is a broken
-    // invariant.
+    // Gives back a slot of this pool's, found in constant time from its
+    // offset in the span; any other pointer, another allocator's, a slot's
+    // interior or past the last slot handed out, is a broken invariant.
     void free(void* p) noexcept;
 
     [[nodiscard]] std::size_t slot() const noexcept { return slot_; }
@@ -95,8 +96,9 @@ public:
     // n bytes (one if n is 0) at a multiple of slot_align; null past the
     // budget, as SQLite's allocator gives it, nothing changed.
     [[nodiscard]] void* allocate(std::size_t n) noexcept;
-    // Gives back a block; null is none. Any other pointer, or a block
-    // given back twice, is a broken invariant.
+    // Gives back a block, found in constant time from its offset in the
+    // span; null is none. Any other pointer, or a block given back twice, is
+    // a broken invariant.
     void free(void* p) noexcept;
     // The block's bytes in a block of at least n: p itself if its class
     // holds n, else a new block with p's bytes and p freed; null past the
@@ -129,7 +131,7 @@ private:
     void* take(std::size_t n) noexcept QIVEN3_REQUIRES(mutex_);
     void give(void* p) noexcept QIVEN3_REQUIRES(mutex_);
     // A held block's class and its payload's offset in the span (0 under
-    // QIVEN3_SYSTEM_HEAP); any other pointer fails fast.
+    // QIVEN3_SYSTEM_HEAP), in constant time; any other pointer fails fast.
     struct Block {
         std::size_t cls = 0;
         std::size_t at = 0;
