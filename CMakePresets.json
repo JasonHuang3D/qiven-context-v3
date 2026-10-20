@@ -188,6 +188,14 @@
       "execution": {"noTestsAction": "error"}
     },
     {
+      "name": "structure",
+      "inherits": "here",
+      "displayName": "The structure tests, on the structure build, whose records they read",
+      "configurePreset": "structure",
+      "filter": {"include": {"name": "^tests[.]structure[.]"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
       "name": "asan",
       "inherits": "here",
       "displayName": "The full suite's C++ cases under AddressSanitizer",

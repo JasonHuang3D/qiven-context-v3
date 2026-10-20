@@ -96,3 +96,8 @@ else()
 endif()
 ")
 set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES "${qiven3_include}")
+
+# The structure records, the structure preset alone.
+if(QIVEN3_STRUCTURE)
+  add_subdirectory(structure)
+endif()

@@ -57,6 +57,11 @@ std::optional<Value> current(Session&, const Value& request) {
 
 }  // namespace
 
+int refuse(std::string_view program, const std::string& why) {
+    std::cerr << program << ": " << why << "\n";
+    return 2;
+}
+
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why) {
     Options options;
     for (int i = 1; i < argc; ++i) {

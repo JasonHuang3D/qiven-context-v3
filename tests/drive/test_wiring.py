@@ -11,7 +11,10 @@ from tests import SKIP_CODE
 from tests.drive import binaries
 
 LABELS = {"cxx", "py", "fast", "fake", "slow", "machine", "drive", "oracle",
-          "fuzz", "bench", "drill", "gpu"}
+          "fuzz", "bench", "drill", "gpu", "analysis"}
+# The structure tests start no process and read no machine fact: fast, and
+# not drive; every other Python test drives a binary.
+STRUCTURE = "tests.structure."
 SAMPLE = "tests.drive.samples."
 SELECT = "tests.drive.test_wiring.Select."
 
@@ -102,7 +105,11 @@ class Registered(unittest.TestCase):
                         ["-I", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-k", "*" + name],
                     )
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
-                    self.assertIn("drive", labels)
+                    if name.startswith(STRUCTURE):
+                        self.assertIn("fast", labels)
+                        self.assertNotIn("drive", labels)
+                    else:
+                        self.assertIn("drive", labels)
                 else:
                     self.assertEqual(command[1:], ["--run", name])
                 self.assertEqual(props.get("RUN_SERIAL", False), name == "runner.registry_holds_self")
@@ -116,6 +123,7 @@ class Registered(unittest.TestCase):
             "full": everything,
             "fast": labelled(tests, "fast"),
             "asan": labelled(tests, "cxx"),
+            "structure": {name for name in tests if name.startswith(STRUCTURE)},
         }
         self.assertIn("runner.pass_status", expected["fast"])
         self.assertNotIn("tests.drive.test_wiring.Registered.test_presets", expected["fast"])
@@ -123,10 +131,9 @@ class Registered(unittest.TestCase):
         for preset, names in expected.items():
             with self.subTest(preset=preset):
                 args = []
-                include = filters[preset].get("include", {}).get("label")
-                exclude = filters[preset].get("exclude", {}).get("label")
-                if include:
-                    args += ["-L", include]
-                if exclude:
-                    args += ["-LE", exclude]
+                for option, kind, key in (("-L", "include", "label"), ("-LE", "exclude", "label"),
+                                          ("-R", "include", "name"), ("-E", "exclude", "name")):
+                    value = filters[preset].get(kind, {}).get(key)
+                    if value:
+                        args += [option, value]
                 self.assertEqual(set(ctest_tests(*args)), names)

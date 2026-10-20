@@ -67,6 +67,8 @@ struct Options {
 // The arguments; none for any other, `why` saying so. `fake` takes --root
 // and --seed, which the Windows drive refuses.
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why);
+// Arguments refused: `program: why` on standard error; the exit status, 2.
+int refuse(std::string_view program, const std::string& why);
 
 // The stated budget of each operation of the platform's and the HAL's
 // members, host side; read adds the file's size, run its caps.

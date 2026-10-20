@@ -9,7 +9,6 @@
 // gives too. Under QIVEN3_FAULTS each of the fake's calls is a fault point
 // of a request's "fault" (driver/drive.hpp).
 
-#include <iostream>
 #include <string>
 #include <utility>
 
@@ -74,8 +73,7 @@ int main(int argc, char** argv) {
     std::string why;
     const std::optional<Options> options = read_options(argc, argv, true, why);
     if (!options) {
-        std::cerr << "qiven3-drive-fake: " << why << "\n";
-        return 2;
+        return refuse("qiven3-drive-fake", why);
     }
     Session session(*options);
     Drive drive(session, make, lent_of);

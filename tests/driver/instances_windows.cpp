@@ -3,7 +3,6 @@
 // drive's platform half for the adapter and runs the request loop
 // (driver/drive.hpp).
 
-#include <iostream>
 #include <string>
 
 #include "driver/platform_ops_impl.hpp"
@@ -27,8 +26,7 @@ int main(int argc, char** argv) {
     std::string why;
     const std::optional<Options> options = read_options(argc, argv, false, why);
     if (!options) {
-        std::cerr << "qiven3-drive-windows: " << why << "\n";
-        return 2;
+        return refuse("qiven3-drive-windows", why);
     }
     Session session(*options);
     PlatformDrive<qiven3::platform::Current> drive(session, make);
