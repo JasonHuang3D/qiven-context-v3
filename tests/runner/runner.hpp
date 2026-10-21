@@ -5,7 +5,9 @@
 // lists its cases with --list and runs one with --run NAME, the case's
 // result its exit status. Each case is its own CTest test. A case takes
 // v3's allocators from its context, qiven3_ctx.counted, which counts them
-// after it (Counted).
+// after it (Counted). Each case run ends with the event case.end in the
+// process's log (support/log/journal.hpp), which the runner's main drains
+// into the output QIVEN3_LOG names.
 
 #include <array>
 #include <cstddef>
@@ -18,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "log/log.hpp"
 #include "memory/arena.hpp"
 #include "memory/pool.hpp"
 
@@ -48,6 +51,8 @@ public:
     memory::Heap& heap(std::size_t bytes);
     // A line to out for each allocator holding bytes; how many do.
     int holding(std::ostream& out) const;
+    // The bytes all of them hold, saturating at SIZE_MAX.
+    [[nodiscard]] std::size_t held() const noexcept;
 
 private:
     struct alignas(4096) Page {
@@ -67,9 +72,11 @@ private:
 };
 
 // What a running case reports to: its failed checks, written as they fail,
-// and the allocators it counts.
+// the allocators it counts, and the process's log, for the events of its
+// cases (fault.injected, support/faults/faults.hpp).
 struct Context {
     std::ostream& out;
+    log::Log& log;
     int failures = 0;
     Counted counted{};
 };
@@ -77,7 +84,8 @@ struct Context {
 using CaseFn = void (*)(Context&);
 
 struct Case {
-    std::string name;
+    // "group.name", made from the macro's literals.
+    log::Name name;
     CaseFn fn = nullptr;
     // A case whose report carries a time runs alone (CTest's RUN_SERIAL).
     bool serial = false;
@@ -87,7 +95,7 @@ struct Case {
 std::vector<Case>& registry();
 
 struct Registrar {
-    Registrar(const char* group, const char* name, CaseFn fn, bool serial);
+    Registrar(log::Name name, CaseFn fn, bool serial);
 };
 
 // Thrown by QIVEN3_SKIP: the case does not apply, for the reason given.
@@ -130,8 +138,10 @@ bool check_eq(Context& ctx, const A& a, const B& b, const char* expr, const char
 // Runs one case and gives its exit status: exit_pass, exit_fail or
 // exit_skip. An exception the case lets out is a failure, as is an
 // allocator of its context holding bytes after it; a crash is not caught,
-// so the status is the system's.
-int run_case(const Case& c, std::ostream& out);
+// so the status is the system's. A case that returns, its exception
+// caught, ends with case.end in log: its name, its outcome "pass", "fail"
+// or "skip", its milliseconds and the bytes its allocators held.
+int run_case(const Case& c, std::ostream& out, log::Log& log);
 
 // The runner's command line, with the binary's name dropped:
 //   --list        each case's name, sorted, one a line; a serial case's
@@ -140,7 +150,7 @@ int run_case(const Case& c, std::ostream& out);
 // Anything else, an unknown name, or a registry with an empty or repeated
 // name, is exit_usage.
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err);
+             std::ostream& out, std::ostream& err, log::Log& log);
 
 }  // namespace qiven3::test
 
@@ -152,7 +162,7 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
         ::qiven3::test::Context & qiven3_ctx);                                           \
     static const ::qiven3::test::Registrar QIVEN3_CAT(                                   \
         qiven3_reg_, QIVEN3_CAT(group, QIVEN3_CAT(_, name))){                            \
-        #group, #name, &QIVEN3_CAT(qiven3_case_, QIVEN3_CAT(group, QIVEN3_CAT(_, name))), \
+        #group "." #name, &QIVEN3_CAT(qiven3_case_, QIVEN3_CAT(group, QIVEN3_CAT(_, name))), \
         serial};                                                                         \
     static void QIVEN3_CAT(qiven3_case_, QIVEN3_CAT(group, QIVEN3_CAT(_, name)))(        \
         [[maybe_unused]] ::qiven3::test::Context & qiven3_ctx)

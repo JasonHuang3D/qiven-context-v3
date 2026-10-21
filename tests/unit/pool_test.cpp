@@ -114,7 +114,8 @@ QIVEN3_CASE(pool, faults) {
         }
     };
     const auto check = [&](std::size_t) { return pool.used() == 0; };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(countdown, op, check);
+    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "pool.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);
     CHECK_EQ(runs.untyped, 0U);
@@ -299,7 +300,8 @@ QIVEN3_CASE(heap, faults) {
         }
     };
     const auto check = [&](std::size_t) { return heap.used() == 0; };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(countdown, op, check);
+    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "heap.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);
     CHECK_EQ(runs.untyped, 0U);

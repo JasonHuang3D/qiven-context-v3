@@ -29,17 +29,28 @@ if(QIVEN3_SYSTEM_HEAP AND QIVEN3_SANITIZE MATCHES "address")
   target_include_directories(qiven3_memory_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/src")
   target_link_libraries(qiven3_memory_poisoned PRIVATE qiven3_flags)
 
+  # The entry's targets, and the base and the log the runner's log takes,
+  # over the poisoned memory, so that one copy of memory is linked.
+  qiven3_diag_targets(_poisoned qiven3_memory_poisoned)
+  foreach(pair IN ITEMS "qiven3_base;qiven3;qiven3_memory_poisoned"
+                        "qiven3_log;log;qiven3_base_poisoned;qiven3_memory_poisoned")
+    list(POP_FRONT pair name dir)
+    get_target_property(sources ${name} SOURCES)
+    list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/src/${dir}/")
+    add_library(${name}_poisoned STATIC ${sources})
+    target_include_directories(${name}_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(${name}_poisoned PUBLIC ${pair} PRIVATE qiven3_flags)
+  endforeach()
+
   add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/tests/runner/runner.cpp")
   target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-  target_link_libraries(qiven3_runner_poisoned PUBLIC qiven3_memory_poisoned PRIVATE qiven3_flags)
-
-  # The entry's own targets over the poisoned memory, so that one copy of
-  # memory is linked.
-  qiven3_diag_targets(_poisoned qiven3_memory_poisoned)
+  target_link_libraries(qiven3_runner_poisoned PUBLIC qiven3_memory_poisoned qiven3_log_poisoned
+    PRIVATE qiven3_flags qiven3_diag_poisoned)
   qiven3_executable(qiven3_unit_memory_poisoned
     SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
   qiven3_executable(qiven3_free_demo_poisoned SOURCES free_demo.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
-  set_target_properties(qiven3_memory_poisoned qiven3_runner_poisoned qiven3_unit_memory_poisoned
+  set_target_properties(qiven3_memory_poisoned qiven3_base_poisoned qiven3_log_poisoned
+    qiven3_runner_poisoned qiven3_unit_memory_poisoned
     qiven3_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()
 

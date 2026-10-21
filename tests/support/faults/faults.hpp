@@ -5,12 +5,15 @@
 // in the operation's typed error, after which the caller's check reads the
 // count (the allocators holding nothing) and, from package 5, the store.
 // Built without QIVEN3_FAULTS there is no countdown, and a case says so as
-// not applicable.
+// not applicable. Each run whose failure came writes fault.injected, its k
+// and the site, the operation's name, to the case's log.
 //
 // thread: one
 
 #include <cstddef>
 
+#include "log/catalogue.hpp"
+#include "log/log.hpp"
 #include "memory/memory.hpp"
 
 #if defined(QIVEN3_FAULTS)
@@ -33,9 +36,9 @@ struct FaultRuns {
 // Runs op() with the countdown armed at k = 1, 2, ... until a run makes
 // fewer than k calls and so completes, or k passes limit. After each run,
 // check(k) gives whether the count and the state are as before. Error is
-// the operation's typed error.
+// the operation's typed error; log takes fault.injected at site.
 template <typename Error, typename Op, typename Check>
-FaultRuns run_faults(memory::Countdown& countdown, Op&& op, Check&& check,
+FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown, Op&& op, Check&& check,
                      std::size_t limit = 100000) {
     FaultRuns runs;
     for (std::size_t k = 1; k <= limit; ++k) {
@@ -51,6 +54,9 @@ FaultRuns run_faults(memory::Countdown& countdown, Op&& op, Check&& check,
         }
         const bool fired = countdown.fired();
         countdown.disarm();
+        if (fired) {
+            log::event(log, log::events::fault_injected, log::Count(k), site);
+        }
         if (!check(k)) {
             ++runs.unchecked;
         }

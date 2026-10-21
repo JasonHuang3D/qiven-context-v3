@@ -130,7 +130,8 @@ QIVEN3_CASE(json, faults) {
         json::scan(text, 16, v);
         nodes = v.size();
     };
-    const qiven3::test::FaultRuns scans = qiven3::test::run_faults<MemoryError>(countdown, scan, check);
+    const qiven3::test::FaultRuns scans = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "json.scan", countdown, scan, check);
     std::cout << "json.faults: scan's allocations " << scans.typed << ", completed at " << scans.completed_at << "\n";
     // The nodes, the text and the keys' check, one allocation each.
     CHECK_EQ(scans.typed, 3U);
@@ -149,7 +150,8 @@ QIVEN3_CASE(json, faults) {
         json::encode(value, out);
         bytes = out.size();
     };
-    const qiven3::test::FaultRuns encodes = qiven3::test::run_faults<MemoryError>(countdown, encode, check);
+    const qiven3::test::FaultRuns encodes = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "json.encode", countdown, encode, check);
     std::cout << "json.faults: encode's allocations " << encodes.typed << ", completed at " << encodes.completed_at
               << "\n";
     // The sorted members and the bytes.

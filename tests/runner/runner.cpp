@@ -1,11 +1,18 @@
 #include "runner/runner.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <set>
+
+#include "log/catalogue.hpp"
+#include "memory/memory.hpp"
+#include "support/log/journal.hpp"
 
 namespace qiven3::test {
 
@@ -14,8 +21,8 @@ std::vector<Case>& registry() {
     return cases;
 }
 
-Registrar::Registrar(const char* group, const char* name, CaseFn fn, bool serial) {
-    registry().push_back(Case{std::string(group) + "." + name, fn, serial});
+Registrar::Registrar(log::Name name, CaseFn fn, bool serial) {
+    registry().push_back(Case{name, fn, serial});
 }
 
 memory::Arena& Counted::arena(std::size_t bytes) {
@@ -53,6 +60,19 @@ int Counted::holding(std::ostream& out) const {
     return found;
 }
 
+std::size_t Counted::held() const noexcept {
+    std::size_t sum = 0;
+    const auto each = [&](const auto& list) {
+        for (const auto& owned : list) {
+            sum = memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
+        }
+    };
+    each(arenas_);
+    each(pools_);
+    each(heaps_);
+    return sum;
+}
+
 bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) {
     if (!ok) {
         ++ctx.failures;
@@ -62,14 +82,34 @@ bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) 
     return ok;
 }
 
-int run_case(const Case& c, std::ostream& out) {
-    Context ctx{out};
+namespace {
+
+// The outcomes' names, made once: a Name made within a conditional
+// expression is not made right on every compiler.
+constexpr log::Name passed = "pass";
+constexpr log::Name skipped = "skip";
+constexpr log::Name failed = "fail";
+
+// The case's end in log: its outcome's name, the time since start and the
+// bytes ctx's allocators hold; status, given back.
+int ended(const Case& c, const Context& ctx, std::chrono::steady_clock::time_point start, int status) {
+    const log::Name outcome = status == exit_pass ? passed : status == exit_skip ? skipped : failed;
+    log::event(ctx.log, log::events::case_end, c.name, outcome, log::Millis::since(start),
+               log::Count(ctx.counted.held()));
+    return status;
+}
+
+}  // namespace
+
+int run_case(const Case& c, std::ostream& out, log::Log& log) {
+    const auto start = std::chrono::steady_clock::now();
+    Context ctx{out, log};
     try {
         c.fn(ctx);
     } catch (const Skip& skip) {
-        out << "SKIP " << c.name << ": " << skip.reason << "\n";
+        out << "SKIP " << c.name.text() << ": " << skip.reason << "\n";
         out.flush();
-        return exit_skip;
+        return ended(c, ctx, start, exit_skip);
     } catch (const Stop&) {
         out << "stopped by a failed REQUIRE\n";
     } catch (const std::exception& e) {
@@ -81,27 +121,28 @@ int run_case(const Case& c, std::ostream& out) {
     }
     ctx.failures += ctx.counted.holding(out);
     if (ctx.failures == 0) {
-        out << "PASS " << c.name << "\n";
+        out << "PASS " << c.name.text() << "\n";
         out.flush();
-        return exit_pass;
+        return ended(c, ctx, start, exit_pass);
     }
-    out << "FAIL " << c.name << ": " << ctx.failures << " failed\n";
+    out << "FAIL " << c.name.text() << ": " << ctx.failures << " failed\n";
     out.flush();
-    return exit_fail;
+    return ended(c, ctx, start, exit_fail);
 }
 
 namespace {
 
 // An empty or repeated name, written to err; the registry is then unusable.
 bool names_valid(const std::vector<Case>& cases, std::ostream& err) {
-    std::set<std::string> seen;
+    std::set<std::string_view> seen;
     bool ok = true;
     for (const Case& c : cases) {
-        if (c.name.empty() || c.name.front() == '.' || c.name.back() == '.') {
-            err << "a case has an incomplete name: '" << c.name << "'\n";
+        const std::string_view name = c.name.text();
+        if (name.front() == '.' || name.back() == '.') {
+            err << "a case has an incomplete name: '" << name << "'\n";
             ok = false;
-        } else if (!seen.insert(c.name).second) {
-            err << "two cases are named " << c.name << "\n";
+        } else if (!seen.insert(name).second) {
+            err << "two cases are named " << name << "\n";
             ok = false;
         }
     }
@@ -116,7 +157,7 @@ int usage(std::ostream& err) {
 }  // namespace
 
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err) {
+             std::ostream& out, std::ostream& err, log::Log& log) {
     if (!names_valid(cases, err)) {
         return exit_usage;
     }
@@ -126,17 +167,17 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
             sorted.push_back(&c);
         }
         std::sort(sorted.begin(), sorted.end(),
-                  [](const Case* a, const Case* b) { return a->name < b->name; });
+                  [](const Case* a, const Case* b) { return a->name.text() < b->name.text(); });
         for (const Case* c : sorted) {
-            out << c->name << (c->serial ? "\tserial\n" : "\n");
+            out << c->name.text() << (c->serial ? "\tserial\n" : "\n");
         }
         out.flush();
         return exit_pass;
     }
     if (args.size() == 2 && args[0] == "--run") {
         for (const Case& c : cases) {
-            if (c.name == args[1]) {
-                return run_case(c, out);
+            if (c.name.text() == args[1]) {
+                return run_case(c, out, log);
             }
         }
         err << "no such case: " << args[1] << "\n";
@@ -147,15 +188,24 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
 
 }  // namespace qiven3::test
 
+namespace {
+
+// The process's log's pages, of static storage.
+qiven3::test::Journal::Pages journal_pages;
+
+}  // namespace
+
 int main(int argc, char** argv) {
     // A crash, an abort or a failed assertion is the diagnostic entry's,
     // which every binary runs before main: a report on standard error, the
     // process's status, and no dialog.
     // Unbuffered, so what a case wrote before a crash is in the log.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
+    // The process's log, its ring in a crash's report, drained at its end.
+    qiven3::test::Journal journal(journal_pages, "runner");
     std::vector<std::string_view> args;
     for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);
     }
-    return qiven3::test::run_main(args, qiven3::test::registry(), std::cout, std::cerr);
+    return qiven3::test::run_main(args, qiven3::test::registry(), std::cout, std::cerr, journal.log());
 }

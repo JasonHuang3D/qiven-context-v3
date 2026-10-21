@@ -33,6 +33,14 @@
 // reply's "fault" gives the calls counted and whether the K-th came.
 // Built without it, "fault" is refused, "not applicable:".
 //
+// Each request is an operation of the drive's log (support/log/journal.hpp),
+// named from the drive's table of operations, else "unknown":
+// drive.request with its bytes, error.typed for a typed error, drive.reply
+// with its status ("ok" or the error's kind) and bytes, and op.end with its
+// outcome ("ok", the typed error's code, or the kind) and its arena's peak;
+// the log is drained after each reply into the output QIVEN3_LOG names. No
+// field holds a request's text.
+//
 // The adapter is made at its first platform operation, so an adapter that
 // cannot be made is a reply. --config overrides the configuration
 // location; the fake's is otherwise "<root>/qiven3". --hal fake is refused
@@ -56,9 +64,12 @@
 #include <utility>
 #include <vector>
 
+#include "log/catalogue.hpp"
+#include "log/log.hpp"
 #include "memory/arena.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/json.hpp"
+#include "support/log/journal.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "driver/hal_ops.hpp"
@@ -251,26 +262,46 @@ Value plain(std::string_view kind, std::string_view detail);
 Value caught(std::string_view name);
 
 // The request loop's halves: the streams made ready, once; the next line
-// of standard input, false at its end; a reply written as a line.
+// of standard input, false at its end; a reply written as a line, its
+// bytes given back.
 void ready_streams();
 bool next_line(std::string& line);
-void send(const Value& reply);
+std::size_t send(const Value& reply);
+
+// The log's halves: the pages of the process's Journal; a request's name,
+// its "op" picked from the drive's names, else "unknown", as for no request;
+// and a reply's events, op ended.
+test::Journal::Pages& journal_pages() noexcept;
+log::Name named(const std::optional<Value>& request) noexcept;
+void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept;
 
 // The request loop over standard input and output, each line answered by
 // drive.reply(request); the process's exit status.
 template <class Drive>
 int loop(Drive& drive) {
     ready_streams();
+    test::Journal journal(journal_pages(), "drive");
     std::string line;
     while (next_line(line)) {
+        std::optional<Value> request;
         Value answer;
         try {
-            const Value request = parse(line);
-            answer = drive.reply(request);
+            request.emplace(parse(line));
         } catch (const RequestError& error) {
             answer = error_reply(plain("request", error.what()));
         }
-        send(answer);
+        const log::Name name = named(request);
+        log::Op op = log::begin(journal.log(), name);
+        log::event(op, log::events::drive_request, name, log::Count(line.size()));
+        if (request) {
+            try {
+                answer = drive.reply(*request);
+            } catch (const RequestError& error) {
+                answer = error_reply(plain("request", error.what()));
+            }
+        }
+        noted(op, answer, send(answer));
+        journal.drain();
     }
     return 0;
 }

@@ -183,7 +183,8 @@ QIVEN3_CASE(arena, faults) {
             allocator.deallocate(held[i], i + 1);
         }
     };
-    const qiven3::test::FaultRuns raw = qiven3::test::run_faults<MemoryError>(countdown, blocks, check);
+    const qiven3::test::FaultRuns raw = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "arena.blocks", countdown, blocks, check);
     CHECK_EQ(raw.typed, 5U);
     CHECK_EQ(raw.completed_at, 6U);
     CHECK_EQ(raw.untyped, 0U);
@@ -202,7 +203,8 @@ QIVEN3_CASE(arena, faults) {
         }
         length = v.size() * v.front().size();
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(countdown, strings, check);
+    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "arena.strings", countdown, strings, check);
     std::cout << "arena.faults: typed " << runs.typed << ", completed at " << runs.completed_at
               << "\n";
     CHECK(runs.completed_at > 1);

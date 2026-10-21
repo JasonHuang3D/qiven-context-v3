@@ -247,7 +247,8 @@ QIVEN3_CASE(utf, decode_faults) {
         utf::decode("caf\xc3\xa9 \xf0\x9d\x84\x9e", out);
         decoded = out.size();
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(countdown, op, check);
+    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "utf.decode", countdown, op, check);
     std::cout << "utf.decode_faults: allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 1U);
     CHECK_EQ(runs.completed_at, 2U);

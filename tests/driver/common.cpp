@@ -8,12 +8,16 @@
 // Windows _setmode takes the C runtime's text mode off both before the
 // first request. A request's CR before its LF is dropped.
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "driver/drive.hpp"
@@ -453,6 +457,88 @@ bool next_line(std::string& line) {
     return true;
 }
 
-void send(const Value& reply) { std::cout << encode(reply) << '\n' << std::flush; }
+std::size_t send(const Value& reply) {
+    const std::string bytes = encode(reply);
+    std::cout << bytes << '\n' << std::flush;
+    return bytes.size();
+}
+
+namespace {
+
+// The process's Journal's pages, of static storage.
+test::Journal::Pages pages;
+
+// The names a request's op, an error's kind, its code and its operation
+// are picked from: the drives' operations and those the typed errors name.
+constexpr std::array<log::Name, 39> operation_names{
+    "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
+    "replace", "create", "read", "program", "run", "code_page", "stdout", "residual",
+    "random_bytes", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
+    "refuse_pages", "calls", "written", "lent", "hal_fake", "hal_facts", "hal_device",
+    "hal_allocate", "hal_upload", "hal_download", "hal_free", "hal_run", "hal_counts",
+    "allocate", "read_line", "wait"};
+constexpr std::array<log::Name, 5> kinds{"platform", "memory", "hal", "request", "exception"};
+constexpr std::array<log::Name, 14> codes{"unsupported", "config", "path", "exists", "busy",
+                                          "io", "start", "deadline", "output", "memory",
+                                          "budget", "size", "kernel", "launch"};
+
+static_assert(log::pick("hal_run", operation_names, "unknown") == log::Name("hal_run"));
+static_assert(log::pick("sk-not-an-operation", operation_names, "unknown") == log::Name("unknown"));
+static_assert(log::pick("exception", kinds, "unknown") == log::Name("exception"));
+static_assert(log::pick("launch", codes, "unknown") == log::Name("launch"));
+
+// The kinds of the typed errors.
+bool typed_kind(std::string_view kind) noexcept { return kind == "platform" || kind == "memory" || kind == "hal"; }
+
+}  // namespace
+
+test::Journal::Pages& journal_pages() noexcept { return pages; }
+
+log::Name named(const std::optional<Value>& request) noexcept {
+    if (!request) {
+        return "unknown";
+    }
+    try {
+        const std::optional<ArgView> op = ArgView(*request).find("op");
+        if (op && op->kind() == json::Kind::string) {
+            return log::pick(op->as_string("op"), operation_names, "unknown");
+        }
+    } catch (...) {
+        // A request whose op cannot be read is unknown.
+    }
+    return "unknown";
+}
+
+void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept {
+    log::Name status = "unknown";
+    log::Name outcome = "unknown";
+    std::uint64_t peak = 0;
+    try {
+        const ArgView r(reply);
+        if (flag(r, "ok", false)) {
+            status = "ok";
+            outcome = "ok";
+        } else {
+            const ArgView error = argument(r, "error");
+            const std::string kind = text(error, "kind");
+            status = log::pick(kind, kinds, "unknown");
+            outcome = status;
+            if (typed_kind(kind)) {
+                outcome = log::pick(text(error, "code"), codes, "unknown");
+                log::event(op, log::events::error_typed, status, outcome,
+                           log::pick(text(error, "operation"), operation_names, "unknown"));
+            }
+        }
+        if (const std::optional<ArgView> memory = r.find("memory")) {
+            const std::int64_t got = integer(*memory, "peak");
+            peak = got > 0 ? static_cast<std::uint64_t>(got) : 0;
+        }
+    } catch (...) {
+        // A reply the drive made is always readable; were it not, its events
+        // say unknown.
+    }
+    log::event(op, log::events::drive_reply, status, log::Count(bytes));
+    op.end(outcome, log::Count(peak));
+}
 
 }  // namespace qiven3::drive

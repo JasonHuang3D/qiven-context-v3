@@ -5,7 +5,9 @@ add_library(qiven3_runner STATIC
   runner.hpp
 )
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(qiven3_runner PUBLIC qiven3_memory PRIVATE qiven3_flags)
+# Its main holds the process's log (support/log/journal.hpp), kept for the
+# entry's report.
+target_link_libraries(qiven3_runner PUBLIC qiven3_memory qiven3_log PRIVATE qiven3_flags qiven3_diag)
 
 # The runner's own cases, each a CTest test.
 qiven3_add_cases(qiven3_runner_test LABELS fast SOURCES runner_test.cpp)

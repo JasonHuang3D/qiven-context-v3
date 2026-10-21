@@ -201,7 +201,8 @@ QIVEN3_CASE(log, faults) {
         const qlog::Log lg(*arena, qlog::Count(1U), "qiven3_unit_log");
     };
     const auto check = [&](std::size_t) { return arena->used() == 0; };
-    const qiven3::test::FaultRuns made = qiven3::test::run_faults<MemoryError>(countdown, make, check);
+    const qiven3::test::FaultRuns made = qiven3::test::run_faults<MemoryError>(
+        qiven3_ctx.log, "log.make", countdown, make, check);
     // The ring's span and the events' pages.
     CHECK_EQ(made.typed, 2U);
     CHECK_EQ(made.completed_at, 3U);
