@@ -89,3 +89,10 @@ set_target_properties(qiven3_log_plant PROPERTIES QIVEN3_PLANT ON EXPORT_COMPILE
 qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
   SOURCES matcher_test.cpp
   LINK qiven3_faults qiven3_matcher)
+
+# header's cases: A's refusals and the codes' order, the syntaxes, make and
+# line, stamp, evaluated by the compiler and again at run time over
+# tests/fixtures/; its budgets and fault runs.
+qiven3_add_cases(qiven3_unit_header LABELS fast fake
+  SOURCES header_test.cpp header_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)

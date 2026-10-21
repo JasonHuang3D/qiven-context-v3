@@ -8,3 +8,12 @@ add_library(qiven3_matcher STATIC
 )
 target_include_directories(qiven3_matcher PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_matcher PUBLIC qiven3_memory PRIVATE qiven3_flags)
+
+# qiven3_entry: the entry's modules, header first; its syntax checks link
+# the matcher.
+add_library(qiven3_entry STATIC
+  header.cpp
+  header.hpp
+)
+target_include_directories(qiven3_entry PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(qiven3_entry PUBLIC qiven3_matcher qiven3_base qiven3_memory PRIVATE qiven3_flags)
