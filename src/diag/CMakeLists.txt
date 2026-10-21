@@ -13,9 +13,16 @@ function(qiven3_diag_targets suffix memory)
   if(WIN32)
     list(APPEND sources "${dir}/diag_windows.cpp")
   else()
-    list(APPEND sources "${dir}/diag_linux.cpp")
+    list(APPEND sources "${dir}/diag_linux.cpp" "${dir}/signal.cpp" "${dir}/signal.hpp")
   endif()
   add_library(qiven3_diag${suffix} STATIC ${sources})
+  # Linux's handlers throw nothing and call nothing that throws: built
+  # without exceptions, so that their object names no unwinder's routine,
+  # which K18 would read as a call off the async-signal-safe list.
+  if(NOT WIN32)
+    set_source_files_properties("${dir}/signal.cpp" TARGET_DIRECTORY qiven3_diag${suffix}
+      PROPERTIES COMPILE_OPTIONS -fno-exceptions)
+  endif()
   target_include_directories(qiven3_diag${suffix} PUBLIC "${PROJECT_SOURCE_DIR}/src")
   target_link_libraries(qiven3_diag${suffix} PUBLIC ${memory} PRIVATE qiven3_flags)
   add_library(qiven3_diag_entry${suffix} OBJECT "${dir}/entry.cpp" "${dir}/diag.hpp")

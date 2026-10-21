@@ -159,7 +159,10 @@ class Windows(unittest.TestCase):
         vcvars.write_text('@set "PATH=%SystemRoot%\\system32"\r\n@set VCToolsVersion=14.44.35207\r\n'
                           '@set WindowsSDKVersion=10.0.26100.0\\\r\n', encoding="ascii")
         env = dict(os.environ, QIVEN3_VCVARS=str(vcvars))
-        status, lines, _ = run(ROOT / "tools" / "loop.py", "build", "windows", "windows-msvc", env=env)
+        # The loop's file alone in the scratch, so that its logs are the scratch's.
+        (top / "tools").mkdir()
+        shutil.copy2(ROOT / "tools" / "loop.py", top / "tools" / "loop.py")
+        status, lines, _ = run(top / "tools" / "loop.py", "build", "windows", "windows-msvc", env=env)
         self.assertEqual(status, 2, lines)
         self.assertIn("cmake: missing from vcvars' PATH", lines[-1])
         self.assertTrue(lines[-1].endswith("; exit 2"))
@@ -176,6 +179,11 @@ class Windows(unittest.TestCase):
         for name in ("own_tree", "run_steps"):
             self.addCleanup(setattr, LOOP, name, getattr(LOOP, name))
             setattr(LOOP, name, refuse)
+        # The loop's logs, vcvars' script among them, in the case's scratch.
+        top = Path(tempfile.mkdtemp(prefix="qiven3-loop-case-"))
+        self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        self.addCleanup(setattr, LOOP, "ROOT", LOOP.ROOT)
+        LOOP.ROOT = top
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             status = LOOP.main(["build", "windows", "windows-msvc"])

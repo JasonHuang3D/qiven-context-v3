@@ -1,6 +1,7 @@
 """The diagnostic entry's planted faults, K1 to K5, K7 and K9: each plant of
 qiven3-fault, run as a process, ends with its cause as the report's first
-line, its stack, its status, no window, within the bounds.
+line, its stack, its status, no window, within the bounds; and K18, the
+Linux handlers' object calling only the async-signal-safe list.
 
 The report, on standard error:
 
@@ -15,13 +16,15 @@ On Windows the frames are dbghelp's, symbolized in the process from the
 binary's PDB: a build that keeps none beside the binary (Release, whose
 binaries the clean-binaries check reads) names each frame's module and
 offset alone, and the plant's name is read where the PDB is. On Linux the
-frames are backtrace_symbols_fd's raw lines, which the watcher symbolizes
-after the exit, so the plant's name is not read here yet. K3 runs in
-qiven3-fault-crtdbg, on the debug runtime. On Linux the entry's signal
-handlers are not in this build yet: K7 and K9, the terminate handler's,
-run, and the others are skipped. Under a sanitizer, whose report stands for
-the entry's, every case is skipped. The raw report is read here; the
-watcher names statuses and symbolizes Linux's frames later.
+frames are backtrace_symbols_fd's raw lines, a module, an offset and an
+address each, which the watcher symbolizes after the exit: the plant's
+frame is read here by its offset, inside plant_<plant>'s range in the
+binary's symbol table. K3's and K4's library writes its own line before
+the report (glibc's assertion, libstdc++'s hardened check), whose cause is
+then the signal. K3 runs in qiven3-fault-crtdbg on Windows, on the debug
+runtime. Under a sanitizer, whose report stands for the entry's, every
+case is skipped. The raw report is read here; the watcher names statuses
+and symbolizes Linux's frames later.
 """
 
 import os
@@ -47,15 +50,25 @@ DUMP_MAX = 64 * 1024 * 1024
 POLL = 0.1
 WINDOWS = sys.platform == "win32"
 
-# plant: (case, binary, cause pattern, Windows status, Linux signal or None).
+# plant: (case, binary, Windows cause pattern, Windows status).
 PLANTS = {
-    "null": ("K1", FAULT, r"access violation reading 0x0000000000000000", 0xC0000005, None),
-    "abort": ("K2", FAULT, r"abort", 3, None),
-    "assert": ("K3", CRTDBG if WINDOWS else FAULT, r"assertion failed: false, \S*fault_assert\.cpp:\d+", 3, None),
-    "parameter": ("K4", FAULT, r"invalid parameter(: .*)?", 0xC0000417, None),
-    "overflow": ("K5", FAULT, r"stack overflow", 0xC00000FD, None),
-    "exception": ("K7", FAULT, r"unhandled exception: plant", 3, signal.SIGABRT),
-    "failfast": ("K9", FAULT, r"fail-fast: plant", 0xC0000409, signal.SIGABRT),
+    "null": ("K1", FAULT, r"access violation reading 0x0000000000000000", 0xC0000005),
+    "abort": ("K2", FAULT, r"abort", 3),
+    "assert": ("K3", CRTDBG if WINDOWS else FAULT, r"assertion failed: false, \S*fault_assert\.cpp:\d+", 3),
+    "parameter": ("K4", FAULT, r"invalid parameter(: .*)?", 0xC0000417),
+    "overflow": ("K5", FAULT, r"stack overflow", 0xC00000FD),
+    "exception": ("K7", FAULT, r"unhandled exception: plant", 3),
+    "failfast": ("K9", FAULT, r"fail-fast: plant", 0xC0000409),
+}
+# plant: (Linux signal, cause pattern, the library's line before the report or None).
+LINUX = {
+    "null": (signal.SIGSEGV, r"SIGSEGV at 0x0000000000000000", None),
+    "abort": (signal.SIGABRT, r"SIGABRT", None),
+    "assert": (signal.SIGABRT, r"SIGABRT", r".*fault_assert\.cpp:\d+: .*Assertion [`']false' failed\."),
+    "parameter": (signal.SIGABRT, r"SIGABRT", r".*stl_vector\.h:\d+: .*Assertion '.*' failed\."),
+    "overflow": (signal.SIGSEGV, r"SIGSEGV at 0x[0-9A-F]{16}, stack overflow", None),
+    "exception": (signal.SIGABRT, r"unhandled exception: plant", None),
+    "failfast": (signal.SIGABRT, r"fail-fast: plant", None),
 }
 
 
@@ -123,6 +136,43 @@ def report_problems(lines, cause, case):
     return problems
 
 
+# backtrace_symbols_fd's line after the report's "  #<i> ": the module, its
+# symbol where the dynamic symbol table names one, the offset, the address.
+FRAME = re.compile(r"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]")
+# The async-signal-safe list signal.cpp's object may call (K18).
+SAFE = frozenset(("write", "_exit", "raise", "sigaction", "getpid", "backtrace", "backtrace_symbols_fd"))
+
+
+def nm(*args):
+    """The build's nm, on args: its lines."""
+    done = subprocess.run([build_option("CMAKE_NM") or "nm", *args], capture_output=True, check=True,
+                          timeout=binaries.TIMEOUT)
+    return done.stdout.decode("utf-8", "replace").splitlines()
+
+
+def in_plant(binary, plant, frames):
+    """Whether a frame of the binary's own, by its offset, falls in
+    plant_<plant>'s range of the binary's symbol table."""
+    ranges = []
+    for line in nm("--defined-only", "-C", "-S", "-P", str(binaries.path(binary))):
+        fields = line.split()
+        if len(fields) == 4 and fields[0].startswith(f"plant_{plant}("):
+            start = int(fields[2], 16)
+            ranges.append((start, start + int(fields[3], 16)))
+    for frame in frames:
+        found = FRAME.fullmatch(frame)
+        if found and Path(found["module"]).name == binary and not found["symbol"]:
+            offset = int(found["offset"], 16)
+            if any(start <= offset <= end for start, end in ranges):
+                return True
+    return False
+
+
+def undefined(obj):
+    """An object's undefined symbols, by nm."""
+    return {line.split()[0] for line in nm("-u", "-P", str(obj)) if line.strip()}
+
+
 class Faults(unittest.TestCase):
     ctest_labels = ("fake",)
 
@@ -131,19 +181,23 @@ class Faults(unittest.TestCase):
             self.skipTest("under a sanitizer its report stands for the entry's")
 
     def plant(self, plant):
-        case, binary, cause, status, linux_signal = PLANTS[plant]
-        if not WINDOWS and linux_signal is None:
-            self.skipTest(f"{case}: Linux's signal handlers are not in this build yet")
+        case, binary, cause, status = PLANTS[plant]
+        number, linux_cause, preface = LINUX[plant]
         with tempfile.TemporaryDirectory() as dumps:
             env = dict(os.environ, QIVEN3_DUMP_DIR=dumps)
             ran, out, err, seconds, seen = run_plant(binary, plant, env)
             text = err.decode("utf-8", "replace")
             lines = text.splitlines()
-            self.assertEqual(ran, status if WINDOWS else -linux_signal, f"{case}: {text}")
+            self.assertEqual(ran, status if WINDOWS else -number, f"{case}: {text}")
             self.assertEqual(seen, [], f"{case}: a window opened")
             self.assertLessEqual(seconds, TIME_BOUND, case)
             self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND, case)
             self.assertTrue(all(len(line) <= LINE_POINTS for line in lines), case)
+            if not WINDOWS:
+                cause = linux_cause
+                if preface is not None:
+                    self.assertRegex(lines[0] if lines else "", f"^{preface}$", f"{case}: {text}")
+                    lines = lines[1:]
             self.assertEqual(report_problems(lines, cause, case), [])
             n = int(lines[1].split()[2])
             frames = lines[2:2 + n]
@@ -159,10 +213,13 @@ class Faults(unittest.TestCase):
                 self.assertLessEqual(written.stat().st_size, DUMP_MAX, case)
                 self.assertEqual(written.read_bytes()[:4], b"MDMP", case)
             else:
-                self.assertEqual(lines[-1], "fatal: end SIGABRT")
-                # backtrace_symbols_fd's raw lines, an address each, which the
-                # watcher symbolizes after the exit: the plant's name is read then.
-                self.assertTrue(all(re.search(r"\[0x[0-9a-f]+\]$", f) for f in frames), f"{case}: {frames}")
+                self.assertEqual(lines[-1], f"fatal: end {signal.Signals(number).name}")
+                # backtrace_symbols_fd's raw lines, which the watcher
+                # symbolizes after the exit; the plant's frame by its offset.
+                self.assertTrue(all(FRAME.fullmatch(f) for f in frames), f"{case}: {frames}")
+                self.assertTrue(in_plant(binary, plant, frames), f"{case}: no frame in plant_{plant}: {frames}")
+                # The reading's control: plant_out, on no fault's stack, is found in none.
+                self.assertFalse(in_plant(binary, "out", frames), f"{case}: {frames}")
                 self.assertEqual(dump, "none")
 
     def test_K1_null(self):
@@ -200,6 +257,34 @@ class Faults(unittest.TestCase):
         cut = ["fatal: abort", "fatal: stack 1", "  #0 qiven3-fault!plant_abort+0x9"]
         self.assertNotEqual(report_problems(cut, "abort", "control"), [])
         self.assertNotEqual(report_problems(["abort"], "abort", "control"), [])
+
+
+class Signal(unittest.TestCase):
+    """K18: signal.cpp's object calls only the async-signal-safe list, by its
+    undefined symbols; its control, a copy with a call of malloc planted."""
+    ctest_labels = ("fake",)
+
+    def setUp(self):
+        if WINDOWS:
+            self.skipTest("Linux's handlers")
+        if sanitized():
+            self.skipTest("a sanitizer's instrumentation calls its own runtime")
+
+    def test_K18_safe(self):
+        obj = binaries.directory("QIVEN3_BUILD") / "src" / "diag" / "CMakeFiles" / "qiven3_diag.dir" / "signal.cpp.o"
+        self.assertTrue(obj.is_file(), obj)
+        self.assertEqual(undefined(obj) - SAFE, set())
+
+    def test_K18_control(self):
+        source = binaries.ROOT / "src" / "diag" / "signal.cpp"
+        with tempfile.TemporaryDirectory() as top:
+            copy = Path(top) / "signal.cpp"
+            copy.write_bytes(source.read_bytes() + b"\n#include <cstdlib>\nvoid* qiven3_planted() { return std::malloc(1); }\n")
+            obj = Path(top) / "signal.o"
+            subprocess.run([build_option("CMAKE_CXX_COMPILER"), "-std=c++20", "-O2", "-fno-exceptions", "-c", "-I",
+                            str(binaries.ROOT / "src"), "-o", str(obj), str(copy)], check=True, capture_output=True,
+                           timeout=binaries.TIMEOUT)
+            self.assertIn("malloc", undefined(obj) - SAFE)
 
 
 class Out(unittest.TestCase):

@@ -31,6 +31,17 @@ class Select(unittest.TestCase):
         self.assertTrue(True)
 
 
+def serial(name):
+    """Whether a test runs alone: the runner's registry case, and each Python
+    test whose class sets ctest_serial."""
+    if name == "runner.registry_holds_self":
+        return True
+    if not name.startswith("tests."):
+        return False
+    test = next(iter(unittest.defaultTestLoader.loadTestsFromName(name)))
+    return bool(getattr(test, "ctest_serial", False))
+
+
 def ran_count(ran):
     found = re.search(rb"^Ran (\d+) tests?", ran.err, re.MULTILINE)
     return int(found.group(1)) if found else None
@@ -116,7 +127,7 @@ class Registered(unittest.TestCase):
                         self.assertIn("drive", labels)
                 else:
                     self.assertEqual(command[1:], ["--run", name])
-                self.assertEqual(props.get("RUN_SERIAL", False), name == "runner.registry_holds_self")
+                self.assertEqual(props.get("RUN_SERIAL", False), serial(name))
 
     def test_presets(self):
         tests = ctest_tests()

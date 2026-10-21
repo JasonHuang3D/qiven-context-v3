@@ -12,9 +12,10 @@
 //   fatal: end <status>
 //
 // at most 32 frames, each line at most 300 code points. The install and
-// the report are by system, diag_windows.cpp and diag_linux.cpp; this
-// file's Line and terminate handler are both systems'. Not core logic: it
-// includes the system's headers, and links qiven3_memory alone of v3's.
+// the report are by system, diag_windows.cpp and diag_linux.cpp, Linux's
+// handlers and report in signal.cpp; this file's Line and terminate
+// handler are both systems'. Not core logic: it includes the system's
+// headers, and links qiven3_memory alone of v3's.
 //
 // thread: install() once, from the first initializer; thread_start() first
 // in each thread v3 starts; a report once, from any thread.
