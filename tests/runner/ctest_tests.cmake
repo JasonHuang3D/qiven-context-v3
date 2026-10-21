@@ -2,8 +2,9 @@
 # Python test's id, and writes one add_test() each into OUT.
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
-# ADDR2LINE where the build found one, and PYTHON when the Python tests are
-# registered. With PYTHON every test runs behind the watcher, tools/watch.py,
+# ADDR2LINE where the build found one, PYTHON when the Python tests are
+# registered, and FUZZ when the build has fuzz targets (lines
+# "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
 # other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
 # 30 s, so that the watcher acts first.
@@ -99,6 +100,22 @@ foreach(entry IN LISTS entries)
   endforeach()
 endforeach()
 
+# Each fuzz target, fuzz.<target>, labelled cxx and fuzz and alone: 60 s of
+# libFuzzer from its corpus, 10 s an input, a finding's input under its
+# artifacts.
+set(fuzz_targets 0)
+if(DEFINED FUZZ)
+  file(STRINGS "${FUZZ}" entries)
+  foreach(entry IN LISTS entries)
+    if(NOT entry MATCHES "^([a-z]+)	([^	]+)	([^	]+)	([^	]+)$")
+      message(FATAL_ERROR "a malformed line of ${FUZZ}: ${entry}")
+    endif()
+    qiven3_add_test("fuzz.${CMAKE_MATCH_1}" "cxx;fuzz" TRUE "" "" "${CMAKE_MATCH_2}" -max_total_time=60
+      -timeout=10 "-artifact_prefix=${CMAKE_MATCH_4}/" "${CMAKE_MATCH_3}")
+    math(EXPR fuzz_targets "${fuzz_targets} + 1")
+  endforeach()
+endif()
+
 if(DEFINED PYTHON)
   execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/tests/runner/list_tests.py"
     WORKING_DIRECTORY "${SOURCE}"
@@ -131,4 +148,5 @@ if(DEFINED PYTHON)
 endif()
 
 file(WRITE "${OUT}" "${body}")
-message(STATUS "qiven3: ${cases} C++ cases and ${python_tests} Python tests listed for CTest")
+message(STATUS "qiven3: ${cases} C++ cases, ${fuzz_targets} fuzz targets and ${python_tests} Python tests "
+  "listed for CTest")

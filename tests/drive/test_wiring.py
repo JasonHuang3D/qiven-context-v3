@@ -21,6 +21,8 @@ STRUCTURE = "tests.structure."
 ANALYSIS = "tests.structure.test_analysis."
 SAMPLE = "tests.drive.samples."
 SELECT = "tests.drive.test_wiring.Select."
+# A fuzz target's run, under libFuzzer alone: fuzz.<target>.
+FUZZ = "fuzz."
 # The watcher's limits by label, and CTest's seconds past them.
 SLOW_LIMIT, FAST_LIMIT, OTHER_LIMIT, AFTER_LIMIT = 1800, 60, 300, 30
 
@@ -36,9 +38,9 @@ class Select(unittest.TestCase):
 
 
 def serial(name):
-    """Whether a test runs alone: the runner's registry case, and each Python
-    test whose class sets ctest_serial."""
-    if name == "runner.registry_holds_self":
+    """Whether a test runs alone: the runner's registry case, each fuzz
+    target's run, and each Python test whose class sets ctest_serial."""
+    if name == "runner.registry_holds_self" or name.startswith(FUZZ):
         return True
     if not name.startswith("tests."):
         return False
@@ -167,6 +169,16 @@ class Registered(unittest.TestCase):
                         self.assertNotIn("drive", labels)
                     else:
                         self.assertIn("drive", labels)
+                elif "fuzz" in labels:
+                    # libFuzzer's run from the target's corpus, its findings
+                    # under its artifacts.
+                    self.assertTrue(name.startswith(FUZZ))
+                    self.assertEqual(labels, {"cxx", "fuzz"})
+                    target = name[len(FUZZ):]
+                    self.assertEqual(command[1:3], ["-max_total_time=60", "-timeout=10"])
+                    self.assertTrue(command[3].startswith("-artifact_prefix=")
+                                    and command[3].endswith(f"fuzz/{target}/artifacts/"))
+                    self.assertEqual(Path(command[4]).parts[-3:], ("fuzz", target, "corpus"))
                 else:
                     self.assertEqual(command[1:], ["--run", name])
                 self.assertEqual(props.get("RUN_SERIAL", False), serial(name))
@@ -176,10 +188,12 @@ class Registered(unittest.TestCase):
         presets = json.loads((binaries.ROOT / "CMakePresets.json").read_bytes())
         filters = {p["name"]: p.get("filter", {}) for p in presets["testPresets"]}
         analysis = labelled(tests, "analysis")
+        fuzz = labelled(tests, "fuzz")
         expected = {
-            "full": set(tests) - analysis,
+            "full": set(tests) - analysis - fuzz,
             "fast": labelled(tests, "fast"),
-            "asan": labelled(tests, "cxx"),
+            "asan": labelled(tests, "cxx") - fuzz,
+            "fuzz": fuzz,
             "structure": {name for name in tests if name.startswith(STRUCTURE)} - analysis,
             "analysis": analysis,
             "fake": labelled(tests, "fake"),

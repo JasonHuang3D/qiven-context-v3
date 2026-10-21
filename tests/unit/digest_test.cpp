@@ -1,8 +1,9 @@
 // digest's vectors: the framing of the entry's table, Chinese among them,
 // and entry A's framed header and id; SHA-256's, the standard's examples
 // and the padding's edges among them; RFC 4231's HMAC cases and the keys
-// on and past a block; the content digests under the fixtures' key; the
-// comparison's; and the key's wipes on the fake platform, at its end, on a
+// on and past a block; the content digests under the fixtures' key; L1's
+// and L2's content and evidence digests under their own keys, and their
+// ids; the comparison's; and the key's wipes on the fake platform, at its end, on a
 // move and after keyed, with new_key's draw.
 
 #include <array>
@@ -74,6 +75,15 @@ std::array<std::byte, 32> fixture_key() {
     std::array<std::byte, 32> key{};
     for (std::size_t i = 0; i < key.size(); ++i) {
         key[i] = static_cast<std::byte>(i);
+    }
+    return key;
+}
+
+// A lesson's key: 32 bytes counting up from first (L1 c0, L2 e0).
+std::array<std::byte, 32> lesson_key(unsigned first) {
+    std::array<std::byte, 32> key{};
+    for (std::size_t i = 0; i < key.size(); ++i) {
+        key[i] = static_cast<std::byte>(first + i);
     }
     return key;
 }
@@ -227,6 +237,77 @@ QIVEN3_CASE(digest, keyed) {
     CHECK_EQ(rows[2].first.size(), 66U);
     for (const auto& [data, want] : rows) {
         CHECK_EQ(keyed(key, data), "hmac-sha256:" + std::string(want));
+    }
+}
+
+QIVEN3_CASE(digest, lessons) {
+    // L1 and L2, each under its own key: the content digest over its
+    // canonical content, the evidence digest over the interpreter's output,
+    // and the id over its framed header, parent and target absent on L1.
+    struct LessonView {
+        std::array<std::byte, 32> key;
+        std::string_view content;
+        std::array<Field, 11> header;
+        std::string_view output;
+        std::string_view evidence;
+        std::string_view digest;
+        std::string_view id;
+        std::size_t content_bytes;
+        std::size_t framed_bytes;
+    };
+    constexpr std::string_view l1_id = "sha256:dbc3708cf045a0a4032f26cdc403298992821d648136a203a419002cf218334c";
+    constexpr std::string_view l1_digest = "hmac-sha256:ca3d1e31fad36dce7c2a27c4015091cf85bf069b5929103d6169bc1b2dca8cf3";
+    constexpr std::string_view l2_digest = "hmac-sha256:c5d45ae33ec18accb198b6f5a70d5b5421d84e96047d0f2c632ba932c542c356";
+    constexpr std::string_view l1_content =
+        "{\"admit\":{\"mistake\":\"A test would pass on one interpreter and fail on the next pin.\","
+        "\"underivable\":\"\xe5\x9c\xa8\xe4\xbc\x9a\xe8\xaf\x9d\xe4\xb8\xad\xe8\xa7\x82\xe5\xaf\x9f"
+        "\xe5\x88\xb0\xe7\x9a\x84\xe7\xbb\x93\xe6\x9e\x9c\xef\xbc\x8c\xe6\xb2\xa1\xe6\x9c\x89\xe5\x86"
+        "\x99\xe8\xbf\x9b\xe4\xbb\xbb\xe4\xbd\x95\xe4\xbb\x93\xe5\xba\x93\xe3\x80\x82\"},\"band\":\"n"
+        "ormal\",\"episode\":{\"client\":\"claude-code\",\"session\":\"00000000-0000-4000-8000-000000"
+        "000042\"},\"evidence\":[{\"command\":\"python -I --version\",\"digest\":\"hmac-sha256:042796"
+        "5c77d19ad3af90f88a2e288afa35e68082d468838b50d416e1e5e38474\",\"type\":\"output\"}],\"lesson"
+        "\":\"\xe5\x9c\xa8 3.14.7 \xe4\xb8\x8a\xef\xbc\x8cstr.isspace \xe6\x8c\x89 Unicode 16.0.0 "
+        "\xe5\x88\xa4\xe6\x96\xad\xef\xbc\x9bpin the interpreter in every test.\",\"pins\":[{\"name\""
+        ":\"python\",\"type\":\"tool\",\"version\":\"3.14.7\"},{\"name\":\"PYTHONUTF8\",\"type\":\"en"
+        "v\"}],\"subject\":\"entity:cpython\",\"trigger\":{\"activities\":[\"pin-interpreter\"]},\"wh"
+        "en\":{\"quality\":\"exact\",\"time\":\"2026-10-17T05:00:00.000Z\"}}";
+    constexpr std::string_view l2_content =
+        "{\"admit\":{\"mistake\":\"A lesson pinned to 3.14.7 would be served after the re-pin to 3.15"
+        ".0.\",\"underivable\":\"\xe6\x8d\xa2\xe7\x89\x88\xe6\x9c\xac\xe5\x90\x8e\xe9\x87\x8d\xe6\x96"
+        "\xb0\xe8\xbf\x90\xe8\xa1\x8c\xe7\x9a\x84\xe8\xbe\x93\xe5\x87\xba\xef\xbc\x8c\xe6\xb2\xa1\xe6"
+        "\x9c\x89\xe5\x86\x99\xe8\xbf\x9b\xe4\xbb\xbb\xe4\xbd\x95\xe4\xbb\x93\xe5\xba\x93\xe3\x80\x82"
+        "\"},\"band\":\"normal\",\"episode\":{\"client\":\"claude-code\",\"session\":\"00000000-0000-"
+        "4000-8000-000000000043\"},\"evidence\":[{\"id\":\"sha256:dbc3708cf045a0a4032f26cdc4032989928"
+        "21d648136a203a419002cf218334c\",\"type\":\"entry\"},{\"command\":\"python -I --version\",\"d"
+        "igest\":\"hmac-sha256:9b2b49164905577f1312bffc2f690e450a2152c95c432fa0c52cc01047bef814\",\"t"
+        "ype\":\"output\"}],\"lesson\":\"On 3.15.0, str.isspace follows Unicode 17.0.0 and holds the "
+        "same 29 code points; \xe6\xaf\x8f\xe4\xb8\xaa\xe6\xb5\x8b\xe8\xaf\x95\xe4\xbb\x8d\xe5\x9b"
+        "\xba\xe5\xae\x9a\xe8\xa7\xa3\xe9\x87\x8a\xe5\x99\xa8\xe3\x80\x82\",\"pins\":[{\"name\":\"pyt"
+        "hon\",\"type\":\"tool\",\"version\":\"3.15.0\"},{\"name\":\"PYTHONUTF8\",\"type\":\"env\"}],"
+        "\"subject\":\"entity:cpython\",\"trigger\":{\"activities\":[\"pin-interpreter\"]},\"when\":{"
+        "\"quality\":\"session\",\"time\":\"2026-10-17T09:00:00.000Z\"}}";
+    const std::vector<LessonView> lessons = {
+        {lesson_key(0xc0), l1_content,
+         {"qiven-entry/1", "project:qiven", "learner", "1", std::nullopt, "lesson", "learner/s42", "claimed",
+          "2026-10-17T05:02:10.000Z", std::nullopt, l1_digest},
+         "Python 3.14.7\n", "hmac-sha256:0427965c77d19ad3af90f88a2e288afa35e68082d468838b50d416e1e5e38474", l1_digest,
+         l1_id, 745, 246},
+        {lesson_key(0xe0), l2_content,
+         {"qiven-entry/1", "project:qiven", "learner", "2", l1_id, "lesson", "learner/s43", "claimed",
+          "2026-10-17T09:40:00.000Z", l1_id, l2_digest},
+         "Python 3.15.0\n", "hmac-sha256:9b2b49164905577f1312bffc2f690e450a2152c95c432fa0c52cc01047bef814", l2_digest,
+         "sha256:566240684567f8e0289106449dddd847ec44a665313c8e09b32c5d48480f31c7", 876, 388},
+    };
+    Fake fake(seeded(0));
+    for (const LessonView& lesson : lessons) {
+        const Key key(fake, lesson.key);
+        CHECK_EQ(lesson.content.size(), lesson.content_bytes);
+        CHECK_EQ(digest::framed_size(lesson.header), lesson.framed_bytes);
+        CHECK_EQ(keyed(key, lesson.content), std::string(lesson.digest));
+        CHECK_EQ(keyed(key, lesson.output), std::string(lesson.evidence));
+        std::string id;
+        digest::entry_id(lesson.header, id);
+        CHECK_EQ(id, std::string(lesson.id));
     }
 }
 
