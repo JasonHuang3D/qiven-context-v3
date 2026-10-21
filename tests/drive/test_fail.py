@@ -1,6 +1,7 @@
 """fail_fast ends the process at once: qiven3_fail_demo's one case, run as a
-process, exits with std::terminate's status, abort's: 3 on Windows and
-SIGABRT elsewhere, and writes nothing after."""
+process, exits with the fail-fast's status, 0xC0000409 on Windows and
+SIGABRT elsewhere, its standard output holding nothing after, and the
+diagnostic entry's report on standard error naming the kept cause first."""
 
 import signal
 import sys
@@ -17,12 +18,12 @@ class FailFast(unittest.TestCase):
     def test_ends_the_process(self):
         ran = binaries.run(DEMO, ["--run", "fail.fail_fast"])
         if sys.platform == "win32":
-            # abort() under the runner's settings: no message, no dialog.
-            self.assertEqual(ran.status, 3)
+            self.assertEqual(ran.status, 0xC0000409)  # STATUS_STACK_BUFFER_OVERRUN, __fastfail's
         else:
             self.assertEqual(ran.status, -signal.SIGABRT)
         self.assertEqual(ran.out.decode("utf-8").splitlines(), ["before"])
-        self.assertEqual(ran.err, b"")
+        self.assertEqual(ran.err.decode("utf-8").splitlines()[0],
+                         "fatal: fail-fast: fail.fail_fast: the case's own invariant")
 
 
 if __name__ == "__main__":

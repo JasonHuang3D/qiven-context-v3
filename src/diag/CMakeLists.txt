@@ -1,0 +1,38 @@
+# The diagnostic entry: qiven3_diag, the install, the report and Out, and
+# qiven3_diag_entry, the entry point and the first initializer, an object
+# that qiven3_executable gives every binary. Not core logic: it includes the
+# system's headers, links dbghelp on Windows, and links qiven3_memory alone
+# of v3's targets.
+#
+# qiven3_diag_targets(<suffix> <memory target>) makes both targets, named
+# with the suffix, over the memory target given: "" over qiven3_memory, and
+# the variants of the binaries built on another runtime or another memory.
+function(qiven3_diag_targets suffix memory)
+  set(dir "${PROJECT_SOURCE_DIR}/src/diag")
+  set(sources "${dir}/diag.cpp" "${dir}/diag.hpp" "${dir}/out.cpp" "${dir}/out.hpp")
+  if(WIN32)
+    list(APPEND sources "${dir}/diag_windows.cpp")
+  else()
+    list(APPEND sources "${dir}/diag_linux.cpp")
+  endif()
+  add_library(qiven3_diag${suffix} STATIC ${sources})
+  target_include_directories(qiven3_diag${suffix} PUBLIC "${PROJECT_SOURCE_DIR}/src")
+  target_link_libraries(qiven3_diag${suffix} PUBLIC ${memory} PRIVATE qiven3_flags)
+  add_library(qiven3_diag_entry${suffix} OBJECT "${dir}/entry.cpp" "${dir}/diag.hpp")
+  target_include_directories(qiven3_diag_entry${suffix} PRIVATE "${PROJECT_SOURCE_DIR}/src")
+  target_link_libraries(qiven3_diag_entry${suffix} PRIVATE qiven3_flags)
+  # Under a sanitizer its own report stands for the fault handlers'.
+  if(QIVEN3_SANITIZE)
+    target_compile_definitions(qiven3_diag${suffix} PRIVATE QIVEN3_SANITIZED)
+  endif()
+  if(WIN32)
+    target_compile_definitions(qiven3_diag${suffix} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_compile_definitions(qiven3_diag_entry${suffix} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_link_libraries(qiven3_diag${suffix} PRIVATE kernel32 dbghelp)
+    # C4073 says that init_seg(lib) puts the initializer in the library's
+    # segment, which is the entry's purpose; it is the one warning off.
+    target_compile_options(qiven3_diag_entry${suffix} PRIVATE /wd4073)
+  endif()
+endfunction()
+
+qiven3_diag_targets("" qiven3_memory)

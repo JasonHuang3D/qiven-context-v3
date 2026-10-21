@@ -7,12 +7,6 @@
 #include <iostream>
 #include <set>
 
-#ifdef _WIN32
-#include <crtdbg.h>
-#include <stdlib.h>
-#include <windows.h>
-#endif
-
 namespace qiven3::test {
 
 std::vector<Case>& registry() {
@@ -154,22 +148,9 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
 }  // namespace qiven3::test
 
 int main(int argc, char** argv) {
-#ifdef _WIN32
-    // A crash or an abort ends the process with its status, and no dialog
-    // waits for a person.
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-#ifdef _DEBUG
-    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-#endif
-#else
-    // fail_fast's std::terminate ends the process by abort's signal, without
-    // the line the C++ runtime's own terminate handler writes first.
-    std::set_terminate([] { std::abort(); });
-#endif
+    // A crash, an abort or a failed assertion is the diagnostic entry's,
+    // which every binary runs before main: a report on standard error, the
+    // process's status, and no dialog.
     // Unbuffered, so what a case wrote before a crash is in the log.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     std::vector<std::string_view> args;

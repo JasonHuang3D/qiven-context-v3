@@ -434,17 +434,12 @@ Value finish(Session& session, Value reply, std::size_t held) {
 }
 
 void ready_streams() {
+    // A caller's mistake ends the drive through fail_fast, which the
+    // diagnostic entry reports.
 #if defined(_WIN32)
-    // A caller's mistake ends the drive through fail_fast: abort's status,
-    // with no message and no fault report.
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     if (_setmode(_fileno(stdin), _O_BINARY) == -1 || _setmode(_fileno(stdout), _O_BINARY) == -1) {
         memory::fail_fast("the drive's standard streams did not take binary mode");
     }
-#else
-    // Off Windows the C++ runtime's own terminate handler writes a line
-    // first; this one aborts at once and writes nothing.
-    std::set_terminate([] { std::abort(); });
 #endif
 }
 

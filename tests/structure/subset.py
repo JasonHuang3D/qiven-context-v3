@@ -69,8 +69,14 @@ NOT_OBJECT = frozenset(("using", "typedef", "concept", "class", "struct", "enum"
 ALLOWED = {
     "B19": ("src/memory/arena.", "src/memory/pool."),
     "B20": ("src/memory/",),
+    # The diagnostic entry's dump thread, which lives as long as the process.
+    "B24": ("src/diag/",),
+    # The entry's handlers' state, and memory/fail's kept cause, which the
+    # terminate handler reads with nothing allocated.
+    "B25": ("src/diag/", "src/memory/fail."),
     "B30": ("src/platform/win/",),
-    "B31": ("src/memory/fail.",),
+    # The entry's handlers end the process.
+    "B31": ("src/memory/fail.", "src/diag/"),
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares

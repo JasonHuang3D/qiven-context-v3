@@ -18,8 +18,7 @@ function(qiven3_add_cases target)
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_add_cases(${target}): no SOURCES")
   endif()
-  add_executable(${target} ${arg_SOURCES})
-  target_link_libraries(${target} PRIVATE qiven3_runner qiven3_flags ${arg_LINK})
+  qiven3_executable(${target} SOURCES ${arg_SOURCES} LINK qiven3_runner ${arg_LINK})
   list(JOIN arg_LABELS "," labels)
   set_property(GLOBAL APPEND PROPERTY QIVEN3_CASE_BINARIES ${target})
   set_property(GLOBAL PROPERTY QIVEN3_CASE_LABELS_${target} "${labels}")
@@ -33,6 +32,7 @@ if(QIVEN3_HAL)
 endif()
 add_subdirectory(driver)
 add_subdirectory(unit)
+add_subdirectory(faults)
 
 # The AddressSanitizer runtime beside each test binary: every binary is
 # written to one directory. The listing step runs the case binaries, so it
@@ -83,6 +83,7 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN3_SKIP_CODE}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake"
   DEPENDS ${qiven3_case_binaries} qiven3_runner_demo qiven3_fail_demo qiven3_free_demo
+    qiven3-fault
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake" ${qiven3_python_files}
   COMMENT "Listing the C++ cases and the Python tests for CTest"

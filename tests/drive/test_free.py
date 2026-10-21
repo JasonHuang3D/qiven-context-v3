@@ -1,9 +1,10 @@
 """A wrong free ends the process, and a touch of what an allocator holds is
 AddressSanitizer's report: qiven3_free_demo's cases, each run as a process.
 
-A wrong pointer given back to a pool or a heap fails fast, with
-std::terminate's status, abort's: 3 on Windows and SIGABRT elsewhere, and
-writes nothing, so a case never passes its wrong free. Under
+A wrong pointer given back to a pool or a heap fails fast, with the
+fail-fast's status, 0xC0000409 on Windows and SIGABRT elsewhere, writing
+nothing on standard output and the diagnostic entry's report on standard
+error, so a case never passes its wrong free. Under
 QIVEN3_SYSTEM_HEAP a pool's slot is the system heap's, so AddressSanitizer
 reports the pool's wrong free, and a touch of a freed block, of an arena's
 block after its end, past it or in its padding, each with its report and
@@ -84,11 +85,11 @@ class Free(unittest.TestCase):
 
     def assert_fails_fast(self, ran):
         if sys.platform == "win32":
-            self.assertEqual(ran.status, 3)
+            self.assertEqual(ran.status, 0xC0000409)
         else:
             self.assertEqual(ran.status, -signal.SIGABRT)
         self.assertEqual(ran.out, b"")
-        self.assertEqual(ran.err, b"")
+        self.assertTrue(ran.err.startswith(b"fatal: fail-fast: "), ran.err[:200])
 
     def assert_reported(self, ran, report, out=()):
         self.assertEqual(ran.status, 1)

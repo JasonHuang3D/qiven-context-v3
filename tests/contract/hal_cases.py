@@ -85,7 +85,8 @@ class HalCases:
     def test_H8_a_callers_mistake(self):
         """Through the drive, upload into a buffer another fake gave: the
         drive's process ends at once through memory::fail_fast, exit status
-        3 on Windows, SIGABRT elsewhere; no reply to it or after it. The
+        0xC0000409 on Windows, SIGABRT elsewhere, the entry's report naming
+        the fail-fast first; no reply to it or after it. The
         control, the drive's own buffer, is answered and the drive ends 0."""
         def requests(other):
             return ({"op": "hal_fake", "devices": [CPU]},
@@ -99,9 +100,9 @@ class HalCases:
 
         ran = self.drive_once(*requests(True))
         if sys.platform == "win32":
-            self.assertEqual(ran.status, 3, ran)
+            self.assertEqual(ran.status, 0xC0000409, ran)
         else:
             self.assertEqual(ran.status, -signal.SIGABRT, ran)
         replies = [json.loads(line) for line in ran.out.splitlines()]
         self.assertEqual([(r["ok"], r.get("result")) for r in replies], [(True, None), (True, 1)])
-        self.assertEqual(ran.err, b"")
+        self.assertTrue(ran.err.startswith(b"fatal: fail-fast: "), ran.err[:200])

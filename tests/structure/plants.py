@@ -54,6 +54,8 @@ target_link_libraries(qiven3_reader_instances PRIVATE qiven3_platform_win)
 add_library(qiven3_unit_plant STATIC tests/unit/sqlite_text_test.cpp tests/unit/long_test.cpp
   tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/goldens.cpp
   tests/support/goldens/write.cpp tests/runner/runner.cpp)
+add_library(qiven3_diag STATIC src/diag/diag_windows.cpp)
+target_link_libraries(qiven3_diag PRIVATE dbghelp)
 """
 
 DLLIMPORT = 'extern "C" __declspec(dllimport) '
@@ -155,6 +157,9 @@ PLANTS = {
     "tests/runner/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n#include \"support/plant/joined.hpp\"\n"
         "#include \"runner/runner.hpp\"\n#include \"driver/drive.hpp\"\n"
         "int runner_quiet() { _CrtSetReportMode(0, 0); return int(SetErrorMode(1)); }\n",
+    # The runner's error mode and reports are the diagnostic entry's now.
+    "src/diag/diag_windows.cpp": "#include <windows.h>\n#include <crtdbg.h>\n#include <dbghelp.h>\n"
+        "int diag_quiet() { _CrtSetReportMode(0, 0); SymSetOptions(0); return int(SetErrorMode(1)); }\n",
     "tests/unit/own_test.cpp": "#include \"unit/own.hpp\"\n", "tests/unit/own.hpp": "\n",
     "tests/runner/runner.hpp": "#pragma once\n", "tests/driver/drive.hpp": "#pragma once\n",
     "tests/unit/dbg_test.cpp": "#include <crtdbg.h>\n",
@@ -197,6 +202,7 @@ PLANTED = [
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
     ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
     ("B9", "src/entry/outside.cpp", ""), ("B9", "tests/unit/own_test.cpp", ""), ("B9", "tests/unit/dbg_test.cpp", ""),
+    ("B5", "tests/runner/runner.cpp", ""), ("B9", "tests/runner/runner.cpp", ""),
     ("B10", "src/entry/load_library.cpp", ""), ("B10", "src/entry/load_library_ex.cpp", ""),
     ("B11", "src/entry/dotdot.cpp", ""),
     ("B12", "src/store/forget_include.cpp", ""), ("B12", "qiven3_store", ""),
@@ -222,7 +228,8 @@ CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
     "src/platform/win/process.cpp", "src/platform/win/windows.cpp", "src/qiven3/mapcheck.cpp",
     "third_party/sqlite/sqlite3.c", "src/store/sqlite.cpp", "tests/support/goldens/goldens.cpp",
-    "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "tests/runner/runner.cpp", "src/platform/platform.hpp",
+    "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
+    "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
     "src/memory/poison.hpp",
 ]
@@ -287,8 +294,13 @@ SUBSET_PLANTS = {
     "src/memory/construct.hpp": "#pragma once\n#include <memory>\n"
         "inline int* memory_place(void* p) { return new (p) int(1); }\n"
         "inline void memory_end(int* p) { std::destroy_at(p); }\n",
-    "src/memory/fail.hpp": "#pragma once\n#include <exception>\n"
+    "src/memory/fail.hpp": "#pragma once\n#include <atomic>\n#include <exception>\n"
+        "std::atomic<const char*> fail_cause{nullptr};\n"
         "[[noreturn]] inline void fail_fast() noexcept { std::terminate(); }\n",
+    "src/diag/handlers.hpp": "#pragma once\n#include <windows.h>\n#include <cstdlib>\n"
+        "struct DiagState { int first = 0; };\nDiagState diag_state;\n"
+        "inline void diag_end() { CreateThread(nullptr, 0, nullptr, nullptr, 0, nullptr); "
+        "ExitProcess(3); std::abort(); }\n",
     "src/platform/win/clock.hpp": "#pragma once\n#include <chrono>\n"
         "inline auto win_now() { return std::chrono::system_clock::now(); }\n",
     "src/qiven3/subset_clean.hpp": "#pragma once\n"
@@ -338,7 +350,7 @@ SUBSET_PLANTED = [
 SUBSET_CLEAN = [
     "tests/unit/scope_test.hpp", "src/memory/arena.hpp", "src/memory/construct.hpp", "src/memory/fail.hpp",
     "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp", "src/memory/arena.cpp", "src/memory/pool.cpp",
-    "src/memory/pool.hpp", "tests/support/plant/joined.hpp",
+    "src/memory/pool.hpp", "tests/support/plant/joined.hpp", "src/diag/handlers.hpp",
 ]
 PLANTS.update(SUBSET_PLANTS)
 PLANTED += SUBSET_PLANTED

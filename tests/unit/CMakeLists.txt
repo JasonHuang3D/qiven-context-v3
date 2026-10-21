@@ -11,12 +11,10 @@ qiven3_add_cases(qiven3_unit_text LABELS fast fake
   SOURCES utf_test.cpp json_test.cpp json_memory_test.cpp constant_test.cpp
   LINK qiven3_base qiven3_faults)
 
-add_executable(qiven3_fail_demo fail_demo.cpp)
-target_link_libraries(qiven3_fail_demo PRIVATE qiven3_runner qiven3_flags qiven3_memory)
+qiven3_executable(qiven3_fail_demo SOURCES fail_demo.cpp LINK qiven3_runner qiven3_memory)
 
 # The frees that end the process, which tests/drive/test_free.py runs.
-add_executable(qiven3_free_demo free_demo.cpp)
-target_link_libraries(qiven3_free_demo PRIVATE qiven3_runner qiven3_flags qiven3_memory)
+qiven3_executable(qiven3_free_demo SOURCES free_demo.cpp LINK qiven3_runner qiven3_memory)
 
 # Under AddressSanitizer with QIVEN3_SYSTEM_HEAP, memory's own code, the
 # runner over it, memory's cases and the frees' demo are built a second time
@@ -34,14 +32,13 @@ if(QIVEN3_SYSTEM_HEAP AND QIVEN3_SANITIZE MATCHES "address")
   add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/tests/runner/runner.cpp")
   target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/tests")
   target_link_libraries(qiven3_runner_poisoned PUBLIC qiven3_memory_poisoned PRIVATE qiven3_flags)
-  if(WIN32)
-    target_compile_definitions(qiven3_runner_poisoned PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
-  endif()
 
-  add_executable(qiven3_unit_memory_poisoned memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp)
-  target_link_libraries(qiven3_unit_memory_poisoned PRIVATE qiven3_runner_poisoned qiven3_flags)
-  add_executable(qiven3_free_demo_poisoned free_demo.cpp)
-  target_link_libraries(qiven3_free_demo_poisoned PRIVATE qiven3_runner_poisoned qiven3_flags)
+  # The entry's own targets over the poisoned memory, so that one copy of
+  # memory is linked.
+  qiven3_diag_targets(_poisoned qiven3_memory_poisoned)
+  qiven3_executable(qiven3_unit_memory_poisoned
+    SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
+  qiven3_executable(qiven3_free_demo_poisoned SOURCES free_demo.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
   set_target_properties(qiven3_memory_poisoned qiven3_runner_poisoned qiven3_unit_memory_poisoned
-    qiven3_free_demo_poisoned PROPERTIES QIVEN3_POISONED ON)
+    qiven3_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()

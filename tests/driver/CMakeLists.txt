@@ -17,11 +17,10 @@ if(QIVEN3_HAL)
   target_link_libraries(qiven3_drive_common PUBLIC qiven3_hal_fake)
 endif()
 
-add_executable(qiven3-drive-fake instances_fake.cpp)
-target_link_libraries(qiven3-drive-fake PRIVATE qiven3_flags qiven3_drive_common qiven3_platform_fake
-  qiven3_platform_current)
+qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp
+  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current)
 
 if(WIN32)
-  add_executable(qiven3-drive-windows instances_windows.cpp)
-  target_link_libraries(qiven3-drive-windows PRIVATE qiven3_flags qiven3_drive_common qiven3_platform_current)
+  qiven3_executable(qiven3-drive-windows SOURCES instances_windows.cpp
+    LINK qiven3_drive_common qiven3_platform_current)
 endif()

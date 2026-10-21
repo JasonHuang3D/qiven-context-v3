@@ -264,8 +264,28 @@ message(STATUS "qiven3: QIVEN3_HAL ${QIVEN3_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRU
 # sanitizer's runtime sits beside them all.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
+# qiven3_executable(<name> SOURCES <source>... [LINK <target>...] [DIAG <suffix>])
+# Every executable of the build, and the one add_executable: its sources
+# with the diagnostic entry's object, linked with qiven3_diag and LINK, the
+# entry point qiven3_entry on Windows, and the binary listed in the build's
+# binaries.txt. DIAG names a variant of the entry's targets
+# (src/diag/CMakeLists.txt), for a binary on another runtime or memory.
+function(qiven3_executable name)
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "DIAG" "SOURCES;LINK")
+  if(NOT arg_SOURCES)
+    message(FATAL_ERROR "qiven3_executable(${name}): no SOURCES")
+  endif()
+  add_executable(${name} ${arg_SOURCES} $<TARGET_OBJECTS:qiven3_diag_entry${arg_DIAG}>)
+  target_link_libraries(${name} PRIVATE qiven3_flags qiven3_diag${arg_DIAG} ${arg_LINK})
+  if(MSVC)
+    target_link_options(${name} PRIVATE /ENTRY:qiven3_entry)
+  endif()
+  set_property(GLOBAL APPEND PROPERTY QIVEN3_BINARIES ${name})
+endfunction()
+
 enable_testing()
 add_subdirectory(src/memory)
+add_subdirectory(src/diag)
 add_subdirectory(src/qiven3)
 add_subdirectory(src/platform)
 # QIVEN3_HAL off leaves the HAL, its fake and its cases out of the build (H6).
@@ -273,6 +293,31 @@ if(QIVEN3_HAL)
   add_subdirectory(src/hal)
 endif()
 add_subdirectory(tests)
+
+# binaries.txt: each binary qiven3_executable made, one file a line; and
+# executables.txt, every executable target of CMake's own records, each
+# directory's, which the entry's case reads against it.
+get_property(qiven3_binaries GLOBAL PROPERTY QIVEN3_BINARIES)
+set(qiven3_binaries_text "")
+foreach(binary IN LISTS qiven3_binaries)
+  string(APPEND qiven3_binaries_text "$<TARGET_FILE:${binary}>\n")
+endforeach()
+file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/binaries.txt" CONTENT "${qiven3_binaries_text}")
+set(qiven3_executables_text "")
+set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
+while(qiven3_dirs)
+  list(POP_FRONT qiven3_dirs dir)
+  get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+  list(APPEND qiven3_dirs ${subdirs})
+  get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(target IN LISTS targets)
+    get_target_property(type ${target} TYPE)
+    if(type STREQUAL "EXECUTABLE")
+      string(APPEND qiven3_executables_text "${target}\t$<TARGET_FILE:${target}>\n")
+    endif()
+  endforeach()
+endwhile()
+file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
 # The analysis preset over the sources of src/ and tests/support/: /analyze
 # on their targets, then clang-tidy over compile_commands.json, each source

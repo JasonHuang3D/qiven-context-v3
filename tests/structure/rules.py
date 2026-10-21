@@ -105,7 +105,10 @@ ALLOWED = {
     "B1": ("src/store/sqlite.", "third_party/sqlite/", "qiven3_store"),
     "B2": ("src/platform/win/process.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.",
            "tests/machine/test_mapcheck", "tests/machine/mapcheck"),
-    "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win"),
+    # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
+    # and its variants' (src/diag/CMakeLists.txt).
+    "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
+           "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
     "B11": ("tests/compat/r",),
     "B14": ("tests/support/goldens",),
     "B16": ("src/app/main.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.", "tests/machine/mapcheck",
@@ -118,10 +121,13 @@ ALLOWED = {
 # B5's what is the header or the import, B6's and B9's the header, B17's
 # the header its include finding names.
 STATED = {
-    ("B5", "tests/runner/runner.cpp", "windows.h"): "SetErrorMode: a crash ends a case with its status, "
-                                                    "and no dialog waits for a person",
-    ("B5", "tests/runner/runner.cpp", "__imp_SetErrorMode"): "as its <windows.h>",
-    ("B9", "tests/runner/runner.cpp", "crtdbg.h"): "a debug build's assertion reports go to standard error",
+    ("B9", "src/diag/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
+                                     "and its report hook",
+    ("B9", "src/diag/", "signal.h"): "the diagnostic entry's handlers on Linux",
+    ("B9", "src/diag/", "execinfo.h"): "the diagnostic entry's backtrace on Linux",
+    ("B9", "src/diag/", "unistd.h"): "the diagnostic entry's write and _exit on Linux",
+    ("B9", "src/diag/", "sys/mman.h"): "the diagnostic entry's alternate stack on Linux",
+    ("B9", "src/diag/", "sys/prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
     ("B9", "tests/", "tests/runner/"): "the test tree's own headers, which its sources include",
     ("B9", "tests/", "tests/support/"): "as tests/runner/'s",
     ("B9", "tests/", "tests/driver/"): "as tests/runner/'s",
@@ -140,8 +146,12 @@ STATED = {
     ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
 }
 # Allowances the text lacks, (rule, file, what), each with its reason, until
-# the text grows it: none.
-PENDING = {}
+# the text grows it.
+PENDING = {
+    ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
+                                                         "that reaches the diagnostic entry's report hook",
+    ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
+}
 ALLOWANCES = (*subset.CELLS, *STATED, *PENDING)
 EXEMPT = {
     "B1": (STRUCTURE, "tests/audit/read_audit"),
@@ -163,9 +173,15 @@ B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qive
 B13_LINKS = ("qiven3_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
 # Core logic: every product target but the adapters, current and the HAL's.
-NOT_CORE = ("src/platform/win/", "src/platform/current.", "src/hal/")
+NOT_CORE = ("src/platform/win/", "src/platform/current.", "src/hal/", "src/diag/")
 NOT_CORE_TARGETS = frozenset(("qiven3_platform_win", "qiven3_platform_current", "qiven3_platform_fake",
-                              "qiven3_hal", "qiven3_hal_fake"))
+                              "qiven3_hal", "qiven3_hal_fake", "qiven3_diag", "qiven3_diag_entry",
+                              "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
+                              "qiven3_diag_entry_poisoned",
+                              # memory again on the debug runtime, for qiven3-fault-crtdbg alone: its
+                              # objects name that runtime, which the records do not read; the
+                              # release copy, qiven3_memory, is read.
+                              "qiven3_memory_crtdbg"))
 CORE_NAMED = frozenset(("qiven3_flags", "qiven3_sqlite"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("src/platform/current.hpp", "src/platform/win/windows.hpp",
