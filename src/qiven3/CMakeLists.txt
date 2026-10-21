@@ -1,6 +1,8 @@
 # qiven3_base: the format's names and versions, then canon, json, utf, utc
 # and digest as their packages arrive.
 add_library(qiven3_base STATIC
+  canon.cpp
+  canon.hpp
   json.cpp
   json.hpp
   json_bytes.hpp

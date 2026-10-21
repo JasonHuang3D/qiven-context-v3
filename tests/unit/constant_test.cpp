@@ -1,7 +1,7 @@
-// unit/constant: a subset of utf's and json's vectors (the specification's)
-// evaluated by the compiler on std::allocator, so a wrong result, or any
-// undefined behaviour on the way, fails the build. The case only reports
-// that the build held them.
+// unit/constant: a subset of utf's, json's and canon's vectors (the
+// specification's) evaluated by the compiler on std::allocator, so a wrong
+// result, or any undefined behaviour on the way, fails the build. The case
+// only reports that the build held them.
 
 #include <cstddef>
 #include <optional>
@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "qiven3/canon.hpp"
 #include "qiven3/json.hpp"
 #include "qiven3/utf.hpp"
 #include "runner/runner.hpp"
@@ -16,6 +17,7 @@
 namespace {
 
 using qiven3::ParseCode;
+namespace canon = qiven3::canon;
 namespace json = qiven3::json;
 namespace utf = qiven3::utf;
 
@@ -86,6 +88,47 @@ static_assert(canonical(R"({"a":"\ud834\udd1e"})", "{\"a\":\"\xf0\x9d\x84\x9e\"}
 static_assert(canonical(R"({"a":9007199254740991})", R"({"a":9007199254740991})"));
 static_assert(canonical("-9007199254740991", "-9007199254740991") && canonical("1000000", "1000000"));
 static_assert(canonical(" {}\n", "{}") && canonical("[]", "[]"));
+
+// canon: the strict parser's code for data, none if accepted.
+constexpr std::optional<ParseCode> parsed(std::string_view data) {
+    json::Basic<> v;
+    return canon::try_parse(data, v);
+}
+
+// Accepted, and written back as the same bytes.
+constexpr bool round_trip(std::string_view data) {
+    json::Basic<> v;
+    if (canon::try_parse(data, v)) {
+        return false;
+    }
+    std::string out;
+    return !canon::try_canonical(v, out) && out == data;
+}
+
+constexpr std::optional<ParseCode> nested(std::size_t levels) {
+    std::string text;
+    for (std::size_t i = 1; i < levels; ++i) {
+        text += R"({"a":)";
+    }
+    text += "{}";
+    text += std::string(levels - 1, '}');
+    return parsed(text);
+}
+
+// canon: one vector of each code, in the steps' order, Chinese among them;
+// the levels' bound; accepted bytes and their round trips.
+static_assert(parsed("\xef\xbb\xbf{}") == ParseCode::bom && parsed("{\"a\":\"\xed\xa0\x80\"}") == ParseCode::utf8);
+static_assert(nested(17) == ParseCode::depth && !nested(16));
+static_assert(parsed(R"({"a":1.0})") == ParseCode::floating && parsed(R"({"a":NaN})") == ParseCode::constant);
+static_assert(parsed(R"({"a":9007199254740992})") == ParseCode::int_range);
+static_assert(parsed(R"({"a":1,"a":2})") == ParseCode::duplicate_key && parsed(R"({"a":null})") == ParseCode::null);
+static_assert(parsed(R"({"a":"\ud800"})") == ParseCode::surrogate && parsed(R"({"\ufdd0":1})") == ParseCode::nonchar);
+static_assert(parsed(R"({"A":1})") == ParseCode::key_syntax && parsed(R"({"a":"\u8bb0"})") == ParseCode::not_canonical);
+static_assert(parsed(R"({"b":1,"a":2})") == ParseCode::not_canonical && parsed(R"({"a":-0})") == ParseCode::not_canonical);
+static_assert(parsed("{\"\xe8\xae\xb0\":1}") == ParseCode::key_syntax);
+static_assert(round_trip("{\"a\":\"\xe8\xae\xb0\xe5\xbf\x86\"}") && round_trip(R"({"a_b":1,"aa":2})"));
+static_assert(round_trip("{\"a\":\"caf\xc3\xa9\",\"a_b\":[true,false],\"aa\":-9007199254740991,\"b\":9007199254740991}"));
+static_assert(round_trip("{\"a\":\"\xef\xb7\xb0\xe2\x80\xa8\x7f\"}") && round_trip("1") && round_trip("{}"));
 
 }  // namespace
 
