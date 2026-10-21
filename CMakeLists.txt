@@ -402,6 +402,7 @@ enable_testing()
 add_subdirectory(src/memory)
 add_subdirectory(src/diag)
 add_subdirectory(src/qiven3)
+add_subdirectory(src/entry)
 add_subdirectory(src/log)
 add_subdirectory(src/platform)
 # QIVEN3_HAL off leaves the HAL, its fake and its cases out of the build (H6).

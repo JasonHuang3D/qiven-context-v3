@@ -83,3 +83,9 @@ foreach(target IN ITEMS qiven3_log_plant_control qiven3_log_plant)
   target_link_libraries(${target} PRIVATE qiven3_flags qiven3_log)
 endforeach()
 set_target_properties(qiven3_log_plant PROPERTIES QIVEN3_PLANT ON EXPORT_COMPILE_COMMANDS OFF)
+
+# matcher's cases: the syntaxes' and patterns' vectors, the twelve patterns'
+# fixtures, the linear read, compile's budget and fault run.
+qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
+  SOURCES matcher_test.cpp
+  LINK qiven3_faults qiven3_matcher)
