@@ -27,9 +27,9 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
   (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
   `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
-  `macos-clang`. `.github/workflows/ci.yml` runs them on every push and pull
-  request, macOS on pull requests alone, each job installing CPython 3.15.0
-  by its SHA-256.
+  `macos-clang`. `.github/workflows/ci.yml` runs them at publication alone: on
+  pull requests into `main`, on release tags and by hand, never on a push
+  to a branch; each job installs CPython 3.15.0 by its SHA-256.
 - Test presets select by label: `full`, `fast`, `structure`, `asan`,
   `fuzz`, `bench`, `drill` and `analysis`; and, for CI, `fake` (the cases on
   the fakes) and `ci-analysis`.
