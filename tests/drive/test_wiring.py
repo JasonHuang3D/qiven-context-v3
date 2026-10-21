@@ -10,7 +10,7 @@ from pathlib import Path
 from tests import SKIP_CODE
 from tests.drive import binaries
 
-LABELS = {"cxx", "py", "fast", "fake", "slow", "machine", "drive", "oracle",
+LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis"}
 # The structure tests start no process and read no machine fact: fast, and
 # not drive; but the analysis tools' controls, which run the tools on the
@@ -140,8 +140,13 @@ class Registered(unittest.TestCase):
             "asan": labelled(tests, "cxx"),
             "structure": {name for name in tests if name.startswith(STRUCTURE)} - analysis,
             "analysis": analysis,
+            "fake": labelled(tests, "fake"),
+            "debugger": labelled(tests, "debugger"),
         }
         self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
+        # The debugger cases, the loop's alone, never fake, CI's.
+        self.assertIn("tests.drive.test_hang.HangStacks.test_K8_hang", expected["debugger"])
+        self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])
         self.assertNotIn("tests.drive.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))

@@ -1,10 +1,15 @@
-"""The loop's jobs against CI's: tools/loop.py's JOBS and ENV, read against
-.github/workflows/ci.yml and msan.yml, so that the loop and CI cannot
-drift. Each job of the workflows but macOS's is the loop's, by the same
-preset; each step of a job that runs a preset's build or reads its tree is
-the loop's step, in CI's order, with CI's command, the loop's own additions
-apart; and the sanitizers' options and CTest's parallel level are CI's."""
+"""The loop's jobs against CI's: tools/loop_jobs.py's JOBS, ENV and
+LINUX_SHELL, read against .github/workflows/ci.yml and msan.yml, so that the
+loop and CI cannot drift. Each job of the workflows but macOS's is the
+loop's, by the same preset; each step of a job that runs a preset's build or
+reads its tree is the loop's step, in CI's order, with CI's command; the
+sanitizers' options, CTest's parallel level and the Linux shell are CI's.
+The pins are the loop's alone, as its additions to CI's configure: the
+pinned tools' option, and on Linux the pinned compilers of the preset's
+family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
+version."""
 
+import json
 import re
 import shlex
 import unittest
@@ -13,6 +18,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 CI_ONLY = {"macos-clang"}  # no machine for it (the loop's text)
+PIN = "-DQIVEN3_PIN_TOOLS=ON"
+FAMILY = {"g++": "GCC", "clang++": "CLANG"}  # a CI preset's compiler: its pin's name in CMakeLists.txt
+
+
+def preset_compilers():
+    """{configure preset: (C compiler, C++ compiler)} of CMakePresets.json."""
+    presets = json.loads((ROOT / "CMakePresets.json").read_bytes())["configurePresets"]
+    return {p["name"]: (p.get("cacheVariables", {}).get("CMAKE_C_COMPILER"),
+                        p.get("cacheVariables", {}).get("CMAKE_CXX_COMPILER")) for p in presets}
+
+
+def linux_pins():
+    """{command: version} of tools/linux-pins.txt's command lines."""
+    out = {}
+    for line in (ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8").splitlines():
+        words = line.split("#", 1)[0].split()
+        if words[:1] == ["command"] and len(words) >= 3:
+            out[words[1]] = words[2]
+    return out
 
 
 def load_loop():
@@ -151,16 +175,46 @@ class LoopAgainstCI(unittest.TestCase):
                 self.assertEqual([s.ci for s in steps], self.ci[name][1])
 
     def test_additions(self):
-        """The loop's own additions: a fresh cache on each configure, and the
-        pins on Windows', as the text states; nothing else."""
-        for name, (system, _, steps) in self.loop.JOBS.items():
+        """The loop's own additions: a fresh cache and the pinned tools'
+        option on each configure, and on Linux's the pinned compilers in place
+        of the preset's, as the text states; nothing else."""
+        compilers = preset_compilers()
+        cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        pins = linux_pins()
+        for name, (system, preset, steps) in self.loop.JOBS.items():
             for step in steps:
                 with self.subTest(job=name, step=step.name):
-                    if step.ci[:2] == ("cmake", "--preset"):
-                        want = {"windows": {"-DQIVEN3_PIN_TOOLS=ON"}, "linux": set()}[system]
-                        self.assertEqual(set(step.local) - {"--fresh"}, want)
+                    if step.ci[:2] == ("cmake", "--preset") and step.name == "configure":
+                        self.assertEqual(step.local[:2], ("--fresh", PIN))
+                        rest = step.local[2:]
+                        if system == "windows":
+                            self.assertEqual(rest, ())
+                            continue
+                        c, cxx = compilers[preset]
+                        self.assertEqual(len(rest), 2, rest)
+                        got_c, got_cxx = (x.split("=", 1)[1] for x in rest)
+                        self.assertEqual(rest[0].split("=")[0] + rest[1].split("=")[0],
+                                         "-DCMAKE_C_COMPILER-DCMAKE_CXX_COMPILER")
+                        version = re.search(r"^set\(QIVEN3_PIN_%s (\S+)\)$" % FAMILY[cxx], cmake, re.MULTILINE)
+                        self.assertIsNotNone(version, cxx)
+                        for unpinned, pinned in ((c, got_c), (cxx, got_cxx)):
+                            self.assertEqual(pinned, f"{unpinned}-{version.group(1).split('.')[0]}")
+                            self.assertEqual(pins.get(pinned), version.group(1))
+                    elif step.ci[:2] == ("cmake", "--preset"):
+                        self.assertEqual(step.local, (PIN,))
                     else:
                         self.assertEqual(step.local, ())
+
+    def test_shell(self):
+        """CI's Linux steps run under the loop's LINUX_SHELL, then bash."""
+        want = " ".join(self.loop.LINUX_SHELL) + " bash "
+        for name in ("ci.yml", "msan.yml"):
+            text = (WORKFLOWS / name).read_text(encoding="utf-8")
+            shells = re.findall(r"^ +shell: (.*)$", text, re.MULTILINE)
+            linux = [s for s in shells if s not in ("pwsh", "bash")]
+            with self.subTest(workflow=name):
+                self.assertTrue(linux, shells)
+                self.assertTrue(all(s.startswith(want) for s in linux), shells)
 
     def test_environment(self):
         for name, (system, _, _) in self.loop.JOBS.items():

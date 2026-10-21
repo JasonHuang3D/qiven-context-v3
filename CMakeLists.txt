@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(qiven3 LANGUAGES C CXX)
 
-option(QIVEN3_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones" OFF)
+option(QIVEN3_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
 option(QIVEN3_HAL "Build qiven3_hal, its fake and its cases" ON)
 option(QIVEN3_STRUCTURE "Write the records the structure tests read" OFF)
 option(QIVEN3_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
@@ -10,7 +10,6 @@ set(QIVEN3_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address
 set_property(CACHE QIVEN3_SANITIZE PROPERTY STRINGS "" "address" "fuzzer,address" "address,undefined" "thread" "fuzzer,address,undefined" "memory")
 set(QIVEN3_ANALYZE "" CACHE STRING "Static analysis in the build, MSVC's: empty, stack or analysis")
 set_property(CACHE QIVEN3_ANALYZE PROPERTY STRINGS "" "stack" "analysis")
-set(QIVEN3_COMPILER_LINE "" CACHE STRING "When set, the compiler's major.minor line, for example 19.44")
 set(QIVEN3_LOG_MIN "" CACHE STRING "The log's minimum level: trace, debug, info, warn or error; empty, trace in a Debug build and info in every other")
 set_property(CACHE QIVEN3_LOG_MIN PROPERTY STRINGS "" "trace" "debug" "info" "warn" "error")
 
@@ -32,8 +31,12 @@ endif()
 # stays apart.
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 
-# The pins of this machine's toolchain.
+# The pins of this machine's toolchain, which QIVEN3_PIN_TOOLS checks: MSVC
+# on Windows; in WSL2 g++ 14 and clang 18 as tools/linux-pins.txt has them.
+# CI leaves the option off and takes its image's tools.
 set(QIVEN3_PIN_MSVC 19.44.35228)
+set(QIVEN3_PIN_GCC 14.2.0)
+set(QIVEN3_PIN_CLANG 18.1.3)
 set(QIVEN3_PIN_SDK 10.0.26100.0)
 set(QIVEN3_PIN_CMAKE 4.4.3)
 set(QIVEN3_PIN_NINJA 1.13.2)
@@ -43,19 +46,38 @@ message(STATUS "qiven3: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPIL
 message(STATUS "qiven3: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 
 if(QIVEN3_PIN_TOOLS)
+  # MSVC's version by VERSION_EQUAL: CMake gives it a fourth part, 19.44.35228.0.
   foreach(lang IN ITEMS C CXX)
-    if(NOT CMAKE_${lang}_COMPILER_ID STREQUAL "MSVC"
-       OR NOT CMAKE_${lang}_COMPILER_VERSION VERSION_EQUAL QIVEN3_PIN_MSVC)
-      message(FATAL_ERROR "qiven3: the ${lang} compiler is ${CMAKE_${lang}_COMPILER_ID} "
-        "${CMAKE_${lang}_COMPILER_VERSION}; the pin is MSVC ${QIVEN3_PIN_MSVC}")
+    set(qiven3_id "${CMAKE_${lang}_COMPILER_ID}")
+    set(qiven3_version "${CMAKE_${lang}_COMPILER_VERSION}")
+    if(WIN32)
+      set(qiven3_pinned "MSVC ${QIVEN3_PIN_MSVC}")
+      set(qiven3_held FALSE)
+      if(qiven3_id STREQUAL "MSVC" AND qiven3_version VERSION_EQUAL QIVEN3_PIN_MSVC)
+        set(qiven3_held TRUE)
+      endif()
+    else()
+      set(qiven3_pinned "GNU ${QIVEN3_PIN_GCC} or Clang ${QIVEN3_PIN_CLANG}")
+      set(qiven3_held FALSE)
+      if((qiven3_id STREQUAL "GNU" AND qiven3_version VERSION_EQUAL QIVEN3_PIN_GCC)
+         OR (qiven3_id STREQUAL "Clang" AND qiven3_version VERSION_EQUAL QIVEN3_PIN_CLANG))
+        set(qiven3_held TRUE)
+      endif()
+    endif()
+    if(NOT qiven3_held)
+      message(FATAL_ERROR "qiven3: the ${lang} compiler is ${qiven3_id} ${qiven3_version}; "
+        "the pin is ${qiven3_pinned}")
     endif()
   endforeach()
-  # vcvars sets WindowsSDKVersion with a trailing backslash. CMAKE_SYSTEM_VERSION
-  # reads the running system under Ninja, not the SDK the compiler uses.
-  string(REGEX REPLACE "[\\/]+$" "" qiven3_sdk "$ENV{WindowsSDKVersion}")
-  if(NOT qiven3_sdk STREQUAL QIVEN3_PIN_SDK)
-    message(FATAL_ERROR "qiven3: the toolchain's environment names the Windows SDK "
-      "'${qiven3_sdk}'; the pin is ${QIVEN3_PIN_SDK}")
+  set(qiven3_sdk "none off Windows")
+  if(WIN32)
+    # vcvars sets WindowsSDKVersion with a trailing backslash. CMAKE_SYSTEM_VERSION
+    # reads the running system under Ninja, not the SDK the compiler uses.
+    string(REGEX REPLACE "[\\/]+$" "" qiven3_sdk "$ENV{WindowsSDKVersion}")
+    if(NOT qiven3_sdk STREQUAL QIVEN3_PIN_SDK)
+      message(FATAL_ERROR "qiven3: the toolchain's environment names the Windows SDK "
+        "'${qiven3_sdk}'; the pin is ${QIVEN3_PIN_SDK}")
+    endif()
   endif()
   if(NOT CMAKE_VERSION VERSION_EQUAL QIVEN3_PIN_CMAKE)
     message(FATAL_ERROR "qiven3: CMake is ${CMAKE_VERSION}; the pin is ${QIVEN3_PIN_CMAKE}")
@@ -76,16 +98,14 @@ if(QIVEN3_PIN_TOOLS)
   message(STATUS "qiven3: pinned tools hold: SDK ${qiven3_sdk}, CMake ${CMAKE_VERSION}, Ninja ${qiven3_ninja}")
 endif()
 
-if(QIVEN3_COMPILER_LINE)
-  string(REGEX MATCH "^[0-9]+\\.[0-9]+" qiven3_line "${CMAKE_CXX_COMPILER_VERSION}")
-  if(NOT qiven3_line STREQUAL QIVEN3_COMPILER_LINE)
-    message(FATAL_ERROR "qiven3: the compiler's line is ${qiven3_line} "
-      "(${CMAKE_CXX_COMPILER_VERSION}); the preset asks ${QIVEN3_COMPILER_LINE}")
-  endif()
-endif()
-
-if(Python3_EXECUTABLE)
+# The interpreter: the pin exactly with QIVEN3_PIN_TOOLS; else, as on CI,
+# whose runner gives its own, CPython 3.15 or later.
+if(Python3_EXECUTABLE AND QIVEN3_PIN_TOOLS)
   find_package(Python3 ${QIVEN3_PIN_PYTHON} EXACT REQUIRED COMPONENTS Interpreter)
+elseif(Python3_EXECUTABLE)
+  find_package(Python3 3.15 REQUIRED COMPONENTS Interpreter)
+endif()
+if(Python3_EXECUTABLE)
   message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
 endif()
 

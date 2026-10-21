@@ -80,79 +80,79 @@
       "name": "ci",
       "hidden": true,
       "inherits": "base",
-      "description": "CI: the image's CMake and Ninja, no pin; every CI preset shares one build directory, which the fake test preset reads; the interpreter, CPython 3.15.0, from QIVEN3_PYTHON, which the workflow sets",
+      "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN3_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN3_PYTHON, which the workflow sets",
       "binaryDir": "${sourceDir}/build/ci",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"}
     },
     {
       "name": "ci-windows",
       "inherits": "ci",
-      "displayName": "CI on windows-2022, MSVC 19.44",
+      "displayName": "CI on windows-latest, the image's MSVC",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN3_COMPILER_LINE": "19.44"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}
     },
     {
       "name": "ci-asan",
       "inherits": "ci-windows",
-      "displayName": "CI on windows-2022, MSVC 19.44: as asan",
+      "displayName": "CI on windows-latest, the image's MSVC: as asan",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "ci-stack",
       "inherits": "ci-windows",
-      "displayName": "CI on windows-2022, MSVC 19.44: as stack",
+      "displayName": "CI on windows-latest, the image's MSVC: as stack",
       "cacheVariables": {"QIVEN3_ANALYZE": "stack"}
     },
     {
       "name": "ci-analysis",
       "inherits": "ci-windows",
-      "displayName": "CI on windows-2022, MSVC 19.44: as analysis",
+      "displayName": "CI on windows-latest, the image's MSVC: as analysis",
       "cacheVariables": {"QIVEN3_ANALYZE": "analysis"}
     },
     {
       "name": "linux-gcc",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, g++ 14: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "displayName": "CI on ubuntu-latest, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-clang",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, clang++ 18: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "displayName": "CI on ubuntu-latest, the image's clang++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-tsan",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, clang++ 18: ThreadSanitizer alone",
+      "displayName": "CI on ubuntu-latest, the image's clang++: ThreadSanitizer alone",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
     },
     {
       "name": "linux-fuzz",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, clang++ 18: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "displayName": "CI on ubuntu-latest, the image's clang++: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-plain",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, g++ 14, no sanitizer: the frame bound and the clean-binaries check",
+      "displayName": "CI on ubuntu-latest, the image's g++, no sanitizer: the frame bound and the clean-binaries check",
       "description": "Uninstrumented, so -Wframe-larger-than=4096 is on, which every sanitizer preset leaves out; the workflow checks its binaries for the checkout's and the runner's paths",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "gcc-14", "CMAKE_CXX_COMPILER": "g++-14", "CMAKE_BUILD_TYPE": "RelWithDebInfo"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo"}
     },
     {
       "name": "linux-msan",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-24.04, clang++ 18: MemorySanitizer, a trial, against libc++ built under it",
+      "displayName": "CI on ubuntu-latest, the image's clang++: MemorySanitizer, a trial, against libc++ built under it from its own LLVM release",
       "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS and CMAKE_EXE_LINKER_FLAGS, so that CMake's own probes compile and link against it; -stdlib=libc++ on the link line alone, since under -nostdinc++ a compile leaves it unused, which -Werror fails",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-18", "CMAKE_CXX_COMPILER": "clang++-18", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "QIVEN3_SANITIZE": "memory", "QIVEN3_SYSTEM_HEAP": "ON",
         "CMAKE_C_FLAGS": "-fsanitize=memory",
         "CMAKE_CXX_FLAGS": "-fsanitize=memory -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
@@ -162,7 +162,7 @@
     {
       "name": "macos-clang",
       "inherits": "ci",
-      "displayName": "CI on macos-15, Apple clang",
+      "displayName": "CI on macos-latest, the image's Apple clang",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin"},
       "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}
     }
@@ -256,11 +256,19 @@
       "execution": {"noTestsAction": "error"}
     },
     {
+      "name": "debugger",
+      "inherits": "here",
+      "displayName": "The cases that drive cdb or gdb, the loop's alone, never CI's",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^debugger$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
       "name": "fake",
       "displayName": "CI: the cases on the fakes, in the CI presets' shared build directory",
       "configurePreset": "ci-windows",
       "output": {"outputOnFailure": true},
-      "filter": {"include": {"label": "^fake$"}},
+      "filter": {"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}},
       "execution": {"noTestsAction": "error"}
     },
     {

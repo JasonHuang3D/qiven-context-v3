@@ -12,6 +12,9 @@ On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt; on
 Linux gdb, which is not installed: the cases that need it are skipped
 with the reason. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
+
+K8 drives the debugger: the label debugger, never fake, so the loop runs
+it and CI never does; the watcher's other ends here are fake's.
 """
 
 import os
@@ -93,8 +96,8 @@ def alive(pid):
     return not Path(f"/proc/{pid}/stat").read_text().split(")")[-1].split()[0] == "Z"
 
 
-class Hang(unittest.TestCase):
-    ctest_labels = ("fake",)
+class HangStacks(unittest.TestCase):
+    ctest_labels = ("debugger",)
 
     def test_K8_hang(self):
         if sanitized():
@@ -136,6 +139,10 @@ class Hang(unittest.TestCase):
         self.assertEqual(len(written), 1, f"K8: the dumps {written}")
         magic = b"MDMP" if WINDOWS else b"\x7fELF"
         self.assertEqual(written[0].read_bytes()[:4], magic)
+
+
+class Hang(unittest.TestCase):
+    ctest_labels = ("fake",)
 
     def test_tree_killed(self):
         """A case past its limit is killed with the process it started."""

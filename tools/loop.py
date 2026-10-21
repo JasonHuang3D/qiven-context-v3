@@ -8,14 +8,17 @@ PHASE is build (configure and build) or test (every step of the job, the
 cases after the build). SYSTEM is windows or linux. Each JOB is a job's
 name or its preset's (windows-msvc or ci-windows); none names every job of
 the system. The jobs and their steps are CI's (.github/workflows/ci.yml and
-msan.yml), JOBS below, which a test checks against the workflows; macOS
-stays with CI alone.
+msan.yml), with the local pins added: tools/loop_jobs.py, which a test
+checks against the workflows. CI runs unpinned on its images' own tools;
+the loop runs each job on this machine's pinned tools. macOS stays with CI
+alone.
 
 - windows: a shell set up by vcvars64.bat -vcvars_ver=14.44.35207 (found by
   vswhere, or QIVEN3_VCVARS), the tools of WINDOWS_PINS checked by SHA-256
   and version, CPython 3.15.0 this interpreter; each configure with
-  QIVEN3_PIN_TOOLS on. The build runs in the checkout; the logs are kept in
-  build/loop/JOB/.
+  QIVEN3_PIN_TOOLS on; for windows-analysis, clang-tidy (QIVEN3_CLANG_TIDY,
+  else LLVM's under ProgramFiles) by CLANG_TIDY's SHA-256 and version. The
+  build runs in the checkout; the logs are kept in build/loop/JOB/.
 - linux: reaches WSL2 (--distro, QIVEN3_WSL_DISTRO, default Ubuntu-24.04),
   checks tools/linux-pins.txt by tools/linux_pins.py under the toolchain's
   prefix (--prefix or QIVEN3_PREFIX, no default), then brings the working
@@ -23,8 +26,10 @@ stays with CI alone.
   file system (--clone, QIVEN3_LOOP_CLONE, default ~/qiven3-loop), one a
   job, by a commit object made from a copy of the index: the Windows tree
   and its index are not touched. The logs are kept in the clone's
-  build/loop/. From Git Bash, set MSYS_NO_PATHCONV=1 before giving a POSIX
-  path as an argument, or give it by the environment.
+  build/loop/. Each configure with QIVEN3_PIN_TOOLS on and the pinned
+  compilers; each step under setarch -R, as CI's Linux shell. From Git Bash,
+  set MSYS_NO_PATHCONV=1 before giving a POSIX path as an argument, or give
+  it by the environment.
 
 The answer is plain text: a line a step with its outcome and seconds, a
 failing step's last 30 lines, at most 100 lines in all. Exit 0 when every
@@ -65,78 +70,12 @@ WINDOWS_PINS = (
     ("cl", None, "88c8344236a27a6e727e0a8edc49aaa2690bdc7a9464b9d18cc7abe70a9f1c0d"),
     ("link", None, "ca11e6c45debd34bf652dfe984c5360a531a005ed78bf72852330c9c2590cf0d"),
 )
+# windows-analysis's clang-tidy, LLVM's: its version and the file's SHA-256.
+CLANG_TIDY = ("19.1.7", "231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc89836e8d5d77a")
 
-# The environment CI's jobs set, by system (ci.yml's and msan.yml's env).
-ENV = {
-    "windows": {"CTEST_PARALLEL_LEVEL": "4"},
-    "linux": {
-        "CTEST_PARALLEL_LEVEL": "4",
-        "ASAN_OPTIONS": "detect_leaks=1:detect_stack_use_after_return=1:abort_on_error=0",
-        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1",
-        "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1",
-        "MSAN_OPTIONS": "halt_on_error=1",
-    },
-}
-
-CLEAN = "clean-check"  # CI's clean-binaries check, its script read from ci.yml
-
-
-class Step:
-    """One step: its name, its command as CI writes it, what the loop adds,
-    its phase, and the step that must have passed before it runs."""
-
-    __slots__ = ("name", "ci", "local", "phase", "after")
-
-    def __init__(self, name, ci, phase="test", local=(), after="build"):
-        self.name, self.ci, self.phase, self.local, self.after = name, tuple(ci), phase, tuple(local), after
-
-
-def windows_job(preset, clean=False, analysis=False):
-    steps = [Step("configure", ("cmake", "--preset", preset), "build", ("--fresh", "-DQIVEN3_PIN_TOOLS=ON"), None),
-             Step("build", ("cmake", "--build", "--preset", preset), "build", after="configure"),
-             Step("fake", ("ctest", "--preset", "fake"))]
-    if analysis:
-        steps.append(Step("analysis controls", ("ctest", "--preset", "ci-analysis", "--no-tests=error")))
-    if clean:
-        steps.append(Step("clean binaries", (CLEAN, "build/ci")))
-    if analysis:
-        steps += [Step("structure configure", ("cmake", "--preset", "ci-windows", "-B", "build/ci-structure",
-                                               "-DQIVEN3_STRUCTURE=ON"), local=("-DQIVEN3_PIN_TOOLS=ON",), after=None),
-                  Step("structure build", ("cmake", "--build", "build/ci-structure"), after="structure configure"),
-                  Step("structure tests", ("ctest", "--test-dir", "build/ci-structure", "--output-on-failure",
-                                           "--no-tests=error", "-R", "^tests[.]structure[.]", "-LE", "^analysis$"),
-                       after="structure build")]
-    return ("windows", preset, steps)
-
-
-def linux_job(preset, fuzz=False, clean=False, cxx=False):
-    steps = [Step("configure", ("cmake", "--preset", preset), "build", ("--fresh",), None),
-             Step("build", ("cmake", "--build", "--preset", preset, "--", "-k", "0"), "build", after="configure"),
-             Step("fake", ("ctest", "--preset", "fake"))]
-    if fuzz:
-        steps.append(Step("fuzz", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=ignore",
-                                   "-L", "^fuzz$")))
-    if cxx:
-        steps.append(Step("cxx", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error",
-                                  "-L", "^cxx$")))
-    if clean:
-        steps.append(Step("clean binaries", (CLEAN, "build/ci")))
-    return ("linux", preset, steps)
-
-
-# Every job the loop runs, as CI's workflows name it: (system, preset, steps).
-JOBS = {
-    "windows-msvc": windows_job("ci-windows", clean=True),
-    "windows-asan": windows_job("ci-asan"),
-    "windows-stack": windows_job("ci-stack"),
-    "windows-analysis": windows_job("ci-analysis", analysis=True),
-    "linux-gcc": linux_job("linux-gcc"),
-    "linux-clang": linux_job("linux-clang"),
-    "linux-tsan": linux_job("linux-tsan"),
-    "linux-fuzz": linux_job("linux-fuzz", fuzz=True),
-    "linux-plain": linux_job("linux-plain", clean=True),
-    "linux-msan": linux_job("linux-msan", cxx=True),
-}
+# The jobs, their steps and CI's environment, with the local pins apart.
+_JOBS = runpy.run_path(str(ROOT / "tools" / "loop_jobs.py"))
+JOBS, ENV, CLEAN, LINUX_SHELL, Step = (_JOBS[k] for k in ("JOBS", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
 
 
 class CannotRun(Exception):
@@ -326,6 +265,21 @@ def check_windows_tools(env):
     return found
 
 
+def check_clang_tidy(env):
+    """The pinned clang-tidy by SHA-256 and version; its full path."""
+    path = Path(os.environ.get("QIVEN3_CLANG_TIDY") or Path(os.environ.get("ProgramFiles", "")) / "LLVM" / "bin"
+                / "clang-tidy.exe")
+    if not path.is_file():
+        raise CannotRun(f"clang-tidy is missing: {path}; name it by QIVEN3_CLANG_TIDY")
+    version, digest = CLANG_TIDY
+    got = sha256(path)
+    status, text = capture([str(path), "--version"], env=env)
+    if got != digest or status != 0 or not re.search(r"LLVM version " + re.escape(version) + r"(?![\w.])", text):
+        raise CannotRun(f"clang-tidy: {path}'s SHA-256 {got}, --version {text.strip()[-80:]!r}; "
+                        f"the pin is {version}, {digest}")
+    return str(path)
+
+
 def own_tree(report, tree, job):
     """Every Windows job builds in build/ci, as CI's do, each on a clean
     checkout: a tree another job left is emptied first, so that no file of
@@ -353,7 +307,7 @@ def windows(args, report):
     report.plan(1 + sum(1 + len(chosen(JOBS[job][2], args.phase)) for job in args.jobs))
     report.line(f"loop: windows tools hold: cmake, ctest {WINDOWS_PINS[0][1]}, ninja {WINDOWS_PINS[2][1]}, "
                 f"toolset {VCVARS_VER}, SDK {SDK}, CPython 3.15.0, each by its SHA-256")
-    extra = ("-DQIVEN3_CLANG_TIDY=" + os.environ["QIVEN3_CLANG_TIDY"],) if os.environ.get("QIVEN3_CLANG_TIDY") else ()
+    extra = ("-DQIVEN3_CLANG_TIDY=" + check_clang_tidy(env),) if "windows-analysis" in args.jobs else ()
 
     def command(step):
         if step.ci[0] == CLEAN:
@@ -501,9 +455,10 @@ def inside(args, report):
 
         def command(step):
             if step.ci[0] == CLEAN:
-                return [sys.executable, "-I", str(clean_script(clone, clone / "build" / "loop" / job)), step.ci[1],
-                        str(clone), temp]
-            return [shutil.which(step.ci[0], path=env["PATH"]) or step.ci[0], *step.ci[1:], *step.local]
+                return [*LINUX_SHELL, sys.executable, "-I", str(clean_script(clone, clone / "build" / "loop" / job)),
+                        step.ci[1], str(clone), temp]
+            return [*LINUX_SHELL, shutil.which(step.ci[0], path=env["PATH"]) or step.ci[0], *step.ci[1:],
+                    *step.local]
 
         try:
             got = run_steps(report, job, JOBS[job][2], args.phase, command, clone / "build" / "loop" / job, clone,

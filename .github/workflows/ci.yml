@@ -1,13 +1,20 @@
 # The CI matrix: Windows with MSVC, Linux with gcc and with clang, macOS with
-# Apple clang, and the safety jobs. Each job checks out,
-# installs CPython 3.15.0 by its version and SHA-256, configures with its
-# preset, builds every target its system builds and runs the cases on the
-# fakes (ctest --preset fake); the safety jobs add their sanitizer or
+# Apple clang, and the safety jobs. Each job checks out, takes CPython by
+# actions/setup-python, prints the image and each tool's version, configures
+# with its preset, builds every target its system builds and runs the cases
+# on the fakes (ctest --preset fake); the safety jobs add their sanitizer or
 # analysis, and every finding fails the run. A sanitizer enlarges frames, so
 # the frame bound and the clean-binaries check run on the builds with none:
 # linux-plain, macos-clang, windows-stack's /analyze and windows-msvc.
 # linux-msan is a trial of MemorySanitizer (msan.yml). The full suite, the
-# machine cases among them, runs on a developer's machine, never here.
+# machine cases and the debugger cases among them, runs on a developer's
+# machine, never here.
+#
+# CI is a runtime evaluation, unpinned: the runners' latest images with
+# their own tools, a tool an image lacks at its current release. No step
+# checks a tool's digest or exact version, no preset here pins one, and no
+# step changes a system setting. A failure is a finding, traced against the
+# local pins (tools/loop.py), never fixed by a pin here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit
 # SHA of its own repository, its tag in a comment. No secret is read.
@@ -21,7 +28,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]*"]
   workflow_dispatch:
 
 permissions:
@@ -33,18 +40,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # CPython 3.15.0, each file's SHA-256 as python.org's release page lists
-  # it: the Windows installer (64-bit), the macOS installer and the XZ
-  # source tarball, which Linux builds.
-  PYTHON_VERSION: "3.15.0"
-  PYTHON_WINDOWS_SHA256: 67d9a63eb145a34aa939f02eadbf8c57f21fcdd6decb901ccac578d2d1f01d6f
-  PYTHON_MACOS_SHA256: 7c7e7eca61cbfa5f0c6f80cd594cddbfd492f4e8b3fb87e3d9fa1efebaec43ed
-  PYTHON_SOURCE_SHA256: ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575
-  # LLVM 19.1.7's Windows installer, whose release signature verifies by
-  # LLVM's release keys, and the clang-tidy.exe it installs.
-  LLVM_VERSION: "19.1.7"
-  LLVM_WINDOWS_SHA256: f19ae5bc4823ac69ec01dc2ded503ec80a04ad2208dda1595d1f0413c148ef90
-  CLANG_TIDY_SHA256: 231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc89836e8d5d77a
   CTEST_PARALLEL_LEVEL: "4"
   # Clean binaries: no binary, library, object or debug file of the build
   # holds the checkout's path, in UTF-8 or UTF-16, either slash, any case,
@@ -82,7 +77,7 @@ env:
 jobs:
   windows:
     name: ${{ matrix.job }}
-    runs-on: windows-2022
+    runs-on: windows-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -107,52 +102,26 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: CPython 3.15.0, python.org's installer, by its SHA-256
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          $installer = Join-Path $env:RUNNER_TEMP "python-$env:PYTHON_VERSION-amd64.exe"
-          Invoke-WebRequest -Uri "https://www.python.org/ftp/python/$env:PYTHON_VERSION/python-$env:PYTHON_VERSION-amd64.exe" -OutFile $installer
-          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
-          if ($digest -ne $env:PYTHON_WINDOWS_SHA256) { throw "the installer's SHA-256 is $digest, the pin $env:PYTHON_WINDOWS_SHA256" }
-          $target = Join-Path $env:RUNNER_TEMP "python-$env:PYTHON_VERSION"
-          $options = '/quiet', 'InstallAllUsers=0', "TargetDir=$target", 'PrependPath=0', 'Include_launcher=0',
-            'Include_test=0', 'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0', 'AssociateFiles=0'
-          $run = Start-Process -FilePath $installer -ArgumentList $options -Wait -PassThru
-          if ($run.ExitCode -ne 0) { throw "the installer exited $($run.ExitCode)" }
-          $python = Join-Path $target 'python.exe'
-          & $python -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
-          "QIVEN3_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
 
-      - name: LLVM 19.1.7's clang-tidy, its installer by its SHA-256
-        if: matrix.analysis
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$env:LLVM_VERSION-win64.exe"
-          $release = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION"
-          Invoke-WebRequest -Uri "$release/LLVM-$env:LLVM_VERSION-win64.exe" -OutFile $installer
-          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLowerInvariant()
-          if ($digest -ne $env:LLVM_WINDOWS_SHA256) { throw "the installer's SHA-256 is $digest, the pin $env:LLVM_WINDOWS_SHA256" }
-          $target = Join-Path $env:RUNNER_TEMP "llvm-$env:LLVM_VERSION"
-          # NSIS: /D comes last, unquoted. The image's own LLVM is not taken.
-          $run = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$target" -Wait -PassThru
-          if ($run.ExitCode -ne 0) { throw "the installer exited $($run.ExitCode)" }
-          $tidy = Join-Path $target 'bin\clang-tidy.exe'
-          $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $tidy).Hash.ToLowerInvariant()
-          if ($digest -ne $env:CLANG_TIDY_SHA256) { throw "clang-tidy.exe's SHA-256 is $digest, the pin $env:CLANG_TIDY_SHA256" }
-          $version = (& $tidy --version) -join "`n"
-          if ($version -notmatch "LLVM version $([regex]::Escape($env:LLVM_VERSION))\b") { throw "clang-tidy: $version" }
-          Write-Output $version
-          "QIVEN3_CLANG_TIDY=$tidy" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: MSVC's environment, vcvars64.bat -vcvars_ver=14.44
+      # The image's latest Visual Studio and its default toolset.
+      - name: MSVC's environment, vcvars64.bat
         id: msvc
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
+          "QIVEN3_PYTHON=$env:PYTHON_PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $script = Join-Path $env:RUNNER_TEMP 'vcvars.cmd'
           Set-Content -LiteralPath $script -Encoding ascii -Value @(
-            "@call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" -vcvars_ver=14.44 >nul || exit /b 1", '@set')
+            "@call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul || exit /b 1", '@set')
           $lines = & cmd.exe /d /c $script
           foreach ($line in $lines) {
             if ($line -match '^([^=]+)=(.*)$' -and [Environment]::GetEnvironmentVariable($Matches[1]) -ne $Matches[2]) {
@@ -160,19 +129,21 @@ jobs:
             }
           }
 
-      - name: The tools this job runs
+      # cl.exe prints its banner, the compiler's version, when run alone.
+      - name: The image and the tools this job runs
         run: |
-          $PSNativeCommandUseErrorActionPreference = $true
+          Write-Output "image $env:ImageOS $env:ImageVersion; $((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
           Write-Output "Visual Studio $env:VSCMD_VER, toolset $env:VCToolsVersion, SDK $env:WindowsSDKVersion"
           (Get-Command cl.exe).Source; (Get-Command cmake.exe).Source; (Get-Command ninja.exe).Source
-          cmake --version; ninja --version
+          cmd.exe /d /c "cl.exe 2>&1" | Select-Object -First 1
+          if ('${{ matrix.analysis }}' -eq 'true') { & (Join-Path $env:ProgramFiles 'LLVM\bin\clang-tidy.exe') --version }
+          & $env:QIVEN3_PYTHON -I -c "import sys; print('CPython', sys.version)"
+          ninja --version; ctest --version; cmake --version
 
       - name: Configure (${{ matrix.preset }})
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          $extra = @()
-          if ($env:QIVEN3_CLANG_TIDY) { $extra += "-DQIVEN3_CLANG_TIDY=$env:QIVEN3_CLANG_TIDY" }
-          cmake --preset ${{ matrix.preset }} @extra
+          cmake --preset ${{ matrix.preset }}
 
       - name: Build every target
         id: build
@@ -210,15 +181,18 @@ jobs:
 
   linux:
     name: ${{ matrix.preset }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         preset: [linux-gcc, linux-clang, linux-tsan, linux-fuzz, linux-plain]
+    # Each step's shell without address-space randomisation, for its own
+    # processes alone (setarch -R): the sanitizers' shadow memory may not map
+    # under the kernel's randomisation, which stays as the image sets it.
     defaults:
       run:
-        shell: bash
+        shell: setarch x86_64 -R bash --noprofile --norc -eo pipefail {0}
     env:
       # LeakSanitizer is AddressSanitizer's on Linux; use-after-return by its
       # flag. Every report ends the process with a failing status.
@@ -231,32 +205,29 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: CPython 3.15.0, built from python.org's source by its SHA-256
-        run: |
-          tarball="$RUNNER_TEMP/Python-$PYTHON_VERSION.tar.xz"
-          curl -fsSL -o "$tarball" "https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.xz"
-          echo "$PYTHON_SOURCE_SHA256  $tarball" | sha256sum -c -
-          tar -xJf "$tarball" -C "$RUNNER_TEMP"
-          prefix="$RUNNER_TEMP/python-$PYTHON_VERSION"
-          cd "$RUNNER_TEMP/Python-$PYTHON_VERSION"
-          ./configure --prefix="$prefix" --without-ensurepip --disable-test-modules > configure.log
-          make -s -j"$(nproc)" > make.log 2>&1 || { tail -50 make.log; exit 1; }
-          make -s install > install.log 2>&1 || { tail -50 install.log; exit 1; }
-          python="$prefix/bin/python3.15"
-          "$python" -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
-          echo "QIVEN3_PYTHON=$python" >> "$GITHUB_ENV"
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
 
-      # The sanitizers' shadow memory fails to map under the kernel's 32 bits
-      # of mmap randomisation; 28 is the default they were built for.
-      - name: Address space randomisation the sanitizers map under
+      - name: Ninja, by the image's package manager where the image lacks it
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
-          echo "vm.mmap_rnd_bits was $(sysctl -n vm.mmap_rnd_bits)"
-          sudo sysctl -w vm.mmap_rnd_bits=28
+          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          command -v ninja || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ninja-build; }
 
-      - name: The tools this job runs
+      - name: The image and the tools this job runs
         run: |
-          cmake --version; ninja --version
-          case "${{ matrix.preset }}" in linux-gcc|linux-plain) g++-14 --version ;; *) clang++-18 --version ;; esac
+          echo "image $ImageOS $ImageVersion; $(. /etc/os-release && echo "$PRETTY_NAME"), kernel $(uname -r)"
+          echo "address-space randomisation: $(setarch --show 2>/dev/null || echo 'set off for these steps')"
+          for tool in gcc g++ clang clang++; do
+            echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
+          done
+          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
 
       - name: Configure (${{ matrix.preset }})
         run: cmake --preset ${{ matrix.preset }}
@@ -287,7 +258,7 @@ jobs:
 
   macos:
     name: macos-clang
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 45
     defaults:
       run:
@@ -298,19 +269,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: CPython 3.15.0, python.org's installer, by its SHA-256
-        run: |
-          pkg="$RUNNER_TEMP/python-$PYTHON_VERSION-macos11.pkg"
-          curl -fsSL -o "$pkg" "https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-macos11.pkg"
-          echo "$PYTHON_MACOS_SHA256  $pkg" | shasum -a 256 -c -
-          sudo installer -pkg "$pkg" -target /
-          python="/Library/Frameworks/Python.framework/Versions/3.15/bin/python3.15"
-          "$python" -I -c "import sys; v = sys.version_info; assert v[:4] == (3, 15, 0, 'final'), sys.version; print('CPython', sys.version)"
-          echo "QIVEN3_PYTHON=$python" >> "$GITHUB_ENV"
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
 
-      - name: The tools this job runs
+      - name: Ninja, by the image's package manager where the image lacks it
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
-          cmake --version; ninja --version; clang++ --version; xcode-select -p
+          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          command -v ninja || brew install ninja
+
+      - name: The image and the tools this job runs
+        run: |
+          echo "image $ImageOS $ImageVersion; macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion)), $(uname -m)"
+          xcode-select -p; command -v clang++ cmake ninja
+          clang++ --version | sed -n 1p
+          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
 
       - name: Configure (macos-clang)
         run: cmake --preset macos-clang

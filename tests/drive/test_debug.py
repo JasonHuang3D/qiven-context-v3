@@ -13,6 +13,9 @@ whose binaries the clean-binaries check reads) skips the cases that name
 a function. On Linux gdb is not installed: every case that needs it is
 skipped with the reason (K17 there reads K8's core). Under a sanitizer,
 whose runtime takes the process's faults, they are skipped too.
+
+Every case here drives the debugger: the label debugger, never fake, so
+the loop runs them and CI never does.
 """
 
 import re
@@ -60,7 +63,7 @@ def by_stop(lines):
 
 
 class Debug(unittest.TestCase):
-    ctest_labels = ("fake",)
+    ctest_labels = ("debugger",)
 
     def setUp(self):
         if sanitized():
