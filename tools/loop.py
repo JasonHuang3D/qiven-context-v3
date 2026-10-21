@@ -20,8 +20,12 @@ with CI alone.
   vswhere, or QIVEN3_VCVARS), the tools of WINDOWS_PINS checked by SHA-256
   and version, CPython 3.15.0 this interpreter; each configure with
   QIVEN3_PIN_TOOLS on; for windows-analysis, clang-tidy (QIVEN3_CLANG_TIDY,
-  else LLVM's under ProgramFiles) by CLANG_TIDY's SHA-256 and version. The
-  build runs in the checkout; the logs are kept in build/loop/JOB/.
+  else LLVM's under ProgramFiles) by CLANG_TIDY's SHA-256 and version.
+  vcvars' variables are read by name without regard to case, as Windows
+  names them: a name the loop inherits keeps its case through vcvars, and
+  a copy of Python's os.environ (the watcher's, for one) holds every name
+  upper-cased. The build runs in the
+  checkout; the logs are kept in build/loop/JOB/.
 - linux: reaches WSL2 (--distro, QIVEN3_WSL_DISTRO, default Ubuntu-24.04),
   checks tools/linux-pins.txt by tools/linux_pins.py under the toolchain's
   prefix (--prefix or QIVEN3_PREFIX, no default), then brings the working
@@ -243,12 +247,18 @@ def vcvars_env(logs):
     return env
 
 
+def named(env, name):
+    """env's value of name, the name read without regard to case, as
+    Windows reads it; None when it is not set."""
+    return next((value for key, value in env.items() if key.upper() == name.upper()), None)
+
+
 def check_windows_tools(env):
     """Each pinned tool on vcvars' PATH by SHA-256 and version, and the
     toolset and SDK vcvars chose; the tools' full paths."""
     found, bad = {}, []
     for name, version, digest in WINDOWS_PINS:
-        path = shutil.which(name, path=env.get("Path") or env.get("PATH"))
+        path = shutil.which(name, path=named(env, "PATH"))
         if not path:
             bad.append(f"{name}: missing from vcvars' PATH")
             continue
@@ -260,10 +270,11 @@ def check_windows_tools(env):
             status, text = capture([path, "--version"], env=env)
             if status != 0 or not re.search(r"(?<![\w.])" + re.escape(version) + r"(?![\w.])", text):
                 bad.append(f"{name}: --version gives {text.strip()[:80]!r}; the pin is {version}")
-    if env.get("VCToolsVersion", "").strip() != VCVARS_VER:
-        bad.append(f"vcvars' toolset is {env.get('VCToolsVersion')!r}; the pin is {VCVARS_VER}")
-    if env.get("WindowsSDKVersion", "").rstrip("\\/") != SDK:
-        bad.append(f"vcvars' SDK is {env.get('WindowsSDKVersion')!r}; the pin is {SDK}")
+    toolset, sdk = named(env, "VCToolsVersion"), named(env, "WindowsSDKVersion")
+    if (toolset or "").strip() != VCVARS_VER:
+        bad.append(f"vcvars' toolset is {toolset!r}; the pin is {VCVARS_VER}")
+    if (sdk or "").rstrip("\\/") != SDK:
+        bad.append(f"vcvars' SDK is {sdk!r}; the pin is {SDK}")
     if bad:
         raise CannotRun("; ".join(bad))
     return found

@@ -192,8 +192,29 @@ class Windows(unittest.TestCase):
         lines = out.getvalue().splitlines()
         self.assertEqual(status, 2, lines)
         digest = dict((n, d) for n, _, d in pins)["ninja"]
-        self.assertIn(f"SHA-256 is {digest}; the pin {turned(digest)}", lines[-1])
+        # The pin alone: no other check failing beside it.
+        self.assertRegex(lines[-1], f"^loop: cannot run: ninja: [^;]+'s SHA-256 is {digest}; "
+                                    f"the pin {turned(digest)}; exit 2$")
         self.assertNotIn("configure", out.getvalue())
+
+    def test_upper_names(self):
+        """vcvars under names upper-cased, as a copy of os.environ holds
+        them (the watcher's): a name inherited keeps its case through
+        vcvars, VCTOOLSVERSION here, and the loop reads it by name without
+        regard to case, so the tools hold."""
+        top = Path(tempfile.mkdtemp(prefix="qiven3-loop-case-"))
+        self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        env = dict(os.environ, VCTOOLSVERSION=LOOP.VCVARS_VER)
+        code = ("import runpy, sys; from pathlib import Path; loop = runpy.run_path(sys.argv[1]); "
+                "env = loop['vcvars_env'](Path(sys.argv[2])); "
+                "print([k for k in env if k.upper() == 'VCTOOLSVERSION']); "
+                "loop['check_windows_tools'](env); print('holds')")
+        done = subprocess.run([sys.executable, "-I", "-c", code, str(ROOT / "tools" / "loop.py"), str(top)],
+                              stdin=subprocess.DEVNULL, capture_output=True, env=env, timeout=TIMEOUT)
+        lines = done.stdout.decode("utf-8", "replace").splitlines()
+        err = done.stderr.decode("utf-8", "replace")
+        self.assertEqual(lines[:1], ["['VCTOOLSVERSION']"], (lines, err))  # the plant held
+        self.assertEqual((done.returncode, lines[1:]), (0, ["holds"]), err[-600:])
 
     def test_failing_step(self):
         """A compile error planted in a scratch copy: exit 1, the build's
