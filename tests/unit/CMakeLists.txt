@@ -42,3 +42,19 @@ if(QIVEN3_SYSTEM_HEAP AND QIVEN3_SANITIZE MATCHES "address")
   set_target_properties(qiven3_memory_poisoned qiven3_runner_poisoned qiven3_unit_memory_poisoned
     qiven3_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()
+
+# The log's cases: log, ring and the static half's, and K13's binary half,
+# whose binary tests/drive/test_log.py reads.
+qiven3_add_cases(qiven3_unit_log LABELS fast fake
+  SOURCES log_test.cpp log_static.cpp log_k13.cpp ring_test.cpp
+  LINK qiven3_log qiven3_faults)
+
+# K13's planted field (log_plant.cpp): the control in every build, the plant
+# built by its test alone, never by the build, the analysis or the records.
+add_library(qiven3_log_plant_control OBJECT log_plant.cpp)
+add_library(qiven3_log_plant OBJECT EXCLUDE_FROM_ALL log_plant.cpp)
+target_compile_definitions(qiven3_log_plant PRIVATE QIVEN3_PLANT_FIELD)
+foreach(target IN ITEMS qiven3_log_plant_control qiven3_log_plant)
+  target_link_libraries(${target} PRIVATE qiven3_flags qiven3_log)
+endforeach()
+set_target_properties(qiven3_log_plant PROPERTIES QIVEN3_PLANT ON EXPORT_COMPILE_COMMANDS OFF)
