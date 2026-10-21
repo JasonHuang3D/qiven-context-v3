@@ -217,6 +217,52 @@ else()
     _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE)
 endif()
 
+# The floors, chosen stable releases: Windows 11 24H2, Ubuntu 24.04, macOS
+# 15. The product needs no system feature past them.
+# - Windows: every target at 24H2's target-version macros, which the SDK's
+#   sdkddkver.h names NTDDI_WIN11_GE and _WIN32_WINNT_WIN10, so that a newer
+#   SDK hides what it declares past 24H2. Configure reads them under the
+#   build's flags, each set before sdkddkver.h, since its defaults may
+#   match; tests/structure/test_floors.py holds every compile command and
+#   source to them.
+# - Linux: no binary needs a glibc symbol version past GLIBC_2.39, which K11
+#   reads (tests/structure/test_binaries.py).
+# - macOS: the deployment target 15.0, from the macos-clang preset, and a
+#   call newer than it an error.
+if(WIN32)
+  add_compile_definitions(NTDDI_VERSION=0x0A000010 _WIN32_WINNT=0x0A00 WINVER=0x0A00)
+  get_directory_property(qiven3_definitions COMPILE_DEFINITIONS)
+  list(FILTER qiven3_definitions EXCLUDE REGEX "[$]<")
+  list(TRANSFORM qiven3_definitions PREPEND "-D")
+  set(CMAKE_REQUIRED_DEFINITIONS ${qiven3_definitions})
+  list(JOIN qiven3_cxx_flags " " CMAKE_REQUIRED_FLAGS)
+  unset(QIVEN3_WINDOWS_FLOOR CACHE)
+  check_cxx_source_compiles("
+#if !defined(NTDDI_VERSION) || !defined(_WIN32_WINNT) || !defined(WINVER)
+#error the floor's macros are not all set before sdkddkver.h
+#endif
+#include <sdkddkver.h>
+#if !defined(NTDDI_WIN11_GE) || NTDDI_VERSION != NTDDI_WIN11_GE || NTDDI_VERSION != 0x0A000010
+#error NTDDI_VERSION is not NTDDI_WIN11_GE, 0x0A000010
+#endif
+#if _WIN32_WINNT != _WIN32_WINNT_WIN10 || _WIN32_WINNT != 0x0A00 || WINVER != _WIN32_WINNT_WIN10
+#error _WIN32_WINNT and WINVER are not _WIN32_WINNT_WIN10, 0x0A00
+#endif
+int main() { return 0; }" QIVEN3_WINDOWS_FLOOR)
+  unset(CMAKE_REQUIRED_DEFINITIONS)
+  unset(CMAKE_REQUIRED_FLAGS)
+  if(NOT QIVEN3_WINDOWS_FLOOR)
+    message(FATAL_ERROR "qiven3: the build's flags do not set NTDDI_VERSION 0x0A000010 (NTDDI_WIN11_GE) "
+      "and _WIN32_WINNT and WINVER 0x0A00 (_WIN32_WINNT_WIN10), Windows 11 24H2's floor")
+  endif()
+elseif(APPLE)
+  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "15.0")
+    message(FATAL_ERROR "qiven3: CMAKE_OSX_DEPLOYMENT_TARGET is '${CMAKE_OSX_DEPLOYMENT_TARGET}', "
+      "not macOS 15.0's floor")
+  endif()
+  add_compile_options(-Wunguarded-availability -Werror=unguarded-availability)
+endif()
+
 # Clean binaries: no source, toolset or SDK path of the building machine in
 # an object, a library or a binary, and the same bytes from the same
 # sources. Each path comes from configure. cl ignores /pathmap without

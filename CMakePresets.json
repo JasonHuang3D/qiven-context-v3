@@ -163,8 +163,10 @@
       "name": "macos-clang",
       "inherits": "ci",
       "displayName": "CI on macos-latest, the image's Apple clang",
+      "description": "The deployment target macOS 15.0, the floor: a call newer than it an error",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++",
+                         "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0"}
     }
   ],
   "buildPresets": [

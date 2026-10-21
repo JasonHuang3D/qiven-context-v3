@@ -5,7 +5,10 @@ standard library alone, no tool; and the lists they must be on.
   optional header's data directories 1 and 13, each name read through the
   section holding its address.
 - ELF (Linux): the DT_NEEDED entries of PT_DYNAMIC, their names in
-  DT_STRTAB, with PT_INTERP and any DT_RPATH or DT_RUNPATH.
+  DT_STRTAB, with PT_INTERP and any DT_RPATH or DT_RUNPATH; and the symbol
+  version needs, DT_VERNEED's DT_VERNEEDNUM entries mapped to the file by
+  PT_LOAD, each Vernaux's name in DT_STRTAB, none of glibc's past the
+  floor's GLIBC_2.39, Ubuntu 24.04's.
 
 tests/structure/test_binaries.py holds every binary of a build to its
 system's list or its preset's residual; tools/watch.py names, on a failed
@@ -30,9 +33,14 @@ FUZZ_PREFIX = "api-ms-win-crt-"  # the universal C runtime's API sets, under /MD
 MSAN_LIBS = frozenset(("libc++.so.1", "libc++abi.so.1"))
 # clang's sanitizer runtimes link glibc's resolver, which the text's list lacks.
 SANITIZER_LIBS = frozenset(("libresolv.so.2",))
+# The floor: Ubuntu 24.04's glibc, the newest symbol version a binary needs.
+GLIBC_FLOOR = (2, 39)
+GLIBC_PREFIX = "GLIBC_"
 
 PT_LOAD, PT_DYNAMIC, PT_INTERP = 1, 2, 3
 DT_NULL, DT_NEEDED, DT_STRTAB, DT_RPATH, DT_RUNPATH = 0, 1, 5, 15, 29
+DT_VERNEED, DT_VERNEEDNUM = 0x6FFFFFFE, 0x6FFFFFFF
+VERNEED, VERNAUX = "HHIII", "IHHII"  # Elf_Verneed and Elf_Vernaux, 16 bytes each in both classes
 
 
 class Unreadable(Exception):
@@ -45,6 +53,7 @@ class Imports:
     names: tuple  # each imported library, in the file's order
     interp: str = ""  # ELF: PT_INTERP's loader
     run_paths: tuple = ()  # ELF: each DT_RPATH or DT_RUNPATH
+    versions: tuple = ()  # ELF: each symbol version need, (library, version), in the file's order
 
 
 def cstring(data, offset):
@@ -120,7 +129,7 @@ def pe(data):
 
 
 def elf(data):
-    """An ELF image's DT_NEEDED, PT_INTERP and run paths."""
+    """An ELF image's DT_NEEDED, PT_INTERP, run paths and version needs."""
     if data[4] not in (1, 2) or data[5] not in (1, 2):
         raise Unreadable("an ELF class or byte order this reader does not know")
     wide, end = data[4] == 2, "<" if data[5] == 1 else ">"
@@ -159,15 +168,34 @@ def elf(data):
         entries.append((tag, value))
     if strtab is None:
         raise Unreadable("PT_DYNAMIC holds no DT_STRTAB")
-    for vaddr, filesz, offset in loads:
-        if vaddr <= strtab < vaddr + filesz:
-            strings = offset + strtab - vaddr
-            break
-    else:
-        raise Unreadable(f"DT_STRTAB's address {strtab:#x} is in no PT_LOAD")
+
+    def mapped(address, what):
+        for vaddr, filesz, offset in loads:
+            if vaddr <= address < vaddr + filesz:
+                return offset + address - vaddr
+        raise Unreadable(f"{what}'s address {address:#x} is in no PT_LOAD")
+
+    strings = mapped(strtab, "DT_STRTAB")
     names = tuple(cstring(data, strings + v) for t, v in entries if t == DT_NEEDED)
     paths = tuple(cstring(data, strings + v) for t, v in entries if t in (DT_RPATH, DT_RUNPATH))
-    return Imports("elf", names, interp, paths)
+    tags = dict(entries)
+    versions = []
+    if DT_VERNEED in tags:
+        if DT_VERNEEDNUM not in tags:
+            raise Unreadable("PT_DYNAMIC holds DT_VERNEED but no DT_VERNEEDNUM")
+        need = mapped(tags[DT_VERNEED], "DT_VERNEED")
+        for _ in range(tags[DT_VERNEEDNUM]):
+            _, count, file, aux, following = unpack(end + VERNEED, data, need)
+            library = cstring(data, strings + file)
+            at = need + aux
+            for _ in range(count):
+                _, _, _, name, step_aux = unpack(end + VERNAUX, data, at)
+                versions.append((library, cstring(data, strings + name)))
+                at += step_aux
+            if not following:
+                break
+            need += following
+    return Imports("elf", names, interp, paths, tuple(versions))
 
 
 def read(data):
@@ -203,6 +231,32 @@ def outside(imports, system, sanitize):
     return [n for n in imports.names if n not in allowed]
 
 
+def glibc_version(name):
+    """A GLIBC_ need's version as numbers, or None for a name of another
+    form (GLIBC_PRIVATE)."""
+    parts = name[len(GLIBC_PREFIX):].split(".")
+    return tuple(int(p) for p in parts) if all(p.isdigit() for p in parts) else None
+
+
+def past_floor(imports):
+    """Each glibc symbol version a binary needs past the floor's, or of no
+    version's form, in the file's order, once each."""
+    found = []
+    for _, name in imports.versions:
+        if name.startswith(GLIBC_PREFIX) and name not in found:
+            version = glibc_version(name)
+            if version is None or version > GLIBC_FLOOR:
+                found.append(name)
+    return found
+
+
+def newest_glibc(imports):
+    """The newest GLIBC_ version need of a binary, or "" when it has none."""
+    versions = [(v, n) for _, n in imports.versions if n.startswith(GLIBC_PREFIX)
+                for v in [glibc_version(n)] if v is not None]
+    return max(versions)[1] if versions else ""
+
+
 def main(argv):
     if len(argv) != 1:
         print("usage: imports.py BINARY", file=sys.stderr)
@@ -218,6 +272,8 @@ def main(argv):
         print(f"interp {found.interp}")
     for path in found.run_paths:
         print(f"run path {path}")
+    for library, version in found.versions:
+        print(f"version {library} {version}")
     return 0
 
 
