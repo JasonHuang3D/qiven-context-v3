@@ -18,7 +18,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 # Headers, not named modules: no module dependency scan.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+# The C runtime linked statically, so that a binary imports the system's
+# libraries alone (tests/structure/imports.py); libFuzzer needs the DLL.
+if(QIVEN3_SANITIZE MATCHES "fuzzer")
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+else()
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 # Debug information inside each object (/Z7), so that the linker never looks
 # for a compiler PDB by a path that /pathmap rewrote; each binary's own PDB
 # stays apart.
@@ -119,6 +125,25 @@ elseif(APPLE)
   target_link_options(qiven3_flags INTERFACE LINKER:-fatal_warnings)
 else()
   target_link_options(qiven3_flags INTERFACE LINKER:--fatal-warnings)
+endif()
+# On Linux the C++ runtime and gcc's own static, gcc's sanitizer runtimes
+# too (clang's are by default); glibc stays shared. MemorySanitizer's
+# libc++ and libc++abi are the preset's archives.
+if(NOT MSVC AND NOT APPLE)
+  add_link_options(-static-libgcc)
+  if(NOT QIVEN3_SANITIZE STREQUAL "memory")
+    add_link_options(-static-libstdc++)
+  endif()
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    foreach(sanitizer IN ITEMS address undefined thread)
+      if(QIVEN3_SANITIZE MATCHES "${sanitizer}")
+        string(REPLACE "address" "asan" lib "${sanitizer}")
+        string(REPLACE "undefined" "ubsan" lib "${lib}")
+        string(REPLACE "thread" "tsan" lib "${lib}")
+        add_link_options("-static-lib${lib}")
+      endif()
+    endforeach()
+  endif()
 endif()
 
 # Configure reads __cplusplus itself, under the build's flags: a /std: the

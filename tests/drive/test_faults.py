@@ -1,7 +1,9 @@
 """The diagnostic entry's planted faults, K1 to K5, K7 and K9: each plant of
-qiven3-fault, run as a process, ends with its cause as the report's first
-line, its stack, its status, no window, within the bounds; and K18, the
-Linux handlers' object calling only the async-signal-safe list.
+qiven3-fault, run behind the watcher (tools/watch.py), ends with its cause
+as the report's first line, its stack, its status named by the table
+(K12), no window, within the bounds; K6, qiven3-fault-import copied alone,
+its library missing at load; and K18, the Linux handlers' object calling
+only the async-signal-safe list.
 
 The report, on standard error:
 
@@ -11,24 +13,25 @@ The report, on standard error:
     fatal: events <n>
     fatal: dump <file name> | none
     fatal: end <status>
+    status: <value> <name>: <meaning>    (the watcher's)
 
 On Windows the frames are dbghelp's, symbolized in the process from the
 binary's PDB: a build that keeps none beside the binary (Release, whose
 binaries the clean-binaries check reads) names each frame's module and
 offset alone, and the plant's name is read where the PDB is. On Linux the
 frames are backtrace_symbols_fd's raw lines, a module, an offset and an
-address each, which the watcher symbolizes after the exit: the plant's
-frame is read here by its offset, inside plant_<plant>'s range in the
-binary's symbol table. K3's and K4's library writes its own line before
-the report (glibc's assertion, libstdc++'s hardened check), whose cause is
-then the signal. K3 runs in qiven3-fault-crtdbg on Windows, on the debug
-runtime. Under a sanitizer, whose report stands for the entry's, every
-case is skipped. The raw report is read here; the watcher names statuses
-and symbolizes Linux's frames later.
+address each, which the watcher symbolizes: a frame of the binary's own
+gets its function and line appended, plant_<plant> among them. K3's and
+K4's library writes its own line before the report (glibc's assertion,
+libstdc++'s hardened check), whose cause is then the signal. K3 runs in
+qiven3-fault-crtdbg on Windows, on the debug runtime. Under a sanitizer,
+whose report stands for the entry's, every case is skipped. Dumps are in
+the build's dumps/, where the watcher sends them.
 """
 
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -39,9 +42,12 @@ from pathlib import Path
 
 from tests.drive import binaries
 from tests.drive.session import build_option
+from tools import status as status_table
 
 FAULT = "qiven3-fault"
 CRTDBG = "qiven3-fault-crtdbg"
+IMPORT = "qiven3-fault-import"
+LIBRARY = "qiven3_fault_lib.dll" if sys.platform == "win32" else "libqiven3_fault_lib.so"
 TIME_BOUND = 10.0
 LINES_BOUND = 60
 LINE_POINTS = 300
@@ -77,9 +83,28 @@ def sanitized():
 
 
 def windows_of(pid):
-    """The visible top-level windows of process `pid`."""
+    """The visible top-level windows of process `pid` and of its children,
+    the watcher's case among them."""
     import ctypes
     from ctypes import wintypes
+
+    class Entry(ctypes.Structure):  # PROCESSENTRY32W
+        _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD), ("pid", wintypes.DWORD),
+                    ("heap", ctypes.c_size_t), ("module", wintypes.DWORD), ("threads", wintypes.DWORD),
+                    ("parent", wintypes.DWORD), ("priority", ctypes.c_long), ("flags", wintypes.DWORD),
+                    ("file", wintypes.WCHAR * 260)]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    pids, entry = {pid}, Entry()
+    entry.size = ctypes.sizeof(Entry)
+    more = kernel32.Process32FirstW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
+    while more:
+        if entry.parent == pid:
+            pids.add(entry.pid)
+        more = kernel32.Process32NextW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
+    kernel32.CloseHandle(wintypes.HANDLE(snapshot))
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     found = []
     proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
@@ -87,7 +112,7 @@ def windows_of(pid):
     def each(hwnd, _):
         owner = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
-        if owner.value == pid and user32.IsWindowVisible(hwnd):
+        if owner.value in pids and user32.IsWindowVisible(hwnd):
             found.append(hwnd)
         return True
 
@@ -95,12 +120,19 @@ def windows_of(pid):
     return found
 
 
-def run_plant(binary, plant, env):
-    """Runs a plant: its status, out, err, seconds, and the windows seen."""
+def run_plant(binary, plant, env=None):
+    """Runs a plant behind the watcher: its status, out, err, seconds, and
+    the windows seen."""
+    return run_watched([binaries.path(binary), plant], PLANTS[plant][0], env)
+
+
+def run_watched(command, name, env=None, cwd=None):
+    """Runs a command behind the watcher, under the time bound: the
+    watcher's status, out, err, seconds, and the windows seen."""
     start = time.monotonic()
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        process = subprocess.Popen([str(binaries.path(binary)), plant], stdin=subprocess.DEVNULL,
-                                   stdout=out, stderr=err, env=env)
+        process = subprocess.Popen(binaries.watched(command, name, TIME_BOUND), stdin=subprocess.DEVNULL,
+                                   stdout=out, stderr=err, env=env, cwd=cwd)
         seen = []
         while process.poll() is None:
             if WINDOWS:
@@ -137,8 +169,10 @@ def report_problems(lines, cause, case):
 
 
 # backtrace_symbols_fd's line after the report's "  #<i> ": the module, its
-# symbol where the dynamic symbol table names one, the offset, the address.
-FRAME = re.compile(r"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]")
+# symbol where the dynamic symbol table names one, the offset, the address;
+# then the watcher's function and line, where it found them.
+FRAME = re.compile(r"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]"
+                   r"(?: (?P<function>.+))?")
 # The async-signal-safe list signal.cpp's object may call (K18).
 SAFE = frozenset(("write", "_exit", "raise", "sigaction", "getpid", "backtrace", "backtrace_symbols_fd"))
 
@@ -151,20 +185,13 @@ def nm(*args):
 
 
 def in_plant(binary, plant, frames):
-    """Whether a frame of the binary's own, by its offset, falls in
-    plant_<plant>'s range of the binary's symbol table."""
-    ranges = []
-    for line in nm("--defined-only", "-C", "-S", "-P", str(binaries.path(binary))):
-        fields = line.split()
-        if len(fields) == 4 and fields[0].startswith(f"plant_{plant}("):
-            start = int(fields[2], 16)
-            ranges.append((start, start + int(fields[3], 16)))
+    """Whether a frame of the binary's own is plant_<plant>, by the
+    watcher's symbolized name."""
     for frame in frames:
         found = FRAME.fullmatch(frame)
-        if found and Path(found["module"]).name == binary and not found["symbol"]:
-            offset = int(found["offset"], 16)
-            if any(start <= offset <= end for start, end in ranges):
-                return True
+        if found and Path(found["module"]).name == binary and (found["function"] or "").startswith(
+                f"plant_{plant}("):
+            return True
     return False
 
 
@@ -183,44 +210,48 @@ class Faults(unittest.TestCase):
     def plant(self, plant):
         case, binary, cause, status = PLANTS[plant]
         number, linux_cause, preface = LINUX[plant]
-        with tempfile.TemporaryDirectory() as dumps:
-            env = dict(os.environ, QIVEN3_DUMP_DIR=dumps)
-            ran, out, err, seconds, seen = run_plant(binary, plant, env)
-            text = err.decode("utf-8", "replace")
-            lines = text.splitlines()
-            self.assertEqual(ran, status if WINDOWS else -number, f"{case}: {text}")
-            self.assertEqual(seen, [], f"{case}: a window opened")
-            self.assertLessEqual(seconds, TIME_BOUND, case)
-            self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND, case)
-            self.assertTrue(all(len(line) <= LINE_POINTS for line in lines), case)
-            if not WINDOWS:
-                cause = linux_cause
-                if preface is not None:
-                    self.assertRegex(lines[0] if lines else "", f"^{preface}$", f"{case}: {text}")
-                    lines = lines[1:]
-            self.assertEqual(report_problems(lines, cause, case), [])
-            n = int(lines[1].split()[2])
-            frames = lines[2:2 + n]
-            dump = lines[-2].removeprefix("fatal: dump ")
-            if WINDOWS:
-                self.assertEqual(lines[-1], f"fatal: end {status}" if status == 3 else f"fatal: end 0x{status:08X}")
-                if (binaries.path(binary).with_suffix(".pdb")).is_file():
-                    self.assertTrue(any(f"!plant_{plant}+" in f for f in frames), f"{case}: {frames}")
-                else:
-                    self.assertTrue(all(f" {binary}" in f or "!" in f for f in frames), f"{case}: {frames}")
-                self.assertRegex(dump, rf"^{re.escape(binary)}-\d+\.dmp$", case)
-                written = Path(dumps) / dump
-                self.assertLessEqual(written.stat().st_size, DUMP_MAX, case)
-                self.assertEqual(written.read_bytes()[:4], b"MDMP", case)
+        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        ran, out, err, seconds, seen = run_plant(binary, plant)
+        text = err.decode("utf-8", "replace")
+        lines = text.splitlines()
+        self.assertEqual(ran, status if WINDOWS else 128 + number, f"{case}: {text}")
+        self.assertEqual(seen, [], f"{case}: a window opened")
+        self.assertLessEqual(seconds, TIME_BOUND, case)
+        self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND, case)
+        self.assertTrue(all(len(line) <= LINE_POINTS for line in lines), case)
+        # K12: the watcher's last line names the status by the table.
+        named = status_table.line(status if WINDOWS else -number)
+        self.assertEqual(lines[-1] if lines else "", named, f"{case}: {text}")
+        self.assertNotIn(status_table.UNNAMED, named, case)
+        lines = lines[:-1]
+        if not WINDOWS:
+            cause = linux_cause
+            if preface is not None:
+                self.assertRegex(lines[0] if lines else "", f"^{preface}$", f"{case}: {text}")
+                lines = lines[1:]
+        self.assertEqual(report_problems(lines, cause, case), [])
+        n = int(lines[1].split()[2])
+        frames = lines[2:2 + n]
+        dump = lines[-2].removeprefix("fatal: dump ")
+        if WINDOWS:
+            self.assertEqual(lines[-1], f"fatal: end {status}" if status == 3 else f"fatal: end 0x{status:08X}")
+            if (binaries.path(binary).with_suffix(".pdb")).is_file():
+                self.assertTrue(any(f"!plant_{plant}+" in f for f in frames), f"{case}: {frames}")
             else:
-                self.assertEqual(lines[-1], f"fatal: end {signal.Signals(number).name}")
-                # backtrace_symbols_fd's raw lines, which the watcher
-                # symbolizes after the exit; the plant's frame by its offset.
-                self.assertTrue(all(FRAME.fullmatch(f) for f in frames), f"{case}: {frames}")
-                self.assertTrue(in_plant(binary, plant, frames), f"{case}: no frame in plant_{plant}: {frames}")
-                # The reading's control: plant_out, on no fault's stack, is found in none.
-                self.assertFalse(in_plant(binary, "out", frames), f"{case}: {frames}")
-                self.assertEqual(dump, "none")
+                self.assertTrue(all(f" {binary}" in f or "!" in f for f in frames), f"{case}: {frames}")
+            self.assertRegex(dump, rf"^{re.escape(binary)}-\d+\.dmp$", case)
+            written = Path(dumps) / dump
+            self.assertLessEqual(written.stat().st_size, DUMP_MAX, case)
+            self.assertEqual(written.read_bytes()[:4], b"MDMP", case)
+        else:
+            self.assertEqual(lines[-1], f"fatal: end {signal.Signals(number).name}")
+            # backtrace_symbols_fd's raw lines, the watcher's names after
+            # each of the binary's own; the plant's frame by its name.
+            self.assertTrue(all(FRAME.fullmatch(f) for f in frames), f"{case}: {frames}")
+            self.assertTrue(in_plant(binary, plant, frames), f"{case}: no frame in plant_{plant}: {frames}")
+            # The reading's control: plant_out, on no fault's stack, is found in none.
+            self.assertFalse(in_plant(binary, "out", frames), f"{case}: {frames}")
+            self.assertEqual(dump, "none")
 
     def test_K1_null(self):
         self.plant("null")
@@ -243,14 +274,49 @@ class Faults(unittest.TestCase):
     def test_K9_failfast(self):
         self.plant("failfast")
 
+    def test_K6_import(self):
+        """qiven3-fault-import copied alone: its library missing at load, the
+        watcher's line names it; beside its library it exits 0."""
+        expected = 0xC0000135 if WINDOWS else 127
+        with tempfile.TemporaryDirectory() as top:
+            copy = Path(top) / binaries.path(IMPORT).name
+            shutil.copy2(binaries.path(IMPORT), copy)
+            ran, out, err, seconds, seen = run_watched([copy], "K6", cwd=top)
+        text = err.decode("utf-8", "replace")
+        lines = text.splitlines()
+        self.assertEqual(ran, expected, text)
+        self.assertEqual(seen, [], "K6: a window opened")
+        self.assertLessEqual(seconds, TIME_BOUND)
+        self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND)
+        self.assertEqual(lines[-1] if lines else "", f"{status_table.line(expected)}; not found: {LIBRARY}")
+        if not WINDOWS:  # the loader's own line, before the watcher's
+            self.assertTrue(any(LIBRARY in line and "cannot open shared object file" in line
+                                for line in lines[:-1]), text)
+        # The control: beside its library the binary loads and exits 0.
+        env = dict(os.environ)
+        if not WINDOWS:
+            env["LD_LIBRARY_PATH"] = str(binaries.directory("QIVEN3_BIN"))
+        ran, _, err, _, _ = run_watched([binaries.path(IMPORT)], "K6.control", env)
+        self.assertEqual((ran, err.decode("utf-8", "replace").splitlines()[-1:]), (0, ["status: 0 passed"]))
+
+    def test_K12_unnamed(self):
+        """K12's control: a status off the table, printed unnamed, the
+        watcher exiting with it."""
+        ran, _, err, _, _ = run_watched([sys.executable, "-I", "-c", "import sys; sys.exit(77)"], "K12")
+        self.assertEqual((ran, err.decode("utf-8", "replace").splitlines()), (77, ["status: 77 unnamed"]))
+        self.assertEqual(status_table.line(0xC0000001), "status: 0xC0000001 unnamed")
+        self.assertEqual(status_table.line(-31), "status: signal 31 unnamed")
+
     def test_no_dump_dir(self):
-        """With QIVEN3_DUMP_DIR unset the report says so: dump none."""
+        """With QIVEN3_DUMP_DIR unset the report says so: dump none. The
+        plant runs alone, the watcher setting the variable."""
         if not WINDOWS:
             self.skipTest("Linux writes no minidump")
         env = {k: v for k, v in os.environ.items() if k != "QIVEN3_DUMP_DIR"}
-        ran, _, err, _, _ = run_plant(FAULT, "failfast", env)
-        self.assertEqual(ran, 0xC0000409)
-        self.assertIn("fatal: dump none", err.decode("utf-8", "replace").splitlines())
+        ran = subprocess.run([str(binaries.path(FAULT)), "failfast"], capture_output=True, env=env,
+                             timeout=binaries.TIMEOUT, check=False)
+        self.assertEqual(ran.returncode, 0xC0000409)
+        self.assertIn("fatal: dump none", ran.stderr.decode("utf-8", "replace").splitlines())
 
     def test_report_problems_control(self):
         """The shape check's control: a report cut after its stack is caught."""

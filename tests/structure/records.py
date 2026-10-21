@@ -30,8 +30,9 @@ from collections import namedtuple
 from pathlib import Path
 
 VENDORED = "third_party/sqlite/sqlite3.c"
-# The runtimes a /MD build links; oldnames.lib, POSIX names, is not one.
-RUNTIME_LIBS = ("msvcrt.lib", "msvcprt.lib", "vcruntime.lib", "ucrt.lib")
+# The runtimes a /MT build links, the static C runtime's (the structure
+# build's); oldnames.lib, POSIX names, is not one.
+RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")
 # The network's import libraries, so that an import from one is named.
 NETWORK_LIBS = ("ws2_32.lib", "winhttp.lib", "wininet.lib")
 

@@ -36,6 +36,7 @@ import argparse
 import hashlib
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))  # under -I this directory is off sys.path
 LINES = 100
 TAIL = 30
 WIDTH = 400  # a tail line's characters at most
@@ -229,7 +231,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env):
             report.line(f"{job} {step.name}: pass in {seconds(start)}", True)
         else:
             counts[1] += 1
-            what = status if isinstance(status, str) else f"status {status}"
+            what = status if isinstance(status, str) else STATUS["line"](status)
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}; log {log}", True)
             report.tail(log)
     return counts
@@ -468,7 +470,7 @@ def linux(args, report):
     elif last is not None:
         report.line(last)
     if status not in (0, 1, 2):
-        raise CannotRun(f"WSL ended with status {status}")
+        raise CannotRun(f"WSL ended, {STATUS['line'](status)}")
     return status
 
 

@@ -81,9 +81,10 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
   COMMAND "${CMAKE_COMMAND}" -D "INPUTS=${qiven3_inputs_file}" -D "OUT=${qiven3_tests_file}"
     ${qiven3_python_args} -D "SOURCE=${PROJECT_SOURCE_DIR}" -D "BIN=${qiven3_bin}"
     -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN3_SKIP_CODE}"
+    -D "ADDR2LINE=${CMAKE_ADDR2LINE}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake"
   DEPENDS ${qiven3_case_binaries} qiven3_runner_demo qiven3_fail_demo qiven3_free_demo
-    qiven3-fault
+    qiven3-fault qiven3-fault-import
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake" ${qiven3_python_files}
   COMMENT "Listing the C++ cases and the Python tests for CTest"

@@ -87,7 +87,7 @@ class Answer(unittest.TestCase):
     def test_tail(self):
         counts, lines = self.steps([0, 3])
         self.assertEqual(counts, [1, 1, 0])
-        self.assertRegex(lines[1], r"^job step 1: FAIL, status 3, in \d+\.\d s; log .*02-step-1\.log$")
+        self.assertRegex(lines[1], r"^job step 1: FAIL, status: 3 abort: Windows: the C runtime.s abort, in \d+\.\d s; log .*02-step-1\.log$")
         self.assertEqual(lines[2], "  its last 30 of 201 lines:")
         tail = [line for line in lines if line.startswith("  | ")]
         self.assertEqual(tail, [f"  | line {i}" for i in range(170, 200)])
@@ -159,9 +159,11 @@ class Windows(unittest.TestCase):
         vcvars.write_text('@set "PATH=%SystemRoot%\\system32"\r\n@set VCToolsVersion=14.44.35207\r\n'
                           '@set WindowsSDKVersion=10.0.26100.0\\\r\n', encoding="ascii")
         env = dict(os.environ, QIVEN3_VCVARS=str(vcvars))
-        # The loop's file alone in the scratch, so that its logs are the scratch's.
+        # The loop's file alone in the scratch, with the status table it
+        # reads, so that its logs are the scratch's.
         (top / "tools").mkdir()
-        shutil.copy2(ROOT / "tools" / "loop.py", top / "tools" / "loop.py")
+        for name in ("loop.py", "status.py"):
+            shutil.copy2(ROOT / "tools" / name, top / "tools" / name)
         status, lines, _ = run(top / "tools" / "loop.py", "build", "windows", "windows-msvc", env=env)
         self.assertEqual(status, 2, lines)
         self.assertIn("cmake: missing from vcvars' PATH", lines[-1])
