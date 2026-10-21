@@ -17,8 +17,8 @@ RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
 
 
 def python_findings(root, files):
-    """(file, what) for each import outside the standard library and the
-    test tree, each importlib and each change of sys.path."""
+    """(file, what) for each import outside the standard library, the
+    test tree and tools/, each importlib and each change of sys.path."""
     found = []
     for rel in files:
         if not rel.endswith(".py"):
@@ -33,7 +33,7 @@ def python_findings(root, files):
                 names = []
             for name in names:
                 top = name.split(".")[0]
-                if top == "importlib" or (top not in sys.stdlib_module_names and top != "tests"):
+                if top == "importlib" or (top not in sys.stdlib_module_names and top not in ("tests", "tools")):
                     found.append((rel, name))
             if isinstance(node, ast.Attribute) and node.attr == "path" and isinstance(node.value, ast.Name) \
                     and node.value.id == "sys" and not isinstance(node.ctx, ast.Load):
@@ -71,7 +71,8 @@ class Python(unittest.TestCase):
             "importer.py": "import importlib\n",
             "path_insert.py": "import sys\nsys.path.insert(0, 'x')\n",
             "path_set.py": "import sys\nsys.path = []\n",
-            "clean.py": "import os\nimport sys\nfrom tests.drive import binaries\nfrom . import x\n"
+            "clean.py": "import os\nimport sys\nfrom tests.drive import binaries\nfrom tools import loop\n"
+                        "from . import x\n"
                         "s = 'import numpy'\nprint(sys.path[0], os.sep)\n",
         }
         with tempfile.TemporaryDirectory() as scratch:

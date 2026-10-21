@@ -5,7 +5,6 @@ preset; each step of a job that runs a preset's build or reads its tree is
 the loop's step, in CI's order, with CI's command, the loop's own additions
 apart; and the sanitizers' options and CTest's parallel level are CI's."""
 
-import importlib.util
 import re
 import shlex
 import unittest
@@ -17,10 +16,8 @@ CI_ONLY = {"macos-clang"}  # no machine for it (the loop's text)
 
 
 def load_loop():
-    spec = importlib.util.spec_from_file_location("qiven3_loop", ROOT / "tools" / "loop.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    from tools import loop
+    return loop
 
 
 def blocks(lines, indent):

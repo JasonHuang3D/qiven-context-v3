@@ -127,6 +127,25 @@ class Arguments(unittest.TestCase):
                 self.assertTrue(lines[0].startswith("loop: "), lines)
                 self.assertEqual(err, b"")
 
+    def test_prefix_missing(self):
+        """linux with neither --prefix nor QIVEN3_PREFIX: exit 2, the line
+        naming both; the toolchain's place is never the loop's own."""
+        env = {k: v for k, v in os.environ.items() if k != "QIVEN3_PREFIX"}
+        status, lines, err = run(ROOT / "tools" / "loop.py", "build", "linux", "linux-gcc", env=env)
+        self.assertEqual(status, 2, lines)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn("--prefix", lines[0])
+        self.assertIn("QIVEN3_PREFIX", lines[0])
+        self.assertEqual(err, b"")
+
+
+def prefix():
+    """The toolchain's prefix in WSL, from QIVEN3_PREFIX: a case needing it
+    skips without it."""
+    if not os.environ.get("QIVEN3_PREFIX"):
+        raise unittest.SkipTest("QIVEN3_PREFIX is unset: the toolchain's prefix in WSL")
+    return os.environ["QIVEN3_PREFIX"]
+
 
 @unittest.skipUnless(WINDOWS, "the loop's windows runs on Windows")
 class Windows(unittest.TestCase):
@@ -204,7 +223,7 @@ class Linux(unittest.TestCase):
         (top / "pins.txt").write_text(text.replace(line.group(0), line.group(0).replace(
             line.group(1), turned(line.group(1)))), encoding="utf-8")
         status, lines, _ = run(ROOT / "tools" / "loop.py", "build", "linux", "linux-gcc", "--pins",
-                               str(top / "pins.txt"))
+                               str(top / "pins.txt"), "--prefix", prefix())
         self.assertEqual(status, 2, lines)
         self.assertTrue(any(re.search(r"mismatch: command cmake: .*SHA-256 is " + line.group(1), x) for x in lines),
                         lines)
@@ -227,7 +246,8 @@ class Linux(unittest.TestCase):
         wsl = shutil.which("wsl.exe")
         self.addCleanup(subprocess.run, [wsl, "-d", LOOP.DISTRO, "-e", "rm", "-rf", clone],
                         stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
-        status, lines, _ = run(copy / "tools" / "loop.py", "test", "linux", "linux-gcc", "--clone", clone)
+        status, lines, _ = run(copy / "tools" / "loop.py", "test", "linux", "linux-gcc", "--clone", clone,
+                               "--prefix", prefix())
         self.assertEqual(status, 1, lines)
         self.assertLessEqual(len(lines), LOOP.LINES)
         self.assertTrue(any(x.startswith("linux-gcc configure: FAIL") and f"; log {clone}/" in x for x in lines),

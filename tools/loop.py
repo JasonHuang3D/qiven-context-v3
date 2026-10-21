@@ -17,8 +17,8 @@ stays with CI alone.
   QIVEN3_PIN_TOOLS on. The build runs in the checkout; the logs are kept in
   build/loop/JOB/.
 - linux: reaches WSL2 (--distro, QIVEN3_WSL_DISTRO, default Ubuntu-24.04),
-  checks tools/linux-pins.txt by tools/linux_pins.py under the prefix
-  (--prefix, QIVEN3_PREFIX, default /opt/qiven3), then brings the working
+  checks tools/linux-pins.txt by tools/linux_pins.py under the toolchain's
+  prefix (--prefix or QIVEN3_PREFIX, no default), then brings the working
   tree, uncommitted changes and new files included, to a clone on WSL's own
   file system (--clone, QIVEN3_LOOP_CLONE, default ~/qiven3-loop), one a
   job, by a commit object made from a copy of the index: the Windows tree
@@ -34,7 +34,6 @@ missing, a pin off, WSL absent, a bad argument).
 
 import argparse
 import hashlib
-import importlib.util
 import os
 import re
 import shutil
@@ -50,7 +49,6 @@ TAIL = 30
 WIDTH = 400  # a tail line's characters at most
 STEP_TIMEOUT = 45 * 60  # CI's job limit
 DISTRO = "Ubuntu-24.04"
-PREFIX = "/opt/qiven3"
 CLONE = "~/qiven3-loop"
 VCVARS_VER = "14.44.35207"
 SDK = "10.0.26100.0"
@@ -479,11 +477,8 @@ def inside(args, report):
     git = shutil.which("git")
     if not git:
         raise CannotRun("git is missing from WSL's PATH")
-    spec = importlib.util.spec_from_file_location("linux_pins", ROOT / "tools" / "linux_pins.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    pinned, _ = module.parse(Path(args.pins or ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8"))
-    libcxx = [p[5] for p in pinned if p[1] == "libcxx"]
+    pins = Path(args.pins or ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8")  # checked: its form holds
+    libcxx = [f[4] for f in (x.split("#", 1)[0].split() for x in pins.splitlines()) if f[:1] == ["libcxx"]]
     prefix = args.prefix.rstrip("/")
     env = dict(os.environ, **ENV["linux"], QIVEN3_PYTHON=sys.executable)
     env["PATH"] = prefix + "/bin:" + env.get("PATH", "")
@@ -499,14 +494,20 @@ def inside(args, report):
         start = time.monotonic()
         sync(git, clone, args.source, args.commit)
         report.line(f"{job} sync: {args.commit[:12]} in {seconds(start)}; clone {clone}", True)
+        # The job's own temporary directory, as CI's RUNNER_TEMP: /tmp's bare name would match any "tmp".
+        temp = tempfile.mkdtemp(prefix=f"qiven3-loop-{job}-")
 
         def command(step):
             if step.ci[0] == CLEAN:
                 return [sys.executable, "-I", str(clean_script(clone, clone / "build" / "loop" / job)), step.ci[1],
-                        str(clone), tempfile.gettempdir()]
+                        str(clone), temp]
             return [shutil.which(step.ci[0], path=env["PATH"]) or step.ci[0], *step.ci[1:], *step.local]
 
-        got = run_steps(report, job, JOBS[job][2], args.phase, command, clone / "build" / "loop" / job, clone, env)
+        try:
+            got = run_steps(report, job, JOBS[job][2], args.phase, command, clone / "build" / "loop" / job, clone,
+                            dict(env, TMPDIR=temp))
+        finally:
+            shutil.rmtree(temp, ignore_errors=True)
         counts = [a + b for a, b in zip(counts, got)]
     where = f"{base}/{args.jobs[0]}/build/loop/{args.jobs[0]}" if len(args.jobs) == 1 else f"{base}/JOB/build/loop/JOB"
     report.line(f"loop: logs in {where}", True)
@@ -540,7 +541,7 @@ def parse(argv):
     parser.add_argument("system", choices=("windows", "linux"))
     parser.add_argument("jobs", nargs="*", metavar="JOB", help="a job or its preset; none: every job of the system")
     parser.add_argument("--distro", default=os.environ.get("QIVEN3_WSL_DISTRO", DISTRO))
-    parser.add_argument("--prefix", default=os.environ.get("QIVEN3_PREFIX", PREFIX))
+    parser.add_argument("--prefix", default=os.environ.get("QIVEN3_PREFIX") or None)
     parser.add_argument("--clone", default=os.environ.get("QIVEN3_LOOP_CLONE", CLONE))
     parser.add_argument("--pins", help="the Linux pin file (default: tools/linux-pins.txt)")
     parser.add_argument("--inside", action="store_true", help=argparse.SUPPRESS)
@@ -554,6 +555,8 @@ def parse(argv):
     if unknown:
         parser.error(f"no {args.system} job {', '.join(unknown)}; the jobs: {', '.join(sorted(names))}")
     args.jobs = list(dict.fromkeys(names[j] for j in args.jobs)) or [n for n, j in JOBS.items() if j[0] == args.system]
+    if args.system == "linux" and not args.prefix:
+        parser.error("linux needs the toolchain's prefix: give --prefix or set QIVEN3_PREFIX")
     if args.inside and not (args.source and args.commit):
         parser.error("--inside needs --source and --commit")
     if not args.inside and args.system == "windows" and sys.platform != "win32":
