@@ -34,9 +34,9 @@
   locals, and every thread's stack, within the same bounds; a dump of a
   fault ends "fault <cause>", exit 1; one of none, "dump read", exit 0.
 
-On Linux the wrapper is gdb's, in batch mode; gdb is not installed, and
-each command says so and exits 2. The debugger is found and checked by
-tools/debuggers.py.
+On Linux the wrapper is gdb's, in batch mode; gdb is found and checked,
+but its half is not built yet, and each command says so and exits 2. The
+debugger is found and checked by tools/debuggers.py.
 """
 
 import argparse

@@ -7,7 +7,9 @@ sanitizers' options, CTest's parallel level and the Linux shell are CI's.
 The pins are the loop's alone, as its additions to CI's configure: the
 pinned tools' option, and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
-version."""
+version. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
+builds release, which keeps its PDBs, and runs fake's selection and then
+the debugger preset, a label no workflow runs."""
 
 import json
 import re
@@ -162,15 +164,19 @@ class LoopAgainstCI(unittest.TestCase):
         cls.loop = load_loop()
         cls.ci = ci_jobs()
 
+    def ci_jobs(self):
+        return {k: v for k, v in self.loop.JOBS.items() if k not in self.loop.LOCAL}
+
     def test_jobs(self):
-        self.assertEqual(set(self.ci) - CI_ONLY, set(self.loop.JOBS))
-        for name, (system, preset, _) in self.loop.JOBS.items():
+        self.assertEqual(set(self.ci) - CI_ONLY, set(self.ci_jobs()))
+        self.assertFalse(set(self.ci) & set(self.loop.LOCAL))
+        for name, (system, preset, _) in self.ci_jobs().items():
             with self.subTest(job=name):
                 self.assertEqual(preset, self.ci[name][0])
                 self.assertEqual(system, name.split("-")[0])
 
     def test_steps(self):
-        for name, (_, _, steps) in self.loop.JOBS.items():
+        for name, (_, _, steps) in self.ci_jobs().items():
             with self.subTest(job=name):
                 self.assertEqual([s.ci for s in steps], self.ci[name][1])
 
@@ -181,7 +187,7 @@ class LoopAgainstCI(unittest.TestCase):
         compilers = preset_compilers()
         cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
         pins = linux_pins()
-        for name, (system, preset, steps) in self.loop.JOBS.items():
+        for name, (system, preset, steps) in self.ci_jobs().items():
             for step in steps:
                 with self.subTest(job=name, step=step.name):
                     if step.ci[:2] == ("cmake", "--preset") and step.name == "configure":
@@ -216,8 +222,29 @@ class LoopAgainstCI(unittest.TestCase):
                 self.assertTrue(linux, shells)
                 self.assertTrue(all(s.startswith(want) for s in linux), shells)
 
+    def test_local(self):
+        """windows-symbols: release, whose PDBs are kept, in its own tree;
+        fake's selection there, then the debugger preset on release."""
+        presets = json.loads((ROOT / "CMakePresets.json").read_bytes())
+        configure = {p["name"]: p for p in presets["configurePresets"]}
+        tests = {p["name"]: p for p in presets["testPresets"]}
+        self.assertEqual(set(self.loop.LOCAL), {"windows-symbols"})
+        system, preset, steps = self.loop.JOBS["windows-symbols"]
+        self.assertEqual((system, preset), ("windows", "release"))
+        self.assertEqual(configure["release"]["cacheVariables"]["CMAKE_BUILD_TYPE"], "RelWithDebInfo")
+        self.assertEqual(self.loop.TREES["windows-symbols"], "build/release")
+        self.assertEqual([s.name for s in steps], ["configure", "build", "fake", "debugger"])
+        self.assertEqual(steps[0].local, ("--fresh", PIN))
+        fake = tests["fake"]["filter"]
+        self.assertEqual(steps[2].ci, ("ctest", "--test-dir", "build/release", "--output-on-failure",
+                                       "--no-tests=error", "-L", fake["include"]["label"], "-LE",
+                                       fake["exclude"]["label"]))
+        self.assertEqual(steps[3].ci, ("ctest", "--preset", "debugger"))
+        self.assertEqual(tests["debugger"]["configurePreset"], "release")
+        self.assertEqual(tests["debugger"]["filter"]["include"]["label"], "^debugger$")
+
     def test_environment(self):
-        for name, (system, _, _) in self.loop.JOBS.items():
+        for name, (system, _, _) in self.ci_jobs().items():
             ci_env = self.ci[name][2]
             for key, value in self.loop.ENV[system].items():
                 if key in ci_env:

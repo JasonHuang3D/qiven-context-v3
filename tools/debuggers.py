@@ -7,8 +7,10 @@ each found and checked against its pin, and their output bounded.
   environment's symbol path or server is read, and -y the binary's
   directory.
 - Linux: gdb on PATH, checked against its line of tools/linux-pins.txt
-  ("command gdb VERSION SHA256 path/gdb"); none there or none on PATH, no
-  debugger.
+  ("debugger gdb VERSION SHA256 path/gdb").
+- Absent, a debugger is Absent, and its cases skip by name; present off
+  its pin, or with no pin line, it is NotFound, and its cases fail, as any
+  pin does.
 - hang_stacks(): every thread's stack of a running process, by the
   debugger attached without stopping it, and a dump of it; the watcher
   writes them before it kills a case past its limit.
@@ -34,7 +36,7 @@ FRAMES = 32
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
 HANG_SECONDS = 25.0  # the debugger's time, within the 30 s after the limit
-NO_GDB = "gdb not installed: needs the owner's word"
+NO_GDB = "no gdb: none on PATH"
 # A thread's header in cdb's ~*kn, and in gdb's thread apply all bt.
 CDB_THREAD = re.compile(r"^[.#]?\s*\d+\s+Id: [0-9a-f]+\.[0-9a-f]+ ")
 GDB_THREAD = re.compile(r"^Thread \d+ \(")
@@ -46,7 +48,11 @@ NOISE = re.compile("|".join((
 
 
 class NotFound(Exception):
-    """No debugger at hand, or one off its pin: the reason."""
+    """No debugger to use, the reason: one off its pin, or Absent."""
+
+
+class Absent(NotFound):
+    """No debugger installed: "no cdb: ..." or "no gdb: ...", a skip."""
 
 
 def clip(line):
@@ -112,18 +118,18 @@ def find_cdb():
     version, digest, source = found
     root = kits_root()
     if root is None:
-        raise NotFound("no Windows SDK: the registry names no KitsRoot10")
+        raise Absent("no cdb: no Windows SDK, the registry naming no KitsRoot10")
     path = root / source.removeprefix("kits/")
     if not path.is_file():
-        raise NotFound(f"no cdb.exe in the SDK's {Path(source).parent}")
+        raise Absent(f"no cdb: none in the SDK's {Path(source).parent.as_posix()}")
     return checked(path, version, digest, ["-version"])
 
 
 def find_gdb():
     found = shutil.which("gdb")
     if found is None:
-        raise NotFound(NO_GDB)
-    pinned = pin(LINUX_PINS, "command", "gdb")
+        raise Absent(NO_GDB)
+    pinned = pin(LINUX_PINS, "debugger", "gdb")
     if pinned is None:
         raise NotFound(f"gdb is not pinned in {LINUX_PINS.name}")
     version, digest, _ = pinned
@@ -131,7 +137,7 @@ def find_gdb():
 
 
 def find():
-    """The system's debugger, checked, or NotFound."""
+    """The system's debugger, checked, or NotFound (Absent when there is none)."""
     return find_cdb() if WINDOWS else find_gdb()
 
 

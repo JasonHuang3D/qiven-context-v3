@@ -10,7 +10,9 @@ name or its preset's (windows-msvc or ci-windows); none names every job of
 the system. The jobs and their steps are CI's (.github/workflows/ci.yml and
 msan.yml), with the local pins added: tools/loop_jobs.py, which a test
 checks against the workflows. CI runs unpinned on its images' own tools;
-the loop runs each job on this machine's pinned tools. macOS stays with CI
+the loop runs each job on this machine's pinned tools. Beyond CI's, the
+loop's own jobs, local alone: windows-symbols, the release preset keeping
+its PDBs, running the fake and the debugger cases. macOS stays with CI
 alone.
 
 - windows: a shell set up by vcvars64.bat -vcvars_ver=14.44.35207 (found by
@@ -75,7 +77,8 @@ CLANG_TIDY = ("19.1.7", "231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc8983
 
 # The jobs, their steps and CI's environment, with the local pins apart.
 _JOBS = runpy.run_path(str(ROOT / "tools" / "loop_jobs.py"))
-JOBS, ENV, CLEAN, LINUX_SHELL, Step = (_JOBS[k] for k in ("JOBS", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
+JOBS, LOCAL, TREES, ENV, CLEAN, LINUX_SHELL, Step = (
+    _JOBS[k] for k in ("JOBS", "LOCAL", "TREES", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
 
 
 class CannotRun(Exception):
@@ -281,9 +284,10 @@ def check_clang_tidy(env):
 
 
 def own_tree(report, tree, job):
-    """Every Windows job builds in build/ci, as CI's do, each on a clean
-    checkout: a tree another job left is emptied first, so that no file of
-    its build stays (the clean-binaries check reads every file)."""
+    """Every Windows job of CI's builds in build/ci, as CI's do, each on a
+    clean checkout, and the loop's own in its TREES': a tree another job
+    left is emptied first, so that no file of its build stays (the
+    clean-binaries check reads every file)."""
     marker = tree / ".qiven3-loop-job"
     held = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
     if tree.exists() and held != job:
@@ -317,7 +321,7 @@ def windows(args, report):
 
     counts = [0, 0, 0]
     for job in args.jobs:
-        own_tree(report, ROOT / "build" / "ci", job)
+        own_tree(report, ROOT / TREES.get(job, "build/ci"), job)
         got = run_steps(report, job, JOBS[job][2], args.phase, command, logs / job, ROOT, env)
         counts = [a + b for a, b in zip(counts, got)]
     report.line(f"loop: logs in {logs}", True)

@@ -10,9 +10,12 @@ bad argument's.
 On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt, and
 it needs the binary's PDB beside it: a build that keeps none (Release,
 whose binaries the clean-binaries check reads) skips the cases that name
-a function. On Linux gdb is not installed: every case that needs it is
-skipped with the reason (K17 there reads K8's core). Under a sanitizer,
-whose runtime takes the process's faults, they are skipped too.
+a function. On Linux it is gdb, pinned in tools/linux-pins.txt, whose
+half of the wrapper is not built yet: each case skips, saying so (K17
+there reads K8's core). Where the debugger is absent, each case skips by
+name, "no cdb" or "no gdb", with the runner's 125; one off its pin fails.
+Under a sanitizer, whose runtime takes the process's faults, they are
+skipped too.
 
 Every case here drives the debugger: the label debugger, never fake, so
 the loop runs them and CI never does.
@@ -70,10 +73,12 @@ class Debug(unittest.TestCase):
             self.skipTest("under a sanitizer its runtime takes the faults")
         try:
             debuggers.find()
+        except debuggers.Absent as e:
+            self.skipTest(str(e))
         except debuggers.NotFound as e:
-            if not WINDOWS:
-                self.skipTest(str(e))
             self.fail(f"the debugger: {e}")
+        if not WINDOWS:
+            self.skipTest("gdb's half of tools/debug.py is not built yet")
         self.fault = binaries.path(FAULT)
 
     def symbols(self):

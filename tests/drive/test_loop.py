@@ -159,10 +159,10 @@ class Windows(unittest.TestCase):
         vcvars.write_text('@set "PATH=%SystemRoot%\\system32"\r\n@set VCToolsVersion=14.44.35207\r\n'
                           '@set WindowsSDKVersion=10.0.26100.0\\\r\n', encoding="ascii")
         env = dict(os.environ, QIVEN3_VCVARS=str(vcvars))
-        # The loop's file alone in the scratch, with the status table it
+        # The loop's files alone in the scratch, with the status table it
         # reads, so that its logs are the scratch's.
         (top / "tools").mkdir()
-        for name in ("loop.py", "status.py"):
+        for name in ("loop.py", "loop_jobs.py", "status.py"):
             shutil.copy2(ROOT / "tools" / name, top / "tools" / name)
         status, lines, _ = run(top / "tools" / "loop.py", "build", "windows", "windows-msvc", env=env)
         self.assertEqual(status, 2, lines)

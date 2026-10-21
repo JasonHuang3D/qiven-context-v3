@@ -14,6 +14,12 @@ test reads one against the other (tests/drive/test_loop_ci.py):
 - windows-analysis's configure names the pinned clang-tidy, which the loop
   checks by SHA-256 and version (tools/loop.py's CLANG_TIDY).
 
+Beyond CI's, the loop's own jobs, LOCAL, which CI never runs: on Windows
+windows-symbols, the release preset keeping its PDB beside each binary,
+running the fake cases and then the debugger cases (the debugger test
+preset), so that K8, K16, K17 and the plants' names run inside the loop.
+Each Windows job builds in its own tree, TREES', build/ci by default.
+
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
 
@@ -88,8 +94,19 @@ def linux_job(preset, compiler, fuzz=False, clean=False, cxx=False):
     return ("linux", preset, steps)
 
 
-# Every job the loop runs, as CI's workflows name it: (system, preset, steps).
-JOBS = {
+def symbols_job():
+    """windows-symbols: release, its PDBs kept; fake's selection on its
+    tree, then the debugger cases."""
+    steps = [Step("configure", ("cmake", "--preset", "release"), "build", ("--fresh", PIN), None),
+             Step("build", ("cmake", "--build", "--preset", "release"), "build", after="configure"),
+             Step("fake", ("ctest", "--test-dir", "build/release", "--output-on-failure", "--no-tests=error",
+                           "-L", "^fake$", "-LE", "^debugger$")),
+             Step("debugger", ("ctest", "--preset", "debugger"))]
+    return ("windows", "release", steps)
+
+
+# Every job of CI's the loop runs, as CI's workflows name it: (system, preset, steps).
+CI_JOBS = {
     "windows-msvc": windows_job("ci-windows", clean=True),
     "windows-asan": windows_job("ci-asan"),
     "windows-stack": windows_job("ci-stack"),
@@ -101,3 +118,9 @@ JOBS = {
     "linux-plain": linux_job("linux-plain", "gcc", clean=True),
     "linux-msan": linux_job("linux-msan", "clang", cxx=True),
 }
+
+# The loop's own jobs, local alone (CI never runs them), and every job.
+LOCAL = {"windows-symbols": symbols_job()}
+JOBS = {**CI_JOBS, **LOCAL}
+# Each Windows job's tree, build/ci when it is not named here.
+TREES = {"windows-symbols": "build/release"}

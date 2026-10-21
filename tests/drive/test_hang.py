@@ -9,8 +9,8 @@ tree killed with it; and with no debugger at hand, "hang: no debugger, no
 stacks", still killed, 124.
 
 On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt; on
-Linux gdb, which is not installed: the cases that need it are skipped
-with the reason. Under a sanitizer, whose runtime handles the process's
+Linux gdb, pinned in tools/linux-pins.txt. Where it is absent, K8 skips by
+name, "no cdb" or "no gdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
 
 K8 drives the debugger: the label debugger, never fake, so the loop runs
@@ -42,10 +42,10 @@ IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
 
 
 def debugger_reason():
-    """Why no debugger is at hand, or None."""
+    """Why no debugger is at hand, or None; one off its pin raises."""
     try:
         debuggers.find()
-    except debuggers.NotFound as e:
+    except debuggers.Absent as e:
         return str(e)
     return None
 
@@ -102,10 +102,12 @@ class HangStacks(unittest.TestCase):
     def test_K8_hang(self):
         if sanitized():
             self.skipTest("under a sanitizer its report stands for the entry's")
-        reason = debugger_reason()
-        if reason is not None and not WINDOWS:
+        try:
+            reason = debugger_reason()
+        except debuggers.NotFound as e:
+            self.fail(f"the debugger: {e}")
+        if reason is not None:
             self.skipTest(reason)
-        self.assertIsNone(reason, "K8 needs the debugger")
         dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
         start = time.time()
         status, _, err, seconds, seen = run_watched([binaries.path(FAULT), "hang"], "K8", LIMIT)

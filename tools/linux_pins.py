@@ -14,11 +14,20 @@ fields, separated by white space, a '#' starting a comment:
   the archive's index (apt-cache show NAME=VERSION) must still give SHA256
   for its .deb; an index that no longer lists that version is noted, its
   digest not re-read. SOURCE is ubuntu:SUITE/COMPONENT.
+- The compilers' hold: each deb pin of the source packages HELD (gcc-14 and
+  llvm-toolchain-18) must be held (apt-mark hold), so that it moves by a
+  deliberate re-pin alone; and no other package may be held, so that the
+  system's updates stay on.
 - download: a release file, kept as DIR/downloads/ and the URL's last
   part, its SHA-256 re-read. SOURCE is the URL.
 - command: a tool. SOURCE is prefix/PATH, under DIR, or path/NAME, found
   on PATH. The resolved file's SHA-256 must be SHA256, and a line of
   `TOOL --version` must hold VERSION as a whole token.
+- debugger: a development aid, its debugger cases skipping by name where
+  it is absent. SOURCE is path/NAME. Absent from PATH, it is noted; present,
+  it is checked as a command is.
+- debugger-deb: a package installed with a debugger, checked as a deb is;
+  not installed, it is noted.
 - libcxx: libc++ with libc++abi within it, built under MemorySanitizer.
   SOURCE is prefix/PATH, its install's prefix under DIR: lib/libc++.a's
   SHA-256 must be SHA256, and include/c++/v1/__config's _LIBCPP_VERSION
@@ -38,7 +47,8 @@ import sys
 from pathlib import Path
 
 PINS = Path(__file__).resolve().parent / "linux-pins.txt"
-KINDS = ("deb", "download", "command", "libcxx")
+KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx")
+HELD = ("gcc-14", "llvm-toolchain-18")  # the source packages of the pinned compilers, held
 HEX = re.compile(r"[0-9a-f]{64}")
 SHOWN = 40  # mismatches printed at most, then a count of the rest
 TIMEOUT = 60
@@ -93,14 +103,17 @@ def under(prefix, source):
     return prefix / source.removeprefix("prefix/")
 
 
-def installed_debs(names):
-    """dpkg's installed version of each name that is installed."""
-    status, out = run(["dpkg-query", "-W", "-f", "${Package} ${Version} ${db:Status-Abbrev}\n", *names])
+def installed_debs(names=()):
+    """(version, source package, held) of each name that is installed; of
+    every installed package when no name is given. dpkg's status is
+    "ii", or "hi" when held."""
+    status, out = run(["dpkg-query", "-W", "-f", "${Package} ${Version} ${source:Package} ${db:Status-Abbrev}\n",
+                       *names])
     found = {}
     for line in (out if status is not None else "").splitlines():
         parts = line.split()
-        if len(parts) == 3 and parts[2] == "ii":
-            found[parts[0]] = parts[1]
+        if len(parts) == 4 and len(parts[3]) >= 2 and parts[3][1] == "i":
+            found[parts[0]] = (parts[1], parts[2], parts[3][0] == "h")
     return found
 
 
@@ -114,27 +127,40 @@ def index_digest(name, version):
 
 
 def check_debs(pins, out, notes):
-    debs = [p for p in pins if p[1] == "deb"]
+    debs = [p for p in pins if p[1] in ("deb", "debugger-deb")]
     if not debs:
         return
     if shutil.which("dpkg-query") is None or shutil.which("apt-cache") is None:
         out.append("deb: dpkg-query or apt-cache is not on PATH")
         return
     have = installed_debs([p[2] for p in debs])
-    for _, _, name, version, digest, source in debs:
+    for _, kind, name, version, digest, source in debs:
         if not source.startswith("ubuntu:"):
-            out.append(f"deb {name}: source {source!r} is not ubuntu:SUITE/COMPONENT")
+            out.append(f"{kind} {name}: source {source!r} is not ubuntu:SUITE/COMPONENT")
         if name not in have:
-            out.append(f"deb {name}: not installed; the pin is {version}")
+            (notes if kind == "debugger-deb" else out).append(f"{kind} {name}: not installed; the pin is {version}")
             continue
-        if have[name] != version:
-            out.append(f"deb {name}: installed {have[name]}; the pin is {version}")
+        if have[name][0] != version:
+            out.append(f"{kind} {name}: installed {have[name][0]}; the pin is {version}")
             continue
         listed = index_digest(name, version)
         if listed is None:
-            notes.append(f"deb {name} {version}: the archive's index no longer lists it; digest not re-read")
+            notes.append(f"{kind} {name} {version}: the archive's index no longer lists it; digest not re-read")
         elif listed != digest:
-            out.append(f"deb {name} {version}: the index's SHA-256 is {listed}; the pin {digest}")
+            out.append(f"{kind} {name} {version}: the index's SHA-256 is {listed}; the pin {digest}")
+    check_hold(debs, have, installed_debs(), out)
+
+
+def check_hold(debs, have, every, out):
+    """Each pinned package of a HELD source held; no other package held."""
+    compilers = {name for _, kind, name, *_ in debs if kind == "deb" and name in have and have[name][1] in HELD}
+    for name in sorted(compilers):
+        if not have[name][2]:
+            out.append(f"deb {name}: a pinned compiler package of {have[name][1]}, not held "
+                       f"(apt-mark hold {name})")
+    for name in sorted(n for n, (_, _, held) in every.items() if held and n not in compilers):
+        out.append(f"deb {name}: held, but not a pinned compiler package: only the compilers are held, "
+                   "the system's updates stay on")
 
 
 def check_download(prefix, name, digest, source, out):
@@ -150,29 +176,38 @@ def check_download(prefix, name, digest, source, out):
         out.append(f"download {name}: {path.name}'s SHA-256 is {got}; the pin {digest}")
 
 
-def check_command(prefix, name, version, digest, source, out):
+def check_command(prefix, name, version, digest, source, out, kind="command"):
     if source.startswith("path/"):
         found = shutil.which(source.removeprefix("path/"))
         path = Path(found) if found else None
     else:
         path = under(prefix, source)
         if path is None:
-            out.append(f"command {name}: source {source!r} is neither prefix/PATH nor path/NAME")
+            out.append(f"{kind} {name}: source {source!r} is neither prefix/PATH nor path/NAME")
             return
     if path is None or not path.is_file():
-        out.append(f"command {name}: missing ({source})")
+        out.append(f"{kind} {name}: missing ({source})")
         return
     real = path.resolve()
     got = sha256(real)
     if got != digest:
-        out.append(f"command {name}: {real.name}'s SHA-256 is {got}; the pin {digest}")
+        out.append(f"{kind} {name}: {real.name}'s SHA-256 is {got}; the pin {digest}")
     status, text = run([str(path), "--version"])
     token = re.compile(r"(?<![\w.])" + re.escape(version) + r"(?![\w.])")
     if status != 0:
-        out.append(f"command {name}: --version failed ({status}): {text.strip()[:120]}")
+        out.append(f"{kind} {name}: --version failed ({status}): {text.strip()[:120]}")
     elif not any(token.search(line) for line in text.splitlines()):
         first = text.strip().splitlines()[0] if text.strip() else "no output"
-        out.append(f"command {name}: --version gives {first[:120]!r}; the pin is {version}")
+        out.append(f"{kind} {name}: --version gives {first[:120]!r}; the pin is {version}")
+
+
+def check_debugger(prefix, name, version, digest, source, out, notes):
+    if not source.startswith("path/"):
+        out.append(f"debugger {name}: source {source!r} is not path/NAME")
+    elif shutil.which(source.removeprefix("path/")) is None:
+        notes.append(f"debugger {name}: absent from PATH; its debugger cases skip by name")
+    else:
+        check_command(prefix, name, version, digest, source, out, "debugger")
 
 
 def check_libcxx(prefix, name, version, digest, source, out):
@@ -206,6 +241,8 @@ def check(prefix, pins):
             check_download(prefix, name, digest, source, out)
         elif kind == "command":
             check_command(prefix, name, version, digest, source, out)
+        elif kind == "debugger":
+            check_debugger(prefix, name, version, digest, source, out, notes)
         elif kind == "libcxx":
             check_libcxx(prefix, name, version, digest, source, out)
     return out, notes
