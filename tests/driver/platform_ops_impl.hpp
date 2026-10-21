@@ -243,6 +243,14 @@ Result random_bytes(Drive<P>& d, memory::Arena& arena, ArgView request) {
     return scalar(to_hex(bytes));
 }
 
+// wipe of n bytes the drive filled with 0xa5: the bytes read back after.
+template <class P>
+Result wipe(Drive<P>& d, memory::Arena& arena, ArgView request) {
+    memory::String bytes(count(request, "n"), static_cast<char>(0xa5), memory::Allocator<char>(arena));
+    d.platform().wipe(std::as_writable_bytes(std::span<char>(bytes)));
+    return scalar(to_hex(bytes));
+}
+
 template <class P>
 Result now(Drive<P>& d, memory::Arena&, ArgView) {
     const auto t = d.platform().now();
@@ -335,6 +343,7 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"stdout", {ops::standard_output<P>, ops::member}},
         {"residual", {ops::residual<P>, ops::member}},
         {"random_bytes", {ops::random_bytes<P>, ops::member}},
+        {"wipe", {ops::wipe<P>, ops::member}},
         {"now", {ops::now<P>, ops::member}},
         {"pages", {ops::pages<P>, ops::none}},
         {"pages_check", {ops::pages_check<P>, ops::none}},

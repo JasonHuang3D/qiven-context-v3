@@ -1,9 +1,9 @@
 """The platform's cases P27 to P30, each defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
-Here: P27 (create and read, and two drives' creates racing), P28 (pages)
-and P29 (normcase). P30 (wipe)
-comes with package 2's digest.Key, its first user. The Windows adapter's
+Here: P27 (create and read, and two drives' creates racing), P28 (pages),
+P29 (normcase) and P30 (wipe, which digest.Key's ends and moves call;
+its unit cases count those calls on the fake). The Windows adapter's
 create and read are its module win/files', in package 5; until then a
 binding with CREATE_READ false checks that each answers unsupported, and
 the case is skipped.
@@ -157,3 +157,13 @@ class PlatformLast:
                     expected = ascii_folded(path) if self.ADAPTER == "fake" else folded
                     self.assertEqual(d.call("normcase", path=path), expected)
             self.assertEqual(d.call("normcase", path=""), "")
+
+    def test_P30_wipe(self):
+        """wipe of 32 bytes the drive filled with 0xa5, then of an empty
+        span: the 32 bytes read back zero; nothing for the empty span, no
+        error."""
+        with self.drive() as d:
+            self.assertEqual(d.call("wipe", n=32), "00" * 32)
+            self.assertEqual(d.call("wipe", n=0), "")
+            if self.ADAPTER == "fake":
+                self.assertEqual(d.call("calls").count("wipe"), 2)

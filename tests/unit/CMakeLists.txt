@@ -55,6 +55,12 @@ if(QIVEN3_SYSTEM_HEAP AND QIVEN3_SANITIZE MATCHES "address")
     qiven3_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()
 
+# digest's cases: its vectors, its key's wipes on the fake platform, its
+# budgets and fault runs.
+qiven3_add_cases(qiven3_unit_digest LABELS fast fake
+  SOURCES digest_test.cpp digest_memory_test.cpp
+  LINK qiven3_base qiven3_faults qiven3_platform_fake)
+
 # The log's cases: log, ring, the report's events, the static half's, and
 # K13's binary half, whose binary tests/drive/test_log.py reads.
 qiven3_add_cases(qiven3_unit_log LABELS fast fake

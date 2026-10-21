@@ -48,6 +48,7 @@ def operations(case):
         ("stdout", lambda: {"text": text}),
         ("residual", lambda: {"paths": [str(root)]}),
         ("random_bytes", lambda: {"n": 64}),
+        ("wipe", lambda: {"n": 32}),
         ("now", lambda: {}),
         ("pages", lambda: {"n": 1}),
     )

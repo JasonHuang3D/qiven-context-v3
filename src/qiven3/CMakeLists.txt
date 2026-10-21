@@ -3,6 +3,8 @@
 add_library(qiven3_base STATIC
   canon.cpp
   canon.hpp
+  digest.cpp
+  digest.hpp
   json.cpp
   json.hpp
   json_bytes.hpp
@@ -12,4 +14,6 @@ add_library(qiven3_base STATIC
   utf.hpp
 )
 target_include_directories(qiven3_base PUBLIC "${PROJECT_SOURCE_DIR}/src")
+# digest's keys are templates on the platform's contract, its header alone:
+# a binary that makes a key links its adapter.
 target_link_libraries(qiven3_base PUBLIC qiven3_memory PRIVATE qiven3_flags)
