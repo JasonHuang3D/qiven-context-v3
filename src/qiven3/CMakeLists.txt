@@ -10,6 +10,7 @@ add_library(qiven3_base STATIC
   json_bytes.hpp
   qiven3.cpp
   qiven3.hpp
+  utc.hpp
   utf.cpp
   utf.hpp
 )

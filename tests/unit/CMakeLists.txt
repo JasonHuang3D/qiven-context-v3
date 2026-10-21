@@ -62,6 +62,12 @@ qiven3_add_cases(qiven3_unit_digest LABELS fast fake
   SOURCES digest_test.cpp digest_memory_test.cpp digest_fixtures_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures)
 
+# utc's cases: its vectors, L1's 8-hour shift through support/fixtures,
+# the zone tests/drive/test_utc.py sets by TZ, its budget and fault run.
+qiven3_add_cases(qiven3_unit_utc LABELS fast fake
+  SOURCES utc_test.cpp
+  LINK qiven3_faults qiven3_fixtures)
+
 # The log's cases: log, ring, the report's events, the static half's, and
 # K13's binary half, whose binary tests/drive/test_log.py reads.
 qiven3_add_cases(qiven3_unit_log LABELS fast fake
