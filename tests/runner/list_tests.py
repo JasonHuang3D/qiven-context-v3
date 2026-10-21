@@ -1,11 +1,15 @@
-"""Print each Python test of tests/ for CTest: its id, its labels, serial.
+"""Print each Python test of tests/ for CTest: its id, its labels, serial,
+and its own limit.
 
 Run from the checkout's root as python -I tests/runner/list_tests.py. Each
-line is "<id>\t<labels by commas>\t<0 or 1>". A test's labels are its
-package's, or its module's where MODULE_LABELS names it, below, and those
-its class names in ctest_labels; a class whose ctest_serial is true runs
-alone. A module that does not import, or a test in a package with no labels
-here, fails the listing, and so the build.
+line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
+test's labels are its package's, or its module's where MODULE_LABELS names
+it, below, and those its class names in ctest_labels; a class whose
+ctest_serial is true runs alone; a class whose ctest_limit is a whole number
+of seconds states the watcher's limit for its tests, which otherwise their
+labels give (runner/ctest_tests.cmake). A module that does not import, a
+test in a package with no labels here, or a limit of another form fails the
+listing, and so the build.
 """
 
 import sys
@@ -55,7 +59,12 @@ def main():
         module = ".".join(test_id.split(".")[1:3])
         labels = MODULE_LABELS.get(module, PACKAGE_LABELS[package]) + tuple(getattr(test, "ctest_labels", ()))
         serial = 1 if getattr(test, "ctest_serial", False) else 0
-        print(f"{test_id}\t{','.join(labels)}\t{serial}")
+        limit = getattr(test, "ctest_limit", None)
+        if limit is not None and (type(limit) is not int or limit < 1):
+            print(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds", file=sys.stderr)
+            failed = True
+            continue
+        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}")
     for error in loader.errors:
         print(error, file=sys.stderr)
         failed = True

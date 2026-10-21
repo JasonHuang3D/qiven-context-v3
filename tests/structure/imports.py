@@ -31,8 +31,10 @@ ASAN_DLL = "clang_rt.asan_dynamic-x86_64.dll"
 FUZZ_DLLS = frozenset(("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "ucrtbase.dll", ASAN_DLL))
 FUZZ_PREFIX = "api-ms-win-crt-"  # the universal C runtime's API sets, under /MD
 MSAN_LIBS = frozenset(("libc++.so.1", "libc++abi.so.1"))
-# clang's sanitizer runtimes link glibc's resolver, which the text's list lacks.
+# clang's sanitizer runtimes link glibc's resolver, which the system's list
+# lacks: the residual of a build by clang under a sanitizer alone, never gcc's.
 SANITIZER_LIBS = frozenset(("libresolv.so.2",))
+CLANG = "Clang"  # CMake's compiler id, clang's
 # The floor: Ubuntu 24.04's glibc, the newest symbol version a binary needs.
 GLIBC_FLOOR = (2, 39)
 GLIBC_PREFIX = "GLIBC_"
@@ -214,9 +216,9 @@ def read_file(path):
     return read(Path(path).read_bytes())
 
 
-def outside(imports, system, sanitize):
+def outside(imports, system, sanitize, compiler=""):
     """Each import on neither the system's list nor the preset's residual,
-    given the build's QIVEN3_SANITIZE."""
+    given the build's QIVEN3_SANITIZE and its C++ compiler's CMake id."""
     if system == "windows":
         allowed = set(WINDOWS_SYSTEM)
         if "fuzzer" in sanitize:
@@ -226,7 +228,7 @@ def outside(imports, system, sanitize):
         return [n for n in imports.names
                 if n.lower() not in allowed and not ("fuzzer" in sanitize and n.lower().startswith(FUZZ_PREFIX))]
     allowed = set(LINUX_SYSTEM) | (MSAN_LIBS if sanitize == "memory" else set())
-    if sanitize:
+    if sanitize and compiler == CLANG:
         allowed |= SANITIZER_LIBS
     return [n for n in imports.names if n not in allowed]
 

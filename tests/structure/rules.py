@@ -7,8 +7,8 @@ identifiers and #include directives from the sources by the rules' lexer
 (lexer.py); no rule reads C++ by a regular expression. The one text rule
 is B1's, a substring search for sqlite3. check() applies every rule to one
 tree, v3's or the planted one, and gives its findings. STATED holds the
-allowances the text states beyond the rows' cells, and PENDING each one the
-text lacks, each with its reason.
+allowances the text states beyond the rows' cells, each with its reason;
+an allowance the text lacks has no place here.
 """
 
 import os
@@ -144,15 +144,11 @@ STATED = {
                                                "path fails",
     ("B9", "tests/driver/common.cpp", "io.h"): "as B6's",
     ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
-}
-# Allowances the text lacks, (rule, file, what), each with its reason, until
-# the text grows it.
-PENDING = {
     ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
                                                          "that reaches the diagnostic entry's report hook",
     ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
 }
-ALLOWANCES = (*subset.CELLS, *STATED, *PENDING)
+ALLOWANCES = (*subset.CELLS, *STATED)
 EXEMPT = {
     "B1": (STRUCTURE, "tests/audit/read_audit"),
     "B2": (STRUCTURE,),

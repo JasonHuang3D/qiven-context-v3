@@ -10,11 +10,13 @@
 set(QIVEN3_SKIP_CODE 125)
 set(qiven3_bin "${PROJECT_BINARY_DIR}/bin")
 
-# qiven3_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...])
+# qiven3_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...]
+#                  [LIMIT <seconds>])
 # A case binary: its sources, linked with the runner; each case a CTest test
-# labelled cxx and LABELS.
+# labelled cxx and LABELS, under the watcher's limit by its labels, or LIMIT
+# where the binary states its own (runner/ctest_tests.cmake).
 function(qiven3_add_cases target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "LABELS;SOURCES;LINK")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "LIMIT" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_add_cases(${target}): no SOURCES")
   endif()
@@ -22,6 +24,7 @@ function(qiven3_add_cases target)
   list(JOIN arg_LABELS "," labels)
   set_property(GLOBAL APPEND PROPERTY QIVEN3_CASE_BINARIES ${target})
   set_property(GLOBAL PROPERTY QIVEN3_CASE_LABELS_${target} "${labels}")
+  set_property(GLOBAL PROPERTY QIVEN3_CASE_LIMIT_${target} "${arg_LIMIT}")
 endfunction()
 
 add_subdirectory(runner)
@@ -57,12 +60,14 @@ if(MSVC AND QIVEN3_SANITIZE MATCHES "address")
   list(APPEND qiven3_runtime_files "${qiven3_bin}/${qiven3_asan_dll}")
 endif()
 
-# The listing step's inputs: each case binary's labels and file.
+# The listing step's inputs: each case binary's labels, its own limit or
+# none, and its file.
 get_property(qiven3_case_binaries GLOBAL PROPERTY QIVEN3_CASE_BINARIES)
 set(qiven3_inputs "")
 foreach(target IN LISTS qiven3_case_binaries)
   get_property(labels GLOBAL PROPERTY QIVEN3_CASE_LABELS_${target})
-  string(APPEND qiven3_inputs "${labels}\t$<TARGET_FILE:${target}>\n")
+  get_property(limit GLOBAL PROPERTY QIVEN3_CASE_LIMIT_${target})
+  string(APPEND qiven3_inputs "${labels}\t${limit}\t$<TARGET_FILE:${target}>\n")
 endforeach()
 set(qiven3_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
 file(GENERATE OUTPUT "${qiven3_inputs_file}" CONTENT "${qiven3_inputs}")

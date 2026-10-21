@@ -33,7 +33,9 @@
 - dump opens a minidump (Windows) or a core file (Linux): the event, the
   exception's context (.ecxr; gdb's frame), its stack and locals, and
   every thread's stack, within the same bounds; a dump of a fault ends
-  "fault <cause>", exit 1; one of none, "dump read", exit 0.
+  "fault <cause>", exit 1; one of none, "dump read", exit 0. Its binaries
+  are found in --symbols, by default the minidump's directory on Windows,
+  and on Linux the binary the core's notes name, where it ran.
 
 On Linux the wrapper is gdb's, in batch mode, tools/debug_gdb.py: the same
 actions, bounds, transcript and exit codes; a signal is the fault, seen
@@ -326,7 +328,8 @@ def parse(argv):
     shapes["case"].add_argument("test")
     shapes["case"].add_argument("--build", help="the build directory (default: QIVEN3_BUILD)")
     shapes["dump"].add_argument("file")
-    shapes["dump"].add_argument("--symbols", help="the binaries' directory (default: the dump's)")
+    shapes["dump"].add_argument("--symbols", help="the binaries' directory (default: the dump's on Windows; "
+                                "on Linux the binary the core's notes name)")
     for name in ("case", "run"):
         shape = shapes[name]
         shape.add_argument("--break", dest="break_", action="append", default=[])
@@ -360,7 +363,7 @@ def target(args):
     if args.mode == "dump":
         if not is_dump(args.file):
             raise CannotRun(f"{args.file} is no {'minidump' if WINDOWS else 'core file'}")
-        symbols = Path(args.symbols or Path(args.file).resolve().parent)
+        symbols = Path(args.symbols) if args.symbols else None
         return [str(Path(args.file).resolve())], symbols, None, None, None
     env, cwd = None, None
     if args.mode == "case":
@@ -381,6 +384,7 @@ def under_cdb(args, out, deadline):
     exe = DEBUGGERS["find_cdb"]()
     cdb_args, symbols, binary, env, cwd = target(args)
     if args.mode == "dump":
+        symbols = symbols or Path(cdb_args[0]).parent
         cdb_args = ["-z", *cdb_args]
     cdb = Cdb(exe, cdb_args, symbols, deadline, env, cwd)
     try:

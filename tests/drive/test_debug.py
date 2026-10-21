@@ -4,8 +4,9 @@ plant_watch: the break, the watch's stops, the locals with the counter, a
 stack frame plant_watch, within the bounds; its control, --lines 5, the
 transcript cut at 5 lines with its last line. K17, debug.py dump on K1's
 minidump naming plant_null, and on Linux on K8's core, written by the
-watcher's hang path, naming plant_hang; its control, a file that is no
-dump, exit 2. And the wrapper's other ends: a fault's, a case's, the time
+watcher's hang path, naming plant_hang, read with --symbols and without,
+the binary then the one the core's notes name; its control, a file that is
+no dump, exit 2. And the wrapper's other ends: a fault's, a case's, the time
 bound's, a bad argument's.
 
 On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt, and
@@ -158,15 +159,17 @@ class Debug(unittest.TestCase):
         written = [p for p in dumps.glob(f"{FAULT}-*-hang.core") if p.stat().st_mtime >= start - 1
                    and any(line.startswith("Saved corefile ") and line.endswith(p.name) for line in err)]
         self.assertEqual(len(written), 1, (written, err))
-        code, lines = debug("dump", written[0], "--symbols", self.fault.parent)
-        last = self.bounded(lines)
-        self.assertEqual((code, last["outcome"]), (0, "dump read"), lines)
-        self.assertEqual(lines[0], "dump: no event", lines)
-        for action in ("> context", "> stack", "> locals", "> threads"):
-            self.assertIn(action, lines)
-        threads = sections(lines[lines.index("> threads") + 1:-1])
-        self.assertGreaterEqual(sum(any(IN_PLANT.search(line) for line in s) for s in threads), 2, lines)
-        self.assertFalse(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
+        for symbols in (("--symbols", self.fault.parent), ()):
+            with self.subTest(symbols=symbols):
+                code, lines = debug("dump", written[0], *symbols)
+                last = self.bounded(lines)
+                self.assertEqual((code, last["outcome"]), (0, "dump read"), lines)
+                self.assertEqual(lines[0], "dump: no event", lines)
+                for action in ("> context", "> stack", "> locals", "> threads"):
+                    self.assertIn(action, lines)
+                threads = sections(lines[lines.index("> threads") + 1:-1])
+                self.assertGreaterEqual(sum(any(IN_PLANT.search(line) for line in s) for s in threads), 2, lines)
+                self.assertFalse(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
 
     def test_K17_control(self):
         with tempfile.TemporaryDirectory() as scratch:

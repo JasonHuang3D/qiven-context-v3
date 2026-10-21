@@ -44,6 +44,9 @@ set(QIVEN3_PIN_PYTHON 3.15.0)
 
 message(STATUS "qiven3: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "qiven3: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
+# The C++ compiler's id in the cache, where K11 reads it: clang's sanitizer
+# runtimes, not gcc's, link a residual (tests/structure/imports.py).
+set(QIVEN3_CXX_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}" CACHE INTERNAL "the C++ compiler's CMake id")
 
 if(QIVEN3_PIN_TOOLS)
   # MSVC's version by VERSION_EQUAL: CMake gives it a fourth part, 19.44.35228.0.

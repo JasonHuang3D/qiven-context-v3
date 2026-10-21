@@ -4,8 +4,10 @@ from its bytes; on Linux it names its loader, holds no run path, and needs
 no glibc symbol version past the floor's, GLIBC_2.39. The controls:
 qiven3-fault-import, which imports the test tree's own library, is caught;
 on Linux, so is a copy of a built binary with one version need renamed
-GLIBC_9.99. The reader's own controls: images made here, each import, run
-path and version need found."""
+GLIBC_9.99. libresolv.so.2 passes under clang's sanitizer runtimes alone:
+an image importing it is caught under gcc's. On macOS Mach-O is not read,
+so K11's binaries are skipped there: a residual. The reader's own controls:
+images made here, each import, run path and version need found."""
 
 import struct
 import sys
@@ -23,6 +25,8 @@ PLANTED = "qiven3-fault-import"
 PLANTED_LIBRARY = "qiven3_fault_lib.dll" if WINDOWS else "libqiven3_fault_lib.so"
 LOADER = "/lib64/ld-linux-x86-64.so.2"
 PAST = "GLIBC_9.99"  # the control's need, past every floor
+RESOLV = "libresolv.so.2"  # clang's sanitizer runtimes' residual
+MACOS = sys.platform == "darwin"
 
 
 def listed():
@@ -34,8 +38,10 @@ def listed():
 class Imports(unittest.TestCase):
     ctest_labels = ("fake",)
 
+    @unittest.skipIf(MACOS, "Mach-O is not read, so K11 skips macOS: a residual")
     def test_K11_binaries(self):
         sanitize = build_option("QIVEN3_SANITIZE") or ""
+        compiler = build_option("QIVEN3_CXX_COMPILER_ID") or ""
         found, past = {}, {}
         for binary in listed():
             read = imports.read_file(binary)
@@ -45,7 +51,7 @@ class Imports(unittest.TestCase):
                 self.assertTrue(imports.newest_glibc(read), binary)
                 past[binary.stem] = imports.past_floor(read)
             self.assertIn("kernel32.dll" if WINDOWS else "libc.so.6", [n.lower() for n in read.names], binary)
-            found[binary.stem] = imports.outside(read, SYSTEM, sanitize)
+            found[binary.stem] = imports.outside(read, SYSTEM, sanitize, compiler)
         self.assertIn(PLANTED, found)
         # The control: the planted binary's import of the test tree's library, caught.
         self.assertEqual(found.pop(PLANTED), [PLANTED_LIBRARY])
@@ -84,6 +90,20 @@ class Imports(unittest.TestCase):
         elf = imports.Imports("elf", ("libc.so.6", "libc++.so.1", "libstdc++.so.6"))
         self.assertEqual(imports.outside(elf, "linux", "address,undefined"), ["libc++.so.1", "libstdc++.so.6"])
         self.assertEqual(imports.outside(elf, "linux", "memory"), ["libstdc++.so.6"])
+        self.assertEqual(imports.outside(elf, "linux", "memory", "Clang"), ["libstdc++.so.6"])
+
+    def test_K11_resolver(self):
+        """libresolv.so.2 under clang's sanitizer runtimes alone: an image
+        importing it passes under each of clang's sanitized presets and is
+        caught under gcc's, or with no sanitizer."""
+        read = imports.read(elf_image(["libc.so.6", RESOLV]))
+        for sanitize in ("address,undefined", "thread", "fuzzer,address,undefined", "memory"):
+            with self.subTest(sanitize=sanitize):
+                self.assertEqual(imports.outside(read, "linux", sanitize, "Clang"), [])
+                self.assertEqual(imports.outside(read, "linux", sanitize, "GNU"), [RESOLV])
+                self.assertEqual(imports.outside(read, "linux", sanitize), [RESOLV])
+        for compiler in ("Clang", "GNU"):
+            self.assertEqual(imports.outside(read, "linux", "", compiler), [RESOLV])
 
     def test_K11_glibc_floor(self):
         """The floor's versions: 2.39 and below pass, past it or of no

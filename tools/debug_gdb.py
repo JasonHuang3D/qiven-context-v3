@@ -19,7 +19,8 @@ under gdb in batch mode, its output read into debug.py's transcript.
 - The commands: break, watch, info locals, bt 32, thread apply all bt 32,
   print, step, next, run and continue; a core read as gdb <binary> <core>,
   the binary named by the core's notes (NT_PRPSINFO's name, NT_FILE's
-  path) found in --symbols, by default the core's directory.
+  path): with --symbols, that name in its directory; by default, the file
+  at NT_FILE's path, where the binary ran.
 - Past the time bound gdb's process group, the case within it, is killed.
 
 Run by tools/debug.py from its file (runpy): it imports nothing of this
@@ -181,7 +182,8 @@ def notes(path):
 
 
 def core_binary(path):
-    """The binary's file name the core's notes give, or None."""
+    """The binary's path the core's notes give (NT_FILE's, or NT_PRPSINFO's
+    bare name where NT_FILE names none), or None."""
     try:
         found = notes(path)
     except (OSError, struct.error):
@@ -192,10 +194,10 @@ def core_binary(path):
         if kind == NT_FILE and len(desc) >= 16:
             entries, = struct.unpack_from("<Q", desc, 0)
             paths = desc[16 + 24 * entries:].split(b"\0")
-            for each in (Path(p.decode("utf-8", "replace")).name for p in paths if p):
-                if name and each.startswith(name):
+            for each in (Path(p.decode("utf-8", "replace")) for p in paths if p):
+                if name and each.name.startswith(name):
                     return each
-    return name or None
+    return Path(name) if name else None
 
 
 def session(gdb, argv, deadline, env=None, cwd=None):
@@ -233,12 +235,12 @@ def run(gdb, args, command, env, cwd, out, deadline, shared):
 def dump(gdb, core, symbols, out, deadline, shared):
     """dump: the core's context, its stack and locals, every thread's
     stack: (outcome, code)."""
-    name = core_binary(core)
-    if name is None:
+    named = core_binary(core)
+    if named is None:
         return f"could not run: {core}'s notes name no binary", 2
-    binary = Path(symbols) / name
+    binary = Path(symbols) / named.name if symbols else named
     if not binary.is_file():
-        return f"could not run: no binary {name} in {symbols}", 2
+        return f"could not run: no binary {named.name} {f'in {symbols}' if symbols else f'at {named}'}", 2
     frames = shared["FRAMES"]
     steps = [("> context", "frame"), ("> stack", f"bt {frames}"), ("> locals", "info locals"),
              ("> threads", f"thread apply all bt {frames}")]

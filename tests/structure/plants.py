@@ -179,6 +179,12 @@ PLANTS = {
         "int drive_binary() { return _setmode(0, _O_BINARY); }\n",
     "tests/driver/io_other.cpp": "#include <io.h>\nint drive_other() { return 0; }\n",
     "tests/driver/fcntl_other.cpp": "#include <fcntl.h>\nint drive_mode() { return _O_BINARY; }\n",
+    # B9's two more by file and header: the debug runtime's assertion and
+    # the log's open on Linux; the same headers in another file are caught.
+    "tests/faults/fault_assert.cpp": "#include <crtdbg.h>\nint fault_assert(int x) { _ASSERTE(x > 0); return x; }\n",
+    "tests/faults/assert_other.cpp": "#include <crtdbg.h>\nint fault_other() { return 0; }\n",
+    "src/diag/out.cpp": "#include <fcntl.h>\nint diag_open_mode() { return O_WRONLY; }\n",
+    "src/diag/fcntl_other.cpp": "#include <fcntl.h>\nint diag_other_mode() { return O_RDONLY; }\n",
     "src/memory/poison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
         "#include <sanitizer/asan_interface.h>\n#endif\n",
     "src/memory/unpoison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
@@ -198,7 +204,8 @@ PLANTED = [
     ("B5", "src/entry/windows_include.cpp", ""), ("B5", "qiven3_location", ""),
     ("B6", "src/entry/io_include.cpp", ""), ("B6", "src/entry/locking.cpp", ""),
     ("B6", "tests/driver/io_other.cpp", ""), ("B9", "tests/driver/io_other.cpp", ""),
-    ("B9", "tests/driver/fcntl_other.cpp", ""),
+    ("B9", "tests/driver/fcntl_other.cpp", ""), ("B9", "tests/faults/assert_other.cpp", ""),
+    ("B9", "src/diag/fcntl_other.cpp", ""),
     ("B9", "src/memory/unpoison.hpp", ""), ("B17", "src/memory/unpoison.hpp", "include"),
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
     ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
@@ -232,7 +239,7 @@ CLEAN = [
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
-    "src/memory/poison.hpp",
+    "src/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp",
 ]
 
 # The safe subset's plants (subset.py), headers no target compiles: each of
@@ -281,6 +288,8 @@ SUBSET_PLANTS = {
         "inline auto entry_now() { return std::chrono::system_clock::now(); }\n",
     "src/entry/abort.hpp": "#pragma once\n#include <cassert>\n#include <cstdlib>\n"
         "inline void entry_stop(int x) { assert(x > 0); if (x > 1) { std::abort(); } std::exit(1); }\n",
+    "src/entry/terminate.hpp": "#pragma once\n"
+        "inline void entry_end(void* self) { TerminateProcess(self, 3); }\n",
     "tests/unit/scope_test.hpp": "#pragma once\n#include <cstdlib>\n"
         "inline int* scope_new() { int* p = new int(1); if (!p) { std::abort(); } return p; }\n",
     "src/memory/arena.hpp": "#pragma once\n#include <cstddef>\n"
@@ -301,7 +310,7 @@ SUBSET_PLANTS = {
     "src/diag/handlers.hpp": "#pragma once\n#include <windows.h>\n#include <cstdlib>\n"
         "struct DiagState { int first = 0; };\nDiagState diag_state;\n"
         "inline void diag_end() { CreateThread(nullptr, 0, nullptr, nullptr, 0, nullptr); "
-        "ExitProcess(3); std::abort(); }\n",
+        "ExitProcess(3); TerminateProcess(GetCurrentProcess(), 3); std::abort(); }\n",
     "src/platform/win/clock.hpp": "#pragma once\n#include <chrono>\n"
         "inline auto win_now() { return std::chrono::system_clock::now(); }\n",
     "src/qiven3/subset_clean.hpp": "#pragma once\n"
@@ -309,13 +318,13 @@ SUBSET_PLANTS = {
         "// dynamic_cast, new, delete, malloc, free, reinterpret_cast, const_cast,\n"
         "// va_list, union, detach, std::thread, thread_local, a std::string_view\n"
         "// member, std::mutex, lock(), INFINITE, system_clock, assert, abort, exit,\n"
-        "// std::terminate; and the forms each rule lets pass.\n"
+        "// std::terminate, TerminateProcess; and the forms each rule lets pass.\n"
         "#include <chrono>\n#include <cstddef>\n#include <mutex>\n#include <span>\n"
         "#include <string_view>\n#include <thread>\n#include <variant>\n"
         "namespace qiven3::clean {\n"
         "inline constexpr std::string_view names = \"typeid dynamic_cast new delete malloc free "
         "reinterpret_cast const_cast va_list union detach std::thread thread_local std::mutex lock() "
-        "INFINITE system_clock assert abort exit\";\n"
+        "INFINITE system_clock assert abort exit TerminateProcess\";\n"
         "const int limit = 4;\nconst char* const label = \"x\";\nconstexpr std::chrono::seconds wait{5};\n"
         "struct Holder {\n    Holder() = default;\n    Holder(const Holder&) = delete;\n"
         "    Holder& operator=(const Holder&) = delete;\n    void free(void* p) noexcept;\n"
@@ -347,6 +356,7 @@ SUBSET_PLANTED = [
     ("B29", "src/entry/mutex.hpp", ""), ("B29", "src/entry/mutex.hpp", "lock"),
     ("B29", "src/entry/mutex.hpp", "infinite"),
     ("B30", "src/entry/clock.hpp", ""), ("B31", "src/entry/abort.hpp", ""),
+    ("B31", "src/entry/terminate.hpp", ""),
 ]
 SUBSET_CLEAN = [
     "tests/unit/scope_test.hpp", "src/memory/arena.hpp", "src/memory/construct.hpp", "src/memory/fail.hpp",

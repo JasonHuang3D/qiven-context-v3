@@ -56,7 +56,8 @@ B29_STD = frozenset(("mutex", "recursive_mutex", "shared_mutex", "lock_guard", "
                      "condition_variable"))
 B30_NAMES = frozenset(("system_clock", "utc_clock", "file_clock", "GetSystemTime", "GetSystemTimeAsFileTime",
                        "GetSystemTimePreciseAsFileTime", "GetLocalTime", "gettimeofday", "CLOCK_REALTIME"))
-B31_CALLS = frozenset(("abort", "exit", "_exit", "_Exit", "quick_exit", "ExitProcess", "terminate"))
+B31_CALLS = frozenset(("abort", "exit", "_exit", "_Exit", "quick_exit", "ExitProcess", "TerminateProcess",
+                       "terminate"))
 # A call's own name, bare: after one of these, or after one of the words.
 CALL_AFTER = frozenset((";", "{", "}", "(", ",", "=", "?", ":", "!", "&&", "||", "+", "-", "[", "<<", "==",
                         "!=", "+=", "-="))
@@ -75,7 +76,8 @@ ALLOWED = {
     # terminate handler reads with nothing allocated.
     "B25": ("src/diag/", "src/memory/fail."),
     "B30": ("src/platform/win/",),
-    # The entry's handlers end the process.
+    # memory/fail's fail-fast, and the diagnostic entry, which ends a broken
+    # process itself after its report: B31's two homes.
     "B31": ("src/memory/fail.", "src/diag/"),
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
