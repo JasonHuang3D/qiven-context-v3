@@ -23,7 +23,15 @@ fault the drives run, it runs the case and names how it ended.
   tests/structure/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
 - It exits with the case's status, a signal on Linux as 128 plus its
-  number. Past its limit it kills the case and exits 124, the hang.
+  number.
+- Past its limit, the hang: by tools/debuggers.py's debugger, attached
+  without stopping the case, it prints "hang: past its limit of <s> s,
+  <n> threads" and every thread's stack, at most 16 threads and 200 lines,
+  and writes <binary>-<pid>-hang.dmp (.core on Linux) in the dumps'
+  directory; with no debugger at hand, "hang: no debugger, no stacks" and
+  the reason. Then it kills the case's process tree (taskkill /T /F; on
+  Linux the case's process group, which it started, by SIGKILL), names
+  the status and exits 124.
 
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: the table and the reader are run from their files.
@@ -34,6 +42,7 @@ import os
 import re
 import runpy
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -41,6 +50,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
+DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 IMPORTS = runpy.run_path(str(ROOT / "tests" / "structure" / "imports.py"))
 WINDOWS = sys.platform == "win32"
 # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, as the entry sets.
@@ -188,6 +198,29 @@ def exit_code(status):
     return status
 
 
+def kill_tree(process):
+    """Kills the case and every process it started."""
+    try:
+        if WINDOWS:
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=30, check=False)
+        else:
+            os.killpg(process.pid, signal.SIGKILL)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    process.kill()
+
+
+def hang(process, command, env, limit):
+    """The hang's lines: every thread's stack, by the debugger."""
+    binary = shutil.which(command[0]) or command[0]
+    try:
+        threads, lines = DEBUGGERS["hang_stacks"](process.pid, binary, env.get("QIVEN3_DUMP_DIR"))
+    except DEBUGGERS["NotFound"] as e:
+        return ["hang: no debugger, no stacks", f"hang: {e}"]
+    return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines]
+
+
 def parse(argv):
     parser = argparse.ArgumentParser(prog="watch.py", description="Runs a case and names its exit status.")
     parser.add_argument("--limit", type=float, required=True, help="seconds before the case is a hang")
@@ -207,7 +240,10 @@ def main(argv=None):
         import ctypes
         ctypes.WinDLL("kernel32").SetErrorMode(ERROR_MODE)
     try:
-        process = subprocess.Popen(args.command, stderr=subprocess.PIPE, env=environment(args.name))
+        env = environment(args.name)
+        # On Linux the case leads its own process group, which a hang kills.
+        process = subprocess.Popen(args.command, stderr=subprocess.PIPE, env=env,
+                                   **({} if WINDOWS else {"process_group": 0}))
     except OSError as e:
         print(f"watch.py: {args.name}: the case cannot start: {e}", file=sys.stderr, flush=True)
         return 2
@@ -216,7 +252,8 @@ def main(argv=None):
     try:
         status = process.wait(timeout=args.limit)
     except subprocess.TimeoutExpired:
-        process.kill()
+        print("\n".join(hang(process, args.command, env, args.limit)), file=sys.stderr, flush=True)
+        kill_tree(process)
         process.wait()
         reader.join(READER_WAIT)
         print(f"{STATUS['line'](HANG)}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)

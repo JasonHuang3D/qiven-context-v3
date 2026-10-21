@@ -13,18 +13,22 @@
 //   exception  std::out_of_range("plant") out of main
 //   failfast   memory::fail_fast("plant")
 //   out        "out: plant" through diag::Out, twice; exit 0
+//   hang       the main thread and one more, each blocked for ever
+//   watch      a counter written three times, 1, 2 and 3; exit 0
 //
 // Before its plant each run keeps a Log's crash buffer and ends 20
 // operations "plant" in it, more than the report's 16 events, which so
 // end with the last op.end.
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include "diag/diag.hpp"
@@ -101,6 +105,41 @@ QIVEN3_PLANT int plant_exception() { throw std::out_of_range("plant"); }
 
 QIVEN3_PLANT int plant_failfast() { qiven3::memory::fail_fast("plant"); }
 
+// Blocks the calling thread for ever.
+[[noreturn]] QIVEN3_PLANT void wait_for_ever() {
+    for (;;) {
+        std::this_thread::sleep_for(std::chrono::hours(1));
+    }
+}
+
+// Both threads' stacks hold plant_hang: the main thread's frame, and the
+// other's lambda, which plant_hang's name qualifies.
+[[noreturn]] QIVEN3_PLANT int plant_hang() {
+    std::thread other([] { wait_for_ever(); });
+    wait_for_ever();
+}
+
+// Three writes the debugger's watch stops at, the counter a local, built
+// unoptimized so that the debugger finds it at each of its lines.
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma optimize("", off)
+#define QIVEN3_UNOPTIMIZED
+#elif defined(__clang__)
+#define QIVEN3_UNOPTIMIZED [[clang::optnone]]
+#else
+#define QIVEN3_UNOPTIMIZED [[gnu::optimize("O0")]]
+#endif
+QIVEN3_UNOPTIMIZED QIVEN3_PLANT int plant_watch() {
+    volatile std::uint64_t counter;
+    counter = 1;  // the break's line
+    counter = 2;
+    counter = 3;
+    return counter == 3 ? 0 : 1;
+}
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma optimize("", on)
+#endif
+
 QIVEN3_PLANT int plant_out() {
     qiven3::diag::Out out = qiven3::diag::Out::from_environment();
     const bool wrote = out.write("out: plant\n") && out.write("out: plant\n");
@@ -139,6 +178,13 @@ int main(int argc, char** argv) {
     if (plant == "out") {
         return plant_out();
     }
-    std::fputs("usage: qiven3-fault null|abort|assert|parameter|overflow|exception|failfast|out\n", stderr);
+    if (plant == "hang") {
+        return plant_hang();
+    }
+    if (plant == "watch") {
+        return plant_watch();
+    }
+    std::fputs("usage: qiven3-fault null|abort|assert|parameter|overflow|exception|failfast|out|hang|watch\n",
+               stderr);
     return 2;
 }
