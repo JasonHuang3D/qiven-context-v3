@@ -24,7 +24,7 @@ def watch(code, name="watch.case", limit=LIMIT, env=None):
     done = subprocess.run(binaries.watched([sys.executable, "-I", "-c", code], name, limit), capture_output=True,
                           env=env, stdin=subprocess.DEVNULL, timeout=binaries.TIMEOUT, check=False)
     return (done.returncode, done.stdout.decode("utf-8", "replace").splitlines(),
-            done.stderr.decode("utf-8", "replace").splitlines(), time.monotonic() - start)
+            binaries.unbounded(done.stderr).decode("utf-8", "replace").splitlines(), time.monotonic() - start)
 
 
 class Watch(unittest.TestCase):

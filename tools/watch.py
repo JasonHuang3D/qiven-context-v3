@@ -32,6 +32,9 @@ fault the drives run, it runs the case and names how it ended.
   the reason. Then it kills the case's process tree (taskkill /T /F; on
   Linux the case's process group, which it started, by SIGKILL), names
   the status and exits 124.
+- After the case ends, a hang's or not, the build's dumps/ is bounded by
+  tools/dumps.py: at most its DUMPS_KEPT dumps, the oldest removed first,
+  none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: the table and the reader are run from their files.
@@ -51,6 +54,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
+DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "tests" / "structure" / "imports.py"))
 WINDOWS = sys.platform == "win32"
 # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, as the entry sets.
@@ -221,6 +225,15 @@ def hang(process, command, env, limit):
     return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines]
 
 
+def bound(process):
+    """Bounds the build's dumps/, keeping the case's own, and names each
+    dump removed."""
+    build = os.environ.get("QIVEN3_BUILD")
+    lines = DUMPS["bound"](Path(build) / "dumps", process.pid) if build else []
+    if lines:
+        print("\n".join(lines), file=sys.stderr, flush=True)
+
+
 def parse(argv):
     parser = argparse.ArgumentParser(prog="watch.py", description="Runs a case and names its exit status.")
     parser.add_argument("--limit", type=float, required=True, help="seconds before the case is a hang")
@@ -256,9 +269,11 @@ def main(argv=None):
         kill_tree(process)
         process.wait()
         reader.join(READER_WAIT)
+        bound(process)
         print(f"{STATUS['line'](HANG)}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
         return HANG
     reader.join(READER_WAIT)
+    bound(process)
     print(status_line(status, args.command), file=sys.stderr, flush=True)
     return exit_code(status)
 

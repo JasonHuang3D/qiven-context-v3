@@ -69,7 +69,8 @@ def run_watched(command, name, limit, env=None):
         out.seek(0)
         err.seek(0)
         return (status, out.read().decode("utf-8", "replace").splitlines(),
-                err.read().decode("utf-8", "replace").splitlines(), time.monotonic() - start, seen)
+                binaries.unbounded(err.read()).decode("utf-8", "replace").splitlines(), time.monotonic() - start,
+                seen)
 
 
 def sections(lines):

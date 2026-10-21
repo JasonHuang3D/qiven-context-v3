@@ -158,7 +158,7 @@ def run_watched(command, name, env=None, cwd=None):
         seconds = time.monotonic() - start
         out.seek(0)
         err.seek(0)
-        return status, out.read(), err.read(), seconds, seen
+        return status, out.read(), binaries.unbounded(err.read()), seconds, seen
 
 
 def report_problems(lines, cause, case):

@@ -5,7 +5,9 @@ CTest gives each Python test the build's directories by the environment:
 QIVEN3_BIN, where every binary of the build is written; QIVEN3_BUILD, the
 build directory; QIVEN3_CTEST, the ctest of the build. A test run outside
 CTest names them itself. A status is named by tools/status.py's table, and
-watched() runs a command behind the watcher, tools/watch.py.
+watched() runs a command behind the watcher, tools/watch.py, and
+unbounded() drops the lines of its dumps' bound (tools/dumps.py), which
+another case's dump, written beside, may give any run.
 """
 
 import os
@@ -93,3 +95,9 @@ def watched(command, name, limit=TIMEOUT):
     interpreter as CTest runs it."""
     return [sys.executable, "-I", "-X", "faulthandler", str(ROOT / "tools" / "watch.py"), "--limit", str(limit),
             "--name", name, "--", *map(str, command)]
+
+
+def unbounded(err):
+    """The watcher's standard error without the dumps' bound's lines."""
+    return b"".join(line for line in err.splitlines(keepends=True)
+                    if not line.startswith((b"dumps: removed ", b"dumps: cannot remove ")))
