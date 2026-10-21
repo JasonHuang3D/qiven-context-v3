@@ -19,6 +19,7 @@
 
 #include "diag/diag.hpp"
 #include "diag/signal.hpp"
+#include "memory/fail.hpp"
 
 namespace qiven3::diag {
 
@@ -94,6 +95,18 @@ void install() noexcept {
         prctl(PR_SET_PTRACER, id, 0UL, 0UL, 0UL);
     }
 #endif
+}
+
+void keep(const log::Ring& ring) noexcept {
+    if (!detail::keep_ring(ring)) {
+        memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
+    }
+}
+
+void drop(const log::Ring& ring) noexcept {
+    if (!detail::drop_ring(ring)) {
+        memory::fail_fast("diag::drop: a ring not kept");
+    }
 }
 
 namespace detail {

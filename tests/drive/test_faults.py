@@ -11,6 +11,7 @@ The report, on standard error:
     fatal: stack <n>
       #<i> <frame>                      (n lines)
     fatal: events <n>
+    <event>                           (n lines, JSON)
     fatal: dump <file name> | none
     fatal: end <status>
     status: <value> <name>: <meaning>    (the watcher's)
@@ -24,11 +25,16 @@ address each, which the watcher symbolizes: a frame of the binary's own
 gets its function and line appended, plant_<plant> among them. K3's and
 K4's library writes its own line before the report (glibc's assertion,
 libstdc++'s hardened check), whose cause is then the signal. K3 runs in
-qiven3-fault-crtdbg on Windows, on the debug runtime. Under a sanitizer,
+qiven3-fault-crtdbg on Windows, on the debug runtime; in a Debug build,
+whose qiven3-fault is on that runtime too, K4's fclose reports the
+runtime's own assertion before its invalid parameter, status 3. Each
+run keeps a Log's ring and ends 20 operations in it first: the events
+are the last 16 lines, op.end of operation 20 the last. Under a sanitizer,
 whose report stands for the entry's, every case is skipped. Dumps are in
 the build's dumps/, where the watcher sends them.
 """
 
+import json
 import os
 import re
 import shutil
@@ -52,6 +58,8 @@ TIME_BOUND = 10.0
 LINES_BOUND = 60
 LINE_POINTS = 300
 FRAMES_MAX = 32
+EVENTS_MAX = 16
+OPERATIONS = 20
 DUMP_MAX = 64 * 1024 * 1024
 POLL = 0.1
 WINDOWS = sys.platform == "win32"
@@ -80,6 +88,11 @@ LINUX = {
 
 def sanitized():
     return bool(build_option("QIVEN3_SANITIZE"))
+
+
+def debug_runtime():
+    """Whether the build's binaries are on the debug runtime: a Debug build."""
+    return WINDOWS and build_option("CMAKE_BUILD_TYPE") == "Debug"
 
 
 def windows_of(pid):
@@ -162,10 +175,26 @@ def report_problems(lines, cause, case):
     if not 0 < n <= FRAMES_MAX or any(not f.startswith(f"  #{i} ") for i, f in enumerate(frames)):
         problems.append(f"{case}: {n} frames, or a frame out of order")
     rest = lines[2 + n:]
-    if (len(rest) != 3 or rest[0] != "fatal: events 0" or not rest[1].startswith("fatal: dump ")
-            or not rest[2].startswith("fatal: end ")):
+    head = re.fullmatch(r"fatal: events (\d+)", rest[0]) if rest else None
+    events = int(head.group(1)) if head else -1
+    if not 0 <= events <= EVENTS_MAX:
+        return problems + [f"{case}: no events line, or past {EVENTS_MAX}: {rest[:1]}"]
+    for line in rest[1:1 + events]:
+        try:
+            if not isinstance(json.loads(line), dict):
+                problems.append(f"{case}: an event not an object: {line}")
+        except ValueError:
+            problems.append(f"{case}: an event not JSON: {line}")
+    rest = rest[1 + events:]
+    if (len(rest) != 2 or not rest[0].startswith("fatal: dump ") or not rest[1].startswith("fatal: end ")):
         problems.append(f"{case}: the report's end: {rest}")
     return problems
+
+
+def events_of(lines):
+    """A report's events, each a dict, by its events line."""
+    at = next(i for i, line in enumerate(lines) if line.startswith("fatal: events "))
+    return [json.loads(line) for line in lines[at + 1:at + 1 + int(lines[at].split()[2])]]
 
 
 # backtrace_symbols_fd's line after the report's "  #<i> ": the module, its
@@ -209,6 +238,9 @@ class Faults(unittest.TestCase):
 
     def plant(self, plant):
         case, binary, cause, status = PLANTS[plant]
+        if plant == "parameter" and debug_runtime():
+            # The debug runtime's own assertion in fclose reaches its hook first.
+            cause, status = r"assertion failed: stream\.valid\(\), \S*fclose\.cpp:\d+", 3
         number, linux_cause, preface = LINUX[plant]
         dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
         ran, out, err, seconds, seen = run_plant(binary, plant)
@@ -230,6 +262,12 @@ class Faults(unittest.TestCase):
                 self.assertRegex(lines[0] if lines else "", f"^{preface}$", f"{case}: {text}")
                 lines = lines[1:]
         self.assertEqual(report_problems(lines, cause, case), [])
+        events = events_of(lines)
+        self.assertEqual(len(events), EVENTS_MAX, f"{case}: {events}")
+        ops = [e.get("op") for e in events]
+        self.assertEqual(ops, sorted(ops), f"{case}: not oldest first: {events}")
+        self.assertEqual({k: events[-1].get(k) for k in ("event", "name", "op", "outcome")},
+                         {"event": "op.end", "name": "plant", "op": OPERATIONS, "outcome": "ok"}, case)
         n = int(lines[1].split()[2])
         frames = lines[2:2 + n]
         dump = lines[-2].removeprefix("fatal: dump ")
@@ -323,6 +361,15 @@ class Faults(unittest.TestCase):
         cut = ["fatal: abort", "fatal: stack 1", "  #0 qiven3-fault!plant_abort+0x9"]
         self.assertNotEqual(report_problems(cut, "abort", "control"), [])
         self.assertNotEqual(report_problems(["abort"], "abort", "control"), [])
+        # Its events: one line fewer than the count, or one not JSON, is caught.
+        whole = cut + ["fatal: events 1", '{"event":"op.end"}', "fatal: dump none", "fatal: end SIGABRT"]
+        self.assertEqual(report_problems(whole, "abort", "control"), [])
+        short = cut + ["fatal: events 2", '{"event":"op.end"}', "fatal: dump none", "fatal: end SIGABRT"]
+        self.assertNotEqual(report_problems(short, "abort", "control"), [])
+        broken = cut + ["fatal: events 1", '{"event":', "fatal: dump none", "fatal: end SIGABRT"]
+        self.assertNotEqual(report_problems(broken, "abort", "control"), [])
+        past = cut + ["fatal: events 17"] + ['{}'] * 17 + ["fatal: dump none", "fatal: end SIGABRT"]
+        self.assertNotEqual(report_problems(past, "abort", "control"), [])
 
 
 class Signal(unittest.TestCase):

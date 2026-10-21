@@ -8,10 +8,11 @@
 //   fatal: stack <n>
 //     #<i> <module>!<function>+0x<offset> <file>:<line>
 //   fatal: events <n>
+//   <the kept crash buffers' last lines, oldest first>
 //   fatal: dump <file name>            (or: fatal: dump none)
 //   fatal: end <status>
 //
-// at most 32 frames, each line at most 300 code points. The install and
+// at most 32 frames and 16 events, each line at most 300 code points. The install and
 // the report are by system, diag_windows.cpp and diag_linux.cpp, Linux's
 // handlers and report in signal.cpp; this file's Line and terminate
 // handler are both systems'. Not core logic: it includes the system's
@@ -25,6 +26,10 @@
 #include <cstdint>
 #include <string_view>
 
+namespace qiven3::log {
+class Ring;
+}  // namespace qiven3::log
+
 namespace qiven3::diag {
 
 // Sets the error mode, the C runtime's reports and every handler. Under a
@@ -35,6 +40,14 @@ void install() noexcept;
 // A thread's own share: on Windows its stack guarantee, so that a stack
 // overflow's handler has a stack.
 void thread_start() noexcept;
+
+// Keeps a crash buffer for the report, whose last lines it writes under
+// "fatal: events" (diag/events.hpp). At most 8 rings in a process; a
+// ninth, or one kept twice, is a broken invariant. The ring outlives its
+// keeping: drop it before its end.
+void keep(const log::Ring& ring) noexcept;
+// Ends a ring's keeping; a ring not kept is a broken invariant.
+void drop(const log::Ring& ring) noexcept;
 
 namespace detail {
 

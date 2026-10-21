@@ -43,10 +43,10 @@ if(QIVEN3_SYSTEM_HEAP AND QIVEN3_SANITIZE MATCHES "address")
     qiven3_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()
 
-# The log's cases: log, ring and the static half's, and K13's binary half,
-# whose binary tests/drive/test_log.py reads.
+# The log's cases: log, ring, the report's events, the static half's, and
+# K13's binary half, whose binary tests/drive/test_log.py reads.
 qiven3_add_cases(qiven3_unit_log LABELS fast fake
-  SOURCES log_test.cpp log_static.cpp log_k13.cpp ring_test.cpp
+  SOURCES log_test.cpp log_static.cpp log_k13.cpp ring_test.cpp events_test.cpp
   LINK qiven3_log qiven3_faults)
 
 # K13's planted field (log_plant.cpp): the control in every build, the plant

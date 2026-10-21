@@ -13,14 +13,24 @@
 //   exception  std::out_of_range("plant") out of main
 //   failfast   memory::fail_fast("plant")
 //   out        "out: plant" through diag::Out, twice; exit 0
+//
+// Before its plant each run keeps a Log's crash buffer and ends 20
+// operations "plant" in it, more than the report's 16 events, which so
+// end with the last op.end.
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
 
+#include "diag/diag.hpp"
 #include "diag/out.hpp"
+#include "log/log.hpp"
+#include "memory/arena.hpp"
 #include "memory/fail.hpp"
 
 #ifdef _MSC_VER
@@ -34,6 +44,25 @@ int plant_assert();
 namespace {
 
 constexpr std::size_t frame_bytes = 4000;
+constexpr std::uint64_t operations = 20;
+
+// The Log's pages, its ring's and its events', and the arena's padding.
+alignas(std::max_align_t) std::array<std::byte, qiven3::log::Log::ring_bytes + qiven3::log::Log::event_bytes + 256>
+    pages{};
+
+// A Log's ring kept for the report while it lives.
+class Kept {
+public:
+    explicit Kept(const qiven3::log::Log& log) noexcept : ring_(log.ring()) { qiven3::diag::keep(ring_); }
+    Kept(const Kept&) = delete;
+    Kept& operator=(const Kept&) = delete;
+    Kept(Kept&&) = delete;
+    Kept& operator=(Kept&&) = delete;
+    ~Kept() { qiven3::diag::drop(ring_); }
+
+private:
+    const qiven3::log::Ring& ring_;
+};
 
 }  // namespace
 
@@ -80,6 +109,12 @@ QIVEN3_PLANT int plant_out() {
 
 int main(int argc, char** argv) {
     const std::string_view plant = argc == 2 ? argv[1] : "";
+    qiven3::memory::Arena arena(pages);
+    qiven3::log::Log lg(arena, qiven3::log::Count(1U), "qiven3-fault");
+    const Kept kept(lg);
+    for (std::uint64_t i = 0; i < operations; ++i) {
+        qiven3::log::begin(lg, "plant").end("ok", qiven3::log::Count(0U));
+    }
     if (plant == "null") {
         return plant_null();
     }

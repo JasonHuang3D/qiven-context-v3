@@ -17,6 +17,8 @@
 #include <span>
 
 #include "diag/diag.hpp"
+#include "diag/events.hpp"
+#include "memory/fail.hpp"
 
 #if !defined(_M_X64)
 #error "diag_windows.cpp walks x64 stacks alone"
@@ -61,6 +63,9 @@ struct State {
     CONTEXT context{};
 };
 State state;
+
+// The kept rings, null where a slot is free.
+detail::Rings rings{};
 
 void write(std::string_view bytes) noexcept {
     HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
@@ -239,8 +244,17 @@ void write_rest(bool walked) noexcept {
     } else {
         write("fatal: stack 0\n");
     }
-    // The crash buffers are logging's, which keeps none yet.
-    write("fatal: events 0\n");
+    detail::events(
+        rings,
+        [](std::uint64_t n) noexcept {
+            Line head;
+            head.text("fatal: events ").number(n);
+            write(head);
+        },
+        [](std::string_view line) noexcept {
+            write(line);
+            write("\n");
+        });
     if (walked) {
         write_dump();
     } else {
@@ -405,6 +419,18 @@ void start_dump_thread() noexcept {
 }
 
 }  // namespace
+
+void keep(const log::Ring& ring) noexcept {
+    if (!detail::hold(rings, ring)) {
+        memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
+    }
+}
+
+void drop(const log::Ring& ring) noexcept {
+    if (!detail::release(rings, ring)) {
+        memory::fail_fast("diag::drop: a ring not kept");
+    }
+}
 
 void thread_start() noexcept {
 #ifndef QIVEN3_SANITIZED

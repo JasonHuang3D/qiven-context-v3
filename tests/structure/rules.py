@@ -178,10 +178,10 @@ NOT_CORE_TARGETS = frozenset(("qiven3_platform_win", "qiven3_platform_current", 
                               "qiven3_hal", "qiven3_hal_fake", "qiven3_diag", "qiven3_diag_entry",
                               "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
                               "qiven3_diag_entry_poisoned",
-                              # memory again on the debug runtime, for qiven3-fault-crtdbg alone: its
-                              # objects name that runtime, which the records do not read; the
-                              # release copy, qiven3_memory, is read.
-                              "qiven3_memory_crtdbg"))
+                              # memory, the base and the log again on the debug runtime, for
+                              # qiven3-fault-crtdbg alone: their objects name that runtime, which the
+                              # records do not read; the release copies are read.
+                              "qiven3_memory_crtdbg", "qiven3_base_crtdbg", "qiven3_log_crtdbg"))
 CORE_NAMED = frozenset(("qiven3_flags", "qiven3_sqlite"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("src/platform/current.hpp", "src/platform/win/windows.hpp",

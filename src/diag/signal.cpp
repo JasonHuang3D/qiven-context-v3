@@ -2,8 +2,9 @@
 // write, _exit, raise and sigaction of POSIX's async-signal-safe functions,
 // backtrace and backtrace_symbols_fd, which install() loads before any
 // fault, and lock-free atomics; K18 reads its object's undefined symbols
-// against that list. Nothing is allocated, and no stdio, lock, exception
-// or json is used: each line is built in a buffer on the stack, the
+// against that list. The kept rings' table is here, which the report reads
+// by diag/events.hpp's inline reader. Nothing is allocated, and no stdio,
+// lock, exception or json is used: each line is built in a buffer on the stack, the
 // alternate one in a handler. No checked member of the standard library
 // is called either (indexing, substr, remove_prefix), since the hardened
 // library's report of a failed check is not on the list; nor a string
@@ -22,6 +23,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <string_view>
+
+#include "diag/events.hpp"
 
 namespace qiven3::diag::detail {
 
@@ -43,6 +47,9 @@ static_assert(std::atomic<int>::is_always_lock_free);
 // The default action, no mask, no flags: zero-initialized, so that no code
 // clears it in a handler.
 const struct sigaction default_action{};
+
+// The kept rings, null where a slot is free.
+Rings rings{};
 
 void out(std::string_view bytes) noexcept {
     std::size_t done = 0;
@@ -154,15 +161,28 @@ void claim(int number) noexcept {
         frame.put("  #"sv).number(static_cast<std::uint64_t>(i)).put(' ').write(false);
         backtrace_symbols_fd(std::next(frames.data(), i), 1, STDERR_FILENO);
     }
-    // The crash buffers are logging's, which keeps none yet; Linux writes
-    // no minidump.
-    out("fatal: events 0\nfatal: dump none\n"sv);
+    events(
+        rings,
+        [](std::uint64_t count) noexcept {
+            Text line;
+            line.put("fatal: events "sv).number(count).write();
+        },
+        [](std::string_view line) noexcept {
+            out(line);
+            out("\n"sv);
+        });
+    // Linux writes no minidump.
+    out("fatal: dump none\n"sv);
     Text last;
     last.put("fatal: end "sv).put(name(number)).write();
     end(number);
 }
 
 }  // namespace
+
+bool keep_ring(const log::Ring& ring) noexcept { return hold(rings, ring); }
+
+bool drop_ring(const log::Ring& ring) noexcept { return release(rings, ring); }
 
 void on_signal(int number, siginfo_t* info, void* context) noexcept {
     claim(number);

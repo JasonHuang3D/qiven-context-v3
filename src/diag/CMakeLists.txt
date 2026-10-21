@@ -9,7 +9,7 @@
 # the variants of the binaries built on another runtime or another memory.
 function(qiven3_diag_targets suffix memory)
   set(dir "${PROJECT_SOURCE_DIR}/src/diag")
-  set(sources "${dir}/diag.cpp" "${dir}/diag.hpp" "${dir}/out.cpp" "${dir}/out.hpp")
+  set(sources "${dir}/diag.cpp" "${dir}/diag.hpp" "${dir}/events.hpp" "${dir}/out.cpp" "${dir}/out.hpp")
   if(WIN32)
     list(APPEND sources "${dir}/diag_windows.cpp")
   else()

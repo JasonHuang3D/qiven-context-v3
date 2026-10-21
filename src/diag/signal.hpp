@@ -13,6 +13,10 @@
 
 #include <string_view>
 
+namespace qiven3::log {
+class Ring;
+}  // namespace qiven3::log
+
 namespace qiven3::diag::detail {
 
 // The handler for SIGSEGV, SIGBUS, SIGFPE, SIGILL and SIGABRT, set with
@@ -23,5 +27,11 @@ void on_signal(int number, siginfo_t* info, void* context) noexcept;
 // The report with `cause` as its first line after "fatal: ", ended by
 // signal `number` under the default action.
 [[noreturn]] void report(std::string_view cause, int number) noexcept;
+
+// The kept rings' table, which the report reads (diag/events.hpp): false
+// when the ring is kept already or the table is full, or, for drop_ring,
+// when it is not kept.
+bool keep_ring(const log::Ring& ring) noexcept;
+bool drop_ring(const log::Ring& ring) noexcept;
 
 }  // namespace qiven3::diag::detail
