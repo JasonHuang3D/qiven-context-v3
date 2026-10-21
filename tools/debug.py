@@ -1,5 +1,5 @@
 """The debugger agents can drive: a case, a binary or a dump under cdb.exe
-(Windows), with a bounded plain-text transcript.
+(Windows) or gdb (Linux), with a bounded plain-text transcript.
 
     python -I tools/debug.py case <test> [--build <directory>] [actions] [bounds]
     python -I tools/debug.py run [actions] [bounds] -- <binary> [arguments]
@@ -30,13 +30,15 @@
   the stop bound), 1 when the case faulted or the time bound passed, 2
   when it could not run (no debugger, a debugger off its pin, no binary,
   no dump, a bad argument).
-- dump opens a minidump: the event, .ecxr's context, its stack and
-  locals, and every thread's stack, within the same bounds; a dump of a
-  fault ends "fault <cause>", exit 1; one of none, "dump read", exit 0.
+- dump opens a minidump (Windows) or a core file (Linux): the event, the
+  exception's context (.ecxr; gdb's frame), its stack and locals, and
+  every thread's stack, within the same bounds; a dump of a fault ends
+  "fault <cause>", exit 1; one of none, "dump read", exit 0.
 
-On Linux the wrapper is gdb's, in batch mode; gdb is found and checked,
-but its half is not built yet, and each command says so and exits 2. The
-debugger is found and checked by tools/debuggers.py.
+On Linux the wrapper is gdb's, in batch mode, tools/debug_gdb.py: the same
+actions, bounds, transcript and exit codes; a signal is the fault, seen
+before the case's own handlers. The debugger is found and checked by
+tools/debuggers.py.
 """
 
 import argparse
@@ -55,6 +57,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))  # under -I this directory is off sys.path
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
+GDB = runpy.run_path(str(ROOT / "tools" / "debug_gdb.py"))
 WINDOWS = sys.platform == "win32"
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]
@@ -353,12 +356,12 @@ def parse(argv):
 
 
 def target(args):
-    """(cdb's arguments, symbols' directory, the binary, env, cwd)."""
+    """(the command, or the dump, symbols' directory, the binary, env, cwd)."""
     if args.mode == "dump":
         if not is_dump(args.file):
             raise CannotRun(f"{args.file} is no {'minidump' if WINDOWS else 'core file'}")
         symbols = Path(args.symbols or Path(args.file).resolve().parent)
-        return ["-z", str(Path(args.file).resolve())], symbols, None, None, None
+        return [str(Path(args.file).resolve())], symbols, None, None, None
     env, cwd = None, None
     if args.mode == "case":
         build = args.build or os.environ.get("QIVEN3_BUILD")
@@ -373,24 +376,38 @@ def target(args):
     return [str(Path(binary).resolve()), *command[1:]], Path(binary).resolve().parent, Path(binary), env, cwd
 
 
+def under_cdb(args, out, deadline):
+    """The run, or the dump, under cdb: (outcome, code)."""
+    exe = DEBUGGERS["find_cdb"]()
+    cdb_args, symbols, binary, env, cwd = target(args)
+    if args.mode == "dump":
+        cdb_args = ["-z", *cdb_args]
+    cdb = Cdb(exe, cdb_args, symbols, deadline, env, cwd)
+    try:
+        return dump_session(cdb, out) if args.mode == "dump" else run_session(cdb, args, binary, out)
+    except TimedOut:
+        return "timed out", 1
+    finally:
+        cdb.close(kill=time.monotonic() >= deadline)
+
+
+def under_gdb(args, out, deadline):
+    """The run, or the core, under gdb: (outcome, code)."""
+    gdb = DEBUGGERS["find_gdb"]()
+    command, symbols, _, env, cwd = target(args)
+    shared = {"FRAMES": FRAMES, "NOISE": DEBUGGERS["NOISE"], "STATUS": STATUS}
+    if args.mode == "dump":
+        return GDB["dump"](gdb, command[0], symbols, out, deadline, shared)
+    return GDB["run"](gdb, args, command, env, cwd, out, deadline, shared)
+
+
 def main(argv=None):
     start = time.monotonic()
     out = Transcript(200)
     try:
         args = parse(sys.argv[1:] if argv is None else argv)
         out.bound = args.lines
-        if not WINDOWS:
-            DEBUGGERS["find_gdb"]()
-            raise CannotRun("the gdb wrapper is not built yet")
-        exe = DEBUGGERS["find_cdb"]()
-        cdb_args, symbols, binary, env, cwd = target(args)
-        cdb = Cdb(exe, cdb_args, symbols, start + args.seconds, env, cwd)
-        try:
-            outcome, code = dump_session(cdb, out) if args.mode == "dump" else run_session(cdb, args, binary, out)
-        except TimedOut:
-            outcome, code = "timed out", 1
-        finally:
-            cdb.close(kill=time.monotonic() >= start + args.seconds)
+        outcome, code = (under_cdb if WINDOWS else under_gdb)(args, out, start + args.seconds)
     except (CannotRun, DEBUGGERS["NotFound"]) as e:
         outcome, code = f"could not run: {e}", 2
     seconds = f"{time.monotonic() - start:.1f}"

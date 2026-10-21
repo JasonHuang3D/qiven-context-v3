@@ -9,7 +9,9 @@ pinned tools' option, and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
 version. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
 builds release, which keeps its PDBs, and runs fake's selection and then
-the debugger preset, a label no workflow runs."""
+the debugger preset, a label no workflow runs; nor are its own steps,
+LOCAL_STEPS, after CI's: linux-plain's debugger step, that label on its
+build."""
 
 import json
 import re
@@ -165,7 +167,9 @@ class LoopAgainstCI(unittest.TestCase):
         cls.ci = ci_jobs()
 
     def ci_jobs(self):
-        return {k: v for k, v in self.loop.JOBS.items() if k not in self.loop.LOCAL}
+        """The loop's jobs of CI's, the loop's own steps dropped."""
+        return {k: (system, preset, [s for s in steps if s not in self.loop.LOCAL_STEPS.get(k, ())])
+                for k, (system, preset, steps) in self.loop.JOBS.items() if k not in self.loop.LOCAL}
 
     def test_jobs(self):
         self.assertEqual(set(self.ci) - CI_ONLY, set(self.ci_jobs()))
@@ -242,6 +246,21 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual(steps[3].ci, ("ctest", "--preset", "debugger"))
         self.assertEqual(tests["debugger"]["configurePreset"], "release")
         self.assertEqual(tests["debugger"]["filter"]["include"]["label"], "^debugger$")
+
+    def test_local_steps(self):
+        """linux-plain's debugger step, after CI's: the debugger label on
+        its build, a preset with debug information; no other."""
+        presets = {p["name"]: p for p in json.loads((ROOT / "CMakePresets.json").read_bytes())["configurePresets"]}
+        self.assertEqual(set(self.loop.LOCAL_STEPS), {"linux-plain"})
+        system, preset, steps = self.loop.JOBS["linux-plain"]
+        self.assertEqual((system, preset), ("linux", "linux-plain"))
+        self.assertEqual(presets["linux-plain"]["cacheVariables"]["CMAKE_BUILD_TYPE"], "RelWithDebInfo")
+        local = list(self.loop.LOCAL_STEPS["linux-plain"])
+        self.assertEqual(steps[-len(local):], local)
+        self.assertEqual([(s.name, s.ci, s.local) for s in local],
+                         [("debugger", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error",
+                                        "-L", "^debugger$"), ())])
+        self.assertNotIn("debugger", [s.name for s in self.ci_jobs()["linux-plain"][2]])
 
     def test_environment(self):
         for name, (system, _, _) in self.ci_jobs().items():

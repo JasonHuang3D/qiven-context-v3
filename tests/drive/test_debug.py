@@ -3,17 +3,18 @@ qiven3-fault's plant `watch`, which writes a counter three times in
 plant_watch: the break, the watch's stops, the locals with the counter, a
 stack frame plant_watch, within the bounds; its control, --lines 5, the
 transcript cut at 5 lines with its last line. K17, debug.py dump on K1's
-minidump naming plant_null; its control, a file that is no dump, exit 2.
-And the wrapper's other ends: a fault's, a case's, the time bound's, a
-bad argument's.
+minidump naming plant_null, and on Linux on K8's core, written by the
+watcher's hang path, naming plant_hang; its control, a file that is no
+dump, exit 2. And the wrapper's other ends: a fault's, a case's, the time
+bound's, a bad argument's.
 
 On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt, and
 it needs the binary's PDB beside it: a build that keeps none (Release,
 whose binaries the clean-binaries check reads) skips the cases that name
-a function. On Linux it is gdb, pinned in tools/linux-pins.txt, whose
-half of the wrapper is not built yet: each case skips, saying so (K17
-there reads K8's core). Where the debugger is absent, each case skips by
-name, "no cdb" or "no gdb", with the runner's 125; one off its pin fails.
+a function. On Linux it is gdb, pinned in tools/linux-pins.txt, on
+linux-plain's build, which has its debug information. Where the debugger
+is absent, each case skips by name, "no cdb" or "no gdb", with the
+runner's 125; one off its pin fails.
 Under a sanitizer, whose runtime takes the process's faults, they are
 skipped too.
 
@@ -25,6 +26,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -38,6 +40,8 @@ SOURCE = Path(__file__).resolve().parents[1] / "faults" / "fault.cpp"
 LAST = re.compile(r"^debug: (?P<outcome>.+), (?P<stops>\d+) stops, (?P<lines>\d+) lines, (?P<seconds>[\d.]+) s$")
 COUNTER = re.compile(r"\bcounter = (?P<value>\S+)$")
 STOP = re.compile(r"^stop (?P<n>\d+): ")
+# A function's frame: cdb's "<module>!<name>+0x..", gdb's "<name> (...)".
+FRAME = r"[!\s]{}[+(\s]"
 DEFAULT_LINES = 200
 
 
@@ -77,8 +81,6 @@ class Debug(unittest.TestCase):
             self.skipTest(str(e))
         except debuggers.NotFound as e:
             self.fail(f"the debugger: {e}")
-        if not WINDOWS:
-            self.skipTest("gdb's half of tools/debug.py is not built yet")
         self.fault = binaries.path(FAULT)
 
     def symbols(self):
@@ -111,9 +113,12 @@ class Debug(unittest.TestCase):
         # The watch's stops, each after a write, the counter's value in the locals.
         values = []
         for stop in stops[1:4]:
-            found = [COUNTER.search(line) for line in stop]
+            # The locals' lines alone: gdb's source lines name the counter too.
+            at = stop.index("> locals") + 1
+            locals_ = stop[at:next((i for i in range(at, len(stop)) if stop[i].startswith("> ")), len(stop))]
+            found = [COUNTER.search(line) for line in locals_]
             values += [m["value"] for m in found if m]
-            self.assertTrue(any(re.search(r"[!\s]plant_watch[+(\s]", line) for line in stop), stop)
+            self.assertTrue(any(re.search(FRAME.format("plant_watch"), line) for line in stop), stop)
             self.assertLess(stop.index("> locals"), stop.index("> stack"), stop)
         self.assertEqual(values, ["1", "2", "3"], lines)
 
@@ -128,7 +133,7 @@ class Debug(unittest.TestCase):
     def test_K17_dump(self):
         self.symbols()
         if not WINDOWS:
-            self.skipTest("the Linux reading of K8's core is gdb's")  # reached only once gdb is at hand
+            return self.core()
         from tests.drive.test_faults import run_plant
         dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
         _, _, err, _, _ = run_plant(FAULT, "null")
@@ -141,6 +146,27 @@ class Debug(unittest.TestCase):
         self.assertTrue(any(re.search(r"!plant_null\+", line) for line in lines), lines)
         for action in ("> context", "> stack", "> locals", "> threads"):
             self.assertIn(action, lines)
+
+    def core(self):
+        """Linux: K8's core, the watcher's, read: no fault, both threads'
+        stacks holding plant_hang."""
+        from tests.drive.test_hang import IN_PLANT, LIMIT, run_watched, sections
+        start = time.time()
+        status, _, err, _, _ = run_watched([self.fault, "hang"], "K17", LIMIT)
+        self.assertEqual(status, 124, err)
+        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        written = [p for p in dumps.glob(f"{FAULT}-*-hang.core") if p.stat().st_mtime >= start - 1
+                   and any(line.startswith("Saved corefile ") and line.endswith(p.name) for line in err)]
+        self.assertEqual(len(written), 1, (written, err))
+        code, lines = debug("dump", written[0], "--symbols", self.fault.parent)
+        last = self.bounded(lines)
+        self.assertEqual((code, last["outcome"]), (0, "dump read"), lines)
+        self.assertEqual(lines[0], "dump: no event", lines)
+        for action in ("> context", "> stack", "> locals", "> threads"):
+            self.assertIn(action, lines)
+        threads = sections(lines[lines.index("> threads") + 1:-1])
+        self.assertGreaterEqual(sum(any(IN_PLANT.search(line) for line in s) for s in threads), 2, lines)
+        self.assertFalse(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
 
     def test_K17_control(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -157,7 +183,9 @@ class Debug(unittest.TestCase):
         last = self.bounded(lines)
         self.assertEqual(code, 1, lines)
         self.assertEqual(int(last["stops"]), 1, lines)
-        self.assertTrue(any(re.search(r"!plant_null\+", line) for line in lines), lines)
+        self.assertTrue(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
+        if not WINDOWS:
+            self.assertEqual(last["outcome"], "fault SIGSEGV, Segmentation fault", lines)
 
     def test_exited(self):
         code, lines = debug("run", "--", self.fault, "out")

@@ -44,7 +44,8 @@ GDB_THREAD = re.compile(r"^Thread \d+ \(")
 NOISE = re.compile("|".join((
     r"^ModLoad: ", r"^\([0-9a-f]+\.[0-9a-f]+\): .* chance", r"^Breakpoint \d+ hit$",
     r"^\*\*\* WARNING: Unable to verify checksum", r"^NatVis script ", r"^quit:$", r"^\[New LWP ",
-    r"^\[Thread debugging using ", r"^Using host libthread_db ", r"^\[Inferior \d+ \(process \d+\) detached\]")))
+    r"^\[Thread debugging using ", r"^Using host libthread_db ", r"^\[Inferior \d+ \(process \d+\) detached\]",
+    r"^warning: \d+\t.*: No such file or directory$")))
 
 
 class NotFound(Exception):
@@ -154,10 +155,11 @@ def hang_command(debugger, pid, binary, dump):
         commands = f"~*kn {FRAMES}" + (f"; .dump /mt {dump}" if dump else "") + "; qd"
         return [str(debugger), "-pv", "-p", str(pid), "-sins", "-lines", "-y", str(Path(binary).parent),
                 "-c", commands]
-    steps = ["set pagination off", "set debuginfod enabled off", f"thread apply all bt {FRAMES}"]
-    steps += [f"gcore {dump}"] if dump else []
-    return [str(debugger), "-p", str(pid), "-batch", "-nx", "-q",
-            *(a for s in [*steps, "detach"] for a in ("-ex", s))]
+    # The settings before the process is attached and its libraries load.
+    settings = ["set pagination off", "set debuginfod enabled off"]
+    steps = [f"thread apply all bt {FRAMES}", *([f"gcore {dump}"] if dump else []), "detach"]
+    return [str(debugger), "-batch", "-nx", "-q", *(a for s in settings for a in ("-iex", s)), "-p", str(pid),
+            *(a for s in steps for a in ("-ex", s))]
 
 
 def hang_lines(text):

@@ -18,7 +18,10 @@ Beyond CI's, the loop's own jobs, LOCAL, which CI never runs: on Windows
 windows-symbols, the release preset keeping its PDB beside each binary,
 running the fake cases and then the debugger cases (the debugger test
 preset), so that K8, K16, K17 and the plants' names run inside the loop.
-Each Windows job builds in its own tree, TREES', build/ci by default.
+Each Windows job builds in its own tree, TREES', build/ci by default. And
+the loop's own steps, LOCAL_STEPS, after CI's in a job of CI's: on Linux,
+linux-plain's build, with its debug information, runs the debugger cases
+under gdb.
 
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
@@ -119,8 +122,14 @@ CI_JOBS = {
     "linux-msan": linux_job("linux-msan", "clang", cxx=True),
 }
 
+# The loop's own steps, local alone, after CI's steps of a job of CI's.
+LOCAL_STEPS = {
+    "linux-plain": (Step("debugger", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error",
+                                      "-L", "^debugger$")),),
+}
 # The loop's own jobs, local alone (CI never runs them), and every job.
 LOCAL = {"windows-symbols": symbols_job()}
-JOBS = {**CI_JOBS, **LOCAL}
+JOBS = {**{name: (system, preset, [*steps, *LOCAL_STEPS.get(name, ())])
+           for name, (system, preset, steps) in CI_JOBS.items()}, **LOCAL}
 # Each Windows job's tree, build/ci when it is not named here.
 TREES = {"windows-symbols": "build/release"}

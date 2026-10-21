@@ -137,7 +137,10 @@ class HangStacks(unittest.TestCase):
         # The reading's control: plant_null, on no stack, is found in none.
         self.assertFalse(any(re.search(r"[!\s]plant_null[+(\s]", line) for line in hang), text)
         suffix = "dmp" if WINDOWS else "core"
-        written = [p for p in dumps.glob(f"{FAULT}-*-hang.{suffix}") if p.stat().st_mtime >= start - 1]
+        # Named in the hang's lines (cdb's "Creating <file>", gdb's "Saved corefile <file>"): another
+        # case's hang, run beside this one, writes its own.
+        written = [p for p in dumps.glob(f"{FAULT}-*-hang.{suffix}") if p.stat().st_mtime >= start - 1
+                   and str(p.name) in text]
         self.assertEqual(len(written), 1, f"K8: the dumps {written}")
         magic = b"MDMP" if WINDOWS else b"\x7fELF"
         self.assertEqual(written[0].read_bytes()[:4], magic)

@@ -11,9 +11,10 @@ the system. The jobs and their steps are CI's (.github/workflows/ci.yml and
 msan.yml), with the local pins added: tools/loop_jobs.py, which a test
 checks against the workflows. CI runs unpinned on its images' own tools;
 the loop runs each job on this machine's pinned tools. Beyond CI's, the
-loop's own jobs, local alone: windows-symbols, the release preset keeping
-its PDBs, running the fake and the debugger cases. macOS stays with CI
-alone.
+loop's own jobs and steps, local alone: windows-symbols, the release
+preset keeping its PDBs, running the fake and the debugger cases, and
+linux-plain's debugger step, the debugger cases under gdb. macOS stays
+with CI alone.
 
 - windows: a shell set up by vcvars64.bat -vcvars_ver=14.44.35207 (found by
   vswhere, or QIVEN3_VCVARS), the tools of WINDOWS_PINS checked by SHA-256
@@ -77,8 +78,8 @@ CLANG_TIDY = ("19.1.7", "231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc8983
 
 # The jobs, their steps and CI's environment, with the local pins apart.
 _JOBS = runpy.run_path(str(ROOT / "tools" / "loop_jobs.py"))
-JOBS, LOCAL, TREES, ENV, CLEAN, LINUX_SHELL, Step = (
-    _JOBS[k] for k in ("JOBS", "LOCAL", "TREES", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
+JOBS, LOCAL, LOCAL_STEPS, TREES, ENV, CLEAN, LINUX_SHELL, Step = (
+    _JOBS[k] for k in ("JOBS", "LOCAL", "LOCAL_STEPS", "TREES", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
 
 
 class CannotRun(Exception):
