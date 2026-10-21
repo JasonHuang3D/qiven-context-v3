@@ -36,7 +36,9 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 - Test presets select by label: `full`, `fast`, `structure`, `asan`,
   `fuzz`, `bench`, `drill`, `analysis` and `debugger` (the cases that drive
   a debugger, never CI's); and, for CI, `fake` (the cases on the fakes) and
-  `ci-analysis`.
+  `ci-analysis`. Configure and build the `structure` preset before
+  `ctest --preset full`: the structure tests it runs read that build's
+  records.
 - The developer presets pin the toolchain (`QIVEN3_PIN_TOOLS`): configure
   fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython

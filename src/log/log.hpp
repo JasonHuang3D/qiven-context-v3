@@ -50,8 +50,9 @@ inline constexpr Level minimum = Level::QIVEN3_LOG_MIN;
 class Name {
 public:
     static constexpr std::size_t max_bytes = 64;
-    // Implicit, so that a literal is a Name where one is taken.
-    consteval Name(const char* literal) : text_(literal) {
+    // Implicit, so that a literal is a Name where one is taken; noexcept,
+    // so that a noexcept function may take one: it runs at compile time.
+    consteval Name(const char* literal) noexcept : text_(literal) {
         if (!valid(text_)) {
             memory::fail_fast("log::Name: empty, past 64 bytes, or not printable ASCII without a quote or a backslash");
         }

@@ -5,17 +5,17 @@
 # tests/drive/test_free.py runs.
 qiven3_add_cases(qiven3_unit_memory LABELS fast fake
   SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp
-  LINK qiven3_memory qiven3_faults)
+  LINK qiven3_faults)
 
 qiven3_add_cases(qiven3_unit_text LABELS fast fake
   SOURCES utf_test.cpp json_test.cpp json_memory_test.cpp canon_test.cpp canon_rules_test.cpp
     canon_memory_test.cpp constant_test.cpp
-  LINK qiven3_base qiven3_faults)
+  LINK qiven3_faults)
 
-qiven3_executable(qiven3_fail_demo SOURCES fail_demo.cpp LINK qiven3_runner qiven3_memory)
+qiven3_executable(qiven3_fail_demo SOURCES fail_demo.cpp LINK qiven3_runner)
 
 # The frees that end the process, which tests/drive/test_free.py runs.
-qiven3_executable(qiven3_free_demo SOURCES free_demo.cpp LINK qiven3_runner qiven3_memory)
+qiven3_executable(qiven3_free_demo SOURCES free_demo.cpp LINK qiven3_runner)
 
 # Under AddressSanitizer with QIVEN3_SYSTEM_HEAP, memory's own code, the
 # runner over it, memory's cases and the frees' demo are built a second time
@@ -59,13 +59,13 @@ endif()
 # budgets and fault runs.
 qiven3_add_cases(qiven3_unit_digest LABELS fast fake
   SOURCES digest_test.cpp digest_memory_test.cpp
-  LINK qiven3_base qiven3_faults qiven3_platform_fake)
+  LINK qiven3_faults qiven3_platform_fake)
 
 # The log's cases: log, ring, the report's events, the static half's, and
 # K13's binary half, whose binary tests/drive/test_log.py reads.
 qiven3_add_cases(qiven3_unit_log LABELS fast fake
   SOURCES log_test.cpp log_static.cpp log_k13.cpp ring_test.cpp events_test.cpp
-  LINK qiven3_log qiven3_faults)
+  LINK qiven3_faults)
 
 # K13's planted field (log_plant.cpp): the control in every build, the plant
 # built by its test alone, never by the build, the analysis or the records.

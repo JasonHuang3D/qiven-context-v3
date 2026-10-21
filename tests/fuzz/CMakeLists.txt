@@ -66,7 +66,7 @@ std::span<const std::uint8_t> kept_bytes(std::size_t i) noexcept { return spans[
 
 qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
   SOURCES regress_test.cpp "${regress_source}" digest/target.cpp
-  LINK qiven3_base qiven3_platform_fake)
+  LINK qiven3_platform_fake)
 
 if(QIVEN3_SANITIZE MATCHES "fuzzer")
   set(fuzz_lines "")
