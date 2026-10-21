@@ -96,3 +96,11 @@ qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
 qiven3_add_cases(qiven3_unit_header LABELS fast fake
   SOURCES header_test.cpp header_memory_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
+# body's cases: the record's layout and codes in order, written and read at
+# their places, evaluated by the compiler; every fixture body made, written,
+# read back and checked against its header; the refusals' body rows; the
+# key's hex; its budgets and fault runs.
+qiven3_add_cases(qiven3_unit_body LABELS fast fake
+  SOURCES body_test.cpp body_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)

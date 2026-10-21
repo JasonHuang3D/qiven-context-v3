@@ -16,8 +16,10 @@
 // Key holds 32 bytes of key material in no arena, beside the platform it
 // came from: its destructor and its moves wipe them by the platform's
 // wipe, and keyed alone reads them. It has no stream operator, formatter
-// or accessor, so no log or message can hold it. new_key draws one from
-// the platform's random_bytes.
+// or accessor, so no log or message can hold it, but for the body
+// record's key alone: key_hex writes its 64 lowercase hex digits into the
+// caller's buffer, and key_from_hex reads them back, its decoded copy on the
+// stack wiped. new_key draws one from the platform's random_bytes.
 //
 // thread: none; a Key, one (its platform's).
 
@@ -30,6 +32,7 @@
 #include <string_view>
 #include <utility>
 
+#include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 
@@ -285,6 +288,8 @@ public:
 private:
     template <platform::Platform Q, typename S>
     friend void keyed(const Key<Q>& key, std::string_view data, S& out);
+    template <platform::Platform Q>
+    friend void key_hex(const Key<Q>& key, std::span<char, 2 * bytes> out) noexcept;
 
     void wipe() noexcept { platform_->wipe(std::span<std::byte>(material_)); }
 
@@ -303,6 +308,60 @@ void keyed(const Key<P>& key, std::string_view data, S& out) {
     const Bytes digest = detail::hmac_block(padded, data);
     key.platform_->wipe(std::as_writable_bytes(std::span<std::uint8_t>(padded)));
     detail::write_hex("hmac-sha256:", digest, out);
+}
+
+// Whether hex is a key's text: 64 lowercase hex digits.
+constexpr bool key_text(std::string_view hex) noexcept {
+    if (hex.size() != 2 * bytes) {
+        return false;
+    }
+    for (const char c : hex) {
+        if ((c < '0' || c > '9') && (c < 'a' || c > 'f')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The key's 64 lowercase hex digits into out, the body record's key; no
+// allocation. The caller's buffer is the caller's to wipe.
+template <platform::Platform P>
+void key_hex(const Key<P>& key, std::span<char, 2 * bytes> out) noexcept {
+    constexpr std::string_view digits = "0123456789abcdef";
+    for (std::size_t i = 0; i < bytes; ++i) {
+        const std::uint8_t b = std::to_integer<std::uint8_t>(key.material_[i]);
+        out[2 * i] = digits[b >> 4U];
+        out[2 * i + 1] = digits[b & 0x0FU];
+    }
+}
+
+// A key read back from its record's hex, which the caller has checked by
+// key_text; text that is not a key's is a broken invariant, fail_fast. The
+// decoded copy on the stack is wiped by the platform after: one call.
+template <platform::Platform P>
+Key<P> key_from_hex(P& platform, std::string_view hex) noexcept {
+    if (!key_text(hex)) {
+        memory::fail_fast("digest: key_from_hex given text that is no key's");
+    }
+    const auto nibble = [](char c) noexcept {
+        return static_cast<unsigned>(c <= '9' ? c - '0' : c - 'a' + 10);
+    };
+    // The copy, wiped as the call returns, after the key is built in place.
+    struct Decoded {
+        explicit Decoded(P& p) noexcept : platform(&p) {}
+        Decoded(const Decoded&) = delete;
+        Decoded& operator=(const Decoded&) = delete;
+        Decoded(Decoded&&) = delete;
+        Decoded& operator=(Decoded&&) = delete;
+        ~Decoded() { platform->wipe(std::span<std::byte>(material)); }
+        P* platform;
+        std::array<std::byte, bytes> material{};
+    };
+    Decoded decoded(platform);
+    for (std::size_t i = 0; i < bytes; ++i) {
+        decoded.material[i] = static_cast<std::byte>((nibble(hex[2 * i]) << 4U) | nibble(hex[2 * i + 1]));
+    }
+    return Key<P>(platform, std::span<const std::byte, bytes>(decoded.material));
 }
 
 // A key drawn from the platform's random_bytes, the drawn copy wiped; a
