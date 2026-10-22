@@ -38,18 +38,26 @@ SYNTAX_STRINGS = 200_000
 DIGESTS = 4_000
 PARSER_STRINGS = 200_000
 
-# The syntaxes the text writes, whole-value.
+# The syntaxes the text writes, whole-value. A path and a qualified name
+# have rules, not syntaxes: refs checks them itself, outside the matcher.
 SYNTAXES = (
-    r"^(person|life|project:[a-z0-9][a-z0-9-]{0,47})$",
-    r"^[a-z][a-z0-9-]{0,31}$",
-    r"^(loop|import|[a-z][a-z0-9-]{0,31}/s[1-9][0-9]{0,8})$",
-    r"^sha256:[0-9a-f]{64}$",
-    r"^hmac-sha256:[0-9a-f]{64}$",
-    r"^[1-9][0-9]{0,8}$",
-    r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
-    r"^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$",
-    r"^[A-Za-z_][A-Za-z0-9_]*((\.|::|/)[A-Za-z_][A-Za-z0-9_]*)*$",
-    r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$",
+    r"^(person|life|project:[a-z0-9][a-z0-9-]{0,47})$",  # the header's scope
+    r"^[a-z][a-z0-9-]{0,31}$",  # its lane, and a writer's role
+    r"^(loop|import|[a-z][a-z0-9-]{0,31}/s[1-9][0-9]{0,8})$",  # its writer
+    r"^sha256:[0-9a-f]{64}$",  # an entry id
+    r"^hmac-sha256:[0-9a-f]{64}$",  # a content digest
+    r"^[1-9][0-9]{0,8}$",  # a writer's session number
+    r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$",  # a JSON key
+    r"^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$",  # a clause id
+    r"^[A-Za-z_][A-Za-z0-9_]*((\.|::|/)[A-Za-z_][A-Za-z0-9_]*)*$",  # a test id
+    r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$",  # a registry checkout's ref, a branch
+    r"^[a-z0-9][a-z0-9-]*$",  # a slug
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",  # a reference's repository
+    r"^[0-9a-f]{40}$",  # its revision
+    r"^[A-Za-z0-9._:-]{1,128}$",  # a transcript's message
+    r"^[a-z0-9][a-z0-9-]{0,31}$",  # its client
+    r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",  # its session
+    r"^L[0-9]+(-L?[0-9]+)?$",  # an anchor that reads as a line
 )
 PLANT = "^[^a]{2}$"
 
@@ -82,7 +90,8 @@ EXTRA = ("Authorization", "authorization:", "Bearer ", "--token", "--pass" + "wo
          "'", "\"", "$", "-", "a" * 8, "\n", "\r", "/", "?", "#", "_")
 SYNTAX_PARTS = ("person", "life", "project:", "loop", "import", "/s", "sha256:", "hmac-sha256:", "a", "z", "A", "Z",
                 "0", "1", "9", "-", "_", "__", ".", "..", "::", "/", ":", " ", "\n", "x" * 31, "x" * 32, "y" * 47,
-                "9" * 8, "9" * 9, "0123456789abcdef" * 4, "0123456789abcde" * 4, "f" * 63, "F" * 64, "p" * 199)
+                "9" * 8, "9" * 9, "0123456789abcdef" * 4, "0123456789abcde" * 4, "f" * 63, "F" * 64, "p" * 199,
+                "L", "#", "0123456789abcdef" * 2 + "01234567", "r" * 99, "m" * 127)
 
 
 def fragments():
