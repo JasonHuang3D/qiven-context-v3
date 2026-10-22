@@ -130,10 +130,6 @@ constexpr bool refused(std::string_view line, std::optional<std::string_view> re
     return f && f->part == part && f->code == static_cast<std::uint8_t>(code);
 }
 
-constexpr bool admitted(std::string_view line, std::optional<std::string_view> record) {
-    return !run(line, record).has_value();
-}
-
 constexpr header::FieldsView with(header::FieldsView f, std::string_view header::FieldsView::*field,
                                   std::string_view value) {
     f.*field = value;
