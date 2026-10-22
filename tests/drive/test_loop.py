@@ -190,6 +190,15 @@ class Tiers(unittest.TestCase):
         self.assertEqual([s.timeout for s in timed.steps if s.name == "fuzz"], [0])
         self.assertEqual(list(self.plan("1", "linux")), ["linux-gcc"])
         self.assertEqual(self.plan("1", "linux")["linux-gcc"].steps[-1].name, "fast")
+        # Linux's fuzz targets run once: untimed in linux-fuzz's own step
+        # alone, timed in their suite.
+        linux = [n for n, job in LOOP.JOBS.items() if job[0] == "linux"]
+        self.assertEqual(list(self.plan("3", "linux")), [*linux, "linux-full"])
+        self.assertIn("fuzz", [s.name for s in self.plan("3", "linux")["linux-fuzz"].steps])
+        timed = self.plan("3", "linux", fuzz=600)
+        self.assertEqual(list(timed), [*linux, "linux-full", "linux-fuzz-targets"])
+        self.assertEqual(self.argv(timed["linux-fuzz-targets"], "fuzz"),
+                         [LOOP.TABLE["FUZZ_TIMED"], "build/linux-fuzz", "600"])
 
     def test_fresh(self):
         """Every configure has --fresh in tier 3 and in no other way."""

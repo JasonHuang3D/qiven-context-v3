@@ -18,9 +18,9 @@ jobs as below, or build or test of the jobs named:
   suite and the fuzz targets: on Windows the structure and nohal presets'
   builds and ctest --preset full on release (windows-symbols' tree), then
   the fuzz preset's build and ctest --preset fuzz; on Linux ctest --preset
-  full on linux-gcc's tree, then ctest --preset fuzz on linux-fuzz's. With
-  --fuzz-time SECONDS each fuzz target runs for that time from its corpus
-  instead, as a half's evidence has it (600). Emptying keeps the fuzz
+  full on linux-plain's tree, the fuzz label having run in linux-fuzz's own
+  step. With --fuzz-time SECONDS each fuzz target runs for that time from
+  its corpus instead, as a half's evidence has it (600). Emptying keeps the fuzz
   corpus.
 - build or test: the jobs named, each a job's name or its preset's
   (windows-msvc or ci-windows), none naming every job of the system, in

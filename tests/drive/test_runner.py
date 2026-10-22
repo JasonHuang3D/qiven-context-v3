@@ -58,11 +58,16 @@ class Routes(unittest.TestCase):
 
     def test_crash(self):
         """A crash is not caught: the system's status, or, in a build under
-        AddressSanitizer, whose runtime reports the access and exits 1, that
-        status and its report."""
+        a sanitizer whose runtime reports the access and exits 1, that
+        status and its report: UndefinedBehaviorSanitizer's, which stops
+        first where it is on, else AddressSanitizer's."""
         ran = binaries.run(DEMO, ["--run", "demo.crash"])
         self.assertEqual(ran.out, b"")
-        if "address" in (build_option("QIVEN3_SANITIZE") or ""):
+        sanitize = build_option("QIVEN3_SANITIZE") or ""
+        if "undefined" in sanitize:
+            self.assertEqual(ran.status, 1)
+            self.assertIn(b"runtime error: store to null pointer", ran.err)
+        elif "address" in sanitize:
             self.assertEqual(ran.status, 1)
             self.assertIn(b"AddressSanitizer", ran.err)
         elif sys.platform == "win32":

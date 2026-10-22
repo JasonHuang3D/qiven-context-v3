@@ -4,6 +4,7 @@
 // case's own.
 
 #include <array>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -84,9 +85,18 @@ void sample_counted_none_held(Context& qiven3_ctx) {
     heap.free(heap.allocate(100));
 }
 
+// The pool slots sample_counted_held holds, the last first, each holding
+// the one before it in its first bytes. Under QIVEN3_SYSTEM_HEAP a slot is
+// the system heap's: held from here, it stays reachable, and LeakSanitizer
+// reports no leak of it, while any other block lost still is one. The
+// runner's count is what reads the bytes as held.
+void* held_slots = nullptr;
+
 void sample_counted_held(Context& qiven3_ctx) {
     static_cast<void>(qiven3_ctx.counted.arena(4096).allocate(24, 8));
-    static_cast<void>(qiven3_ctx.counted.pool(32, 4096).allocate());
+    void* slot = qiven3_ctx.counted.pool(32, 4096).allocate();
+    std::memcpy(slot, static_cast<const void*>(&held_slots), sizeof held_slots);
+    held_slots = slot;
     static_cast<void>(qiven3_ctx.counted.arena(64));
 }
 
@@ -211,7 +221,9 @@ QIVEN3_CASE(runner, counted_none_held) {
 }
 
 QIVEN3_CASE(runner, counted_held) {
+    const void* const before = held_slots;
     const Ran r = run(qiven3_ctx, &sample_counted_held);
+    CHECK(held_slots != nullptr && held_slots != before);
     CHECK_EQ(r.status, qiven3::test::exit_fail);
     CHECK_EQ(r.out, std::string("held at the case's end: arena 1, 24 bytes\n"
                                 "held at the case's end: pool 1, 32 bytes\n"

@@ -10,7 +10,9 @@ and each step's command in its job's own trees.
 - Tier 3, the boundary run: every job of the system from emptied trees,
   each configure with --fresh, every test of each job; then SUITES, once a
   system: the full suite and the fuzz targets, each for a time when one is
-  given. A suite empties only the trees it owns, never one it reads.
+  given; a suite of TIMED_ONLY only when one is, its job's own step having
+  run its tests. A suite empties only the trees it owns, never one it
+  reads.
 - build or test, of the jobs named (none: every job of the system), in
   their kept trees, every test of each.
 
@@ -22,8 +24,8 @@ preset's binaryDir; a directory CI names is replaced. Each preset's
 binaryDir is read from CMakePresets.json.
 
 Run by tools/loop.py, given tools/loop_jobs.py's names (runpy's
-init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, SUITES, CLEAN,
-FUZZ_TIMED.
+init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, SUITES,
+TIMED_ONLY, CLEAN, FUZZ_TIMED.
 """
 
 import json
@@ -64,7 +66,7 @@ def plan(way, system, jobs, fuzz_time=None, root=None):
     units = [Unit(name, system, JOBS[name][2], way, presets) for name in jobs]
     if way == "3":
         for name, (where, steps) in SUITES.items():
-            if where == system:
+            if where == system and (fuzz_time is not None or name not in TIMED_ONLY):
                 if fuzz_time is not None:
                     steps = [timed(s, fuzz_time) if s.ci[:2] == ("ctest", "--preset") and s.name == "fuzz" else s
                              for s in steps]

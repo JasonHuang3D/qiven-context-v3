@@ -25,7 +25,9 @@ cases under gdb.
 
 The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
 runs, and TIER1_STEPS, the structure tests and fast it adds on that job;
-SUITES, tier 3's full suite and fuzz targets, once a system after its jobs.
+SUITES, tier 3's full suite and fuzz targets, once a system after its jobs;
+TIMED_ONLY, the suites tier 3 runs only for a time, a job's own step
+running the same tests without one.
 TREES maps each job's directories, as CI's commands name them, to the job's
 own trees, kept across runs: CI's jobs share build/ci, a clean runner each,
 where the loop's keep a tree each on one machine, Windows' in the checkout,
@@ -152,7 +154,10 @@ JOBS = {**{name: (system, preset, [*steps, *LOCAL_STEPS.get(name, ())])
 # structure tests, and fast's label on the job's own build.
 TIER1 = {"windows": "windows-msvc", "linux": "linux-gcc"}
 FAST = Step("fast", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L", "^fast$"))
-TIER1_STEPS = {"windows-msvc": (*structure_steps(), FAST), "linux-gcc": (FAST,)}
+# On Windows the structure tests ran just before, on their own tree's
+# records; fast leaves them out there.
+FAST_REST = Step("fast", (*FAST.ci, "-E", "^tests[.]structure[.]"))
+TIER1_STEPS = {"windows-msvc": (*structure_steps(), FAST_REST), "linux-gcc": (FAST,)}
 FUZZ_TIMED = "fuzz-timed"  # each fuzz target for a time: tools/loop_fuzz.py on the tree
 # Tier 3's suites, once a system after its jobs: (system, steps). On
 # Windows the full suite on release (windows-symbols' tree), with the
@@ -174,6 +179,11 @@ SUITES = {
     "linux-full": ("linux", [Step("full", ("ctest", "--preset", "full"), after=None)]),
     "linux-fuzz-targets": ("linux", [Step("fuzz", ("ctest", "--preset", "fuzz"), after=None)]),
 }
+# A suite tier 3 runs only with --fuzz-time, by the job and step that run
+# its tests without a time: on Linux linux-fuzz's own fuzz step, as CI has
+# it, runs the fuzz label on the tree the suite reads, so that without a
+# time the label runs once. Windows' fuzz targets run in no job of its.
+TIMED_ONLY = {"linux-fuzz-targets": ("linux-fuzz", "fuzz")}
 # Each job's or suite's own trees: CI's directory, as its commands name it
 # or as its preset's binaryDir, mapped to the job's tree; a Linux job's
 # build/ci to build/JOB in the one clone. A directory a step names outside

@@ -302,8 +302,10 @@ class LoopAgainstCI(unittest.TestCase):
         fast step is the fast test preset's selection, on the job's build;
         tier 3's suites build the structure, nohal and fuzz presets and run
         the full and fuzz test presets on Windows, and run them on Linux on
-        linux-gcc's and linux-fuzz's trees, read and never owned. No two
-        jobs of a system share a tree, and none is CI's build/ci."""
+        linux-plain's and linux-fuzz's trees, read and never owned; a suite
+        run only for a time has its tests run without one by its job's own
+        step, the same selection on the tree it reads. No two jobs of a
+        system share a tree, and none is CI's build/ci."""
         presets = json.loads((ROOT / "CMakePresets.json").read_bytes())
         tests = {p["name"]: p for p in presets["testPresets"]}
         table = self.loop.TABLE
@@ -313,7 +315,9 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual([s.ci for s in msvc[:3]], analysis[-3:])
         self.assertEqual([s.name for s in msvc[:3]], ["structure configure", "structure build", "structure tests"])
         fast = table["FAST"]
-        self.assertEqual(msvc[3:], [fast])
+        # On Windows fast leaves out the structure tests, run just before
+        # on their own tree's records.
+        self.assertEqual([(s.name, s.ci) for s in msvc[3:]], [("fast", (*fast.ci, "-E", "^tests[.]structure[.]"))])
         self.assertEqual(list(table["TIER1_STEPS"]["linux-gcc"]), [fast])
         self.assertEqual(fast.ci, ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L",
                                    tests["fast"]["filter"]["include"]["label"]))
@@ -327,6 +331,14 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual(table["READS"], {
             "linux-full": {"build/" + tests["full"]["configurePreset"]: trees["linux-plain"]["build/ci"]},
             "linux-fuzz-targets": {"build/" + tests["fuzz"]["configurePreset"]: trees["linux-fuzz"]["build/ci"]}})
+        self.assertEqual(table["TIMED_ONLY"], {"linux-fuzz-targets": ("linux-fuzz", "fuzz")})
+        for suite, (job, name) in table["TIMED_ONLY"].items():
+            step = [s for s in self.loop.JOBS[job][2] if s.name == name][0]
+            self.assertIn(step.ci, self.ci[job][1])
+            words = list(step.ci)
+            self.assertEqual(words[words.index("-L") + 1], tests["fuzz"]["filter"]["include"]["label"])
+            self.assertEqual(trees[job][words[words.index("--test-dir") + 1]],
+                             table["READS"][suite]["build/" + tests["fuzz"]["configurePreset"]])
         self.assertEqual([s.ci for s in suites["windows-full"][1]],
                          [("cmake", "--preset", "structure"), ("cmake", "--build", "--preset", "structure"),
                           ("cmake", "--preset", "nohal"), ("cmake", "--build", "--preset", "nohal"),
