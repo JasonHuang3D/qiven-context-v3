@@ -24,7 +24,7 @@ struct Subcommand {
 };
 
 constexpr std::array subcommands{
-    Subcommand{"probe", qiven3::child::probe, "probe match|parse: one facility over each input line (probe.cpp)"},
+    Subcommand{"probe", qiven3::child::probe, "probe match|parse|refs: one facility over each input line (probe.cpp)"},
 };
 
 int usage(std::string_view why) {

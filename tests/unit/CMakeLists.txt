@@ -112,3 +112,11 @@ qiven3_add_cases(qiven3_unit_body LABELS fast fake
 qiven3_add_cases(qiven3_unit_kinds LABELS fast fake
   SOURCES kinds_test.cpp kinds_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
+# refs' cases: the code references' vectors, the whitespace table, each
+# type of reference and each code in order, evaluated by the compiler; the
+# limits at their bounds; every reference, subject and path of the
+# fixtures; the compiles counted, under the budget and the fault run.
+qiven3_add_cases(qiven3_unit_refs LABELS fast fake
+  SOURCES refs_test.cpp refs_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)

@@ -14,6 +14,10 @@
 //   or the whole value where the pattern is printed ^...$.
 // - probe parse: each line a string; the answer, the strict parser's code,
 //   accepted, or memory where its arena's budget ran out.
+// - probe refs: each line a string; the answer, four digits, 1 for yes:
+//   whether the string is one code point of refs' whitespace table, then
+//   refs' check_path, check_name and check_subject, the last over an arena
+//   of the matcher's compile budget.
 // A malformed line ends the child with child::usage_status and a line on
 // standard error. Each facility runs over v3's own arena, as the product
 // instantiates it: the matcher's at its compile budget, the parser's at a
@@ -30,6 +34,7 @@
 
 #include "child/child.hpp"
 #include "entry/matcher.hpp"
+#include "entry/refs.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -162,6 +167,29 @@ int parse() {
     return 0;
 }
 
+// Whether bytes are one code point of the whitespace table.
+bool one_space(std::string_view bytes) noexcept {
+    const utf::Read r = bytes.empty() ? utf::Read{} : utf::next(bytes, 0);
+    return r.size != 0 && r.size == bytes.size() && entry::refs::is_space(r.point);
+}
+
+int refs() {
+    std::string line;
+    std::string bytes;
+    std::vector<std::byte> span(entry::matcher::compile_budget);
+    while (next_line(line)) {
+        if (!unhex(line, bytes)) {
+            return malformed("a string that is not hex");
+        }
+        memory::Arena arena{std::span<std::byte>(span)};
+        const bool subject = entry::refs::check_subject(bytes, memory::Allocator<char>(arena));
+        std::cout << (one_space(bytes) ? '1' : '0') << (entry::refs::check_path(bytes) ? '1' : '0')
+                  << (entry::refs::check_name(bytes) ? '1' : '0') << (subject ? '1' : '0') << "\n";
+    }
+    std::cout.flush();
+    return 0;
+}
+
 }  // namespace
 
 int probe(std::span<const std::string_view> args) {
@@ -171,7 +199,10 @@ int probe(std::span<const std::string_view> args) {
     if (args.size() == 1 && args.front() == "parse") {
         return parse();
     }
-    return malformed("one argument, match or parse");
+    if (args.size() == 1 && args.front() == "refs") {
+        return refs();
+    }
+    return malformed("one argument, match, parse or refs");
 }
 
 }  // namespace qiven3::child
