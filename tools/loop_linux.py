@@ -1,6 +1,16 @@
 """The local loop on Linux (tools/loop.py): from Windows, WSL2 reached, the
 pins checked and the working tree's snapshot made; inside WSL, by
-loop.py's --inside, the units of the way, each job in its clone.
+loop.py's --inside, the one clone synced once a run, then the units of the
+way, each job in its own build tree within the clone, build/JOB, kept
+across runs (tools/loop_run.py's own_tree; tier 3 empties it).
+
+The clone is CLONE under the clone root (--clone): the loop writes nothing
+else there, and deletes nothing outside the clone's untracked files, which
+the sync removes, and its build trees, which tier 3 empties. The sync keeps
+build/, and leaves a file whose content is the same untouched, so that a
+sync that changes nothing leaves Ninja nothing to build. The clones an
+earlier loop kept a job under the clone root are no longer read; the sync
+names them, for removal by hand.
 
 Run by tools/loop.py, given tools/loop_run.py's, tools/loop_jobs.py's and
 tools/loop_tiers.py's names (runpy's init_globals).
@@ -16,6 +26,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+CLONE = "clone"  # the one clone, under the clone root
 
 
 def wsl_run(wsl, distro, *argv):
@@ -125,7 +136,8 @@ def linux(args, report):
 
 
 def inside(args, report):
-    """Inside WSL, the pins checked: each unit in its job's clone."""
+    """Inside WSL, the pins checked: the one clone synced, then each unit
+    in its own build tree within it, under its own TMPDIR."""
     git = shutil.which("git")
     if not git:
         raise CannotRun("git is missing from WSL's PATH")
@@ -139,41 +151,57 @@ def inside(args, report):
     base = Path(os.path.expanduser(args.clone))
     if not base.is_absolute() or str(base.resolve()).startswith("/mnt/"):
         raise CannotRun(f"the clone {base} must be an absolute path on WSL's own file system, never under /mnt/")
+    clone = base / CLONE
     phase = "build" if args.way == "build" else "test"
     units = plan(args.way, "linux", args.jobs, args.fuzz_time, ROOT)
     presets = binary_dirs(ROOT)
-    report.plan(1 + len(units) + planned_lines(units, phase))
+    report.plan(2 + planned_lines(units, phase))
+    start = time.monotonic()
+    sync(git, clone, args.source, args.commit)
+    old = earlier_clones(base)
+    unused = f"; unused beside it, an earlier loop's clones: {', '.join(old)}" if old else ""
+    report.line(f"loop: sync {args.commit[:12]} in {seconds(start)}; clone {clone}{unused}", True)
+    logs = clone / "build" / "loop"
     counts = [0, 0, 0]
     for unit in units:
-        clone = base / unit.name
-        start = time.monotonic()
-        sync(git, clone, args.source, args.commit)
-        report.line(f"{unit.name} sync: {args.commit[:12]} in {seconds(start)}; clone {clone}", True)
         # The job's own temporary directory, as CI's RUNNER_TEMP: /tmp's bare name would match any "tmp".
         temp = tempfile.mkdtemp(prefix=f"qiven3-loop-{unit.name}-")
-
-        def command(unit, step, clone=clone, temp=temp):
-            argv = local_argv(unit, step, presets)
-            if argv[0] == CLEAN:
-                script = clean_script(clone, clone / "build" / "loop" / unit.name)
-                return [*LINUX_SHELL, sys.executable, "-I", str(script), argv[1], str(clone), temp]
-            if argv[0] == FUZZ_TIMED:
-                return [*LINUX_SHELL, sys.executable, "-I", str(clone / "tools" / "loop_fuzz.py"), *argv[1:]]
-            return [*LINUX_SHELL, shutil.which(argv[0], path=env["PATH"]) or argv[0], *argv[1:]]
-
         try:
-            got = drive(report, [unit], clone, clone / "build" / "loop", command, dict(env, TMPDIR=temp), phase)
+            got = drive(report, [unit], clone, logs, linux_command(clone, logs, env, presets, temp),
+                        dict(env, TMPDIR=temp), phase)
         finally:
             shutil.rmtree(temp, ignore_errors=True)
         counts = [a + b for a, b in zip(counts, got)]
-    first = units[0].name if units else "JOB"
-    where = f"{base}/{first}/build/loop/{first}" if len(units) == 1 else f"{base}/JOB/build/loop/JOB"
-    report.line(f"loop: logs in {where}", True)
+    report.line(f"loop: logs in {logs}", True)
     return counts
 
 
+def linux_command(clone, logs, env, presets, temp):
+    """command(unit, step): the step's argv in the clone, under setarch -R,
+    its tool by the prefix's PATH; the clean check given the job's TMPDIR."""
+
+    def command(unit, step):
+        argv = local_argv(unit, step, presets)
+        if argv[0] == CLEAN:
+            script = clean_script(clone, logs / unit.name)
+            return [*LINUX_SHELL, sys.executable, "-I", str(script), argv[1], str(clone), temp]
+        if argv[0] == FUZZ_TIMED:
+            return [*LINUX_SHELL, sys.executable, "-I", str(clone / "tools" / "loop_fuzz.py"), *argv[1:]]
+        return [*LINUX_SHELL, shutil.which(argv[0], path=env["PATH"]) or argv[0], *argv[1:]]
+
+    return command
+
+
+def earlier_clones(base):
+    """The clones an earlier loop kept a Linux job under the clone root,
+    named and never read nor deleted."""
+    return [name for name, job in JOBS.items() if job[0] == "linux" and (base / name / ".git").is_dir()]
+
+
 def sync(git, clone, source, commit):
-    """The clone at the commit, fetched from the Windows checkout; build/ kept."""
+    """The clone at the commit, fetched from the Windows checkout: build/
+    kept, untracked files removed, a file whose content is the same left
+    untouched (git's checkout rewrites only what differs)."""
     clone.mkdir(parents=True, exist_ok=True)
     steps = [] if (clone / ".git").is_dir() else [["init", "-q"]]
     # Protocol v2 serves an unadvertised commit; the option asks it of v0.

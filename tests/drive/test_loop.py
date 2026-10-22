@@ -6,9 +6,13 @@ missing; a pin off its digest; a bad argument); its bound of 100 lines and
 a failing step's last 30. The tiers on fakes: what each runs, each
 configure's --fresh in tier 3 alone, a job's tree kept through another
 job's run and its own next one, tier 3 emptying it with the fuzz corpus
-kept, a tree outside build/ never emptied. The cases that build run alone;
+kept, a tree outside build/ never emptied. Linux's one clone on fakes:
+synced once a run, a sync that changes nothing rewriting no file, a build
+tree a job within it, tier 3 emptying those trees alone, the suites
+reading the jobs' trees. The cases that build run alone;
 those that reach WSL skip when it or its distribution is absent."""
 
+import argparse
 import contextlib
 import io
 import json
@@ -274,6 +278,143 @@ class Tiers(unittest.TestCase):
             with self.subTest(tree=tree), self.assertRaises(LOOP.CannotRun):
                 LOOP.RUN["empty"](root, tree)
             self.assertTrue((tree / "file").is_file())
+
+
+class OneClone(unittest.TestCase):
+    """Linux's one clone on fakes, on this system's git: a source repository
+    in a scratch directory, synced into the clone root's clone/; each job's
+    build tree within it; tier 3 emptying the build trees alone."""
+
+    def setUp(self):
+        self.git = shutil.which("git")
+        if not self.git:
+            self.skipTest("git is missing from PATH")
+        top = Path(tempfile.mkdtemp(prefix="qiven3-loop-clone-"))
+        self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        self.source, self.base = top / "source", top / "root"
+        self.source.mkdir()
+        self.fixture_git("init", "-q")
+        (self.source / "a.txt").write_bytes(b"one\n")
+        self.first = self.commit()
+        self.old = self.base / "linux-gcc"  # a clone an earlier loop kept for a job
+        (self.old / ".git").mkdir(parents=True)
+        (self.old / "kept.txt").write_bytes(b"old")
+        self.linux = LOOP.LINUX["inside"].__globals__
+
+    def fixture_git(self, *argv):
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="case",
+                   GIT_AUTHOR_EMAIL="case@localhost", GIT_COMMITTER_NAME="case", GIT_COMMITTER_EMAIL="case@localhost")
+        done = subprocess.run([self.git, *argv], cwd=self.source, env=env, stdin=subprocess.DEVNULL,
+                              capture_output=True, timeout=120, check=True)
+        return done.stdout.decode("utf-8").strip()
+
+    def commit(self):
+        self.fixture_git("add", "-A")
+        self.fixture_git("commit", "-q", "--allow-empty", "-m", "a commit")
+        return self.fixture_git("rev-parse", "HEAD")
+
+    def test_sync(self):
+        """A sync that changes nothing rewrites no file and keeps build/; the
+        clone's untracked files go; the snapshot's new file arrives, the
+        source's index untouched; the earlier clones are named, untouched."""
+        clone = self.base / self.linux["CLONE"]
+        self.linux["sync"](self.git, clone, str(self.source), self.first)
+        (clone / "build" / "linux-gcc").mkdir(parents=True)
+        (clone / "build" / "linux-gcc" / "object.o").write_bytes(b"built")
+        (clone / "stray.txt").write_bytes(b"x")
+        before = os.stat(clone / "a.txt")
+        self.linux["sync"](self.git, clone, str(self.source), self.commit())  # the same tree, a new commit
+        after = os.stat(clone / "a.txt")
+        self.assertEqual((after.st_mtime_ns, after.st_ino), (before.st_mtime_ns, before.st_ino))
+        self.assertEqual((clone / "build" / "linux-gcc" / "object.o").read_bytes(), b"built")
+        self.assertFalse((clone / "stray.txt").exists())
+        (self.source / "a.txt").write_bytes(b"two\n")
+        (self.source / "new.txt").write_bytes(b"new\n")
+        status = self.fixture_git("status", "--porcelain")
+        self.linux["sync"](self.git, clone, str(self.source), self.linux["snapshot"](self.source))
+        self.assertEqual(((clone / "a.txt").read_bytes(), (clone / "new.txt").read_bytes()), (b"two\n", b"new\n"))
+        self.assertEqual(self.fixture_git("status", "--porcelain"), status)
+        self.assertEqual(self.linux["earlier_clones"](self.base), ["linux-gcc"])
+        self.assertEqual((self.old / "kept.txt").read_bytes(), b"old")
+
+    def inside(self, way, drive):
+        """inside() with the sync and the drive faked: [(sync's clone)], the
+        report's lines."""
+        synced = []
+        saved = {k: self.linux[k] for k in ("sync", "drive")}
+        self.linux["sync"] = lambda git, clone, source, commit: synced.append(clone)
+        self.linux["drive"] = drive
+        jobs = [n for n, job in LOOP.JOBS.items() if job[0] == "linux"]
+        args = argparse.Namespace(way=way, jobs=jobs, fuzz_time=None, pins=None, prefix="/nonexistent/prefix",
+                                  clone=str(self.base), source=str(self.source), commit=self.first)
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                counts = self.linux["inside"](args, LOOP.Report(LOOP.LINES))
+        finally:
+            self.linux.update(saved)
+        self.assertEqual(counts[1:], [0, 0], out.getvalue())
+        return synced, out.getvalue()
+
+    def test_once_a_run(self):
+        """One sync a run, before every unit; each unit driven in the one
+        clone under its own TMPDIR, a job's trees its build/JOB."""
+        driven = []
+
+        def drive(report, units, root, logs, command, env, phase="test"):
+            driven.append((units[0], root, env["TMPDIR"]))
+            return [1, 0, 0]
+
+        for way in ("2", "3"):
+            driven.clear()
+            synced, out = self.inside(way, drive)
+            clone = self.base / self.linux["CLONE"]
+            self.assertEqual(synced, [clone], out)
+            names = [u.name for u, _, _ in driven]
+            self.assertEqual(names, [u.name for u in LOOP.plan(way, "linux", [], None)])
+            self.assertEqual({root for _, root, _ in driven}, {clone})
+            self.assertEqual(len({temp for _, _, temp in driven}), len(driven))
+            self.assertFalse(any(Path(temp).exists() for _, _, temp in driven))
+            for unit, _, _ in driven:
+                self.assertEqual(unit.trees, [] if unit.name in LOOP.TABLE["READS"] else ["build/" + unit.name])
+            self.assertIn(f"loop: logs in {clone / 'build' / 'loop'}", out)
+
+    def test_tier3_empties_build_trees(self):
+        """Tier 2 then tier 3 on fakes in a synced clone: each job's tree
+        kept, then emptied with --fresh; the clone's files, its git
+        directory and the earlier clones untouched; the suites read the
+        jobs' trees and own none."""
+        clone = self.base / self.linux["CLONE"]
+        self.linux["sync"](self.git, clone, str(self.source), self.first)
+        presets = LOOP.binary_dirs()
+        code = "import json, sys; open(sys.argv[1], 'a').write(json.dumps(sys.argv[2:]) + '\\n')"
+
+        def command(unit, step):
+            return [sys.executable, "-I", "-c", code, str(clone / "build" / f"ran-{unit.name}.txt"),
+                    *LOOP.local_argv(unit, step, presets)]
+
+        jobs = [n for n, job in LOOP.JOBS.items() if job[0] == "linux"]
+        for way in ("2", "3"):
+            if way == "3":
+                for name in jobs:
+                    (clone / "build" / name / "object.o").write_bytes(b"built")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                counts = LOOP.drive(LOOP.Report(LOOP.LINES), LOOP.plan(way, "linux", jobs, None), clone,
+                                    clone / "build" / "loop", command, dict(os.environ))
+            self.assertEqual(counts[1:], [0, 0], out.getvalue())
+        text = out.getvalue()
+        for name in jobs:
+            self.assertIn(f"{name} tree: {clone / 'build' / name} emptied, a fresh run", text)
+            self.assertFalse((clone / "build" / name / "object.o").exists())
+        self.assertNotIn("linux-full tree", text)
+        self.assertEqual((clone / "a.txt").read_bytes(), b"one\n")
+        self.assertTrue((clone / ".git").is_dir())
+        self.assertEqual((self.old / "kept.txt").read_bytes(), b"old")
+        ran = {name: [json.loads(x) for x in (clone / "build" / f"ran-{name}.txt").read_text().splitlines()]
+               for name in ("linux-gcc", "linux-full")}
+        self.assertIn("--fresh", ran["linux-gcc"][-len(LOOP.JOBS["linux-gcc"][2])])
+        self.assertEqual(ran["linux-full"], [["ctest", "--preset", "full", "--test-dir", "build/linux-plain"]])
 
 
 def prefix():

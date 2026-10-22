@@ -26,9 +26,11 @@ cases under gdb.
 The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
 runs, and TIER1_STEPS, the structure tests and fast it adds on that job;
 SUITES, tier 3's full suite and fuzz targets, once a system after its jobs.
-TREES maps each Windows job's directories, as CI's commands name them, to
-the job's own trees, kept across runs: CI's Windows jobs share build/ci, a
-clean runner each, where the loop's keep a tree each on one machine.
+TREES maps each job's directories, as CI's commands name them, to the job's
+own trees, kept across runs: CI's jobs share build/ci, a clean runner each,
+where the loop's keep a tree each on one machine, Windows' in the checkout,
+Linux's in the one clone. READS maps a suite's directory to a job's tree,
+which the suite reads and never owns.
 
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
@@ -155,7 +157,9 @@ FUZZ_TIMED = "fuzz-timed"  # each fuzz target for a time: tools/loop_fuzz.py on 
 # Tier 3's suites, once a system after its jobs: (system, steps). On
 # Windows the full suite on release (windows-symbols' tree), with the
 # structure preset's records and H6's nohal build beside it; and the fuzz
-# targets in the fuzz preset's tree. Linux's are the Linux side's.
+# targets in the fuzz preset's tree. On Linux the full suite on
+# linux-plain's tree, built with no sanitizer as release is, and the fuzz
+# targets on linux-fuzz's, each built by its job before (READS).
 SUITES = {
     "windows-full": ("windows", [
         Step("structure configure", ("cmake", "--preset", "structure"), "build", (PIN,), None),
@@ -167,11 +171,14 @@ SUITES = {
         Step("configure", ("cmake", "--preset", "fuzz"), "build", (PIN,), None),
         Step("build", ("cmake", "--build", "--preset", "fuzz"), "build", after="configure"),
         Step("fuzz", ("ctest", "--preset", "fuzz"))]),
+    "linux-full": ("linux", [Step("full", ("ctest", "--preset", "full"), after=None)]),
+    "linux-fuzz-targets": ("linux", [Step("fuzz", ("ctest", "--preset", "fuzz"), after=None)]),
 }
-# Each Windows job's or suite's own trees: CI's directory, as its commands
-# name it or as its preset's binaryDir, mapped to the job's tree. A
-# directory a step names outside its job's map is read as it is, and
-# never owned (the full suite reads windows-symbols' build/release).
+# Each job's or suite's own trees: CI's directory, as its commands name it
+# or as its preset's binaryDir, mapped to the job's tree; a Linux job's
+# build/ci to build/JOB in the one clone. A directory a step names outside
+# its job's map is read as it is, and never owned (Windows' full suite
+# reads windows-symbols' build/release).
 TREES = {
     "windows-msvc": {"build/ci": "build/windows-msvc", "build/ci-structure": "build/windows-msvc-structure"},
     "windows-asan": {"build/ci": "build/windows-asan"},
@@ -181,4 +188,11 @@ TREES = {
     "windows-symbols": {"build/release": "build/release"},
     "windows-full": {"build/structure": "build/structure", "build/nohal": "build/nohal"},
     "windows-fuzz": {"build/fuzz": "build/fuzz"},
+    **{name: {"build/ci": "build/" + name} for name, job in JOBS.items() if job[0] == "linux"},
+}
+# A suite's directory mapped to a job's tree, read and never owned: the
+# suite runs after the job built it, and never empties it.
+READS = {
+    "linux-full": {"build/release": "build/linux-plain"},
+    "linux-fuzz-targets": {"build/fuzz": "build/linux-fuzz"},
 }

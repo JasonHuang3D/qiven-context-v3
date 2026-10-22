@@ -31,12 +31,23 @@ while(qiven3_dirs)
   endforeach()
 endwhile()
 
+# Each configure rewrites compile_commands.json, its content the same or
+# not; the records depend on a copy that changes only with the content, so
+# that a configure that changed nothing leaves them as they are.
+set(qiven3_commands "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json")
+add_custom_command(OUTPUT "${qiven3_commands}"
+  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${PROJECT_BINARY_DIR}/compile_commands.json"
+    "${qiven3_commands}"
+  DEPENDS "${PROJECT_BINARY_DIR}/compile_commands.json"
+  COMMENT "Copying the compile commands the records follow"
+  VERBATIM)
+
 set(qiven3_index "${PROJECT_BINARY_DIR}/structure/index.json")
 add_custom_command(OUTPUT "${qiven3_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN3_DUMPBIN}"
   DEPENDS ${qiven3_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py" "${CMAKE_CURRENT_SOURCE_DIR}/plants.py"
-    "${PROJECT_BINARY_DIR}/compile_commands.json"
+    "${qiven3_commands}"
   COMMENT "Writing the structure records"
   VERBATIM)
 add_custom_target(qiven3_structure_records ALL DEPENDS "${qiven3_index}")

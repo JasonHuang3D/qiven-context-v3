@@ -301,7 +301,9 @@ class LoopAgainstCI(unittest.TestCase):
         structure steps are windows-analysis's, as ci.yml writes them; its
         fast step is the fast test preset's selection, on the job's build;
         tier 3's suites build the structure, nohal and fuzz presets and run
-        the full and fuzz test presets. No two Windows jobs share a tree."""
+        the full and fuzz test presets on Windows, and run them on Linux on
+        linux-gcc's and linux-fuzz's trees, read and never owned. No two
+        jobs of a system share a tree, and none is CI's build/ci."""
         presets = json.loads((ROOT / "CMakePresets.json").read_bytes())
         tests = {p["name"]: p for p in presets["testPresets"]}
         table = self.loop.TABLE
@@ -317,7 +319,14 @@ class LoopAgainstCI(unittest.TestCase):
                                    tests["fast"]["filter"]["include"]["label"]))
         self.assertEqual(tests["fast"]["execution"]["noTestsAction"], "error")
         suites = table["SUITES"]
-        self.assertEqual(set(suites), {"windows-full", "windows-fuzz"})
+        self.assertEqual(set(suites), {"windows-full", "windows-fuzz", "linux-full", "linux-fuzz-targets"})
+        self.assertEqual({n: [s.ci for s in suites[n][1]] for n in ("linux-full", "linux-fuzz-targets")},
+                         {"linux-full": [("ctest", "--preset", "full")],
+                          "linux-fuzz-targets": [("ctest", "--preset", "fuzz")]})
+        trees = self.loop.TREES
+        self.assertEqual(table["READS"], {
+            "linux-full": {"build/" + tests["full"]["configurePreset"]: trees["linux-plain"]["build/ci"]},
+            "linux-fuzz-targets": {"build/" + tests["fuzz"]["configurePreset"]: trees["linux-fuzz"]["build/ci"]}})
         self.assertEqual([s.ci for s in suites["windows-full"][1]],
                          [("cmake", "--preset", "structure"), ("cmake", "--build", "--preset", "structure"),
                           ("cmake", "--preset", "nohal"), ("cmake", "--build", "--preset", "nohal"),
@@ -326,11 +335,14 @@ class LoopAgainstCI(unittest.TestCase):
                          [("cmake", "--preset", "fuzz"), ("cmake", "--build", "--preset", "fuzz"),
                           ("ctest", "--preset", "fuzz")])
         self.assertEqual(tests["full"]["configurePreset"], "release")
-        windows = [n for n, j in self.loop.JOBS.items() if j[0] == "windows"] + list(suites)
-        self.assertEqual(set(self.loop.TREES), set(windows))
-        owned = [tree for name in windows for tree in self.loop.TREES[name].values()]
-        self.assertEqual(len(owned), len(set(owned)), owned)
-        self.assertNotIn("build/ci", owned)
+        windows = [n for n, j in self.loop.JOBS.items() if j[0] == "windows"] + ["windows-full", "windows-fuzz"]
+        linux = [n for n, j in self.loop.JOBS.items() if j[0] == "linux"]
+        self.assertEqual(set(trees), {*windows, *linux})
+        for names in (windows, linux):
+            owned = [tree for name in names for tree in trees[name].values()]
+            self.assertEqual(len(owned), len(set(owned)), owned)
+            self.assertNotIn("build/ci", owned)
+        self.assertEqual({name: trees[name] for name in linux}, {name: {"build/ci": "build/" + name} for name in linux})
 
     def test_environment(self):
         for name, (system, _, _) in self.ci_jobs().items():

@@ -10,18 +10,19 @@ and each step's command in its job's own trees.
 - Tier 3, the boundary run: every job of the system from emptied trees,
   each configure with --fresh, every test of each job; then SUITES, once a
   system: the full suite and the fuzz targets, each for a time when one is
-  given.
+  given. A suite empties only the trees it owns, never one it reads.
 - build or test, of the jobs named (none: every job of the system), in
   their kept trees, every test of each.
 
 A step's command is CI's (tools/loop_jobs.py), its directory mapped to the
-job's own tree by TREES, then the loop's additions: a configure by --preset
-gets -B, a build by --preset its tree, a ctest by --preset --test-dir, when
-the job's tree is not the preset's binaryDir; a directory CI names is
-replaced. Each preset's binaryDir is read from CMakePresets.json.
+job's own tree by TREES, or to the tree a suite reads by READS, then the
+loop's additions: a configure by --preset gets -B, a build by --preset its
+tree, a ctest by --preset --test-dir, when the job's tree is not the
+preset's binaryDir; a directory CI names is replaced. Each preset's
+binaryDir is read from CMakePresets.json.
 
 Run by tools/loop.py, given tools/loop_jobs.py's names (runpy's
-init_globals): JOBS, Step, TREES, TIER1, TIER1_STEPS, SUITES, CLEAN,
+init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, SUITES, CLEAN,
 FUZZ_TIMED.
 """
 
@@ -30,25 +31,25 @@ from pathlib import Path
 
 WAYS = ("1", "2", "3", "build", "test")
 TIERS = ("1", "2", "3")
-LINUX_TREE = {"build/ci": "build/ci"}  # each Linux job's tree, in its own clone
 
 
 class Unit:
     """A job, or a suite of tier 3, as a way runs it: its name, steps,
-    trees (CI's directory: the job's own), the trees it owns, whether they
-    are emptied and configured with --fresh, and the steps whose tests
-    affected() may narrow."""
+    trees (CI's directory: the job's own, or the tree a suite reads), the
+    trees it owns, whether they are emptied and configured with --fresh,
+    and the steps whose tests affected() may narrow."""
 
     __slots__ = ("name", "system", "steps", "map", "trees", "fresh", "narrow", "way")
 
     def __init__(self, name, system, steps, way, presets):
         self.name, self.system, self.steps, self.way = name, system, list(steps), way
-        self.map = TREES.get(name, LINUX_TREE if system == "linux" else {})
+        own = TREES.get(name, {})
+        self.map = {**own, **READS.get(name, {})}
         self.fresh = way == "3"
         self.narrow = frozenset(s.name for s in JOBS.get(name, (None, None, ()))[2]
                                 if s.ci[0] == "ctest") if way in ("1", "2") else frozenset()
         used = [directory(step, presets) for step in self.steps]
-        self.trees = list(dict.fromkeys(self.map[d] for d in used if d in self.map))
+        self.trees = list(dict.fromkeys(own[d] for d in used if d in own))
 
 
 def plan(way, system, jobs, fuzz_time=None, root=None):

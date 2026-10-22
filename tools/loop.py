@@ -17,9 +17,11 @@ jobs as below, or build or test of the jobs named:
   configure with --fresh, every test of each; then, once a system, the full
   suite and the fuzz targets: on Windows the structure and nohal presets'
   builds and ctest --preset full on release (windows-symbols' tree), then
-  the fuzz preset's build and ctest --preset fuzz, or with --fuzz-time
-  SECONDS each fuzz target for that time from its corpus, as a half's
-  evidence has it (600). Emptying keeps the fuzz corpus.
+  the fuzz preset's build and ctest --preset fuzz; on Linux ctest --preset
+  full on linux-gcc's tree, then ctest --preset fuzz on linux-fuzz's. With
+  --fuzz-time SECONDS each fuzz target runs for that time from its corpus
+  instead, as a half's evidence has it (600). Emptying keeps the fuzz
+  corpus.
 - build or test: the jobs named, each a job's name or its preset's
   (windows-msvc or ci-windows), none naming every job of the system, in
   their kept trees without --fresh; build stops after the build, test runs
@@ -51,14 +53,17 @@ the debugger cases under gdb. macOS stays with CI alone.
 - linux: reaches WSL2 (--distro, QIVEN3_WSL_DISTRO, default Ubuntu-24.04),
   checks tools/linux-pins.txt by tools/linux_pins.py under the toolchain's
   prefix (--prefix or QIVEN3_PREFIX, no default), then brings the working
-  tree, uncommitted changes and new files included, to a clone on WSL's own
-  file system (--clone, QIVEN3_LOOP_CLONE, default ~/qiven3-loop), one a
-  job, by a commit object made from a copy of the index: the Windows tree
-  and its index are not touched. The logs are kept in the clone's
+  tree, uncommitted changes and new files included, to one clone on WSL's
+  own file system, clone/ under the clone root (--clone,
+  QIVEN3_LOOP_CLONE, default ~/qiven3-loop), synced once a run by a commit
+  object made from a copy of the index: the Windows tree and its index are
+  not touched. Each job builds in its own tree within the clone,
+  build/JOB, kept as on Windows; each has its own TMPDIR, the
+  clean-binaries check's RUNNER_TEMP. The logs are kept in the clone's
   build/loop/. Each configure with QIVEN3_PIN_TOOLS on and the pinned
-  compilers; each step under setarch -R, as CI's Linux shell. From Git Bash,
-  set MSYS_NO_PATHCONV=1 before giving a POSIX path as an argument, or give
-  it by the environment.
+  compilers; each step under setarch -R, as CI's Linux shell. From Git
+  Bash, set MSYS_NO_PATHCONV=1 before giving a POSIX path as an argument,
+  or give it by the environment.
 
 The answer is plain text: a line a tree and a step with its outcome and
 seconds, a failing step's last 30 lines, at most 100 lines in all. Exit 0
