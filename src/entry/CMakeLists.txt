@@ -14,6 +14,10 @@ target_link_libraries(qiven3_matcher PUBLIC qiven3_memory PRIVATE qiven3_flags)
 add_library(qiven3_entry STATIC
   body.cpp
   body.hpp
+  content.cpp
+  content.hpp
+  content_fields.cpp
+  content_fields.hpp
   fold.cpp
   fold.hpp
   header.cpp

@@ -121,6 +121,17 @@ qiven3_add_cases(qiven3_unit_refs LABELS fast fake
   SOURCES refs_test.cpp refs_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
+# content's cases: each code on its field and the first in the table's
+# order, basis and scope leading, the admission test, exact key sets, when
+# and pins, evaluated by the compiler where no syntax is compiled; at run
+# time the limits at their bounds, a lesson of 500 Chinese characters and
+# of 501, references, a map's object, the episode, the kinds' rules, the
+# size, every fixture entry; the compiles counted, under the budget and the
+# fault run.
+qiven3_add_cases(qiven3_unit_content LABELS fast fake
+  SOURCES content_test.cpp content_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
 # fold's cases: the order, one writer, each step of the fold ending it in
 # turn (F50, F51, F118) and "active", evaluated by the compiler; the
 # fold's faults; FA2's status change and the scope's order over the
