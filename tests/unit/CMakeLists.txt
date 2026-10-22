@@ -177,3 +177,14 @@ qiven3_add_cases(qiven3_unit_fold LABELS fast fake
 qiven3_add_cases(qiven3_unit_labels LABELS fast fake
   SOURCES labels_test.cpp labels_memory_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
+# served's cases: a block's lines, its text escaped onto one line, its state
+# line, its fields' forms and a deeper value's canonical JSON, a reflection
+# writer's lesson as a claim until lifted, a stub, cost, map_mark and the
+# budgets, evaluated by the compiler; over the fixtures M1 stale and M2
+# fresh at 387 and 402 units, L1 and L2's when and pins, L1 superseded,
+# MX's block of 42,658 units and its stub of 201, and the refusals; one
+# allocation each for block and stub, under the budget and the fault run.
+qiven3_add_cases(qiven3_unit_served LABELS fast fake
+  SOURCES served_test.cpp served_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)

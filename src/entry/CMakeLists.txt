@@ -30,6 +30,9 @@ add_library(qiven3_entry STATIC
   labels.hpp
   refs.cpp
   refs.hpp
+  served.cpp
+  served.hpp
+  served_text.hpp
   validator.cpp
   validator.hpp
 )
