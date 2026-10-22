@@ -188,3 +188,14 @@ qiven3_add_cases(qiven3_unit_labels LABELS fast fake
 qiven3_add_cases(qiven3_unit_served LABELS fast fake
   SOURCES served_test.cpp served_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
+# projectmap's cases: the map files' syntaxes, os.path.isabs on each
+# system, the registry and the marks file read with each code, the marks
+# file written back the same, Marks built and refused, the map's rule
+# against a view and an entry reference's digest, evaluated by the
+# compiler; FA2's map case, the four marks, three digests and two ids over
+# the fixtures; each operation's allocations counted, under the budget and
+# the fault run.
+qiven3_add_cases(qiven3_unit_projectmap LABELS fast fake
+  SOURCES projectmap_test.cpp projectmap_memory_test.cpp map_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)

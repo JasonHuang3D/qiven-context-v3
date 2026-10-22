@@ -28,6 +28,9 @@ add_library(qiven3_entry STATIC
   kinds.hpp
   labels.cpp
   labels.hpp
+  projectmap.cpp
+  projectmap.hpp
+  projectmap_files.hpp
   refs.cpp
   refs.hpp
   served.cpp
