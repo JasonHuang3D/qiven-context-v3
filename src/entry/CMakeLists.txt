@@ -20,6 +20,8 @@ add_library(qiven3_entry STATIC
   header.hpp
   kinds.cpp
   kinds.hpp
+  labels.cpp
+  labels.hpp
   refs.cpp
   refs.hpp
 )

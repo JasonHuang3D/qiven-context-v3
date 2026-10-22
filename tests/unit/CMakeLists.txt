@@ -128,3 +128,13 @@ qiven3_add_cases(qiven3_unit_refs LABELS fast fake
 qiven3_add_cases(qiven3_unit_fold LABELS fast fake
   SOURCES fold_test.cpp fold_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
+# labels' cases: the base by basis and an owner-words version's bindings
+# (F29, F120), the strength rows and their precedence, the own writer's,
+# a dead and an unequal check, a reflection writer's lesson lifted (F156,
+# A10) and the longest labels, evaluated by the compiler; a label past its
+# capacity; FA2's model entry over the fixtures, with a stub transcript
+# reader; no allocation, under the budget and the fault run.
+qiven3_add_cases(qiven3_unit_labels LABELS fast fake
+  SOURCES labels_test.cpp labels_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
