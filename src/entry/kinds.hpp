@@ -36,6 +36,7 @@
 #include <string_view>
 
 #include "entry/header.hpp"
+#include "memory/fail.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::kinds {
@@ -101,35 +102,73 @@ enum class Value : std::uint8_t {
 // The objects of exact keys, each a table of fields.
 enum class Shape : std::uint8_t { none, episode, admit, trigger, applies_to, relation, corrected, clears, when, pin };
 
+// The closed sets, each a table of its strings.
+enum class Set : std::uint8_t {
+    none,
+    bands,
+    qualities,
+    pin_types,
+    entity_types,
+    item_states,
+    object_types,
+    results,
+    methods,
+};
+
+// A field's or a kind's name, held by value: a literal's characters, at
+// most 15. view() reads it in place, as long as the label lasts.
+struct Label {
+    std::array<char, 15> text{};
+    std::uint8_t size = 0;
+
+    constexpr Label() noexcept = default;
+    // Implicit, so that a literal is a Label where one is taken; it runs at
+    // compile time, and a literal past 15 characters does not compile.
+    consteval Label(const char* literal) noexcept {
+        const std::string_view s(literal);
+        if (s.size() > text.size()) {
+            memory::fail_fast("kinds::Label: past 15 characters");
+        }
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            text[i] = s[i];
+        }
+        size = static_cast<std::uint8_t>(s.size());
+    }
+    constexpr std::string_view view() const noexcept { return std::string_view(text.data(), size); }
+    friend constexpr bool operator==(const Label& a, std::string_view b) noexcept { return a.view() == b; }
+};
+static_assert(sizeof(Label) == 16, "Label's size is pinned: 15 characters and their count");
+
 struct Field {
-    std::string_view name;
+    Label name;
     Value value = Value::text;
     Carried carried = Carried::optional;
     std::uint16_t items = 0;  // a list's most items; 0, no list
     std::uint16_t limit = 0;  // characters, per item on a list; 0, none
-    std::span<const std::string_view> values{};
+    Set set = Set::none;      // a closed set: values(field) reads its strings
     Shape shape = Shape::none;
 };
+static_assert(sizeof(Field) == 24, "Field's size is pinned: its label, four bytes, two counts and two tables");
 
 namespace detail {
 
-constexpr Field text(std::string_view name, Carried c, std::uint16_t limit) noexcept {
-    return Field{name, Value::text, c, 0, limit, {}, Shape::none};
+constexpr Field text(Label name, Carried c, std::uint16_t limit) noexcept {
+    return Field{name, Value::text, c, 0, limit, Set::none, Shape::none};
 }
-constexpr Field texts(std::string_view name, Carried c, std::uint16_t items, std::uint16_t limit) noexcept {
-    return Field{name, Value::text, c, items, limit, {}, Shape::none};
+constexpr Field texts(Label name, Carried c, std::uint16_t items, std::uint16_t limit) noexcept {
+    return Field{name, Value::text, c, items, limit, Set::none, Shape::none};
 }
-constexpr Field of(std::string_view name, Value v, Carried c, std::uint16_t limit = 0) noexcept {
-    return Field{name, v, c, 0, limit, {}, Shape::none};
+constexpr Field of(Label name, Value v, Carried c, std::uint16_t limit = 0) noexcept {
+    return Field{name, v, c, 0, limit, Set::none, Shape::none};
 }
-constexpr Field list(std::string_view name, Value v, Carried c, std::uint16_t items, std::uint16_t limit = 0) noexcept {
-    return Field{name, v, c, items, limit, {}, Shape::none};
+constexpr Field list(Label name, Value v, Carried c, std::uint16_t items, std::uint16_t limit = 0) noexcept {
+    return Field{name, v, c, items, limit, Set::none, Shape::none};
 }
-constexpr Field one(std::string_view name, Carried c, std::span<const std::string_view> values) noexcept {
+constexpr Field one(Label name, Carried c, Set values) noexcept {
     return Field{name, Value::one_of, c, 0, 0, values, Shape::none};
 }
-constexpr Field object(std::string_view name, Carried c, Shape s, std::uint16_t items = 0) noexcept {
-    return Field{name, Value::shape, c, items, 0, {}, s};
+constexpr Field object(Label name, Carried c, Shape s, std::uint16_t items = 0) noexcept {
+    return Field{name, Value::shape, c, items, 0, Set::none, s};
 }
 
 constexpr Carried R = Carried::required;
@@ -159,8 +198,8 @@ inline constexpr std::array<Field, 4> applies_keys = {
 inline constexpr std::array<Field, 2> relation_keys = {of("relation", Value::slug, R, 48), of("to", Value::subject, R, 160)};
 inline constexpr std::array<Field, 2> corrected_keys = {of("entry", Value::id, R), of("by", Value::id, R)};
 inline constexpr std::array<Field, 2> clears_keys = {of("content", Value::digest, R), of("pattern", Value::pattern_name, R)};
-inline constexpr std::array<Field, 2> when_keys = {of("time", Value::time, R), one("quality", R, qualities)};
-inline constexpr std::array<Field, 3> pin_keys = {one("type", R, pin_types), of("name", Value::pin_name, R, 200),
+inline constexpr std::array<Field, 2> when_keys = {of("time", Value::time, R), one("quality", R, Set::qualities)};
+inline constexpr std::array<Field, 3> pin_keys = {one("type", R, Set::pin_types), of("name", Value::pin_name, R, 200),
                                                   text("version", Carried::by_type, 64)};
 
 }  // namespace detail
@@ -183,6 +222,23 @@ constexpr std::span<const Field> members(Shape s) noexcept {
 }
 constexpr bool at_least_one(Shape s) noexcept { return s == Shape::trigger; }
 
+// A closed set's strings; a field's, by its set; none off one_of.
+constexpr std::span<const std::string_view> strings(Set s) noexcept {
+    switch (s) {
+        case Set::bands: return detail::bands;
+        case Set::qualities: return detail::qualities;
+        case Set::pin_types: return detail::pin_types;
+        case Set::entity_types: return detail::entity_types;
+        case Set::item_states: return detail::item_states;
+        case Set::object_types: return detail::object_types;
+        case Set::results: return detail::results;
+        case Set::methods: return detail::methods;
+        case Set::none: break;
+    }
+    return {};
+}
+constexpr std::span<const std::string_view> values(const Field& f) noexcept { return strings(f.set); }
+
 // The common fields, in the table's order; each kind carries them by
 // common_carried. Their carriage here is a placeholder.
 enum class Common : std::uint8_t { subject, applies_to, source, evidence, episode, band, admit, expires, when, as_of };
@@ -192,7 +248,7 @@ inline constexpr std::array<Field, 10> COMMON = {
     detail::list("source", Value::reference, Carried::optional, 8),
     detail::list("evidence", Value::reference, Carried::optional, 16),
     detail::object("episode", Carried::optional, Shape::episode),
-    detail::one("band", Carried::optional, detail::bands),
+    detail::one("band", Carried::optional, Set::bands),
     detail::object("admit", Carried::optional, Shape::admit),
     detail::of("expires", Value::time, Carried::optional),
     detail::object("when", Carried::optional, Shape::when),
@@ -204,7 +260,7 @@ namespace detail {
 // Each kind's own fields, in the tables' order.
 inline constexpr std::array<Field, 2> direction_fields = {text("words", R, 2000), object("clears", O, Shape::clears)};
 inline constexpr std::array<Field, 1> account_fields = {text("words", R, 2000)};
-inline constexpr std::array<Field, 3> entity_fields = {text("name", R, 120), one("entity_type", R, entity_types),
+inline constexpr std::array<Field, 3> entity_fields = {text("name", R, 120), one("entity_type", R, Set::entity_types),
                                                        text("description", O, 500)};
 inline constexpr std::array<Field, 4> observation_fields = {text("command", R, 400), text("result", R, 500),
                                                             of("revision", Value::revision, O),
@@ -231,7 +287,7 @@ inline constexpr std::array<Field, 5> module_fields = {
     list("interface", Value::qualified_name, O, 16, 200), texts("invariants", O, 16, 300),
     list("covered_by", Value::test_id, O, 16)};
 inline constexpr std::array<Field, 6> item_fields = {
-    of("item_id", Value::slug, R, 64), one("state", R, item_states), text("title", O, 200), text("turn", O, 64),
+    of("item_id", Value::slug, R, 64), one("state", R, Set::item_states), text("title", O, 200), text("turn", O, 64),
     list("waits_on", Value::slug, O, 16, 64), of("under", Value::slug, O, 64)};
 inline constexpr std::array<Field, 4> checkpoint_fields = {text("progress", R, 1000), text("next_action", R, 500),
                                                            text("decision_status", O, 300),
@@ -239,15 +295,39 @@ inline constexpr std::array<Field, 4> checkpoint_fields = {text("progress", R, 1
 inline constexpr std::array<Field, 3> measure_fields = {text("measure", R, 500), text("success", O, 300),
                                                         texts("results", O, 8, 300)};
 inline constexpr std::array<Field, 6> map_fields = {
-    of("object", Value::map_object, R), one("object_type", R, object_types), text("does", R, 500),
+    of("object", Value::map_object, R), one("object_type", R, Set::object_types), text("does", R, 500),
     object("relations", O, Shape::relation, 16), text("contract", O, 1000), texts("constraints", O, 8, 300)};
-inline constexpr std::array<Field, 3> check_fields = {one("result", R, results), one("method", R, methods),
+inline constexpr std::array<Field, 3> check_fields = {one("result", R, Set::results), one("method", R, Set::methods),
                                                       text("note", O, 500)};
 inline constexpr std::array<Field, 2> accept_fields = {of("message", Value::transcript, R), text("words", O, 500)};
 inline constexpr std::array<Field, 1> retire_fields = {text("reason", R, 300)};
 inline constexpr std::array<Field, 4> usage_fields = {list("served", Value::id, R, 384), list("cited", Value::id, O, 192),
                                                       object("corrected", O, Shape::corrected, 48),
                                                       of("truncated", Value::only_true, O)};
+
+// Tables joined, in their order.
+template <std::size_t... N>
+constexpr std::array<Field, (N + ...)> join(const std::array<Field, N>&... parts) noexcept {
+    std::array<Field, (N + ...)> out{};
+    std::size_t at = 0;
+    const auto put = [&out, &at](const auto& part) {
+        for (const Field& f : part) {
+            out[at] = f;
+            ++at;
+        }
+    };
+    (put(parts), ...);
+    return out;
+}
+
+// Every kind's own fields, one table in KINDS' order (forget has none); a
+// kind's fields are a range of it.
+inline constexpr auto OWN =
+    join(direction_fields, account_fields, entity_fields, observation_fields, claim_fields, decision_fields,
+         question_fields, lesson_fields, episode_fields, relation_fields, goal_fields, clause_fields, module_fields,
+         item_fields, checkpoint_fields, measure_fields, map_fields, check_fields, accept_fields, retire_fields,
+         usage_fields);
+static_assert(OWN.size() <= UINT8_MAX);
 
 }  // namespace detail
 
@@ -258,15 +338,23 @@ enum class Group : std::uint8_t { core, work, change, usage };
 // What a record's identity holds, or none.
 enum class Holds : std::uint8_t { none, object, item_id, clause_id, lane };
 
+// A kind; its own fields are count rows of the joined table from first,
+// read by fields(kind).
 struct Kind {
-    std::string_view name;
+    Label name;
     Bases bases = 0;
     Group group = Group::core;
     bool served = false;
     bool content = true;
     Holds identity = Holds::none;
-    std::span<const Field> fields{};
+    std::uint8_t count = 0;
+    std::uint8_t first = 0;
 };
+static_assert(sizeof(Kind) == 23, "Kind's size is pinned: its label, five bytes and its fields' range");
+
+constexpr std::span<const Field> fields(const Kind& k) noexcept {
+    return std::span<const Field>(detail::OWN).subspan(k.first, k.count);
+}
 
 namespace detail {
 
@@ -277,34 +365,53 @@ constexpr Bases DE = bit(Basis::derived);
 constexpr Group core = Group::core;
 constexpr Group work = Group::work;
 
+// A table's rows, as a kind's count.
+template <std::size_t N>
+constexpr std::uint8_t count_of(const std::array<Field, N>& /*table*/) noexcept {
+    static_assert(N <= UINT8_MAX);
+    return static_cast<std::uint8_t>(N);
+}
+
+// The kinds with their ranges placed: each starts where the last ended.
+constexpr std::array<Kind, 22> placed(std::array<Kind, 22> rows) noexcept {
+    std::size_t at = 0;
+    for (Kind& k : rows) {
+        k.first = static_cast<std::uint8_t>(at);
+        at += k.count;
+    }
+    return rows;
+}
+
 }  // namespace detail
 
-// The kinds, in header's order of its kind names. A check allows observed
-// or claimed, its method choosing (check_basis).
-inline constexpr std::array<Kind, 22> KINDS = {{
-    {"direction", detail::OW, detail::core, true, true, Holds::none, detail::direction_fields},
-    {"account", detail::OW, detail::core, true, true, Holds::none, detail::account_fields},
-    {"entity", detail::OB | detail::CL, detail::core, true, true, Holds::none, detail::entity_fields},
-    {"observation", detail::OB, detail::core, true, true, Holds::none, detail::observation_fields},
-    {"claim", detail::CL, detail::core, true, true, Holds::none, detail::claim_fields},
-    {"decision", detail::CL, detail::core, true, true, Holds::none, detail::decision_fields},
-    {"question", detail::CL, detail::core, true, true, Holds::none, detail::question_fields},
-    {"lesson", detail::CL, detail::core, true, true, Holds::none, detail::lesson_fields},
-    {"episode", detail::OB | detail::CL, detail::core, false, true, Holds::none, detail::episode_fields},
-    {"relation", detail::CL, detail::core, true, true, Holds::none, detail::relation_fields},
-    {"goal", detail::CL, detail::work, true, true, Holds::none, detail::goal_fields},
-    {"clause", detail::DE, detail::work, true, true, Holds::clause_id, detail::clause_fields},
-    {"module", detail::CL | detail::DE, detail::work, true, true, Holds::none, detail::module_fields},
-    {"item", detail::CL, detail::work, true, true, Holds::item_id, detail::item_fields},
-    {"checkpoint", detail::CL, detail::work, true, true, Holds::lane, detail::checkpoint_fields},
-    {"measure", detail::CL | detail::OB, detail::work, true, true, Holds::none, detail::measure_fields},
-    {"map", detail::DE, detail::work, true, true, Holds::object, detail::map_fields},
-    {"check", detail::OB | detail::CL, Group::change, false, true, Holds::none, detail::check_fields},
-    {"accept", detail::OW, Group::change, false, true, Holds::none, detail::accept_fields},
-    {"retire", detail::CL, Group::change, false, true, Holds::none, detail::retire_fields},
-    {"forget", detail::OW, Group::change, false, false, Holds::none, {}},
-    {"usage", detail::OB | detail::CL, Group::usage, false, true, Holds::none, detail::usage_fields},
-}};
+// The kinds, in header's order of its kind names, each with its own
+// fields' count. A check allows observed or claimed, its method choosing
+// (check_basis).
+inline constexpr std::array<Kind, 22> KINDS = detail::placed({{
+    {"direction", detail::OW, detail::core, true, true, Holds::none, detail::count_of(detail::direction_fields)},
+    {"account", detail::OW, detail::core, true, true, Holds::none, detail::count_of(detail::account_fields)},
+    {"entity", detail::OB | detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::entity_fields)},
+    {"observation", detail::OB, detail::core, true, true, Holds::none, detail::count_of(detail::observation_fields)},
+    {"claim", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::claim_fields)},
+    {"decision", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::decision_fields)},
+    {"question", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::question_fields)},
+    {"lesson", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::lesson_fields)},
+    {"episode", detail::OB | detail::CL, detail::core, false, true, Holds::none, detail::count_of(detail::episode_fields)},
+    {"relation", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::relation_fields)},
+    {"goal", detail::CL, detail::work, true, true, Holds::none, detail::count_of(detail::goal_fields)},
+    {"clause", detail::DE, detail::work, true, true, Holds::clause_id, detail::count_of(detail::clause_fields)},
+    {"module", detail::CL | detail::DE, detail::work, true, true, Holds::none, detail::count_of(detail::module_fields)},
+    {"item", detail::CL, detail::work, true, true, Holds::item_id, detail::count_of(detail::item_fields)},
+    {"checkpoint", detail::CL, detail::work, true, true, Holds::lane, detail::count_of(detail::checkpoint_fields)},
+    {"measure", detail::CL | detail::OB, detail::work, true, true, Holds::none, detail::count_of(detail::measure_fields)},
+    {"map", detail::DE, detail::work, true, true, Holds::object, detail::count_of(detail::map_fields)},
+    {"check", detail::OB | detail::CL, Group::change, false, true, Holds::none, detail::count_of(detail::check_fields)},
+    {"accept", detail::OW, Group::change, false, true, Holds::none, detail::count_of(detail::accept_fields)},
+    {"retire", detail::CL, Group::change, false, true, Holds::none, detail::count_of(detail::retire_fields)},
+    {"forget", detail::OW, Group::change, false, false, Holds::none, 0},
+    {"usage", detail::OB | detail::CL, Group::usage, false, true, Holds::none, detail::count_of(detail::usage_fields)},
+}});
+static_assert(KINDS.back().first + KINDS.back().count == detail::OWN.size(), "the kinds' ranges cover the table");
 
 // The change kinds, which require a target.
 inline constexpr std::array<std::string_view, 4> CHANGE_KINDS = {"check", "accept", "retire", "forget"};

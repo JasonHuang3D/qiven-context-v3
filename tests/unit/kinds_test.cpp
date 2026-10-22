@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <iostream>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -38,7 +39,7 @@ using kinds::Value;
 constexpr const kinds::Kind& kind(std::string_view name) { return KINDS.at(*kinds::index_of(name)); }
 
 constexpr std::optional<Field> field(std::string_view k, std::string_view name) {
-    for (const Field& f : kind(k).fields) {
+    for (const Field& f : kinds::fields(kind(k))) {
         if (f.name == name) {
             return f;
         }
@@ -70,7 +71,7 @@ static_assert(!kinds::served("note") && !kinds::index_of("Claim"));
 static_assert(count([](const kinds::Kind& k) { return k.group == kinds::Group::work; }) == 7);
 static_assert(kinds::project_only("map") && kinds::project_only("checkpoint") && !kinds::project_only("lesson"));
 static_assert(kinds::CHANGE_KINDS.size() == 4 && kind("forget").group == kinds::Group::change);
-static_assert(!kind("forget").content && kind("forget").fields.empty());
+static_assert(!kind("forget").content && kinds::fields(kind("forget")).empty());
 
 // The bases.
 static_assert(kinds::allows("direction", Basis::owner_words) && !kinds::allows("direction", Basis::claimed));
@@ -87,19 +88,20 @@ static_assert(!kinds::check_basis("guess") && kinds::basis_of("owner-words") == 
 // its limit, each closed set and shape with its values or keys.
 static_assert([] {
     for (const kinds::Kind& k : KINDS) {
-        for (std::size_t i = 0; i < k.fields.size(); ++i) {
-            const Field& f = k.fields[i];
-            for (std::size_t j = i + 1; j < k.fields.size(); ++j) {
-                if (k.fields[j].name == f.name) {
+        const std::span<const Field> own = kinds::fields(k);
+        for (std::size_t i = 0; i < own.size(); ++i) {
+            const Field& f = own[i];
+            for (std::size_t j = i + 1; j < own.size(); ++j) {
+                if (own[j].name == f.name.view()) {
                     return false;
                 }
             }
             for (const Field& c : kinds::COMMON) {
-                if (c.name == f.name) {
+                if (c.name == f.name.view()) {
                     return false;
                 }
             }
-            if ((f.value == Value::text && f.limit == 0) || (f.value == Value::one_of && f.values.empty()) ||
+            if ((f.value == Value::text && f.limit == 0) || (f.value == Value::one_of && kinds::values(f).empty()) ||
                 (f.value == Value::shape && kinds::members(f.shape).empty())) {
                 return false;
             }
@@ -115,13 +117,15 @@ static_assert(field("question", "options")->items == 6 && field("question", "opt
 static_assert(field("clause", "text")->limit == 4000 && field("clause", "cites")->value == Value::clause_id);
 static_assert(field("module", "paths")->items == 32 && field("module", "paths")->carried == Carried::required);
 static_assert(field("item", "item_id")->value == Value::slug && field("item", "item_id")->limit == 64);
-static_assert(field("item", "state")->values.size() == 5 && field("entity", "entity_type")->values.size() == 7);
+static_assert(kinds::values(*field("item", "state")).size() == 5 &&
+              kinds::values(*field("entity", "entity_type")).size() == 7);
 static_assert(field("checkpoint", "refs")->items == 32 && field("relation", "relation")->limit == 48);
 static_assert(field("usage", "served")->items == 384 && field("usage", "cited")->items == 192);
 static_assert(field("usage", "corrected")->items == 48 && field("usage", "truncated")->value == Value::only_true);
 static_assert(field("accept", "message")->value == Value::transcript && field("map", "object")->value == Value::map_object);
 static_assert(field("map", "relations")->shape == kinds::Shape::relation && !field("map", "subject"));
-static_assert(field("check", "method")->values.size() == 4 && field("check", "result")->values.size() == 2);
+static_assert(kinds::values(*field("check", "method")).size() == 4 &&
+              kinds::values(*field("check", "result")).size() == 2);
 
 // A direction's clears: a content digest and a pattern's name.
 static_assert(field("direction", "clears")->carried == Carried::optional && !field("account", "clears"));
@@ -133,14 +137,16 @@ static_assert(kinds::members(kinds::Shape::clears).size() == 2);
 // kinds and refused elsewhere.
 static_assert(kinds::COMMON.at(static_cast<std::size_t>(Common::when)).shape == kinds::Shape::when);
 static_assert(key(kinds::Shape::when, "time")->value == Value::time);
-static_assert(key(kinds::Shape::when, "quality")->values.size() == 4 && kinds::members(kinds::Shape::when).size() == 2);
+static_assert(kinds::values(*key(kinds::Shape::when, "quality")).size() == 4 &&
+              kinds::members(kinds::Shape::when).size() == 2);
 static_assert(kinds::common_carried(kind("lesson"), Common::when) == Carried::optional);
 static_assert(kinds::common_carried(kind("usage"), Common::when) == Carried::refused);
 
 // A lesson's pins: up to 8 of type (four), name 200 and version 64,
 // required on a tool alone.
 static_assert(field("lesson", "pins")->items == 8 && field("lesson", "pins")->shape == kinds::Shape::pin);
-static_assert(key(kinds::Shape::pin, "type")->values.size() == 4 && key(kinds::Shape::pin, "name")->limit == 200);
+static_assert(kinds::values(*key(kinds::Shape::pin, "type")).size() == 4 &&
+              key(kinds::Shape::pin, "name")->limit == 200);
 static_assert(key(kinds::Shape::pin, "version")->limit == 64 && !field("claim", "pins"));
 static_assert(kinds::resolve(key(kinds::Shape::pin, "version")->carried, "learner/s1", Basis::claimed, "tool") ==
               Carried::required);
@@ -273,7 +279,7 @@ QIVEN3_CASE(kinds, identity) {
     const std::optional<kinds::Identity> i2 = kinds::identity(x2.h, x2.v);
     REQUIRE(i1.has_value() && i2.has_value());
     CHECK(*i1 == *i2);
-    CHECK_EQ(std::string(KINDS.at(i1->kind).name), "map");
+    CHECK_EQ(std::string(KINDS.at(i1->kind).name.view()), "map");
     CHECK_EQ(std::string(i1->parts[0]), "repo");
     CHECK_EQ(std::string(i1->parts[1]), "qiven-context-v3");
     CHECK_EQ(std::string(i1->parts[2]), "qiven3/entry.py");
@@ -293,9 +299,9 @@ QIVEN3_CASE(kinds, tables) {
     // Each kind's served flag, group and identity, printed for the record.
     std::size_t fields = 0;
     for (const kinds::Kind& k : KINDS) {
-        fields += k.fields.size();
-        CHECK_EQ(kinds::served(k.name), k.served);
-        CHECK_EQ(kinds::index_of(k.name).has_value(), true);
+        fields += kinds::fields(k).size();
+        CHECK_EQ(kinds::served(k.name.view()), k.served);
+        CHECK_EQ(kinds::index_of(k.name.view()).has_value(), true);
     }
     std::cout << "kinds.tables: " << KINDS.size() << " kinds, " << fields << " fields of their own, "
               << kinds::COMMON.size() << " common\n";
