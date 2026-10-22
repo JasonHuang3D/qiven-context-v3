@@ -375,6 +375,7 @@ class Faults(unittest.TestCase):
 class Signal(unittest.TestCase):
     """K18: signal.cpp's object calls only the async-signal-safe list, by its
     undefined symbols; its control, a copy with a call of malloc planted."""
+    ctest_reads = ("src/",)
     ctest_labels = ("fake",)
 
     def setUp(self):

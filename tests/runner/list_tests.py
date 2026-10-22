@@ -1,19 +1,31 @@
 """Print each Python test of tests/ for CTest: its id, its labels, serial,
-and its own limit.
+its own limit, and what it reads at run time.
 
 Run from the checkout's root as python -I tests/runner/list_tests.py. Each
-line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
-test's labels are its package's, or its module's where MODULE_LABELS names
-it, below, and those its class names in ctest_labels; a class whose
-ctest_serial is true runs alone; a class whose ctest_limit is a whole number
-of seconds states the watcher's limit for its tests, which otherwise their
-labels give (runner/ctest_tests.cmake). A module that does not import, a
-test in a package with no labels here, or a limit of another form fails the
-listing, and so the build.
+line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>\t<reads by
+commas>". A test's labels are its package's, or its module's where
+MODULE_LABELS names it, below, and those its class names in ctest_labels; a
+class whose ctest_serial is true runs alone; a class whose ctest_limit is a
+whole number of seconds states the watcher's limit for its tests, which
+otherwise their labels give (runner/ctest_tests.cmake).
+
+A class's ctest_reads declares what its tests read at run time beyond the
+modules they import, for the loop's affected tests (tools/loop_select.py):
+each a binary of the build by its target's name, a name with no "/" and no
+".", or a file or directory of the checkout by its path from the root, a
+directory's ending in "/", "." the whole checkout.
+
+A module that does not import, a test in a package with no labels here, or
+a limit or a read of another form fails the listing, and so the build.
 """
 
+import re
 import sys
 import unittest
+
+# A read of ctest_reads: ".", a target's name, or a path of the checkout from
+# its root, its parts named plainly and none of them "." or "..".
+READ = re.compile(r"\.|(?:(?!\.\.?/)[A-Za-z0-9_.+-]+/)*(?:(?!\.\.?$)[A-Za-z0-9_.+-]+)?")
 
 # The labels of each package of tests/ that holds Python tests.
 PACKAGE_LABELS = {
@@ -64,7 +76,13 @@ def main():
             print(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds", file=sys.stderr)
             failed = True
             continue
-        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}")
+        reads = getattr(test, "ctest_reads", ())
+        if type(reads) is not tuple or not all(type(r) is str and r and READ.fullmatch(r) for r in reads):
+            print(f"{test_id}: ctest_reads {reads!r} is no tuple of target names and checkout paths",
+                  file=sys.stderr)
+            failed = True
+            continue
+        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}\t{','.join(reads)}")
     for error in loader.errors:
         print(error, file=sys.stderr)
         failed = True

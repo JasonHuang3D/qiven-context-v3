@@ -166,6 +166,7 @@ def control(self, rule):
 @ANALYSIS
 class Control(unittest.TestCase):
     """Each rule's plant reported by each tool its row names."""
+    ctest_reads = (".clang-tidy", "analysis.ruleset", "src/")
 
     def test_clean(self):
         with tempfile.TemporaryDirectory() as tmp:

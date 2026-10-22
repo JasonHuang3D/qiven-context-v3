@@ -3,10 +3,10 @@ and each step's command in its job's own trees.
 
 - Tier 1, the edit loop: TIER1's one job a system in its kept trees,
   configured without --fresh so that Ninja builds only what changed; its
-  tests, through affected(), then TIER1_STEPS: the structure tests and
-  fast's label on its build.
-- Tier 2, a unit's gate: every job of the system in its kept trees, its
-  tests through affected().
+  tests, then TIER1_STEPS: the structure tests and fast's label on its
+  build; each ctest step narrowed by affected() to the affected tests.
+- Tier 2, a unit's gate: every job of the system in its kept trees, each
+  ctest step narrowed by affected().
 - Tier 3, the boundary run: every job of the system from emptied trees,
   each configure with --fresh, every test of each job; then SUITES, once a
   system: the full suite and the fuzz targets, each for a time when one is
@@ -39,17 +39,20 @@ class Unit:
     """A job, or a suite of tier 3, as a way runs it: its name, steps,
     trees (CI's directory: the job's own, or the tree a suite reads), the
     trees it owns, whether they are emptied and configured with --fresh,
-    and the steps whose tests affected() may narrow."""
+    the steps whose tests affected() may narrow (every ctest step of tiers
+    1 and 2), and the run's Selection (tools/loop_select.py), None outside
+    a run, with each narrowed step's note."""
 
-    __slots__ = ("name", "system", "steps", "map", "trees", "fresh", "narrow", "way")
+    __slots__ = ("name", "system", "steps", "map", "trees", "fresh", "narrow", "way", "select", "notes")
 
     def __init__(self, name, system, steps, way, presets):
         self.name, self.system, self.steps, self.way = name, system, list(steps), way
         own = TREES.get(name, {})
         self.map = {**own, **READS.get(name, {})}
         self.fresh = way == "3"
-        self.narrow = frozenset(s.name for s in JOBS.get(name, (None, None, ()))[2]
-                                if s.ci[0] == "ctest") if way in ("1", "2") else frozenset()
+        narrowed = way in ("1", "2")
+        self.narrow = frozenset(s.name for s in self.steps if s.ci[0] == "ctest" and narrowed)
+        self.select, self.notes = None, {}
         used = [directory(step, presets) for step in self.steps]
         self.trees = list(dict.fromkeys(own[d] for d in used if d in own))
 
@@ -132,7 +135,8 @@ def directory(step, presets):
 
 def local_argv(unit, step, presets):
     """The step's command as the loop runs it in the unit's trees, its tool
-    by name: CI's command mapped, then the loop's additions."""
+    by name: CI's command mapped, then the loop's additions; None for a
+    ctest step none of whose tests is affected."""
     words = list(step.ci)
     found = directory(step, presets)
     mine = unit.map.get(found, found)
@@ -156,14 +160,20 @@ def local_argv(unit, step, presets):
     local = list(step.local)
     if unit.fresh and words[0] == "cmake" and words[1] == "--preset":
         local.insert(0, "--fresh")
-    if step.name in unit.narrow:
-        local += affected(unit, step, mine)
+    if words[0] == "ctest":
+        narrowed = affected(unit, step, mine, words)
+        if narrowed is None:
+            return None
+        local += narrowed
     return [*words, *local]
 
 
-def affected(unit, step, tree):
-    """The seam for the affected tests, tiers 1 and 2's: the
-    arguments that narrow this ctest step of the job's own, in the tree,
-    to the tests the change affects. Today none: every test of the step's
-    selection runs."""
-    return []
+def affected(unit, step, tree, words=("ctest",)):
+    """The seam for the affected tests: the arguments that narrow this
+    ctest step, in the tree, to the tests the change affects, in tiers 1
+    and 2 (unit.narrow); [] for every test, None for none. The unit's
+    Selection notes the step's tree, for its record when it passes, in
+    every way that runs tests; with none, every test runs."""
+    if unit.select is None:
+        return []
+    return unit.select.affected(unit, step, tree, list(words), step.name in unit.narrow)

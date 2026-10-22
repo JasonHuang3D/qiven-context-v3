@@ -81,6 +81,7 @@ def demos():
 
 
 class Free(unittest.TestCase):
+    ctest_reads = ("qiven3_free_demo", "qiven3_free_demo_poisoned", "qiven3_unit_memory", "qiven3_unit_memory_poisoned")
     ctest_labels = ("fake",)
 
     def assert_fails_fast(self, ran):

@@ -17,6 +17,8 @@ def lines(data):
 
 
 class Routes(unittest.TestCase):
+    ctest_reads = ("qiven3_runner_demo",)
+
     def test_pass(self):
         ran = binaries.run(DEMO, ["--run", "demo.pass"])
         self.assertEqual(ran.status, 0)

@@ -81,6 +81,7 @@ def preset_findings(text):
 
 
 class Floors(unittest.TestCase):
+    ctest_reads = ("src/", "tests/")
     ctest_labels = ("fake",)
 
     def test_windows_commands(self):

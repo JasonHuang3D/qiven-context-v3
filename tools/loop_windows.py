@@ -2,8 +2,9 @@
 tools, and the units of the way run in their own trees under the checkout's
 build/.
 
-Run by tools/loop.py, given tools/loop_run.py's, tools/loop_jobs.py's and
-tools/loop_tiers.py's names (runpy's init_globals).
+Run by tools/loop.py, given tools/loop_run.py's, tools/loop_jobs.py's,
+tools/loop_tiers.py's and tools/loop_select.py's names (runpy's
+init_globals).
 """
 
 import os
@@ -118,6 +119,8 @@ def windows_command(root, logs, python, tools, extra, presets):
 
     def command(unit, step):
         argv = local_argv(unit, step, presets)
+        if argv is None:
+            return None
         if argv[0] == CLEAN:
             return [python, "-I", str(clean_script(root, logs / unit.name)), argv[1], str(root),
                     tempfile.gettempdir()]
@@ -143,6 +146,10 @@ def windows(args, report):
                 f"toolset {VCVARS_VER}, SDK {SDK}, CPython 3.15.0, each by its SHA-256")
     extra = ("-DQIVEN3_CLANG_TIDY=" + check_clang_tidy(env),) if any(u.name == "windows-analysis" for u in units) \
         else ()
+    if phase == "test":  # the affected tests, and each passing step's record (tools/loop_select.py)
+        select = Selection(ROOT, tools["ctest"], env, shutil.which("git"))
+        for unit in units:
+            unit.select = select
     counts = drive(report, units, ROOT, logs, windows_command(ROOT, logs, python, tools, extra, presets), env, phase)
     report.line(f"loop: logs in {logs}", True)
     return counts

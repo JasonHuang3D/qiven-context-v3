@@ -12,8 +12,9 @@ sync that changes nothing leaves Ninja nothing to build. The clones an
 earlier loop kept a job under the clone root are no longer read; the sync
 names them, for removal by hand.
 
-Run by tools/loop.py, given tools/loop_run.py's, tools/loop_jobs.py's and
-tools/loop_tiers.py's names (runpy's init_globals).
+Run by tools/loop.py, given tools/loop_run.py's, tools/loop_jobs.py's,
+tools/loop_tiers.py's and tools/loop_select.py's names (runpy's
+init_globals).
 """
 
 import os
@@ -162,6 +163,10 @@ def inside(args, report):
     unused = f"; unused beside it, an earlier loop's clones: {', '.join(old)}" if old else ""
     report.line(f"loop: sync {args.commit[:12]} in {seconds(start)}; clone {clone}{unused}", True)
     logs = clone / "build" / "loop"
+    if phase == "test":  # the affected tests, and each passing step's record (tools/loop_select.py)
+        select = Selection(clone, shutil.which("ctest", path=env["PATH"]) or "ctest", env, git)
+        for unit in units:
+            unit.select = select
     counts = [0, 0, 0]
     for unit in units:
         # The job's own temporary directory, as CI's RUNNER_TEMP: /tmp's bare name would match any "tmp".
@@ -182,6 +187,8 @@ def linux_command(clone, logs, env, presets, temp):
 
     def command(unit, step):
         argv = local_argv(unit, step, presets)
+        if argv is None:
+            return None
         if argv[0] == CLEAN:
             script = clean_script(clone, logs / unit.name)
             return [*LINUX_SHELL, sys.executable, "-I", str(script), argv[1], str(clone), temp]

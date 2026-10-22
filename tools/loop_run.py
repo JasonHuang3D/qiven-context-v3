@@ -94,9 +94,13 @@ def before(step):
     return () if step.after is None else (step.after,) if isinstance(step.after, str) else tuple(step.after)
 
 
-def run_steps(report, job, steps, phase, command, logs, cwd, env):
+def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, passed=None):
     """Each step of the phase, its line and, on a failure, its tail. command
-    maps a step to its argv. Returns (passed, failed, skipped)."""
+    maps a step to its argv, or to None for a step left with no test to
+    run, which is skipped as passing. notes: a step's note, by its name,
+    for its line; passed(step) is told of each step that passed. Returns
+    (passed, failed, skipped)."""
+    notes = {} if notes is None else notes
     chosen_steps = chosen(steps, phase)
     outcome = {}
     counts = [0, 0, 0]
@@ -115,6 +119,11 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env):
         start = time.monotonic()
         try:
             argv = command(step)
+            if argv is None:
+                outcome[step.name] = True
+                counts[2] += 1
+                report.line(f"{job} {step.name}: not run, {notes.get(step.name, 'no test to run')}", True)
+                continue
             with open(log, "wb") as out:
                 out.write(("$ " + " ".join(argv) + "\n").encode("utf-8"))
                 out.flush()
@@ -125,13 +134,16 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env):
         except OSError as e:
             raise CannotRun(f"{job} {step.name}: cannot start: {e}") from e
         outcome[step.name] = status == 0
+        note = f"; {notes[step.name]}" if step.name in notes else ""
         if status == 0:
             counts[0] += 1
-            report.line(f"{job} {step.name}: pass in {seconds(start)}", True)
+            report.line(f"{job} {step.name}: pass in {seconds(start)}{note}", True)
+            if passed is not None:
+                passed(step)
         else:
             counts[1] += 1
             what = status if isinstance(status, str) else STATUS["line"](status)
-            report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}; log {log}", True)
+            report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
             report.tail(log)
     return counts
 
@@ -181,14 +193,20 @@ def own_tree(report, root, tree, job, fresh):
 
 def drive(report, units, root, logs, command, env, phase="test"):
     """Each unit (a job, or a suite of tier 3) in turn: its trees owned,
-    then its steps, command(unit, step) giving each step's argv. Returns
-    (passed, failed, skipped)."""
+    then its steps, command(unit, step) giving each step's argv; with the
+    unit's Selection (tools/loop_select.py), the checkout's files read as
+    it begins, and each step that passed recorded. Returns (passed,
+    failed, skipped)."""
     counts = [0, 0, 0]
     for unit in units:
         for tree in unit.trees:
             own_tree(report, root, root / tree, unit.name, unit.fresh)
+        select = getattr(unit, "select", None)
+        if select is not None:
+            select.start(unit)
         got = run_steps(report, unit.name, unit.steps, phase, lambda step, unit=unit: command(unit, step),
-                        logs / unit.name, root, env)
+                        logs / unit.name, root, env, getattr(unit, "notes", None),
+                        None if select is None else lambda step, unit=unit, select=select: select.passed(unit, step))
         counts = [a + b for a, b in zip(counts, got)]
     return counts
 

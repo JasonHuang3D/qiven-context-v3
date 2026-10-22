@@ -26,8 +26,13 @@ jobs as below, or build or test of the jobs named:
   (windows-msvc or ci-windows), none naming every job of the system, in
   their kept trees without --fresh; build stops after the build, test runs
   every step of the job.
-Tiers 1 and 2 run each job's tests through one seam for the affected tests
-(tools/loop_tiers.py's affected); today it selects every test of the job.
+Tiers 1 and 2 narrow each ctest step to its affected tests, from the build
+graph (tools/loop_select.py): the case binaries the build relinked, the
+Python tests by the files they import and those their classes declare they
+read, every test on a build file's, tools/' or a fixture's change, or in a
+tree new or emptied; changed against the step's last passing run in its
+tree, which the tree records. Each step's line names its selection: how
+many of its tests, and why; a step with none affected does not run.
 
 The jobs and their steps are CI's (.github/workflows/ci.yml and msan.yml),
 with the local pins added: tools/loop_jobs.py, which a test checks against
@@ -72,7 +77,8 @@ run (a tool missing, a pin off, WSL absent, a bad argument).
 
 The modules: tools/loop_run.py (the steps, the trees, the answer),
 loop_jobs.py (the table), loop_tiers.py (the ways and the commands),
-loop_windows.py, loop_linux.py, and loop_fuzz.py (the timed fuzz targets).
+loop_select.py (the affected tests), loop_windows.py, loop_linux.py, and
+loop_fuzz.py (the timed fuzz targets).
 """
 
 import argparse
@@ -91,13 +97,16 @@ def load(name, given):
     return runpy.run_path(str(TOOLS / name), init_globals=given)
 
 
-# The core, the table, the ways, then each system's side, each given the
-# names of those before it; this file's names are theirs for its callers.
+# The core, the table, the ways, the affected tests, then each system's side,
+# each given the names of those before it; this file's names are theirs for
+# its callers.
 RUN = load("loop_run.py", {})
 TABLE = load("loop_jobs.py", {})
 GIVEN = {k: v for k, v in {**RUN, **TABLE}.items() if not k.startswith("__")}
 TIERS = load("loop_tiers.py", GIVEN)
 GIVEN.update({k: v for k, v in TIERS.items() if not k.startswith("__")})
+SELECT = load("loop_select.py", GIVEN)
+GIVEN.update({k: v for k, v in SELECT.items() if not k.startswith("__")})
 WINDOWS = load("loop_windows.py", GIVEN)
 LINUX = load("loop_linux.py", GIVEN)
 

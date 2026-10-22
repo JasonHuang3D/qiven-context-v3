@@ -48,6 +48,7 @@ def python_findings(root, files):
 @WINDOWS
 class Tree(unittest.TestCase):
     """No finding over v3's tree."""
+    ctest_reads = (".",)
 
 
 @WINDOWS
@@ -61,6 +62,8 @@ for _rule in RULES:
 
 
 class Python(unittest.TestCase):
+    ctest_reads = (".",)
+
     def test_tree(self):
         self.assertEqual(python_findings(rules.ROOT, rules.source_files(rules.ROOT)), [])
 
