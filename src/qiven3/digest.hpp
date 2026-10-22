@@ -283,7 +283,13 @@ public:
     }
     Key(const Key&) = delete;
     Key& operator=(const Key&) = delete;
-    ~Key() { wipe(); }
+    ~Key() {
+        // The size is pinned for each platform it is made for, here where
+        // the class is complete: the platform's pointer and the material,
+        // 40 bytes on a 64-bit target.
+        static_assert(sizeof(Key) == sizeof(P*) + bytes, "Key's size is pinned: the pointer and 32 bytes");
+        wipe();
+    }
 
 private:
     template <platform::Platform Q, typename S>

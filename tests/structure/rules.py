@@ -131,6 +131,7 @@ STATED = {
     ("B9", "tests/", "tests/runner/"): "the test tree's own headers, which its sources include",
     ("B9", "tests/", "tests/support/"): "as tests/runner/'s",
     ("B9", "tests/", "tests/driver/"): "as tests/runner/'s",
+    ("B9", "tests/", "tests/child/"): "as tests/runner/'s",
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
