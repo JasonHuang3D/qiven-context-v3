@@ -3,8 +3,9 @@ and each step's command in its job's own trees.
 
 - Tier 1, the edit loop: TIER1's one job a system in its kept trees,
   configured without --fresh so that Ninja builds only what changed; its
-  tests, then TIER1_STEPS: the structure tests and fast's label on its
-  build; each ctest step narrowed by affected() to the affected tests.
+  tests, then TIER1_STEPS: fast's label on its build, with no structure
+  build (the structure tests run in tier 2's windows-analysis and in tier
+  3); each ctest step narrowed by affected() to the affected tests.
 - Tier 2, a unit's gate: every job of the system in its kept trees, each
   ctest step narrowed by affected().
 - Tier 3, the boundary run: every job of the system from emptied trees,

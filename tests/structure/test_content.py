@@ -1,6 +1,6 @@
 """The content rule: no file of the checkout but those .gitignore (and the
 checkout's own exclude file) names holds a path of this machine, a hit of
-the secret check's nine patterns, or a name of the specification's own
+the secret check's twelve patterns, or a name of the specification's own
 repository: its name, its directories' and its files'; nor a name of this
 machine, its user's or its own, where it stands as a component of a path.
 
@@ -33,7 +33,8 @@ from pathlib import Path
 
 from tests.structure import rules
 
-# The secret check's nine patterns.
+# The secret check's twelve patterns, in its table's order, each written as
+# the table writes it.
 PATTERNS = {
     "private-key": r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----",
     "github-ghp": r"(?<![A-Za-z0-9_])ghp_[A-Za-z0-9]{36}",
@@ -43,8 +44,14 @@ PATTERNS = {
     "slack-xox": r"(?<![A-Za-z0-9])xox[abceoprs]-[0-9]+-[A-Za-z0-9-]{8,}",
     "slack-xoxd": r"(?<![A-Za-z0-9])xoxd-[A-Za-z0-9%+/=]{32,}",
     "url-password": r"[A-Za-z][A-Za-z0-9+.-]*://[^ \t\r\n/?#@:]*:[^ \t\r\n/?#@]+@",
-    "pair-password": r"(?<![A-Za-z0-9])(?:PG)?[Pp](?:[Aa][Ss][Ss])?[Ww](?:[Oo][Rr])?[Dd][ \t]*=[ \t]*[\"']?"
-                     r"[^ \t\r\n;&'\"]+",
+    "pair-password": r"""(?<![A-Za-z0-9])(?:PG)?[Pp](?:[Aa][Ss][Ss])?[Ww](?:[Oo][Rr])?[Dd][ \t]*=[ \t]*["']?"""
+                     r"""[^ \t\r\n;&'"]+""",
+    "auth-header": r"""(?<![A-Za-z0-9_])[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]["']?[ \t]*:[ \t]*["']?"""
+                   r"(?:[Bb][Ee][Aa][Rr][Ee][Rr]|[Bb][Aa][Ss][Ii][Cc]|[Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][Kk][Ee][Yy])"
+                   r"[ \t]+[A-Za-z0-9._~+/=-]{8,}",
+    "cli-secret": r"""(?<![A-Za-z0-9_-])--(?:password|token|api-key|secret)(?:[ \t]+|[ \t]*=[ \t]*)["']?"""
+                  r"""[^ \t\r\n"'$<%{-]""",
+    "tencent-akid": r"(?<![A-Za-z0-9])AKID[A-Za-z0-9]{32}",
 }
 COMPILED = {name: re.compile(pattern) for name, pattern in PATTERNS.items()}
 # The specification's own repository: its name, its directories, its files'
@@ -214,10 +221,15 @@ class Content(unittest.TestCase):
             "key.txt": "-----BEGIN " + "RSA PRIVATE KEY-----\n",
             "token.py": "t = '" + "ghp_" + "A" * 36 + "'\n",
             "password.ini": "Server=db;Password=" + "p" * 8 + ";\n",
+            "header.txt": "Authorization: Bearer " + "a" * 20 + "\n",
+            "command.sh": "mysql --password " + "p" * 8 + "\n",
+            "tencent.ini": "SecretId=AKID" + "a1B2" * 8 + "\n",
             "clean.txt": f"{none}:\\no-such\\x /{none.lower()}/x C:/Users/ABC docs/FORMAT.md "
                          + "ghp_" + "A" * 35 + " password: see the vault " + "https://example.com:8080/a@b\n"
                          + "README.md cognition, a challenge, ARCH, QTest, a law firm, work-line, the "
-                         + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n",
+                         + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n"
+                         + "Authorization: Bearer <token>, --password-stdin, --token $GH_TOKEN, "
+                         + "AKID" + "a" * 31 + "\n",
             "build/machine.txt": str(rules.ROOT),
         }
         with tempfile.TemporaryDirectory() as scratch:
@@ -231,12 +243,17 @@ class Content(unittest.TestCase):
         names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
                  "directory.txt", "context.cmake", "word.md"}
         self.assertEqual(files, {"checkout.txt", "slash.py", "drive.cpp", "posix.md", "profile.txt",
-                                 "interpreter.json", "key.txt", "token.py", "password.ini"} | names)
+                                 "interpreter.json", "key.txt", "token.py", "password.ini", "header.txt",
+                                 "command.sh", "tencent.ini"} | names)
         self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
         self.assertIn(("drive.cpp", "a drive path whose first directory this machine has"), found)
         self.assertIn(("posix.md", "a drive path whose first directory this machine has"), found)
         hits = {why for _, why in found if why.startswith("a hit of ")}
-        self.assertEqual(hits, {"a hit of private-key", "a hit of github-ghp", "a hit of pair-password"})
+        self.assertEqual(hits, {"a hit of private-key", "a hit of github-ghp", "a hit of pair-password",
+                                "a hit of auth-header", "a hit of cli-secret", "a hit of tencent-akid"})
+        self.assertEqual({rel: why for rel, why in found if rel in ("header.txt", "command.sh", "tencent.ini")},
+                         {"header.txt": "a hit of auth-header", "command.sh": "a hit of cli-secret",
+                          "tencent.ini": "a hit of tencent-akid"})
 
     def test_planted_names(self):
         """Each plant in a fresh scratch tree: a name of this machine as a

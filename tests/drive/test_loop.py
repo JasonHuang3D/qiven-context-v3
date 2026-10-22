@@ -178,8 +178,10 @@ class Tiers(unittest.TestCase):
         one = self.plan("1")
         self.assertEqual(list(one), ["windows-msvc"])
         steps = [s.name for s in one["windows-msvc"].steps]
-        self.assertEqual(steps[-4:], ["structure configure", "structure build", "structure tests", "fast"])
-        self.assertEqual(one["windows-msvc"].trees, ["build/windows-msvc", "build/windows-msvc-structure"])
+        # Tier 1 builds no structure tree: its steps are the job's and fast.
+        self.assertEqual(steps, [*(s.name for s in LOOP.JOBS["windows-msvc"][2]), "fast"])
+        self.assertNotIn("structure", " ".join(steps))
+        self.assertEqual(one["windows-msvc"].trees, ["build/windows-msvc"])
         self.assertEqual(self.argv(one["windows-msvc"], "fast")[:3], ["ctest", "--test-dir", "build/windows-msvc"])
         self.assertEqual(list(self.plan("2")), windows)
         three = self.plan("3")

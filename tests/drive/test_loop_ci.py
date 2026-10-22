@@ -13,9 +13,10 @@ the debugger preset, a label no workflow runs; nor are its own steps,
 LOCAL_STEPS, after CI's: linux-plain's debugger step, that label on its
 build.
 
-The tiers' own steps are read against CI's and the presets: tier 1's
-structure steps are windows-analysis's; its fast step is the fast test
-preset's selection on the job's own build; tier 3's suites build the
+The tiers' own steps are read against CI's and the presets: tier 1 adds
+one step, fast, the fast test preset's selection on the job's own build,
+without the structure tests on Windows, and builds no structure tree, whose
+tests run in windows-analysis's steps; tier 3's suites build the
 structure, nohal and fuzz presets and run the full and fuzz test presets.
 Each Windows job's trees are its own: no two jobs share one.
 
@@ -298,8 +299,9 @@ class LoopAgainstCI(unittest.TestCase):
 
     def test_tiers(self):
         """The tiers' own steps against CI's and the presets: tier 1's
-        structure steps are windows-analysis's, as ci.yml writes them; its
-        fast step is the fast test preset's selection, on the job's build;
+        one step is fast, the fast test preset's selection on the job's
+        build, without the structure tests on Windows, and no structure
+        build, whose steps stay windows-analysis's, as ci.yml writes them;
         tier 3's suites build the structure, nohal and fuzz presets and run
         the full and fuzz test presets on Windows, and run them on Linux on
         linux-plain's and linux-fuzz's trees, read and never owned; a suite
@@ -311,13 +313,19 @@ class LoopAgainstCI(unittest.TestCase):
         table = self.loop.TABLE
         self.assertEqual(table["TIER1"], {"windows": "windows-msvc", "linux": "linux-gcc"})
         msvc = list(table["TIER1_STEPS"]["windows-msvc"])
-        analysis = self.ci["windows-analysis"][1]
-        self.assertEqual([s.ci for s in msvc[:3]], analysis[-3:])
-        self.assertEqual([s.name for s in msvc[:3]], ["structure configure", "structure build", "structure tests"])
         fast = table["FAST"]
-        # On Windows fast leaves out the structure tests, run just before
-        # on their own tree's records.
-        self.assertEqual([(s.name, s.ci) for s in msvc[3:]], [("fast", (*fast.ci, "-E", "^tests[.]structure[.]"))])
+        # On Windows fast leaves out the structure tests, which read the
+        # records of a structure build tier 1 does not run.
+        self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*fast.ci, "-E", "^tests[.]structure[.]"))])
+        # The structure build and tests stay windows-analysis's, as ci.yml
+        # writes them, and no tier 1 job builds a structure tree.
+        analysis = self.ci["windows-analysis"][1]
+        mine = [s for s in self.loop.JOBS["windows-analysis"][2] if s.name.startswith("structure ")]
+        self.assertEqual([s.ci for s in mine], analysis[-3:])
+        self.assertEqual([s.name for s in mine], ["structure configure", "structure build", "structure tests"])
+        for job in table["TIER1"].values():
+            steps = [*self.loop.JOBS[job][2], *table["TIER1_STEPS"][job]]
+            self.assertFalse([s.name for s in steps if "structure" in " ".join((s.name, *s.ci[:3]))], job)
         self.assertEqual(list(table["TIER1_STEPS"]["linux-gcc"]), [fast])
         self.assertEqual(fast.ci, ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L",
                                    tests["fast"]["filter"]["include"]["label"]))

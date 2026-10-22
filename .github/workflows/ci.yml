@@ -14,7 +14,9 @@
 # their own tools, a tool an image lacks at its current release. No step
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
-# local pins (tools/loop.py), never fixed by a pin here.
+# local pins (CMakeLists.txt's QIVEN3_PIN_ versions; Windows' tools in
+# tools/loop_windows.py; Linux's in tools/linux-pins.txt, checked by
+# tools/linux_pins.py), never fixed by a pin here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit
 # SHA of its own repository, its tag in a comment. No secret is read.

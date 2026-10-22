@@ -24,7 +24,9 @@ Linux, linux-plain's build, with its debug information, runs the debugger
 cases under gdb.
 
 The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
-runs, and TIER1_STEPS, the structure tests and fast it adds on that job;
+runs, and TIER1_STEPS, fast's label it adds on that job's own build, with no
+structure build: the structure tests run in windows-analysis's own steps
+(tier 2) and in tier 3's full suite;
 SUITES, tier 3's full suite and fuzz targets, once a system after its jobs;
 TIMED_ONLY, the suites tier 3 runs only for a time, a job's own step
 running the same tests without one.
@@ -150,14 +152,16 @@ LOCAL = {"windows-symbols": symbols_job()}
 JOBS = {**{name: (system, preset, [*steps, *LOCAL_STEPS.get(name, ())])
            for name, (system, preset, steps) in CI_JOBS.items()}, **LOCAL}
 
-# The tiers' own. Tier 1's job a system, and the steps it adds on it: the
-# structure tests, and fast's label on the job's own build.
+# The tiers' own. Tier 1's job a system, and the step it adds on it: fast's
+# label on the job's own build, and no structure build.
 TIER1 = {"windows": "windows-msvc", "linux": "linux-gcc"}
 FAST = Step("fast", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L", "^fast$"))
-# On Windows the structure tests ran just before, on their own tree's
-# records; fast leaves them out there.
+# On Windows fast leaves out the structure tests: some read the records a
+# structure build writes, which tier 1 does not build, so that they would
+# read another tree's, stale after a change. They run in windows-analysis's
+# own steps and in tier 3. On Linux the tests that read the records skip.
 FAST_REST = Step("fast", (*FAST.ci, "-E", "^tests[.]structure[.]"))
-TIER1_STEPS = {"windows-msvc": (*structure_steps(), FAST_REST), "linux-gcc": (FAST,)}
+TIER1_STEPS = {"windows-msvc": (FAST_REST,), "linux-gcc": (FAST,)}
 FUZZ_TIMED = "fuzz-timed"  # each fuzz target for a time: tools/loop_fuzz.py on the tree
 # Tier 3's suites, once a system after its jobs: (system, steps). On
 # Windows the full suite on release (windows-symbols' tree), with the
@@ -190,7 +194,7 @@ TIMED_ONLY = {"linux-fuzz-targets": ("linux-fuzz", "fuzz")}
 # its job's map is read as it is, and never owned (Windows' full suite
 # reads windows-symbols' build/release).
 TREES = {
-    "windows-msvc": {"build/ci": "build/windows-msvc", "build/ci-structure": "build/windows-msvc-structure"},
+    "windows-msvc": {"build/ci": "build/windows-msvc"},
     "windows-asan": {"build/ci": "build/windows-asan"},
     "windows-stack": {"build/ci": "build/windows-stack"},
     "windows-analysis": {"build/ci": "build/windows-analysis",
