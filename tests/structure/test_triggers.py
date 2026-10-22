@@ -1,8 +1,11 @@
 """CI at publication alone: each workflow under .github/workflows runs on a
 pull request into main, on a release tag of the version pattern v[0-9]* and
 by manual dispatch, and on nothing else: never a push to a branch, never a
-schedule, never a pull request into another branch. A newer run cancels the
-older of its ref, and no job is kept off one of those events.
+schedule, never a pull request into another branch. The pull request's
+event types are the default three and ready_for_review, which runs a draft
+once it is marked ready (each job skips a draft: test_loop_ci.py). A newer
+run cancels the older of its ref, and no job is kept off one of those events
+by the event's name.
 
 CI a runtime evaluation, unpinned (Unpinned below): the
 runners' latest images, no digest, exact version or versioned tool in a
@@ -19,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 EVENTS = {
-    "pull_request": {"branches": ["main"]},
+    "pull_request": {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "ready_for_review"]},
     "push": {"tags": ["v[0-9]*"]},
     "workflow_dispatch": {},
 }
@@ -258,7 +261,9 @@ class Triggers(unittest.TestCase):
 
     def test_planted(self):
         text = (WORKFLOWS / "ci.yml").read_bytes().decode("utf-8")
-        head = "on:\n  pull_request:\n    branches: [main]\n  push:\n    tags: [\"v[0-9]*\"]\n  workflow_dispatch:\n"
+        head = ("on:\n  pull_request:\n    branches: [main]\n"
+                "    types: [opened, synchronize, reopened, ready_for_review]\n"
+                "  push:\n    tags: [\"v[0-9]*\"]\n  workflow_dispatch:\n")
         self.assertEqual(text.count(head), 1)
         plants = {
             "push to a branch": head.replace("    tags:", "    branches: [main]\n    tags:"),

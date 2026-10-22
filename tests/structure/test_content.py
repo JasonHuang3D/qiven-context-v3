@@ -1,16 +1,28 @@
 """The content rule: no file of the checkout but those .gitignore (and the
 checkout's own exclude file) names holds a path of this machine, a hit of
 the secret check's nine patterns, or a name of the specification's own
-repository: its name, its directories' and its files'.
+repository: its name, its directories' and its files'; nor a name of this
+machine, its user's or its own, where it stands as a component of a path.
 
 The paths are read when the test runs, so that it holds none: the
 checkout's own, the user profile, the interpreter's and the toolchain's
 directories, in either slash, escaped or not, and any case; and any
 drive-letter path (X:\\dir, X:/dir) or its /x/dir form whose first
 directory this machine has. A documented example value a fixture holds is
-listed in rules.EXAMPLES with its source, exempt by exact value."""
+listed in rules.EXAMPLES with its source, exempt by exact value.
 
+The names are read when the test runs as well: the user's from USERNAME,
+USER, LOGNAME, the profile's last directory and the login, the computer's
+from COMPUTERNAME and the host's name. One is found where it stands as a
+path's component, in either slash and any case: after a separator or a
+home's tilde, and before a separator or the path's end; or at a path's
+start before a separator. The same characters inside other text, a key's
+hex, a longer word or a number, are not a name (a name under three
+characters is not read, a residual)."""
+
+import getpass
 import os
+import platform
 import re
 import shutil
 import string
@@ -101,6 +113,38 @@ def machine_paths():
     return sorted(forms)
 
 
+def machine_names():
+    """This machine's names, the user's and the computer's, in small letters."""
+    found = set()
+    for name in ("USERNAME", "USER", "LOGNAME", "COMPUTERNAME"):
+        found.add(os.environ.get(name, ""))
+    for name in ("USERPROFILE", "HOME"):
+        found.add(os.path.basename(os.path.normpath(os.environ[name])) if os.environ.get(name) else "")
+    try:
+        found.add(getpass.getuser())
+    except OSError:
+        pass
+    node = platform.node()
+    found |= {node, node.split(".")[0]}
+    return sorted(name.lower() for name in found if len(name) >= 3)
+
+
+# A path's separator, either slash; and a path's end: a separator, a stop,
+# a list's colon, a sentence's full stop, or the text's end.
+SEP = r"[\\/]"
+END = r"(?=[\\/" + re.escape(STOP) + r":]|\.(?:[" + re.escape(STOP) + r"]|$)|$)"
+
+
+def name_pattern(names):
+    """A name of this machine as a path's component, or None for no name."""
+    if not names:
+        return None
+    name = "(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + ")"
+    after = r"(?<=[\\/~])" + name + END
+    first = r"(?<![^" + re.escape(STOP) + r"])" + name + "(?=" + SEP + ")"
+    return re.compile(after + "|" + first, re.IGNORECASE)
+
+
 def token_at(text, start):
     end = start
     while end < len(text) and text[end] not in STOP:
@@ -112,8 +156,9 @@ def exists(letter, first):
     return os.path.isdir(f"{letter}:\\{first}")
 
 
-def content_findings(root, files, paths):
+def content_findings(root, files, paths, names=()):
     found = []
+    named = name_pattern(names)
     for rel in files:
         text = (root / rel).read_bytes().decode("utf-8", "replace")
         lower = text.lower()
@@ -123,6 +168,8 @@ def content_findings(root, files, paths):
         for match in list(DRIVE.finditer(text)) + list(POSIX.finditer(text)):
             if exists(match.group(1), match.group(2)) and token_at(text, match.start()) not in rules.EXAMPLES:
                 found.append((rel, "a drive path whose first directory this machine has"))
+        if named and named.search(text):
+            found.append((rel, "a name of this machine"))
         for name, pattern in COMPILED.items():
             if pattern.search(text):
                 found.append((rel, "a hit of " + name))
@@ -139,7 +186,8 @@ def absent_drive():
 @unittest.skipUnless(sys.platform == "win32", "the content rule reads this machine's paths, on Windows")
 class Content(unittest.TestCase):
     def test_tree(self):
-        self.assertEqual(content_findings(rules.ROOT, rules.source_files(rules.ROOT), machine_paths()), [])
+        self.assertEqual(content_findings(rules.ROOT, rules.source_files(rules.ROOT), machine_paths(),
+                                          machine_names()), [])
 
     def test_planted(self):
         drive, first = rules.ROOT.drive[0], rules.ROOT.parts[1]
@@ -176,7 +224,7 @@ class Content(unittest.TestCase):
             for name, text in plants.items():
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_bytes(text.encode("utf-8"))
-            found = content_findings(root, rules.source_files(root), machine_paths())
+            found = content_findings(root, rules.source_files(root), machine_paths(), machine_names())
         files = {rel for rel, _ in found}
         names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
                  "directory.txt", "context.cmake", "word.md"}
@@ -187,3 +235,40 @@ class Content(unittest.TestCase):
         self.assertIn(("posix.md", "a drive path whose first directory this machine has"), found)
         hits = {why for _, why in found if why.startswith("a hit of ")}
         self.assertEqual(hits, {"a hit of private-key", "a hit of github-ghp", "a hit of pair-password"})
+
+    def test_planted_names(self):
+        """Each plant in a fresh scratch tree: a name of this machine as a
+        path's component is found; the same characters inside other text are
+        not."""
+        names = machine_names()
+        user = os.path.basename(os.path.normpath(os.environ["USERPROFILE"]))
+        host = platform.node().split(".")[0]
+        drive = os.environ["USERPROFILE"][:2]
+        self.assertIn(user.lower(), names)
+        found = {
+            "windows profile": "p = '" + drive + r"\\Users\\" + user + r"\\AppData'" + "\n",
+            "windows profile, slash": "see " + drive.lower() + "/users/" + user.upper() + "\n",
+            "windows profile, its end": "cd " + drive + r"\Users" + "\\" + user + ".\n",
+            "posix home": "export HOME=/home/" + user + ":/opt\n",
+            "posix home, tilde": "ls ~" + user + "/x\n",
+            "bare component": "out/" + user + "/log.txt\n",
+            "bare component, first": user + "/notes.md\n",
+        }
+        if len(host) >= 3:
+            found["computer, a share"] = r"\\" + host.lower() + r"\share" + "\n"
+        clean = {
+            "hex": '{"key":"e3b0' + user + 'c442"}\n',
+            "hex in a path": "/keys/e3b0" + user + "c442/x\n",
+            "longer word": "the " + "pre" + user + "post word\n",
+            "longer component": drive + "/Users/" + user + "x/y and " + drive + "/Users/x" + user + "\n",
+            "number": "n = 12" + user + "34\n",
+            "bare": "user " + user + " logged in\n",
+            "file name": "out/" + user + ".txt\n",
+        }
+        for plants, expected in ((found, [("plant.txt", "a name of this machine")]), (clean, [])):
+            for label, text in plants.items():
+                with self.subTest(plant=label), tempfile.TemporaryDirectory() as scratch:
+                    root = Path(scratch)
+                    (root / "plant.txt").write_bytes(text.encode("utf-8"))
+                    got = content_findings(root, rules.source_files(root), [], names)
+                    self.assertEqual([f for f in got if f[1] == "a name of this machine"], expected)

@@ -20,12 +20,15 @@
 
 name: msan
 
-# At publication alone: a pull request into main, a release tag, or by
-# hand. Never a push to a branch, never a schedule; the loop runs each job
-# of its system before (tools/loop.py).
+# At publication alone: a pull request into main once it is ready for
+# review, a release tag, or by hand. A draft pull request runs no job:
+# each job's if skips it, and marking it ready (ready_for_review) runs
+# them. Never a push to a branch, never a schedule; the loop runs each
+# job of its system before (tools/loop.py).
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     tags: ["v[0-9]*"]
   workflow_dispatch:
@@ -45,6 +48,7 @@ env:
 
 jobs:
   linux-msan:
+    if: ${{ !github.event.pull_request.draft }}
     name: linux-msan
     runs-on: ubuntu-latest
     timeout-minutes: 60
