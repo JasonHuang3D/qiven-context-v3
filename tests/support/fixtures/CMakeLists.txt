@@ -50,6 +50,7 @@ std::string_view data(std::size_t i) noexcept { return views[i]; }
 add_library(qiven3_fixtures STATIC
   fixtures.cpp
   fixtures.hpp
+  patterns.hpp
   "${fixtures_source}"
 )
 target_include_directories(qiven3_fixtures PUBLIC "${PROJECT_SOURCE_DIR}/tests")

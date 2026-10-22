@@ -1,11 +1,11 @@
 // matcher's cases: the syntaxes' and the patterns' vectors, evaluated by the
 // compiler on std::allocator; the secret check's twelve patterns on their
-// tables' fixtures and the clearing fixtures, each built when the case runs
-// so that no file holds a live-looking token; compile's faults; a string
-// that makes a backtracking engine square its time, read in linear time;
-// compile's budget, its two allocations failed in turn, and hit's none.
+// tables' fixtures and the clearing fixtures (support/fixtures), each built
+// when the case runs so that no file holds a live-looking token; compile's
+// faults; a string that makes a backtracking engine square its time, read
+// in linear time; compile's budget, its two allocations failed in turn, and
+// hit's none.
 
-#include <array>
 #include <chrono>
 #include <cstddef>
 #include <iostream>
@@ -15,14 +15,18 @@
 #include <vector>
 
 #include "entry/matcher.hpp"
+#include "entry/secret.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
 #include "support/faults/faults.hpp"
+#include "support/fixtures/patterns.hpp"
 
 namespace {
 
 namespace matcher = qiven3::entry::matcher;
+namespace secret = qiven3::entry::secret;
+namespace fixtures = qiven3::test::fixtures;
 using matcher::Fault;
 using qiven3::memory::Allocator;
 using qiven3::memory::Arena;
@@ -93,140 +97,10 @@ std::string rep(std::string_view s, std::size_t n) {
 }
 
 // The secret check's twelve patterns, in its table's order.
-const std::vector<std::string_view>& patterns() {
-    static const std::vector<std::string_view> twelve = {
-        R"(-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----)",
-        R"((?<![A-Za-z0-9_])ghp_[A-Za-z0-9]{36})",
-        R"((?<![A-Za-z0-9_])github_pat_[A-Za-z0-9_]{82})",
-        R"((?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{32,})",
-        R"((?<![A-Z0-9])AKIA[A-Z0-9]{16})",
-        R"((?<![A-Za-z0-9])xox[abceoprs]-[0-9]+-[A-Za-z0-9-]{8,})",
-        R"((?<![A-Za-z0-9])xoxd-[A-Za-z0-9%+/=]{32,})",
-        R"([A-Za-z][A-Za-z0-9+.-]*://[^ \t\r\n/?#@:]*:[^ \t\r\n/?#@]+@)",
-        R"((?<![A-Za-z0-9])(?:PG)?[Pp](?:[Aa][Ss][Ss])?[Ww](?:[Oo][Rr])?[Dd][ \t]*=[ \t]*["']?[^ \t\r\n;&'"]+)",
-        R"((?<![A-Za-z0-9_])[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]["']?[ \t]*:[ \t]*["']?)"
-        R"((?:[Bb][Ee][Aa][Rr][Ee][Rr]|[Bb][Aa][Ss][Ii][Cc]|[Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][Kk][Ee][Yy]))"
-        R"([ \t]+[A-Za-z0-9._~+/=-]{8,})",
-        R"((?<![A-Za-z0-9_-])--(?:password|token|api-key|secret)(?:[ \t]+|[ \t]*=[ \t]*)["']?[^ \t\r\n"'$<%{-])",
-        R"((?<![A-Za-z0-9])AKID[A-Za-z0-9]{32})",
-    };
-    return twelve;
-}
-
-struct Fixture {
-    std::size_t pattern;
-    bool hit;
-    std::string text;
-};
-
-// A fixture's expression, as the table writes it: each piece a literal
-// and its count, the string their concatenation.
-struct Piece {
-    std::string_view text;
-    std::size_t count = 0;
-};
-
-struct Recipe {
-    std::size_t pattern;
-    bool hit;
-    std::array<Piece, 6> pieces;
-};
-
-// The tables' fixtures; then the clearing fixtures, which their patterns
-// hit.
-constexpr std::array recipes = {
-    // private-key
-    Recipe{0, true, {{{"-----BEGIN\x20", 1}, {"RSA PRIVATE KEY-----", 1}}}},
-    Recipe{0, true, {{{"-----BEGIN\x20", 1}, {"PGP PRIVATE KEY BLOCK-----", 1}}}},
-    Recipe{0, false, {{{"-----BEGIN\x20", 1}, {"PUBLIC KEY-----", 1}}}},
-    // github-ghp
-    Recipe{1, true, {{{"ghp_", 1}, {"A", 36}}}},
-    Recipe{1, false, {{{"ghp_", 1}, {"A", 35}}}},
-    Recipe{1, false, {{{"xghp_", 1}, {"A", 36}}}},
-    // github-pat
-    Recipe{2, true, {{{"github_pat_", 1}, {"A", 22}, {"_", 1}, {"b", 59}}}},
-    Recipe{2, false, {{{"github_pat_", 1}, {"A", 81}}}},
-    // sk-key
-    Recipe{3, true, {{{"sk-", 1}, {"0123456789abcdef", 2}}}},
-    Recipe{3, true, {{{"sk-proj-", 1}, {"B", 40}}}},
-    Recipe{3, false, {{{"sk-", 1}, {"a", 31}}}},
-    Recipe{3, false, {{{"task-", 1}, {"a", 40}}}},
-    // aws-akia
-    Recipe{4, true, {{{"id\x3d" "AKIA", 1}, {"2", 16}}}},
-    Recipe{4, false, {{{"AKIA", 1}, {"a", 16}}}},
-    Recipe{4, false, {{{"XAKIA", 1}, {"A", 16}}}},
-    // slack-xox
-    Recipe{5, true, {{{"xoxb-", 1}, {"1", 12}, {"-", 1}, {"a", 24}}}},
-    Recipe{5, true, {{{"xoxc-", 1}, {"1", 10}, {"-", 1}, {"1", 10}, {"-", 1}, {"a", 64}}}},
-    Recipe{5, false, {{{"xoxo-hugs-and-kisses", 1}}}},
-    Recipe{5, false, {{{"xoxb-", 1}, {"a", 20}}}},
-    // slack-xoxd
-    Recipe{6, true, {{{"xoxd-", 1}, {"a", 40}}}},
-    Recipe{6, true, {{{"d\x3dxoxd-", 1}, {"a1%2B", 8}}}},
-    Recipe{6, false, {{{"xoxd-", 1}, {"a", 31}}}},
-    Recipe{6, false, {{{"xxoxd-", 1}, {"a", 40}}}},
-    // url-password
-    Recipe{7, true, {{{"postgres://app:", 1}, {"p", 8}, {"@db/x", 1}}}},
-    Recipe{7, true, {{{"redis://:", 1}, {"p", 8}, {"@db", 1}}}},
-    Recipe{7, false, {{{"https://example.com:8080/a@b", 1}}}},
-    Recipe{7, false, {{{"ssh://git@host/x", 1}}}},
-    Recipe{7, false, {{{"http://user:@host", 1}}}},
-    // pair-password
-    Recipe{8, true, {{{"Server\x3d" "db;Password\x3d", 1}, {"p", 8}, {";", 1}}}},
-    Recipe{8, true, {{{"host\x3d" "db pwd\x3d", 1}, {"p", 8}}}},
-    Recipe{8, true, {{{"Server\x3d" "db;Password\x3d\"", 1}, {"p", 8}, {"\";", 1}}}},
-    Recipe{8, true, {{{"Data Source\x3d" "db;Pwd\x3d'", 1}, {"p", 8}, {"'", 1}}}},
-    Recipe{8, true, {{{"DB_PASSWORD\x3d", 1}, {"p", 8}}}},
-    Recipe{8, true, {{{"PGPASSWORD\x3d", 1}, {"p", 8}}}},
-    Recipe{8, true, {{{"\xe6\x95\xb0\xe6\x8d\xae\xe5\xba\x93 DB_PASSWORD\x3d", 1}, {"p", 8}}}},
-    Recipe{8, false, {{{"password: see the vault", 1}}}},
-    Recipe{8, false, {{{"keyword\x3d", 1}, {"k", 8}}}},
-    Recipe{8, false, {{{"Password\x3d\"\";", 1}}}},
-    Recipe{8, false, {{{"mypwd\x3d", 1}, {"p", 8}}}},
-    Recipe{8, false, {{{"OLDPWD\x3d", 1}, {"/c/x", 1}}}},
-    Recipe{8, false, {{{"\xe5\xaf\x86\xe7\xa0\x81\xef\xbc\x9a\xe8\xa7\x81\xe4\xbf\x9d\xe9\x99\xa9\xe5\xba\x93", 1}}}},
-    // auth-header
-    Recipe{9, true, {{{"Authorization: Bearer\x20", 1}, {"a", 20}}}},
-    Recipe{9, true, {{{"\"authorization\": \"Basic\x20", 1}, {"dXNlcjpw", 2}, {"\"", 1}}}},
-    Recipe{9, true, {{{"Proxy-Authorization: Token\x20", 1}, {"t", 8}}}},
-    Recipe{9, true, {{{"\xe8\xaf\xb7\xe6\xb1\x82\xe5\xa4\xb4 Authorization: Bearer\x20", 1}, {"a1", 10}, {" \xe5\xb7\xb2\xe8\xbf\x87\xe6\x9c\x9f", 1}}}},
-    Recipe{9, false, {{{"Authorization: Bearer <token>", 1}}}},
-    Recipe{9, false, {{{"Authorization: Bearer $GH_TOKEN", 1}}}},
-    Recipe{9, false, {{{"Authorization: Bearer\x20", 1}, {"a", 7}}}},
-    Recipe{9, false, {{{"Authorization: Digest username\x3d", 1}, {"u", 8}}}},
-    Recipe{9, false, {{{"XAuthorization: Bearer\x20", 1}, {"a", 20}}}},
-    // cli-secret
-    Recipe{10, true, {{{"mysql --password\x20", 1}, {"p", 8}}}},
-    Recipe{10, true, {{{"--token\x3d", 1}, {"t", 20}}}},
-    Recipe{10, true, {{{"--api-key '", 1}, {"k", 16}, {"'", 1}}}},
-    Recipe{10, true, {{{"--secret\x20", 1}, {"s", 8}}}},
-    Recipe{10, false, {{{"--password-stdin", 1}}}},
-    Recipe{10, false, {{{"--token $GH_TOKEN", 1}}}},
-    Recipe{10, false, {{{"--api-key\x3d<key>", 1}}}},
-    Recipe{10, false, {{{"--secret {secret}", 1}}}},
-    Recipe{10, false, {{{"--password ''", 1}}}},
-    Recipe{10, false, {{{"x--token\x20", 1}, {"t", 8}}}},
-    Recipe{10, false, {{{"--tokens\x20", 1}, {"t", 8}}}},
-    // tencent-akid
-    Recipe{11, true, {{{"SecretId\x3d" "AKID", 1}, {"a1B2", 8}}}},
-    Recipe{11, true, {{{"\xe5\xaf\x86\xe9\x92\xa5 AKID", 1}, {"Z", 32}}}},
-    Recipe{11, false, {{{"AKID", 1}, {"a", 31}}}},
-    Recipe{11, false, {{{"XAKID", 1}, {"a", 32}}}},
-    Recipe{11, false, {{{"akid", 1}, {"a", 32}}}},
-    Recipe{8, true, {{{"PWD", 1}, {"=/path/to/repo.git", 1}}}},
-    Recipe{7, true, {{{"https://x-access-token:", 1}, {"${GH_TOKEN}@github.com/o/r", 1}}}},
-    Recipe{7, true, {{{"postgres://<user>:", 1}, {"<password>@<host>/<db>", 1}}}},
-    Recipe{4, true, {{{"AKIA", 1}, {"IOSFODNN7EXAMPLE", 1}}}},
-};
-
-std::vector<Fixture> fixtures() {
-    std::vector<Fixture> out;
-    for (const Recipe& r : recipes) {
-        std::string text;
-        for (const Piece& piece : r.pieces) {
-            text += rep(piece.text, piece.count);
-        }
-        out.push_back(Fixture{r.pattern, r.hit, text});
+std::vector<std::string_view> patterns() {
+    std::vector<std::string_view> out;
+    for (const secret::Pattern& p : secret::PATTERNS) {
+        out.push_back(p.text.view());
     }
     return out;
 }
@@ -247,8 +121,8 @@ QIVEN3_CASE(matcher, patterns) {
         CHECK(!compiled.back().whole());
     }
     std::size_t checked = 0;
-    for (const Fixture& f : fixtures()) {
-        const bool got = matcher::hit(compiled[f.pattern], f.text);
+    for (const fixtures::RecipeView& f : fixtures::recipes) {
+        const bool got = matcher::hit(compiled[f.pattern], fixtures::text(f));
         if (got != f.hit) {
             std::cout << "matcher.patterns: pattern " << f.pattern << " gave " << got << " on fixture " << checked
                       << "\n";
