@@ -120,3 +120,11 @@ qiven3_add_cases(qiven3_unit_kinds LABELS fast fake
 qiven3_add_cases(qiven3_unit_refs LABELS fast fake
   SOURCES refs_test.cpp refs_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
+# fold's cases: the order, one writer, each step of the fold ending it in
+# turn (F50, F51, F118) and "active", evaluated by the compiler; the
+# fold's faults; FA2's status change and the scope's order over the
+# fixtures; its one allocation counted, under the budget and the fault run.
+qiven3_add_cases(qiven3_unit_fold LABELS fast fake
+  SOURCES fold_test.cpp fold_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)
