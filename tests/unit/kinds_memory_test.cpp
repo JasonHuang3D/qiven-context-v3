@@ -61,7 +61,7 @@ QIVEN3_CASE(kinds, budget) {
         }
         const std::size_t used = arena.used();
         const std::size_t peak = arena.peak();
-        const std::optional<kinds::Identity> id = kinds::identity(h, content);
+        const std::optional<kinds::IdentityView> id = kinds::identity(h, content);
         const std::string_view k = h.value(header::Slot::kind);
         CHECK_EQ(id.has_value(), k == "map");
         static_cast<void>(kinds::served(k));

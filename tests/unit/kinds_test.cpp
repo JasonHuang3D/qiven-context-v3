@@ -186,7 +186,7 @@ static_assert(kinds::resolve(Carried::refused, "import", Basis::claimed) == Carr
 struct Record {
     header::Header<> h;
     canon::Basic<> v;
-    [[nodiscard]] constexpr std::optional<kinds::Identity> id() const { return kinds::identity(h, v); }
+    [[nodiscard]] constexpr std::optional<kinds::IdentityView> id() const { return kinds::identity(h, v); }
 };
 constexpr Record record(std::string_view k, std::string_view lane, std::string_view content) {
     header::FieldsView f;
@@ -203,13 +203,13 @@ constexpr Record record(std::string_view k, std::string_view lane, std::string_v
     return Record{header::make(f), std::move(v)};
 }
 constexpr bool same(const Record& a, const Record& b) {
-    const std::optional<kinds::Identity> x = a.id();
-    const std::optional<kinds::Identity> y = b.id();
+    const std::optional<kinds::IdentityView> x = a.id();
+    const std::optional<kinds::IdentityView> y = b.id();
     return x.has_value() && y.has_value() && *x == *y;
 }
 constexpr bool none(const Record& r) { return !r.id().has_value(); }
 constexpr bool part(const Record& r, std::size_t i, std::string_view want) {
-    const std::optional<kinds::Identity> x = r.id();
+    const std::optional<kinds::IdentityView> x = r.id();
     return x.has_value() && x->parts.at(i) == want;
 }
 constexpr std::string_view repo_a =
@@ -261,7 +261,7 @@ QIVEN3_CASE(kinds, identity) {
     for (std::size_t i = 0; i < fixtures::entry_count(v); ++i) {
         const fixtures::EntryView e = fixtures::entry(v, i);
         const Held x = held(e);
-        const std::optional<kinds::Identity> id = kinds::identity(x.h, x.v);
+        const std::optional<kinds::IdentityView> id = kinds::identity(x.h, x.v);
         const bool map = e.name == "M1" || e.name == "M2";
         if (id.has_value() != map) {
             std::cout << "kinds.identity: " << e.name << (map ? " has none" : " has an identity") << "\n";
@@ -275,8 +275,8 @@ QIVEN3_CASE(kinds, identity) {
     REQUIRE(m1.has_value() && m2.has_value());
     const Held x1 = held(*m1);
     const Held x2 = held(*m2);
-    const std::optional<kinds::Identity> i1 = kinds::identity(x1.h, x1.v);
-    const std::optional<kinds::Identity> i2 = kinds::identity(x2.h, x2.v);
+    const std::optional<kinds::IdentityView> i1 = kinds::identity(x1.h, x1.v);
+    const std::optional<kinds::IdentityView> i2 = kinds::identity(x2.h, x2.v);
     REQUIRE(i1.has_value() && i2.has_value());
     CHECK(*i1 == *i2);
     CHECK_EQ(std::string(KINDS.at(i1->kind).name.view()), "map");

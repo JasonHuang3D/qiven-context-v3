@@ -281,6 +281,10 @@ SUBSET_PLANTS = {
         "#pragma warning(disable : 26400)\n[[gsl::suppress(\"26400\")]] inline int entry_quiet() { return 0; }\n",
     "src/entry/command.hpp": "#pragma once\n#include <string_view>\n"
         "struct EntryCommand { std::string_view cwd; };\n",
+    "src/entry/held.hpp": "#pragma once\n#include <array>\n#include <string_view>\n"
+        "struct EntryHeld { std::array<std::string_view, 4> parts{}; };\n",
+    "src/entry/wrapped.hpp": "#pragma once\n#include <optional>\n#include <span>\n#include <utility>\n"
+        "struct EntryWrapped { std::optional<std::pair<std::span<const int>, const int*>> held; };\n",
     "src/entry/mutex.hpp": "#pragma once\n#include <mutex>\nstruct EntryGuarded { std::mutex m; };\n"
         "inline void entry_wait(std::timed_mutex& m) { m.lock(); m.unlock(); }\n"
         "inline unsigned long entry_forever() { return INFINITE; }\n",
@@ -319,7 +323,7 @@ SUBSET_PLANTS = {
         "// va_list, union, detach, std::thread, thread_local, a std::string_view\n"
         "// member, std::mutex, lock(), INFINITE, system_clock, assert, abort, exit,\n"
         "// std::terminate, TerminateProcess; and the forms each rule lets pass.\n"
-        "#include <chrono>\n#include <cstddef>\n#include <mutex>\n#include <span>\n"
+        "#include <array>\n#include <chrono>\n#include <cstddef>\n#include <mutex>\n#include <span>\n"
         "#include <string_view>\n#include <thread>\n#include <variant>\n"
         "namespace qiven3::clean {\n"
         "inline constexpr std::string_view names = \"typeid dynamic_cast new delete malloc free "
@@ -329,9 +333,11 @@ SUBSET_PLANTS = {
         "struct Holder {\n    Holder() = default;\n    Holder(const Holder&) = delete;\n"
         "    Holder& operator=(const Holder&) = delete;\n    void free(void* p) noexcept;\n"
         "    static constexpr std::string_view name = \"holder\";\n    static const int count;\n"
-        "    std::variant<int, float> value;\n    std::size_t exit_code = 0;\n};\n"
+        "    std::variant<int, float> value;\n    std::size_t exit_code = 0;\n"
+        "    std::array<const std::string_view*, 2> marks{};\n};\n"
         "inline void Holder::free(void* p) noexcept { static_cast<void>(p); }\n"
-        "struct TextView {\n    std::string_view text;\n    std::span<const std::byte> bytes;\n};\n"
+        "struct TextView {\n    std::string_view text;\n    std::span<const std::byte> bytes;\n"
+        "    std::array<std::string_view, 2> names{};\n};\n"
         "inline bool take(std::timed_mutex& m, Holder& h, void* p) {\n    h.free(p);\n"
         "    std::jthread worker([] {});\n    if (!m.try_lock_for(wait)) {\n        return false;\n    }\n"
         "    m.unlock();\n    const auto start = std::chrono::steady_clock::now();\n"
@@ -353,6 +359,7 @@ SUBSET_PLANTED = [
     ("B27", "src/entry/nolint.hpp", "nolint"), ("B27", "src/entry/nolint.hpp", "pragma"),
     ("B27", "src/entry/nolint.hpp", "suppress"),
     ("B28", "src/entry/command.hpp", ""), ("B28", "src/memory/borrow.hpp", ""),
+    ("B28", "src/entry/held.hpp", ""), ("B28", "src/entry/wrapped.hpp", ""),
     ("B29", "src/entry/mutex.hpp", ""), ("B29", "src/entry/mutex.hpp", "lock"),
     ("B29", "src/entry/mutex.hpp", "infinite"),
     ("B30", "src/entry/clock.hpp", ""), ("B31", "src/entry/abort.hpp", ""),

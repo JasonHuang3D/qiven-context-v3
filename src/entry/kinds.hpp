@@ -499,13 +499,13 @@ constexpr Carried resolve(Carried c, std::string_view writer, Basis basis, std::
 
 // A record's identity in its scope: its kind's place and up to four parts,
 // views of the header's and the content's text.
-struct Identity {
+struct IdentityView {
     std::uint8_t kind = 0;
     std::array<std::string_view, 4> parts{};
-    constexpr bool operator==(const Identity&) const = default;
+    constexpr bool operator==(const IdentityView&) const = default;
 };
 #if INTPTR_MAX == INT64_MAX
-static_assert(sizeof(Identity) == 72, "Identity's size is pinned: its kind, padded, and four views");
+static_assert(sizeof(IdentityView) == 72, "IdentityView's size is pinned: its kind, padded, and four views");
 #endif
 
 namespace detail {
@@ -523,12 +523,12 @@ constexpr std::string_view member(const canon::Basic<B>& v, json::Index i, std::
 }  // namespace detail
 
 template <typename A, typename B>
-constexpr std::optional<Identity> identity(const header::Header<A>& h, const canon::Basic<B>& content) {
+constexpr std::optional<IdentityView> identity(const header::Header<A>& h, const canon::Basic<B>& content) {
     const std::optional<std::size_t> k = index_of(h.value(header::Slot::kind));
     if (!k || KINDS[*k].identity == Holds::none) {
         return std::nullopt;
     }
-    Identity id;
+    IdentityView id;
     id.kind = static_cast<std::uint8_t>(*k);
     switch (KINDS[*k].identity) {
         case Holds::lane: id.parts[0] = h.value(header::Slot::lane); break;

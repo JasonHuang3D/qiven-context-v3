@@ -9,6 +9,6 @@ namespace qiven3::entry::kinds {
 
 using Alloc = memory::Allocator<char>;
 
-template std::optional<Identity> identity(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
+template std::optional<IdentityView> identity(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
 
 }  // namespace qiven3::entry::kinds

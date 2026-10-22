@@ -25,9 +25,9 @@ text's and then the tokens' own:
   scope or a static member whose declaration holds parentheses (an
   initializer's, a function pointer's, alignas), or declared after a class
   body's brace;
-- B28: a view in a lambda's capture, in a container or wrapper, or behind a
-  pointer or reference member; then a member whose declaration holds
-  parentheses;
+- B28: a view in a lambda's capture, or behind a pointer or reference
+  member, at any depth of its template arguments; then a member whose
+  declaration holds parentheses;
 - B29: a std::unique_lock that locks at construction; SQLite's own waits;
 - B30: none of the text's; then a bare time() call, read as any function's;
 - B31: a library's own abort;
@@ -275,6 +275,23 @@ def is_const(toks, depths):
     return last_const > last_star
 
 
+def behind(toks, depths, i):
+    """Whether a pointer or reference holds the view at i, or a type around
+    it: a *, & or && after it at its own depth or an enclosing one, and not
+    in a later argument of the same list. A view at any depth of a member's
+    template arguments is held by value otherwise: in a container or a
+    wrapper, as std::array<std::string_view, 4>."""
+    level, later = depths[i], False
+    for (_, value, _), depth in zip(toks[i + 1:], depths[i + 1:]):
+        if depth < level:
+            level, later = depth, False
+        if depth == level and value == ",":
+            later = True
+        elif depth == level and not later and value in ("*", "&", "&&"):
+            return True
+    return False
+
+
 def object_rules(tokens, out):
     """B25's objects at namespace scope and static data members; B28's view members."""
     for scope, name, head in statements(tokens):
@@ -294,9 +311,8 @@ def object_rules(tokens, out):
         if scope == "class" and "static" in values and mutable:
             out("B25", "static", line, "a non-const static data member")
         if scope == "class" and "static" not in values and not name.endswith("View"):
-            views = [i for i, (t, d) in enumerate(zip(toks, depths)) if d == 0 and t[1] in B28_VIEWS]
-            if views and not any(t[1] in ("*", "&", "&&") and d == 0 for t, d in
-                                 zip(toks[views[0]:], depths[views[0]:])):
+            views = [i for i, t in enumerate(toks) if t[1] in B28_VIEWS and not behind(toks, depths, i)]
+            if views:
                 out("B28", "", line, f"a {toks[views[0]][1]} member of {name or 'a nameless type'}", name)
 
 
