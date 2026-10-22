@@ -51,6 +51,7 @@ add_library(qiven3_fixtures STATIC
   fixtures.cpp
   fixtures.hpp
   patterns.hpp
+  view.hpp
   "${fixtures_source}"
 )
 target_include_directories(qiven3_fixtures PUBLIC "${PROJECT_SOURCE_DIR}/tests")

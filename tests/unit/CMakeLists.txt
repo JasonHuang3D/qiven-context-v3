@@ -149,6 +149,17 @@ qiven3_add_cases(qiven3_unit_check LABELS fast fake
   SOURCES check_test.cpp check_memory_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
 
+# validator's cases: part 2's codes against a view in memory, each on its
+# entry and the first deciding, by the code's order within an entry, then
+# entry by entry, the call's earlier entries held, evaluated by the
+# compiler; at run time the fixtures' lanes appended in turn, E's forget
+# among them, then a revision of B forgotten_target, a second forget, a
+# map's revision changing its object, a decision citing M1 and references
+# out of scope and not held; its budgets and fault runs.
+qiven3_add_cases(qiven3_unit_validator LABELS fast fake
+  SOURCES validator_test.cpp validator_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)
+
 # fold's cases: the order, one writer, each step of the fold ending it in
 # turn (F50, F51, F118) and "active", evaluated by the compiler; the
 # fold's faults; FA2's status change and the scope's order over the

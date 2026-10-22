@@ -30,6 +30,8 @@ add_library(qiven3_entry STATIC
   labels.hpp
   refs.cpp
   refs.hpp
+  validator.cpp
+  validator.hpp
 )
 target_include_directories(qiven3_entry PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_entry PUBLIC qiven3_matcher qiven3_base qiven3_memory PRIVATE qiven3_flags)
