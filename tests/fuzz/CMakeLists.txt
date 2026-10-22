@@ -1,6 +1,8 @@
 # The fuzz targets, each fuzz/<target>/target.cpp, whose
-# LLVMFuzzerTestOneInput takes one input. In every build the regression
-# case runs each over its kept inputs, fuzz/<target>/regress/<sha1>, which
+# qiven3::fuzz::<target>_input takes one input, and whose
+# LLVMFuzzerTestOneInput calls it in the fuzz binary alone
+# (QIVEN3_FUZZ_BINARY), so that one regression binary holds every target.
+# In every build the regression cases run each over its kept inputs, fuzz/<target>/regress/<sha1>, which
 # configure writes into regress_inputs.cpp as bytes, so that the binary
 # reads no path. Under libFuzzer (QIVEN3_SANITIZE with fuzzer) each target
 # is a binary of its own on libFuzzer's main, its corpus,
@@ -8,7 +10,7 @@
 # tools/fuzz_seeds.py and grown by libFuzzer, its findings under
 # fuzz/<target>/artifacts/; the listing step (runner/ctest_tests.cmake)
 # makes each a CTest test labelled fuzz from fuzz_targets.txt.
-set(qiven3_fuzz_targets digest)
+set(qiven3_fuzz_targets digest entry)
 
 # The kept inputs: an array of bytes each, and the tables the case reads.
 set(arrays "")
@@ -65,15 +67,17 @@ std::span<const std::uint8_t> kept_bytes(std::size_t i) noexcept { return spans[
 ")
 
 qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
-  SOURCES regress_test.cpp "${regress_source}" digest/target.cpp
-  LINK qiven3_platform_fake)
+  SOURCES regress_test.cpp "${regress_source}" digest/target.cpp entry/target.cpp
+  LINK qiven3_platform_fake qiven3_entry)
 
 if(QIVEN3_SANITIZE MATCHES "fuzzer")
   set(fuzz_lines "")
   foreach(target IN LISTS qiven3_fuzz_targets)
     set(dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     file(MAKE_DIRECTORY "${dir}/corpus" "${dir}/artifacts")
-    qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp LINK qiven3_base qiven3_platform_fake)
+    qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
+      LINK qiven3_base qiven3_entry qiven3_platform_fake)
+    target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
     if(NOT MSVC)
       # libFuzzer's main, here alone; MSVC's /fsanitize=fuzzer brings it to
       # a binary that has none.

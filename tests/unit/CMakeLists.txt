@@ -132,6 +132,15 @@ qiven3_add_cases(qiven3_unit_content LABELS fast fake
   SOURCES content_test.cpp content_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
+# check's cases: part 1's order, the parser's, the header's, the record's,
+# its binding and the content's, a header with no body meeting basis and
+# scope alone, evaluated by the compiler; every fixture entry with its
+# record and with none, the refusals of A, the parser's on the line and the
+# record, a content past 65,536 bytes; its budgets and fault runs.
+qiven3_add_cases(qiven3_unit_check LABELS fast fake
+  SOURCES check_test.cpp check_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
 # fold's cases: the order, one writer, each step of the fold ending it in
 # turn (F50, F51, F118) and "active", evaluated by the compiler; the
 # fold's faults; FA2's status change and the scope's order over the

@@ -7,8 +7,8 @@
 // framed_size's, an id but the plain digest of the framed bytes, a plain
 // digest's text of another length, a keyed digest but hmac's over the
 // key's bytes, or an arena holding bytes after its result's end.
-// LLVMFuzzerTestOneInput is libFuzzer's entry, and the regression case's,
-// which calls it without libFuzzer.
+// digest_input is the regression case's entry; LLVMFuzzerTestOneInput
+// libFuzzer's, in the fuzz binary alone.
 
 #include <array>
 #include <cstddef>
@@ -76,7 +76,9 @@ std::string hex(const digest::Bytes& bytes) {
 
 }  // namespace
 
-extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+namespace qiven3::fuzz {
+
+int digest_input(const std::uint8_t* data, std::size_t size) {
     const std::span<const std::uint8_t> input(data, size);
     std::string text(size, '\0');
     for (std::size_t i = 0; i < size; ++i) {
@@ -120,3 +122,11 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
     return 0;
 }
+
+}  // namespace qiven3::fuzz
+
+#if defined(QIVEN3_FUZZ_BINARY)
+extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+    return qiven3::fuzz::digest_input(data, size);
+}
+#endif
