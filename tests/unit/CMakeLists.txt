@@ -104,3 +104,11 @@ qiven3_add_cases(qiven3_unit_header LABELS fast fake
 qiven3_add_cases(qiven3_unit_body LABELS fast fake
   SOURCES body_test.cpp body_memory_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
+# kinds' cases: the tables against header's closed sets, the fields and
+# limits, when and pins, a direction's clears, the common fields' carriage
+# and record identity, evaluated by the compiler; identity over every
+# fixture entry; no allocation, counted and under the fault run.
+qiven3_add_cases(qiven3_unit_kinds LABELS fast fake
+  SOURCES kinds_test.cpp kinds_memory_test.cpp
+  LINK qiven3_faults qiven3_fixtures qiven3_entry)
