@@ -5,13 +5,19 @@ loop's, by the same preset; each step of a job that runs a preset's build or
 reads its tree is the loop's step, in CI's order, with CI's command; the
 sanitizers' options, CTest's parallel level and the Linux shell are CI's.
 The pins are the loop's alone, as its additions to CI's configure: the
-pinned tools' option, and on Linux the pinned compilers of the preset's
+pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop.py), and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
 version. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
 builds release, which keeps its PDBs, and runs fake's selection and then
 the debugger preset, a label no workflow runs; nor are its own steps,
 LOCAL_STEPS, after CI's: linux-plain's debugger step, that label on its
 build.
+
+The tiers' own steps are read against CI's and the presets: tier 1's
+structure steps are windows-analysis's; its fast step is the fast test
+preset's selection on the job's own build; tier 3's suites build the
+structure, nohal and fuzz presets and run the full and fuzz test presets.
+Each Windows job's trees are its own: no two jobs share one.
 
 Neither workflow runs a draft pull request's jobs: each job's if is DRAFT,
 and the pull request's event types are READY, ready_for_review among them,
@@ -213,8 +219,8 @@ class LoopAgainstCI(unittest.TestCase):
                 self.assertEqual([s.ci for s in steps], self.ci[name][1])
 
     def test_additions(self):
-        """The loop's own additions: a fresh cache and the pinned tools'
-        option on each configure, and on Linux's the pinned compilers in place
+        """The loop's own additions: the pinned tools' option on each
+        configure, and on Linux's the pinned compilers in place
         of the preset's, as the text states; nothing else."""
         compilers = preset_compilers()
         cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
@@ -223,8 +229,8 @@ class LoopAgainstCI(unittest.TestCase):
             for step in steps:
                 with self.subTest(job=name, step=step.name):
                     if step.ci[:2] == ("cmake", "--preset") and step.name == "configure":
-                        self.assertEqual(step.local[:2], ("--fresh", PIN))
-                        rest = step.local[2:]
+                        self.assertEqual(step.local[:1], (PIN,))
+                        rest = step.local[1:]
                         if system == "windows":
                             self.assertEqual(rest, ())
                             continue
@@ -264,9 +270,9 @@ class LoopAgainstCI(unittest.TestCase):
         system, preset, steps = self.loop.JOBS["windows-symbols"]
         self.assertEqual((system, preset), ("windows", "release"))
         self.assertEqual(configure["release"]["cacheVariables"]["CMAKE_BUILD_TYPE"], "RelWithDebInfo")
-        self.assertEqual(self.loop.TREES["windows-symbols"], "build/release")
+        self.assertEqual(self.loop.TREES["windows-symbols"], {"build/release": "build/release"})
         self.assertEqual([s.name for s in steps], ["configure", "build", "fake", "debugger"])
-        self.assertEqual(steps[0].local, ("--fresh", PIN))
+        self.assertEqual(steps[0].local, (PIN,))
         fake = tests["fake"]["filter"]
         self.assertEqual(steps[2].ci, ("ctest", "--test-dir", "build/release", "--output-on-failure",
                                        "--no-tests=error", "-L", fake["include"]["label"], "-LE",
@@ -289,6 +295,42 @@ class LoopAgainstCI(unittest.TestCase):
                          [("debugger", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error",
                                         "-L", "^debugger$"), ())])
         self.assertNotIn("debugger", [s.name for s in self.ci_jobs()["linux-plain"][2]])
+
+    def test_tiers(self):
+        """The tiers' own steps against CI's and the presets: tier 1's
+        structure steps are windows-analysis's, as ci.yml writes them; its
+        fast step is the fast test preset's selection, on the job's build;
+        tier 3's suites build the structure, nohal and fuzz presets and run
+        the full and fuzz test presets. No two Windows jobs share a tree."""
+        presets = json.loads((ROOT / "CMakePresets.json").read_bytes())
+        tests = {p["name"]: p for p in presets["testPresets"]}
+        table = self.loop.TABLE
+        self.assertEqual(table["TIER1"], {"windows": "windows-msvc", "linux": "linux-gcc"})
+        msvc = list(table["TIER1_STEPS"]["windows-msvc"])
+        analysis = self.ci["windows-analysis"][1]
+        self.assertEqual([s.ci for s in msvc[:3]], analysis[-3:])
+        self.assertEqual([s.name for s in msvc[:3]], ["structure configure", "structure build", "structure tests"])
+        fast = table["FAST"]
+        self.assertEqual(msvc[3:], [fast])
+        self.assertEqual(list(table["TIER1_STEPS"]["linux-gcc"]), [fast])
+        self.assertEqual(fast.ci, ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L",
+                                   tests["fast"]["filter"]["include"]["label"]))
+        self.assertEqual(tests["fast"]["execution"]["noTestsAction"], "error")
+        suites = table["SUITES"]
+        self.assertEqual(set(suites), {"windows-full", "windows-fuzz"})
+        self.assertEqual([s.ci for s in suites["windows-full"][1]],
+                         [("cmake", "--preset", "structure"), ("cmake", "--build", "--preset", "structure"),
+                          ("cmake", "--preset", "nohal"), ("cmake", "--build", "--preset", "nohal"),
+                          ("ctest", "--preset", "full")])
+        self.assertEqual([s.ci for s in suites["windows-fuzz"][1]],
+                         [("cmake", "--preset", "fuzz"), ("cmake", "--build", "--preset", "fuzz"),
+                          ("ctest", "--preset", "fuzz")])
+        self.assertEqual(tests["full"]["configurePreset"], "release")
+        windows = [n for n, j in self.loop.JOBS.items() if j[0] == "windows"] + list(suites)
+        self.assertEqual(set(self.loop.TREES), set(windows))
+        owned = [tree for name in windows for tree in self.loop.TREES[name].values()]
+        self.assertEqual(len(owned), len(set(owned)), owned)
+        self.assertNotIn("build/ci", owned)
 
     def test_environment(self):
         for name, (system, _, _) in self.ci_jobs().items():

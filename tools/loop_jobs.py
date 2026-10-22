@@ -6,22 +6,29 @@ the same preset, and each of its steps runs CI's command, in CI's order. CI
 is unpinned and runs on the images' own tools; the pins are the loop's
 alone, as each step's local additions, apart from CI's command, so that a
 test reads one against the other (tests/drive/test_loop_ci.py):
-- every configure adds a fresh cache and QIVEN3_PIN_TOOLS, under which
-  configure fails on any compiler, CMake, Ninja or CPython but the pinned;
+- every configure adds QIVEN3_PIN_TOOLS, under which configure fails on
+  any compiler, CMake, Ninja or CPython but the pinned (tier 3 adds a fresh
+  cache, tools/loop_tiers.py);
 - the Linux configures name the pinned compilers, gcc-14 and g++-14 or
   clang-18 and clang++-18, where CI's presets take the image's gcc, g++,
   clang and clang++ (tools/linux-pins.txt pins them);
 - windows-analysis's configure names the pinned clang-tidy, which the loop
-  checks by SHA-256 and version (tools/loop.py's CLANG_TIDY).
+  checks by SHA-256 and version (tools/loop_windows.py's CLANG_TIDY).
 
 Beyond CI's, the loop's own jobs, LOCAL, which CI never runs: on Windows
 windows-symbols, the release preset keeping its PDB beside each binary,
 running the fake cases and then the debugger cases (the debugger test
 preset), so that K8, K16, K17 and the plants' names run inside the loop.
-Each Windows job builds in its own tree, TREES', build/ci by default. And
-the loop's own steps, LOCAL_STEPS, after CI's in a job of CI's: on Linux,
-linux-plain's build, with its debug information, runs the debugger cases
-under gdb.
+And the loop's own steps, LOCAL_STEPS, after CI's in a job of CI's: on
+Linux, linux-plain's build, with its debug information, runs the debugger
+cases under gdb.
+
+The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
+runs, and TIER1_STEPS, the structure tests and fast it adds on that job;
+SUITES, tier 3's full suite and fuzz targets, once a system after its jobs.
+TREES maps each Windows job's directories, as CI's commands name them, to
+the job's own trees, kept across runs: CI's Windows jobs share build/ci, a
+clean runner each, where the loop's keep a tree each on one machine.
 
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
@@ -55,16 +62,29 @@ LINUX_COMPILERS = {
 
 class Step:
     """One step: its name, its command as CI writes it, what the loop adds,
-    its phase, and the step that must have passed before it runs."""
+    its phase, the step or steps that must have passed before it runs,
+    and its time limit."""
 
-    __slots__ = ("name", "ci", "local", "phase", "after")
+    __slots__ = ("name", "ci", "local", "phase", "after", "timeout")
 
-    def __init__(self, name, ci, phase="test", local=(), after="build"):
+    def __init__(self, name, ci, phase="test", local=(), after="build", timeout=None):
         self.name, self.ci, self.phase, self.local, self.after = name, tuple(ci), phase, tuple(local), after
+        self.timeout = timeout  # seconds; None: the loop's step limit; 0: none, the step bounds itself
+
+
+def structure_steps():
+    """The structure tests on a build of ci-windows writing their records,
+    windows-analysis's last steps, as ci.yml writes them."""
+    return [Step("structure configure", ("cmake", "--preset", "ci-windows", "-B", "build/ci-structure",
+                                         "-DQIVEN3_STRUCTURE=ON"), local=(PIN,), after=None),
+            Step("structure build", ("cmake", "--build", "build/ci-structure"), after="structure configure"),
+            Step("structure tests", ("ctest", "--test-dir", "build/ci-structure", "--output-on-failure",
+                                     "--no-tests=error", "-R", "^tests[.]structure[.]", "-LE", "^analysis$"),
+                 after="structure build")]
 
 
 def windows_job(preset, clean=False, analysis=False):
-    steps = [Step("configure", ("cmake", "--preset", preset), "build", ("--fresh", PIN), None),
+    steps = [Step("configure", ("cmake", "--preset", preset), "build", (PIN,), None),
              Step("build", ("cmake", "--build", "--preset", preset), "build", after="configure"),
              Step("fake", ("ctest", "--preset", "fake"))]
     if analysis:
@@ -72,18 +92,12 @@ def windows_job(preset, clean=False, analysis=False):
     if clean:
         steps.append(Step("clean binaries", (CLEAN, "build/ci")))
     if analysis:
-        steps += [Step("structure configure", ("cmake", "--preset", "ci-windows", "-B", "build/ci-structure",
-                                               "-DQIVEN3_STRUCTURE=ON"), local=(PIN,), after=None),
-                  Step("structure build", ("cmake", "--build", "build/ci-structure"), after="structure configure"),
-                  Step("structure tests", ("ctest", "--test-dir", "build/ci-structure", "--output-on-failure",
-                                           "--no-tests=error", "-R", "^tests[.]structure[.]", "-LE", "^analysis$"),
-                       after="structure build")]
+        steps += structure_steps()
     return ("windows", preset, steps)
 
 
 def linux_job(preset, compiler, fuzz=False, clean=False, cxx=False):
-    steps = [Step("configure", ("cmake", "--preset", preset), "build", ("--fresh", PIN, *LINUX_COMPILERS[compiler]),
-                  None),
+    steps = [Step("configure", ("cmake", "--preset", preset), "build", (PIN, *LINUX_COMPILERS[compiler]), None),
              Step("build", ("cmake", "--build", "--preset", preset, "--", "-k", "0"), "build", after="configure"),
              Step("fake", ("ctest", "--preset", "fake"))]
     if fuzz:
@@ -100,7 +114,7 @@ def linux_job(preset, compiler, fuzz=False, clean=False, cxx=False):
 def symbols_job():
     """windows-symbols: release, its PDBs kept; fake's selection on its
     tree, then the debugger cases."""
-    steps = [Step("configure", ("cmake", "--preset", "release"), "build", ("--fresh", PIN), None),
+    steps = [Step("configure", ("cmake", "--preset", "release"), "build", (PIN,), None),
              Step("build", ("cmake", "--build", "--preset", "release"), "build", after="configure"),
              Step("fake", ("ctest", "--test-dir", "build/release", "--output-on-failure", "--no-tests=error",
                            "-L", "^fake$", "-LE", "^debugger$")),
@@ -131,5 +145,40 @@ LOCAL_STEPS = {
 LOCAL = {"windows-symbols": symbols_job()}
 JOBS = {**{name: (system, preset, [*steps, *LOCAL_STEPS.get(name, ())])
            for name, (system, preset, steps) in CI_JOBS.items()}, **LOCAL}
-# Each Windows job's tree, build/ci when it is not named here.
-TREES = {"windows-symbols": "build/release"}
+
+# The tiers' own. Tier 1's job a system, and the steps it adds on it: the
+# structure tests, and fast's label on the job's own build.
+TIER1 = {"windows": "windows-msvc", "linux": "linux-gcc"}
+FAST = Step("fast", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L", "^fast$"))
+TIER1_STEPS = {"windows-msvc": (*structure_steps(), FAST), "linux-gcc": (FAST,)}
+FUZZ_TIMED = "fuzz-timed"  # each fuzz target for a time: tools/loop_fuzz.py on the tree
+# Tier 3's suites, once a system after its jobs: (system, steps). On
+# Windows the full suite on release (windows-symbols' tree), with the
+# structure preset's records and H6's nohal build beside it; and the fuzz
+# targets in the fuzz preset's tree. Linux's are the Linux side's.
+SUITES = {
+    "windows-full": ("windows", [
+        Step("structure configure", ("cmake", "--preset", "structure"), "build", (PIN,), None),
+        Step("structure build", ("cmake", "--build", "--preset", "structure"), "build", after="structure configure"),
+        Step("nohal configure", ("cmake", "--preset", "nohal"), "build", (PIN,), None),
+        Step("nohal build", ("cmake", "--build", "--preset", "nohal"), "build", after="nohal configure"),
+        Step("full", ("ctest", "--preset", "full"), after=("structure build", "nohal build"))]),
+    "windows-fuzz": ("windows", [
+        Step("configure", ("cmake", "--preset", "fuzz"), "build", (PIN,), None),
+        Step("build", ("cmake", "--build", "--preset", "fuzz"), "build", after="configure"),
+        Step("fuzz", ("ctest", "--preset", "fuzz"))]),
+}
+# Each Windows job's or suite's own trees: CI's directory, as its commands
+# name it or as its preset's binaryDir, mapped to the job's tree. A
+# directory a step names outside its job's map is read as it is, and
+# never owned (the full suite reads windows-symbols' build/release).
+TREES = {
+    "windows-msvc": {"build/ci": "build/windows-msvc", "build/ci-structure": "build/windows-msvc-structure"},
+    "windows-asan": {"build/ci": "build/windows-asan"},
+    "windows-stack": {"build/ci": "build/windows-stack"},
+    "windows-analysis": {"build/ci": "build/windows-analysis",
+                         "build/ci-structure": "build/windows-analysis-structure"},
+    "windows-symbols": {"build/release": "build/release"},
+    "windows-full": {"build/structure": "build/structure", "build/nohal": "build/nohal"},
+    "windows-fuzz": {"build/fuzz": "build/fuzz"},
+}
