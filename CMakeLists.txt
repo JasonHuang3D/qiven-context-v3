@@ -112,6 +112,28 @@ if(Python3_EXECUTABLE)
   message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
 endif()
 
+# SQLite 3.53.4's amalgamation, vendored unchanged in third_party/sqlite/:
+# each file's SHA-256 checked on every configure, pinned or not, so that a
+# changed amalgamation never builds.
+set(QIVEN3_SQLITE_SHA256
+  "sqlite3.c=b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189"
+  "sqlite3.h=919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d")
+foreach(pin IN LISTS QIVEN3_SQLITE_SHA256)
+  string(REPLACE "=" ";" pin "${pin}")
+  list(GET pin 0 qiven3_file)
+  list(GET pin 1 qiven3_pinned)
+  set(qiven3_path "${PROJECT_SOURCE_DIR}/third_party/sqlite/${qiven3_file}")
+  if(NOT EXISTS "${qiven3_path}")
+    message(FATAL_ERROR "qiven3: third_party/sqlite/${qiven3_file} is missing")
+  endif()
+  file(SHA256 "${qiven3_path}" qiven3_digest)
+  if(NOT qiven3_digest STREQUAL qiven3_pinned)
+    message(FATAL_ERROR "qiven3: third_party/sqlite/${qiven3_file} has SHA-256 ${qiven3_digest}; "
+      "the pin is ${qiven3_pinned}")
+  endif()
+endforeach()
+message(STATUS "qiven3: SQLite's amalgamation holds its pinned digests")
+
 # The flags of every core and test target, through qiven3_flags. RTTI is
 # off: no code of v3's uses dynamic_cast or typeid, and no standard facility
 # v3 uses needs RTTI. MSVC still compiles typeid of a type with no virtual
@@ -399,6 +421,7 @@ function(qiven3_executable name)
 endfunction()
 
 enable_testing()
+add_subdirectory(third_party/sqlite)
 add_subdirectory(src/memory)
 add_subdirectory(src/diag)
 add_subdirectory(src/qiven3)

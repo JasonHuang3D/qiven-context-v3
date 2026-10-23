@@ -4,11 +4,11 @@
 # image's own clang++ and builds libc++ and libc++abi under it from LLVM's
 # source of that release, the tarball's SHA-256 printed, against no pin;
 # then builds v3 against them and runs the cases on the fakes (label fake)
-# and every C++ case (label cxx). SQLite is not in the tree yet: once
-# third_party/sqlite is vendored, the same build compiles it under the
-# sanitizer with v3, with no change here. The job's time limit is the
-# trial's, 60 minutes, the library's build included. Its last step states
-# the outcome: what was built, in what time, and what ran.
+# and every C++ case (label cxx). The same build compiles SQLite's
+# vendored amalgamation (third_party/sqlite, qiven3_sqlite) under the
+# sanitizer with v3, its runs those of the cases that link it. The job's
+# time limit is the trial's, 60 minutes, the library's build included. Its
+# last step states the outcome: what was built, in what time, and what ran.
 #
 # CI is a runtime evaluation, unpinned, as ci.yml's text has it: the
 # image's own tools, the version of each printed, no system setting changed.
@@ -210,5 +210,5 @@ jobs:
           {
             echo "msan trial: libc++ ${LLVM_SOURCE_VERSION:-unread} $LIBCXX; configure $CONFIGURE; build $BUILD; fake $FAKE; cxx $CXX"
             echo "msan trial: $minutes minutes from the toolchain's check, of the job's 60"
-            echo "msan trial: SQLite not in the tree yet; built under the sanitizer with v3 once vendored"
+            echo "msan trial: SQLite (qiven3_sqlite) built under the sanitizer with v3, in build $BUILD"
           } | tee -a "$GITHUB_STEP_SUMMARY"
