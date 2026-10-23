@@ -9,6 +9,7 @@ add_library(qiven3_store STATIC
   errors.cpp
   errors.hpp
   memory.hpp
+  memory_exchange.cpp
   memory_exchange.hpp
   memory_state.cpp
   memory_state.hpp

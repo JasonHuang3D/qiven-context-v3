@@ -9,19 +9,23 @@
 // means: under the state's lock, the head compared, then stage's part 2
 // against the state's view, then the new rows staged on the state's heap
 // and applied by moves that cannot fail, so a refusal leaves the state as
-// it was. Reads run under the lock, each header parsed again from its line
-// and its id recomputed, each body record parsed and checked against its
-// header, a mismatch StoreCorrupt. A scan fixes, at its start, each lane's
-// entries then held, and reads one header at a time. It is not durable,
-// has no files and admits no other process: no capability. Its purge is
-// done at once; it has no path, so an error names none.
+// it was; a forget so too, its guard and whole records checked. Reads run
+// under the lock, each header parsed again from its line and its id
+// recomputed, each body record parsed and checked against its header, a
+// mismatch StoreCorrupt. A scan fixes, at its start, each lane's entries
+// then held, and reads one header at a time. Export, import and verify are
+// memory_exchange.hpp's. It is not durable, has no files and admits no
+// other process: no capability. Its purge is done at once; it has no path,
+// so an error names none.
 //
 // Budgets: each operation runs on its own pages, an arena over them, 1 MiB
 // plus 4 times the lines given: the object's own 1 MiB for an operation
-// given none, else pages the call takes. At append the pages split in two
-// halves, the arena check keeps its entries on, and check's scratch,
-// afresh for each line. Each operation's peak is its arenas' high-water
-// marks summed; the state's heap is the store's, as SQLite's files are.
+// given none, else pages the call takes. At append and forget the pages
+// split in two halves, the arena check keeps its entries on, and check's
+// scratch, afresh for each line. Import and verify run on the object's own;
+// an export's lines go to the caller's arena. Each operation's peak is its
+// arenas' high-water marks summed; the state's heap is the store's, as
+// SQLite's files are.
 //
 // Allocations, by operation (the counts are the cases'): append check's
 // and admit's (stage's) on the operation's arenas; on the state's heap,
@@ -31,13 +35,16 @@
 // on the operation's arena, one on the caller's. body: read_header's, then
 // body's parse (canon's four and one) on the operation's arena, one on the
 // caller's. scan: its lanes' room on the state's heap; each next as
-// header. close and purge: none. Platform calls: pages, once at the
-// object's making, once per scan and once per call given lines; part 1's
-// and body's wipes, each noexcept.
+// header. forget: as append, and the targets' room and forgetting's on the
+// kept arena. export, import, verify: memory_exchange.hpp's. close and
+// purge: none. Platform calls: pages, once at the object's making, once
+// per scan and once per call given lines; part 1's and body's wipes, each
+// noexcept.
 //
 // thread: one, each object; the state, shared (its lock).
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -60,68 +67,6 @@
 #include "store/stage.hpp"
 
 namespace qiven3::store {
-
-namespace state {
-
-// The failing countdown under QIVEN3_FAULTS; elsewhere a type never made.
-#if defined(QIVEN3_FAULTS)
-using Countdown = memory::Countdown;
-#else
-struct Countdown {};
-#endif
-
-// check's scratch: at each call a fresh arena over the same pages, the
-// last one's blocks all given back.
-class ScratchView {
-public:
-    ScratchView(std::span<std::byte> pages, state::Countdown* countdown) noexcept
-        : pages_(pages), countdown_(countdown) {}
-    memory::Arena& operator()() {
-        arena_.reset();
-        arena_.emplace(pages_);
-#if defined(QIVEN3_FAULTS)
-        if (countdown_ != nullptr) {
-            arena_->attach(countdown_);
-        }
-#endif
-        return *arena_;
-    }
-
-private:
-    std::span<std::byte> pages_;
-    std::optional<memory::Arena> arena_;
-    [[maybe_unused]] state::Countdown* countdown_;
-};
-
-// An operation's budget for the lines it is given.
-inline std::size_t budget_of(std::span<const EntryView> entries) {
-    const std::optional<std::size_t> lines = given(entries);
-    const std::optional<std::size_t> b = lines ? operation_budget(*lines) : std::nullopt;
-    if (!b) {
-        throw memory::MemoryError::budget("store/memory", std::numeric_limits<std::size_t>::max(), entries.size(), 0);
-    }
-    return *b;
-}
-
-// A held entry's body record, checked against its header: a record the
-// parser refuses StoreCorrupt incoherent, one not its header's
-// StoreCorrupt body_mismatch.
-template <platform::Platform P>
-void check_body(P& platform, const Held& e, const Header& h, Operation op, const Chars& allocator) {
-    namespace body = entry::body;
-    try {
-        const body::Body<P, Chars> b = body::parse(platform, std::string_view(e.body), allocator);
-        body::check(b, h);
-    } catch (const body::BodyError& f) {
-        throw StoreError::corrupt(name(op), {}, f.code == body::Code::body_mismatch ? Corrupt::body_mismatch
-                                                                                   : Corrupt::incoherent,
-                                  e.id.view());
-    } catch (const ParseError&) {
-        throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, e.id.view());
-    }
-}
-
-}  // namespace state
 
 // A scan: the lanes of its range as they stood at its start, each read
 // from the seq after its start, one header at a time.
@@ -221,7 +166,7 @@ public:
     // A moved-from object is closed.
     MemoryStore(MemoryStore&& other) noexcept
         : state_(other.state_), platform_(other.platform_), pages_(std::move(other.pages_)), gate_(other.gate_),
-          countdown_(other.countdown_) {
+          countdown_(other.countdown_), owner_(other.owner_) {
         other.gate_.close();
     }
     MemoryStore& operator=(MemoryStore&& other) noexcept {
@@ -231,6 +176,7 @@ public:
             pages_ = std::move(other.pages_);
             gate_ = other.gate_;
             countdown_ = other.countdown_;
+            owner_ = other.owner_;
             other.gate_.close();
         }
         return *this;
@@ -321,12 +267,42 @@ public:
         return MemoryScan<P>(*state_, *platform_, range, countdown_);
     }
 
-    // Part 2's: refused until built.
-    Written forget(std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
-                   std::span<const EntryView> /*entries*/, std::span<const GuardView> /*guard*/,
-                   Vector<Id>& /*erased*/) {
-        gate_.enter(Operation::forget, {});
-        state::unbuilt(Operation::forget);
+    // As append, but forget entries alone, every lane as the guard expects
+    // it and whole records; the targets' bodies dropped, their ids into
+    // erased; never refused for size or count.
+    Written forget(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
+        constexpr Operation op = Operation::forget;
+        gate_.enter(op, {});
+        std::optional<Pages> extra;
+        const std::span<std::byte> span = room(state::budget_of(entries), extra);
+        const std::size_t half = span.size() / 2;
+        memory::Arena kept(span.first(span.size() - half));
+        hook(kept);
+        state::ScratchView scratch(span.subspan(span.size() - half), countdown_);
+        const state::Chars chars(kept);
+        const stage::AtView at{op, {}};
+        const stage::Checked<P> checked = stage::check(*platform_, entries, at, chars, scratch);
+        const state::Locked lock(*state_, op, {});
+        state::Data& d = lock.data();
+        const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
+        state::guard(d, guard);
+        state::StateView view(d, chars, op, {});
+        const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, state_->limits(), at, chars);
+        Vector<std::uint32_t> targets(chars);
+        targets.reserve(entries.size());
+        for (const stage::Entry<P>& e : checked.entries) {
+            targets.push_back(state::find(d, e.header().text(state::header::Slot::target).value_or("")));
+        }
+        const std::uint64_t dropped = state::forgetting(d, targets, erased, chars);
+        state::Batch batch(d);
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
+        }
+        batch.apply(d, staged.size);
+        d.size -= dropped;
+        return Written{entries.empty() ? now.value_or(Head{}) : staged.head,
+                       measure(d.size, d.count, state_->limits()), Purge{}};
     }
 
     // Done at once: a forget drops its bodies as it commits.
@@ -335,17 +311,31 @@ public:
         return Purge{};
     }
 
-    // Part 2's: refused until built.
-    state::MemoryExport export_(Scopes /*scopes*/, std::span<const AfterView> /*after*/) {
+    // A snapshot of the scope set, read one line at a time.
+    state::MemoryExport export_(Scopes scopes, std::span<const AfterView> after) {
         gate_.enter(Operation::export_, {});
-        state::unbuilt(Operation::export_);
+        const state::Locked lock(*state_, Operation::export_, {});
+        return state::MemoryExport(*state_, lock.data(), owner_, scopes, after);
     }
 
-    // Part 2's: refused until built.
+    // Into an empty state, all or nothing; the heads it wrote into heads.
     template <Source R>
-    Imported import_(R& /*source*/, Vector<LaneHead>& /*heads*/) {
-        gate_.enter(Operation::import_, {});
-        state::unbuilt(Operation::import_);
+    Imported import_(R& source, Vector<LaneHead>& heads) {
+        constexpr Operation op = Operation::import_;
+        gate_.enter(op, {});
+        if constexpr (std::same_as<R, state::MemoryExport>) {
+            // An export of this state: the state was empty at its making,
+            // or is not now; its next would wait on this call's lock.
+            if (source.over(*state_)) {
+                const state::Locked lock(*state_, op, {});
+                if (lock.data().count != 0) {
+                    throw StoreError::not_empty(name(op), {}, lock.data().count);
+                }
+                heads.clear();
+                return Imported{Counts{}, measure(0, 0, state_->limits())};
+            }
+        }
+        return state::import_source(*platform_, *state_, source, heads, own(), countdown_);
     }
 
     Sizes size() {
@@ -356,14 +346,19 @@ public:
         return s;
     }
 
-    // Part 2's: refused until built.
     Counts verify() {
         gate_.enter(Operation::verify, {});
-        state::unbuilt(Operation::verify);
+        const state::Locked lock(*state_, Operation::verify, {});
+        return state::verify_state(*platform_, lock.data(), own(), countdown_);
     }
 
+    // Its exports closed with it.
     Purge close() {
         gate_.enter(Operation::close, {});
+        if (owner_ != 0) {
+            const state::Locked lock(*state_, Operation::close, {});
+            state::close_exports(lock.data(), owner_);
+        }
         gate_.close();
         return Purge{};
     }
@@ -412,6 +407,7 @@ private:
     Pages pages_;
     Gate gate_;
     state::Countdown* countdown_ = nullptr;
+    std::uint64_t owner_ = 0;  // the object's number in the state, given at its first export
 };
 
 }  // namespace qiven3::store

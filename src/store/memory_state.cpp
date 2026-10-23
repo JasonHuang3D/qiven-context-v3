@@ -172,11 +172,7 @@ void copy_header(const Header& h, Header& out) {
 
 Batch::Batch(Data& d) noexcept : rows_(Allocator<Held>(d.heap)), lanes_(Allocator<Lane>(d.heap)) {}
 
-void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
-    const std::size_t at = d.held.size() + rows_.size();
-    if (at >= max_entries) {
-        throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
-    }
+Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
     Held e(d.heap);
     e.line.assign(line);
     if (record) {
@@ -186,10 +182,23 @@ void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> 
     if (const std::optional<std::string_view> c = h.text(Slot::content)) {
         e.content.assign(*c);
     }
+    const std::string_view kind = h.value(Slot::kind);
     e.id = Id::of(h.value(Slot::id));
     e.seq = h.seq();
-    e.is_forget = h.value(Slot::kind) == "forget";
-    e.direction = h.value(Slot::kind) == "direction";
+    e.is_forget = kind == "forget";
+    e.direction = kind == "direction";
+    e.revision = h.text(Slot::target).has_value() &&
+                 std::find(entry::kinds::CHANGE_KINDS.begin(), entry::kinds::CHANGE_KINDS.end(), kind) ==
+                     entry::kinds::CHANGE_KINDS.end();
+    return e;
+}
+
+void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
+    const std::size_t at = d.held.size() + rows_.size();
+    if (at >= max_entries) {
+        throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
+    }
+    Held e = make_held(d, line, record, h);
     if (const std::optional<std::string_view> t = h.text(Slot::target)) {
         e.target = find(d, *t);
         for (std::size_t j = rows_.size(); e.target == none && j > 0; --j) {
@@ -231,9 +240,6 @@ void Batch::reserve(Data& d) {
         Rows<std::uint32_t>& ids = l < d.lanes.size() ? d.lanes[l].ids : lanes_[l - d.lanes.size()].ids;
         ids.reserve(ids.size() + run_of(rows, i, l));
     }
-    if (d.exports != 0) {
-        d.dropped.reserve(d.dropped.size() + forgets_);
-    }
 }
 
 void Batch::commit(Data& d, std::uint64_t size) {
@@ -248,14 +254,11 @@ void Batch::commit(Data& d, std::uint64_t size) {
         if (e.is_forget && e.target != none) {
             Held& t = d.held[e.target];
             t.forget = t.forget == none ? i : t.forget;
-            if (t.has_body) {
+            if (t.has_body && d.exports.empty()) {
                 Bytes gone(t.body.get_allocator());
                 gone.swap(t.body);
-                t.has_body = false;
-                if (d.exports != 0) {
-                    d.dropped.push_back(std::move(gone));
-                }
             }
+            t.has_body = false;
         }
         const std::string_view id = e.id.view();
         const auto at = std::lower_bound(d.by_id.begin(), d.by_id.end(), id, [&d](std::uint32_t k, std::string_view v) {

@@ -19,7 +19,8 @@
 // apply then moves them in and moves the heads by assignments that cannot
 // fail, so a refusal or an exhausted heap leaves the state as it was. A
 // forget among them marks its target forgotten and drops the target's
-// body, kept aside while an export is open (part 2's).
+// body; while an export is open the bytes stay in place, the entry marked
+// with none, until the last export closes.
 //
 // StateView is part 2's view over the data, its reads on the operation's
 // allocator: the head, a header (parsed again from its line), a body's
@@ -128,6 +129,7 @@ struct Held {
     bool has_body = false;
     bool is_forget = false;
     bool direction = false;
+    bool revision = false;  // of a kind but the change kinds, with a target
 };
 
 // A lane: its scope, its name, its entries' indices in seq order, its head.
@@ -140,12 +142,19 @@ struct Lane {
     Head head;
 };
 
+// An export open over the state: the number of the store object that made
+// it, and its own.
+struct Open {
+    std::uint64_t owner = 0;
+    std::uint64_t id = 0;
+};
+
 // The data the lock guards. The heap first: every container's blocks are
 // its own, and it outlives them.
 struct Data {
     explicit Data(std::span<std::byte> pages) noexcept
         : heap(pages), held(Allocator<Held>(heap)), by_id(Allocator<std::uint32_t>(heap)),
-          lanes(Allocator<Lane>(heap)), dropped(Allocator<Bytes>(heap)) {}
+          lanes(Allocator<Lane>(heap)), exports(Allocator<Open>(heap)) {}
     Data(const Data&) = delete;
     Data& operator=(const Data&) = delete;
     Data(Data&&) = delete;
@@ -156,11 +165,11 @@ struct Data {
     Rows<Held> held;
     Rows<std::uint32_t> by_id;  // indices into held, sorted by id
     Rows<Lane> lanes;
-    Rows<Bytes> dropped;  // bodies a forget dropped while an export was open
+    Rows<Open> exports;  // the exports open over the state
     std::uint64_t size = 0;
     std::uint64_t count = 0;
     std::uint64_t forgets = 0;
-    std::uint32_t exports = 0;  // exports open over the state
+    std::uint64_t serial = 0;  // the last number given an object or an export
 };
 
 // The shared state: its lock, its data and the store's limits.
@@ -195,6 +204,9 @@ void attach(State& state, memory::Countdown* countdown) noexcept;
 // StoreBusy past the wait.
 [[noreturn]] void busy(Operation op, std::string_view path);
 
+// Locked's wait without a deadline, for a release that cannot fail.
+struct Unbounded {};
+
 // The state's lock for one operation, and its data while held.
 class QIVEN3_THREAD_ATTRIBUTE(scoped_lockable) Locked {
 public:
@@ -202,6 +214,13 @@ public:
         : mutex_(&state.mutex_) {
         if (!state.mutex_.try_lock_for(busy_wait)) {
             busy(op, path);
+        }
+        data_ = &state.data_;
+    }
+    // Waits as long as the lock is held: an export's release at its end.
+    Locked(State& state, Unbounded /*wait*/) noexcept QIVEN3_ACQUIRE(state.mutex_)
+        : mutex_(&state.mutex_) {
+        while (!state.mutex_.try_lock_for(busy_wait)) {
         }
         data_ = &state.data_;
     }
@@ -238,6 +257,10 @@ std::optional<Head> expect(const Data& d, Operation op, std::string_view path, s
 [[nodiscard]] Header read_header(const Held& e, Operation op, std::string_view path, const Chars& allocator);
 // A header copied onto out's allocator, its id kept: one allocation.
 void copy_header(const Header& h, Header& out);
+// An entry made from its line, its record or none and its header, on the
+// heap: three allocations; its lane, target and forget none.
+[[nodiscard]] Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record,
+                             const Header& h);
 
 // A call's new entries, staged on the heap, then applied.
 class Batch {
@@ -290,6 +313,7 @@ private:
 
 // The pinned sizes, on x64 with MSVC's library in its release layout.
 static_assert(sizeof(Allocator<char>) == 8, "the state's allocator is pinned: one Heap*");
+static_assert(sizeof(Open) == 16, "Open's size is pinned: two numbers");
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
 static_assert(sizeof(Held) == 216, "Held's size is pinned: three texts, an Id, seq, three indices and three flags");
 static_assert(sizeof(Lane) == 192, "Lane's size is pinned: two texts, the ids and a Head");
