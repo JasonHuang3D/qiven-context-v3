@@ -24,8 +24,8 @@
 // split in two halves, the arena check keeps its entries on, and check's
 // scratch, afresh for each line. Import and verify run on the object's own;
 // an export's lines go to the caller's arena. Each operation's peak is its
-// arenas' high-water marks summed; the state's heap is the store's, as
-// SQLite's files are.
+// arenas' high-water marks summed, peak() the last one's; the state's heap
+// is the store's, as SQLite's files are.
 //
 // Allocations, by operation (the counts are the cases'): append check's
 // and admit's (stage's) on the operation's arenas; on the state's heap,
@@ -118,6 +118,7 @@ public:
                 const state::Held& e = d.held[d.lanes[p.lane].ids[at_]];
                 const Header h = state::read_header(e, Operation::scan, {}, state::Chars(arena));
                 state::copy_header(h, out);
+                peak_ = std::max(peak_, arena.peak());
                 ++at_;
                 return true;
             }
@@ -126,6 +127,8 @@ public:
         }
         return false;
     }
+    // The counted peak of its greatest next.
+    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
 private:
     struct Pos {
@@ -145,6 +148,7 @@ private:
     std::int64_t after_;
     std::size_t lane_ = 0;
     std::uint32_t at_ = 0;
+    std::size_t peak_ = 0;
 };
 
 template <platform::Platform P>
@@ -207,6 +211,7 @@ public:
             batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
         }
         batch.apply(d, staged.size);
+        peak_ = kept.peak() + scratch.peak();
         return Written{entries.empty() ? now.value_or(Head{}) : staged.head,
                        measure(d.size, d.count, state_->limits()), Purge{}};
     }
@@ -235,6 +240,7 @@ public:
         const state::Held& e = held(lock.data(), op, id);
         const Header h = state::read_header(e, op, {}, state::Chars(arena));
         state::copy_header(h, out);
+        peak_ = arena.peak();
     }
 
     // false: forgotten, a forget, or a header with no body.
@@ -247,11 +253,13 @@ public:
         const state::Locked lock(*state_, op, {});
         const state::Held& e = held(lock.data(), op, id);
         if (!e.has_body) {
+            peak_ = arena.peak();
             return false;
         }
         const Header h = state::read_header(e, op, {}, chars);
         state::check_body(*platform_, e, h, op, chars);
         record.assign(e.body);
+        peak_ = arena.peak();
         return true;
     }
 
@@ -301,6 +309,7 @@ public:
         }
         batch.apply(d, staged.size);
         d.size -= dropped;
+        peak_ = kept.peak() + scratch.peak();
         return Written{entries.empty() ? now.value_or(Head{}) : staged.head,
                        measure(d.size, d.count, state_->limits()), Purge{}};
     }
@@ -335,7 +344,10 @@ public:
                 return Imported{Counts{}, measure(0, 0, state_->limits())};
             }
         }
-        return state::import_source(*platform_, *state_, source, heads, own(), countdown_);
+        state::Peak peak;
+        const Imported in = state::import_source(*platform_, *state_, source, heads, own(), countdown_, peak);
+        peak_ = peak.sum();
+        return in;
     }
 
     Sizes size() {
@@ -349,7 +361,10 @@ public:
     Counts verify() {
         gate_.enter(Operation::verify, {});
         const state::Locked lock(*state_, Operation::verify, {});
-        return state::verify_state(*platform_, lock.data(), own(), countdown_);
+        state::Peak peak;
+        const Counts counts = state::verify_state(*platform_, lock.data(), own(), countdown_, peak);
+        peak_ = peak.sum();
+        return counts;
     }
 
     // Its exports closed with it.
@@ -365,6 +380,9 @@ public:
 
     [[nodiscard]] bool read_only() const noexcept { return gate_.read_only(); }
     [[nodiscard]] Limits limits() const noexcept { return state_->limits(); }
+    // The counted peak of the last append, forget, header, body, import or
+    // verify that returned: its arenas' high-water marks summed.
+    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
 #if defined(QIVEN3_FAULTS)
     // Each operation's arenas ask the countdown first; null detaches it.
@@ -408,6 +426,7 @@ private:
     Gate gate_;
     state::Countdown* countdown_ = nullptr;
     std::uint64_t owner_ = 0;  // the object's number in the state, given at its first export
+    std::size_t peak_ = 0;
 };
 
 }  // namespace qiven3::store

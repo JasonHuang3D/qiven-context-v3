@@ -50,6 +50,7 @@
 //
 // thread: one, each object; the state, shared (its lock).
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -93,17 +94,33 @@ class ScratchView {
 public:
     ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
     memory::Arena& operator()() {
+        if (arena_) {
+            peak_ = std::max(peak_, arena_->peak());
+        }
         arena_.reset();
         arena_.emplace(pages_);
         hook(*arena_, countdown_);
         return *arena_;
     }
+    // The greatest high-water mark of its arenas so far.
+    [[nodiscard]] std::size_t peak() const noexcept { return std::max(peak_, arena_ ? arena_->peak() : 0); }
 
 private:
     std::span<std::byte> pages_;
     std::optional<memory::Arena> arena_;
     Countdown* countdown_;
+    std::size_t peak_ = 0;
 };
+
+// An operation's counted peak: the high-water marks of the arenas it holds
+// at once, summed; of the fresh arenas over the same pages, the greatest.
+struct Peak {
+    std::size_t kept = 0;  // the arena kept for the call
+    std::size_t line = 0;  // the line in hand's
+    std::size_t work = 0;  // each line's or entry's work
+    [[nodiscard]] std::size_t sum() const noexcept { return kept + line + work; }
+};
+inline void note(std::size_t& mark, const memory::Arena& arena) noexcept { mark = std::max(mark, arena.peak()); }
 
 // An operation's budget for the lines it is given.
 inline std::size_t budget_of(std::span<const EntryView> entries) {
@@ -201,7 +218,7 @@ private:
 // a quarter for the line in hand, the half left for each line's work.
 template <platform::Platform P, Source R>
 Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads, std::span<std::byte> pages,
-                       Countdown* countdown) {
+                       Countdown* countdown, Peak& peak) {
     constexpr Operation op = Operation::import_;
     const stage::AtView at{op, {}};
     const std::size_t quarter = pages.size() / 4;
@@ -221,7 +238,9 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             memory::Arena text(pages.subspan(quarter, quarter));
             hook(text, countdown);
             Line line(text);
-            if (!source.next(line)) {
+            const bool more = source.next(line);
+            note(peak.line, text);
+            if (!more) {
                 break;
             }
             memory::Arena work(pages.subspan(2 * quarter));
@@ -231,6 +250,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             StateView view(d, Chars(work), op, {});
             stage::import_line(view, e.header(), i, at);
             import_one(d, v.line, v.body, e.header());
+            note(peak.work, work);
         }
         sort_ids(d);
         for (std::size_t pass = 0; pass < 2; ++pass) {
@@ -240,6 +260,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
                 const Header h = read_header(d.held[i], op, {}, Chars(work));
                 if (pass == 0) {
                     link(d, i, h);
+                    note(peak.work, work);
                     continue;
                 }
                 const Held& e = d.held[i];
@@ -248,11 +269,13 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
                                : std::nullopt;
                 StateView view(d, Chars(work), op, {});
                 stage::import_entry(view, h, content, i, at, Chars(work));
+                note(peak.work, work);
             }
         }
         heads_of(d, std::nullopt, heads);
         stage::same_heads(std::span<const LaneHead>(given), std::span<const LaneHead>(heads), at);
         counts = verify_totals(d);
+        note(peak.kept, kept);
     } catch (...) {
         reset(d);
         heads.clear();
@@ -263,7 +286,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
 
 // verify, each entry's work on a fresh arena over pages.
 template <platform::Platform P>
-Counts verify_state(P& platform, const Data& d, std::span<std::byte> pages, Countdown* countdown) {
+Counts verify_state(P& platform, const Data& d, std::span<std::byte> pages, Countdown* countdown, Peak& peak) {
     constexpr Operation op = Operation::verify;
     for (std::uint32_t l = 0; l < d.lanes.size(); ++l) {
         const Lane& lane = d.lanes[l];
@@ -287,6 +310,7 @@ Counts verify_state(P& platform, const Data& d, std::span<std::byte> pages, Coun
                 throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, f.entry_code());
             }
             verify_entry(d, l, k, h);
+            note(peak.work, arena);
         }
     }
     return verify_totals(d);

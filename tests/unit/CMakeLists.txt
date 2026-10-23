@@ -256,7 +256,8 @@ qiven3_add_cases(qiven3_unit_store_stage LABELS fast fake
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
 
 # store/memory's cases: the in-memory store over one state on the fake;
-# so far its smoke case, part 2's operations refused until built.
+# its smoke and exchange cases, its budgets, counts and fault runs, its
+# lock, thread gate, read-only object and checked reads.
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
-  SOURCES store_memory_test.cpp
+  SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
