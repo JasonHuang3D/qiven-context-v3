@@ -197,7 +197,7 @@ Error FakeFiles::make_staged(std::string_view directory, const files::Digits& di
     return files::none;
 }
 
-Error FakeFiles::open_staged(Dir& dir, std::string_view path, File& out) {
+Error FakeFiles::open_staged(const Dir& dir, std::string_view path, File& out) {
     if (faulted()) {
         return files::general;
     }
@@ -221,7 +221,7 @@ Error FakeFiles::open_staged(Dir& dir, std::string_view path, File& out) {
     return files::none;
 }
 
-Error FakeFiles::write(File& file, std::string_view bytes) {
+Error FakeFiles::write(const File& file, std::string_view bytes) {
     if (faulted()) {
         return files::general;
     }
@@ -229,17 +229,20 @@ Error FakeFiles::write(File& file, std::string_view bytes) {
     return open == state_->open.end() ? files::general : put(open->second.stream.get(), bytes);
 }
 
-Error FakeFiles::close(File& file) noexcept {
-    const auto open = state_->open.find(file.id);
+Error FakeFiles::close(const File& file) noexcept {
+    // By a walk, as forget's: the map's find may throw, by its declaration.
     Error error = files::none;
-    if (open != state_->open.end()) {
-        error = shut(open->second.stream);
-        state_->open.erase(open);
+    for (auto open = state_->open.begin(); open != state_->open.end(); ++open) {
+        if (open->first == file.id) {
+            error = shut(open->second.stream);
+            state_->open.erase(open);
+            break;
+        }
     }
     return faulted() ? files::general : error;
 }
 
-Error FakeFiles::close_all(Dir& dir) {
+Error FakeFiles::close_all(const Dir& dir) {
     if (faulted()) {
         return files::general;
     }
@@ -256,7 +259,7 @@ Error FakeFiles::close_all(Dir& dir) {
     return error;
 }
 
-Error FakeFiles::publish(Dir& dir, std::string_view name) {
+Error FakeFiles::publish(const Dir& dir, std::string_view name) {
     if (faulted()) {
         return files::general;
     }
@@ -278,7 +281,7 @@ Error FakeFiles::publish(Dir& dir, std::string_view name) {
     return win32(error, files::already_exists);
 }
 
-Error FakeFiles::discard(Dir& dir, Detail& left) noexcept {
+Error FakeFiles::discard(const Dir& dir, Detail& left) noexcept {
     // The standard library's allocations under its calls: general.
     try {
         const auto staging = state_->dirs.find(dir.id);
@@ -321,7 +324,7 @@ Error FakeFiles::discard(Dir& dir, Detail& left) noexcept {
     }
 }
 
-void FakeFiles::forget(Dir& dir) noexcept {
+void FakeFiles::forget(const Dir& dir) noexcept {
     for (auto at = state_->open.begin(); at != state_->open.end();) {
         at = at->second.dir == dir.id ? state_->open.erase(at) : std::next(at);
     }
@@ -337,7 +340,7 @@ Error FakeFiles::open_lock(std::string_view path, Held& out) {
     return files::none;
 }
 
-Error FakeFiles::try_lock(Held& held) {
+Error FakeFiles::try_lock(const Held& held) {
     if (faulted()) {
         return files::general;
     }
@@ -357,7 +360,7 @@ Error FakeFiles::try_lock(Held& held) {
     return files::none;
 }
 
-void FakeFiles::unlock(Held& held) noexcept { state_->locks.erase(held.id); }
+void FakeFiles::unlock(const Held& held) noexcept { state_->locks.erase(held.id); }
 
 // The contract's operations: recorded, then files' over these calls, the
 // paths of replace and stage under the fake's root.

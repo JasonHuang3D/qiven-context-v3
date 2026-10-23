@@ -67,17 +67,17 @@ public:
     files::Error delete_temporary(std::string_view path, const files::Digits& digits);
 
     files::Error make_staged(std::string_view directory, const files::Digits& digits, Dir& out);
-    files::Error open_staged(Dir& dir, std::string_view path, File& out);
-    files::Error write(File& file, std::string_view bytes);
-    files::Error close(File& file) noexcept;
-    files::Error close_all(Dir& dir);
-    files::Error publish(Dir& dir, std::string_view name);
-    files::Error discard(Dir& dir, Detail& left) noexcept;
-    void forget(Dir& dir) noexcept;
+    files::Error open_staged(const Dir& dir, std::string_view path, File& out);
+    files::Error write(const File& file, std::string_view bytes);
+    files::Error close(const File& file) noexcept;
+    files::Error close_all(const Dir& dir);
+    files::Error publish(const Dir& dir, std::string_view name);
+    files::Error discard(const Dir& dir, Detail& left) noexcept;
+    void forget(const Dir& dir) noexcept;
 
     files::Error open_lock(std::string_view path, Held& out);
-    files::Error try_lock(Held& held);
-    void unlock(Held& held) noexcept;
+    files::Error try_lock(const Held& held);
+    void unlock(const Held& held) noexcept;
 
     void set_busy(const Busy& busy) noexcept { busy_ = busy; }
     [[nodiscard]] const Busy& busy() const noexcept { return busy_; }

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <random>
 #include <string>
 #include <string_view>
@@ -104,8 +105,11 @@ std::string listing(const fs::path& directory) {
 // A scratch directory of the case's own, removed at its end.
 struct Scratch {
     Scratch() {
-        std::random_device device;
-        root = fs::temp_directory_path() / ("qiven3-files-" + std::to_string(device()) + std::to_string(device()));
+        // On the heap: libstdc++'s device holds a generator's state of some
+        // 5 KB, past the frame bound.
+        const auto device = std::make_unique<std::random_device>();
+        std::random_device& draw = *device;
+        root = fs::temp_directory_path() / ("qiven3-files-" + std::to_string(draw()) + std::to_string(draw()));
         fs::create_directories(root);
     }
     Scratch(const Scratch&) = delete;
