@@ -36,9 +36,11 @@ struct FaultRuns {
 // Runs op() with the countdown armed at k = 1, 2, ... until a run makes
 // fewer than k calls and so completes, or k passes limit. After each run,
 // check(k) gives whether the count and the state are as before. Error is
-// the operation's typed error; log takes fault.injected at site.
+// the operation's typed error; log takes fault.injected at site. op and
+// check are taken by value, as a callable called many times: the cases'
+// lambdas capture by reference, so a copy calls on the same state.
 template <typename Error, typename Op, typename Check>
-FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown, Op&& op, Check&& check,
+FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown, Op op, Check check,
                      std::size_t limit = 100000) {
     FaultRuns runs;
     for (std::size_t k = 1; k <= limit; ++k) {

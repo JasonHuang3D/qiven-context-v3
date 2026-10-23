@@ -98,13 +98,14 @@ QIVEN3_CASE(served, budget) {
         bool refused = false;
         Arena& shorter = qiven3_ctx.counted.arena(used - 1);
         String kept{Allocator<char>(shorter)};
+        kept = "x";  // within the string's own buffer: no allocation
         try {
             write(x, stub, kept);
         } catch (const MemoryError&) {
             refused = true;
         }
         CHECK(refused);
-        CHECK(kept.empty() && shorter.used() == 0);
+        CHECK(kept == "x" && shorter.used() == 0);
 #endif
     }
 }

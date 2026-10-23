@@ -5,13 +5,15 @@
 // object as its name, unchecked with no mark and fresh with its map
 // check's at; a reflection writer's lesson served as a claim until lifted;
 // an object's and a list's forms and a deeper value's canonical JSON; a
-// stub; cost in UTF-16 units; map_mark's syntax; BUDGETS. At run time,
+// stub, its cost the block's units, not its bytes; cost in UTF-16 units;
+// map_mark's syntax; BUDGETS. At run time,
 // over tests/fixtures/: M1 stale and M2 fresh with their map checks' at,
 // 387 and 402 units, M1 superseded by M2; L1 alone and L2 after L1, its
 // when and pins in a lesson in Chinese and English, L1 superseded and not
 // served; MX's block of 42,658 units over a page and its stub of 201; and
 // the refusals: a kind not served, a state not served, a mark on another
-// kind, a content without its band.
+// kind, a content without its band, its name or a repo object's path, a
+// when without its quality, a content not an object.
 
 #include <array>
 #include <cstddef>
@@ -169,16 +171,16 @@ static_assert(render(head("lesson", "claimed", "reflect/s5"), LESSON, SERVED, st
                           "state: none\n") +
                   std::string(LESSON_TAIL));
 
-// A value deeper than the forms is its canonical JSON; a list's items each
-// by their own form.
+// A value deeper than the forms is its canonical JSON, a container closed
+// before its sibling; a list's items each by their own form.
 static_assert(render(head("decision", "claimed", "implementer/s39"),
-                     R"({"band":"high","decides":{"a":{"b":[1,true,"x"]},"c":[1,2]},)"
+                     R"({"band":"high","decides":{"a":{"b":[1,true,"x"],"d":false},"c":[1,2]},)"
                      R"("reasons":[{"k":["a","b"],"n":-1},"plain",[1,{"z":false}]],"subject":"item:x"})") ==
               "decision item:x [high] 0123456789abcdef\n"
               "by: claim by implementer/s39\n"
               "state: none\n"
               "decides:\n"
-              "  a: {\"b\":[1,true,\"x\"]}\n"
+              "  a: {\"b\":[1,true,\"x\"],\"d\":false}\n"
               "  c: 1, 2\n"
               "reasons:\n"
               "  - k=a, b; n=-1\n"
@@ -196,6 +198,14 @@ static_assert(render(head("claim", "claimed", "implementer/s39"), R"({"band":"co
               "\n");
 static_assert(served::cost(render(head("claim", "claimed", "implementer/s39"),
                                   R"({"band":"core","claim":"x","subject":"entity:x"})")) == 90);
+// A stub's cost is its block's UTF-16 units, not its bytes: U+8BB0 one,
+// U+20000 two.
+constexpr std::string_view WIDE =
+    "{\"band\":\"core\",\"claim\":\"\xE8\xAE\xB0\xF0\xA0\x80\x80\",\"subject\":\"entity:x\"}";
+static_assert(served::cost(render(head("claim", "claimed", "implementer/s39"), WIDE)) == 92 &&
+              render(head("claim", "claimed", "implementer/s39"), WIDE).size() == 96);
+static_assert(render(head("claim", "claimed", "implementer/s39"), WIDE, SERVED, std::nullopt, {}, true)
+                  .ends_with("state: none\nstub: 92 units; read by id sha256:" ID_HEX "\n\n"));
 
 // cost: UTF-16 units; a BMP character one, one past it two.
 static_assert(served::cost("") == 0 && served::cost("ab\n") == 3);
@@ -394,4 +404,12 @@ QIVEN3_CASE(served, refusals) {
           served::Code::content);
     CHECK(code(head("map", "derived", "reviewer/s70"), R"({"band":"core","does":"x","object":{"type":"repo"}})",
                SERVED, std::nullopt) == served::Code::content);
+    // A repo object without its path, a when without its quality, a content
+    // that is not an object.
+    CHECK(code(head("map", "derived", "reviewer/s70"),
+               R"({"band":"core","does":"x","object":{"repository":"r","type":"repo"}})", SERVED,
+               std::nullopt) == served::Code::content);
+    CHECK(code(line, R"({"band":"core","claim":"x","subject":"entity:x","when":{"time":"2026-10-17T00:00:00.000Z"}})",
+               SERVED, std::nullopt) == served::Code::content);
+    CHECK(code(line, R"(["x"])", SERVED, std::nullopt) == served::Code::content);
 }

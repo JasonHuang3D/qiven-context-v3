@@ -30,9 +30,9 @@ jobs as below, or build or test of the jobs named:
 Tiers 1 and 2 narrow each ctest step to its affected tests, from the build
 graph (tools/loop_select.py): the case binaries the build relinked, the
 Python tests by the files they import and those their classes declare they
-read, every test on a build file's, tools/' or a fixture's change, or in a
-tree new or emptied; changed against the step's last passing run in its
-tree, which the tree records. Each step's line names its selection: how
+read, every test on a build file's, tools/', a fixture's or a vector's
+change, or in a tree new or emptied; changed against the step's last
+passing run in its tree, which the tree records. Each step's line names its selection: how
 many of its tests, and why; a step with none affected does not run.
 
 The jobs and their steps are CI's (.github/workflows/ci.yml and msan.yml),

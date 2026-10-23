@@ -9,10 +9,11 @@ tree affects, from the build graph, never from a list kept by hand.
   fails leaves its record as it was, so that its changes stay selected. A
   tree new or emptied, or a step with no record in it, runs every test.
 - Every test, when a changed file is a build file (CMakeLists.txt, any
-  *.cmake, CMakePresets.json), under tools/, a fixture (tests/fixtures/) or
-  a workflow (.github/workflows/); and when a changed data file, neither C
-  or C++, which the build graph reaches, nor a module a test imports, is
-  named by no test's declaration but one of the whole checkout.
+  *.cmake, CMakePresets.json), under tools/, a fixture or a vector
+  (tests/fixtures/, tests/vectors/) or a workflow (.github/workflows/); and
+  when a changed data file, neither C or C++, which the build graph
+  reaches, nor a module a test imports, is named by no test's declaration
+  but one of the whole checkout.
 - A C++ case or a fuzz target, when the binary its command runs (ctest's
   own listing, --show-only=json-v1) was relinked: its line in .ninja_log
   differs from the record's.
@@ -43,7 +44,7 @@ RECORD = ".qiven3-loop-passed.json"
 CHOSEN = ".qiven3-loop-tests-{}.txt"  # the step's slug
 READS = "tests/python_reads.txt"
 EVERY_NAMES = ("CMakeLists.txt", "CMakePresets.json")
-EVERY_DIRS = ("tools/", "tests/fixtures/", ".github/workflows/")
+EVERY_DIRS = ("tools/", "tests/fixtures/", "tests/vectors/", ".github/workflows/")
 CODE = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp")
 REACH = ("QIVEN3_BIN", "QIVEN3_BUILD", "QIVEN3_CTEST")
 SHOWN = 3  # the names a reason shows at most

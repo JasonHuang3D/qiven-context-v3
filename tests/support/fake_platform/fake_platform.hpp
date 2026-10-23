@@ -75,6 +75,15 @@ struct Config {
     std::uint64_t seed = 0;  // random_bytes' seed
     std::chrono::sys_time<std::chrono::microseconds> clock{};
     Busy busy;  // how often replace, publish or lock is busy before it succeeds
+
+    // A move may throw, stated: a map's move allocates its head node in
+    // one standard library.
+    Config() = default;
+    Config(const Config&) = default;
+    Config& operator=(const Config&) = default;
+    Config(Config&&) noexcept(false) = default;
+    Config& operator=(Config&&) noexcept(false) = default;
+    ~Config() = default;
 };
 
 // The k-th 32-byte block of seed s: SHA-256 over s and k, each an 8-byte

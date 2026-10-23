@@ -4,9 +4,10 @@ listing, the Python tests' imports and declared reads. The plants: a
 change in header selects header's and body's cases, whose binaries were
 relinked, and not utc's, nor the Python test declaring utc's binary; a
 planted Python test that reaches the build and declares nothing is
-selected on any relink; a fixture's change, a CMakeLists.txt's, and a
-data file's that no narrower declaration than the whole checkout names,
-each select every test. Then the record through runs on fakes: a new tree
+selected on any relink; a fixture's change, a vector's, a
+CMakeLists.txt's, and a data file's that no narrower declaration than the
+whole checkout names, each select every test; a vector's even where a
+test declares tests/. Then the record through runs on fakes: a new tree
 runs every test and records it; a run with nothing changed runs none; a
 relink narrows the step by --tests-from-file and its line names the
 selection; a failed step leaves its record, so that its change stays
@@ -136,6 +137,18 @@ class Choose(unittest.TestCase):
                 names, why = self.choose([path], ("qiven3_unit_header",))
                 self.assertIsNone(names)
                 self.assertIn(path, why)
+
+    def test_vectors(self):
+        """A vector's change runs every test as a fixture's does, by its
+        directory, even where a test declares the whole of tests/: the
+        binaries embed both at configure."""
+        reads = dict(READS, **{"tests.drive.test_plain.Plain.test_value": ("tests/",)})
+        for path in ("tests/fixtures/entries.json", "tests/vectors/ids.json"):
+            with self.subTest(path=path):
+                names, why = SELECT["choose"](listing(self.tree), [path], set(), self.outputs, reads,
+                                              SELECT["Imports"](self.root), self.tree)
+                self.assertIsNone(names)
+                self.assertEqual(why, f"{path} changed")
 
     def test_imported_and_declared(self):
         """A module a test imports selects it; a declared file selects its

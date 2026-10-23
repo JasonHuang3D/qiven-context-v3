@@ -91,7 +91,7 @@ constexpr void put_escape(K& k, unsigned point) {
     }
 }
 
-// A text value, escaped onto one line, its trailing spaces as  .
+// A text value, escaped onto one line, its trailing spaces as \u0020.
 template <typename K>
 constexpr void put_text(K& k, std::string_view s) {
     std::size_t end = s.size();
