@@ -7,11 +7,13 @@
 // store's peak(), a scan's) within its budget, 1 MiB plus 4 times the
 // lines given, and the engine's peak, its heap's and its page cache's
 // slots', on a fresh engine heap for each step, the store reopened on it
-// first, within the engine's budget for
-// each connection the step holds. counts: each step's allocations, by
-// allocator (the store's arenas, the engine heap, the caller's arena), its
-// engine calls the wrapper maps and its platform calls, exactly. faults:
-// each step run with each of these failed in turn: each run MemoryError,
+// first, within the engine's budget for each connection the step holds.
+// counts: each step's allocations, by allocator (the store's arenas, the
+// engine heap, the caller's arena), its engine calls the wrapper maps and
+// its platform calls, exactly. faults_create, faults_forget and faults, the
+// create, the forget and the other steps, each case within the fast group's
+// limit under TSan, a step outside the case's run once, unfaulted: each
+// step run with each of these failed in turn: each run MemoryError,
 // PlatformError or the failed engine call's StoreLocked io, or an
 // allocation the engine absorbs, the step completing; after a refused run
 // the caller's arena and the fake's pages given back, no transaction left
@@ -529,6 +531,21 @@ bool fault_step(qiven3::test::Context& qiven3_ctx, Bed& b, const Step& s, qiven3
     return runs.untyped == 0 && runs.unchecked == 0;
 }
 
+// The steps in order on one store: those of the case's group ("create",
+// "forget" or "rest", the other steps) faulted, the others run once.
+void fault_steps(qiven3::test::Context& qiven3_ctx, std::string_view group) {
+    const auto b = std::make_unique<Bed>();
+    qiven3::memory::Countdown countdown;
+    for (const Step& s : steps()) {
+        if ((s.name == "create" || s.name == "forget" ? std::string_view(s.name) : "rest") != group) {
+            const Chars c = b->caller();
+            (void)s.run(*b, c);
+        } else if (!fault_step(qiven3_ctx, *b, s, countdown)) {
+            std::cout << "store_sqlite.faults: " << s.name << " failed\n";
+        }
+    }
+}
+
 }  // namespace
 
 QIVEN3_CASE(store_sqlite, counts) {
@@ -565,21 +582,17 @@ QIVEN3_CASE(store_sqlite, counts) {
     b->engine->heap().attach(nullptr);
     b->store->attach(nullptr);
 }
-
-QIVEN3_CASE(store_sqlite, faults) {
-    const auto b = std::make_unique<Bed>();
-    qiven3::memory::Countdown countdown;
-    for (const Step& s : steps()) {
-        if (!fault_step(qiven3_ctx, *b, s, countdown)) {
-            std::cout << "store_sqlite.faults: " << s.name << " failed\n";
-        }
-    }
-}
 #else
+namespace {
+void fault_steps(qiven3::test::Context& /*qiven3_ctx*/, std::string_view /*group*/) {
+    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+}
+}  // namespace
 QIVEN3_CASE(store_sqlite, counts) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 }
-QIVEN3_CASE(store_sqlite, faults) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
-}
 #endif
+
+QIVEN3_CASE(store_sqlite, faults_create) { fault_steps(qiven3_ctx, "create"); }
+QIVEN3_CASE(store_sqlite, faults_forget) { fault_steps(qiven3_ctx, "forget"); }
+QIVEN3_CASE(store_sqlite, faults) { fault_steps(qiven3_ctx, "rest"); }
