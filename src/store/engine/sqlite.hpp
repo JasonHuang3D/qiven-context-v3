@@ -429,6 +429,9 @@ void figures(Connection& c, Sizes& out, const WhereView& at);
 // beside the line with its field too (StoreCorrupt incoherent).
 [[nodiscard]] Header read_header(std::string_view id, std::string_view line, const Chars& allocator,
                                  const WhereView& at);
+// A row of id, scope, lane, seq, parent, kind, target and line, in this
+// order (find's, a scan's, an export's): its line read so, then each column.
+[[nodiscard]] Header row_header(const Statement& s, const Chars& allocator, const WhereView& at);
 [[nodiscard]] std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane,
                                           const WhereView& at);
 // h's fields made again on out's allocator.

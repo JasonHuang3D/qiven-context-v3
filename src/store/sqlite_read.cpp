@@ -33,8 +33,8 @@ using header::Slot;
 constexpr int line_column = 7;
 constexpr int record_column = 8;
 
-// A row's header: its line checked against its id, then each column
-// against the line's field.
+}  // namespace
+
 Header row_header(const Statement& s, const Chars& allocator, const WhereView& at) {
     Header h = read_header(s.text(0), s.blob(line_column), allocator, at);
     const auto optional = [&s](int column) {
@@ -47,6 +47,8 @@ Header row_header(const Statement& s, const Chars& allocator, const WhereView& a
     }
     return h;
 }
+
+namespace {
 
 // Whether a scope set holds scope: none, every scope; `project:*` every
 // project scope.

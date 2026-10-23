@@ -27,8 +27,8 @@
 // head, heads, header, body, forgotten: one query each through
 // sqlite_read.cpp (heads in one read transaction), header and body
 // re-checking what they return; scan a cursor (sqlite::ScanView). export,
-// import and verify still refuse after the gate, StoreError internal "not
-// built".
+// import and verify: exchange.hpp's, an export closed by this object's
+// close, move or end.
 //
 // Budgets: the object's own pages, 1 MiB, taken at open; open's resolved
 // path and the synced client's name on an arena over them. append and
@@ -62,6 +62,7 @@
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
+#include "store/exchange.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::store {
@@ -97,28 +98,6 @@ private:
     Pages pages_;  // before the heap, which is made over them and ends first
     sqlite::EngineHeap heap_;
 };
-
-namespace sqlite {
-
-// An export, not built yet: each call refuses.
-class Unbuilt {
-public:
-    Unbuilt() noexcept = default;
-    Unbuilt(const Unbuilt&) = delete;
-    Unbuilt& operator=(const Unbuilt&) = delete;
-    Unbuilt(Unbuilt&&) noexcept = default;
-    Unbuilt& operator=(Unbuilt&&) noexcept = default;
-    ~Unbuilt() = default;
-
-    [[noreturn]] static bool next(Line& /*line*/) { refuse(); }
-    [[noreturn]] static Snapshot heads(Vector<LaneHead>& /*rows*/) { refuse(); }
-    static void close() noexcept {}
-
-private:
-    [[noreturn]] static void refuse() { throw StoreError(Code::internal, "export", {}, "not built"); }
-};
-
-}  // namespace sqlite
 
 template <platform::Platform P, Hooks H = NoHooks>
 class SQLiteStore {
@@ -192,7 +171,7 @@ public:
         : platform_(other.platform_), pages_(std::move(other.pages_)), gate_(other.gate_), limits_(other.limits_),
           path_(other.path_), connection_(std::move(other.connection_)), opened_(other.opened_),
           purge_(other.purge_), last_(other.last_), countdown_(other.countdown_), peak_(other.peak_),
-          hooks_(std::move(other.hooks_)) {
+          exports_(std::move(other.exports_)), hooks_(std::move(other.hooks_)) {
         other.gate_.close();
     }
     SQLiteStore& operator=(SQLiteStore&& other) noexcept {
@@ -208,12 +187,14 @@ public:
             last_ = other.last_;
             countdown_ = other.countdown_;
             peak_ = other.peak_;
+            exports_ = std::move(other.exports_);
             hooks_ = std::move(other.hooks_);
             other.gate_.close();
         }
         return *this;
     }
-    // The connection closed by its own end, without the gate.
+    // Its exports and the connection closed by their own ends, without the
+    // gate.
     ~SQLiteStore() = default;
 
     // The text's steps 1 to 7: check outside the transaction, then BEGIN
@@ -276,12 +257,20 @@ public:
         gate_.enter(Operation::purge, path_.view());
         return attempt();
     }
-    sqlite::Unbuilt export_(Scopes /*scopes*/, std::span<const AfterView> /*after*/) {
-        unbuilt(Operation::export_);
+    // Its own read-only connection on this object's file (exchange.hpp).
+    sqlite::SQLiteExport<P> export_(Scopes scopes, std::span<const AfterView> after) {
+        gate_.enter(Operation::export_, path_.view());
+        return {*platform_, exports_, connection_.filename(), path_.view(), limits_, scopes, after, countdown_};
     }
+    // Into an empty store, all or nothing, on the object's own pages.
     template <Source R>
-    Imported import_(R& /*source*/, Vector<LaneHead>& /*heads*/) {
-        unbuilt(Operation::import_);
+    Imported import_(R& source, Vector<LaneHead>& heads) {
+        constexpr Operation op = Operation::import_;
+        const std::span<std::byte> pages = own(op);
+        WhereView where = site_of(op);
+        where.place = Place::import_;
+        return sqlite::import_source(*platform_, connection_, source, heads, pages, countdown_, where, limits_,
+                                     hooks_, peak_);
     }
     // meta's size and count against the limits; the engine's figures and
     // the files' sizes.
@@ -294,12 +283,16 @@ public:
         sqlite::figures(connection_, s, where);
         return s;
     }
-    Counts verify() { unbuilt(Operation::verify); }
+    Counts verify() {
+        const std::span<std::byte> pages = own(Operation::verify);
+        return sqlite::verify_store(*platform_, connection_, pages, countdown_, site_of(Operation::verify), peak_);
+    }
 
-    // The gate, a purge's attempt on a read-write object, the connection
-    // closed, whatever the attempt raised. Its exports' close is exchange's.
+    // The gate, its exports closed, a purge's attempt on a read-write
+    // object, the connection closed, whatever the attempt raised.
     Purge close() {
         gate_.enter(Operation::close, path_.view());
+        exports_.close();
         Purge p;
         try {
             if (!gate_.read_only()) {
@@ -578,11 +571,6 @@ private:
         return Purge{};
     }
 
-    [[noreturn]] void unbuilt(Operation op) const {
-        gate_.enter(op, path_.view());
-        throw StoreError(Code::internal, name(op), path_.view(), "not built");
-    }
-
     P* platform_;
     Pages pages_;
     Gate gate_;
@@ -594,6 +582,7 @@ private:
     Purge last_;  // the last attempt's
     [[maybe_unused]] sqlite::Countdown* countdown_ = nullptr;
     std::size_t peak_ = 0;
+    sqlite::Exports exports_;  // after the connection: ends first
     QIVEN3_NO_UNIQUE_ADDRESS H hooks_;
 };
 

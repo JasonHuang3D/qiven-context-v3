@@ -3,7 +3,7 @@
 // every capability; SETTINGS as the text's table; create makes the
 // directory and the file, the schema, the meta rows and the identity, its
 // -wal 0 bytes; each setting read back; a second create StoreError exists;
-// open again, and read-only; verify, not built, refuses after the gate;
+// open again, and read-only; verify, an empty store's counts all 0;
 // close, then closed; missing, a 0-byte file, a foreign file left
 // byte-equal, another version, a file that is no database; the guard's
 // checkout (a .git directory, then a file) and synced folder, by open and
@@ -205,7 +205,7 @@ void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(c.integer("SELECT count(*) FROM pragma_table_list WHERE schema = 'main' AND strict = 1", test_at), 4);
     CHECK(rig.engine.heap().used() > 0);
     CHECK(rig.engine.heap().peak() <= rig.engine.heap().budget());
-    CHECK(raised([&] { (void)store.verify(); }).starts_with("StoreError internal: not built"));
+    CHECK(store.verify() == qiven3::store::Counts{});
 
     const std::string before = bytes_of(path);
     CHECK(raised([&] { (void)Store::open(text(path), true, false, rig.fake); }).starts_with("StoreError exists"));
@@ -226,7 +226,7 @@ void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(raised([&] { (void)reader.append("project:qiven", "implementer", std::nullopt, {}); }) ==
           "StoreError read_only");
     Store moved = std::move(store);
-    CHECK(raised([&] { (void)moved.verify(); }).starts_with("StoreError internal"));
+    CHECK(moved.verify() == qiven3::store::Counts{});
 }
 
 // The files open refuses.
