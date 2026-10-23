@@ -261,3 +261,10 @@ qiven3_add_cases(qiven3_unit_store_stage LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
   SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+
+# store/sqlite's cases: the SQLite store on the fake over a scratch
+# directory; its smoke case: create, identify, the settings read back, the
+# files open refuses, the guard and coherence.
+qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
+  SOURCES store_sqlite_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_store)

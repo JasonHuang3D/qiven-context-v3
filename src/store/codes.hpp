@@ -163,17 +163,23 @@ static_assert(sizeof(WhereView) == 144, "a site's size is pinned: six views, its
 // detail's bytes: the longest name, " (", a code's digits with a sign, ")".
 inline constexpr std::size_t result_detail_bytes = 48;
 
-// "<name> (<code>)" into out; the view is out's.
+// "<name> (<code>)" into out; the view is out's. Each write is bounded by
+// out's size, which the longest name and code fit, so that no write can
+// pass it whatever a name's length.
 constexpr std::string_view result_detail(int code, std::array<char, result_detail_bytes>& out) noexcept {
-    const std::string_view name = result_name(code);
     std::size_t n = 0;
-    for (const char c : name) {
-        out[n++] = c;
+    const auto put = [&out, &n](char c) noexcept {
+        if (n < out.size()) {
+            out[n++] = c;
+        }
+    };
+    for (const char c : result_name(code)) {
+        put(c);
     }
-    out[n++] = ' ';
-    out[n++] = '(';
+    put(' ');
+    put('(');
     if (code < 0) {
-        out[n++] = '-';
+        put('-');
     }
     // The magnitude unsigned, so that the most negative code has one too.
     std::uint32_t magnitude = code < 0 ? 0U - static_cast<std::uint32_t>(code) : static_cast<std::uint32_t>(code);
@@ -182,11 +188,11 @@ constexpr std::string_view result_detail(int code, std::array<char, result_detai
     do {
         digits[d++] = static_cast<char>('0' + magnitude % 10U);
         magnitude /= 10U;
-    } while (magnitude != 0U);
+    } while (magnitude != 0U && d < digits.size());
     while (d > 0) {
-        out[n++] = digits[--d];
+        put(digits[--d]);
     }
-    out[n++] = ')';
+    put(')');
     return std::string_view(out.data(), n);
 }
 
