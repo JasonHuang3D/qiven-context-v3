@@ -215,3 +215,11 @@ qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
 qiven3_add_cases(qiven3_unit_files LABELS fast fake
   SOURCES files_test.cpp
   LINK qiven3_faults qiven3_platform_fake)
+
+# store/errors' cases: each kind with its fields and its code, `secret`
+# with no id, the cuts at a code point and the names, evaluated by the
+# compiler; the widths against the entry's; each kind's line; an error
+# thrown and caught; the fault run over none.
+qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
+  SOURCES store_errors_test.cpp
+  LINK qiven3_faults qiven3_secret qiven3_entry qiven3_store)
