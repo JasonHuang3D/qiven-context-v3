@@ -11,8 +11,9 @@
 //
 // EngineHeap is the process's one engine heap: made over pages its maker
 // takes, it routes every allocation of the engine to a memory::Heap
-// (SQLITE_CONFIG_MALLOC, then the engine's initialize, the build omitting
-// the automatic one), and its destructor shuts the engine down. One is
+// (SQLITE_CONFIG_MALLOC), its page cache to slots at the back of the
+// pages (SQLITE_CONFIG_PAGECACHE), then the engine's initialize, the build
+// omitting the automatic one; its destructor shuts the engine down. One is
 // installed at a time; open refuses with none.
 //
 // Connection owns one engine connection and Statement one prepared
@@ -23,10 +24,12 @@
 // given its site (WhereView): the operation, the store's path and what its
 // mapping needs.
 //
-// Allocations: on the engine heap alone (the engine's own), and the
-// open steps' std::filesystem paths (presence, the checkout walk), which
-// the standard library allocates. thread: a Connection and its statements
-// one; EngineHeap's heap shared, under its own lock.
+// Allocations: on the engine heap alone (the engine's own, its cached
+// pages on the slots at the back of its pages), and the open steps'
+// std::filesystem paths (presence, the checkout walk), which the standard
+// library allocates. thread: a Connection and its statements one;
+// EngineHeap's heap shared, under its own lock, and its slots under the
+// engine's.
 
 #include <array>
 #include <cstddef>
@@ -62,6 +65,17 @@ inline constexpr std::string_view guard_name = "guard";
 // The engine heap's connections: its bytes are the engine's budget, a
 // connection's, times these.
 inline constexpr std::size_t default_connections = 8;
+// The engine's page cache on slots of its own (the engine's page-cache
+// setting), each a page of page_size and the engine's per-page header:
+// cache_slots a connection, at the back of the engine heap's pages, the
+// heap over the rest. A connection's full cache, as measured, 483 slots:
+// its pages (2,000 KiB over a page and the engine's share of the header)
+// and the connection's page buffers. Beside them the engine's reserve, below
+// which a cache recycles its pages rather than grow: past the last free
+// slots it recycles, or takes a page from the heap.
+inline constexpr std::size_t page_size = 4096;
+inline constexpr std::size_t cache_slots = 483;
+inline constexpr std::size_t slots_reserve = 10;
 
 // A call's site: the operation and the store's path, with the busy wait's
 // seconds for StoreBusy.
@@ -111,14 +125,28 @@ inline constexpr std::array<Setting, 11> settings = {
 // Whether an engine heap is installed, so that open may connect.
 [[nodiscard]] bool engine_ready() noexcept;
 
-// The process's engine heap over pages its maker keeps past it. Its
-// making refuses, StoreError internal, while another is installed or when
-// the engine refuses its configuration; its end shuts the engine down,
-// every connection closed before it, and fails fast if a block is still
-// held then.
+// The page cache's slots: a slot's bytes and their count; those held now
+// and their mark since the engine heap was made; and the heap's bytes of
+// pages taken past the slots, now and their mark.
+struct Slots {
+    std::size_t size = 0;
+    std::size_t count = 0;
+    std::size_t used = 0;
+    std::size_t peak = 0;
+    std::size_t overflow = 0;
+    std::size_t overflow_peak = 0;
+};
+
+// The process's engine heap over pages its maker keeps past it, the
+// page cache's slots for connections at their back. Its making refuses,
+// StoreError internal, while another is installed, when the pages cannot
+// hold the slots or when the engine refuses its configuration; its end
+// shuts the engine down, every connection closed before it, takes the
+// slots back from the engine's configuration, and fails fast if a block is
+// still held then.
 class EngineHeap {
 public:
-    explicit EngineHeap(std::span<std::byte> pages);
+    EngineHeap(std::span<std::byte> pages, std::size_t connections);
     EngineHeap(const EngineHeap&) = delete;
     EngineHeap& operator=(const EngineHeap&) = delete;
     EngineHeap(EngineHeap&&) = delete;
@@ -126,9 +154,13 @@ public:
     ~EngineHeap();
 
     [[nodiscard]] memory::Heap& heap() noexcept { return heap_; }
+    [[nodiscard]] Slots slots() const noexcept;
 
 private:
-    memory::Heap heap_;
+    std::size_t size_;   // a slot's bytes; 0 when the engine refused to give its header
+    std::size_t count_;  // 0 when the pages cannot hold them
+    memory::Heap heap_;  // over the pages before the slots
+    std::byte* slots_;   // the first slot
 };
 
 class Connection;

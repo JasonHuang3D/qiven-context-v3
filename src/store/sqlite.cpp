@@ -1,6 +1,7 @@
 // sqlite: the engine's calls, all of them: the engine heap's allocator
-// and its installation, Connection and Statement, and the mapping of every
-// failing call by its extended code (sqlite.hpp).
+// and its installation with the page cache's slots, Connection and
+// Statement, and the mapping of every failing call by its extended code
+// (sqlite.hpp).
 
 #include "store/sqlite.hpp"
 
@@ -9,8 +10,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
@@ -84,6 +87,47 @@ int engine_roundup(int n) noexcept {
 }
 
 int engine_init(void* /*data*/) noexcept { return SQLITE_OK; }
+
+// A slot's bytes: a page and the engine's per-page header, at the
+// multiple of 8 the engine takes; 0 when the engine refuses to give its
+// header, initialized already.
+std::size_t slot_bytes() noexcept {
+    int header = 0;
+    if (sqlite3_config(SQLITE_CONFIG_PCACHE_HDRSZ, &header) != SQLITE_OK || header <= 0) {
+        return 0;
+    }
+    return ((page_size + static_cast<std::size_t>(header) + 7) / 8) * 8;
+}
+
+// The slots for connections and the engine's reserve; 0 when the pages cannot hold their bytes or
+// their count or size passes the engine's int.
+std::size_t slot_count(std::span<std::byte> pages, std::size_t connections, std::size_t size) noexcept {
+    constexpr auto most = static_cast<std::size_t>(std::numeric_limits<int>::max());
+    const std::optional<std::size_t> each = memory::mul(cache_slots, connections);
+    const std::optional<std::size_t> n = each ? memory::add(*each, slots_reserve) : std::nullopt;
+    if (!n || size == 0 || size > most || *n > most) {
+        return 0;
+    }
+    const std::optional<std::size_t> bytes = memory::mul(*n, size);
+    return bytes && *bytes <= pages.size() ? *n : 0;
+}
+
+// The engine's page cache given back to the engine's own: no slot left
+// pointing into pages past their engine heap.
+void release_slots() noexcept {
+    static_cast<void>(sqlite3_config(SQLITE_CONFIG_PAGECACHE, static_cast<void*>(nullptr), 0, 0));
+}
+
+// One of the engine's counts, now and its mark; the mark set to now when
+// reset.
+std::pair<std::size_t, std::size_t> status(int op, bool reset) noexcept {
+    sqlite3_int64 now = 0;
+    sqlite3_int64 mark = 0;
+    if (sqlite3_status64(op, &now, &mark, reset ? 1 : 0) != SQLITE_OK || now < 0 || mark < 0) {
+        return {0, 0};
+    }
+    return {static_cast<std::size_t>(now), static_cast<std::size_t>(mark)};
+}
 
 void engine_shutdown(void* /*data*/) noexcept {}
 
@@ -164,32 +208,56 @@ Countdown* arenas_countdown() noexcept { return arenas().load(std::memory_order_
 
 bool engine_ready() noexcept { return installed().load(std::memory_order_acquire) != nullptr; }
 
-EngineHeap::EngineHeap(std::span<std::byte> pages) : heap_(pages) {
+EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections)
+    : size_(slot_bytes()), count_(slot_count(pages, connections, size_)),
+      heap_(pages.first(pages.size() - (size_ * count_))),
+      slots_(pages.subspan(pages.size() - (size_ * count_)).data()) {
     memory::Heap* none = nullptr;
     if (!installed().compare_exchange_strong(none, &heap_, std::memory_order_acq_rel)) {
         throw StoreError(Code::internal, open_name, {}, "an engine heap is installed already");
+    }
+    if (count_ == 0) {
+        installed().store(nullptr, std::memory_order_release);
+        throw StoreError(Code::internal, open_name, {}, "the engine heap's pages cannot hold the page cache's slots");
     }
     // The engine copies the methods before the call returns.
     sqlite3_mem_methods methods{&engine_malloc, &engine_free,  &engine_realloc,  &engine_size,
                                 &engine_roundup, &engine_init, &engine_shutdown, nullptr};
     int rc = sqlite3_config(SQLITE_CONFIG_MALLOC, &methods);
     if (rc == SQLITE_OK) {
+        void* const first = slots_;  // the engine reads a void pointer
+        rc = injected() ? SQLITE_IOERR
+                        : sqlite3_config(SQLITE_CONFIG_PAGECACHE, first, static_cast<int>(size_),
+                                         static_cast<int>(count_));
+    }
+    if (rc == SQLITE_OK) {
         rc = sqlite3_initialize();
     }
     if (rc != SQLITE_OK) {
         static_cast<void>(sqlite3_shutdown());
+        release_slots();
         installed().store(nullptr, std::memory_order_release);
         std::array<char, result_detail_bytes> buffer{};
         throw StoreError(Code::internal, open_name, {}, result_detail(rc, buffer));
     }
+    // The marks from this engine heap on.
+    static_cast<void>(status(SQLITE_STATUS_PAGECACHE_USED, true));
+    static_cast<void>(status(SQLITE_STATUS_PAGECACHE_OVERFLOW, true));
 }
 
 EngineHeap::~EngineHeap() {
     static_cast<void>(sqlite3_shutdown());
+    release_slots();
     installed().store(nullptr, std::memory_order_release);
     if (heap_.used() != 0) {
         memory::fail_fast("store/sqlite: the engine heap holds blocks past the engine's end");
     }
+}
+
+Slots EngineHeap::slots() const noexcept {
+    const auto [used, peak] = status(SQLITE_STATUS_PAGECACHE_USED, false);
+    const auto [overflow, overflow_peak] = status(SQLITE_STATUS_PAGECACHE_OVERFLOW, false);
+    return {size_, count_, used, peak, overflow, overflow_peak};
 }
 
 Statement::Statement(Statement&& other) noexcept : db_(other.db_), statement_(other.statement_) {

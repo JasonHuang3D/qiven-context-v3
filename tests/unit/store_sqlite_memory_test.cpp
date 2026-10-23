@@ -5,8 +5,9 @@
 // guard; purge; a second object opened and closed, read-write, then
 // read-only; the guard alone. budget: each step's counted peak (the
 // store's peak(), a scan's) within its budget, 1 MiB plus 4 times the
-// lines given, and the engine heap's peak, on a fresh engine heap for each
-// step, the store reopened on it first, within the engine's budget for
+// lines given, and the engine's peak, its heap's and its page cache's
+// slots', on a fresh engine heap for each step, the store reopened on it
+// first, within the engine's budget for
 // each connection the step holds. counts: each step's allocations, by
 // allocator (the store's arenas, the engine heap, the caller's arena), its
 // engine calls the wrapper maps and its platform calls, exactly. faults:
@@ -317,7 +318,8 @@ QIVEN3_CASE(store_sqlite, budget) {
         const std::size_t opened = b->engine->heap().peak();
         const Chars c = b->caller();
         const Ran r = s.run(*b, c);
-        const std::size_t engine = b->engine->heap().peak();
+        const qiven3::store::sqlite::Slots slots = b->engine->slots();
+        const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
         const std::size_t within = budget(*b, s);
         const std::size_t engine_within = qiven3::store::engine_budget * (s.connections == 0 ? 1 : s.connections);
         CHECK(r.store <= within);
@@ -325,8 +327,9 @@ QIVEN3_CASE(store_sqlite, budget) {
         CHECK(engine <= engine_within);
         CHECK_EQ(b->call->used(), 0U);
         std::cout << "store_sqlite.budget: " << s.name << ": " << r.store << " bytes counted, " << r.caller
-                  << " on the caller's arena, within " << within << "; engine heap peak " << engine
-                  << " (reopened " << opened << ") within " << engine_within << "\n";
+                  << " on the caller's arena, within " << within << "; engine peak " << engine << ", "
+                  << slots.peak << " slots of it (reopened, the heap's " << opened << ") within " << engine_within
+                  << "\n";
     }
 }
 
@@ -348,9 +351,9 @@ constexpr bool heap_pinned = true;
 constexpr bool heap_pinned = false;
 #endif
 constexpr std::array<Pinned, 15> pinned = {{
-    {"create", {1, 652, 94, 0, 5}, {1, 642, 94, 0, 5}},
-    {"append", {205, 18, 66, 0, 1}, {205, 18, 66, 0, 1}},
-    {"append_acc", {107, 25, 49, 0, 1}, {107, 25, 49, 0, 1}},
+    {"create", {1, 649, 94, 0, 5}, {1, 639, 94, 0, 5}},
+    {"append", {205, 14, 66, 0, 1}, {205, 14, 66, 0, 1}},
+    {"append_acc", {107, 21, 49, 0, 1}, {107, 21, 49, 0, 1}},
     {"head", {0, 0, 4, 0, 0}, {0, 0, 4, 0, 0}},
     {"heads", {0, 0, 11, 1, 0}, {0, 0, 11, 1, 0}},
     {"header", {15, 0, 3, 1, 0}, {15, 0, 3, 1, 0}},
@@ -358,10 +361,10 @@ constexpr std::array<Pinned, 15> pinned = {{
     {"forgotten", {0, 1, 3, 0, 0}, {0, 1, 3, 0, 0}},
     {"scan", {60, 5, 40, 4, 0}, {60, 5, 40, 4, 0}},
     {"size", {0, 0, 8, 0, 0}, {0, 0, 8, 0, 0}},
-    {"forget", {56, 735, 75, 1, 1}, {56, 738, 75, 1, 1}},
+    {"forget", {56, 715, 75, 1, 1}, {56, 718, 75, 1, 1}},
     {"purge", {0, 0, 3, 0, 0}, {0, 0, 3, 0, 0}},
-    {"open", {1, 210, 76, 0, 3}, {1, 204, 76, 0, 3}},
-    {"read_only", {1, 208, 64, 0, 3}, {1, 202, 64, 0, 3}},
+    {"open", {1, 207, 76, 0, 3}, {1, 201, 76, 0, 3}},
+    {"read_only", {1, 206, 64, 0, 3}, {1, 200, 64, 0, 3}},
     {"guard", {1, 0, 0, 0, 3}, {1, 0, 0, 0, 3}},
 }};
 

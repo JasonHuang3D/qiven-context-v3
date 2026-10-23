@@ -74,7 +74,7 @@ public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
 
     explicit Engine(P& platform, std::size_t connections = sqlite::default_connections)
-        : pages_(platform.pages(bytes(connections))), heap_(pages_.bytes()) {}
+        : pages_(platform.pages(bytes(connections))), heap_(pages_.bytes(), connections) {}
     Engine(const Engine&) = delete;
     Engine& operator=(const Engine&) = delete;
     Engine(Engine&&) = delete;
@@ -82,6 +82,7 @@ public:
     ~Engine() = default;
 
     [[nodiscard]] memory::Heap& heap() noexcept { return heap_.heap(); }
+    [[nodiscard]] sqlite::Slots slots() const noexcept { return heap_.slots(); }
 
 private:
     static std::size_t bytes(std::size_t connections) {
