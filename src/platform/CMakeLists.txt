@@ -1,6 +1,8 @@
-# qiven3_platform: the contract, which core targets link (files joins it
-# with its package). Its value types hold their text on v3's arenas.
+# qiven3_platform: the contract, which core targets link, and files, the
+# retries of replace, stage and lock over an adapter's system calls. Its
+# value types hold their text on v3's arenas.
 add_library(qiven3_platform STATIC
+  files.hpp
   platform.cpp
   platform.hpp
 )

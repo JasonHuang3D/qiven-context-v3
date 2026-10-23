@@ -10,9 +10,9 @@
 // Each operation called is kept in its record, in order; under
 // QIVEN3_FAULTS each is a fault point (attach).
 //
-// replace, stage and lock come with the platform's files module, whose
-// hooks the fake's busy counts drive; until then each is PlatformError
-// unsupported.
+// replace, stage and lock are files' (platform/files.hpp) over the fake's
+// system calls (fake_files.hpp), on real files under its scratch root but
+// lock, held per path in the fake; the busy counts drive their refusals.
 //
 // thread: one
 
@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "platform/platform.hpp"
+#include "support/fake_platform/fake_files.hpp"
 
 namespace qiven3::platform::fake {
 
@@ -73,6 +74,7 @@ struct Config {
     std::vector<FakeRow> residual;
     std::uint64_t seed = 0;  // random_bytes' seed
     std::chrono::sys_time<std::chrono::microseconds> clock{};
+    Busy busy;  // how often replace, publish or lock is busy before it succeeds
 };
 
 // The k-th 32-byte block of seed s: SHA-256 over s and k, each an 8-byte
@@ -108,42 +110,10 @@ private:
     std::size_t count_ = 0;
 };
 
-// The files' handles, unsupported until the platform's files module.
-class FakeSink {
-public:
-    FakeSink() noexcept = default;
-    FakeSink(FakeSink&&) noexcept = default;
-    FakeSink& operator=(FakeSink&&) noexcept = default;
-    FakeSink(const FakeSink&) = delete;
-    FakeSink& operator=(const FakeSink&) = delete;
-    ~FakeSink() = default;
-    void write(std::string_view bytes);
-    void close();
-};
-
-class FakeStaged {
-public:
-    FakeStaged() noexcept = default;
-    FakeStaged(FakeStaged&&) noexcept = default;
-    FakeStaged& operator=(FakeStaged&&) noexcept = default;
-    FakeStaged(const FakeStaged&) = delete;
-    FakeStaged& operator=(const FakeStaged&) = delete;
-    ~FakeStaged() = default;
-    FakeSink open(std::string_view path);
-    void publish(std::string_view name, Seconds deadline);
-    void discard();
-};
-
-class FakeLock {
-public:
-    FakeLock() noexcept = default;
-    FakeLock(FakeLock&&) noexcept = default;
-    FakeLock& operator=(FakeLock&&) noexcept = default;
-    FakeLock(const FakeLock&) = delete;
-    FakeLock& operator=(const FakeLock&) = delete;
-    ~FakeLock() = default;
-    void release();
-};
+// The files' handles, files' own over the fake's system calls.
+using FakeSink = files::Sink<FakeFiles>;
+using FakeStaged = files::Staged<FakeFiles>;
+using FakeLock = files::Lock<FakeFiles>;
 
 // A program's run in memory: its lines, then its end; a hang or a flood
 // reaches the caller as deadline or output.
@@ -216,6 +186,9 @@ public:
     void set_clock(std::chrono::sys_time<std::chrono::microseconds> clock) noexcept { config_.clock = clock; }
     // read's io for path, with this detail.
     void set_read_error(std::string_view path, std::string_view detail);
+    // The busy counts from now; the files' system calls.
+    void set_busy(const Busy& busy) noexcept { files_.set_busy(busy); }
+    [[nodiscard]] FakeFiles& files() noexcept { return files_; }
     // The k-th call of pages from now refuses, memory; 0 none.
     void refuse_pages(std::size_t k) noexcept;
     // The operations called, by the contract's names, in order.
@@ -228,7 +201,10 @@ public:
     // Each call but wipe, noexcept by the contract, asks the countdown
     // first and, when it fires, fails as io, pages as memory; null
     // detaches it.
-    void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    void attach(memory::Countdown* countdown) noexcept {
+        countdown_ = countdown;
+        files_.attach(countdown);
+    }
 #endif
 
 private:
@@ -245,6 +221,7 @@ private:
     std::size_t lent_ = 0;
     std::size_t pages_calls_ = 0;
     std::size_t refuse_at_ = 0;
+    FakeFiles files_;
 #if defined(QIVEN3_FAULTS)
     memory::Countdown* countdown_ = nullptr;
 #endif
@@ -254,6 +231,8 @@ static_assert(Pages<FakePages> && Sink<FakeSink> && Staged<FakeStaged> && Lock<F
 static_assert(Platform<FakePlatform>);
 #if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
 static_assert(sizeof(FakePages) == 24, "the fake's Pages: its owner, address and count");
+static_assert(sizeof(FakeSink) == 16 && sizeof(FakeStaged) == 16 && sizeof(FakeLock) == 16,
+              "files' handles on the fake: the system and its id");
 #endif
 
 }  // namespace qiven3::platform::fake

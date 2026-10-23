@@ -207,3 +207,11 @@ qiven3_add_cases(qiven3_unit_projectmap LABELS fast fake
 qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
   SOURCES vectors_test.cpp vectors_read.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
+# files' cases on the fake: its pure checks evaluated by the compiler;
+# replace, stage and lock on real files in each case's scratch directory,
+# the fake's busy counts driving the retries (P9, P19, P20's lock, P25's
+# replace and open); each system and platform call failed in turn.
+qiven3_add_cases(qiven3_unit_files LABELS fast fake
+  SOURCES files_test.cpp
+  LINK qiven3_faults qiven3_platform_fake)

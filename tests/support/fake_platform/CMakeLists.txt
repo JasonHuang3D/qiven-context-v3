@@ -1,6 +1,8 @@
 # qiven3_platform_fake: the fake platform, on the C++ standard library alone,
-# built on every system.
+# built on every system; its files' system calls under files' retries.
 add_library(qiven3_platform_fake STATIC
+  fake_files.cpp
+  fake_files.hpp
   fake_platform.cpp
   fake_platform.hpp
 )

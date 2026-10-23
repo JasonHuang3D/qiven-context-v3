@@ -82,10 +82,6 @@ std::string sha256(const std::string& message) {
     throw PlatformError(code, operation, detail);
 }
 
-[[noreturn]] void unsupported(std::string_view operation) {
-    fail(Code::unsupported, operation, "not implemented by the fake yet");
-}
-
 // The next code point of UTF-8 text from at, strictly; none for an invalid
 // sequence, whose first byte at then passes.
 std::optional<char32_t> code_point(std::string_view text, std::size_t& at) {
@@ -230,13 +226,6 @@ std::span<std::byte> FakePages::bytes() const noexcept {
     return std::as_writable_bytes(std::span<FakePage>(first_, count_));
 }
 
-void FakeSink::write(std::string_view) { unsupported("write"); }
-void FakeSink::close() { unsupported("close"); }
-FakeSink FakeStaged::open(std::string_view) { unsupported("open"); }
-void FakeStaged::publish(std::string_view, Seconds) { unsupported("publish"); }
-void FakeStaged::discard() { unsupported("discard"); }
-void FakeLock::release() { unsupported("release"); }
-
 void FakeChild::check(std::string_view operation) const {
     if (!program_.flood.empty() && !killed_) {
         fail(Code::output, operation, program_.flood);
@@ -281,7 +270,8 @@ void FakeOutput::write(std::string_view utf8) {
 
 // --- the fake ---
 
-FakePlatform::FakePlatform(const Config& config) : config_(config), output_(config_.encoding) {}
+FakePlatform::FakePlatform(const Config& config)
+    : config_(config), output_(config_.encoding), files_(*this, config_.busy) {}
 
 void FakePlatform::record(std::string_view operation) const {
     calls_.emplace_back(operation);
@@ -393,16 +383,6 @@ bool FakePlatform::synced(std::string_view path, String& out) {
     return false;
 }
 
-void FakePlatform::replace(std::string_view, std::string_view, Seconds) {
-    record("replace");
-    unsupported("replace");
-}
-
-FakeStaged FakePlatform::stage(std::string_view) {
-    record("stage");
-    unsupported("stage");
-}
-
 void FakePlatform::create(std::string_view path, bool directory) {
     record("create");
     const fs::path target = checked("create", path);
@@ -461,11 +441,6 @@ void FakePlatform::read(std::string_view path, String& out) {
         out.clear();
         fail(Code::io, "read", "the stream read short");
     }
-}
-
-FakeLock FakePlatform::lock(std::string_view, Seconds) {
-    record("lock");
-    unsupported("lock");
 }
 
 void FakePlatform::program(std::string_view name, String& out) {
