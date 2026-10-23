@@ -12,7 +12,8 @@
 // bytes; create: exists), create making the directory if absent and the
 // file by the platform's create; then the connection, identify, the
 // settings, create's schema and TRUNCATE checkpoint, the write probe on a
-// read-write object, coherence. Errors name "open" and the resolved path.
+// read-write object, coherence; a create refused past its file removes the
+// files it made (sqlite::connect). Errors name "open" and the resolved path.
 // A pending purge's one attempt at open, on a read-write object.
 //
 // Each operation runs Gate first. append and forget: stage's check outside

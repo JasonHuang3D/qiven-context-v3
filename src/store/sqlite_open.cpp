@@ -1,8 +1,10 @@
 // sqlite: the open steps, run through the connection wrapper (sqlite.hpp):
 // the checkout walk and the file's presence, read through the standard
 // library's file system reads; then identify, the settings, create's
-// schema and its TRUNCATE checkpoint, the write probe and coherence. This
-// file names nothing of the engine's own: every call is the wrapper's.
+// schema and its TRUNCATE checkpoint, the write probe and coherence; a
+// create refused at any of them removes its files, through the wrapper's
+// remove_file. This file names nothing of the engine's own: every call is
+// the wrapper's.
 
 #include <array>
 #include <cstddef>
@@ -340,7 +342,19 @@ Opened coherence(Connection& c, const WhereView& at) {
     return opened;
 }
 
-Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
+bool unmake(std::string_view path) noexcept {
+    constexpr std::array<std::string_view, 3> sidecars = {"-journal", "-wal", "-shm"};
+    bool none = true;
+    for (const std::string_view suffix : sidecars) {
+        none = remove_file(path, suffix) && none;
+    }
+    return none && remove_file(path, {});
+}
+
+namespace {
+
+// Steps 2 (the connection) to 7.
+Connection connected(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
     Connection c = Connection::open(path, read_only, at);
     if (!create) {
         identify(c, at);
@@ -354,6 +368,22 @@ Connection connect(const memory::String& path, bool create, bool read_only, cons
     }
     opened = coherence(c, at);
     return c;
+}
+
+}  // namespace
+
+Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
+    if (!create) {
+        return connected(path, false, read_only, at, opened);
+    }
+    try {
+        return connected(path, true, read_only, at, opened);
+    } catch (...) {
+        // The connection closed as the error left connected: what create
+        // made removed, the step's error raised whether or not it all went.
+        static_cast<void>(unmake(path));
+        throw;
+    }
 }
 
 }  // namespace qiven3::store::sqlite

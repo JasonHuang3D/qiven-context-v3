@@ -1,7 +1,7 @@
 // sqlite: the reads, through the connection wrapper (sqlite.hpp): a header
 // line parsed and checked, a lane's head, heads in one read transaction,
 // an entry by id with its columns compared with its line, forgotten, and
-// the scan's cursor. This file names nothing of the engine's own.
+// the scan's cursor, ending at each lane's length at its start. This file names nothing of the engine's own.
 
 #include <algorithm>
 #include <cstddef>
@@ -166,9 +166,11 @@ bool forgotten(Connection& c, std::string_view id, const WhereView& at) {
 }
 
 ScanView::ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, Countdown* countdown,
-                   std::string_view path, const RangeView& range) noexcept
+                   std::string_view path, const RangeView& range)
     : gate_(&gate), c_(&c), pages_(pages), countdown_(countdown), path_(path),
       after_(std::max<std::int64_t>(range.after.value_or(0), 0)),
+      // Each lane ends at its length now: no row past the greatest rowid.
+      last_(c.integer("SELECT coalesce(max(rowid), 0) FROM entry", site(name(Operation::scan), path))),
       // A scope or lane past what a row can hold matches none.
       done_((range.scope && range.scope->size() > scope_bytes) || (range.lane && range.lane->size() > lane_bytes)) {
     if (range.scope) {
@@ -197,7 +199,8 @@ bool ScanView::next(Header& out) {
 #endif
     Statement s = c_->prepare("SELECT id, scope, lane, seq, parent, kind, target, line FROM entry "
                               "WHERE (scope, lane, seq) > (?1, ?2, ?3) AND (?4 IS NULL OR scope = ?4) "
-                              "AND (?5 IS NULL OR lane = ?5) AND seq > ?6 ORDER BY scope, lane, seq LIMIT 1",
+                              "AND (?5 IS NULL OR lane = ?5) AND seq > ?6 AND rowid <= ?7 ORDER BY scope, lane, seq "
+                              "LIMIT 1",
                               at);
     s.bind_text(1, at_scope_.view(), at);
     s.bind_text(2, at_lane_.view(), at);
@@ -213,6 +216,7 @@ bool ScanView::next(Header& out) {
         s.bind_null(5, at);
     }
     s.bind(6, after_, at);
+    s.bind(7, last_, at);
     if (!s.step(at)) {
         done_ = true;
         return false;

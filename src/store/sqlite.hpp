@@ -124,6 +124,11 @@ inline constexpr std::array<Setting, 11> settings = {
 [[nodiscard]] int engine_version() noexcept;
 // Whether an engine heap is installed, so that open may connect.
 [[nodiscard]] bool engine_ready() noexcept;
+// Removes the file at path's UTF-8 bytes and suffix through the engine's
+// default file layer (its delete, which removes files alone); true when it
+// is gone or was never there. Under QIVEN3_FAULTS it asks the engine
+// calls' countdown first, a failed one false.
+[[nodiscard]] bool remove_file(std::string_view path, std::string_view suffix) noexcept;
 
 // The page cache's slots: a slot's bytes and their count; those held now
 // and their mark since the engine heap was made; and the heap's bytes of
@@ -292,8 +297,13 @@ void probe(Connection& c, const WhereView& at);
 // Step 7: coherence, in one read transaction; StoreCorrupt incoherent or
 // forgotten_body.
 [[nodiscard]] Opened coherence(Connection& c, const WhereView& at);
+// A refused create's files removed: its -journal, -wal and -shm, each
+// tried, then the file once none of them is left, so that no later file
+// at path meets them; true when none is left.
+[[nodiscard]] bool unmake(std::string_view path) noexcept;
 // Steps 2 (the connection) to 7 on a file presence() passed, or that
-// create made.
+// create made. Under create, a step refused closes the connection, unmakes
+// the files and raises the step's error, whether or not each went.
 [[nodiscard]] Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at,
                                  Opened& opened);
 
@@ -437,15 +447,18 @@ enum class Found : std::uint8_t { absent, entry, body };
 
 // A scan: a cursor at the last (scope, lane, seq) it gave, each next() one
 // query for the first entry of its range past it, checked as find's, on a
-// fresh arena over the pages, copied into out. Every entry committed
-// before it began comes once, in order; one committed after, past the
-// cursor, comes too. It borrows its store object's gate, connection, pages
-// and path: used while that object lives; once it closes or moves, the
-// gate raises StoreError closed.
+// fresh arena over the pages, copied into out. Made, it reads the greatest
+// rowid of entry, and gives no row past it: entry rows are never deleted,
+// each takes the greatest rowid plus one, and VACUUM keeps the rowids of a
+// table with an index. So every entry committed before it began comes
+// once, in order, and none after: each lane ends at its length at the
+// scan's start. It borrows its store object's gate, connection, pages and
+// path: used while that object lives; once it closes or moves, the gate
+// raises StoreError closed.
 class ScanView {
 public:
     ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, Countdown* countdown,
-             std::string_view path, const RangeView& range) noexcept;
+             std::string_view path, const RangeView& range);
     ScanView(const ScanView&) = delete;
     ScanView& operator=(const ScanView&) = delete;
     ScanView(ScanView&&) noexcept = default;
@@ -468,6 +481,7 @@ private:
     memory::Inline<scope_bytes> at_scope_;
     memory::Inline<lane_bytes> at_lane_;
     std::int64_t at_seq_ = std::numeric_limits<std::int64_t>::min();
+    std::int64_t last_ = 0;  // the greatest rowid of entry at the scan's start
     bool done_ = false;
     std::size_t peak_ = 0;
 };

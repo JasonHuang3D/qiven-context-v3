@@ -359,7 +359,7 @@ constexpr std::array<Pinned, 15> pinned = {{
     {"header", {15, 0, 3, 1, 0}, {15, 0, 3, 1, 0}},
     {"body", {21, 0, 3, 1, 0}, {21, 0, 3, 1, 0}},
     {"forgotten", {0, 1, 3, 0, 0}, {0, 1, 3, 0, 0}},
-    {"scan", {60, 5, 40, 4, 0}, {60, 5, 40, 4, 0}},
+    {"scan", {60, 5, 47, 4, 0}, {60, 5, 47, 4, 0}},
     {"size", {0, 0, 8, 0, 0}, {0, 0, 8, 0, 0}},
     {"forget", {56, 715, 75, 1, 1}, {56, 718, 75, 1, 1}},
     {"purge", {0, 0, 3, 0, 0}, {0, 0, 3, 0, 0}},
@@ -525,6 +525,7 @@ bool fault_step(qiven3::test::Context& qiven3_ctx, Bed& b, const Step& s, qiven3
     CHECK_EQ(runs.unchecked, 0U);
     CHECK_EQ(runs.completed_at, runs.typed + 1);
     CHECK_EQ(t.memory + t.platform + t.engine + t.absorbed, runs.typed);
+    CHECK_EQ(t.left, 0U);  // a refused create removes its file
     return runs.untyped == 0 && runs.unchecked == 0;
 }
 

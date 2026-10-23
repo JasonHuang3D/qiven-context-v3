@@ -5,6 +5,7 @@
 
 #include "store/sqlite.hpp"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -207,6 +208,29 @@ Countdown* arenas_countdown() noexcept { return arenas().load(std::memory_order_
 #endif
 
 bool engine_ready() noexcept { return installed().load(std::memory_order_acquire) != nullptr; }
+
+bool remove_file(std::string_view path, std::string_view suffix) noexcept {
+    if (injected()) {
+        return false;
+    }
+    sqlite3_vfs* const vfs = sqlite3_vfs_find(nullptr);
+    const std::size_t n = path.size() + suffix.size();
+    if (vfs == nullptr || vfs->xDelete == nullptr || n < path.size() ||
+        n >= static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return false;
+    }
+    // The name on the engine's heap, ended by a NUL as the layer reads it.
+    void* const block = sqlite3_malloc64(n + 1);
+    if (block == nullptr) {
+        return false;
+    }
+    const std::span<char> name(static_cast<char*>(block), n + 1);
+    const auto end = std::copy(path.begin(), path.end(), name.begin());
+    *std::copy(suffix.begin(), suffix.end(), end) = '\0';
+    const int rc = vfs->xDelete(vfs, name.data(), 0);
+    sqlite3_free(block);
+    return rc == SQLITE_OK || rc == SQLITE_IOERR_DELETE_NOENT;
+}
 
 EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections)
     : size_(slot_bytes()), count_(slot_count(pages, connections, size_)),

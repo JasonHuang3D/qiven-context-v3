@@ -327,7 +327,9 @@ struct NoHooks {
     constexpr void rebuilt() const noexcept {}
 };
 
-// A scan's headers in (scope, lane, seq) order; false at the end.
+// A scan's headers in (scope, lane, seq) order; false at the end. Every
+// entry committed before the scan began comes once, and none after: each
+// lane ends at its length at the scan's start.
 template <class H>
 concept Scan = Handle<H> && requires(H& h, Header& out) {
     { h.next(out) } -> std::same_as<bool>;

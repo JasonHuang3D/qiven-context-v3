@@ -257,16 +257,21 @@ qiven3_add_cases(qiven3_unit_store_stage LABELS fast fake
 
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
-# lock, thread gate, read-only object and checked reads.
+# lock, thread gate, read-only object and checked reads; a scan's end at
+# each lane's length at its start (store_scan_case.hpp).
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
   SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
+          store_memory_scan_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
 
 # store/sqlite's cases: the SQLite store on the fake over a scratch
 # directory; its smoke case: create, identify, the settings read back, the
 # files open refuses, the guard and coherence; its writes case: append,
 # forget, purge, size and close; its reads; its budgets, counts and fault
-# runs; the engine heap's page cache, a purge held pending, forged files.
+# runs; the engine heap's page cache, a purge held pending, forged files;
+# a scan's end at each lane's length at its start (store_scan_case.hpp);
+# a create refused at each call, and its removals refused.
 qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
+          store_sqlite_scan_test.cpp store_sqlite_create_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
