@@ -71,6 +71,7 @@ add_library(qiven3_fixtures STATIC
   fixtures.cpp
   fixtures.hpp
   patterns.hpp
+  stage_book.hpp
   vectors.hpp
   view.hpp
   "${fixtures_source}"

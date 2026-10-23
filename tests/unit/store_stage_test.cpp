@@ -1,0 +1,325 @@
+// store/stage's cases, on the fixtures over a view in memory: check before
+// any lock and admit inside it. An append of implementer's lane staged in
+// two calls; a forget of E on it, never refused for size; forget_kind
+// first, entry by entry, a line the strict parser refuses EntryInvalid
+// with its code, then part 1 (id_mismatch, no id); a forget appended
+// forget_path; a content hit (aws-akia) refused secret with no id, admitted
+// once cleared for its content and pattern, refused when the clearing is
+// another pattern's, when a held header has the content, or an earlier
+// entry of the call; a header hit refused; part 2's first fault with its
+// code; the maximum by count and by size, at it admitted; at import part 1
+// alone, the final view's three codes and head_mismatch.
+
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "entry/body.hpp"
+#include "entry/header.hpp"
+#include "memory/arena.hpp"
+#include "memory/memory.hpp"
+#include "qiven3/canon.hpp"
+#include "qiven3/digest.hpp"
+#include "runner/runner.hpp"
+#include "store/contract.hpp"
+#include "store/errors.hpp"
+#include "store/stage.hpp"
+#include "support/fake_platform/fake_platform.hpp"
+#include "support/fixtures/fixtures.hpp"
+#include "support/fixtures/view.hpp"
+#include "support/fixtures/stage_book.hpp"
+
+namespace {
+
+using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+
+constexpr std::string_view qiven_scope = "project:qiven";
+constexpr std::string_view implementer_lane = "implementer";
+
+}  // namespace
+
+QIVEN3_CASE(store_stage, append) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    fixtures::MemoryView view;
+    const std::vector<Stored> first = {book.stored("A"), book.stored("B")};
+    const std::vector<EntryView> lines = views(first);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::append), chars, scratch);
+    CHECK_EQ(checked.entries.size(), 2U);
+    CHECK(checked.hits.empty());
+    CHECK_EQ(checked.size, added(first));
+    const stage::Staged staged =
+        stage::admit(view, qiven_scope, implementer_lane, std::nullopt, checked, Limits{}, at(Operation::append), chars);
+    CHECK_EQ(staged.head.id.view(), id_of(first[1]));
+    CHECK_EQ(staged.head.seq, 2);
+    CHECK_EQ(staged.count, 2U);
+    CHECK_EQ(staged.size, added(first));
+    hold(view, first);
+    view.volume(staged.size, staged.count);
+    const std::vector<Stored> second = {book.stored("D")};
+    const std::vector<EntryView> more = views(second);
+    const stage::Checked<Fake> again = stage::check(fake, std::span<const EntryView>(more), at(Operation::append), chars, scratch);
+    const stage::Staged next =
+        stage::admit(view, qiven_scope, implementer_lane, id_of(first[1]), again, Limits{}, at(Operation::append), chars);
+    CHECK_EQ(next.head.id.view(), id_of(second[0]));
+    CHECK_EQ(next.head.seq, 3);
+}
+
+QIVEN3_CASE(store_stage, forget) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    fixtures::MemoryView view;
+    hold(view, {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")});
+    view.volume(1U << 20U, 4);
+    const Stored e = book.stored("E");
+    const Stored a = book.stored("A");
+    // A forget is never refused for size: past the maximum by count.
+    Limits small;
+    small.target_count = 1;
+    small.warning_count = 1;
+    small.max_count = 1;
+    const std::vector<Stored> call = {e};
+    const std::vector<EntryView> lines = views(call);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::forget), chars, scratch);
+    CHECK_EQ(checked.size, added({e}));
+    const stage::Staged staged = stage::admit(view, qiven_scope, implementer_lane, id_of(book.stored("ACC")), checked, small,
+                                              at(Operation::forget), chars);
+    CHECK_EQ(staged.head.id.view(), id_of(e));
+    CHECK_EQ(staged.head.seq, 5);
+    // forget_kind first, entry by entry, naming the entry.
+    const std::optional<Refusal> kind0 = refused_check(fake, {a}, Operation::forget, chars);
+    REQUIRE(kind0.has_value());
+    CHECK(kind0->kind == Kind::store_error);
+    CHECK_EQ(kind0->code, std::string("forget_kind"));
+    CHECK_EQ(kind0->detail, std::string("entry 0"));
+    CHECK_EQ(kind0->operation, std::string("forget"));
+    const std::optional<Refusal> kind1 = refused_check(fake, {e, a}, Operation::forget, chars);
+    REQUIRE(kind1.has_value());
+    CHECK_EQ(kind1->detail, std::string("entry 1"));
+    const Stored broken{"{\"kind\":\"forget\"", std::nullopt, std::nullopt};
+    const std::optional<Refusal> parse = refused_check(fake, {e, broken}, Operation::forget, chars);
+    REQUIRE(parse.has_value());
+    CHECK(parse->kind == Kind::entry_invalid);
+    CHECK_EQ(parse->index, 1U);
+    CHECK(parse->id.empty());
+    std::cout << "store_stage.forget: the parser's code " << parse->code << "\n";
+    CHECK(!parse->code.empty());
+    const std::optional<Refusal> before = refused_check(fake, {a, broken}, Operation::forget, chars);
+    REQUIRE(before.has_value());
+    CHECK_EQ(before->code, std::string("forget_kind"));
+    // Then part 1: a forget whose at moved is id_mismatch, with no id.
+    Stored moved = e;
+    const std::size_t t = moved.line.find("\"at\":\"") + 6;
+    moved.line[t + 3] = moved.line[t + 3] == '9' ? '8' : '9';
+    const std::optional<Refusal> mismatch = refused_check(fake, {moved}, Operation::forget, chars);
+    REQUIRE(mismatch.has_value());
+    CHECK_EQ(mismatch->code, std::string("id_mismatch"));
+    CHECK(mismatch->id.empty());
+    // An append takes no forget.
+    const std::optional<Refusal> path = refused_check(fake, {e}, Operation::append, chars);
+    REQUIRE(path.has_value());
+    CHECK_EQ(path->code, std::string("forget_path"));
+    CHECK_EQ(path->id, std::string(id_of(e)));
+    CHECK_EQ(path->field, std::string("header.kind"));
+}
+
+QIVEN3_CASE(store_stage, secret) {
+    const auto bench = std::make_unique<Bench>(8U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    const Stored x = book.with_secret("A", std::nullopt);
+    const std::vector<Stored> call = {x};
+    const std::vector<EntryView> lines = views(call);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::append), chars, scratch);
+    REQUIRE(checked.hits.size() == 1U);
+    CHECK_EQ(qiven3::entry::secret::name(checked.hits[0].hit.pattern), std::string_view("aws-akia"));
+    CHECK_EQ(checked.hits[0].hit.path.view(), std::string_view("admit.mistake"));
+    const std::string digest = std::string(content_of(x));
+    // Not cleared: secret, the pattern and the path, no id.
+    {
+        fixtures::MemoryView view;
+        const std::optional<Refusal> r = refused_admit(view, checked, std::nullopt, chars);
+        REQUIRE(r.has_value());
+        CHECK_EQ(r->code, std::string("secret"));
+        CHECK_EQ(r->pattern, std::string("aws-akia"));
+        CHECK_EQ(r->field, std::string("admit.mistake"));
+        CHECK(r->id.empty());
+    }
+    // Cleared for its content and pattern: admitted; for another pattern not.
+    {
+        fixtures::MemoryView view;
+        view.clear(qiven_scope, digest, "aws-akia");
+        CHECK(!refused_admit(view, checked, std::nullopt, chars).has_value());
+        fixtures::MemoryView other;
+        other.clear(qiven_scope, digest, "sk-key");
+        CHECK(refused_admit(other, checked, std::nullopt, chars).has_value());
+    }
+    // Used: a held header with the content (on reviewer's lane, so the
+    // lane's head stays none), or an earlier entry of the call.
+    {
+        fixtures::MemoryView view;
+        view.clear(qiven_scope, digest, "aws-akia");
+        hold(view, {book.with_secret("C", std::nullopt)});
+        const std::optional<Refusal> used = refused_admit(view, checked, std::nullopt, chars);
+        REQUIRE(used.has_value());
+        CHECK_EQ(used->code, std::string("secret"));
+        const Stored y = book.with_secret("B", id_of(x));
+        const std::vector<Stored> pair = {x, y};
+        const std::vector<EntryView> two = views(pair);
+        const stage::Checked<Fake> both =
+            stage::check(fake, std::span<const EntryView>(two), at(Operation::append), chars, scratch);
+        CHECK_EQ(both.hits.size(), 2U);
+        fixtures::MemoryView fresh;
+        fresh.clear(qiven_scope, digest, "aws-akia");
+        const std::optional<Refusal> r = refused_admit(fresh, both, std::nullopt, chars);
+        REQUIRE(r.has_value());
+        CHECK_EQ(r->code, std::string("secret"));
+        CHECK_EQ(r->index, 1U);
+        // The hits settled before part 2: y alone, its parent not held.
+        const std::vector<Stored> alone = {y};
+        const std::vector<EntryView> one = views(alone);
+        const stage::Checked<Fake> second =
+            stage::check(fake, std::span<const EntryView>(one), at(Operation::append), chars, scratch);
+        fixtures::MemoryView none;
+        const std::optional<Refusal> first = refused_admit(none, second, std::nullopt, chars);
+        REQUIRE(first.has_value());
+        CHECK_EQ(first->code, std::string("secret"));
+    }
+    // A header hit is refused at check, never cleared.
+    const std::optional<Refusal> lane = refused_check(fake, {book.on_lane("A", slack_lane())}, Operation::append, chars);
+    REQUIRE(lane.has_value());
+    CHECK_EQ(lane->code, std::string("secret"));
+    CHECK_EQ(lane->field, std::string("header.lane"));
+    CHECK_EQ(lane->pattern, std::string("slack-xox"));
+    CHECK(lane->id.empty());
+    // Import runs no secret check.
+    const stage::Checked<Fake> imported =
+        stage::check(fake, std::span<const EntryView>(lines), at(Operation::import_), chars, scratch);
+    CHECK(imported.hits.empty());
+}
+
+QIVEN3_CASE(store_stage, part2) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    const Stored b = book.stored("B");
+    const std::vector<Stored> call = {b};
+    const std::vector<EntryView> lines = views(call);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::append), chars, scratch);
+    fixtures::MemoryView view;
+    const std::optional<Refusal> r = refused_admit(view, checked, std::nullopt, chars);
+    REQUIRE(r.has_value());
+    CHECK(r->kind == Kind::entry_invalid);
+    CHECK_EQ(r->code, std::string("parent"));
+    CHECK_EQ(r->index, 0U);
+    CHECK_EQ(r->id, std::string(id_of(b)));
+}
+
+QIVEN3_CASE(store_stage, maximum) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    const std::vector<Stored> call = {book.stored("A")};
+    const std::vector<EntryView> lines = views(call);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::append), chars, scratch);
+    Limits l;
+    l.target_count = 2;
+    l.warning_count = 2;
+    l.max_count = 2;
+    fixtures::MemoryView at_max;
+    at_max.volume(100, 1);
+    CHECK(!refused_admit(at_max, checked, std::nullopt, chars, l).has_value());
+    fixtures::MemoryView by_count;
+    by_count.volume(100, 2);
+    const std::optional<Refusal> count = refused_admit(by_count, checked, std::nullopt, chars, l);
+    REQUIRE(count.has_value());
+    CHECK(count->kind == Kind::full);
+    CHECK_EQ(count->code, std::string("store_full"));
+    CHECK_EQ(count->count, 3U);
+    CHECK_EQ(count->size, 100 + checked.size);
+    Limits s;
+    s.max_size = 100 + checked.size;
+    s.warning_size = s.max_size;
+    s.target_size = s.max_size;
+    fixtures::MemoryView size_max;
+    size_max.volume(100, 0);
+    CHECK(!refused_admit(size_max, checked, std::nullopt, chars, s).has_value());
+    size_max.volume(101, 0);
+    const std::optional<Refusal> size = refused_admit(size_max, checked, std::nullopt, chars, s);
+    REQUIRE(size.has_value());
+    CHECK_EQ(size->code, std::string("store_full"));
+}
+
+QIVEN3_CASE(store_stage, import) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    Fake& fake = bench->fake;
+    const Book& book = bench->book;
+    const Chars chars = bench->chars;
+    ScratchPages& scratch = bench->scratch;
+    const std::vector<Stored> all = {book.stored("A"), book.stored("B"), book.stored("M1"), book.stored("M2"),
+                                     book.stored("E")};
+    const std::vector<EntryView> lines = views(all);
+    const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::import_), chars, scratch);
+    CHECK_EQ(checked.entries.size(), all.size());
+    fixtures::MemoryView view;
+    const auto final_code = [&](std::size_t i, bool has_body) {
+        return refused([&] {
+            stage::import_entry(view, checked.entries[i].header(), has_body, i, at(Operation::import_));
+        });
+    };
+    CHECK(!final_code(0, true).has_value());
+    CHECK(!final_code(4, false).has_value());
+    const std::optional<Refusal> missing = final_code(0, false);
+    REQUIRE(missing.has_value());
+    CHECK_EQ(missing->code, std::string("body_missing"));
+    view.forget(id_of(all[0]));
+    const std::optional<Refusal> held = final_code(0, true);
+    REQUIRE(held.has_value());
+    CHECK_EQ(held->code, std::string("forgotten_body"));
+    CHECK(!final_code(0, false).has_value());
+    view.forget(id_of(all[2]));
+    const std::optional<Refusal> target = final_code(3, true);
+    REQUIRE(target.has_value());
+    CHECK_EQ(target->code, std::string("forgotten_target"));
+    CHECK_EQ(target->index, 3U);
+    view.forget(id_of(all[3]));
+    CHECK(!final_code(3, false).has_value());
+    // A forget is no revision: its target forgotten, it stands.
+    view.forget(checked.entries[4].header().value(Slot::target));
+    CHECK(!final_code(4, false).has_value());
+    // The heads, in order.
+    std::vector<qiven3::store::LaneHead> source(2);
+    source[0] = lane_head(qiven_scope, implementer_lane, id_of(all[1]), 2);
+    source[1] = lane_head(qiven_scope, "reviewer", id_of(all[3]), 3);
+    std::vector<qiven3::store::LaneHead> given = source;
+    CHECK(!refused([&] { stage::same_heads(source, given, at(Operation::import_)); }).has_value());
+    given[1].head.seq = 2;
+    const std::optional<Refusal> seq = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
+    REQUIRE(seq.has_value());
+    CHECK_EQ(seq->code, std::string("head_mismatch"));
+    CHECK_EQ(seq->index, 1U);
+    CHECK_EQ(seq->id, std::string(id_of(all[3])));
+    given.pop_back();
+    const std::optional<Refusal> fewer = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
+    REQUIRE(fewer.has_value());
+    CHECK_EQ(fewer->index, 1U);
+}

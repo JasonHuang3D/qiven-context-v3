@@ -2,11 +2,12 @@
 
 // view: a store's view in memory for the validator's cases, and an entry
 // of a call. MemoryView holds headers and contents on std::allocator,
-// each lane's head, the forgotten set and the live clearings; put appends
-// an entry and moves its lane's head, forget erases a body and marks its
-// id. It reads into the caller's buffers on their own allocator: a header
-// copied by make, its id given, one allocation; a content assigned, one
-// where the buffer's capacity is short. It counts its reads. Item is an
+// each lane's head, the forgotten set, the live clearings, and the size
+// and count held; put appends an entry and moves its lane's head, forget
+// erases a body and marks its id. It reads into the caller's buffers on
+// their own allocator: a header copied by make, its id given, one
+// allocation; a content assigned, one where the buffer's capacity is
+// short. It counts its reads. Item is an
 // entry of a call: a header and its content or none, on one allocator.
 // Each is constexpr and a template on the allocator, so its vectors run in
 // constant evaluation too.
@@ -164,6 +165,15 @@ public:
         return false;
     }
 
+    // The size and count held, as a store's view gives them to stage; set
+    // by volume, none read counted.
+    constexpr void volume(std::uint64_t size, std::uint64_t count) noexcept {
+        size_ = size;
+        count_ = count;
+    }
+    [[nodiscard]] constexpr std::uint64_t size() const noexcept { return size_; }
+    [[nodiscard]] constexpr std::uint64_t count() const noexcept { return count_; }
+
     // The reads so far.
     [[nodiscard]] constexpr std::size_t reads() const noexcept { return reads_; }
 
@@ -192,6 +202,8 @@ private:
     std::vector<std::string> forgotten_;
     std::vector<std::array<std::string, 3>> clearings_;
     std::size_t reads_ = 0;
+    std::uint64_t size_ = 0;
+    std::uint64_t count_ = 0;
 };
 
 }  // namespace qiven3::test::fixtures
