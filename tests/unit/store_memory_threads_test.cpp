@@ -8,15 +8,23 @@
 // and import with StoreError read_only, writing nothing, and serves every
 // read, an export, verify and close. corrupt: a held line or body record
 // changed under the lock is StoreCorrupt at header, body and verify, and
-// served again once restored.
+// served again once restored, a body record's digit body_mismatch; a
+// held line given another held entry's, header's id_mismatch. forged: a state forged under the lock in one way
+// each, every other rule kept, refused by verify with its code: a line
+// whose parent, or seq, is not its place's; a target index not its
+// header's; a forgotten entry's body kept (forgotten_body); a content's
+// body dropped; a lane's head not its last; the size one off; the ids out
+// of order.
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "memory/arena.hpp"
@@ -35,6 +43,7 @@ namespace state = qiven3::store::state;
 using qiven3::memory::String;
 using qiven3::memory::Vector;
 using qiven3::store::GuardView;
+using qiven3::store::Head;
 using qiven3::store::Header;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
@@ -86,6 +95,17 @@ template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
     return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+}
+
+// The StoreCorrupt code a call raised, "none", or "not corrupt".
+template <class F>
+std::string corrupt_code(const F& f) {
+    try {
+        f();
+    } catch (const qiven3::store::StoreError& e) {
+        return e.corrupt() ? std::string(qiven3::store::name(*e.corrupt())) : std::string("not corrupt");
+    }
+    return "none";
 }
 
 // The operations each busy thread runs on an object of its own, over a
@@ -225,9 +245,96 @@ QIVEN3_CASE(store_memory, corrupt) {
     // A digit of A's body record changed.
     const std::size_t digit = b->lane[0].record->find_last_of("0123456789");
     const char was = set(true, digit, b->lane[0].record->at(digit) == '0' ? '1' : '0');
-    CHECK(corrupt([&] { (void)store.body(a, record); }));
+    CHECK_EQ(corrupt_code([&] { (void)store.body(a, record); }), std::string("body_mismatch"));
     CHECK(corrupt([&] { (void)store.verify(); }));
     (void)set(true, digit, was);
     CHECK(store.body(a, record));
     CHECK_EQ(store.verify().entries, 4U);
+    // A's line B's: a header line whole, of another id.
+    const std::string line = b->lane[0].line;
+    {
+        const state::Locked lock(b->state, Operation::size, {});
+        lock.data().held[0].line.assign(b->lane[1].line);
+    }
+    CHECK_EQ(corrupt_code([&] { store.header(a, h); }), std::string("id_mismatch"));
+    {
+        const state::Locked lock(b->state, Operation::size, {});
+        lock.data().held[0].line.assign(line);
+    }
+    store.header(a, h);
+}
+
+namespace {
+
+// A fresh bed's state, E's forget of B first where asked, forged under its
+// lock by change; then verify's refusal code, or "none".
+template <class F>
+std::string forged(bool forget, const F& change) {
+    const auto b = std::make_unique<Bed>();
+    Store store(b->state, b->fake);
+    if (forget) {
+        Vector<Id> erased(b->chars);
+        (void)store.forget(qiven_scope, implementer_lane, b->acc, b->e_lines, b->guard, erased);
+    }
+    {
+        const state::Locked lock(b->state, Operation::size, {});
+        change(*b, lock.data());
+    }
+    return corrupt_code([&] { (void)store.verify(); });
+}
+
+// Entry i made s: its line, body record and id; the ids sorted again.
+void replace(state::Data& d, std::uint32_t i, const Stored& s) {
+    state::Held& e = d.held[i];
+    e.line.assign(s.line);
+    e.body.assign(*s.record);
+    e.id = Id::of(id_of(s));
+    state::sort_ids(d);
+}
+
+}  // namespace
+
+QIVEN3_CASE(store_memory, forged) {
+    CHECK_EQ(forged(false, [](Bed&, state::Data&) {}), std::string("none"));
+    // B's line with D for its parent; ACC's, the lane's last, at seq 5,
+    // the head with it: each its own id and body.
+    CHECK_EQ(forged(false,
+                    [](Bed& b, state::Data& d) {
+                        const std::string parent = id_of(b.lane[2]);
+                        replace(d, 1, b.book.made("B", "B", *b.lane[1].content,
+                                                  [&](header::FieldsView& f) { f.parent = parent; }));
+                    }),
+             std::string("incoherent"));
+    CHECK_EQ(forged(false,
+                    [](Bed& b, state::Data& d) {
+                        replace(d, 3,
+                                b.book.made("ACC", "ACC", *b.lane[3].content,
+                                            [](header::FieldsView& f) { f.seq = 5; }));
+                        d.held[3].seq = 5;
+                        d.lanes[0].head = Head{d.held[3].id, 5};
+                    }),
+             std::string("incoherent"));
+    // ACC's target index A's, its header naming D.
+    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.held[3].target = 0; }), std::string("incoherent"));
+    // B forgotten, its body kept, the size counting it.
+    CHECK_EQ(forged(true,
+                    [](Bed& b, state::Data& d) {
+                        d.held[1].body.assign(*b.lane[1].record);
+                        d.held[1].has_body = true;
+                        d.size += b.lane[1].record->size() + 1U;
+                    }),
+             std::string("forgotten_body"));
+    // A's body dropped, the size without it.
+    CHECK_EQ(forged(false,
+                    [](Bed&, state::Data& d) {
+                        d.size -= d.held[0].body.size() + 1U;
+                        d.held[0].body.clear();
+                        d.held[0].has_body = false;
+                    }),
+             std::string("incoherent"));
+    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.lanes[0].head = Head{d.held[0].id, 1}; }),
+             std::string("incoherent"));
+    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.size += 1U; }), std::string("incoherent"));
+    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { std::swap(d.by_id[0], d.by_id[1]); }),
+             std::string("incoherent"));
 }

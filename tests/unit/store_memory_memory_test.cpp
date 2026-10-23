@@ -17,6 +17,8 @@
 // stays, as a vector's reserve does, and saves the next run one allocation.
 // The run completes past the last failure. The runner's count after each
 // case holds too.
+// maximum: a module of 64 KiB content appended, imported into the second
+// state and verified, each peak within its operation's budget.
 
 #include <cstddef>
 #include <cstdint>
@@ -411,4 +413,79 @@ QIVEN3_CASE(store_memory, faults) {
 #else
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 #endif
+}
+
+namespace {
+
+// The content's maximum, 64 KiB.
+constexpr std::size_t max_content = std::size_t{64} << 10U;
+
+// MX's content grown to the maximum: letters of its paths and interface
+// names made four-byte characters, three bytes more each, the last one or
+// two bytes more by a two- or three-byte one; its characters' count kept.
+std::string maximum_content(const Book& book) {
+    const std::string mx = *book.stored("MX").content;
+    const std::size_t paths = mx.find('[', mx.find("\"paths\":["));
+    const std::size_t paths_end = mx.find(']', paths);
+    const std::size_t names = mx.find('[', mx.find("\"interface\":["));
+    const std::size_t names_end = mx.find(']', names);
+    std::size_t grow = max_content - mx.size();
+    std::string out;
+    out.reserve(max_content);
+    for (std::size_t i = 0; i < mx.size(); ++i) {
+        const bool letter =
+            (i > paths && i < paths_end && mx[i] == 'a') || (i > names && i < names_end && mx[i] == 'b');
+        if (!letter || grow == 0) {
+            out.push_back(mx[i]);
+        } else if (grow >= 3) {
+            out.append("\xF0\x9F\x98\x80");
+            grow -= 3;
+        } else {
+            out.append(grow == 2 ? "\xE2\x82\xAC" : "\xC3\xA9");
+            grow = 0;
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
+// A maximum entry, a module of 64 KiB content on reviewer's lane: its
+// append within 1 MiB plus 4 times its lines, its import into the second
+// state and verify within 1 MiB.
+QIVEN3_CASE(store_memory, maximum) {
+    const auto b = std::make_unique<Bed>();
+    const std::string content = maximum_content(b->book);
+    REQUIRE(content.size() == max_content);
+    const std::vector<Stored> mx = {b->book.made("MX", "MX", content, [](header::FieldsView& f) {
+        f.seq = 1;
+        f.parent = std::nullopt;
+    })};
+    const std::vector<EntryView> lines = views(mx);
+    const std::optional<Refusal> r =
+        refused([&] { (void)b->store.append(qiven_scope, "reviewer", std::nullopt, lines); });
+    if (r) {
+        std::cout << "store_memory.maximum: refused " << r->code << " " << r->field << " " << r->detail << "\n";
+    }
+    REQUIRE(!r.has_value());
+    const std::size_t append = b->store.peak();
+    CHECK(append <= lines_budget(lines));
+    const Chars c = b->caller();
+    {
+        auto x = b->store.export_(std::nullopt, {});
+        Vector<LaneHead> wrote(c);
+        (void)b->other.import_(x, wrote);
+        x.close();
+    }
+    const std::size_t imported = b->other.peak();
+    CHECK(imported <= qiven3::store::operation_base);
+    const Counts counts = b->store.verify();
+    const std::size_t verified = b->store.peak();
+    CHECK(verified <= qiven3::store::operation_base);
+    CHECK_EQ(counts.entries, 1U);
+    CHECK_EQ(counts.bodies, 1U);
+    CHECK(b->other.verify() == counts);
+    std::cout << "store_memory.maximum: content " << content.size() << " bytes, lines " << mx[0].line.size() << " and "
+              << mx[0].record->size() << "; append " << append << " of " << lines_budget(lines) << ", import "
+              << imported << " and verify " << verified << " of " << qiven3::store::operation_base << "\n";
 }

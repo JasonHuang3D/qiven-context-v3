@@ -193,7 +193,8 @@ public:
         });
     }
 
-private:
+    // A fixture's header with its fields as change leaves them, the content
+    // given under key_of's key: its content digest and id computed.
     template <class F>
     [[nodiscard]] Stored made(std::string_view like, std::string_view key_of, const std::string& content,
                               const F& change) const {
@@ -222,6 +223,7 @@ private:
         return s;
     }
 
+private:
     Fake* fake_;
     qiven3::canon::Basic<> value_;
 };
