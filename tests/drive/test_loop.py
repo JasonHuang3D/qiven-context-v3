@@ -2,15 +2,15 @@
 passed, 1 when one failed and 2 when it could not run, each with its plant
 (a failing step: a planted compile error, on Windows, or a planted
 configure failure, in WSL, each on a scratch copy of the tree; a tool
-missing; a pin off its digest; a bad argument); its bound of 100 lines and
-a failing step's last 30. The tiers on fakes: what each runs, each
-configure's --fresh in tier 3 alone, a job's tree kept through another
-job's run and its own next one, tier 3 emptying it with the fuzz corpus
-kept, a tree outside build/ never emptied. Linux's one clone on fakes:
-synced once a run, a sync that changes nothing rewriting no file, a build
-tree a job within it, tier 3 emptying those trees alone, the suites
-reading the jobs' trees. The cases that build run alone;
-those that reach WSL skip when it or its distribution is absent."""
+missing; a pin off its digest; a bad argument); its bound of 100 lines,
+a failing step's first error lines and its last 30. The tiers on fakes:
+what each runs, each configure's --fresh in tier 3 alone, a job's tree
+kept through another job's run and its own next one, tier 3 emptying it
+with the fuzz corpus kept, a tree outside build/ never emptied. Linux's
+one clone on fakes: synced once a run, a sync that changes nothing
+rewriting no file, a build tree a job within it, tier 3 emptying those
+trees alone, the suites reading the jobs' trees. The cases that build run
+alone; those that reach WSL skip when it or its distribution is absent."""
 
 import argparse
 import contextlib
@@ -76,7 +76,7 @@ def scratch_copy(case):
 class Answer(unittest.TestCase):
     """The answer's form, by steps of the interpreter alone."""
 
-    def steps(self, codes, phase="test"):
+    def steps(self, codes, phase="test", program="[print('line', i) for i in range(200)]"):
         steps = [LOOP.Step(f"step {i}", ("step", str(i)), "build" if i < 2 else "test", after=None)
                  for i in range(len(codes))]
         logs = Path(tempfile.mkdtemp(prefix="qiven3-loop-logs-"))
@@ -87,7 +87,7 @@ class Answer(unittest.TestCase):
 
         def command(step):
             code = codes[int(step.ci[1])]
-            return [sys.executable, "-I", "-c", f"[print('line', i) for i in range(200)]; raise SystemExit({code})"]
+            return [sys.executable, "-I", "-c", f"{program}; raise SystemExit({code})"]
 
         with contextlib.redirect_stdout(out):
             counts = LOOP.run_steps(report, "job", steps, phase, command, logs, logs, dict(os.environ))
@@ -113,14 +113,45 @@ class Answer(unittest.TestCase):
         self.assertEqual(tail, [f"  | line {i}" for i in range(170, 200)])
 
     def test_bound(self):
-        """Forty failing steps: every step's line and the summary within 100
-        lines, the first tails whole and none past the bound."""
-        counts, lines = self.steps([5] * 40)
+        """Forty failing steps, an error line first in each: every step's
+        line and the summary within 100 lines, the first tails whole, a
+        tail shortened for its error line, and none past the bound."""
+        counts, lines = self.steps([5] * 40, program="print('a.cpp:1:1: error: x'); [print(i) for i in range(200)]")
         self.assertEqual(counts, [0, 40, 0])
         self.assertLessEqual(len(lines), LOOP.LINES)
         self.assertEqual(sum(1 for line in lines if re.match(r"job step \d+: FAIL", line)), 40)
         self.assertEqual(lines[-1], "summary")
-        self.assertEqual(lines[1], "  its last 30 of 201 lines:")
+        self.assertEqual(lines[1:4], ["  its first 1 of 1 error lines, before its tail:", "  ! 2: a.cpp:1:1: error: x",
+                                      "  its last 30 of 202 lines:"])
+        self.assertIn("  its last 23 of 202 lines:", lines)
+
+    def test_first_errors(self):
+        """A compile's first errors far before its tail, as a libc++
+        build's: each with its line in the log, before the last 30 lines."""
+        program = ("print('FAILED: a.o'); print('a.cpp:458:10: error: no member named jthread'); "
+                   "[print('note', i) for i in range(100)]; print('b.cpp:362:5: error: too long'); "
+                   "[print('line', i) for i in range(200)]; print('ninja: build stopped: subcommand failed.')")
+        counts, lines = self.steps([2], program=program)
+        self.assertEqual(lines[1:5], ["  its first 3 of 3 error lines, before its tail:", "  ! 2: FAILED: a.o",
+                                      "  ! 3: a.cpp:458:10: error: no member named jthread",
+                                      "  ! 104: b.cpp:362:5: error: too long"])
+        self.assertEqual(lines[5], "  its last 30 of 305 lines:")
+        self.assertEqual(len(lines), 37)
+
+    def test_error_lines(self):
+        """An error line of each tool; and lines that are not."""
+        found = ["a.cpp(3): error C2065: 'x': undeclared identifier", "a.obj : error LNK2019: unresolved external",
+                 "LINK : fatal error LNK1120: 1 unresolved externals", "a.cpp(4): warning C4100: unused",
+                 "a.cpp:3:1: error: unused variable 'x' [-Werror,-Wunused-variable]", "collect2: error: ld returned 1",
+                 "CMake Error at CMakeLists.txt:3 (message):", "FAILED: src/a.o",
+                 "  5/40 Test  #5: unit.store ...***Failed  0.2 sec", "1/2 Test #1: a ...***Exception: SegFault",
+                 "The following tests FAILED:", "Traceback (most recent call last):", "AssertionError: 1 != 2",
+                 "FAIL: test_tail (tests.drive.test_loop.Answer.test_tail)", "ERROR: test_x (a.B.test_x)",
+                 "==7==WARNING: MemorySanitizer: use-of-uninitialized-value"]
+        passed = ["cl /WX -Werror a.cpp", "100% tests passed, 0 tests failed out of 4", "a.cpp:3:1: warning: unused",
+                  "  1/40 Test  #1: unit.a ......   Passed    0.1 sec", "-- Configuring done", "error count 0"]
+        self.assertEqual([t for t in found if not LOOP.ERROR_LINE.search(t)], [])
+        self.assertEqual([t for t in passed if LOOP.ERROR_LINE.search(t)], [])
 
     def test_skip(self):
         steps = [LOOP.Step("configure", ("x",), "build", after=None), LOOP.Step("build", ("x",), "build",

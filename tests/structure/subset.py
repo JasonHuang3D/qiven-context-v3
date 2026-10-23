@@ -17,7 +17,7 @@ text's and then the tokens' own:
 - B21: a C-style cast, and a pun by static_cast through void*;
 - B22: a C variadic function's declaration or call, which tokens cannot tell
   from a pack or a fold; the tokens read SQLite's own variadic functions'
-  calls by name, so that store/sqlite calls sqlite3_config alone;
+  calls by name, so that store/engine/ calls sqlite3_config alone;
 - B23: a union's member read; B24: a library's own threads; a test's
   std::thread passes when a join is called in its block, whichever thread
   it joins;
@@ -46,7 +46,7 @@ C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_
 B20_NAMES = frozenset(("construct_at", "destroy_at"))
 B21_NAMES = frozenset(("reinterpret_cast", "const_cast"))
 B22_NAMES = frozenset(("va_list", "va_start", "va_arg", "va_copy", "va_end"))
-# SQLite's variadic functions, called by name: sqlite3_config is store/sqlite's alone.
+# SQLite's variadic functions, called by name: sqlite3_config is store/engine/'s alone.
 SQLITE_VARIADIC = frozenset(("sqlite3_config", "sqlite3_db_config", "sqlite3_vtab_config", "sqlite3_mprintf",
                              "sqlite3_snprintf", "sqlite3_str_appendf", "sqlite3_log", "sqlite3_test_control"))
 B24_NAMES = frozenset(("CreateThread", "_beginthread", "_beginthreadex", "pthread_create"))
@@ -85,7 +85,7 @@ ALLOWED = {
 # sqlite3_config variadic, the one place its interface needs varargs. B28:
 # the borrowing types, each with its lifetime rule.
 CELLS = {
-    ("B22", "src/store/sqlite.", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
+    ("B22", "src/store/engine/", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
     ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",

@@ -72,7 +72,12 @@ the debugger cases under gdb. macOS stays with CI alone.
   or give it by the environment.
 
 The answer is plain text: a line a tree and a step with its outcome and
-seconds, a failing step's last 30 lines, at most 100 lines in all. Exit 0
+seconds; for a failing step, its first error lines before its last 30,
+up to 10, each with its line number in the log (a compiler's, a linker's
+or clang-tidy's error, MSVC's warning, an error under /WX, ninja's failed
+edge, CMake's error, ctest's failed tests, a Python traceback and its
+exception, unittest's FAIL and ERROR, a sanitizer's report), then its
+last 30 lines; at most 100 lines in all. Exit 0
 when every step passed, 1 when a step failed, 2 when the loop could not
 run (a tool missing, a pin off, WSL absent, a bad argument).
 
@@ -112,8 +117,9 @@ WINDOWS = load("loop_windows.py", GIVEN)
 LINUX = load("loop_linux.py", GIVEN)
 
 ROOT = RUN["ROOT"]
-CannotRun, Report, LINES, TAIL, chosen, run_steps, own_tree, drive = (
-    RUN[k] for k in ("CannotRun", "Report", "LINES", "TAIL", "chosen", "run_steps", "own_tree", "drive"))
+CannotRun, Report, LINES, TAIL, FIRST, ERROR_LINE, chosen, run_steps, own_tree, drive = (
+    RUN[k] for k in ("CannotRun", "Report", "LINES", "TAIL", "FIRST", "ERROR_LINE", "chosen", "run_steps",
+                     "own_tree", "drive"))
 JOBS, LOCAL, LOCAL_STEPS, TREES, ENV, CLEAN, LINUX_SHELL, Step = (
     TABLE[k] for k in ("JOBS", "LOCAL", "LOCAL_STEPS", "TREES", "ENV", "CLEAN", "LINUX_SHELL", "Step"))
 WAYS, plan, local_argv, binary_dirs = (TIERS[k] for k in ("WAYS", "plan", "local_argv", "binary_dirs"))

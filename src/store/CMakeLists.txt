@@ -1,13 +1,18 @@
 # qiven3_store: the store, the one target that links qiven3_sqlite: its
 # contract, its typed errors, the engine's result codes mapped to them,
 # stage, the shared validator's two parts as each store calls them, the
-# in-memory reference store, and the SQLite store: sqlite.cpp alone
-# includes the engine's header and makes its every call; sqlite_open.cpp
-# runs the open steps through its wrapper, sqlite_write.cpp the writes,
-# sqlite_read.cpp the reads.
+# in-memory reference store, and the SQLite store: engine/, a directory
+# of its own with its own analysis configuration, holds the engine's
+# calls, engine/sqlite.cpp alone including the engine's header and making
+# its every call; sqlite_open.cpp runs the open steps through its wrapper,
+# sqlite_write.cpp the writes, sqlite_read.cpp the reads; sizes/, a
+# directory of its own for its analysis configuration too, reads a file's
+# size.
 add_library(qiven3_store STATIC
   codes.hpp
   contract.hpp
+  engine/sqlite.cpp
+  engine/sqlite.hpp
   errors.cpp
   errors.hpp
   memory.hpp
@@ -15,8 +20,7 @@ add_library(qiven3_store STATIC
   memory_exchange.hpp
   memory_state.cpp
   memory_state.hpp
-  sqlite.cpp
-  sqlite.hpp
+  sizes/sizes.cpp
   sqlite_open.cpp
   sqlite_read.cpp
   sqlite_store.hpp

@@ -60,8 +60,8 @@
 #include "qiven3/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
+#include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
-#include "store/sqlite.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::store {

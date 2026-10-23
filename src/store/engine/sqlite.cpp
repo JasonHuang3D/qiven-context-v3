@@ -3,7 +3,7 @@
 // Statement, and the mapping of every failing call by its extended code
 // (sqlite.hpp).
 
-#include "store/sqlite.hpp"
+#include "store/engine/sqlite.hpp"
 
 #include <algorithm>
 #include <array>

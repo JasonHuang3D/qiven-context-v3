@@ -15,8 +15,8 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
+#include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
-#include "store/sqlite.hpp"
 
 namespace qiven3::store::sqlite {
 

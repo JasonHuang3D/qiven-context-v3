@@ -1,10 +1,10 @@
-// sqlite: the open steps, run through the connection wrapper (sqlite.hpp):
-// the checkout walk and the file's presence, read through the standard
-// library's file system reads; then identify, the settings, create's
-// schema and its TRUNCATE checkpoint, the write probe and coherence; a
-// create refused at any of them removes its files, through the wrapper's
-// remove_file. This file names nothing of the engine's own: every call is
-// the wrapper's.
+// sqlite: the open steps, run through the connection wrapper
+// (engine/sqlite.hpp): the checkout walk and the file's presence, read
+// through the standard library's file system reads (a file's size by
+// sizes/); then identify, the settings, create's schema and its TRUNCATE
+// checkpoint, the write probe and coherence; a create refused at any of
+// them removes its files, through the wrapper's remove_file. This file
+// names nothing of the engine's own: every call is the wrapper's.
 
 #include <array>
 #include <cstddef>
@@ -16,8 +16,8 @@
 #include <system_error>
 
 #include "store/codes.hpp"
+#include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
-#include "store/sqlite.hpp"
 
 namespace qiven3::store::sqlite {
 
@@ -160,23 +160,6 @@ void read_meta(Connection& c, Opened& opened, const WhereView& at) {
 
 }  // namespace
 
-std::optional<std::uint64_t> file_bytes(std::string_view path, std::string_view suffix) {
-    std::u8string text;
-    for (const char c : path) {
-        text.push_back(static_cast<char8_t>(c));
-    }
-    for (const char c : suffix) {
-        text.push_back(static_cast<char8_t>(c));
-    }
-    std::error_code error;
-    const fs::path p(text);
-    if (!fs::is_regular_file(fs::status(p, error))) {
-        return std::nullopt;
-    }
-    const std::uintmax_t size = fs::file_size(p, error);
-    return error ? std::nullopt : std::optional<std::uint64_t>(size);
-}
-
 // Walked by directory_of, lexically, on the UTF-8 text: the standard
 // library's path decomposition reaches names core does not call.
 bool in_checkout(std::string_view path) {
@@ -208,11 +191,9 @@ void presence(std::string_view path, bool create, const WhereView& at) {
     if (!there) {
         throw StoreError(Code::missing, at.operation, at.path);
     }
-    if (fs::is_regular_file(status)) {
-        const std::uintmax_t size = fs::file_size(p, error);
-        if (!error && size == 0) {
-            throw StoreError::corrupt(at.operation, at.path, Corrupt::corrupt, "0 bytes: a truncation");
-        }
+    // The size read in sizes/ (file_bytes): none for a file not regular.
+    if (file_bytes(path) == std::optional<std::uint64_t>(0)) {
+        throw StoreError::corrupt(at.operation, at.path, Corrupt::corrupt, "0 bytes: a truncation");
     }
 }
 

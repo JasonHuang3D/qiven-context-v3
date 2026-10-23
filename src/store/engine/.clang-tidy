@@ -1,0 +1,8 @@
+# The engine's own directory, on its parent's: the engine's configuration
+# call is variadic in its interface, the one call B22 allows, made in
+# sqlite.cpp alone (the structure tests' tokens hold every other file to
+# none of SQLite's variadic functions); every other file of the store is
+# held to none by its parent's configuration.
+InheritParentConfig: true
+Checks: >-
+  -cppcoreguidelines-pro-type-vararg

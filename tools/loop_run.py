@@ -25,7 +25,17 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 LINES = 100
 TAIL = 30
+FIRST = 10  # a failing step's first error lines before its tail, at most
 WIDTH = 400  # a tail line's characters at most
+# An error line, by its tool: a compiler's, a linker's or clang-tidy's
+# "error:" (clang, gcc, ld, collect2) or "error C2065:", "error LNK2019:"
+# (MSVC, "fatal error" too), and MSVC's "warning C4100:", an error under
+# /WX, as are its /analyze findings; ninja's failed edge; CMake's; ctest's
+# failed, crashed or timed out test and its list; a Python traceback, its
+# exception's line and unittest's failed or erring test; a sanitizer's
+# report.
+ERROR_LINE = re.compile(r"\berror( [A-Z]+\d+)?:|\bwarning C\d+:|^FAILED: |CMake Error|\*\*\*(Failed|Exception|Timeout)"
+                        r"|tests FAILED|^Traceback |^[\w.]*(Error|Exception): |^(FAIL|ERROR): |Sanitizer:")
 STEP_TIMEOUT = 45 * 60  # CI's job limit
 TREE_MARK = ".qiven3-loop-job"
 KEEP = ("fuzz/*/corpus",)  # kept through emptying, relative to the tree
@@ -62,18 +72,29 @@ class Report:
         print(text[:WIDTH], flush=True)
 
     def tail(self, log):
-        """A failing log's last lines, as many of TAIL as leave room."""
-        room = min(TAIL, self.left - self.planned - 1)
-        if room <= 0:
+        """A failing log's first error lines before its tail, as many of
+        FIRST as leave room, then its last lines, as many of TAIL as leave
+        room: each part under its own line, the error lines' first."""
+        room = self.left - self.planned  # this failure's lines, its parts' own lines included
+        if room <= 1:
             return
         try:
             lines = log.read_bytes().decode("utf-8", "replace").splitlines()
         except OSError as e:
             self.line(f"  (the log cannot be read: {e})")
             return
-        shown = lines[-room:]
-        self.line(f"  its last {len(shown)} of {len(lines)} lines:")
-        for text in shown:
+        # the first line, the command run_steps wrote, apart
+        errors = [i for i, text in enumerate(lines) if i and ERROR_LINE.search(text)]
+        size = min(TAIL, room - 1, len(lines))
+        first = min(FIRST, sum(1 for i in errors if i < len(lines) - size), room - 3)
+        if first > 0:
+            size = min(size, room - first - 2)
+            shown = [i for i in errors if i < len(lines) - size][:first]
+            self.line(f"  its first {len(shown)} of {len(errors)} error lines, before its tail:")
+            for i in shown:
+                self.line(f"  ! {i + 1}: {lines[i]}")
+        self.line(f"  its last {size} of {len(lines)} lines:")
+        for text in lines[len(lines) - size:]:
             self.line("  | " + text)
 
 

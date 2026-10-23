@@ -33,8 +33,8 @@ add_library(qiven3_platform_win STATIC src/platform/win/windows.cpp src/platform
 target_link_libraries(qiven3_platform_win PUBLIC qiven3_platform PRIVATE kernel32)
 add_library(qiven3_sqlite STATIC third_party/sqlite/sqlite3.c)
 add_library(qiven3_forget STATIC src/forget/system.cpp)
-add_library(qiven3_store STATIC src/store/sqlite.cpp src/store/hal_include.cpp src/store/rev_parse.cpp
-  src/store/forget_include.cpp src/store/create_process.cpp)
+add_library(qiven3_store STATIC src/store/engine/sqlite.cpp src/store/sqlite_open.cpp src/store/hal_include.cpp
+  src/store/rev_parse.cpp src/store/forget_include.cpp src/store/create_process.cpp)
 target_link_libraries(qiven3_store PUBLIC qiven3_platform qiven3_sqlite qiven3_forget)
 file(GLOB entry_sources CONFIGURE_DEPENDS src/entry/*.cpp)
 list(REMOVE_ITEM entry_sources "${CMAKE_SOURCE_DIR}/src/entry/secret.cpp")
@@ -83,8 +83,10 @@ PLANTS = {
     "src/forget/forget.hpp": "#pragma once\nint forget_plan();\n",
     "src/forget/system.cpp": "#include <cstdlib>\n#include \"forget/forget.hpp\"\n"
         "int forget_plan() { return std::system(\"x\"); }\n",
-    "src/store/sqlite.cpp": "#include \"sqlite3.h\"\nint store_version() "
+    "src/store/engine/sqlite.cpp": "#include \"sqlite3.h\"\nint store_version() "
         "{ return sqlite3_libversion_number() + sqlite3_config(1); }\n",
+    # A store file beside the engine's directory, outside it.
+    "src/store/sqlite_open.cpp": "#include \"sqlite3.h\"\nint store_open() { return sqlite3_libversion_number(); }\n",
     "src/store/hal_include.cpp": "#include \"hal/hal.hpp\"\nint store_devices() { return qiven3::hal::devices(); }\n",
     "src/store/rev_parse.cpp": "const char* store_rev() { return \"rev-parse\"; }\n",
     "src/store/forget_include.cpp": "#include \"forget/forget.hpp\"\nint store_forget() { return forget_plan(); }\n",
@@ -198,7 +200,8 @@ PLANTS.update({f"src/entry/crt_{n.lstrip('_')}.cpp": DLLIMPORT + f"int __cdecl {
 # Each plant's finding, (rule, file or target, kind), the kind B17's.
 PLANTED = [
     ("B1", "src/entry/sqlite_include.cpp", ""), ("B1", "tests/unit/sqlite_text_test.cpp", ""),
-    ("B1", "qiven3_entry", ""),
+    ("B1", "qiven3_entry", ""), ("B1", "src/store/sqlite_open.cpp", ""),
+    ("B17", "src/store/sqlite_open.cpp", "include"),
     ("B2", "src/entry/git.cpp", ""), ("B2", "src/store/rev_parse.cpp", ""),
     ("B2", "src/store/create_process.cpp", ""),
     ("B5", "src/entry/windows_include.cpp", ""), ("B5", "qiven3_location", ""),
@@ -235,7 +238,7 @@ PLANTED = [
 CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
     "src/platform/win/process.cpp", "src/platform/win/windows.cpp", "src/qiven3/mapcheck.cpp",
-    "third_party/sqlite/sqlite3.c", "src/store/sqlite.cpp", "tests/support/goldens/goldens.cpp",
+    "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp", "tests/support/goldens/goldens.cpp",
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
@@ -266,7 +269,8 @@ SUBSET_PLANTS = {
         "inline int entry_config() { return sqlite3_config(1); }\ninline int entry_first(int n, ...) {\n"
         "    va_list args;\n    va_start(args, n);\n    int v = va_arg(args, int);\n    va_end(args);\n"
         "    return v;\n}\n",
-    "src/store/sqlite.hpp": "#pragma once\ninline int store_db(void* db) { return sqlite3_db_config(db, 1); }\n",
+    "src/store/engine/sqlite.hpp": "#pragma once\ninline int store_db(void* db) { return sqlite3_db_config(db, 1); }\n",
+    "src/store/sqlite_config.hpp": "#pragma once\ninline int store_config() { return sqlite3_config(1); }\n",
     "src/entry/union.hpp": "#pragma once\nunion EntryBits { float f; unsigned u; };\n",
     "src/entry/thread.hpp": "#pragma once\n#include <thread>\n"
         "inline void entry_spawn() { std::thread t([] {}); t.detach(); }\n",
@@ -351,7 +355,8 @@ SUBSET_PLANTED = [
     ("B19", "tests/support/plant/support_new.hpp", "new"),
     ("B20", "src/entry/placement.hpp", "placement"), ("B20", "src/entry/placement.hpp", "construct"),
     ("B21", "src/entry/casts.hpp", ""), ("B22", "src/entry/varargs.hpp", ""), ("B23", "src/entry/union.hpp", ""),
-    ("B22", "src/entry/varargs.hpp", "call"), ("B22", "src/store/sqlite.hpp", "call"),
+    ("B22", "src/entry/varargs.hpp", "call"), ("B22", "src/store/engine/sqlite.hpp", "call"),
+    ("B22", "src/store/sqlite_config.hpp", "call"),
     ("B24", "src/entry/thread.hpp", "detach"), ("B24", "src/entry/thread.hpp", "thread"),
     ("B24", "src/entry/joined.hpp", "thread"), ("B24", "tests/support/plant/unjoined.hpp", "thread"),
     ("B25", "src/entry/globals.hpp", "thread_local"), ("B25", "src/entry/globals.hpp", "object"),

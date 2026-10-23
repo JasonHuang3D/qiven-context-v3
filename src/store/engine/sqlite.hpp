@@ -5,9 +5,12 @@
 // holds every call into the engine: this header declares the engine's two
 // handle types by name and nothing else of it, so a module that runs
 // statements through the wrapper (exchange) neither includes the header
-// nor names the engine (B1). sqlite_open.cpp holds the open steps, through
-// the wrapper, sqlite_write.cpp the writes, sqlite_read.cpp the reads;
-// sqlite_store.hpp the store itself, a template on the platform.
+// nor names the engine (B1). The two sit in engine/, the store's one
+// directory where the engine is named, whose analysis configuration lets
+// the engine's variadic configuration call pass (B22). In the store's own
+// directory, sqlite_open.cpp holds the open steps, through the wrapper,
+// sqlite_write.cpp the writes, sqlite_read.cpp the reads; sqlite_store.hpp
+// the store itself, a template on the platform.
 //
 // EngineHeap is the process's one engine heap: made over pages its maker
 // takes, it routes every allocation of the engine to a memory::Heap
@@ -308,7 +311,8 @@ void probe(Connection& c, const WhereView& at);
                                  Opened& opened);
 
 // A file's size in bytes, the path's UTF-8 bytes and a suffix after them
-// ("-wal", "-shm"); none when absent or unreadable.
+// ("-wal", "-shm"); none when absent, not a regular file or unreadable
+// (sizes/sizes.cpp).
 [[nodiscard]] std::optional<std::uint64_t> file_bytes(std::string_view path, std::string_view suffix = {});
 
 // The writes (sqlite_write.cpp), through the wrapper.

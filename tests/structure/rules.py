@@ -102,7 +102,7 @@ PLATFORM_WRITES = frozenset(("replace", "stage", "create", "lock"))
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
-    "B1": ("src/store/sqlite.", "third_party/sqlite/", "qiven3_store"),
+    "B1": ("src/store/engine/", "third_party/sqlite/", "qiven3_store"),
     "B2": ("src/platform/win/process.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.",
            "tests/machine/test_mapcheck", "tests/machine/mapcheck"),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
@@ -425,7 +425,7 @@ def direct_include(by, path, kind, name, out):
             ok = name in B17_HEADERS
         elif kind == "v3":
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
-                  or (rel.endswith("/sqlite3.h") and by.startswith("src/store/sqlite."))
+                  or (rel.endswith("/sqlite3.h") and by.startswith("src/store/engine/"))
                   or (rel.startswith(("src/", "tests/")) and not rel.startswith(("src/platform/", "src/hal/"))))
         else:
             ok = False
