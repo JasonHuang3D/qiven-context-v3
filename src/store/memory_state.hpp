@@ -32,12 +32,16 @@
 // Allocations. The state's on its heap: an entry's line, record and
 // content digest, three; the ids' and a lane's room as they grow; a lane's
 // scope and name, two. A view's on its allocator: header canon's four and
-// one; body one where the buffer is short; cleared, per direction record,
-// its members' headers, the directions' contents and the fold's work.
+// one; body one where the buffer is short; cleared, per direction root,
+// its members' room and headers, the directions' contents and the fold's
+// work, on the view's scratch where given, each root's given back before
+// the next (the peak one record's, whatever the records held), else on
+// its allocator.
 // Platform calls: none (the pages are the maker's).
 //
 // thread: shared; State's mutex guards its data. Locked and StateView, one.
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -52,6 +56,7 @@
 
 #include "entry/header.hpp"
 #include "entry/validator.hpp"
+#include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
 #include "store/contract.hpp"
@@ -283,11 +288,53 @@ private:
     std::uint64_t forgets_ = 0;
 };
 
+// The failing countdown under QIVEN3_FAULTS; elsewhere a type never made.
+#if defined(QIVEN3_FAULTS)
+using Countdown = memory::Countdown;
+#else
+struct Countdown {};
+#endif
+
+// An arena asks the countdown first, where one is given.
+inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
+#if defined(QIVEN3_FAULTS)
+    if (countdown != nullptr) {
+        arena.attach(countdown);
+    }
+#endif
+}
+
+// check's scratch, then the clearing's: at each call a fresh arena over
+// the same pages, the last one's blocks all given back.
+class ScratchView {
+public:
+    ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
+    memory::Arena& operator()() {
+        if (arena_) {
+            peak_ = std::max(peak_, arena_->peak());
+        }
+        arena_.reset();
+        arena_.emplace(pages_);
+        hook(*arena_, countdown_);
+        return *arena_;
+    }
+    // The greatest high-water mark of its arenas so far.
+    [[nodiscard]] std::size_t peak() const noexcept { return std::max(peak_, arena_ ? arena_->peak() : 0); }
+
+private:
+    std::span<std::byte> pages_;
+    std::optional<memory::Arena> arena_;
+    Countdown* countdown_;
+    std::size_t peak_ = 0;
+};
+
 // Part 2's view over the data, while the lock is held.
 class StateView {
 public:
-    StateView(Data& data, const Chars& allocator, Operation op, std::string_view path) noexcept
-        : data_(&data), allocator_(allocator), path_(path), op_(op) {}
+    // scratch: where given, cleared's work, afresh for each direction root.
+    StateView(Data& data, const Chars& allocator, Operation op, std::string_view path,
+              ScratchView* scratch = nullptr) noexcept
+        : data_(&data), allocator_(allocator), path_(path), op_(op), scratch_(scratch) {}
 
     [[nodiscard]] std::optional<Head> head(std::string_view scope, std::string_view lane);
     bool header(std::string_view id, Header& out);
@@ -301,14 +348,16 @@ public:
     [[nodiscard]] std::uint64_t count() const noexcept { return data_->count; }
 
 private:
-    // Whether direction record r clears a content for a pattern at at.
-    bool clears(std::uint32_t root, std::span<const std::uint32_t> scope, std::string_view content,
-                std::string_view pattern, std::string_view at);
+    // Whether direction record root clears a content for a pattern at at:
+    // its work on a fresh scratch arena, else on the view's allocator.
+    bool clears(std::uint32_t root, std::string_view scope, std::string_view content, std::string_view pattern,
+                std::string_view at);
 
     Data* data_;
     Chars allocator_;
     std::string_view path_;
     Operation op_;
+    ScratchView* scratch_;
 };
 
 // The pinned sizes, on x64 with MSVC's library in its release layout.

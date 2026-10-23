@@ -19,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <span>
@@ -505,9 +506,58 @@ QIVEN3_CASE(store_memory, cleared) {
     CHECK_EQ(erased.size(), 1U);
     CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
 
+    // The other clearing revised for aws-akia, then for sk-key again: its
+    // last revision stands, the hit refused.
+    std::vector<Stored> revised = {
+        clearing(book, content, "aws-akia", &gone[0], &other[0], 4, "2026-10-17T11:10:00.000Z")};
+    revised.push_back(clearing(book, content, "sk-key", &revised[0], &other[0], 5, "2026-10-17T11:20:00.000Z"));
+    const std::vector<EntryView> revised_lines = views(revised);
+    CHECK_EQ(raised([&] { (void)store.append(qiven_scope, reviewer_lane, id_of(gone[0]), revised_lines); }),
+             std::string("none"));
+    CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
+
     // On the imported state, cleared: admitted; then, its content held,
     // refused.
     CHECK_EQ(admit(into, std::nullopt), std::string("none"));
     CHECK_EQ(into.verify().entries, 3U);
     CHECK_EQ(admit(into, id_of(hit[0])), std::string("EntryInvalid secret"));
+}
+
+// F138's clearing over many direction records: each root's work given back
+// before the next, the append's counted peak the same for 4 records held
+// as for 16, within its budget.
+QIVEN3_CASE(store_memory, cleared_many) {
+    const auto rig = std::make_unique<Rig>();
+    const Book& book = rig->book;
+    const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
+                                               [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
+    const std::vector<EntryView> hit_lines = views(hit);
+    const std::string content = content_of(hit[0]);
+    // n records on reviewer's lane, n - 1 roots clearing sk-key, then a
+    // revision of the last root clearing aws-akia: every root folded, the
+    // last with its revision, before the hit passes.
+    const auto peak_with = [&](std::size_t n, auto& state) {
+        Store store(state, rig->fake);
+        std::vector<Stored> records;
+        records.reserve(n);
+        for (std::size_t i = 0; i < n; ++i) {
+            const std::string at = "2026-10-17T09:" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ":00.000Z";
+            const Stored* parent = records.empty() ? nullptr : &records.back();
+            const bool last = i + 1 == n;
+            records.push_back(clearing(book, content, last ? "aws-akia" : "sk-key", parent,
+                                       last ? parent : nullptr, static_cast<std::int64_t>(i + 1), at));
+        }
+        const std::vector<EntryView> lines = views(records);
+        CHECK_EQ(raised([&] { (void)store.append(qiven_scope, reviewer_lane, std::nullopt, lines); }),
+                 std::string("none"));
+        CHECK_EQ(raised([&] { (void)store.append(qiven_scope, implementer_lane, std::nullopt, hit_lines); }),
+                 std::string("none"));
+        return store.peak();
+    };
+    const std::size_t four = peak_with(4, rig->state);
+    const std::size_t sixteen = peak_with(16, rig->state2);
+    std::cout << "store_memory.cleared_many: append " << four << " bytes counted with 4 records, " << sixteen
+              << " with 16, of " << qiven3::store::state::budget_of(hit_lines) << '\n';
+    CHECK_EQ(four, sixteen);
+    CHECK(sixteen <= qiven3::store::state::budget_of(hit_lines));
 }

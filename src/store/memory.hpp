@@ -22,7 +22,8 @@
 // plus 4 times the lines given: the object's own 1 MiB for an operation
 // given none, else pages the call takes. At append and forget the pages
 // split in two halves, the arena check keeps its entries on, and check's
-// scratch, afresh for each line. Import and verify run on the object's own;
+// scratch, afresh for each line, then admit's clearing's, afresh for each
+// direction root. Import and verify run on the object's own;
 // an export's lines go to the caller's arena. Each operation's peak is its
 // arenas' high-water marks summed, peak() the last one's; the state's heap
 // is the store's, as SQLite's files are.
@@ -204,7 +205,7 @@ public:
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
-        state::StateView view(d, chars, op, {});
+        state::StateView view(d, chars, op, {}, &scratch);
         const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, state_->limits(), at, chars);
         state::Batch batch(d);
         for (std::size_t i = 0; i < entries.size(); ++i) {
@@ -295,7 +296,7 @@ public:
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::guard(d, guard);
-        state::StateView view(d, chars, op, {});
+        state::StateView view(d, chars, op, {}, &scratch);
         const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, state_->limits(), at, chars);
         Vector<std::uint32_t> targets(chars);
         targets.reserve(entries.size());

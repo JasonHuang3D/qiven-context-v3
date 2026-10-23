@@ -323,41 +323,46 @@ bool StateView::holds_content(std::string_view content) {
 bool StateView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,
                         std::string_view at) {
     const Data& d = *data_;
-    Vector<std::uint32_t> mine(allocator_);
     for (const Lane& l : d.lanes) {
-        if (std::string_view(l.scope) == scope) {
-            mine.insert(mine.end(), l.ids.begin(), l.ids.end());
+        if (std::string_view(l.scope) != scope) {
+            continue;
         }
-    }
-    for (const std::uint32_t r : mine) {
-        const Held& e = d.held[r];
-        if (e.direction && e.target == none && clears(r, mine, content, pattern, at)) {
-            return true;
+        for (const std::uint32_t r : l.ids) {
+            const Held& e = d.held[r];
+            if (e.direction && e.target == none && clears(r, scope, content, pattern, at)) {
+                return true;
+            }
         }
     }
     return false;
 }
 
-bool StateView::clears(std::uint32_t root, std::span<const std::uint32_t> scope, std::string_view content,
+bool StateView::clears(std::uint32_t root, std::string_view scope, std::string_view content,
                        std::string_view pattern, std::string_view at) {
     const Data& d = *data_;
-    Vector<std::uint32_t> members(allocator_);
+    const Chars work = scratch_ != nullptr ? Chars((*scratch_)()) : allocator_;
+    Vector<std::uint32_t> members(work);
     members.push_back(root);
-    for (const std::uint32_t m : scope) {
-        if (m != root && root_of(d, m) == root) {
-            members.push_back(m);
+    for (const Lane& l : d.lanes) {
+        if (std::string_view(l.scope) != scope) {
+            continue;
+        }
+        for (const std::uint32_t m : l.ids) {
+            if (m != root && root_of(d, m) == root) {
+                members.push_back(m);
+            }
         }
     }
-    Vector<Header> heads(allocator_);
-    Vector<canon::Basic<Chars>> values(allocator_);
-    Vector<fold::ItemView> items(allocator_);
+    Vector<Header> heads(work);
+    Vector<canon::Basic<Chars>> values(work);
+    Vector<fold::ItemView> items(work);
     heads.reserve(members.size());
     values.reserve(members.size());
     items.reserve(members.size());
     for (const std::uint32_t m : members) {
         const Held& e = d.held[m];
-        heads.push_back(read_header(e, op_, path_, allocator_));
-        values.emplace_back(allocator_);
+        heads.push_back(read_header(e, op_, path_, work));
+        values.emplace_back(work);
         if (e.direction && e.has_body) {
             try {
                 canon::parse(entry::body::detail::parts(std::string_view(e.body)).content, values.back());
@@ -370,7 +375,7 @@ bool StateView::clears(std::uint32_t root, std::span<const std::uint32_t> scope,
     fold::order(std::span<fold::ItemView>(items).subspan(1));
     fold::State s;
     try {
-        s = fold::fold(std::span<const fold::ItemView>(items), at, allocator_);
+        s = fold::fold(std::span<const fold::ItemView>(items), at, work);
     } catch (const fold::FoldError&) {
         incoherent(op_, path_, "a direction record the fold refuses");
     }

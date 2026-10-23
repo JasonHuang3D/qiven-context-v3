@@ -72,46 +72,6 @@
 
 namespace qiven3::store::state {
 
-// The failing countdown under QIVEN3_FAULTS; elsewhere a type never made.
-#if defined(QIVEN3_FAULTS)
-using Countdown = memory::Countdown;
-#else
-struct Countdown {};
-#endif
-
-// An arena asks the countdown first, where one is given.
-inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
-#if defined(QIVEN3_FAULTS)
-    if (countdown != nullptr) {
-        arena.attach(countdown);
-    }
-#endif
-}
-
-// check's scratch: at each call a fresh arena over the same pages, the
-// last one's blocks all given back.
-class ScratchView {
-public:
-    ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
-    memory::Arena& operator()() {
-        if (arena_) {
-            peak_ = std::max(peak_, arena_->peak());
-        }
-        arena_.reset();
-        arena_.emplace(pages_);
-        hook(*arena_, countdown_);
-        return *arena_;
-    }
-    // The greatest high-water mark of its arenas so far.
-    [[nodiscard]] std::size_t peak() const noexcept { return std::max(peak_, arena_ ? arena_->peak() : 0); }
-
-private:
-    std::span<std::byte> pages_;
-    std::optional<memory::Arena> arena_;
-    Countdown* countdown_;
-    std::size_t peak_ = 0;
-};
-
 // An operation's counted peak: the high-water marks of the arenas it holds
 // at once, summed; of the fresh arenas over the same pages, the greatest.
 struct Peak {
