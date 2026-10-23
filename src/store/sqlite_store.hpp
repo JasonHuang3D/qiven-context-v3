@@ -13,24 +13,35 @@
 // file by the platform's create; then the connection, identify, the
 // settings, create's schema and TRUNCATE checkpoint, the write probe on a
 // read-write object, coherence. Errors name "open" and the resolved path.
-// A pending purge's one attempt at open is the purge's (not built yet).
+// A pending purge's one attempt at open, on a read-write object.
 //
-// Each operation runs Gate first. Built so far: open, guard, read_only,
-// limits, close (the connection closed; its purge attempt and exports'
-// close come with them). The others refuse after the gate, StoreError
-// internal "not built", until their parts are built (sqlite.cpp's writes,
-// exchange).
+// Each operation runs Gate first. append and forget: stage's check outside
+// the transaction; BEGIN IMMEDIATE (hook begun); the head; at forget the
+// guard; part 2 against WriteView, F138's clearing one direction record at
+// a time on check's scratch; at forget whole records and each target's
+// body erased; the rows, the head, meta (hook written); COMMIT (hook
+// committed); then a purge's one attempt. A failure in between rolls back.
+// purge and close: the attempt (steps a to c), which raises no engine
+// result; a read-only object attempts none. size: meta, then the figures.
+// head, heads, header, body, forgotten, scan, export, import and verify
+// still refuse after the gate, StoreError internal "not built".
 //
 // Budgets: the object's own pages, 1 MiB, taken at open; open's resolved
-// path and the synced client's name on an arena over them; the engine's
-// heap apart (Engine). Allocations at open: the resolved path's and the
-// client's strings where past their small size; the engine's on its heap;
-// the file system reads' paths (sqlite.hpp). Platform calls at open:
-// pages, resolve, synced, and at create one or two creates.
+// path and the synced client's name on an arena over them. append and
+// forget: 1 MiB plus 4 times the lines given (the object's own where they
+// hold it), halved: the kept arena (check's entries, the rows, the
+// targets, part 2's), and check's scratch, afresh for each line, then each
+// direction record's clearing. The engine's heap apart (Engine). Platform
+// calls: at open pages, resolve, synced, at create one or two creates; at
+// append and forget pages past 1 MiB, and part 1's wipes.
 //
 // thread: one, each object (Gate); Engine's heap shared.
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -44,6 +55,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite.hpp"
+#include "store/stage.hpp"
 
 namespace qiven3::store {
 
@@ -103,6 +115,8 @@ private:
 
 template <platform::Platform P, Hooks H = NoHooks>
 class SQLiteStore {
+    using Slot = entry::header::Slot;
+
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
     static constexpr Capabilities capabilities{true, true, true};
@@ -163,7 +177,7 @@ public:
     SQLiteStore(SQLiteStore&& other) noexcept
         : platform_(other.platform_), pages_(std::move(other.pages_)), gate_(other.gate_), limits_(other.limits_),
           path_(other.path_), connection_(std::move(other.connection_)), opened_(other.opened_),
-          purge_(other.purge_), hooks_(std::move(other.hooks_)) {
+          purge_(other.purge_), countdown_(other.countdown_), peak_(other.peak_), hooks_(std::move(other.hooks_)) {
         other.gate_.close();
     }
     SQLiteStore& operator=(SQLiteStore&& other) noexcept {
@@ -176,6 +190,8 @@ public:
             connection_ = std::move(other.connection_);
             opened_ = other.opened_;
             purge_ = other.purge_;
+            countdown_ = other.countdown_;
+            peak_ = other.peak_;
             hooks_ = std::move(other.hooks_);
             other.gate_.close();
         }
@@ -184,9 +200,11 @@ public:
     // The connection closed by its own end, without the gate.
     ~SQLiteStore() = default;
 
-    Written append(std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
-                   std::span<const EntryView> /*entries*/) {
-        unbuilt(Operation::append);
+    // The text's steps 1 to 7: check outside the transaction, then BEGIN
+    // IMMEDIATE, the head, part 2, the rows, COMMIT, a purge's attempt.
+    Written append(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries) {
+        return write(Operation::append, scope, lane, expected, entries, {}, nullptr);
     }
     std::optional<Head> head(std::string_view /*scope*/, std::string_view /*lane*/) { unbuilt(Operation::head); }
     Heads heads(Scopes /*scopes*/, Vector<LaneHead>& /*rows*/) { unbuilt(Operation::heads); }
@@ -194,12 +212,16 @@ public:
     bool body(std::string_view /*id*/, String& /*record*/) { unbuilt(Operation::body); }
     bool forgotten(std::string_view /*id*/) { unbuilt(Operation::forgotten); }
     sqlite::Unbuilt scan(const RangeView& /*range*/) { unbuilt(Operation::scan); }
-    Written forget(std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
-                   std::span<const EntryView> /*entries*/, std::span<const GuardView> /*guard*/,
-                   Vector<Id>& /*erased*/) {
-        unbuilt(Operation::forget);
+    // As append, with the guard, whole records and each target's body
+    // erased, its id into erased; never refused for size or count.
+    Written forget(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
+        return write(Operation::forget, scope, lane, expected, entries, guard, &erased);
     }
-    Purge purge() { unbuilt(Operation::purge); }
+    Purge purge() {
+        gate_.enter(Operation::purge, path_.view());
+        return attempt();
+    }
     sqlite::Unbuilt export_(Scopes /*scopes*/, std::span<const AfterView> /*after*/) {
         unbuilt(Operation::export_);
     }
@@ -207,16 +229,36 @@ public:
     Imported import_(R& /*source*/, Vector<LaneHead>& /*heads*/) {
         unbuilt(Operation::import_);
     }
-    Sizes size() { unbuilt(Operation::size); }
+    // meta's size and count against the limits; the engine's figures and
+    // the files' sizes.
+    Sizes size() {
+        gate_.enter(Operation::size, path_.view());
+        const WhereView where = sqlite::site(name(Operation::size), path_.view());
+        const sqlite::Totals t = sqlite::totals(connection_, where);
+        Sizes s;
+        s.volume = measure(static_cast<std::uint64_t>(t.size), static_cast<std::uint64_t>(t.count), limits_);
+        sqlite::figures(connection_, s, where);
+        return s;
+    }
     Counts verify() { unbuilt(Operation::verify); }
 
-    // The gate, then the connection closed. Its purge attempt and its
-    // exports' close come with them.
+    // The gate, a purge's attempt on a read-write object, the connection
+    // closed, whatever the attempt raised. Its exports' close is exchange's.
     Purge close() {
         gate_.enter(Operation::close, path_.view());
+        Purge p;
+        try {
+            if (!gate_.read_only()) {
+                p = attempt();
+            }
+        } catch (...) {
+            gate_.close();
+            connection_.close();
+            throw;
+        }
         gate_.close();
         connection_.close();
-        return Purge{};
+        return p;
     }
 
     [[nodiscard]] bool read_only() const noexcept { return gate_.read_only(); }
@@ -228,6 +270,13 @@ public:
     [[nodiscard]] Purge opened_purge() const noexcept { return purge_; }
     // The connection, for the store's own modules (exchange) and cases.
     [[nodiscard]] sqlite::Connection& connection() noexcept { return connection_; }
+    // The counted peak of the last append or forget that returned: its
+    // arenas' high-water marks summed.
+    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
+#if defined(QIVEN3_FAULTS)
+    // Each arena of an operation asks countdown first.
+    void attach(sqlite::Countdown* countdown) noexcept { countdown_ = countdown; }
+#endif
 
 private:
     SQLiteStore(P& platform, bool read_only, const Limits& limits, H hooks)
@@ -272,8 +321,177 @@ private:
         }
     }
 
-    // The pending purge's one attempt at open: the purge's part.
-    Purge attempt() { unbuilt(Operation::purge); }
+    // append's and forget's steps; erased given at forget alone.
+    Written write(Operation op, std::string_view scope, std::string_view lane, Expected expected,
+                  std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>* erased) {
+        gate_.enter(op, path_.view());
+        std::optional<Pages> extra;
+        const std::span<std::byte> span = room(entries, extra);
+        const std::size_t half = span.size() / 2;
+        memory::Arena kept(span.first(span.size() - half));
+        hook(kept);
+        sqlite::ScratchView scratch(span.subspan(span.size() - half), countdown_);
+        const sqlite::Chars chars(kept);
+        const stage::AtView at{op, path_.view()};
+        const stage::Checked<P> checked = stage::check(*platform_, entries, at, chars, scratch);
+        Vector<sqlite::RowView> rows(chars);
+        Vector<Id> targets(chars);
+        rows.reserve(entries.size());
+        targets.reserve(erased != nullptr ? entries.size() : 0);
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            const Header& h = checked.entries[i].header();
+            rows.push_back(sqlite::RowView{h.value(Slot::id), h.value(Slot::scope), h.value(Slot::lane),
+                                           h.value(Slot::kind), h.text(Slot::parent), h.text(Slot::target), h.seq(),
+                                           entries[i].line, entries[i].body});
+            if (erased != nullptr) {
+                targets.push_back(Id::of(h.value(Slot::target)));
+            }
+        }
+        WhereView where = sqlite::site(name(op), path_.view());
+        connection_.exec("BEGIN IMMEDIATE", where);
+        Written w;
+        try {
+            hooks_.begun();
+            const std::optional<Head> now = sqlite::expect(connection_, scope, lane, expected, where);
+            if (erased != nullptr) {
+                sqlite::guard(connection_, guard, where);
+            }
+            const sqlite::Totals held = sqlite::totals(connection_, where);
+            sqlite::WriteView view(connection_, chars, &scratch, where, held);
+            const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, limits_, at, chars);
+            std::uint64_t dropped = 0;
+            if (erased != nullptr) {
+                sqlite::whole_record(connection_, targets, where);
+                dropped = sqlite::erase(connection_, targets, *erased, where);
+            }
+            const std::uint64_t size = stage::detail::sum(static_cast<std::uint64_t>(held.size), staged.size);
+            const std::uint64_t count = stage::detail::sum(static_cast<std::uint64_t>(held.count), staged.count);
+            where.size = size;
+            where.count = count;
+            where.max_size = limits_.max_size;
+            where.max_count = limits_.max_count;
+            sqlite::insert(connection_, rows, expected, where);
+            if (!entries.empty()) {
+                sqlite::advance(connection_, scope, lane, expected, staged.head, where);
+            }
+            const std::uint64_t forgets = erased != nullptr ? entries.size() : 0;
+            sqlite::add_meta(connection_, delta(staged.size, dropped), delta(staged.count, 0), delta(forgets, 0),
+                             where);
+            hooks_.written();
+            connection_.exec("COMMIT", where);
+            w.head = entries.empty() ? now.value_or(Head{}) : staged.head;
+            w.volume = measure(size - std::min(size, dropped), count, limits_);
+        } catch (...) {
+            connection_.rollback();
+            throw;
+        }
+        hooks_.committed();
+        peak_ = kept.peak() + scratch.peak();
+        w.purge = attempt();
+        return w;
+    }
+
+    // added less dropped, as meta's signed figure.
+    static std::int64_t delta(std::uint64_t added, std::uint64_t dropped) {
+        constexpr auto most = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
+        if (added > most || dropped > most) {
+            throw memory::MemoryError::budget("store/sqlite", most, std::max(added, dropped), 0);
+        }
+        return static_cast<std::int64_t>(added) - static_cast<std::int64_t>(dropped);
+    }
+
+    // An operation's pages, 1 MiB plus 4 times the lines given: the
+    // object's own where they hold it, else pages the call takes.
+    std::span<std::byte> room(std::span<const EntryView> entries, std::optional<Pages>& extra) {
+        const std::optional<std::size_t> lines = given(entries);
+        const std::optional<std::size_t> budget = lines ? operation_budget(*lines) : std::nullopt;
+        if (!budget) {
+            throw memory::MemoryError::budget("store/sqlite", std::numeric_limits<std::size_t>::max(),
+                                              entries.size(), 0);
+        }
+        if (*budget <= operation_base) {
+            return pages_.bytes().first(*budget);
+        }
+        extra.emplace(platform_->pages(*budget));
+        if (extra->bytes().size() < *budget) {
+            memory::fail_fast("store/sqlite: pages short of their request");
+        }
+        return extra->bytes().first(*budget);
+    }
+
+    void hook([[maybe_unused]] memory::Arena& arena) const noexcept {
+#if defined(QIVEN3_FAULTS)
+        if (countdown_ != nullptr) {
+            arena.attach(countdown_);
+        }
+#endif
+    }
+
+    // A purge's one attempt, on the store's connection with no statement
+    // or transaction open, its busy wait 0 and restored after: never an
+    // engine result raised, never waiting.
+    Purge attempt() {
+        connection_.wait(0);
+        Purge p;
+        try {
+            p = attempt_steps();
+        } catch (...) {
+            connection_.wait(sqlite::busy_milliseconds);
+            throw;
+        }
+        connection_.wait(sqlite::busy_milliseconds);
+        return p;
+    }
+
+    // Steps a to c; a step a result stopped, pending with its reason.
+    Purge attempt_steps() {
+        sqlite::Connection& c = connection_;
+        const auto pending = [](int code, Step step) { return Purge::pending(purge_reason(code, step)); };
+        std::array<std::int64_t, 3> m{};
+        int code = c.run("SELECT (SELECT value FROM meta WHERE name = 'forgets'), (SELECT value FROM meta WHERE "
+                         "name = 'vacuumed'), (SELECT value FROM meta WHERE name = 'purged')",
+                         m);
+        if (code != 0) {
+            return pending(code, Step::read);
+        }
+        const std::int64_t forgets = m[0];
+        std::int64_t vacuumed = m[1];
+        if (m[2] >= forgets) {
+            return Purge{};
+        }
+        std::array<char, 96> sql{};
+        if (vacuumed < forgets) {
+            code = c.run("VACUUM");
+            if (code != 0) {
+                return pending(code, Step::vacuum);
+            }
+            hooks_.rebuilt();
+            code = c.run(sqlite::raise_meta("vacuumed", forgets, sql));
+            if (code != 0) {
+                return pending(code, Step::vacuumed);
+            }
+            vacuumed = forgets;
+        }
+        std::array<std::int64_t, 1> busy{};
+        code = c.run("PRAGMA wal_checkpoint(TRUNCATE)", busy);
+        if (code != 0) {
+            return pending(code, Step::checkpoint);
+        }
+        if (busy[0] != 0) {
+            code = c.run("BEGIN IMMEDIATE");
+            c.rollback();
+            return pending(code, Step::probe);
+        }
+        if (sqlite::file_bytes(c.filename(), "-wal").value_or(0) != 0) {
+            return Purge::pending("writer");
+        }
+        code = c.run(sqlite::raise_meta("purged", vacuumed, sql));
+        if (code != 0) {
+            return pending(code, Step::purged);
+        }
+        static_cast<void>(c.run("PRAGMA wal_checkpoint(TRUNCATE)"));
+        return Purge{};
+    }
 
     [[noreturn]] void unbuilt(Operation op) const {
         gate_.enter(op, path_.view());
@@ -288,6 +506,8 @@ private:
     sqlite::Connection connection_;
     sqlite::Opened opened_;
     Purge purge_;
+    [[maybe_unused]] sqlite::Countdown* countdown_ = nullptr;
+    std::size_t peak_ = 0;
     QIVEN3_NO_UNIQUE_ADDRESS H hooks_;
 };
 

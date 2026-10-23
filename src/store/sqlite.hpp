@@ -35,6 +35,7 @@
 #include <span>
 #include <string_view>
 
+#include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
 #include "store/codes.hpp"
@@ -192,6 +193,10 @@ public:
     [[nodiscard]] std::int64_t integer(std::string_view sql, const WhereView& at);
     // The mapping of a failure's code at this connection.
     [[noreturn]] void raise(int code, const WhereView& at) const;
+    // A purge's statement, which never throws: sql run to its end, its
+    // first row's first columns into row; 0, or the failing extended code
+    // (NOMEM among them).
+    [[nodiscard]] int run(std::string_view sql, std::span<std::int64_t> row = {}) noexcept;
     // The busy wait from now on, in milliseconds.
     void wait(int milliseconds) noexcept;
     // The rows the last INSERT, UPDATE or DELETE changed (an UPDATE that
@@ -258,6 +263,111 @@ void probe(Connection& c, const WhereView& at);
 // create made.
 [[nodiscard]] Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at,
                                  Opened& opened);
+
+// A file's size in bytes, the path's UTF-8 bytes and a suffix after them
+// ("-wal", "-shm"); none when absent or unreadable.
+[[nodiscard]] std::optional<std::uint64_t> file_bytes(std::string_view path, std::string_view suffix = {});
+
+// The writes (sqlite_write.cpp), through the wrapper.
+using Chars = memory::Allocator<char>;
+#if defined(QIVEN3_FAULTS)
+using Countdown = memory::Countdown;
+#else
+struct Countdown {};
+#endif
+
+// stage's scratch: at each call a fresh arena over the same pages, the
+// last one's blocks all given back; under QIVEN3_FAULTS each asks the
+// countdown, where one is given.
+class ScratchView {
+public:
+    ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
+    memory::Arena& operator()();
+    // The greatest high-water mark of its arenas so far.
+    [[nodiscard]] std::size_t peak() const noexcept;
+
+private:
+    std::span<std::byte> pages_;
+    std::optional<memory::Arena> arena_;
+    [[maybe_unused]] Countdown* countdown_;
+    std::size_t peak_ = 0;
+};
+
+// The size and the count meta holds, read in the caller's transaction.
+struct Totals {
+    std::int64_t size = 0;
+    std::int64_t count = 0;
+};
+[[nodiscard]] Totals totals(Connection& c, const WhereView& at);
+
+// Part 2's view of the transaction (stage::View): the head, a header and
+// a body by id, the forgotten set, F138's clearings and held contents, the
+// size and the count the transaction began with. A clearing works on the
+// scratch's fresh arena, one direction record at a time, else on the
+// view's allocator.
+class WriteView {
+public:
+    WriteView(Connection& c, const Chars& allocator, ScratchView* scratch, const WhereView& at,
+              const Totals& held) noexcept
+        : c_(&c), allocator_(allocator), scratch_(scratch), at_(at), held_(held) {}
+
+    [[nodiscard]] std::optional<Head> head(std::string_view scope, std::string_view lane);
+    bool header(std::string_view id, Header& out);
+    bool body(std::string_view id, entry::validator::Text<Chars>& out);
+    [[nodiscard]] bool forgotten(std::string_view id);
+    [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
+                               std::string_view at);
+    [[nodiscard]] bool holds_content(std::string_view content);
+    [[nodiscard]] std::uint64_t size() const noexcept { return static_cast<std::uint64_t>(held_.size); }
+    [[nodiscard]] std::uint64_t count() const noexcept { return static_cast<std::uint64_t>(held_.count); }
+
+private:
+    bool clears(const Id& root, std::string_view scope, std::string_view content, std::string_view pattern,
+                std::string_view at);
+
+    Connection* c_;
+    Chars allocator_;
+    ScratchView* scratch_;
+    WhereView at_;
+    Totals held_;
+};
+
+// A row an append or a forget inserts: its header's columns, its line and
+// its body record or none.
+struct RowView {
+    std::string_view id, scope, lane, kind;
+    std::optional<std::string_view> parent, target;
+    std::int64_t seq = 0;
+    std::string_view line;
+    std::optional<std::string_view> record;
+};
+
+// Step 3: the lane's head against the expected one, else HeadConflict.
+std::optional<Head> expect(Connection& c, std::string_view scope, std::string_view lane, Expected expected,
+                           const WhereView& at);
+// forget's guard: every head held as the guard expects it, and every
+// guard lane held; else HeadConflict naming the lane.
+void guard(Connection& c, std::span<const GuardView> guard, const WhereView& at);
+// forget's whole records: a live revision (not forgotten, of a kind but
+// the change kinds) of a target, not itself a target, StoreError
+// whole_record naming the first forget of that target, "entry <j>".
+void whole_record(Connection& c, std::span<const Id> targets, const WhereView& at);
+// forget's erasure: each target's body row deleted, once, in order, its id
+// into erased; the bytes dropped, each record with its LF.
+std::uint64_t erase(Connection& c, std::span<const Id> targets, Vector<Id>& erased, const WhereView& at);
+// Step 5: the entry rows in order, then the body rows; an insert's
+// constraint on (scope, lane, seq) or id HeadConflict, the head read again.
+void insert(Connection& c, std::span<const RowView> rows, Expected expected, const WhereView& at);
+// Step 5: the head moved from the expected one, one row, or a lane's first
+// inserted; then meta's size, count and forgets added to.
+void advance(Connection& c, std::string_view scope, std::string_view lane, Expected expected, const Head& head,
+             const WhereView& at);
+void add_meta(Connection& c, std::int64_t size, std::int64_t count, std::int64_t forgets, const WhereView& at);
+// A purge's raise of a meta row to at least value, in its own statement,
+// composed into out.
+[[nodiscard]] std::string_view raise_meta(std::string_view name, std::int64_t value, std::array<char, 96>& out) noexcept;
+// size's figures: page_size, page_count, freelist_count, the files'.
+void figures(Connection& c, Sizes& out, const WhereView& at);
 
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(Setting) == 56, "a setting's size is pinned: two names in place and when");

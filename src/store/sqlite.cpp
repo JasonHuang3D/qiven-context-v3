@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <span>
 #include <string_view>
 
 #include "memory/fail.hpp"
@@ -303,6 +304,27 @@ std::int64_t Connection::integer(std::string_view sql, const WhereView& at) {
 }
 
 void Connection::raise(int code, const WhereView& at) const { raise_at(db_, code, at); }
+
+int Connection::run(std::string_view sql, std::span<std::int64_t> row) noexcept {
+    if (db_ == nullptr || sql.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        return SQLITE_MISUSE;
+    }
+    sqlite3_stmt* statement = nullptr;
+    int rc = sqlite3_prepare_v3(db_, sql.data(), static_cast<int>(sql.size()), 0, &statement, nullptr);
+    if (rc == SQLITE_OK && statement != nullptr) {
+        bool first = true;
+        while ((rc = sqlite3_step(statement)) == SQLITE_ROW) {
+            for (std::size_t i = 0; first && i < row.size(); ++i) {
+                row[i] = sqlite3_column_int64(statement, static_cast<int>(i));
+            }
+            first = false;
+        }
+        rc = rc == SQLITE_DONE ? SQLITE_OK : rc;
+    }
+    const int code = rc == SQLITE_OK ? rc : extended(db_, rc);
+    static_cast<void>(sqlite3_finalize(statement));
+    return code;
+}
 
 void Connection::wait(int milliseconds) noexcept {
     if (db_ != nullptr) {

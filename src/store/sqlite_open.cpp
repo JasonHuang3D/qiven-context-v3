@@ -158,6 +158,23 @@ void read_meta(Connection& c, Opened& opened, const WhereView& at) {
 
 }  // namespace
 
+std::optional<std::uint64_t> file_bytes(std::string_view path, std::string_view suffix) {
+    std::u8string text;
+    for (const char c : path) {
+        text.push_back(static_cast<char8_t>(c));
+    }
+    for (const char c : suffix) {
+        text.push_back(static_cast<char8_t>(c));
+    }
+    std::error_code error;
+    const fs::path p(text);
+    if (!fs::is_regular_file(fs::status(p, error))) {
+        return std::nullopt;
+    }
+    const std::uintmax_t size = fs::file_size(p, error);
+    return error ? std::nullopt : std::optional<std::uint64_t>(size);
+}
+
 // Walked by directory_of, lexically, on the UTF-8 text: the standard
 // library's path decomposition reaches names core does not call.
 bool in_checkout(std::string_view path) {
