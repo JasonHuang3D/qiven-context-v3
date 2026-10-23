@@ -4,7 +4,8 @@
 // of a call. MemoryView holds headers and contents on std::allocator,
 // each lane's head, the forgotten set, the live clearings, and the size
 // and count held; put appends an entry and moves its lane's head, forget
-// erases a body and marks its id. It reads into the caller's buffers on
+// erases a body and marks its id; forget_of names the first forget put of
+// an id, as an import's final view does. It reads into the caller's buffers on
 // their own allocator: a header copied by make, its id given, one
 // allocation; a content assigned, one where the buffer's capacity is
 // short. It counts its reads. Item is an
@@ -142,6 +143,17 @@ public:
             }
         }
         return false;
+    }
+    // The first forget held of an id, in the order put, or none.
+    [[nodiscard]] constexpr std::optional<validator::Id> forget_of(std::string_view id) {
+        ++reads_;
+        for (const Held& e : held_) {
+            if (e.h.value(header::Slot::kind) == "forget" &&
+                e.h.text(header::Slot::target) == std::optional<std::string_view>(id)) {
+                return validator::Id::of(e.h.value(header::Slot::id));
+            }
+        }
+        return std::nullopt;
     }
     // Whether a live clearing in scope clears content for pattern; this
     // view's clearings hold at every time.

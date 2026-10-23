@@ -25,9 +25,13 @@
 // count the call would reach. It returns the new head and what the call
 // adds. A HeadConflict, a guard and whole_record are the store's.
 //
-// At import, import_entry(view, header, has_body, index, at) reads one
-// entry in the final view: a revision whose target is forgotten, itself
-// not, forgotten_target; a body held for a forgotten id forgotten_body; a
+// At import, each line after check passes import_line(view, header,
+// index, at) as it arrives, before its insert: the chain rules, parent and
+// seq, against the view's head of its lane. Once every header is in,
+// import_entry(view, header, content, index, at, allocator) reads each
+// entry in the final view: part 2's other rules, target to map_evidence,
+// where a revision whose target is forgotten, itself not, is
+// forgotten_target; then a body held for a forgotten id forgotten_body; a
 // content with no body, not forgotten, body_missing. same_heads compares
 // the source's heads with those its entries give, in order: head_mismatch.
 //
@@ -44,7 +48,9 @@
 // scratch peaks at one entry's. On the caller's allocator, what check
 // keeps: the entries' room, one; each entry's header, one, and body, one;
 // the call's hits' room, one where it is short. admit: part 2's
-// (validator's) and the view's, on its allocator. Platform calls: part 1's
+// (validator's) and the view's, on its allocator; import_line none but the
+// view's; import_entry validator's try_final's and the view's, on its
+// allocator. Platform calls: part 1's
 // wipes and each kept body's key's, each noexcept. stage logs nothing.
 //
 // thread: none; the entries, one (their keys' platform's).
@@ -326,24 +332,32 @@ Staged admit(V& view, std::string_view scope, std::string_view lane, Expected ex
     return out;
 }
 
-// One entry of an import in its final view: forgotten_target,
-// forgotten_body, then body_missing.
+// One line of an import as it arrives, part 1 passed, before its insert:
+// the chain rules (validator's), a fault refused.
 template <class V>
-    requires requires(V& v, std::string_view s) {
-        { v.forgotten(s) } -> std::same_as<bool>;
+    requires validator::View<V, Chars>
+void import_line(V& view, const Header& h, std::size_t index, const AtView& at) {
+    if (const std::optional<validator::Code> c = validator::try_chain(view, h)) {
+        refuse(at, index, h.value(Slot::id), validator::name(*c));
     }
-void import_entry(V& view, const Header& h, bool has_body, std::size_t index, const AtView& at) {
+}
+
+// One entry of an import in its final view, held there with its content
+// or none: part 2's other rules (validator's), forgotten_target among
+// them, then forgotten_body, then body_missing; a fault refused.
+template <class V>
+    requires validator::FinalView<V, Chars>
+void import_entry(V& view, const Header& h, std::optional<std::string_view> content, std::size_t index,
+                  const AtView& at, const Chars& allocator) {
     const std::string_view id = h.value(Slot::id);
-    const bool forgotten = view.forgotten(id);
-    const std::optional<std::string_view> target = h.text(Slot::target);
-    const bool change = validator::detail::change(h.value(Slot::kind));
-    if (target && !change && !forgotten && view.forgotten(*target)) {
-        refuse(at, index, id, "forgotten_target");
+    if (const std::optional<validator::Code> c = validator::try_final(view, h, content, allocator)) {
+        refuse(at, index, id, validator::name(*c));
     }
-    if (has_body && forgotten) {
+    const bool forgotten = view.forgotten(id);
+    if (content && forgotten) {
         refuse(at, index, id, "forgotten_body");
     }
-    if (!has_body && !forgotten && h.text(Slot::content)) {
+    if (!content && !forgotten && h.text(Slot::content)) {
         refuse(at, index, id, "body_missing");
     }
 }

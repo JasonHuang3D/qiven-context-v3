@@ -8,7 +8,10 @@
 // another pattern's, when a held header has the content, or an earlier
 // entry of the call; a header hit refused; part 2's first fault with its
 // code; the maximum by count and by size, at it admitted; at import part 1
-// alone, the final view's three codes and head_mismatch.
+// alone, the chain rules as each line arrives (a line again, a gap), the
+// final view's codes (forgotten_body, body_missing, validator's target,
+// identity and forgotten_target, part 2's before forgotten_body, a whole
+// record standing); head_mismatch apart.
 
 #include <cstddef>
 #include <cstdint>
@@ -275,51 +278,114 @@ QIVEN3_CASE(store_stage, import) {
     const Book& book = bench->book;
     const Chars chars = bench->chars;
     ScratchPages& scratch = bench->scratch;
-    const std::vector<Stored> all = {book.stored("A"), book.stored("B"), book.stored("M1"), book.stored("M2"),
-                                     book.stored("E")};
+    // In (scope, lane, seq) order: implementer's lane, then reviewer's.
+    const std::vector<Stored> all = {book.stored("A"),   book.stored("B"), book.stored("D"),
+                                     book.stored("ACC"), book.stored("E"), book.stored("C"),
+                                     book.stored("M1"),  book.stored("M2")};
     const std::vector<EntryView> lines = views(all);
     const stage::Checked<Fake> checked = stage::check(fake, std::span<const EntryView>(lines), at(Operation::import_), chars, scratch);
     CHECK_EQ(checked.entries.size(), all.size());
+    const auto header_of = [&](std::size_t i) -> const qiven3::store::Header& { return checked.entries[i].header(); };
+    const auto content_at = [&](std::size_t i) {
+        return all[i].content ? std::optional<std::string_view>(*all[i].content) : std::nullopt;
+    };
+    // As each line arrives, before its insert: the chain rules.
+    // One refusal at a time, so that the case's frame stays within the bound.
+    std::optional<Refusal> r;
     fixtures::MemoryView view;
-    const auto final_code = [&](std::size_t i, bool has_body) {
+    const auto arrive = [&](std::size_t i) {
+        return refused([&] { stage::import_line(view, header_of(i), i, at(Operation::import_)); });
+    };
+    for (std::size_t i = 0; i < all.size(); ++i) {
+        CHECK(!arrive(i).has_value());
+        view.put(header_of(i), content_at(i));
+    }
+    r = arrive(7);
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("parent"));
+    CHECK_EQ(r->index, 7U);
+    CHECK_EQ(r->id, id_of(all[7]));
+    const auto gap = std::make_unique<fixtures::MemoryView>();
+    gap->put(header_of(5), content_at(5));
+    r = refused([&] { stage::import_line(*gap, header_of(7), 7, at(Operation::import_)); });
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("parent"));
+    // Once every header is in, the final view: E's forget of B applied.
+    view.forget(id_of(all[1]));
+    const auto final_code = [&](fixtures::MemoryView& in, std::size_t i, std::optional<std::string_view> content) {
         return refused([&] {
-            stage::import_entry(view, checked.entries[i].header(), has_body, i, at(Operation::import_));
+            stage::import_entry(in, header_of(i), content, i, at(Operation::import_), chars);
         });
     };
-    CHECK(!final_code(0, true).has_value());
-    CHECK(!final_code(4, false).has_value());
-    const std::optional<Refusal> missing = final_code(0, false);
-    REQUIRE(missing.has_value());
-    CHECK_EQ(missing->code, std::string("body_missing"));
-    view.forget(id_of(all[0]));
-    const std::optional<Refusal> held = final_code(0, true);
-    REQUIRE(held.has_value());
-    CHECK_EQ(held->code, std::string("forgotten_body"));
-    CHECK(!final_code(0, false).has_value());
-    view.forget(id_of(all[2]));
-    const std::optional<Refusal> target = final_code(3, true);
-    REQUIRE(target.has_value());
-    CHECK_EQ(target->code, std::string("forgotten_target"));
-    CHECK_EQ(target->index, 3U);
-    view.forget(id_of(all[3]));
-    CHECK(!final_code(3, false).has_value());
-    // A forget is no revision: its target forgotten, it stands.
-    view.forget(checked.entries[4].header().value(Slot::target));
-    CHECK(!final_code(4, false).has_value());
-    // The heads, in order.
+    for (std::size_t i = 0; i < all.size(); ++i) {
+        CHECK(!final_code(view, i, i == 1 ? std::nullopt : content_at(i)).has_value());
+    }
+    r = final_code(view, 0, std::nullopt);
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("body_missing"));
+    r = final_code(view, 1, content_at(1));
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("forgotten_body"));
+    CHECK_EQ(r->index, 1U);
+    CHECK_EQ(r->id, id_of(all[1]));
+    // Part 2's other rules, validator's: C's target A not held.
+    const auto lacking = std::make_unique<fixtures::MemoryView>();
+    for (std::size_t i = 1; i < all.size(); ++i) {
+        lacking->put(header_of(i), content_at(i));
+    }
+    r = final_code(*lacking, 5, content_at(5));
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("target"));
+    CHECK_EQ(r->index, 5U);
+    // Part 2's other rules before forgotten_body: C forgotten, its body given.
+    lacking->forget(id_of(all[5]));
+    r = final_code(*lacking, 5, content_at(5));
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("target"));
+    // The content read: M2's object not M1's, identity.
+    const auto moved = std::make_unique<fixtures::MemoryView>();
+    for (std::size_t i = 0; i < all.size(); ++i) {
+        std::optional<std::string> content = all[i].content;
+        if (i == 6) {
+            const std::size_t at_path = content->find("qiven3/entry.py");
+            REQUIRE(at_path != std::string::npos);
+            content->replace(at_path, 15, "qiven3/other.py");
+        }
+        moved->put(header_of(i), content ? std::optional<std::string_view>(*content) : std::nullopt);
+    }
+    r = final_code(*moved, 7, content_at(7));
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("identity"));
+    // A revision of the forgotten M1, itself not, forgotten_target before
+    // identity; once forgotten too, a whole record, it stands.
+    view.forget(id_of(all[6]));
+    r = final_code(view, 7, content_at(7));
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("forgotten_target"));
+    CHECK_EQ(r->index, 7U);
+    view.forget(id_of(all[7]));
+    CHECK(!final_code(view, 7, std::nullopt).has_value());
+}
+
+// The source's heads against those its entries give, in order.
+QIVEN3_CASE(store_stage, import_heads) {
+    const auto bench = std::make_unique<Bench>(1U << 20U);
+    const Book& book = bench->book;
+    const std::vector<Stored> all = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
+    std::optional<Refusal> r;
     std::vector<qiven3::store::LaneHead> source(2);
     source[0] = lane_head(qiven_scope, implementer_lane, id_of(all[1]), 2);
     source[1] = lane_head(qiven_scope, "reviewer", id_of(all[3]), 3);
     std::vector<qiven3::store::LaneHead> given = source;
     CHECK(!refused([&] { stage::same_heads(source, given, at(Operation::import_)); }).has_value());
     given[1].head.seq = 2;
-    const std::optional<Refusal> seq = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
-    REQUIRE(seq.has_value());
-    CHECK_EQ(seq->code, std::string("head_mismatch"));
-    CHECK_EQ(seq->index, 1U);
-    CHECK_EQ(seq->id, std::string(id_of(all[3])));
+    r = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code, std::string("head_mismatch"));
+    CHECK_EQ(r->index, 1U);
+    CHECK_EQ(r->id, std::string(id_of(all[3])));
     given.pop_back();
-    const std::optional<Refusal> fewer = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
-    REQUIRE(fewer.has_value());
-    CHECK_EQ(fewer->index, 1U);
+    r = refused([&] { stage::same_heads(source, given, at(Operation::import_)); });
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->index, 1U);
 }

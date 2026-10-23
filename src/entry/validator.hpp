@@ -29,6 +29,21 @@
 // codes included. try_validate gives the same first fault as a value, so
 // its vectors run in constant evaluation too.
 //
+// At import the rules split in two. try_chain reads one line as it
+// arrives, before its insert: the chain rules alone, parent (not the
+// view's head of its lane, none for an empty lane) and seq. try_final
+// reads one entry once every header is in, against the final view, each
+// held there, with its content or none: target, at_order, reference,
+// forgotten_target, identity and map_evidence in that order, the first
+// deciding; a parent the view does not hold is parent. In the final view a
+// second forget is a forget that is not the first of its target, which
+// the final view's forget_of names (the first forget held, in the order
+// inserted); forgotten_target takes a revision whose target is forgotten
+// when itself forgotten (a whole record), and refuses it otherwise; a
+// revision whose content the view does not give (forgotten, or missing)
+// is not read for identity. Its allocations are validate's for one entry,
+// with no index.
+//
 // View is the store's view, which it gives inside its transaction or
 // lock: the head of a lane; a header and a body's content by id, each
 // into the caller's buffer, false when not held; whether an id is
@@ -136,6 +151,13 @@ concept View = requires(V& v, std::string_view s, header::Header<A>& h, Text<A>&
     { v.holds_content(s) } -> std::same_as<bool>;
 };
 
+// The final view of an import: the view, and the first forget held of an
+// id, in the order inserted, or none.
+template <typename V, typename A>
+concept FinalView = View<V, A> && requires(V& v, std::string_view s) {
+    { v.forget_of(s) } -> std::same_as<std::optional<Id>>;
+};
+
 // An entry of the call: its header, whether it has a body, and the body's
 // content bytes.
 template <typename E, typename A>
@@ -235,10 +257,28 @@ constexpr std::optional<Code> each_reference(const canon::Basic<B>& v, std::stri
                                       memory::mul(entries, sizeof(std::uint32_t)).value_or(SIZE_MAX), 0);
 }
 
+// One entry of the final view as Appended reads it: its header, and its
+// content or none.
+template <typename A>
+struct FinalEntryView {
+    const header::Header<A>* head = nullptr;
+    std::optional<std::string_view> text;
+
+    [[nodiscard]] constexpr const header::Header<A>& header() const noexcept { return *head; }
+    [[nodiscard]] constexpr bool has_body() const noexcept { return text.has_value(); }
+    [[nodiscard]] constexpr const FinalEntryView& body() const noexcept { return *this; }
+    [[nodiscard]] constexpr std::string_view content() const noexcept { return text.value_or(std::string_view()); }
+};
+#if INTPTR_MAX == INT64_MAX
+static_assert(sizeof(FinalEntryView<std::allocator<char>>) == 32,
+              "FinalEntryView's size is pinned: a header's address and a content or none");
+#endif
+
 // One call's work: the view, the entries, the index of their ids, and the
 // buffers the view fills. It borrows the view and the entries, made and
-// dropped within validate's call.
-template <typename V, typename E, typename A>
+// dropped within validate's call. Final: one entry of an import's final
+// view, the chain rules not read, and no index.
+template <typename V, typename E, typename A, bool Final = false>
 class CallView {
 public:
     using H = header::Header<A>;
@@ -247,18 +287,21 @@ public:
     constexpr CallView(V& view, std::span<const E> entries, const A& allocator)
         : view_(&view), entries_(entries), allocator_(allocator), index_(Rebound(allocator)), parent_(allocator),
           target_(allocator), reference_(allocator), text_(allocator) {
-        const std::size_t n = entries.size();
-        if (n > max_entries || !memory::mul(n, sizeof(std::uint32_t))) {
-            too_large(n);
-        }
-        index_.resize(n);
-        for (std::size_t i = 0; i < n; ++i) {
-            index_[i] = static_cast<std::uint32_t>(i);
-            if (kind(i) == "forget") {
-                any_forget_ = true;
+        if constexpr (!Final) {
+            const std::size_t n = entries.size();
+            if (n > max_entries || !memory::mul(n, sizeof(std::uint32_t))) {
+                too_large(n);
             }
+            index_.resize(n);
+            for (std::size_t i = 0; i < n; ++i) {
+                index_[i] = static_cast<std::uint32_t>(i);
+                if (kind(i) == "forget") {
+                    any_forget_ = true;
+                }
+            }
+            std::sort(index_.begin(), index_.end(),
+                      [this](std::uint32_t a, std::uint32_t b) { return id(a) < id(b); });
         }
-        std::sort(index_.begin(), index_.end(), [this](std::uint32_t a, std::uint32_t b) { return id(a) < id(b); });
     }
 
     [[nodiscard]] constexpr std::string_view id(std::size_t i) const {
@@ -313,8 +356,8 @@ private:
     bool any_forget_ = false;
 };
 
-template <typename V, typename E, typename A>
-constexpr std::optional<Code> CallView<V, E, A>::check(std::size_t i, std::string_view scope, std::string_view lane,
+template <typename V, typename E, typename A, bool Final>
+constexpr std::optional<Code> CallView<V, E, A, Final>::check(std::size_t i, std::string_view scope, std::string_view lane,
                                                    const std::optional<Head>& head,
                                                    std::optional<std::string_view> expected) {
     const H& h = entries_[i].header();
@@ -325,7 +368,16 @@ constexpr std::optional<Code> CallView<V, E, A>::check(std::size_t i, std::strin
     if (h.value(Slot::scope) != scope || h.value(Slot::lane) != lane) {
         return Code::parent;
     }
-    if (i == 0) {
+    if constexpr (Final) {
+        // The chain rules passed at the line's arrival; its parent's at.
+        if (const std::optional<std::string_view> named = h.text(Slot::parent)) {
+            const H* p = held(*named, i, parent_);
+            if (p == nullptr) {
+                return Code::parent;
+            }
+            parent_at = p->value(Slot::at);
+        }
+    } else if (i == 0) {
         const std::optional<std::string_view> now =
             head ? std::optional<std::string_view>(head->id.view()) : std::nullopt;
         const std::optional<std::string_view> named = h.text(Slot::parent);
@@ -363,7 +415,14 @@ constexpr std::optional<Code> CallView<V, E, A>::check(std::size_t i, std::strin
             !may_target(k, target->value(Slot::kind))) {
             return Code::target;
         }
-        if (k == "forget" && ((!in_call && view_->forgotten(*t)) || forgot_earlier(*t, i))) {
+        if constexpr (Final) {
+            if (k == "forget") {
+                const std::optional<Id> first = view_->forget_of(*t);
+                if (!first || first->view() != h.value(Slot::id)) {
+                    return Code::target;
+                }
+            }
+        } else if (k == "forget" && ((!in_call && view_->forgotten(*t)) || forgot_earlier(*t, i))) {
             return Code::target;
         }
     }
@@ -392,10 +451,17 @@ constexpr std::optional<Code> CallView<V, E, A>::check(std::size_t i, std::strin
     if (t && target != nullptr && !change(k)) {
         const bool forgotten = in_call ? !entries_[*in_call].has_body() || forgot_earlier(*t, i)
                                        : view_->forgotten(*t);
-        if (forgotten) {
+        bool read = true;
+        if constexpr (Final) {
+            // A whole record stands; a content not given is not read.
+            if (forgotten && !view_->forgotten(h.value(Slot::id))) {
+                return Code::forgotten_target;
+            }
+            read = !forgotten && !(h.text(Slot::content) && !entries_[i].has_body());
+        } else if (forgotten) {
             return Code::forgotten_target;
         }
-        if (has_identity(k)) {
+        if (read && has_identity(k)) {
             canon::Basic<A> target_value(allocator_);
             if (in_call) {
                 canon::parse(std::string_view(entries_[*in_call].body().content()), target_value);
@@ -448,6 +514,36 @@ constexpr void validate(V& view, std::string_view scope, std::string_view lane,
     if (const std::optional<RuleError> e = try_validate(view, scope, lane, expected, entries, allocator)) {
         throw *e;
     }
+}
+
+// At import, a line as it arrives, before its insert: the chain rules
+// alone against the view's head of its lane, the first fault or none.
+template <typename V, typename A>
+    requires View<V, A>
+constexpr std::optional<Code> try_chain(V& view, const header::Header<A>& h) {
+    using header::Slot;
+    const std::optional<Head> head = view.head(h.value(Slot::scope), h.value(Slot::lane));
+    const std::optional<std::string_view> now = head ? std::optional<std::string_view>(head->id.view()) : std::nullopt;
+    if (h.text(Slot::parent) != now) {
+        return Code::parent;
+    }
+    if (h.seq() < 1 || h.seq() - 1 != (head ? head->seq : 0)) {
+        return Code::seq;
+    }
+    return std::nullopt;
+}
+
+// At import, one entry once every header is in, held in the final view
+// with its content or none: part 2's other rules, the first fault or none.
+template <typename V, typename A>
+    requires FinalView<V, A>
+constexpr std::optional<Code> try_final(V& view, const header::Header<A>& h, std::optional<std::string_view> content,
+                                        const A& allocator = A()) {
+    using header::Slot;
+    const std::array<detail::FinalEntryView<A>, 1> one = {detail::FinalEntryView<A>{&h, content}};
+    detail::CallView<V, detail::FinalEntryView<A>, A, true> call(
+        view, std::span<const detail::FinalEntryView<A>>(one), allocator);
+    return call.check(0, h.value(Slot::scope), h.value(Slot::lane), std::nullopt, std::nullopt);
 }
 
 }  // namespace qiven3::entry::validator

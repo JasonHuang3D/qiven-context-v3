@@ -155,9 +155,12 @@ qiven3_add_cases(qiven3_unit_check LABELS fast fake
 # compiler; at run time the fixtures' lanes appended in turn, E's forget
 # among them, then a revision of B forgotten_target, a second forget, a
 # map's revision changing its object, a decision citing M1 and references
-# out of scope and not held; its budgets and fault runs.
+# out of scope and not held; its budgets and fault runs. At import, the
+# chain rules as each line arrives and part 2's other rules in the final
+# view, a second forget and a whole record among them, evaluated by the
+# compiler; the fixtures imported whole, their budgets and fault runs.
 qiven3_add_cases(qiven3_unit_validator LABELS fast fake
-  SOURCES validator_test.cpp validator_memory_test.cpp
+  SOURCES validator_test.cpp validator_memory_test.cpp validator_import_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
 # fold's cases: the order, one writer, each step of the fold ending it in
