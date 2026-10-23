@@ -154,6 +154,17 @@ constexpr json::Index array_of(const json::Basic<A>& v, std::string_view name) {
     return *at;
 }
 
+// The member name of object at, which the layout holds: one missing ends
+// the process.
+template <typename A>
+constexpr json::Index found(const json::Basic<A>& v, json::Index at, std::string_view name) {
+    const std::optional<json::Index> i = v.find(at, name);
+    if (!i) {
+        memory::fail_fast("fixtures: a member of no entries.json layout");
+    }
+    return *i;
+}
+
 template <typename A>
 constexpr std::optional<LoadError> entry_layout(const json::Basic<A>& v, json::Index entries, std::size_t i) {
     const json::Index at = item(v, entries, i);
@@ -171,7 +182,7 @@ constexpr std::optional<LoadError> entry_layout(const json::Basic<A>& v, json::I
     }
     for (std::size_t j = 0; j < i; ++j) {
         const json::Index other = item(v, entries, j);
-        if (v.text(*v.find(other, "name")) == v.text(*v.find(at, "name"))) {
+        if (v.text(detail::found(v, other, "name")) == v.text(detail::found(v, at, "name"))) {
             return LoadError{Code::entry, i};
         }
     }
@@ -184,10 +195,10 @@ constexpr std::optional<LoadError> file_layout(const json::Basic<A>& v, json::In
     if (!members(v, at, names, 4)) {
         return LoadError{Code::file, i};
     }
-    const json::Index version = *v.find(at, "version");
+    const json::Index version = detail::found(v, at, "version");
     if (!string_at(v, v.find(at, "bytes")) || !string_at(v, v.find(at, "path")) ||
         !string_at(v, v.find(at, "repository")) || v.kind(version) != json::Kind::integer ||
-        v.integer(version) < 1 || !hex(v.text(*v.find(at, "bytes")))) {
+        v.integer(version) < 1 || !hex(v.text(detail::found(v, at, "bytes")))) {
         return LoadError{Code::file, i};
     }
     return std::nullopt;
@@ -200,17 +211,17 @@ constexpr std::optional<LoadError> file_layout(const json::Basic<A>& v, json::In
 template <typename A>
 constexpr std::optional<LoadError> layout(const json::Basic<A>& v) {
     constexpr std::array<std::string_view, 2> names{"entries", "files"};
-    if (v.empty() || !detail::members(v, 0, names, 2) || v.kind(*v.find(0, "entries")) != json::Kind::array ||
-        v.kind(*v.find(0, "files")) != json::Kind::array) {
+    if (v.empty() || !detail::members(v, 0, names, 2) || v.kind(detail::found(v, 0, "entries")) != json::Kind::array ||
+        v.kind(detail::found(v, 0, "files")) != json::Kind::array) {
         return LoadError{Code::root, 0};
     }
-    const json::Index entries = *v.find(0, "entries");
+    const json::Index entries = detail::found(v, 0, "entries");
     for (std::size_t i = 0; i < v.count(entries); ++i) {
         if (const std::optional<LoadError> fault = detail::entry_layout(v, entries, i)) {
             return fault;
         }
     }
-    const json::Index files = *v.find(0, "files");
+    const json::Index files = detail::found(v, 0, "files");
     for (std::size_t i = 0; i < v.count(files); ++i) {
         if (const std::optional<LoadError> fault = detail::file_layout(v, detail::item(v, files, i), i)) {
             return fault;
@@ -262,7 +273,8 @@ constexpr std::size_t entry_count(const json::Basic<A>& v) {
 template <typename A>
 constexpr EntryView entry(const json::Basic<A>& v, std::size_t i) {
     const json::Index at = detail::item(v, detail::array_of(v, "entries"), i);
-    EntryView e{v.text(*v.find(at, "name")), std::nullopt, std::nullopt, v.text(*v.find(at, "header"))};
+    EntryView e{v.text(detail::found(v, at, "name")), std::nullopt, std::nullopt,
+                v.text(detail::found(v, at, "header"))};
     if (const std::optional<json::Index> key = v.find(at, "key")) {
         e.key = v.text(*key);
     }

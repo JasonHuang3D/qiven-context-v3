@@ -25,8 +25,8 @@ struct PieceView {
 
 // A fixture: its pattern's index, whether it hits, its pieces in order.
 struct RecipeView {
-    std::size_t pattern;
-    bool hit;
+    std::size_t pattern = 0;
+    bool hit = false;
     std::array<PieceView, 6> pieces;
 };
 

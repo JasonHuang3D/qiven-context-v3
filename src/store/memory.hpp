@@ -113,7 +113,7 @@ public:
 #endif
         const state::Locked lock(*state_, Operation::scan, {});
         const state::Data& d = lock.data();
-        while (lane_ < lanes_->size()) {
+        while (lanes_ && lane_ < lanes_->size()) {
             const Pos& p = (*lanes_)[lane_];
             if (at_ < p.end) {
                 const state::Held& e = d.held[d.lanes[p.lane].ids[at_]];

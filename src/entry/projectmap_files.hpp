@@ -218,7 +218,11 @@ private:
         return k;
     }
     [[nodiscard]] constexpr std::string_view member(std::size_t i, std::string_view field) const {
-        return value_.text(*value_.find(key(i) + 1, field));
+        const std::optional<json::Index> at = value_.find(key(i) + 1, field);
+        if (!at) {
+            memory::fail_fast("projectmap: a registry member without its field");
+        }
+        return value_.text(*at);
     }
 
     canon::Basic<A> value_;

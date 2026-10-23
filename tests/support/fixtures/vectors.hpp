@@ -48,9 +48,9 @@ struct Context {
     std::vector<std::pair<std::int64_t, std::string>> files;
 
     const Entry& entry(std::string_view name) const {
-        for (const Entry& e : entries) {
-            if (e.name == name && !e.key.empty()) {
-                return e;
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            if (entries[i].name == name && !entries[i].key.empty()) {
+                return entries[i];
             }
         }
         throw std::runtime_error("no entry with a body named " + std::string(name));

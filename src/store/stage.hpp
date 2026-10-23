@@ -282,8 +282,8 @@ Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at
         const Chars work(scratch());
         const Entry<P> e = detail::part1(platform, at, i, lines[i], work);
         out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
-        if (lines[i].body) {
-            out.size = detail::sum(out.size, detail::sum(lines[i].body->size(), 1));
+        if (const std::optional<std::string_view> body = lines[i].body) {
+            out.size = detail::sum(out.size, detail::sum(body->size(), 1));
         }
         if (at.op == Operation::append) {
             if (e.header().value(Slot::kind) == "forget") {

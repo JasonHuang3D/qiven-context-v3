@@ -36,7 +36,8 @@ private:
     std::vector<std::string> lines_;
 };
 
-// A drain's output: its bytes and its writes; fail makes each write fail.
+// A drain's output: its bytes and its writes; fail makes each write fail,
+// as does an append refused.
 struct Sink {
     std::string bytes;
     int writes = 0;
@@ -46,7 +47,11 @@ struct Sink {
         if (fail) {
             return false;
         }
-        bytes.append(b);
+        try {
+            bytes.append(b);
+        } catch (...) {
+            return false;
+        }
         return true;
     }
 };

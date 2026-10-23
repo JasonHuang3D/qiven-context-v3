@@ -462,7 +462,8 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 
 # The analysis preset over the sources of src/ and tests/support/: /analyze
 # on their targets, then clang-tidy over compile_commands.json, each source
-# its own step after every target is built, by .clang-tidy.
+# its own step after every target is built, by .clang-tidy. A header-only
+# module is read through its unit in tests/support/headers/.
 if(QIVEN3_ANALYZE STREQUAL "analysis")
   set(qiven3_tidy_targets "")
   set(qiven3_tidy_sources "")

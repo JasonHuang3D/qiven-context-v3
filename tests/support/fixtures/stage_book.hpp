@@ -18,12 +18,14 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "memory/arena.hpp"
+#include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -157,7 +159,7 @@ public:
 
     // A fixture as stored.
     [[nodiscard]] Stored stored(std::string_view name) const {
-        const fixtures::EntryView e = *fixtures::find_entry(value_, name);
+        const fixtures::EntryView e = fixture(name);
         Stored s{std::string(e.header), std::nullopt, std::nullopt};
         if (e.content && e.key) {
             const header::Header<> h = header::parse_line(e.header);
@@ -172,7 +174,7 @@ public:
     // under A's key, its parent changed where one is given: one content
     // digest for each.
     [[nodiscard]] Stored with_secret(std::string_view like, std::optional<std::string> parent) const {
-        std::string content(*fixtures::find_entry(value_, "A")->content);
+        std::string content(content_named("A"));
         const std::string_view key = "\"mistake\":\"";
         const std::size_t from = content.find(key) + key.size();
         content.replace(from, content.find('"', from) - from, std::string("a key ") + "AKIA" + "IOSFODNN7EXAMPLE");
@@ -184,9 +186,8 @@ public:
     }
     // A fixture on another lane, its writer's role the lane's.
     [[nodiscard]] Stored on_lane(std::string_view like, const std::string& lane) const {
-        const fixtures::EntryView e = *fixtures::find_entry(value_, like);
         std::string writer;
-        return made(like, like, std::string(*e.content), [&](header::FieldsView& f) {
+        return made(like, like, std::string(content_named(like)), [&](header::FieldsView& f) {
             writer = lane + std::string(f.writer.substr(f.writer.find('/')));
             f.lane = lane;
             f.writer = writer;
@@ -198,8 +199,8 @@ public:
     template <class F>
     [[nodiscard]] Stored made(std::string_view like, std::string_view key_of, const std::string& content,
                               const F& change) const {
-        const fixtures::EntryView e = *fixtures::find_entry(value_, like);
-        const std::string_view key = *fixtures::find_entry(value_, key_of)->key;
+        const fixtures::EntryView e = fixture(like);
+        const std::string_view key = key_named(key_of);
         const header::Header<> h = header::parse_line(e.header);
         header::FieldsView f;
         f.scope = h.value(Slot::scope);
@@ -224,6 +225,33 @@ public:
     }
 
 private:
+    // A fixture by name, read by index; a name not among them ends the
+    // process.
+    [[nodiscard]] fixtures::EntryView fixture(std::string_view name) const {
+        for (std::size_t i = 0; i < fixtures::entry_count(value_); ++i) {
+            const fixtures::EntryView e = fixtures::entry(value_, i);
+            if (e.name == name) {
+                return e;
+            }
+        }
+        memory::fail_fast("stage_book: no fixture of the name");
+    }
+    // A fixture's content, and its key; one without it ends the process.
+    [[nodiscard]] std::string_view content_named(std::string_view name) const {
+        const fixtures::EntryView e = fixture(name);
+        if (!e.content) {
+            memory::fail_fast("stage_book: a fixture without its content");
+        }
+        return *e.content;
+    }
+    [[nodiscard]] std::string_view key_named(std::string_view name) const {
+        const fixtures::EntryView e = fixture(name);
+        if (!e.key) {
+            memory::fail_fast("stage_book: a fixture without its key");
+        }
+        return *e.key;
+    }
+
     Fake* fake_;
     qiven3::canon::Basic<> value_;
 };
@@ -263,10 +291,10 @@ std::optional<Refusal> refused(const F& f) {
     } catch (const StoreError& e) {
         Refusal r;
         r.kind = e.kind();
-        if (e.code()) {
-            r.code = qiven3::store::name(*e.code());
-        } else if (e.full()) {
-            r.code = qiven3::store::name(*e.full());
+        if (const std::optional<qiven3::store::Code> code = e.code()) {
+            r.code = qiven3::store::name(*code);
+        } else if (const std::optional<qiven3::store::Full> full = e.full()) {
+            r.code = qiven3::store::name(*full);
         } else {
             r.code = e.entry_code();
         }
@@ -297,7 +325,7 @@ inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const st
     const std::string_view lane =
         checked.entries.empty() ? std::string_view() : checked.entries[0].header().value(Slot::lane);
     return refused([&] {
-        (void)stage::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
+        std::ignore = stage::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
     });
 }
 
