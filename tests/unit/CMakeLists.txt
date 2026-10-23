@@ -279,7 +279,10 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
 # store/exchange's cases: the SQLite store's export, import and verify on
 # the fake over a scratch directory; its smoke case: a round trip, a
 # second import refused, an export from seqs and of a scope set, a refused
-# import leaving nothing, an export closed by its store object.
+# import leaving nothing, an export closed by its store object; the
+# budgets, counts and fault runs of export, heads, next, import and verify;
+# a maximum entry and a large lane; StoreBusy and StoreNotEmpty at import,
+# the thread gate, the exports' closing, import's rollback and checkpoint.
 qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
-  SOURCES store_exchange_test.cpp
+  SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_states_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
