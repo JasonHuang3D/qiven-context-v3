@@ -230,3 +230,13 @@ qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_codes LABELS fast fake
   SOURCES store_codes_test.cpp
   LINK qiven3_faults qiven3_store)
+
+# store/contract's cases: a minimal store, scan and export the concepts
+# accept and a plant of each that they refuse; the names, read-only's
+# operations, the kinds each raises, the capabilities' applicability, the
+# limits and volume and the budgets, evaluated by the compiler; the minimal store
+# driven through the concept; the gate's refusals in order; a line on the
+# caller's arena; the fault run over none.
+qiven3_add_cases(qiven3_unit_store_contract LABELS fast fake
+  SOURCES store_contract_test.cpp
+  LINK qiven3_faults qiven3_store)
