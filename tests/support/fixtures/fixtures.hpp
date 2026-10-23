@@ -1,6 +1,7 @@
 #pragma once
 
-// fixtures: the files of tests/fixtures/, loaded through canon::parse.
+// fixtures: the files of tests/fixtures/, loaded through canon::parse, and
+// those of tests/vectors/, given as their bytes (vector_bytes).
 // Configure compiles each file into the binary as its bytes
 // (support/fixtures/CMakeLists.txt), so that a case reads no path and
 // makes no platform call; load parses a file's bytes strictly, as canon
@@ -40,6 +41,12 @@ namespace canon = qiven3::canon;
 std::optional<std::string_view> bytes(std::string_view file) noexcept;
 std::size_t file_count() noexcept;
 std::string_view file_name(std::size_t i) noexcept;
+
+// The compiled-in bytes of tests/vectors/<file>, or none for a name the
+// build lacks; the vectors files the build holds, by index, in name order.
+std::optional<std::string_view> vector_bytes(std::string_view file) noexcept;
+std::size_t vector_file_count() noexcept;
+std::string_view vector_file_name(std::size_t i) noexcept;
 
 // A load's own faults: a file the build lacks, or an item whose layout is
 // not entries.json's (the root, entry i or file i). The parser's are its

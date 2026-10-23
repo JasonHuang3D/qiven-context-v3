@@ -134,10 +134,10 @@ qiven3_add_cases(qiven3_unit_refs LABELS fast fake
 # and pins, evaluated by the compiler where no syntax is compiled; at run
 # time the limits at their bounds, a lesson of 500 Chinese characters and
 # of 501, references, a map's object, the episode, the kinds' rules, the
-# size, every fixture entry; the compiles counted, under the budget and the
-# fault run.
+# size, every fixture entry, a usage at every limit of 50,698 bytes; the
+# compiles counted, under the budget and the fault run.
 qiven3_add_cases(qiven3_unit_content LABELS fast fake
-  SOURCES content_test.cpp content_memory_test.cpp
+  SOURCES content_test.cpp content_memory_test.cpp content_usage_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
 # check's cases: part 1's order, the parser's, the header's, the record's,
@@ -198,4 +198,12 @@ qiven3_add_cases(qiven3_unit_served LABELS fast fake
 # the fault run.
 qiven3_add_cases(qiven3_unit_projectmap LABELS fast fake
   SOURCES projectmap_test.cpp projectmap_memory_test.cpp map_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
+
+# FA5's vectors case: tests/vectors/ids.json read whole, every vector
+# recomputed by canon, digest, header, body, check, content, projectmap,
+# fold, labels and served, the fixtures' entries giving its ids, none left
+# unread; each vector planted wrong and the file's own plants caught.
+qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
+  SOURCES vectors_test.cpp vectors_read.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry)
