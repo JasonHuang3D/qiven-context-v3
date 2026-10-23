@@ -463,7 +463,7 @@ void WalkView::lane_end() {
     }
 }
 
-std::optional<Header> WalkView::next(const Chars& allocator) {
+bool WalkView::next(Header& out) {
     for (;;) {
         if (in_lane_ && rows_.step(at_)) {
             break;
@@ -473,10 +473,10 @@ std::optional<Header> WalkView::next(const Chars& allocator) {
         }
         in_lane_ = lane();
         if (!in_lane_) {
-            return std::nullopt;
+            return false;
         }
     }
-    Header h = row_header(rows_, allocator, at_);
+    Header h = row_header(rows_, out.get_allocator(), at_);
     const std::string_view id = h.value(Slot::id);
     const std::optional<std::string_view> parent = h.text(Slot::parent);
     const bool chained = index_ == 0 ? !parent : parent == last_.view();
@@ -499,7 +499,8 @@ std::optional<Header> WalkView::next(const Chars& allocator) {
     last_ = Id::of(id);
     seq_ = h.seq();
     ++index_;
-    return h;
+    out = std::move(h);
+    return true;
 }
 
 EntryView WalkView::entry() const noexcept {

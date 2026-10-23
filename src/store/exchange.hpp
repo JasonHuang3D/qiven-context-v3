@@ -322,8 +322,9 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
 class WalkView {
 public:
     WalkView(Connection& c, const WhereView& at);
-    // The next entry's header on allocator, checked; none past the last.
-    [[nodiscard]] std::optional<Header> next(const Chars& allocator);
+    // The next entry's header into out, on out's allocator, checked; false
+    // past the last. No optional of a Header: its allocator has no default.
+    [[nodiscard]] bool next(Header& out);
     // The entry in hand: its line and its body record or none.
     [[nodiscard]] EntryView entry() const noexcept;
     [[nodiscard]] std::size_t index() const noexcept { return index_; }
@@ -381,13 +382,13 @@ Counts verify_store(P& platform, Connection& c, std::span<std::byte> pages, Coun
             memory::Arena arena(pages);
             attach_to(arena, countdown);
             const Chars chars(arena);
-            const std::optional<Header> h = walk.next(chars);
-            if (!h) {
+            Header h(chars);
+            if (!walk.next(h)) {
                 break;
             }
             const EntryView e = walk.entry();
             if (e.body) {
-                check_record(platform, *e.body, *h, at, chars);
+                check_record(platform, *e.body, h, at, chars);
             }
             try {
                 (void)stage::detail::part1(platform, stage::AtView{Operation::verify, at.path}, walk.index(), e, chars);
