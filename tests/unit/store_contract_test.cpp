@@ -347,11 +347,13 @@ constexpr bool budget_vector() {
     const std::optional<std::size_t> lines = store::given(entries);
     const std::size_t max = SIZE_MAX;
     // Sizes past SIZE_MAX in sum, by lines and by a line and its record,
-    // never read.
-    const std::string_view half(id_a.data(), (max / 2) + 1);
-    const std::array<store::EntryView, 2> lines_past = {store::EntryView{half, std::nullopt},
-                                                        store::EntryView{half, std::nullopt}};
-    const std::array<store::EntryView, 1> record_past = {store::EntryView{half, half}};
+    // never read; each view at most PTRDIFF_MAX long, as libc++ checks.
+    const std::string_view half(id_a.data(), max / 2);
+    const std::array<store::EntryView, 3> lines_past = {
+        store::EntryView{half, std::nullopt}, store::EntryView{half, std::nullopt},
+        store::EntryView{half, std::nullopt}};
+    const std::array<store::EntryView, 2> record_past = {store::EntryView{half, std::nullopt},
+                                                         store::EntryView{half, half}};
     return lines == 8U && store::operation_budget(*lines) == 1'048'576U + 32U &&
            store::operation_budget(max / 4) == std::nullopt && store::operation_budget((max / 4) + 1) == std::nullopt &&
            store::operation_budget(0) == 1'048'576U &&
@@ -455,14 +457,17 @@ QIVEN3_CASE(store_contract, gate) {
     const auto from_other = [&reading] {
         std::optional<store::Code> other;
         {
-            const std::jthread other_thread([&] {
+            // std::thread, joined here: libc++ before 20 keeps std::jthread
+            // experimental.
+            std::thread other_thread([&] {
                 try {
                     reading.enter(Operation::append, path);
                 } catch (const StoreError& e) {
                     other = e.code();
                 }
             });
-        }  // joined
+            other_thread.join();
+        }
         return other;
     };
     CHECK(from_other() == store::Code::thread);
