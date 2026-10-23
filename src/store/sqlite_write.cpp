@@ -38,38 +38,6 @@ constexpr int done_code = 101;
     throw StoreError::corrupt(at.operation, at.path, Corrupt::incoherent, detail);
 }
 
-// A held header line parsed and checked, its id compared with the row's.
-Header read_header(std::string_view id, std::string_view line, const Chars& allocator, const WhereView& at) {
-    Header h(allocator);
-    try {
-        h = header::parse_line(line, allocator);
-    } catch (const ParseError&) {
-        incoherent(at, "a header line the parser refuses");
-    } catch (const header::HeaderError&) {
-        incoherent(at, "a header line that is no object");
-    }
-    if (const std::optional<header::Code> fault = header::try_check(h)) {
-        if (*fault != header::Code::id_mismatch) {
-            incoherent(at, header::name(*fault));
-        }
-        throw StoreError::corrupt(at.operation, at.path, Corrupt::id_mismatch, id);
-    }
-    if (h.value(Slot::id) != id) {
-        throw StoreError::corrupt(at.operation, at.path, Corrupt::id_mismatch, id);
-    }
-    return h;
-}
-
-std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane, const WhereView& at) {
-    Statement s = c.prepare("SELECT id, seq FROM head WHERE scope = ?1 AND lane = ?2", at);
-    s.bind_text(1, scope, at);
-    s.bind_text(2, lane, at);
-    if (!s.step(at)) {
-        return std::nullopt;
-    }
-    return Head{Id::of(s.text(0)), s.integer(1)};
-}
-
 // An insert's constraint on a lane: HeadConflict, the head read again.
 [[noreturn]] void conflict(Connection& c, int code, std::string_view scope, std::string_view lane,
                            Expected expected, const WhereView& at) {
@@ -121,14 +89,13 @@ memory::Arena& ScratchView::operator()() {
     if (arena_) {
         peak_ = std::max(peak_, arena_->peak());
     }
-    arena_.reset();
-    memory::Arena& arena = arena_.emplace(pages_);
+    arena_.emplace(pages_);  // the last one ended first
 #if defined(QIVEN3_FAULTS)
     if (countdown_ != nullptr) {
-        arena.attach(countdown_);
+        arena_.value().attach(countdown_);
     }
 #endif
-    return arena;
+    return arena_.value();
 }
 
 std::size_t ScratchView::peak() const noexcept { return std::max(peak_, arena_ ? arena_->peak() : 0); }
@@ -149,15 +116,7 @@ std::optional<Head> WriteView::head(std::string_view scope, std::string_view lan
     return head_of(*c_, scope, lane, at_);
 }
 
-bool WriteView::header(std::string_view id, Header& out) {
-    Statement s = c_->prepare("SELECT line FROM entry WHERE id = ?1", at_);
-    s.bind_text(1, id, at_);
-    if (!s.step(at_)) {
-        return false;
-    }
-    out = read_header(id, s.blob(0), out.get_allocator(), at_);
-    return true;
-}
+bool WriteView::header(std::string_view id, Header& out) { return find(*c_, id, out, nullptr, at_) != Found::absent; }
 
 bool WriteView::body(std::string_view id, entry::validator::Text<Chars>& out) {
     Statement s = c_->prepare("SELECT record FROM body WHERE id = ?1", at_);

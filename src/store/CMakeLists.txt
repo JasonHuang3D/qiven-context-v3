@@ -3,7 +3,8 @@
 # stage, the shared validator's two parts as each store calls them, the
 # in-memory reference store, and the SQLite store: sqlite.cpp alone
 # includes the engine's header and makes its every call; sqlite_open.cpp
-# runs the open steps through its wrapper, sqlite_write.cpp the writes.
+# runs the open steps through its wrapper, sqlite_write.cpp the writes,
+# sqlite_read.cpp the reads.
 add_library(qiven3_store STATIC
   codes.hpp
   contract.hpp
@@ -17,6 +18,7 @@ add_library(qiven3_store STATIC
   sqlite.cpp
   sqlite.hpp
   sqlite_open.cpp
+  sqlite_read.cpp
   sqlite_store.hpp
   sqlite_write.cpp
   stage.cpp

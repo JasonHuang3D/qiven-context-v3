@@ -6,8 +6,8 @@
 // handle types by name and nothing else of it, so a module that runs
 // statements through the wrapper (exchange) neither includes the header
 // nor names the engine (B1). sqlite_open.cpp holds the open steps, through
-// the wrapper; sqlite_store.hpp the store itself, a template on the
-// platform.
+// the wrapper, sqlite_write.cpp the writes, sqlite_read.cpp the reads;
+// sqlite_store.hpp the store itself, a template on the platform.
 //
 // EngineHeap is the process's one engine heap: made over pages its maker
 // takes, it routes every allocation of the engine to a memory::Heap
@@ -31,6 +31,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -368,6 +369,69 @@ void add_meta(Connection& c, std::int64_t size, std::int64_t count, std::int64_t
 [[nodiscard]] std::string_view raise_meta(std::string_view name, std::int64_t value, std::array<char, 96>& out) noexcept;
 // size's figures: page_size, page_count, freelist_count, the files'.
 void figures(Connection& c, Sizes& out, const WhereView& at);
+
+// The reads (sqlite_read.cpp), through the wrapper. A header line is
+// parsed and checked, its id recomputed and compared with the row's (a
+// mismatch StoreCorrupt id_mismatch); find and a scan compare each column
+// beside the line with its field too (StoreCorrupt incoherent).
+[[nodiscard]] Header read_header(std::string_view id, std::string_view line, const Chars& allocator,
+                                 const WhereView& at);
+[[nodiscard]] std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane,
+                                          const WhereView& at);
+// h's fields made again on out's allocator.
+void copy_header(const Header& h, Header& out);
+// heads' read, in one read transaction: the head rows of scopes (none:
+// every one; `project:*` every project scope) into rows in (scope, lane)
+// order, their forget entries, and whether meta's purged is below forgets.
+struct HeadsRead {
+    std::uint64_t forgets = 0;
+    bool pending = false;
+};
+[[nodiscard]] HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, const WhereView& at);
+// An entry by id, its header checked into out on out's allocator. With
+// record given: no body row, nothing parsed; else its record into it.
+enum class Found : std::uint8_t { absent, entry, body };
+[[nodiscard]] Found find(Connection& c, std::string_view id, Header& out, memory::String* record,
+                         const WhereView& at);
+// Whether a forget targets id; none is id, NotFound.
+[[nodiscard]] bool forgotten(Connection& c, std::string_view id, const WhereView& at);
+
+// A scan: a cursor at the last (scope, lane, seq) it gave, each next() one
+// query for the first entry of its range past it, checked as find's, on a
+// fresh arena over the pages, copied into out. Every entry committed
+// before it began comes once, in order; one committed after, past the
+// cursor, comes too. It borrows its store object's gate, connection, pages
+// and path: used while that object lives; once it closes or moves, the
+// gate raises StoreError closed.
+class ScanView {
+public:
+    ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, Countdown* countdown,
+             std::string_view path, const RangeView& range) noexcept;
+    ScanView(const ScanView&) = delete;
+    ScanView& operator=(const ScanView&) = delete;
+    ScanView(ScanView&&) noexcept = default;
+    ScanView& operator=(ScanView&&) noexcept = default;
+    ~ScanView() = default;
+
+    bool next(Header& out);
+    // The counted peak of its greatest next.
+    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
+
+private:
+    const Gate* gate_;
+    Connection* c_;
+    std::span<std::byte> pages_;
+    [[maybe_unused]] Countdown* countdown_;
+    std::string_view path_;
+    std::optional<memory::Inline<scope_bytes>> scope_;
+    std::optional<memory::Inline<lane_bytes>> lane_;
+    std::int64_t after_;
+    memory::Inline<scope_bytes> at_scope_;
+    memory::Inline<lane_bytes> at_lane_;
+    std::int64_t at_seq_ = std::numeric_limits<std::int64_t>::min();
+    bool done_ = false;
+    std::size_t peak_ = 0;
+};
 
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(Setting) == 56, "a setting's size is pinned: two names in place and when");

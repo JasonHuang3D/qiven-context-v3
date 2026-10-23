@@ -23,15 +23,19 @@
 // committed); then a purge's one attempt. A failure in between rolls back.
 // purge and close: the attempt (steps a to c), which raises no engine
 // result; a read-only object attempts none. size: meta, then the figures.
-// head, heads, header, body, forgotten, scan, export, import and verify
-// still refuse after the gate, StoreError internal "not built".
+// head, heads, header, body, forgotten: one query each through
+// sqlite_read.cpp (heads in one read transaction), header and body
+// re-checking what they return; scan a cursor (sqlite::ScanView). export,
+// import and verify still refuse after the gate, StoreError internal "not
+// built".
 //
 // Budgets: the object's own pages, 1 MiB, taken at open; open's resolved
 // path and the synced client's name on an arena over them. append and
 // forget: 1 MiB plus 4 times the lines given (the object's own where they
 // hold it), halved: the kept arena (check's entries, the rows, the
 // targets, part 2's), and check's scratch, afresh for each line, then each
-// direction record's clearing. The engine's heap apart (Engine). Platform
+// direction record's clearing. header, body and a scan's next: an arena
+// over the object's own pages. The engine's heap apart (Engine). Platform
 // calls: at open pages, resolve, synced, at create one or two creates; at
 // append and forget pages past 1 MiB, and part 1's wipes.
 //
@@ -47,10 +51,12 @@
 #include <string_view>
 #include <utility>
 
+#include "entry/body.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "qiven3/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -92,7 +98,7 @@ private:
 
 namespace sqlite {
 
-// A scan or an export of a part not built yet: each call refuses.
+// An export, not built yet: each call refuses.
 class Unbuilt {
 public:
     Unbuilt() noexcept = default;
@@ -102,13 +108,12 @@ public:
     Unbuilt& operator=(Unbuilt&&) noexcept = default;
     ~Unbuilt() = default;
 
-    [[noreturn]] static bool next(Header& /*out*/) { refuse(); }
     [[noreturn]] static bool next(Line& /*line*/) { refuse(); }
     [[noreturn]] static Snapshot heads(Vector<LaneHead>& /*rows*/) { refuse(); }
     static void close() noexcept {}
 
 private:
-    [[noreturn]] static void refuse() { throw StoreError(Code::internal, "scan", {}, "not built"); }
+    [[noreturn]] static void refuse() { throw StoreError(Code::internal, "export", {}, "not built"); }
 };
 
 }  // namespace sqlite
@@ -177,7 +182,8 @@ public:
     SQLiteStore(SQLiteStore&& other) noexcept
         : platform_(other.platform_), pages_(std::move(other.pages_)), gate_(other.gate_), limits_(other.limits_),
           path_(other.path_), connection_(std::move(other.connection_)), opened_(other.opened_),
-          purge_(other.purge_), countdown_(other.countdown_), peak_(other.peak_), hooks_(std::move(other.hooks_)) {
+          purge_(other.purge_), last_(other.last_), countdown_(other.countdown_), peak_(other.peak_),
+          hooks_(std::move(other.hooks_)) {
         other.gate_.close();
     }
     SQLiteStore& operator=(SQLiteStore&& other) noexcept {
@@ -190,6 +196,7 @@ public:
             connection_ = std::move(other.connection_);
             opened_ = other.opened_;
             purge_ = other.purge_;
+            last_ = other.last_;
             countdown_ = other.countdown_;
             peak_ = other.peak_;
             hooks_ = std::move(other.hooks_);
@@ -206,12 +213,50 @@ public:
                    std::span<const EntryView> entries) {
         return write(Operation::append, scope, lane, expected, entries, {}, nullptr);
     }
-    std::optional<Head> head(std::string_view /*scope*/, std::string_view /*lane*/) { unbuilt(Operation::head); }
-    Heads heads(Scopes /*scopes*/, Vector<LaneHead>& /*rows*/) { unbuilt(Operation::heads); }
-    void header(std::string_view /*id*/, Header& /*out*/) { unbuilt(Operation::header); }
-    bool body(std::string_view /*id*/, String& /*record*/) { unbuilt(Operation::body); }
-    bool forgotten(std::string_view /*id*/) { unbuilt(Operation::forgotten); }
-    sqlite::Unbuilt scan(const RangeView& /*range*/) { unbuilt(Operation::scan); }
+    std::optional<Head> head(std::string_view scope, std::string_view lane) {
+        gate_.enter(Operation::head, path_.view());
+        return sqlite::head_of(connection_, scope, lane, site_of(Operation::head));
+    }
+    // A purge pending: this object's last attempt's reason, else writer's.
+    Heads heads(Scopes scopes, Vector<LaneHead>& rows) {
+        gate_.enter(Operation::heads, path_.view());
+        const sqlite::HeadsRead r = sqlite::heads(connection_, scopes, rows, site_of(Operation::heads));
+        return Heads{r.forgets, !r.pending ? Purge{} : (last_.done ? Purge::pending("writer") : last_)};
+    }
+    void header(std::string_view id, Header& out) {
+        memory::Arena arena(own(Operation::header));
+        hook(arena);
+        Header h{sqlite::Chars(arena)};
+        found(sqlite::find(connection_, id, h, nullptr, site_of(Operation::header)), Operation::header, id);
+        sqlite::copy_header(h, out);
+        peak_ = arena.peak();
+    }
+    // false: forgotten, a forget, or a header with no body; else the record
+    // checked against its header.
+    bool body(std::string_view id, String& record) {
+        constexpr Operation op = Operation::body;
+        memory::Arena arena(own(op));
+        hook(arena);
+        const sqlite::Chars chars(arena);
+        Header h(chars);
+        String held(chars);
+        const bool has = found(sqlite::find(connection_, id, h, &held, site_of(op)), op, id) == sqlite::Found::body;
+        if (has) {
+            checked(held, h, id, chars);
+            record.assign(std::string_view(held));  // on record's allocator
+        }
+        peak_ = arena.peak();
+        return has;
+    }
+    bool forgotten(std::string_view id) {
+        gate_.enter(Operation::forgotten, path_.view());
+        return sqlite::forgotten(connection_, id, site_of(Operation::forgotten));
+    }
+    // A cursor over this object's connection and pages (sqlite.hpp).
+    sqlite::ScanView scan(const RangeView& range) {
+        gate_.enter(Operation::scan, path_.view());
+        return {gate_, connection_, pages_.bytes().first(operation_base), countdown_, path_.view(), range};
+    }
     // As append, with the guard, whole records and each target's body
     // erased, its id into erased; never refused for size or count.
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
@@ -270,8 +315,8 @@ public:
     [[nodiscard]] Purge opened_purge() const noexcept { return purge_; }
     // The connection, for the store's own modules (exchange) and cases.
     [[nodiscard]] sqlite::Connection& connection() noexcept { return connection_; }
-    // The counted peak of the last append or forget that returned: its
-    // arenas' high-water marks summed.
+    // The counted peak of the last append, forget, header or body that
+    // returned: its arenas' high-water marks summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 #if defined(QIVEN3_FAULTS)
     // Each arena of an operation asks countdown first.
@@ -440,7 +485,35 @@ private:
             throw;
         }
         connection_.wait(sqlite::busy_milliseconds);
+        last_ = p;
         return p;
+    }
+
+    // A read's gate, then its arena's span: the object's own pages.
+    std::span<std::byte> own(Operation op) {
+        gate_.enter(op, path_.view());
+        return pages_.bytes().first(operation_base);
+    }
+    [[nodiscard]] WhereView site_of(Operation op) const noexcept { return sqlite::site(name(op), path_.view()); }
+    sqlite::Found found(sqlite::Found f, Operation op, std::string_view id) const {
+        if (f == sqlite::Found::absent) {
+            throw StoreError::not_found(name(op), path_.view(), id);
+        }
+        return f;
+    }
+    // A held body record against its header: one the parser refuses
+    // StoreCorrupt incoherent, one not its header's body_mismatch.
+    void checked(std::string_view record, const Header& h, std::string_view id, const sqlite::Chars& chars) {
+        namespace body = entry::body;
+        try {
+            body::check(body::parse(*platform_, record, chars), h);
+        } catch (const body::BodyError& f) {
+            const bool mismatch = f.code == body::Code::body_mismatch;
+            throw StoreError::corrupt(name(Operation::body), path_.view(),
+                                      mismatch ? Corrupt::body_mismatch : Corrupt::incoherent, id);
+        } catch (const ParseError&) {
+            throw StoreError::corrupt(name(Operation::body), path_.view(), Corrupt::incoherent, id);
+        }
     }
 
     // Steps a to c; a step a result stopped, pending with its reason.
@@ -506,6 +579,7 @@ private:
     sqlite::Connection connection_;
     sqlite::Opened opened_;
     Purge purge_;
+    Purge last_;  // the last attempt's
     [[maybe_unused]] sqlite::Countdown* countdown_ = nullptr;
     std::size_t peak_ = 0;
     QIVEN3_NO_UNIQUE_ADDRESS H hooks_;
