@@ -273,6 +273,13 @@ void probe(Connection& c, const WhereView& at);
 using Chars = memory::Allocator<char>;
 #if defined(QIVEN3_FAULTS)
 using Countdown = memory::Countdown;
+// The process's two countdowns: calls, which each engine call the wrapper
+// maps asks first, a failed one taking SQLITE_IOERR as its result, the
+// engine not called; and arenas, which a store object made while it is
+// attached takes for its arenas, open's and the guard's among them. None,
+// nullptr.
+void attach_calls(Countdown* calls, Countdown* arenas) noexcept;
+[[nodiscard]] Countdown* arenas_countdown() noexcept;
 #else
 struct Countdown {};
 #endif

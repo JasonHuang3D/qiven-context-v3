@@ -108,6 +108,29 @@ int extended(sqlite3* db, int rc) noexcept {
     throw to_error(code, at);
 }
 
+#if defined(QIVEN3_FAULTS)
+std::atomic<Countdown*>& faults() noexcept {
+    static std::atomic<Countdown*> countdown{nullptr};
+    return countdown;
+}
+
+std::atomic<Countdown*>& arenas() noexcept {
+    static std::atomic<Countdown*> countdown{nullptr};
+    return countdown;
+}
+#endif
+
+// Whether the engine calls' countdown fails this call: its result then
+// SQLITE_IOERR, the engine not called. Never without QIVEN3_FAULTS.
+bool injected() noexcept {
+#if defined(QIVEN3_FAULTS)
+    Countdown* const countdown = faults().load(std::memory_order_acquire);
+    return countdown != nullptr && countdown->fail();
+#else
+    return false;
+#endif
+}
+
 // A statement past the engine's int-sized length is refused, internal.
 void fits(std::string_view text, const WhereView& at) {
     if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
@@ -129,6 +152,15 @@ std::string_view bytes_of(sqlite3_stmt* statement, int column) noexcept {
 }  // namespace
 
 int engine_version() noexcept { return sqlite3_libversion_number(); }
+
+#if defined(QIVEN3_FAULTS)
+void attach_calls(Countdown* calls, Countdown* arenas_too) noexcept {
+    faults().store(calls, std::memory_order_release);
+    arenas().store(arenas_too, std::memory_order_release);
+}
+
+Countdown* arenas_countdown() noexcept { return arenas().load(std::memory_order_acquire); }
+#endif
 
 bool engine_ready() noexcept { return installed().load(std::memory_order_acquire) != nullptr; }
 
@@ -186,7 +218,7 @@ void Statement::finalize() noexcept {
 }
 
 void Statement::bind(int index, std::int64_t value, const WhereView& at) {
-    const int rc = sqlite3_bind_int64(statement_, index, value);
+    const int rc = injected() ? SQLITE_IOERR : sqlite3_bind_int64(statement_, index, value);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
@@ -195,29 +227,31 @@ void Statement::bind(int index, std::int64_t value, const WhereView& at) {
 void Statement::bind_text(int index, std::string_view text, const WhereView& at) {
     // An empty view may have no data; the empty text is bound, never null.
     const char* const data = text.empty() ? "" : text.data();
-    const int rc = sqlite3_bind_text64(statement_, index, data, text.size(), nullptr, SQLITE_UTF8);
+    const int rc =
+        injected() ? SQLITE_IOERR : sqlite3_bind_text64(statement_, index, data, text.size(), nullptr, SQLITE_UTF8);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
 }
 
 void Statement::bind_blob(int index, std::string_view bytes, const WhereView& at) {
-    const int rc = bytes.empty() ? sqlite3_bind_zeroblob(statement_, index, 0)
-                                 : sqlite3_bind_blob64(statement_, index, bytes.data(), bytes.size(), nullptr);
+    const int rc = injected()      ? SQLITE_IOERR
+                   : bytes.empty() ? sqlite3_bind_zeroblob(statement_, index, 0)
+                                   : sqlite3_bind_blob64(statement_, index, bytes.data(), bytes.size(), nullptr);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
 }
 
 void Statement::bind_null(int index, const WhereView& at) {
-    const int rc = sqlite3_bind_null(statement_, index);
+    const int rc = injected() ? SQLITE_IOERR : sqlite3_bind_null(statement_, index);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
 }
 
 bool Statement::step(const WhereView& at) {
-    const int rc = sqlite3_step(statement_);
+    const int rc = injected() ? SQLITE_IOERR : sqlite3_step(statement_);
     if (rc == SQLITE_ROW) {
         return true;
     }
@@ -228,7 +262,7 @@ bool Statement::step(const WhereView& at) {
 }
 
 int Statement::step_code() noexcept {
-    const int rc = sqlite3_step(statement_);
+    const int rc = injected() ? SQLITE_IOERR : sqlite3_step(statement_);
     return rc == SQLITE_ROW || rc == SQLITE_DONE ? rc : extended(db_, rc);
 }
 
@@ -251,7 +285,7 @@ Connection Connection::open(const memory::String& path, bool read_only, const Wh
     }
     sqlite3* db = nullptr;
     const int flags = (read_only ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE) | SQLITE_OPEN_EXRESCODE;
-    const int rc = sqlite3_open_v2(path.c_str(), &db, flags, nullptr);
+    const int rc = injected() ? SQLITE_IOERR : sqlite3_open_v2(path.c_str(), &db, flags, nullptr);
     // A refused open may still give a handle, to be closed.
     Connection c(db);
     if (rc != SQLITE_OK) {
@@ -278,7 +312,8 @@ Connection::~Connection() { close(); }
 Statement Connection::prepare(std::string_view sql, const WhereView& at) {
     fits(sql, at);
     sqlite3_stmt* statement = nullptr;
-    const int rc = sqlite3_prepare_v3(db_, sql.data(), static_cast<int>(sql.size()), 0, &statement, nullptr);
+    const int rc = injected() ? SQLITE_IOERR
+                              : sqlite3_prepare_v3(db_, sql.data(), static_cast<int>(sql.size()), 0, &statement, nullptr);
     Statement s(db_, statement);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
@@ -310,10 +345,11 @@ int Connection::run(std::string_view sql, std::span<std::int64_t> row) noexcept 
         return SQLITE_MISUSE;
     }
     sqlite3_stmt* statement = nullptr;
-    int rc = sqlite3_prepare_v3(db_, sql.data(), static_cast<int>(sql.size()), 0, &statement, nullptr);
+    int rc = injected() ? SQLITE_IOERR
+                        : sqlite3_prepare_v3(db_, sql.data(), static_cast<int>(sql.size()), 0, &statement, nullptr);
     if (rc == SQLITE_OK && statement != nullptr) {
         bool first = true;
-        while ((rc = sqlite3_step(statement)) == SQLITE_ROW) {
+        while ((rc = injected() ? SQLITE_IOERR : sqlite3_step(statement)) == SQLITE_ROW) {
             for (std::size_t i = 0; first && i < row.size(); ++i) {
                 row[i] = sqlite3_column_int64(statement, static_cast<int>(i));
             }

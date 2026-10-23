@@ -141,6 +141,7 @@ public:
         SQLiteStore store(platform, read_only, limits, std::move(hooks));
         {
             memory::Arena arena(store.pages_.bytes());
+            store.hook(arena);
             String resolved{memory::Allocator<char>(arena)};
             platform.resolve(path, resolved);
             store.path_ = memory::Inline<path_bytes>(resolved);
@@ -157,6 +158,7 @@ public:
                 make(resolved, platform, at);
             }
             store.connection_ = sqlite::connect(resolved, create, read_only, at, store.opened_);
+            store.peak_ = arena.peak();
         }
         if (!read_only && store.opened_.pending()) {
             store.purge_ = store.attempt();
@@ -169,6 +171,11 @@ public:
     static void guard(std::string_view path, P& platform) {
         Pages pages = platform.pages(operation_base);
         memory::Arena arena(pages.bytes());
+#if defined(QIVEN3_FAULTS)
+        if (sqlite::arenas_countdown() != nullptr) {
+            arena.attach(sqlite::arenas_countdown());
+        }
+#endif
         String resolved{memory::Allocator<char>(arena)};
         platform.resolve(path, resolved);
         check(resolved, platform, arena, sqlite::guard_name);
@@ -315,8 +322,8 @@ public:
     [[nodiscard]] Purge opened_purge() const noexcept { return purge_; }
     // The connection, for the store's own modules (exchange) and cases.
     [[nodiscard]] sqlite::Connection& connection() noexcept { return connection_; }
-    // The counted peak of the last append, forget, header or body that
-    // returned: its arenas' high-water marks summed.
+    // The counted peak of the last open, append, forget, header or body
+    // that returned: its arenas' high-water marks summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 #if defined(QIVEN3_FAULTS)
     // Each arena of an operation asks countdown first.
@@ -330,6 +337,9 @@ private:
         if (pages_.bytes().size() < operation_base) {
             memory::fail_fast("store/sqlite: pages short of their request");
         }
+#if defined(QIVEN3_FAULTS)
+        countdown_ = sqlite::arenas_countdown();
+#endif
     }
 
     // The guard on a resolved path, its strings on arena.
