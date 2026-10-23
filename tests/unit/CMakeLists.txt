@@ -223,3 +223,10 @@ qiven3_add_cases(qiven3_unit_files LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
   SOURCES store_errors_test.cpp
   LINK qiven3_faults qiven3_secret qiven3_entry qiven3_store)
+
+# store/codes' cases: the table's named numbers, its order and its names;
+# each row of the mapping and each purge reason, evaluated by the compiler;
+# every code at every place and step; a line; the fault run over none.
+qiven3_add_cases(qiven3_unit_store_codes LABELS fast fake
+  SOURCES store_codes_test.cpp
+  LINK qiven3_faults qiven3_store)

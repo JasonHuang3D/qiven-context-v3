@@ -1,6 +1,8 @@
 # qiven3_store: the store, the one target that links qiven3_sqlite, which it
-# takes with the first source that needs SQLite; so far its typed errors.
+# takes with the first source that needs SQLite; so far its typed errors and
+# the engine's result codes mapped to them.
 add_library(qiven3_store STATIC
+  codes.hpp
   errors.cpp
   errors.hpp
 )
