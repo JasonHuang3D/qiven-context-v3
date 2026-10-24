@@ -187,6 +187,16 @@ Result fixture_made(StoreDrive<F>& d, memory::Arena&, ArgView request) {
     return wire::fixture_made(d.site().book(), request);
 }
 
+// The view's reads' and the export's plans: the SQLite store's alone.
+template <class F>
+Result plans([[maybe_unused]] StoreDrive<F>& d, memory::Arena&, [[maybe_unused]] ArgView request) {
+    if constexpr (F::own == stores::Own::sqlite) {
+        return wire::plans(object(d, request).connection());
+    } else {
+        throw RequestError("store_plans: the " + std::string(F::name) + " store plans no statement");
+    }
+}
+
 template <class F>
 Result capabilities(StoreDrive<F>&, memory::Arena&, ArgView) {
     constexpr store::Capabilities have = F::Store::capabilities;
@@ -446,6 +456,7 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"store_import", {import_<F>, import_budget}},
         {"store_size", {size<F>, base}},
         {"store_verify", {verify<F>, base}},
+        {"store_plans", {plans<F>, nullptr}},
         {"store_close", {close<F>, base}},
         {"store_read_only", {read_only<F>, nullptr}},
         {"store_limits", {limits<F>, nullptr}},

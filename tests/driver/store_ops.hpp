@@ -17,7 +17,7 @@
 // store_forget, store_purge, store_export, store_import (from an "export"
 // of this drive, or from "heads" and "lines" given), store_size,
 // store_verify, store_close, store_read_only and store_limits, each on a
-// "store"; store_drop ends an object no handle is held over. A scan's:
+// "store", and store_plans, the SQLite store's alone; store_drop ends an object no handle is held over. A scan's:
 // scan_next, a header's line at a time, and scan_close, its end. An
 // export's: export_heads, export_next, export_close, and export_drop, its
 // end. fixture_entry gives a fixture's stored line and body record, by

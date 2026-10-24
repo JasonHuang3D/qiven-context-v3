@@ -477,7 +477,7 @@ test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
-constexpr std::array<log::Name, 87> operation_names{
+constexpr std::array<log::Name, 88> operation_names{
     "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
     "replace", "create", "remove_directory", "read", "program", "run", "code_page", "stdout", "residual",
     "random_bytes", "wipe", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
@@ -489,7 +489,7 @@ constexpr std::array<log::Name, 87> operation_names{
     "factory_make", "factory_again", "factory_read_only", "factory_reopen", "factory_drop", "fixture_entry",
     "fixture_made", "store_capabilities", "store_append", "store_head", "store_heads", "store_header",
     "store_body", "store_forgotten", "store_scan", "store_forget", "store_purge", "store_export", "store_import",
-    "store_size", "store_verify", "store_close", "store_read_only", "store_limits", "store_drop",
+    "store_size", "store_verify", "store_plans", "store_close", "store_read_only", "store_limits", "store_drop",
     "scan_next", "scan_close", "export_heads", "export_next", "export_close", "export_drop",
     "open", "append", "head", "heads", "header", "body", "forgotten", "scan", "forget", "purge",
     "export", "import", "size", "verify", "close"};

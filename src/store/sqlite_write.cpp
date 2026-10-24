@@ -139,7 +139,7 @@ bool WriteView::forgotten(std::string_view id) {
 bool WriteView::holds_content(std::string_view content) {
     String needle(allocator_);
     needle.append("\"content\":\"").append(content).append("\"");
-    Statement s = c_->prepare("SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)", at_);
+    Statement s = c_->prepare(content_scan, at_);
     s.bind_blob(1, needle, at_);
     return s.step(at_) && s.integer(0) != 0;
 }
@@ -148,8 +148,7 @@ bool WriteView::holds_content(std::string_view content) {
 // own fresh arena; the first that clears ends the walk.
 bool WriteView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,
                         std::string_view at) {
-    Statement roots =
-        c_->prepare("SELECT id FROM entry WHERE scope = ?1 AND kind = 'direction' AND target IS NULL", at_);
+    Statement roots = c_->prepare(direction_roots, at_);
     roots.bind_text(1, scope, at_);
     while (roots.step(at_)) {
         const Id root = Id::of(roots.text(0));
@@ -168,7 +167,7 @@ bool WriteView::clears(const Id& root, std::string_view scope, std::string_view 
     Vector<Id> members(work);
     members.push_back(root);
     {
-        Statement s = c_->prepare("SELECT id FROM entry WHERE target = ?1 AND scope = ?2", at_);
+        Statement s = c_->prepare(record_members, at_);
         for (std::size_t i = 0; i < members.size(); ++i) {
             const Id m = members[i];
             s.bind_text(1, m.view(), at_);
@@ -188,9 +187,7 @@ bool WriteView::clears(const Id& root, std::string_view scope, std::string_view 
     heads.reserve(members.size());
     values.reserve(members.size());
     items.reserve(members.size());
-    Statement s = c_->prepare("SELECT e.line, b.record, EXISTS (SELECT 1 FROM entry f WHERE f.target = e.id AND "
-                              "f.kind = 'forget') FROM entry e LEFT JOIN body b ON b.id = e.id WHERE e.id = ?1",
-                              at_);
+    Statement s = c_->prepare(member_rows, at_);
     for (const Id& m : members) {
         s.bind_text(1, m.view(), at_);
         if (!s.step(at_)) {

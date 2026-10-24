@@ -361,6 +361,11 @@ class StoreObject:
     def verify(self):
         return self.call("store_verify")
 
+    def plans(self):
+        """The SQLite store's plans: [{"name", "lines"}, ...], each of the
+        view's reads and the export's statements."""
+        return self.call("store_plans")
+
     def close(self):
         return self.call("store_close")
 

@@ -363,6 +363,19 @@ struct Totals {
 };
 [[nodiscard]] Totals totals(Connection& c, const WhereView& at);
 
+// The view's two reads under the write lock, each planned with no
+// structure built in memory as large as its rows (S4's plan check): F138's
+// clearings, the scope's direction roots, a record's members by
+// entry_target, and each member's line, body record and whether a forget
+// targets it; and the scan of entry.line for a "content": field.
+inline constexpr std::string_view direction_roots =
+    "SELECT id FROM entry WHERE scope = ?1 AND kind = 'direction' AND target IS NULL";
+inline constexpr std::string_view record_members = "SELECT id FROM entry WHERE target = ?1 AND scope = ?2";
+inline constexpr std::string_view member_rows =
+    "SELECT e.line, b.record, EXISTS (SELECT 1 FROM entry f WHERE f.target = e.id AND "
+    "f.kind = 'forget') FROM entry e LEFT JOIN body b ON b.id = e.id WHERE e.id = ?1";
+inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
+
 // Part 2's view of the transaction (stage::View): the head, a header and
 // a body by id, the forgotten set, F138's clearings and held contents, the
 // size and the count the transaction began with. A clearing works on the

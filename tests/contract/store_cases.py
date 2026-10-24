@@ -16,8 +16,9 @@ reason, "not applicable: the memory store lacks durable", which the suite
 gives CTest as its skip code. test_tags checks that frame on the binding's
 store.
 
-Here: S1 to S9, and beside S8 the open's write probe on a file no one may
-write. The entries are made through the drive (store_entries.py).
+Here: S1 to S9, S4's own SQLite part its plans, and beside S8 the open's
+write probe on a file no one may write. The entries are made through the
+drive (store_entries.py).
 """
 
 import json
@@ -35,6 +36,10 @@ from tests.drive.session import FAKE, Drive, DriveError
 
 # The tags a case may name, in the order a reason lists them.
 TAGS = ("durable", "files", "processes", "own: sqlite")
+# The statements the SQLite store plans: the view's reads, then the
+# export's.
+PLANNED = ("direction_roots", "record_members", "member_rows", "content_scan", "forget_counts", "head_rows",
+           "lane_rows")
 
 
 class StoreBinding:
@@ -487,3 +492,28 @@ class StoreCases:
                     elsewhere = clearing(m, "hmac-sha256:" + "0" * 64, pattern, 2, wrong, 61)
                     other.append(SCOPE, "reviewer", None, [wrong, elsewhere])
                     self.refuse(other, SCOPE, "implementer", None, [hit], "EntryInvalid", "secret", pattern=pattern)
+
+    def test_S4_plans(self):
+        """S4's own SQLite part: the view's two reads, F138's clearings (the
+        scope's direction roots, a record's members, each member's row) and
+        the scan of entry.line for a content, and beside them the export's
+        statements, planned with no structure built in memory as large as
+        its rows: no plan line holds TEMP B-TREE, AUTOMATIC, MATERIALIZE or
+        BLOOM FILTER, on a store whose append ran both reads. The store runs
+        no ANALYZE, so its plans do not follow its row count; the times at
+        555,000 entries are the slow group's. Needs: own: sqlite."""
+        with self.drive() as drive:
+            self.needs(drive, "own: sqlite")
+            m, store = Maker(drive), drive.store_make()
+            value, pattern = CLEARING[0]
+            hit = m.claim(SCOPE, "implementer", 1, None, 240, mistake=value)
+            store.append(SCOPE, "reviewer", None, [clearing(m, header(hit)["content"], pattern, 1, None, 60)])
+            store.append(SCOPE, "implementer", None, [hit])
+            planned = {item["name"]: item["lines"] for item in store.plans()}
+            self.assertEqual(sorted(planned), sorted(PLANNED))
+            for name, lines in planned.items():
+                with self.subTest(statement=name):
+                    self.assertTrue(lines, name)
+                    for line in lines:
+                        for bad in ("TEMP B-TREE", "AUTOMATIC", "MATERIALIZE", "BLOOM FILTER"):
+                            self.assertNotIn(bad, line, f"{name}: {lines}")

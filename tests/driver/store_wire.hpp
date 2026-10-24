@@ -36,6 +36,9 @@
 namespace qiven3::test::stage_book {
 class Book;
 }  // namespace qiven3::test::stage_book
+namespace qiven3::store::sqlite {
+class Connection;
+}  // namespace qiven3::store::sqlite
 
 namespace qiven3::drive::wire {
 
@@ -127,6 +130,11 @@ static_assert(store::Source<Given>);
 // check is made: the case decides what is valid.
 Value fixture_entry(const test::stage_book::Book& book, ArgView request);
 Value fixture_made(const test::stage_book::Book& book, ArgView request);
+
+// The SQLite store's plans (store_plans.cpp): [{"name", "lines"}, ...],
+// each of the view's reads and the export's statements by its name, its
+// EXPLAIN QUERY PLAN lines as the store's connection plans them.
+Value plans(store::sqlite::Connection& c);
 
 // The bytes of the lines a request gives under key, each line and body;
 // the operation's budget over them.
