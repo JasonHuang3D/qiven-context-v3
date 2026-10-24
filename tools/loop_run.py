@@ -45,14 +45,31 @@ class CannotRun(Exception):
     """The loop could not run: exit 2."""
 
 
+RAW = getattr(time, "CLOCK_MONOTONIC_RAW", None)  # Linux's, never slewed
+
+
+def now():
+    """The loop's clock, in seconds: Linux's CLOCK_MONOTONIC_RAW, else the
+    performance counter. In WSL2 the guest's CLOCK_MONOTONIC, Python's
+    monotonic clock, is slewed by its time daemon and has run 1.3 to 4.6
+    percent fast against the host's, so that a Linux step's seconds passed
+    the Windows side's "in all" that holds them; the raw clock, never
+    slewed, keeps the host's pace, as Windows' performance counter is the
+    host's."""
+    return time.clock_gettime(RAW) if RAW is not None else time.perf_counter()
+
+
 class Report:
     """The answer, within its line bound: the last line always has its
-    place, and a failing tail leaves room for the lines still planned."""
+    place. A failing step's lines wait for the end, after every step's
+    line, where the failing steps share the room left (failures)."""
 
     def __init__(self, budget):
         self.left = budget - 1  # the last line's place kept
-        self.planned = 0
+        self.planned = 0  # the lines the callers still plan; read by none since failures waits for the end
         self.dropped = 0
+        self.failed = []  # (the step's name, its log) of each failing step, in order
+        self.unshown = 0  # failing steps the bound left with no line
 
     def plan(self, count):
         self.planned += count
@@ -67,39 +84,85 @@ class Report:
             self.dropped += 1
 
     def last(self, text):
-        if self.dropped:
-            text += f" ({self.dropped} lines left out by the bound)"
+        """The failing steps' lines, then the last line."""
+        self.failures()
+        out = [f"{self.dropped} lines"] if self.dropped else []
+        out += [f"{self.unshown} failing steps' lines"] if self.unshown else []
+        if out:
+            text += f" ({' and '.join(out)} left out by the bound)"
         print(text[:WIDTH], flush=True)
 
-    def tail(self, log):
-        """A failing log's first error lines before its tail, as many of
-        FIRST as leave room, then its last lines, as many of TAIL as leave
-        room: each part under its own line, the error lines' first."""
-        room = self.left - self.planned  # this failure's lines, its parts' own lines included
-        if room <= 1:
-            return
-        try:
-            lines = log.read_bytes().decode("utf-8", "replace").splitlines()
-        except OSError as e:
-            self.line(f"  (the log cannot be read: {e})")
-            return
-        # the first line, the command run_steps wrote, apart
-        errors = [i for i, text in enumerate(lines) if i and ERROR_LINE.search(text)]
-        size = min(TAIL, room - 1, len(lines))
-        first = min(FIRST, sum(1 for i in errors if i < len(lines) - size), room - 3)
-        if first > 0:
-            size = min(size, room - first - 2)
-            shown = [i for i in errors if i < len(lines) - size][:first]
-            self.line(f"  its first {len(shown)} of {len(errors)} error lines, before its tail:")
-            for i in shown:
-                self.line(f"  ! {i + 1}: {lines[i]}")
-        self.line(f"  its last {size} of {len(lines)} lines:")
-        for text in lines[len(lines) - size:]:
-            self.line("  | " + text)
+    def fail(self, name, log):
+        """A failing step, its lines shown by last."""
+        self.failed.append((name, log))
+
+    def failures(self):
+        """Each failing step's first error lines before its last lines, in
+        the room every step's line left, shared by turns: first each step's
+        error lines, as many of FIRST as the room holds (its last lines when
+        it has none), each step's first line before any step's second; then
+        each step's last lines likewise, as many of TAIL. Each part under its
+        own line, naming the step; the error lines are those before the
+        tail, the log's first line, the command run_steps wrote, apart."""
+        found = []
+        for name, log in self.failed:
+            try:
+                lines = log.read_bytes().decode("utf-8", "replace").splitlines()
+            except OSError as e:
+                self.line(f"{name}: its log cannot be read: {e}")
+                continue
+            found.append((name, lines, [i for i, text in enumerate(lines) if i and ERROR_LINE.search(text)]))
+        self.failed = []
+        own = [min(FIRST, len(errors)) for _, _, errors in found]  # each step's error lines at most
+        tails = [min(TAIL, len(lines)) for _, lines, _ in found]
+        later = [t if k else 0 for k, t in zip(own, tails)]  # the tails of the steps with error lines
+        firsts, rest = [0] * len(found), [0] * len(found)
+        room = share(self.left, firsts, [k or t for k, t in zip(own, tails)])  # no error line: its tail first
+        room = share(room, rest, later)
+        errs = [f if k else 0 for k, f in zip(own, firsts)]
+
+        def picked():
+            """Each step's error lines shown: those before its tail, as many as granted."""
+            sizes = [r if k else f for k, f, r in zip(own, firsts, rest)]
+            return sizes, [[i for i in e if i < len(lines) - s][:n] for (_, lines, e), s, n in zip(found, sizes, errs)]
+
+        for _ in range(2):  # an error line within the tail shows there: its place goes to the tails
+            sizes, shown = picked()
+            room += sum(n - len(s) + (1 if n and not s else 0) for n, s in zip(errs, shown))
+            errs = [len(s) for s in shown]
+            room = share(room, rest, later)
+        sizes, shown = picked()  # a place freed now stays unused
+        for (name, lines, errors), size, chosen_lines in zip(found, sizes, shown):
+            if chosen_lines:
+                self.line(f"{name}: its first {len(chosen_lines)} of {len(errors)} error lines"
+                          f"{', before its tail' if size else ''}:")
+                for i in chosen_lines:
+                    self.line(f"  ! {i + 1}: {lines[i]}")
+            if size:
+                self.line(f"{name}: its last {size} of {len(lines)} lines:")
+                for text in lines[len(lines) - size:]:
+                    self.line("  | " + text)
+        self.unshown += sum(1 for size, s in zip(sizes, shown) if not size and not s)
+
+
+def share(room, grants, tops):
+    """Lines granted by turns: each part below its top one more line a turn
+    while the room lasts, a part's first line costing its own head line
+    too. Grows grants in place; returns the room left."""
+    grew = True
+    while grew:
+        grew = False
+        for i, top in enumerate(tops):
+            cost = 1 if grants[i] else 2
+            if grants[i] < top and room >= cost:
+                grants[i] += 1
+                room -= cost
+                grew = True
+    return room
 
 
 def seconds(start):
-    return f"{time.monotonic() - start:.1f} s"
+    return f"{now() - start:.1f} s"
 
 
 def slug(name):
@@ -137,7 +200,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
             continue
         log = logs / f"{index:02d}-{slug(step.name)}.log"
         limit = STEP_TIMEOUT if step.timeout is None else step.timeout or None
-        start = time.monotonic()
+        start = now()
         try:
             argv = command(step)
             if argv is None:
@@ -165,7 +228,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
             counts[1] += 1
             what = status if isinstance(status, str) else STATUS["line"](status)
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
-            report.tail(log)
+            report.fail(f"{job} {step.name}", log)
     return counts
 
 

@@ -72,12 +72,17 @@ the debugger cases under gdb. macOS stays with CI alone.
   or give it by the environment.
 
 The answer is plain text: a line a tree and a step with its outcome and
-seconds; for a failing step, its first error lines before its last 30,
-up to 10, each with its line number in the log (a compiler's, a linker's
-or clang-tidy's error, MSVC's warning, an error under /WX, ninja's failed
-edge, CMake's error, ctest's failed tests, a Python traceback and its
-exception, unittest's FAIL and ERROR, a sanitizer's report), then its
-last 30 lines; at most 100 lines in all. Exit 0
+seconds; then, after every step's line, for each failing step, its first
+error lines before its last 30, up to 10, each with its line number in
+the log (a compiler's, a linker's or clang-tidy's error, MSVC's warning,
+an error under /WX, ninja's failed edge, CMake's error, ctest's failed
+tests, a Python traceback and its exception, unittest's FAIL and ERROR, a
+sanitizer's report), then its last 30 lines; at most 100 lines in all,
+the failing steps sharing the room by turns, each one's first error line
+before any one's second, the error lines before the tails. The seconds
+keep the host's pace on both systems (in WSL by CLOCK_MONOTONIC_RAW: the
+guest's monotonic clock is slewed); linux's last line adds its seconds in
+all, from Windows, the pin check and the snapshot included. Exit 0
 when every step passed, 1 when a step failed, 2 when the loop could not
 run (a tool missing, a pin off, WSL absent, a bad argument).
 
@@ -91,7 +96,6 @@ import argparse
 import os
 import runpy
 import sys
-import time
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
@@ -188,7 +192,7 @@ def title(args):
 def main(argv=None):
     args = parse(argv)
     report = Report(args.lines)
-    start = time.monotonic()
+    start = RUN["now"]()
     try:
         if not args.inside:
             report.line(title(args))

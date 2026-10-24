@@ -23,7 +23,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -77,7 +76,7 @@ def snapshot(root):
 def linux(args, report):
     """From Windows: WSL present, the interpreter under the prefix, the pin
     check, the snapshot, then the units inside WSL by loop.py's --inside."""
-    begun = time.monotonic()
+    begun = now()
     if re.match(r"^[A-Za-z]:", args.prefix) or re.match(r"^[A-Za-z]:", args.clone):
         raise CannotRun("the prefix and the clone are WSL's paths; from Git Bash set MSYS_NO_PATHCONV=1")
     wsl = shutil.which("wsl.exe") or shutil.which("wsl")
@@ -94,7 +93,7 @@ def linux(args, report):
     source = source.strip()
     named = args.jobs if args.way in ("build", "test") else []
     inner = [wsl, "-d", args.distro, "-e", python, "-I", source + "/tools/loop.py", "--inside", args.way, "linux",
-             *named, "--source", source, "--prefix", args.prefix, "--clone", args.clone, "--lines", str(report.left)]
+             *named, "--source", source, "--prefix", args.prefix, "--clone", args.clone]
     if args.fuzz_time is not None:
         inner += ["--fuzz-time", str(args.fuzz_time)]
     pin_file = []
@@ -104,7 +103,7 @@ def linux(args, report):
             raise CannotRun(f"wslpath: {pins.strip()[-200:]}")
         pin_file = ["--pins", pins.strip()]
         inner += pin_file
-    start = time.monotonic()
+    start = now()
     status, text = wsl_run(wsl, args.distro, python, "-I", source + "/tools/linux_pins.py", "--prefix", args.prefix,
                            *pin_file)
     lines = text.strip().splitlines() or ["no output"]
@@ -113,19 +112,28 @@ def linux(args, report):
             report.line(line)
         raise CannotRun(f"the pin check exited {status}")
     report.line(f"loop: {lines[-1]} in {seconds(start)}; prefix {args.prefix}")
-    start = time.monotonic()
+    start = now()
     commit = snapshot(ROOT)
     report.line(f"loop: snapshot {commit[:12]} of the working tree in {seconds(start)}")
-    inner += ["--commit", commit]
+    return relay(report, [*inner, "--commit", commit], begun)
+
+
+def relay(report, inner, begun):
+    """The inner run's lines, given the lines left after this side's own
+    (--lines), its last line this answer's, with the seconds in all since
+    begun on this side's clock, the inner run's within them. Returns its
+    status."""
     try:
-        child = subprocess.Popen(inner, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        child = subprocess.Popen([*inner, "--lines", str(report.left + 1)], stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     except OSError as e:
         raise CannotRun(f"wsl.exe: {e}") from e
     last = None
-    for raw in child.stdout:
-        if last is not None:
-            report.line(last)
-        last = raw.decode("utf-8", "replace").rstrip("\r\n")
+    with child:  # its pipe closed, the child waited for
+        for raw in child.stdout:
+            if last is not None:
+                report.line(last)
+            last = raw.decode("utf-8", "replace").rstrip("\r\n")
     status = child.wait()
     if last is not None and status in (0, 1, 2):
         report.last(f"{last}; {seconds(begun)} in all")  # the inner summary keeps its place
@@ -157,7 +165,7 @@ def inside(args, report):
     units = plan(args.way, "linux", args.jobs, args.fuzz_time, ROOT)
     presets = binary_dirs(ROOT)
     report.plan(2 + planned_lines(units, phase))
-    start = time.monotonic()
+    start = now()
     sync(git, clone, args.source, args.commit)
     old = earlier_clones(base)
     unused = f"; unused beside it, an earlier loop's clones: {', '.join(old)}" if old else ""

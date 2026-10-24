@@ -108,22 +108,24 @@ class Answer(unittest.TestCase):
         counts, lines = self.steps([0, 3])
         self.assertEqual(counts, [1, 1, 0])
         self.assertRegex(lines[1], r"^job step 1: FAIL, status: 3 abort: Windows: the C runtime.s abort, in \d+\.\d s; log .*02-step-1\.log$")
-        self.assertEqual(lines[2], "  its last 30 of 201 lines:")
+        self.assertEqual(lines[2], "job step 1: its last 30 of 201 lines:")
         tail = [line for line in lines if line.startswith("  | ")]
         self.assertEqual(tail, [f"  | line {i}" for i in range(170, 200)])
 
     def test_bound(self):
         """Forty failing steps, an error line first in each: every step's
-        line and the summary within 100 lines, the first tails whole, a
-        tail shortened for its error line, and none past the bound."""
+        line and the summary within 100 lines, then each step's error
+        line by turns as far as the room holds, no tail, the steps left
+        with no line counted on the last."""
         counts, lines = self.steps([5] * 40, program="print('a.cpp:1:1: error: x'); [print(i) for i in range(200)]")
         self.assertEqual(counts, [0, 40, 0])
         self.assertLessEqual(len(lines), LOOP.LINES)
-        self.assertEqual(sum(1 for line in lines if re.match(r"job step \d+: FAIL", line)), 40)
-        self.assertEqual(lines[-1], "summary")
-        self.assertEqual(lines[1:4], ["  its first 1 of 1 error lines, before its tail:", "  ! 2: a.cpp:1:1: error: x",
-                                      "  its last 30 of 202 lines:"])
-        self.assertIn("  its last 23 of 202 lines:", lines)
+        self.assertTrue(all(re.match(r"job step \d+: FAIL", line) for line in lines[:40]), lines[:40])
+        self.assertEqual(lines[40:42], ["job step 0: its first 1 of 1 error lines:",
+                                        "  ! 2: a.cpp:1:1: error: x"])
+        self.assertEqual(sum(1 for line in lines if line == "  ! 2: a.cpp:1:1: error: x"), 29)
+        self.assertFalse(any(" | " in line for line in lines), lines)
+        self.assertEqual(lines[-1], "summary (11 failing steps' lines left out by the bound)")
 
     def test_first_errors(self):
         """A compile's first errors far before its tail, as a libc++
@@ -132,10 +134,10 @@ class Answer(unittest.TestCase):
                    "[print('note', i) for i in range(100)]; print('b.cpp:362:5: error: too long'); "
                    "[print('line', i) for i in range(200)]; print('ninja: build stopped: subcommand failed.')")
         counts, lines = self.steps([2], program=program)
-        self.assertEqual(lines[1:5], ["  its first 3 of 3 error lines, before its tail:", "  ! 2: FAILED: a.o",
-                                      "  ! 3: a.cpp:458:10: error: no member named jthread",
+        self.assertEqual(lines[1:5], ["job step 0: its first 3 of 3 error lines, before its tail:",
+                                      "  ! 2: FAILED: a.o", "  ! 3: a.cpp:458:10: error: no member named jthread",
                                       "  ! 104: b.cpp:362:5: error: too long"])
-        self.assertEqual(lines[5], "  its last 30 of 305 lines:")
+        self.assertEqual(lines[5], "job step 0: its last 30 of 305 lines:")
         self.assertEqual(len(lines), 37)
 
     def test_error_lines(self):
