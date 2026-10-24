@@ -328,9 +328,9 @@ class Unpinned(unittest.TestCase):
             "a digest": (ci, "env:\n  CTEST_PARALLEL_LEVEL",
                          "env:\n  PYTHON_SHA256: " + "67d9a63e" * 8 + "\n  CTEST_PARALLEL_LEVEL"),
             "a digest check": (msan, "| cut -d' ' -f1)\"", "| cut -d' ' -f1)\"; sha256sum -c sums.txt"),
-            "an exact version": (ci, "env:\n  CTEST_PARALLEL_LEVEL", "env:\n  LLVM_VERSION: 19.1.7\n  CTEST_PARALLEL_LEVEL"),
+            "an exact version": (ci, "env:\n  CTEST_PARALLEL_LEVEL", "env:\n  LLVM_VERSION: 23.1.4\n  CTEST_PARALLEL_LEVEL"),
             "an exact CPython": (msan, 'python-version: "3.x"', 'python-version: "3.15"'),
-            "a versioned compiler": (msan, "-DCMAKE_CXX_COMPILER=clang++ ", "-DCMAKE_CXX_COMPILER=clang++-18 "),
+            "a versioned compiler": (msan, "-DCMAKE_CXX_COMPILER=clang++ ", "-DCMAKE_CXX_COMPILER=clang++-23 "),
             "a toolset pinned": (ci, 'vcvars64.bat`" >nul', 'vcvars64.bat`" -vcvars_ver=14.44 >nul'),
             "the pins' option": (ci, "cmake --preset ${{ matrix.preset }}\n\n      # -k 0",
                                  "cmake --preset ${{ matrix.preset }} -DQIVEN3_PIN_TOOLS=ON\n\n      # -k 0"),
@@ -362,7 +362,7 @@ class Unpinned(unittest.TestCase):
                                   '"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN3_COMPILER_LINE": "19.44"}'),
             "a versioned compiler": ('"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": '
                                      '"RelWithDebInfo"}',
-                                     '"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++-14", "CMAKE_BUILD_TYPE": '
+                                     '"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++-16", "CMAKE_BUILD_TYPE": '
                                      '"RelWithDebInfo"}'),
             "a fixed image named": ('"CI on windows-latest, the image\'s MSVC"', '"CI on windows-2022, MSVC 19.44"'),
             "fake takes the debugger cases": ('"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}',

@@ -5,41 +5,58 @@
 # A trailing comment says where a digest comes from: published (the
 # release's own digest list), github-asset-digest (the release asset's digest
 # as GitHub gives it), observed (taken from the file here; for a download,
-# one whose release publishes no digest). Each deb's digest is the archive index's, checked on
-# the downloaded .deb before it was installed; the packages are those of
-# gcc-14, g++-14, clang-18, libclang-rt-18-dev (the sanitizers' and
-# libFuzzer's runtimes), llvm-18 (llvm-symbolizer-18) and make (CPython's
-# build), installed with no recommended package, and their dependencies.
-# libcxx-msan is libc++ with libc++abi within it, built under
-# MemorySanitizer with origins as msan.yml builds it; the linux-msan preset
-# reads its prefix from QIVEN3_LIBCXX.
-# The compilers' hold: the deb pins of the source packages gcc-14 and
-# llvm-toolchain-18 are held (apt-mark hold), and no other package is, so
-# that the compilers move by a deliberate re-pin alone and the system's
-# updates stay on; tools/linux_pins.py checks it.
+# one whose release publishes no digest, or none of SHA-256, checked as the
+# comment says).
+# The compilers are under the prefix: clang, clang++ and llvm-symbolizer
+# from LLVM's release archive (llvm), by GitHub's asset digest; GCC built
+# under the prefix from gnu.org's release source (gcc-source), checked by
+# its published SHA-512 and its signature, with its prerequisites (gmp,
+# mpfr, mpc, isl, gettext) by GCC's own list of their SHA-512s, built in
+# GCC's tree; each by its versioned name in the prefix's bin/.
+# libcxx-msan is libc++ with libc++abi within it, built from llvm-source
+# under MemorySanitizer with origins as msan.yml builds it; the linux-msan
+# preset reads its prefix from QIVEN3_LIBCXX.
+# Each deb's digest is the archive index's, checked on the downloaded .deb
+# before it was installed, with no recommended package: make (CPython's
+# build), m4 and bzip2 (GCC's build), glibc's development files, and the
+# compilers before those under the prefix, gcc-14, g++-14, clang-18,
+# libclang-rt-18-dev and llvm-18, with their dependencies, which the loop no
+# longer runs and which stay until their removal.
+# Their hold: the deb pins of the source packages gcc-14 and
+# llvm-toolchain-18 are held (apt-mark hold) until then, and no other
+# package is, so that the system's updates stay on; tools/linux_pins.py
+# checks it.
 
 # The release archives, each kept in the prefix's downloads.
 download cmake 4.4.3 d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-linux-x86_64.tar.gz  # published
 download ninja 1.13.2 5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6 https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip  # github-asset-digest
 download cpython-source 3.15.0 ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575 https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz  # published
-download llvm-source 18.1.3 2929f62d69dec0379e529eb632c40e15191e36f3bd58c2cb2df0413a0dc48651 https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.3/llvm-project-18.1.3.src.tar.xz  # observed
+download llvm 23.1.4 25d814fda50d5fb0084b42be09605d8b1595d49d5e2e03a3345d7e112ff6f9f3 https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-X64.tar.xz  # github-asset-digest
+download llvm-source 23.1.4 819ecf7351f1a66f76b2d701d8942faaf5faeb324cb90c9d5b090de142434bb2 https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/llvm-project-23.1.4.src.tar.xz  # github-asset-digest
+download gcc-source 16.2.0 e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz  # observed; its published SHA-512 and signature checked
+download gmp 6.3.0 ac28211a7cfb609bae2e2c8d6058d66c8fe96434f740cf6fe2e47b000d1c20cb https://gcc.gnu.org/pub/gcc/infrastructure/gmp-6.3.0.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download mpfr 4.2.2 9ad62c7dc910303cd384ff8f1f4767a655124980bb6d8650fe62c815a231bb7b https://gcc.gnu.org/pub/gcc/infrastructure/mpfr-4.2.2.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download mpc 1.3.1 ab642492f5cf882b74aa0cb730cd410a81edcdbec895183ce930e706c1c759b8 https://gcc.gnu.org/pub/gcc/infrastructure/mpc-1.3.1.tar.gz  # observed; checked by gcc-source's SHA-512 list
+download isl 0.24 fcf78dd9656c10eb8cf9fbd5f59a0b6b01386205fe1934b3b287a0a1898145c0 https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download gettext 0.22 49f089be11b490170bbf09ed2f51e5f5177f55be4cc66504a5861820e0fb06ab https://gcc.gnu.org/pub/gcc/infrastructure/gettext-0.22.tar.gz  # observed; checked by gcc-source's SHA-512 list
 
 # The tools under the prefix: each file's SHA-256 as installed (observed).
 command cmake 4.4.3 9bfcda3e6265ee82868cf355e364733c3e7b30e506a2d1a3b2727bc02e9b9bdc prefix/bin/cmake
 command ctest 4.4.3 a480363df1642d241fa805556ecbb505099d2fc96642a4335262c8c3faf192a5 prefix/bin/ctest
 command ninja 1.13.2 607e668f90dd6cd82e1a42ae572647ad1b1fd43063964295b9547836d8c15d99 prefix/bin/ninja
 command python3.15 3.15.0 dfafcc467e72b276ad5c50f75d21426b93fc0492dbc508387ffdf4ec72cc847d prefix/bin/python3.15  # built from cpython-source
-libcxx libcxx-msan 18.1.3 3cb8bb6c8f4a45731c9fca2fa3f73a31e37b90785194addf0b3b31265535cb08 prefix/libcxx-msan-18.1.3  # built from llvm-source; libc++.a's digest
+command clang-23 23.1.4 c336d48383874cffaab0dc4c5c359456d871f21380b746520dde5c7f4c125a67 prefix/bin/clang-23  # from llvm
+command clang++-23 23.1.4 c336d48383874cffaab0dc4c5c359456d871f21380b746520dde5c7f4c125a67 prefix/bin/clang++-23  # from llvm
+command llvm-symbolizer-23 23.1.4 98aa98682cbd6d8ef9804f9339d44af0307410cef610da2cc3b5ecf6888a3713 prefix/bin/llvm-symbolizer-23  # from llvm
+command gcc-16 16.2.0 4066972a8cccb6b99b8197f8d887686d360be99ee82963d0bbe2bcf74b5a8449 prefix/bin/gcc-16  # built from gcc-source
+command g++-16 16.2.0 340ce559fbb8f23c3c4c6a6444c8d48c3f9411aa5877d3af89d7a352cccf1f0e prefix/bin/g++-16  # built from gcc-source
+libcxx libcxx-msan 23.1.4 475342cb7e6bf92b3e14d5436114acf8f073d9c9ef97a55933ef3c2eca4d8edb prefix/libcxx-msan-23.1.4  # built from llvm-source; libc++.a's digest
 
 # The tools from the archive's packages, found on PATH: each file's SHA-256.
-command gcc-14 14.2.0 ce298ce0c8fbdaa4b43f6e0596e37d25a35a07b5c743cb26f11815b76fccf90d path/gcc-14
-command g++-14 14.2.0 916ef3c03c2d024857af2e084d3648204033b9c79e0e62575974f567f99adc84 path/g++-14
-command clang-18 18.1.3 8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45 path/clang-18
-command clang++-18 18.1.3 8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45 path/clang++-18
-command llvm-symbolizer-18 18.1.3 1f93f7c4930615a121903afa61c0544b99f3e1da18d7ed4fb9fb3a2056924dd1 path/llvm-symbolizer-18
 command make 4.3 d78b8f1d099fbcfb6f2f49ab87223b9b68fb3956642f92d6ec6de812e8afa965 path/make
 
 # Ubuntu 24.04's packages, each .deb by the archive index's SHA-256.
+deb bzip2 1.0.8-5.1ubuntu0.1 60fb79214dd8366fa39d7e69911294e72b9f1a4425a3d22f211359c8626e4b9e ubuntu:noble-updates/main
 deb clang-18 1:18.1.3-1ubuntu1 628b16701014ef7ad648380b20ea74b90dd543857f933b3e34d2fc042783de25 ubuntu:noble-updates/universe
 deb cpp-14 14.2.0-4ubuntu2~24.04.1 4bc737f3aa5275dc4468f08119443a17f4a0ca87731f83cee4a187eda5bd862b ubuntu:noble-updates/universe
 deb cpp-14-x86-64-linux-gnu 14.2.0-4ubuntu2~24.04.1 57a15d7740b39a6719e04a633e3471c6811adf1597f0797bef5e0501fc7ad7c2 ubuntu:noble-updates/universe
@@ -86,6 +103,7 @@ deb llvm-18 1:18.1.3-1ubuntu1 139cb82e16e75fcdd4a56562804ff9bfb482b65d0929580d62
 deb llvm-18-linker-tools 1:18.1.3-1ubuntu1 50f0bcfa784e42f8bf0eac31aeb6a20798fb6174cc31efe021f12ae71af91b23 ubuntu:noble-updates/universe
 deb llvm-18-runtime 1:18.1.3-1ubuntu1 1ad04ff658929491f8bf30fcf6454e07b1815a2b04164f1894156e92c91ef895 ubuntu:noble-updates/universe
 deb locales 2.39-0ubuntu8.9 f8310ef4ba442845cf5d44a5ce3d5d7accb659bae96b3a0999002132209cd367 ubuntu:noble-updates/main
+deb m4 1.4.19-4build1 30ea715845a1863abd55d11e47ab91513130bf347852d4cdeae69e9d98fa795c ubuntu:noble/main
 deb make 4.3-4.1build2 1fe6a815b56c7b6e9ce4086a363f09444bbd0a0d30e230c453d0b78e44b57a99 ubuntu:noble/main
 deb rpcsvc-proto 1.4.2-0ubuntu7 7eb710fe148d224c159ddec1ceb0ba53ead52a80a6793dcdae1474acf20d8f71 ubuntu:noble/main
 

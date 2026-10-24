@@ -32,11 +32,11 @@ endif()
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 
 # The pins of this machine's toolchain, which QIVEN3_PIN_TOOLS checks: MSVC
-# on Windows; in WSL2 g++ 14 and clang 18 as tools/linux-pins.txt has them.
+# on Windows; in WSL2 g++ 16 and clang 23 as tools/linux-pins.txt has them.
 # CI leaves the option off and takes its image's tools.
 set(QIVEN3_PIN_MSVC 19.44.35228)
-set(QIVEN3_PIN_GCC 14.2.0)
-set(QIVEN3_PIN_CLANG 18.1.3)
+set(QIVEN3_PIN_GCC 16.2.0)
+set(QIVEN3_PIN_CLANG 23.1.4)
 set(QIVEN3_PIN_SDK 10.0.26100.0)
 set(QIVEN3_PIN_CMAKE 4.4.3)
 set(QIVEN3_PIN_NINJA 1.13.2)

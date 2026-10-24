@@ -29,7 +29,7 @@ WINDOWS_PINS = (
     ("link", None, "ca11e6c45debd34bf652dfe984c5360a531a005ed78bf72852330c9c2590cf0d"),
 )
 # windows-analysis's clang-tidy, LLVM's: its version and the file's SHA-256.
-CLANG_TIDY = ("19.1.7", "231c16866d578941c325b7fffc792b66bc5bf0b5622258894fc89836e8d5d77a")
+CLANG_TIDY = ("23.1.4", "6d2c02aecb418bc86eade09163abcf38e41d2dc38ba84774f1265d634a6065f0")
 
 
 def check_python(python):

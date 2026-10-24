@@ -108,7 +108,7 @@ jobs:
           curl -fsSL -o "$tarball" "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_SOURCE_VERSION/$top.tar.xz"
           echo "msan: the source's SHA-256, printed, against no pin: $(sha256sum "$tarball" | cut -d' ' -f1)"
           tar -xJf "$tarball" -C "$RUNNER_TEMP" --exclude="$top/llvm/test" --exclude="$top/llvm/unittests" \
-            "$top/cmake" "$top/runtimes" "$top/libcxx" "$top/libcxxabi" "$top/llvm" "$top/third-party"
+            "$top/cmake" "$top/runtimes" "$top/libcxx" "$top/libcxxabi" "$top/libc" "$top/llvm" "$top/third-party"
           prefix="$RUNNER_TEMP/libcxx-msan"
           cmake -G Ninja -S "$RUNNER_TEMP/$top/runtimes" -B "$RUNNER_TEMP/libcxx-build" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \

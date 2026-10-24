@@ -14,10 +14,10 @@ fields, separated by white space, a '#' starting a comment:
   the archive's index (apt-cache show NAME=VERSION) must still give SHA256
   for its .deb; an index that no longer lists that version is noted, its
   digest not re-read. SOURCE is ubuntu:SUITE/COMPONENT.
-- The compilers' hold: each deb pin of the source packages HELD (gcc-14 and
-  llvm-toolchain-18) must be held (apt-mark hold), so that it moves by a
-  deliberate re-pin alone; and no other package may be held, so that the
-  system's updates stay on.
+- The hold: each deb pin of the source packages HELD (gcc-14 and
+  llvm-toolchain-18, the compilers before those under the prefix, until
+  their removal) must be held (apt-mark hold); and no other package may be
+  held, so that the system's updates stay on.
 - download: a release file, kept as DIR/downloads/ and the URL's last
   part, its SHA-256 re-read. SOURCE is the URL.
 - command: a tool. SOURCE is prefix/PATH, under DIR, or path/NAME, found
@@ -31,8 +31,8 @@ fields, separated by white space, a '#' starting a comment:
 - libcxx: libc++ with libc++abi within it, built under MemorySanitizer.
   SOURCE is prefix/PATH, its install's prefix under DIR: lib/libc++.a's
   SHA-256 must be SHA256, and include/c++/v1/__config's _LIBCPP_VERSION
-  must be VERSION's major and minor (18.1.3 is 180100: libc++ leaves the
-  patch level out, which the LLVM source's download pin holds).
+  must be VERSION's major, then its minor and its patch level in two digits
+  each (23.1.4 is 230104).
 
 Exits 0 when every pin holds; otherwise names each mismatch, one a line,
 and exits 2, as it does when it cannot run (no pin file, a malformed line).
@@ -48,7 +48,7 @@ from pathlib import Path
 
 PINS = Path(__file__).resolve().parent / "linux-pins.txt"
 KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx")
-HELD = ("gcc-14", "llvm-toolchain-18")  # the source packages of the pinned compilers, held
+HELD = ("gcc-14", "llvm-toolchain-18")  # the old compilers' source packages, held until their removal
 HEX = re.compile(r"[0-9a-f]{64}")
 SHOWN = 40  # mismatches printed at most, then a count of the rest
 TIMEOUT = 60
@@ -156,10 +156,10 @@ def check_hold(debs, have, every, out):
     compilers = {name for _, kind, name, *_ in debs if kind == "deb" and name in have and have[name][1] in HELD}
     for name in sorted(compilers):
         if not have[name][2]:
-            out.append(f"deb {name}: a pinned compiler package of {have[name][1]}, not held "
+            out.append(f"deb {name}: a pinned package of {have[name][1]}, not held "
                        f"(apt-mark hold {name})")
     for name in sorted(n for n, (_, _, held) in every.items() if held and n not in compilers):
-        out.append(f"deb {name}: held, but not a pinned compiler package: only the compilers are held, "
+        out.append(f"deb {name}: held, but not a pinned package of {' or '.join(HELD)}: only those are held, "
                    "the system's updates stay on")
 
 
@@ -226,7 +226,7 @@ def check_libcxx(prefix, name, version, digest, source, out):
     if len(parts) != 3 or not all(p.isdigit() for p in parts):
         out.append(f"libcxx {name}: version {version!r} is not MAJOR.MINOR.PATCH")
         return
-    want = f"{int(parts[0])}{int(parts[1]):02d}00"
+    want = f"{int(parts[0])}{int(parts[1]):02d}{int(parts[2]):02d}"
     match = re.search(r"^#\s*define _LIBCPP_VERSION (\d+)$", config.read_text(errors="replace"), re.MULTILINE)
     if match is None or match.group(1) != want:
         out.append(f"libcxx {name}: _LIBCPP_VERSION is {match.group(1) if match else 'absent'}; the pin {want}")
