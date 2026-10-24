@@ -15,7 +15,8 @@
 // header with content, no body and no forget StoreCorrupt incoherent. Its
 // scope set and seqs, views of the call, are packed into its own pages. It
 // ends at its close, its store object's close, move or end (Exports), or
-// its own end; then StoreError closed.
+// its own end; then StoreError closed. Its close, as its reads, from its
+// maker's thread alone: else StoreError thread.
 //
 // Import: the source's heads first; BEGIN IMMEDIATE, foreign keys
 // deferred, StoreNotEmpty unless meta counts no entry; each line through
@@ -127,6 +128,8 @@ public:
     Snapshot heads(std::span<const std::byte> pages, Vector<LaneHead>& rows);
     bool next(std::span<std::byte> pages, Line& line);
     void close() noexcept;
+    // The thread check alone (Gate::own), before the handle's close.
+    void own(Operation op) const { gate_.own(op, path_.view()); }
     // The counted peak of its making's or its greatest next's arena.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
@@ -208,7 +211,12 @@ public:
 
     Snapshot heads(Vector<LaneHead>& rows) { return reader_.heads(pages_.bytes(), rows); }
     bool next(Line& line) { return reader_.next(pages_.bytes(), line); }
-    void close() noexcept { reader_.close(); }
+    // From another thread than its maker's, StoreError thread, the export
+    // left open; again after close, nothing.
+    void close() {
+        reader_.own(Operation::close);
+        reader_.close();
+    }
     [[nodiscard]] std::size_t peak() const noexcept { return reader_.peak(); }
 
 private:

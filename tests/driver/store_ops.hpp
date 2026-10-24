@@ -29,7 +29,9 @@
 // through a store object of its own over a "state", and appender_join;
 // store_fill, a lane's claims made and appended in the drive; and
 // export_drain, an export read whole with its peak
-// (driver/store_threads.hpp).
+// (driver/store_threads.hpp). S21's: store_race, threads each appending
+// on a head through its own object, and "elsewhere" on any store request,
+// its call made from another thread (driver/store_race.hpp).
 //
 // Bytes cross as hexadecimal, as the platform's do: an entry's "line" and
 // "body", a header's line, an export's lines. Ids, scopes and lanes are
@@ -49,7 +51,8 @@
 // StoreFull's). A tag the store lacks, as reopen on the in-memory store,
 // is a "request" error whose detail starts "not applicable:".
 //
-// thread: one, and each appender's own (driver/store_threads.hpp)
+// thread: one, and each appender's and racer's own, and an elsewhere
+// call's, joined (driver/store_threads.hpp, driver/store_race.hpp)
 
 #include "driver/drive.hpp"
 #include "driver/platform_ops.hpp"

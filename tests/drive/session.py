@@ -278,6 +278,16 @@ class Drive:
                   **StoreObject._expected(expected)} for scope, lane, expected, entries in batches]
         return StoreAppender(self, self.call("store_appender", state=state, batches=given, hold=hold)["appender"])
 
+    def store_race(self, state, scope, threads, count, content, pause_ms=5):
+        """Threads of the drive's, each with a store object of its own over
+        the state, started together, each making count successful
+        conditional appends on its lane's head: threads, (lane, writer)
+        each; content with "{thread}" and "{number}" marked. Each thread's
+        {"ids", "conflicts", "busy", "error"?}, in order."""
+        given = [{"lane": lane, "writer": writer} for lane, writer in threads]
+        return self.call("store_race", state=state, scope=scope, threads=given, count=count, content=content,
+                         pause_ms=pause_ms)["threads"]
+
     def state_drop(self, state):
         self.call("factory_drop", state=state)
 

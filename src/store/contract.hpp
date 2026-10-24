@@ -283,13 +283,17 @@ constexpr std::optional<std::size_t> operation_budget(std::size_t lines) noexcep
 // than the one that made the object is StoreError thread; after close,
 // StoreError closed; on a read-only object, an operation it does not serve
 // StoreError read_only. Each names the operation and the store's path.
+// own is the first alone: an export's close, again after close nothing.
 class Gate {
 public:
     explicit Gate(bool read_only) noexcept : owner_(std::this_thread::get_id()), read_only_(read_only) {}
-    void enter(Operation op, std::string_view path) const {
+    void own(Operation op, std::string_view path) const {
         if (std::this_thread::get_id() != owner_) {
             throw StoreError(Code::thread, name(op), path);
         }
+    }
+    void enter(Operation op, std::string_view path) const {
+        own(op, path);
         if (closed_) {
             throw StoreError(Code::closed, name(op), path);
         }

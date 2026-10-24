@@ -1,7 +1,8 @@
 // A fill's claims (driver/store_threads.hpp's store_fill): claims like the
 // fixture A on one lane after its head, each its content with the mark
 // replaced by its seq, made by the stage book a batch at a time. No check
-// is made: the store's append makes the contract's.
+// is made: the store's append makes the contract's. And a racer's claim
+// (driver/store_race.hpp).
 
 #include <algorithm>
 #include <cstddef>
@@ -12,6 +13,7 @@
 #include <string_view>
 #include <utility>
 
+#include "driver/store_race.hpp"
 #include "driver/store_threads.hpp"
 #include "entry/header.hpp"
 #include "support/fixtures/stage_book.hpp"
@@ -76,6 +78,20 @@ std::span<const store::EntryView> Fill::next() {
         views_.push_back({lines_[i], bodies_[i] ? std::optional<std::string_view>(*bodies_[i]) : std::nullopt});
     }
     return views_;
+}
+
+test::stage_book::Stored claim(const test::stage_book::Book& book, const std::string& scope,
+                               const std::string& lane, const std::string& writer, const std::string& content,
+                               std::int64_t seq, std::optional<std::string_view> parent) {
+    const std::string at = at_of(seq / 60);
+    return book.made("A", "A", content, [&](header::FieldsView& f) {
+        f.scope = scope;
+        f.lane = lane;
+        f.seq = seq;
+        f.writer = writer;
+        f.at = at;
+        f.parent = parent;
+    });
 }
 
 store::Expected Fill::expected() const noexcept {

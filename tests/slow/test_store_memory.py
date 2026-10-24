@@ -10,9 +10,10 @@ import unittest
 from tests.contract import test_store_memory as contract
 from tests.contract.store_cases import StoreBinding
 from tests.slow.store_peak import StorePeak
+from tests.slow.store_threads import StoreThreads
 
 
-class Memory(StoreBinding, StorePeak, unittest.TestCase):
+class Memory(StoreBinding, StorePeak, StoreThreads, unittest.TestCase):
     STORE = contract.Memory.STORE
     CAPABILITIES = contract.Memory.CAPABILITIES
     ctest_labels = ("drive",)

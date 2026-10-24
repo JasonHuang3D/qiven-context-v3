@@ -10,9 +10,10 @@ import unittest
 from tests.contract import test_store_sqlite as contract
 from tests.contract.store_cases import StoreBinding
 from tests.slow.store_peak import StorePeak
+from tests.slow.store_threads import StoreThreads
 
 
-class Sqlite(StoreBinding, StorePeak, unittest.TestCase):
+class Sqlite(StoreBinding, StorePeak, StoreThreads, unittest.TestCase):
     STORE = contract.Sqlite.STORE
     CAPABILITIES = contract.Sqlite.CAPABILITIES
     ctest_labels = ("drive",)

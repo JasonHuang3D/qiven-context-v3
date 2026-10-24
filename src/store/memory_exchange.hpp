@@ -150,8 +150,12 @@ public:
     Snapshot heads(Vector<LaneHead>& rows);
     // The next line, false at the end.
     bool next(Line& line);
-    // Ends the export; again, nothing.
-    void close() noexcept { release(); }
+    // Ends the export; again, nothing. From another thread than its
+    // maker's, StoreError thread, the export left open.
+    void close() {
+        gate_.own(Operation::close, {});
+        release();
+    }
     [[nodiscard]] bool over(const State& s) const noexcept { return state_ == &s; }
 
 private:

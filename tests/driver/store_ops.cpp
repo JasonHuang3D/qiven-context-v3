@@ -26,6 +26,7 @@
 
 #include "driver/store_held.hpp"
 #include "driver/store_own.hpp"
+#include "driver/store_race.hpp"
 #include "driver/store_threads.hpp"
 #include "driver/store_wire.hpp"
 #include "memory/arena.hpp"
@@ -463,6 +464,7 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"appender_join", {join_appender<StoreDrive>, nullptr}},
         {"store_fill", {fill_lane<StoreDrive>, nullptr}},
         {"export_drain", {drain_export<StoreDrive>, nullptr}},
+        {"store_race", {race<StoreDrive>, nullptr}},
     };
     for (const auto& [key, entry] : table) {
         table_.emplace(key, entry);
@@ -490,9 +492,14 @@ Value StoreDrive<F>::run(const Entry& entry, ArgView request) {
 #else
     static_cast<void>(s);
 #endif
+    // "elsewhere": the call on a thread of its own (driver/store_race.hpp).
+    const auto call = [&, other = flag(request, "elsewhere", false)](memory::Arena& arena) {
+        return other ? elsewhere([&] { return entry.operation(*this, arena, request); })
+                     : entry.operation(*this, arena, request);
+    };
     if (entry.budget == nullptr) {
         memory::Arena none{std::span<std::byte>{}};
-        return ok_reply(entry.operation(*this, none, request));
+        return ok_reply(call(none));
     }
     const std::size_t bytes = budget(request, entry.budget(request));
     std::optional<platform::fake::FakePages> pages;
@@ -500,7 +507,7 @@ Value StoreDrive<F>::run(const Entry& entry, ArgView request) {
         pages.emplace(platform_.platform().pages(bytes));
     }
     const std::span<std::byte> span = pages ? pages->bytes().first(bytes) : std::span<std::byte>{};
-    return ok_reply(on_arena(session_, span, [&](memory::Arena& arena) { return entry.operation(*this, arena, request); }));
+    return ok_reply(on_arena(session_, span, call));
 }
 
 template <class F>
