@@ -8,15 +8,15 @@ S10, S11 and S16 need files; S16 (c), S17 and S18 are the SQLite store's
 own, S16 and S17 forging its file after its close (store_files.py), S18
 writing incoherent rows through the seam on its connection. S13 imports
 across the two kinds: a second drive, of the other store, over a root
-of its own.
+of its own. S12's peak, past the fast group's minute under the thread
+sanitizer, is the slow group's (slow/store_peak.py).
 """
 
 import json
 from pathlib import Path
 
 from tests.contract.store_entries import (LANES, PERSON, SCOPE, Maker, as_line, canonical, exported, file_state,
-                                          fillers, guard_of, header, id_of, lane_heads, scanned, seq_of, snapshot,
-                                          writer_of)
+                                          fillers, guard_of, header, id_of, lane_heads, scanned, seq_of, snapshot)
 from tests.contract import store_files as files
 from tests.drive.session import FAKE, Drive, DriveError
 
@@ -24,10 +24,6 @@ from tests.drive.session import FAKE, Drive, DriveError
 BUILT = ("TEMP B-TREE", "AUTOMATIC", "MATERIALIZE", "BLOOM FILTER")
 EXPORT_STATEMENTS = ("forget_counts", "head_rows", "lane_rows")
 KIB = 1024
-# S12's 20,000 entries of 1 KiB on the in-memory store: its state's heap.
-HEAP = 128 * KIB * KIB
-# The engine's budget a connection: 2,000 KiB of page cache and 1 MiB.
-ENGINE_BUDGET = 2000 * KIB + KIB * KIB
 # C15's thresholds, the store's default limits.
 DEFAULTS = {"target_size": 512 * KIB * KIB, "warning_size": 640 * KIB * KIB, "max_size": 768 * KIB * KIB,
             "target_count": 400000, "warning_count": 480000, "max_count": 550000}
@@ -181,31 +177,6 @@ class StoreMore:
                         for bad in BUILT:
                             self.assertNotIn(bad, line, f"{name}: {planned[name]}")
             self.f104(m, store, writer, held)
-
-    def test_S12_peak(self):
-        """S12: an export of 20,000 entries of 1 KiB bodies (at most; made
-        and appended in the drive by its fill) read whole in the drive: its
-        20,000 lines; the reads' arenas, the caller's and the export's own,
-        under 2 MiB [proposal] (F80); on SQLite the engine heap's growth
-        over the reads, its page cache's slots included, within the
-        engine's budget a connection: the slots alone pass 2 MiB once the
-        export's cache fills (notes). Needs: none."""
-        with self.drive() as drive:
-            self.needs(drive)
-            m, store = Maker(drive), drive.store_make(heap=HEAP)
-            probe = m.claim(SCOPE, "implementer", 1, None, 0, text="")
-            content = m.content("A")
-            content["claim"] = "Entry {seq}: " + "f" * (KIB - len(probe[1]) - len("Entry 00000: "))
-            writer = writer_of("implementer", header(m.fixture("A"))["writer"])
-            done = store.fill(SCOPE, "implementer", 20000, canonical(content), "{seq}", writer)
-            self.assertEqual((done["appended"], done["head"]["seq"]), (20000, 20000))
-            self.assertEqual(len(store.body(done["head"]["id"])), KIB)
-            x = store.export()
-            drained = x.drain()
-            x.close()
-            self.assertEqual(drained["count"], 20000)
-            self.assertLess(drained["peak"] + drained.get("own", 0), 2 * KIB * KIB)
-            self.assertLessEqual(drained["engine_most"] - drained["engine_before"], ENGINE_BUDGET)
 
     def assert_whole(self, got, rows, held):
         """Each snapshot head its lane's greatest seq, every chain whole,

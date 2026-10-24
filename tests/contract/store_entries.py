@@ -1,6 +1,6 @@
 """The entries the store cases append, and the check that a refusal wrote
-nothing: helpers of the case modules (store_cases.py, store_more.py), no
-case here.
+nothing: helpers of the case modules (store_cases.py, store_more.py,
+slow/store_peak.py), no case here.
 
 Every entry is a fixture of entries.json, as the drive's stage book stores
 it, or one made like a fixture through the drive's fixture_made, its fields
