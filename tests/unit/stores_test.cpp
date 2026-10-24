@@ -35,31 +35,33 @@ void factory_case(qiven3::test::Context& qiven3_ctx, F& f) {
     const std::vector<stage_book::Stored> a = {book.stored("A")};
     const std::vector<stage_book::Stored> b = {book.stored("B")};
     const std::string id = stage_book::id_of(a[0]);
-    auto store = f.make();
-    auto other = f.again();
-    auto reader = f.read_only();
-    CHECK(!store.read_only());
-    CHECK(reader.read_only());
-    (void)store.append(at_scope, at_lane, std::nullopt, stage_book::views(a));
-    CHECK(other.head(at_scope, at_lane).has_value());
-    CHECK(reader.head(at_scope, at_lane).has_value());
-    CHECK_EQ(reader.head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
+    // The store objects on the heap: four SQLite objects pass the frame bound.
+    using Store = typename F::Store;
+    const auto store = std::make_unique<Store>(f.make());
+    const auto other = std::make_unique<Store>(f.again());
+    const auto reader = std::make_unique<Store>(f.read_only());
+    CHECK(!store->read_only());
+    CHECK(reader->read_only());
+    (void)store->append(at_scope, at_lane, std::nullopt, stage_book::views(a));
+    CHECK(other->head(at_scope, at_lane).has_value());
+    CHECK(reader->head(at_scope, at_lane).has_value());
+    CHECK_EQ(reader->head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
     std::optional<Code> refused;
     try {
-        (void)reader.append(at_scope, at_lane, id, stage_book::views(b));
+        (void)reader->append(at_scope, at_lane, id, stage_book::views(b));
     } catch (const StoreError& e) {
         refused = e.code();
     }
     CHECK(refused == Code::read_only);
-    (void)reader.close();
-    (void)other.close();
-    (void)store.close();
+    (void)reader->close();
+    (void)other->close();
+    (void)store->close();
     if (stores::lacking<F>(stores::durable)) {
         return;
     }
-    auto back = f.reopen();
-    CHECK_EQ(back.head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
-    (void)back.close();
+    const auto back = std::make_unique<Store>(f.reopen());
+    CHECK_EQ(back->head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
+    (void)back->close();
 }
 
 template <class F>
