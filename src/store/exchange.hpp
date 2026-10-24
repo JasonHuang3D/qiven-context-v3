@@ -279,8 +279,10 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     std::size_t line_peak = 0;
     std::size_t work_peak = 0;
     Imported done;
+    bool begun = false;
     try {
         begin_import(c, defers<H>(), where);
+        begun = true;
         hooks.begun();
         ImportRows rows(c, where);
         for (std::size_t i = 0;; ++i) {
@@ -306,7 +308,11 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
         c.exec("COMMIT", where);
     } catch (...) {
         c.rollback();
-        truncate_wal(c);
+        // A refusal at the begin (StoreNotEmpty, busy) spilled no page: a
+        // checkpoint there would move committed frames into the file (F74).
+        if (begun) {
+            truncate_wal(c);
+        }
         heads.clear();
         throw;
     }

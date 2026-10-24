@@ -187,13 +187,22 @@ Result fixture_made(StoreDrive<F>& d, memory::Arena&, ArgView request) {
     return wire::fixture_made(d.site().book(), request);
 }
 
-// The view's reads' and the export's plans: the SQLite store's alone.
-template <class F>
-Result plans([[maybe_unused]] StoreDrive<F>& d, memory::Arena&, [[maybe_unused]] ArgView request) {
+// The SQLite store's own: its plans and the seam's write on its connection
+// (wire::plans, wire::seam_write), and create over its state's file (S17).
+template <class F, Value (*own)(store::sqlite::Connection&, ArgView)>
+Result own_sqlite([[maybe_unused]] StoreDrive<F>& d, memory::Arena&, [[maybe_unused]] ArgView request) {
     if constexpr (F::own == stores::Own::sqlite) {
-        return wire::plans(object(d, request).connection());
+        return own(object(d, request).connection(), request);
     } else {
-        throw RequestError("store_plans: the " + std::string(F::name) + " store plans no statement");
+        throw RequestError("the " + std::string(F::name) + " store has no connection");
+    }
+}
+template <class F>
+Result factory_create([[maybe_unused]] StoreDrive<F>& d, [[maybe_unused]] memory::Arena& a, ArgView request) {
+    if constexpr (F::own == stores::Own::sqlite) {
+        return factory_open<F, &F::create>(d, a, request);
+    } else {
+        throw RequestError("factory_create: the " + std::string(F::name) + " store has no file");
     }
 }
 
@@ -439,6 +448,7 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"factory_again", {factory_open<F, &F::again>, nullptr}},
         {"factory_read_only", {factory_open<F, &F::read_only>, nullptr}},
         {"factory_reopen", {factory_reopen<F>, nullptr}},
+        {"factory_create", {factory_create<F>, nullptr}},
         {"factory_drop", {factory_drop<F>, nullptr}},
         {"fixture_entry", {fixture_entry<F>, nullptr}},
         {"fixture_made", {fixture_made<F>, nullptr}},
@@ -456,7 +466,8 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"store_import", {import_<F>, import_budget}},
         {"store_size", {size<F>, base}},
         {"store_verify", {verify<F>, base}},
-        {"store_plans", {plans<F>, nullptr}},
+        {"store_plans", {own_sqlite<F, wire::plans>, nullptr}},
+        {"store_seam_write", {own_sqlite<F, wire::seam_write>, nullptr}},
         {"store_close", {close<F>, base}},
         {"store_read_only", {read_only<F>, nullptr}},
         {"store_limits", {limits<F>, nullptr}},

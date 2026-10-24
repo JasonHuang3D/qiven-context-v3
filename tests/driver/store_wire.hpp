@@ -131,10 +131,14 @@ static_assert(store::Source<Given>);
 Value fixture_entry(const test::stage_book::Book& book, ArgView request);
 Value fixture_made(const test::stage_book::Book& book, ArgView request);
 
-// The SQLite store's plans (store_plans.cpp): [{"name", "lines"}, ...],
-// each of the view's reads and the export's statements by its name, its
-// EXPLAIN QUERY PLAN lines as the store's connection plans them.
-Value plans(store::sqlite::Connection& c);
+// The SQLite store's own requests (store_plans.cpp), each on the store's
+// connection: plans, [{"name", "lines"}, ...], each of the view's reads
+// and the export's statements by its name, its EXPLAIN QUERY PLAN lines as
+// the connection plans them; seam_write, the request's "sql" run there
+// (the seam of S18's incoherent rows), {"code"}: the engine's, 0 where it
+// ran.
+Value plans(store::sqlite::Connection& c, ArgView request);
+Value seam_write(store::sqlite::Connection& c, ArgView request);
 
 // The bytes of the lines a request gives under key, each line and body;
 // the operation's budget over them.

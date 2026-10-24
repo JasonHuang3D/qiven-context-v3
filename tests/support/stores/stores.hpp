@@ -257,6 +257,8 @@ public:
     Store again() { return Store::open(path(), false, false, site_->fake(), limits_, hooks_); }
     Store read_only() { return Store::open(path(), false, true, site_->fake(), limits_, hooks_); }
     Store reopen() { return again(); }
+    // create over the state's file, which is there: StoreError exists (S17).
+    Store create() { return Store::open(path(), true, false, site_->fake(), limits_, hooks_); }
     // The store's directory and file, for a case's scan or forgery.
     [[nodiscard]] const std::filesystem::path& directory() const noexcept { return directory_; }
     [[nodiscard]] const std::string& path() const {

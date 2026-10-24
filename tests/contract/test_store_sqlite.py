@@ -8,9 +8,10 @@ SQLite declares durable, files and processes, and is the store of
 import unittest
 
 from tests.contract.store_cases import StoreBinding, StoreCases
+from tests.contract.store_more import StoreMore
 
 
-class Sqlite(StoreBinding, StoreCases, unittest.TestCase):
+class Sqlite(StoreBinding, StoreCases, StoreMore, unittest.TestCase):
     STORE = "sqlite"
     CAPABILITIES = {"durable": True, "files": True, "processes": True}
     ctest_labels = ("fake",)

@@ -245,6 +245,10 @@ class Drive:
     def store_reopen(self, state):
         return StoreObject(self, self.call("factory_reopen", state=state)["store"], state)
 
+    def store_create(self, state):
+        """A create over the SQLite state's file, which is there."""
+        return StoreObject(self, self.call("factory_create", state=state)["store"], state)
+
     def state_drop(self, state):
         self.call("factory_drop", state=state)
 
@@ -365,6 +369,11 @@ class StoreObject:
         """The SQLite store's plans: [{"name", "lines"}, ...], each of the
         view's reads and the export's statements."""
         return self.call("store_plans")
+
+    def seam_write(self, sql):
+        """The seam's statement, run through the SQLite store's connection:
+        the engine's code, 0 where it ran."""
+        return self.call("store_seam_write", sql=sql)["code"]
 
     def close(self):
         return self.call("store_close")

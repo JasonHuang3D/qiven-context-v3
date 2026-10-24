@@ -8,9 +8,10 @@ case needing one is not applicable here, never passed.
 import unittest
 
 from tests.contract.store_cases import StoreBinding, StoreCases
+from tests.contract.store_more import StoreMore
 
 
-class Memory(StoreBinding, StoreCases, unittest.TestCase):
+class Memory(StoreBinding, StoreCases, StoreMore, unittest.TestCase):
     STORE = "memory"
     CAPABILITIES = {"durable": False, "files": False, "processes": False}
     ctest_labels = ("fake",)

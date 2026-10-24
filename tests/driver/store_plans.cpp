@@ -1,8 +1,10 @@
-// The SQLite store's plans (driver/store_wire.hpp): each of the view's
-// reads and the export's statements, its EXPLAIN QUERY PLAN lines as the
-// store's own connection plans them.
+// The SQLite store's own requests (driver/store_wire.hpp): the plans, each
+// of the view's reads and the export's statements, its EXPLAIN QUERY PLAN
+// lines as the store's own connection plans them; and the seam's statement
+// run through that connection (S18's incoherent rows).
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -30,7 +32,7 @@ constexpr std::array<PlannedView, 7> statements = {{
 
 }  // namespace
 
-Value plans(store::sqlite::Connection& c) {
+Value plans(store::sqlite::Connection& c, ArgView) {
     const store::WhereView at = store::sqlite::site("plan", "");
     Value out = array();
     for (const PlannedView& p : statements) {
@@ -44,6 +46,14 @@ Value plans(store::sqlite::Connection& c) {
         item.set("lines", lines);
         out.push(item);
     }
+    return out;
+}
+
+// The seam's write (support/seams' write): "sql" run through the store's
+// connection, its engine's code given back, 0 where it ran.
+Value seam_write(store::sqlite::Connection& c, ArgView request) {
+    Value out;
+    out.set("code", std::int64_t{c.run(text(request, "sql"))});
     return out;
 }
 

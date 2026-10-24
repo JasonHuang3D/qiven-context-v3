@@ -11,14 +11,16 @@
 // request names its object by "state", "store", "scan" or "export". The
 // factory's requests: factory_make (its "limits", each threshold
 // optional), factory_again, factory_read_only and factory_reopen, each on
-// a "state"; factory_drop ends a state no object is held over. The
-// store's: store_capabilities, the type's; store_append, store_head,
+// a "state", and factory_create, the SQLite store's alone, a create over
+// the state's file (S17); factory_drop ends a state no object is held
+// over. The store's: store_capabilities, the type's; store_append, store_head,
 // store_heads, store_header, store_body, store_forgotten, store_scan,
 // store_forget, store_purge, store_export, store_import (from an "export"
 // of this drive, or from "heads" and "lines" given), store_size,
 // store_verify, store_close, store_read_only and store_limits, each on a
-// "store", and store_plans, the SQLite store's alone; store_drop ends an object no handle is held over. A scan's:
-// scan_next, a header's line at a time, and scan_close, its end. An
+// "store", and store_plans and store_seam_write (its "sql"), the SQLite
+// store's alone; store_drop ends an object no handle is held over. A
+// scan's: scan_next, a header's line at a time, and scan_close, its end. An
 // export's: export_heads, export_next, export_close, and export_drop, its
 // end. fixture_entry gives a fixture's stored line and body record, by
 // its "name"; fixture_made one made like a fixture, its fields changed
