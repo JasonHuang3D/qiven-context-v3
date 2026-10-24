@@ -33,6 +33,7 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
+#include "qiven3/location_impl.hpp"
 #include "runner/runner.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"

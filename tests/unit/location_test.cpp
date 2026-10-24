@@ -23,6 +23,7 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
+#include "qiven3/location_impl.hpp"
 #include "runner/runner.hpp"
 #include "store/errors.hpp"
 #include "support/fake_platform/fake_platform.hpp"

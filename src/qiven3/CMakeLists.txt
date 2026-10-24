@@ -22,10 +22,13 @@ target_link_libraries(qiven3_base PUBLIC qiven3_memory PRIVATE qiven3_flags)
 # qiven3_location: the human's choice of the store's directory, the record,
 # the drive check and the commands, apart from qiven3_base so that B12 and
 # B16 hold by the build's edges; its commands are templates on the
-# platform, instantiated by a binary's main and by its cases on the fake.
+# platform, declared in location.hpp and defined in location_impl.hpp, which
+# instantiation files alone include: a binary's main's and its cases' on
+# the fake.
 add_library(qiven3_location STATIC
   location.cpp
   location.hpp
+  location_impl.hpp
 )
 target_include_directories(qiven3_location PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_location
