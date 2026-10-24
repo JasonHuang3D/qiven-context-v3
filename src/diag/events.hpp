@@ -8,7 +8,9 @@
 // diag_windows.cpp on Windows, so that a handler names no other object's
 // symbol. Inline, with no checked member of the standard library and no
 // call that can fail: Linux's handlers call it, and K18 reads their
-// object's undefined symbols.
+// object's undefined symbols. Each compare-exchange names its failure
+// order: the hardened library checks the order the one-order form derives,
+// and the compiler may keep that check out of line, a call off the list.
 //
 // The events are the rings' lines in the order of their slots, each ring's
 // oldest first, the last 16 of them in all; each is cut at 300 code points.
@@ -46,7 +48,7 @@ inline bool hold(Rings& rings, const log::Ring& ring) noexcept {
     }
     for (std::atomic<const log::Ring*>& slot : rings) {
         const log::Ring* none = nullptr;
-        if (slot.compare_exchange_strong(none, &ring, std::memory_order_acq_rel)) {
+        if (slot.compare_exchange_strong(none, &ring, std::memory_order_acq_rel, std::memory_order_acquire)) {
             return true;
         }
     }
@@ -57,7 +59,7 @@ inline bool hold(Rings& rings, const log::Ring& ring) noexcept {
 inline bool release(Rings& rings, const log::Ring& ring) noexcept {
     for (std::atomic<const log::Ring*>& slot : rings) {
         const log::Ring* kept = &ring;
-        if (slot.compare_exchange_strong(kept, nullptr, std::memory_order_acq_rel)) {
+        if (slot.compare_exchange_strong(kept, nullptr, std::memory_order_acq_rel, std::memory_order_acquire)) {
             return true;
         }
     }

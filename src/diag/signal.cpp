@@ -35,6 +35,7 @@ using namespace std::string_view_literals;
 
 constexpr int frames_max = 32;
 constexpr std::size_t line_max = 300;
+constexpr std::size_t part_max = 128;
 // A fault this near the faulting thread's stack pointer is in the stack's
 // guard: a stack overflow.
 constexpr std::uintptr_t stack_near = 64 * 1024;
@@ -63,13 +64,20 @@ void out(std::string_view bytes) noexcept {
     }
 }
 
-// One line, built in place; text past the bound is dropped.
+// One line, built in place and written in parts of part_max bytes; text
+// past the bound is dropped. The part keeps a Text small: the build fills
+// each automatic object with a pattern, and the compiler may fill one past
+// 256 bytes by a call of memset, which is not on the list.
 class Text {
 public:
     Text& put(char c) noexcept {
-        if (size_ < line_max) {
+        if (count_ < line_max) {
+            if (size_ == part_max) {
+                flush();
+            }
             *std::next(bytes_.begin(), static_cast<std::ptrdiff_t>(size_)) = c == '\n' ? ' ' : c;
             ++size_;
+            ++count_;
         }
         return *this;
     }
@@ -104,10 +112,19 @@ public:
     }
 
 private:
-    // Written up to size_ alone: no code clears it.
-    std::array<char, line_max + 1> bytes_;
+    void flush() noexcept {
+        out({bytes_.data(), size_});
+        size_ = 0;
+    }
+
+    // Written up to size_ alone, the part's room and the newline's: no code
+    // clears it.
+    std::array<char, part_max + 1> bytes_;
     std::size_t size_ = 0;
+    // The line's bytes so far, up to line_max.
+    std::size_t count_ = 0;
 };
+static_assert(sizeof(Text) <= 256);
 
 std::string_view name(int number) noexcept {
     switch (number) {
