@@ -33,6 +33,10 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
+namespace qiven3::test::stage_book {
+class Book;
+}  // namespace qiven3::test::stage_book
+
 namespace qiven3::drive::wire {
 
 Value head(const store::Head& h);
@@ -112,6 +116,17 @@ private:
     std::size_t at_ = 0;
 };
 static_assert(store::Source<Given>);
+
+// The fixtures' entries, each {"line", "body"} (store_fixtures.cpp): a
+// fixture as the stage book stores it, by "name"; and one made "like" a
+// fixture: its header's "fields" set (scope, lane, seq, parent, kind,
+// writer, basis, at, target), those "absent" names removed (parent,
+// target; content, for a header with neither content nor body), its
+// "content" the fixture's where not given, under the key of "key_of"
+// (the fixture's own where not given), its digest and id computed. No
+// check is made: the case decides what is valid.
+Value fixture_entry(const test::stage_book::Book& book, ArgView request);
+Value fixture_made(const test::stage_book::Book& book, ArgView request);
 
 // The bytes of the lines a request gives under key, each line and body;
 // the operation's budget over them.

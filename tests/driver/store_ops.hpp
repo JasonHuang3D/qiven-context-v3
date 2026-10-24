@@ -21,7 +21,8 @@
 // scan_next, a header's line at a time, and scan_close, its end. An
 // export's: export_heads, export_next, export_close, and export_drop, its
 // end. fixture_entry gives a fixture's stored line and body record, by
-// its "name".
+// its "name"; fixture_made one made like a fixture, its fields changed
+// (driver/store_wire.hpp).
 //
 // Bytes cross as hexadecimal, as the platform's do: an entry's "line" and
 // "body", a header's line, an export's lines. Ids, scopes and lanes are

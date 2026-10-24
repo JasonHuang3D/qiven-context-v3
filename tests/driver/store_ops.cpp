@@ -10,7 +10,6 @@
 
 #include "driver/store_ops.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -29,7 +28,6 @@
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "support/fixtures/fixtures.hpp"
 #include "support/stores/stores.hpp"
 
 namespace qiven3::drive {
@@ -179,33 +177,14 @@ Result factory_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
     return std::nullopt;
 }
 
-// The fixtures' names, as entries.json holds them.
-bool fixture_named(std::string_view name) {
-    static const std::vector<std::string> names = [] {
-        json::Basic<std::allocator<char>> value;
-        test::fixtures::load_entries(value);
-        std::vector<std::string> out;
-        for (std::size_t i = 0; i < test::fixtures::entry_count(value); ++i) {
-            out.emplace_back(test::fixtures::entry(value, i).name);
-        }
-        return out;
-    }();
-    return std::find(names.begin(), names.end(), name) != names.end();
-}
-
+// The fixtures' entries (store_fixtures.cpp), from the Site's book.
 template <class F>
 Result fixture_entry(StoreDrive<F>& d, memory::Arena&, ArgView request) {
-    const std::string name = text(request, "name");
-    if (!fixture_named(name)) {
-        throw RequestError("no fixture named " + name);
-    }
-    const test::stage_book::Stored s = d.site().book().stored(name);
-    Value out;
-    out.set("line", to_hex(s.line));
-    if (s.record) {
-        out.set("body", to_hex(*s.record));
-    }
-    return out;
+    return wire::fixture_entry(d.site().book(), request);
+}
+template <class F>
+Result fixture_made(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+    return wire::fixture_made(d.site().book(), request);
 }
 
 template <class F>
@@ -452,6 +431,7 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"factory_reopen", {factory_reopen<F>, nullptr}},
         {"factory_drop", {factory_drop<F>, nullptr}},
         {"fixture_entry", {fixture_entry<F>, nullptr}},
+        {"fixture_made", {fixture_made<F>, nullptr}},
         {"store_capabilities", {capabilities<F>, nullptr}},
         {"store_append", {append<F>, entries_budget}},
         {"store_head", {head<F>, base}},

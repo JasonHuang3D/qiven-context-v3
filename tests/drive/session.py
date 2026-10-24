@@ -253,6 +253,23 @@ class Drive:
         got = self.call("fixture_entry", name=name)
         return got_bytes(got, "line"), got_bytes(got, "body")
 
+    def fixture_made(self, like, fields=None, absent=(), content=None, key_of=None):
+        """An entry made like a fixture, (line, body or None) as bytes: its
+        header's fields set, those of `absent` removed ("content" for no
+        content and no body), its content (text) the fixture's where None,
+        under key_of's key; its digest and id computed, nothing checked."""
+        args = {"like": like}
+        if fields:
+            args["fields"] = dict(fields)
+        if absent:
+            args["absent"] = list(absent)
+        if content is not None:
+            args["content"] = content
+        if key_of is not None:
+            args["key_of"] = key_of
+        got = self.call("fixture_made", **args)
+        return got_bytes(got, "line"), got_bytes(got, "body")
+
 
 def got_bytes(result, key):
     """A result's hexadecimal member as bytes, or None when absent."""
