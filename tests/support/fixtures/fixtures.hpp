@@ -99,7 +99,7 @@ constexpr std::uint8_t nibble(char c) noexcept {
 }
 
 constexpr std::uint8_t octet(std::string_view text, std::size_t i) noexcept {
-    return static_cast<std::uint8_t>((nibble(text[2 * i]) << 4U) | nibble(text[(2 * i) + 1]));
+    return static_cast<std::uint8_t>((static_cast<unsigned>(nibble(text[2 * i])) << 4U) | nibble(text[(2 * i) + 1]));
 }
 
 // Whether node at is an object whose every member is named in names and

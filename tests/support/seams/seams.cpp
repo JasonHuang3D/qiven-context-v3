@@ -36,6 +36,12 @@ std::string id_of(std::string_view line) {
     return std::string(entry::header::parse_line(line).value(entry::header::Slot::id));
 }
 
+// Two of a stream's modes combined: one standard library declares openmode
+// an int, whose flags combine as unsigned.
+std::ios::openmode modes(std::ios::openmode a, std::ios::openmode b) noexcept {
+    return static_cast<std::ios::openmode>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+
 }  // namespace
 
 NaiveStore::NaiveStore(std::filesystem::path directory) : directory_(std::move(directory)) {
@@ -67,7 +73,7 @@ std::string NaiveStore::append(std::string_view scope, std::string_view lane, st
         return std::string(held);
     }
     {
-        std::ofstream out(file(scope, lane, ".jsonl"), std::ios::binary | std::ios::app);
+        std::ofstream out(file(scope, lane, ".jsonl"), modes(std::ios::binary, std::ios::app));
         for (const store::EntryView& e : entries) {
             out << e.line;
             if (e.body) {
@@ -77,7 +83,7 @@ std::string NaiveStore::append(std::string_view scope, std::string_view lane, st
         }
     }
     std::string last = id_of(entries.back().line);
-    std::ofstream(file(scope, lane, ".head"), std::ios::binary | std::ios::trunc) << last;
+    std::ofstream(file(scope, lane, ".head"), modes(std::ios::binary, std::ios::trunc)) << last;
     return last;
 }
 

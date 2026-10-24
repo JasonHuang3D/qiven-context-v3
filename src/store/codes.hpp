@@ -112,7 +112,7 @@ inline constexpr int primarykey_code = 1555;
 inline constexpr int unique_code = 2067;
 
 // A code's primary code, its low byte.
-constexpr int primary(int code) noexcept { return code & 0xFF; }
+constexpr int primary(int code) noexcept { return static_cast<int>(static_cast<unsigned>(code) & 0xFFU); }
 
 // A code's name by the table, unknown_name outside it: a binary search.
 constexpr std::string_view result_name(int code) noexcept {

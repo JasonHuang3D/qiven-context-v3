@@ -59,7 +59,11 @@ public:
         return Node{(static_cast<std::uint64_t>(value) << 3U) | static_cast<std::uint64_t>(Kind::integer)};
     }
     [[nodiscard]] constexpr Kind kind() const noexcept { return static_cast<Kind>(word_ & 7U); }
-    [[nodiscard]] constexpr std::int64_t integer() const noexcept { return static_cast<std::int64_t>(word_) >> 3; }
+    // The tag's bits cleared leave a multiple of 8, which the division
+    // takes back to of_integer's value, its sign kept.
+    [[nodiscard]] constexpr std::int64_t integer() const noexcept {
+        return static_cast<std::int64_t>(word_ & ~std::uint64_t{7}) / 8;
+    }
     [[nodiscard]] constexpr std::size_t low() const noexcept { return (word_ >> 3U) & 0x7FFFFFFFU; }
     [[nodiscard]] constexpr std::size_t high() const noexcept { return static_cast<std::size_t>(word_ >> 34U); }
     constexpr bool operator==(const Node&) const = default;

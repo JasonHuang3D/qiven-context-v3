@@ -54,8 +54,8 @@ Detail& Detail::number(std::uint64_t value) noexcept {
 Detail& Detail::hex(std::uint32_t value) noexcept {
     static constexpr std::string_view digits = "0123456789abcdef";
     add("0x");
-    for (int shift = 28; shift >= 0; shift -= 4) {
-        add(digits.substr((value >> shift) & 0xFU, 1));
+    for (unsigned shift = 32U; shift > 0U; shift -= 4U) {
+        add(digits.substr((value >> (shift - 4U)) & 0xFU, 1));
     }
     return *this;
 }

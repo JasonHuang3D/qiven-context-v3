@@ -67,7 +67,10 @@ struct Item {
 
     [[nodiscard]] constexpr const header::Header<A>& header() const noexcept { return head; }
     [[nodiscard]] constexpr bool has_body() const noexcept { return text.has_value(); }
-    [[nodiscard]] constexpr ContentView body() const { return ContentView{std::string_view(*text)}; }
+    // Empty where the entry has none, which has_body tells.
+    [[nodiscard]] constexpr ContentView body() const {
+        return text ? ContentView{std::string_view(*text)} : ContentView{};
+    }
 };
 
 class MemoryView {

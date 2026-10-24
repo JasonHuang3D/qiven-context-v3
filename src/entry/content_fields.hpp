@@ -463,9 +463,9 @@ private:
             fault(Code::type);
             return;
         }
-        constexpr refs::Fields entry = bit(Field::type) | bit(Field::id) | bit(Field::digest);
+        constexpr refs::Fields entry = bits(Field::type, Field::id, Field::digest);
         constexpr refs::Fields repo_required =
-            bit(Field::type) | bit(Field::repository) | bit(Field::path) | bit(Field::digest);
+            bits(Field::type, Field::repository, Field::path, Field::digest);
         constexpr refs::Fields repo = repo_required | bit(Field::name);
         const std::optional<json::Index> t = v_->find(k, "type");
         const bool text = t && v_->kind(*t) == json::Kind::string;

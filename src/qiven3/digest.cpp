@@ -17,7 +17,9 @@ bool same(std::string_view a, std::string_view b) noexcept {
     }
     volatile unsigned char seen = 0;
     for (std::size_t i = 0; i < a.size(); ++i) {
-        seen = static_cast<unsigned char>(seen | (static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i])));
+        const unsigned x = static_cast<unsigned char>(a[i]);
+        const unsigned y = static_cast<unsigned char>(b[i]);
+        seen = static_cast<unsigned char>(seen | (x ^ y));
     }
     return seen == 0;
 }

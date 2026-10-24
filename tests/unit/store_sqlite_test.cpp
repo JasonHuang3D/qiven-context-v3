@@ -418,10 +418,10 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(store.size().volume.size, f.volume.size);
     records(qiven3_ctx, store, book, erased);
     {
-        Store reader = Store::open(path, false, true, rig.fake);
-        CHECK_EQ(raised([&] { (void)reader.purge(); }), std::string("StoreError read_only"));
-        CHECK_EQ(reader.size().volume.count, 10U);
-        CHECK(reader.close().done);
+        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+        CHECK_EQ(raised([&] { (void)reader->purge(); }), std::string("StoreError read_only"));
+        CHECK_EQ(reader->size().volume.count, 10U);
+        CHECK(reader->close().done);
     }
     CHECK(store.close().done);
     CHECK_EQ(raised([&] { (void)store.purge(); }), std::string("StoreError closed"));
@@ -507,11 +507,11 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     Arena arena(pages);
     const Chars chars(arena);
     Vector<Id> erased(chars);
-    Store store = Store::open(text(rig.scratch.root / "r" / "store.db"), true, false, rig.fake);
+    const auto store = std::make_unique<Store>(Store::open(text(rig.scratch.root / "r" / "store.db"), true, false, rig.fake));
     const std::vector<Stored> mine = {book.stored("A"), book.stored("B")};
     const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1"), book.stored("M2")};
-    (void)store.append(qiven_scope, implementer, std::nullopt, views(mine));
-    (void)store.append(qiven_scope, reviewer, std::nullopt, views(theirs));
+    (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
+    (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
     const Stored f2 = forget_of(book.stored("E"), theirs[2], theirs[2], reviewer, 4);
     const Stored f3 = forget_of(book.stored("E"), theirs[1], f2, reviewer, 5);
     const std::string a = id_of(mine[0]);
@@ -519,49 +519,49 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const std::string m2 = id_of(theirs[2]);
     const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, b}, GuardView{qiven_scope, reviewer, m2}};
     const std::vector<Stored> forgets = {f2, f3};
-    (void)store.forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
-    CHECK(store.head(qiven_scope, implementer).value().seq == 2 && !store.head(qiven_scope, "nobody"));
+    (void)store->forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
+    CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));
     Vector<qiven3::store::LaneHead> rows(chars);
-    const qiven3::store::Heads all = store.heads(std::nullopt, rows);
+    const qiven3::store::Heads all = store->heads(std::nullopt, rows);
     REQUIRE(rows.size() == 2U);
     CHECK(rows[1].lane.view() == reviewer && rows[1].head.seq == 5);
     CHECK(all.forgets == 2U && all.purge.done);
     const std::array<std::string_view, 2> sets = {"person", "project:*"};
-    CHECK(store.heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
-    CHECK(store.heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
+    CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
+    CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
-    qiven3::store::Header out(chars);
-    store.header(a, out);
+    const auto out = std::make_unique<qiven3::store::Header>(chars);  // past a frame's share
+    store->header(a, *out);
     std::string line;
-    out.line(line);
+    out->line(line);
     CHECK_EQ(line, mine[0].line);
-    CHECK(store.peak() > 0 && store.peak() <= qiven3::store::operation_base);
+    CHECK(store->peak() > 0 && store->peak() <= qiven3::store::operation_base);
     qiven3::memory::String record(chars);
-    CHECK(store.body(a, record) && std::string_view(record) == *mine[0].record);
-    CHECK(!store.body(id_of(theirs[1]), record) && !store.body(id_of(f2), record));
-    CHECK(store.forgotten(id_of(theirs[1])) && !store.forgotten(a));
+    CHECK(store->body(a, record) && std::string_view(record) == *mine[0].record);
+    CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(f2), record));
+    CHECK(store->forgotten(id_of(theirs[1])) && !store->forgotten(a));
     const std::string none = "sha256:" + std::string(64, '0');
-    CHECK(raised([&] { store.header(none, out); }).starts_with("NotFound"));
-    CHECK(raised([&] { (void)store.body(none, record); }).starts_with("NotFound"));
-    CHECK(raised([&] { (void)store.forgotten(none); }).starts_with("NotFound"));
+    CHECK(raised([&] { store->header(none, *out); }).starts_with("NotFound"));
+    CHECK(raised([&] { (void)store->body(none, record); }).starts_with("NotFound"));
+    CHECK(raised([&] { (void)store->forgotten(none); }).starts_with("NotFound"));
 
-    CHECK_EQ(scanned(store, chars, {}), cut(mine) + cut(theirs) + cut(forgets));
-    CHECK_EQ(scanned(store, chars, {qiven_scope, reviewer, 2}), cut({theirs[2], f2, f3}));
-    CHECK_EQ(scanned(store, chars, {std::nullopt, std::nullopt, 4}), cut({f3}));
-    CHECK_EQ(scanned(store, chars, {"person", std::nullopt, std::nullopt}), std::string());
+    CHECK_EQ(scanned(*store, chars, {}), cut(mine) + cut(theirs) + cut(forgets));
+    CHECK_EQ(scanned(*store, chars, {qiven_scope, reviewer, 2}), cut({theirs[2], f2, f3}));
+    CHECK_EQ(scanned(*store, chars, {std::nullopt, std::nullopt, 4}), cut({f3}));
+    CHECK_EQ(scanned(*store, chars, {"person", std::nullopt, std::nullopt}), std::string());
 
-    sqlite::Connection& c = store.connection();
+    sqlite::Connection& c = store->connection();
     c.exec("UPDATE body SET record = (SELECT record FROM body WHERE id = '" + b + "') WHERE id = '" + a + "'",
            test_at);
-    CHECK(raised([&] { (void)store.body(a, record); }).starts_with("StoreCorrupt body_mismatch"));
+    CHECK(raised([&] { (void)store->body(a, record); }).starts_with("StoreCorrupt body_mismatch"));
     c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", test_at);
-    CHECK(raised([&] { store.header(b, out); }).starts_with("StoreCorrupt incoherent"));
+    CHECK(raised([&] { store->header(b, *out); }).starts_with("StoreCorrupt incoherent"));
     c.exec("UPDATE entry SET line = (SELECT line FROM entry WHERE id = '" + b + "') WHERE id = '" + a + "'", test_at);
-    CHECK(raised([&] { store.header(a, out); }).starts_with("StoreCorrupt id_mismatch"));
-    CHECK(raised([&] { (void)scanned(store, chars, {}); }).starts_with("StoreCorrupt id_mismatch"));
-    sqlite::ScanView left = store.scan({});
-    (void)store.close();
-    CHECK_EQ(raised([&] { (void)left.next(out); }), std::string("StoreError closed"));
+    CHECK(raised([&] { store->header(a, *out); }).starts_with("StoreCorrupt id_mismatch"));
+    CHECK(raised([&] { (void)scanned(*store, chars, {}); }).starts_with("StoreCorrupt id_mismatch"));
+    const auto left = std::make_unique<sqlite::ScanView>(store->scan({}));
+    (void)store->close();
+    CHECK_EQ(raised([&] { (void)left->next(*out); }), std::string("StoreError closed"));
 }
 
 }  // namespace

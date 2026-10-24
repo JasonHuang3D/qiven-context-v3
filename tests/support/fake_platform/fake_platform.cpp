@@ -39,20 +39,20 @@ std::string sha256(const std::string& message) {
     while (data.size() % 64 != 56) {
         data += '\0';
     }
-    for (int shift = 56; shift >= 0; shift -= 8) {
-        data += static_cast<char>((bits >> shift) & 0xFF);
+    for (unsigned shift = 64U; shift > 0U; shift -= 8U) {
+        data += static_cast<char>((bits >> (shift - 8U)) & 0xFFU);
     }
-    const auto rotr = [](std::uint32_t x, int n) { return (x >> n) | (x << (32 - n)); };
+    const auto rotr = [](std::uint32_t x, unsigned n) { return (x >> n) | (x << (32U - n)); };
     for (std::size_t at = 0; at < data.size(); at += 64) {
         std::array<std::uint32_t, 64> w{};
         for (std::size_t i = 0; i < 16; ++i) {
             for (std::size_t b = 0; b < 4; ++b) {
-                w[i] = (w[i] << 8) | static_cast<unsigned char>(data[at + i * 4 + b]);
+                w[i] = (w[i] << 8U) | static_cast<std::uint32_t>(static_cast<unsigned char>(data[at + i * 4 + b]));
             }
         }
         for (std::size_t i = 16; i < 64; ++i) {
-            const std::uint32_t s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
-            const std::uint32_t s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >> 10);
+            const std::uint32_t s0 = rotr(w[i - 15], 7U) ^ rotr(w[i - 15], 18U) ^ (w[i - 15] >> 3U);
+            const std::uint32_t s1 = rotr(w[i - 2], 17U) ^ rotr(w[i - 2], 19U) ^ (w[i - 2] >> 10U);
             w[i] = w[i - 16] + s0 + w[i - 7] + s1;
         }
         std::array<std::uint32_t, 8> v = h;
@@ -71,8 +71,8 @@ std::string sha256(const std::string& message) {
     }
     std::string digest;
     for (std::uint32_t word : h) {
-        for (int shift = 24; shift >= 0; shift -= 8) {
-            digest += static_cast<char>((word >> shift) & 0xFF);
+        for (unsigned shift = 32U; shift > 0U; shift -= 8U) {
+            digest += static_cast<char>((word >> (shift - 8U)) & 0xFFU);
         }
     }
     return digest;
@@ -85,14 +85,14 @@ std::string sha256(const std::string& message) {
 // The next code point of UTF-8 text from at, strictly; none for an invalid
 // sequence, whose first byte at then passes.
 std::optional<char32_t> code_point(std::string_view text, std::size_t& at) {
-    const auto b = static_cast<unsigned char>(text[at]);
-    const std::size_t n = b < 0x80 ? 1 : (b >> 5) == 0x6 ? 2 : (b >> 4) == 0xE ? 3 : (b >> 3) == 0x1E ? 4 : 0;
+    const unsigned b = static_cast<unsigned char>(text[at]);
+    const std::size_t n = b < 0x80U ? 1 : (b >> 5U) == 0x6U ? 2 : (b >> 4U) == 0xEU ? 3 : (b >> 3U) == 0x1EU ? 4 : 0;
     char32_t cp = n == 1 ? b : n == 2 ? (b & 0x1Fu) : n == 3 ? (b & 0x0Fu) : (b & 0x07u);
     bool ok = n != 0 && at + n <= text.size();
     for (std::size_t i = 1; ok && i < n; ++i) {
-        const auto c = static_cast<unsigned char>(text[at + i]);
-        ok = (c & 0xC0) == 0x80;
-        cp = (cp << 6) | (c & 0x3Fu);
+        const unsigned c = static_cast<unsigned char>(text[at + i]);
+        ok = (c & 0xC0U) == 0x80U;
+        cp = (cp << 6U) | (c & 0x3FU);
     }
     static constexpr std::array<char32_t, 5> least = {0, 0, 0x80, 0x800, 0x10000};
     ok = ok && cp >= least[n] && cp <= 0x10FFFF && (cp < 0xD800 || cp > 0xDFFF);
@@ -183,8 +183,8 @@ std::string named(std::errc error) {
 std::array<std::uint8_t, 32> seed_block(std::uint64_t seed, std::uint64_t k) {
     std::string message;
     for (std::uint64_t value : {seed, k}) {
-        for (int shift = 56; shift >= 0; shift -= 8) {
-            message += static_cast<char>((value >> shift) & 0xFF);
+        for (unsigned shift = 64U; shift > 0U; shift -= 8U) {
+            message += static_cast<char>((value >> (shift - 8U)) & 0xFFU);
         }
     }
     const std::string digest = sha256(message);
@@ -453,8 +453,8 @@ void FakePlatform::read(std::string_view path, String& out) {
         fail(Code::io, "read", fs::exists(status) ? "not a file" : "not found: " + named(std::errc::no_such_file_or_directory));
     }
     // The size by the stream, which reads it from the open file.
-    std::ifstream in(target, std::ios::binary | std::ios::ate);
-    const std::streamoff size = in ? static_cast<std::streamoff>(in.tellg()) : -1;
+    std::ifstream in(target, std::ios::binary);
+    const std::streamoff size = in && in.seekg(0, std::ios::end) ? static_cast<std::streamoff>(in.tellg()) : -1;
     if (size < 0 || !in.seekg(0)) {
         fail(Code::io, "read", "the stream did not open");
     }

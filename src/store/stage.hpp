@@ -209,7 +209,7 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
     f.id = h.text(Slot::id);
     header::Header<Chars> kept = header::make(f, allocator);
     std::optional<entry::body::Body<P, Chars>> b;
-    if (e.has_body()) {
+    if (e.has_body() && line.body) {
         const entry::body::detail::RecordView parts = entry::body::detail::parts(*line.body);
         b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
     }

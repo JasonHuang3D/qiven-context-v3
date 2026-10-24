@@ -182,15 +182,15 @@ constexpr void write_hex(std::string_view prefix, const Bytes& digest, S& out) {
 template <typename Put>
 constexpr void each_framed(std::span<const Field> fields, const Put& put) {
     for (const Field& field : fields) {
-        const std::uint64_t length = field ? static_cast<std::uint64_t>(field->size())
+        // The field's bytes, held once: none for an absent field.
+        const std::string_view held = field.value_or(std::string_view());
+        const std::uint64_t length = field ? static_cast<std::uint64_t>(held.size())
                                            : std::numeric_limits<std::uint64_t>::max();
         for (unsigned shift = 64U; shift > 0U; shift -= 8U) {
             put(static_cast<std::uint8_t>((length >> (shift - 8U)) & 0xFFU));
         }
-        if (field) {
-            for (const char c : *field) {
-                put(static_cast<std::uint8_t>(c));
-            }
+        for (const char c : held) {
+            put(static_cast<std::uint8_t>(c));
         }
     }
 }

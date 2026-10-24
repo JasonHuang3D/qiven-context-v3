@@ -37,6 +37,7 @@
 // thread: none
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -96,23 +97,28 @@ enum class Type : std::uint8_t { entry, repo, transcript, output };
 inline constexpr std::array<std::string_view, 4> type_names = {"entry", "repo", "transcript", "output"};
 using Fields = std::uint16_t;
 constexpr Fields bit(Field f) noexcept { return static_cast<Fields>(1U << static_cast<unsigned>(f)); }
+// The fields' set, combined as unsigned: Fields would promote to int.
+template <std::same_as<Field>... F>
+constexpr Fields bits(F... f) noexcept {
+    return static_cast<Fields>((0U | ... | (1U << static_cast<unsigned>(f))));
+}
 struct Shape {
     Fields holds;
     Fields required;
 };
 static_assert(sizeof(Shape) == 4, "Shape's size is pinned: two sets of fields");
 inline constexpr std::array<Shape, 4> SHAPES = {
-    Shape{bit(Field::type) | bit(Field::id), bit(Field::type) | bit(Field::id)},
-    Shape{bit(Field::type) | bit(Field::repository) | bit(Field::path) | bit(Field::revision) | bit(Field::name) |
-              bit(Field::anchor) | bit(Field::digest),
-          bit(Field::type) | bit(Field::repository) | bit(Field::path) | bit(Field::digest)},
-    Shape{bit(Field::type) | bit(Field::client) | bit(Field::session) | bit(Field::message) | bit(Field::digest),
-          bit(Field::type) | bit(Field::client) | bit(Field::session) | bit(Field::message) | bit(Field::digest)},
-    Shape{bit(Field::type) | bit(Field::command) | bit(Field::digest),
-          bit(Field::type) | bit(Field::command) | bit(Field::digest)},
+    Shape{bits(Field::type, Field::id), bits(Field::type, Field::id)},
+    Shape{bits(Field::type, Field::repository, Field::path, Field::revision, Field::name, Field::anchor,
+               Field::digest),
+          bits(Field::type, Field::repository, Field::path, Field::digest)},
+    Shape{bits(Field::type, Field::client, Field::session, Field::message, Field::digest),
+          bits(Field::type, Field::client, Field::session, Field::message, Field::digest)},
+    Shape{bits(Field::type, Field::command, Field::digest), bits(Field::type, Field::command, Field::digest)},
 };
 // Every field some type holds.
-inline constexpr Fields any_type = SHAPES[0].holds | SHAPES[1].holds | SHAPES[2].holds | SHAPES[3].holds;
+inline constexpr Fields any_type =
+    static_cast<Fields>(static_cast<unsigned>(SHAPES[0].holds) | SHAPES[1].holds | SHAPES[2].holds | SHAPES[3].holds);
 static_assert(any_type == (1U << field_count) - 1U, "every field is some type's");
 
 // The limits, in characters.

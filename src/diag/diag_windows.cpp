@@ -222,7 +222,9 @@ void write_dump() noexcept {
     }
     EXCEPTION_POINTERS pointers{&state.record, &state.context};
     MINIDUMP_EXCEPTION_INFORMATION exception{state.thread_id, &pointers, FALSE};
-    auto type = static_cast<MINIDUMP_TYPE>(MiniDumpWithThreadInfo | MiniDumpWithIndirectlyReferencedMemory);
+    // dbghelp's flags are an int enum's: combined as unsigned.
+    auto type = static_cast<MINIDUMP_TYPE>(static_cast<unsigned>(MiniDumpWithThreadInfo) |
+                                           static_cast<unsigned>(MiniDumpWithIndirectlyReferencedMemory));
     BOOL wrote = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, type, &exception, nullptr,
                                    nullptr);
     LARGE_INTEGER size{};
