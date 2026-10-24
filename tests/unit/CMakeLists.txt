@@ -286,3 +286,10 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
   SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_states_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+
+# location's cases: the commands on the fake over a scratch directory; its
+# smoke case: the command line, init warned then recorded, store_dir,
+# chosen, show, change to the same directory, then not_moved.
+qiven3_add_cases(qiven3_unit_location LABELS fast fake
+  SOURCES location_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_location)
