@@ -30,6 +30,20 @@ endif()
 # for a compiler PDB by a path that /pathmap rewrote; each binary's own PDB
 # stays apart.
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+# On Linux every executable position-independent, stated here rather than
+# left to the compiler's default, which differs between builds of the same
+# compiler: a fault dump's frames are backtrace_symbols_fd's module offsets,
+# which the watcher symbolizes, and a non-PIE executable's frames carry none.
+if(NOT MSVC AND NOT APPLE)
+  cmake_policy(SET CMP0083 NEW)
+  include(CheckPIESupported)
+  check_pie_supported(OUTPUT_VARIABLE qiven3_pie_output LANGUAGES C CXX)
+  if(NOT CMAKE_C_LINK_PIE_SUPPORTED OR NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
+    message(FATAL_ERROR "qiven3: the toolchain does not link position-independent executables: "
+      "${qiven3_pie_output}")
+  endif()
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 # The pins of this machine's toolchain, which QIVEN3_PIN_TOOLS checks: MSVC
 # on Windows; in WSL2 g++ 16 and clang 23 as tools/linux-pins.txt has them.
