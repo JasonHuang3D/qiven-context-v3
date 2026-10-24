@@ -14,10 +14,10 @@ fields, separated by white space, a '#' starting a comment:
   the archive's index (apt-cache show NAME=VERSION) must still give SHA256
   for its .deb; an index that no longer lists that version is noted, its
   digest not re-read. SOURCE is ubuntu:SUITE/COMPONENT.
-- The hold: each deb pin of the source packages HELD (gcc-14 and
-  llvm-toolchain-18, the compilers before those under the prefix, until
-  their removal) must be held (apt-mark hold); and no other package may be
-  held, so that the system's updates stay on.
+- The hold: no package may be held (apt-mark hold). The compilers are
+  under the prefix, moved by a re-pin alone, so that nothing is held and
+  the system's updates stay on; HELD, the source packages whose deb pins
+  would be held, is empty.
 - download: a release file, kept as DIR/downloads/ and the URL's last
   part, its SHA-256 re-read. SOURCE is the URL.
 - command: a tool. SOURCE is prefix/PATH, under DIR, or path/NAME, found
@@ -48,7 +48,7 @@ from pathlib import Path
 
 PINS = Path(__file__).resolve().parent / "linux-pins.txt"
 KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx")
-HELD = ("gcc-14", "llvm-toolchain-18")  # the old compilers' source packages, held until their removal
+HELD = ()  # none: the compilers are under the prefix, and no package is held
 HEX = re.compile(r"[0-9a-f]{64}")
 SHOWN = 40  # mismatches printed at most, then a count of the rest
 TIMEOUT = 60
@@ -159,8 +159,8 @@ def check_hold(debs, have, every, out):
             out.append(f"deb {name}: a pinned package of {have[name][1]}, not held "
                        f"(apt-mark hold {name})")
     for name in sorted(n for n, (_, _, held) in every.items() if held and n not in compilers):
-        out.append(f"deb {name}: held, but not a pinned package of {' or '.join(HELD)}: only those are held, "
-                   "the system's updates stay on")
+        out.append(f"deb {name}: held, where no package is (apt-mark unhold {name}): the compilers are under "
+                   "the prefix, and the system's updates stay on")
 
 
 def check_download(prefix, name, digest, source, out):
