@@ -30,14 +30,18 @@ WINDOWS = "qiven3-drive-windows"
 
 class DriveError(Exception):
     """A reply's error: kind "platform", "memory" or "hal" with code,
-    operation and detail; "request" or "exception" with detail alone."""
+    operation and detail; "store" with its class, operation, path, detail,
+    its code where its kind has one and its kind's fields, all in error;
+    "request" or "exception" with detail alone."""
 
     def __init__(self, error):
         super().__init__(json.dumps(error, sort_keys=True))
+        self.error = error
         self.kind = error.get("kind")
         self.code = error.get("code")
         self.operation = error.get("operation")
         self.detail = error.get("detail", "")
+        self.cls = error.get("class")
 
 
 def wire(request):
@@ -222,6 +226,180 @@ class Drive:
 
     def code_page(self):
         return self.call("code_page")
+
+    # The store's requests (driver/store_ops.hpp), a drive started with
+    # --store: the factory's give a StoreObject.
+    def store_capabilities(self):
+        return self.call("store_capabilities")
+
+    def store_make(self, limits=None):
+        made = self.call("factory_make", **({} if limits is None else {"limits": limits}))
+        return StoreObject(self, made["store"], made["state"], made.get("path"), made.get("directory"))
+
+    def store_again(self, state):
+        return StoreObject(self, self.call("factory_again", state=state)["store"], state)
+
+    def store_read_only(self, state):
+        return StoreObject(self, self.call("factory_read_only", state=state)["store"], state)
+
+    def store_reopen(self, state):
+        return StoreObject(self, self.call("factory_reopen", state=state)["store"], state)
+
+    def state_drop(self, state):
+        self.call("factory_drop", state=state)
+
+    def fixture_entry(self, name):
+        """A fixture's stored line and body record (None for none), bytes."""
+        got = self.call("fixture_entry", name=name)
+        return got_bytes(got, "line"), got_bytes(got, "body")
+
+
+def got_bytes(result, key):
+    """A result's hexadecimal member as bytes, or None when absent."""
+    return bytes.fromhex(result[key]) if key in result else None
+
+
+def entry_wire(entry):
+    """An entry, (line, body or None) as bytes, on the wire."""
+    line, body = entry
+    return {"line": line.hex(), **({} if body is None else {"body": body.hex()})}
+
+
+def line_wire(line):
+    """An import's line, {"line", "body", "forgotten"} as bytes, on the wire."""
+    return {**entry_wire((line["line"], line.get("body"))), "forgotten": line.get("forgotten", False)}
+
+
+def line_of(result):
+    """An export's line from the wire: line and body (or None) as bytes."""
+    return {"line": got_bytes(result, "line"), "body": got_bytes(result, "body"), "forgotten": result["forgotten"]}
+
+
+class StoreObject:
+    """A store object of a drive, by its id; state, the id of its state;
+    path and directory, the SQLite file's, None on the in-memory store.
+    Each method is the contract's operation; an entry is (line, body or
+    None), bytes; a typed error raises DriveError."""
+
+    def __init__(self, drive, id, state, path=None, directory=None):
+        self.drive, self.id, self.state, self.path, self.directory = drive, id, state, path, directory
+
+    def call(self, op, **args):
+        return self.drive.call(op, store=self.id, **args)
+
+    @staticmethod
+    def _expected(expected):
+        return {} if expected is None else {"expected": expected}
+
+    def append(self, scope, lane, expected, entries):
+        return self.call("store_append", scope=scope, lane=lane, entries=[entry_wire(e) for e in entries],
+                         **self._expected(expected))
+
+    def head(self, scope, lane):
+        return self.call("store_head", scope=scope, lane=lane)
+
+    def heads(self, scopes=None):
+        return self.call("store_heads", **({} if scopes is None else {"scopes": list(scopes)}))
+
+    def header(self, id):
+        return bytes.fromhex(self.call("store_header", id=id))
+
+    def body(self, id):
+        got = self.call("store_body", id=id)
+        return None if got is None else bytes.fromhex(got)
+
+    def forgotten(self, id):
+        return self.call("store_forgotten", id=id)
+
+    def scan(self, scope=None, lane=None, after=None):
+        args = {k: v for k, v in (("scope", scope), ("lane", lane), ("after", after)) if v is not None}
+        return StoreScan(self.drive, self.call("store_scan", **args)["scan"])
+
+    def forget(self, scope, lane, expected, entries, guard):
+        """guard: (scope, lane, id) of every head the store holds."""
+        return self.call("store_forget", scope=scope, lane=lane, entries=[entry_wire(e) for e in entries],
+                         guard=[{"scope": s, "lane": l, "id": i} for s, l, i in guard], **self._expected(expected))
+
+    def purge(self):
+        return self.call("store_purge")
+
+    def export(self, scopes=None, after=None):
+        """after: (scope, lane, seq) for each lane to start after."""
+        args = {} if scopes is None else {"scopes": list(scopes)}
+        if after is not None:
+            args["after"] = [{"scope": s, "lane": l, "seq": q} for s, l, q in after]
+        return StoreExport(self.drive, self.call("store_export", **args)["export"])
+
+    def import_(self, source):
+        """From a StoreExport of this drive, or from (heads, lines): heads
+        as rows, lines as {"line", "body", "forgotten"} with bytes."""
+        if isinstance(source, StoreExport):
+            return self.call("store_import", export=source.id)
+        heads, lines = source
+        return self.call("store_import", heads=list(heads), lines=[line_wire(x) for x in lines])
+
+    def size(self):
+        return self.call("store_size")
+
+    def verify(self):
+        return self.call("store_verify")
+
+    def close(self):
+        return self.call("store_close")
+
+    def read_only(self):
+        return self.call("store_read_only")
+
+    def limits(self):
+        return self.call("store_limits")
+
+    def drop(self):
+        self.call("store_drop")
+
+
+class StoreScan:
+    """A scan of a drive's store, by its id: next() a header's line as
+    bytes, None at the end; iterating reads to the end; close() ends it."""
+
+    def __init__(self, drive, id):
+        self.drive, self.id = drive, id
+
+    def next(self):
+        got = self.drive.call("scan_next", scan=self.id)
+        return None if got is None else bytes.fromhex(got)
+
+    def __iter__(self):
+        while (line := self.next()) is not None:
+            yield line
+
+    def close(self):
+        self.drive.call("scan_close", scan=self.id)
+
+
+class StoreExport:
+    """An export of a drive's store, by its id: heads() its snapshot's
+    figures and rows; next() a line, bytes, None at the end; close() the
+    contract's; drop() its end."""
+
+    def __init__(self, drive, id):
+        self.drive, self.id = drive, id
+
+    def heads(self):
+        return self.drive.call("export_heads", export=self.id)
+
+    def next(self):
+        got = self.drive.call("export_next", export=self.id)
+        return None if got is None else line_of(got)
+
+    def __iter__(self):
+        while (line := self.next()) is not None:
+            yield line
+
+    def close(self):
+        self.drive.call("export_close", export=self.id)
+
+    def drop(self):
+        self.drive.call("export_drop", export=self.id)
 
 
 def environment(**changes):

@@ -77,7 +77,8 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
     Options options;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        const bool valued = arg == "--config" || arg == "--hal" || (fake && (arg == "--root" || arg == "--seed"));
+        const bool valued =
+            arg == "--config" || arg == "--hal" || (fake && (arg == "--root" || arg == "--seed" || arg == "--store"));
         if (!valued) {
             why = "an unknown argument: " + arg;
             return std::nullopt;
@@ -91,6 +92,12 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
             options.root = value;
         } else if (arg == "--config") {
             options.config = value;
+        } else if (arg == "--store") {
+            if (value != "sqlite" && value != "memory") {
+                why = "--store takes sqlite or memory: " + value;
+                return std::nullopt;
+            }
+            options.store = value;
         } else if (arg == "--seed") {
             try {
                 if (value.empty() || value[0] < '0' || value[0] > '9') {
@@ -470,17 +477,33 @@ test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
-constexpr std::array<log::Name, 41> operation_names{
+constexpr std::array<log::Name, 86> operation_names{
     "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
     "replace", "create", "remove_directory", "read", "program", "run", "code_page", "stdout", "residual",
     "random_bytes", "wipe", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
     "refuse_pages", "calls", "written", "lent", "hal_fake", "hal_facts", "hal_device",
     "hal_allocate", "hal_upload", "hal_download", "hal_free", "hal_run", "hal_counts",
-    "allocate", "read_line", "wait"};
-constexpr std::array<log::Name, 5> kinds{"platform", "memory", "hal", "request", "exception"};
-constexpr std::array<log::Name, 14> codes{"unsupported", "config", "path", "exists", "busy",
+    "allocate", "read_line", "wait",
+    // The store half's requests (driver/store_ops.hpp), then the store's
+    // operations as its errors name them.
+    "factory_make", "factory_again", "factory_read_only", "factory_reopen", "factory_drop", "fixture_entry",
+    "store_capabilities", "store_append", "store_head", "store_heads", "store_header", "store_body",
+    "store_forgotten", "store_scan", "store_forget", "store_purge", "store_export", "store_import",
+    "store_size", "store_verify", "store_close", "store_read_only", "store_limits", "store_drop",
+    "scan_next", "scan_close", "export_heads", "export_next", "export_close", "export_drop",
+    "open", "append", "head", "heads", "header", "body", "forgotten", "scan", "forget", "purge",
+    "export", "import", "size", "verify", "close"};
+constexpr std::array<log::Name, 6> kinds{"platform", "memory", "hal", "store", "request", "exception"};
+constexpr std::array<log::Name, 38> codes{"unsupported", "config", "path", "exists", "busy",
                                           "io", "start", "deadline", "output", "memory",
-                                          "budget", "size", "kernel", "launch"};
+                                          "budget", "size", "kernel", "launch",
+                                          // The store's codes, causes and kinds' codes.
+                                          "closed", "location", "missing", "read_only", "thread",
+                                          "settings", "engine_version", "guard", "internal", "forget_kind",
+                                          "whole_record", "held", "not_writable", "permission",
+                                          "not_a_store", "corrupt", "foreign", "version", "incoherent",
+                                          "id_mismatch", "body_mismatch", "forgotten_body", "store_full",
+                                          "disk_full"};
 
 static_assert(log::pick("hal_run", operation_names, "unknown") == log::Name("hal_run"));
 static_assert(log::pick("sk-not-an-operation", operation_names, "unknown") == log::Name("unknown"));
@@ -488,7 +511,9 @@ static_assert(log::pick("exception", kinds, "unknown") == log::Name("exception")
 static_assert(log::pick("launch", codes, "unknown") == log::Name("launch"));
 
 // The kinds of the typed errors.
-bool typed_kind(std::string_view kind) noexcept { return kind == "platform" || kind == "memory" || kind == "hal"; }
+bool typed_kind(std::string_view kind) noexcept {
+    return kind == "platform" || kind == "memory" || kind == "hal" || kind == "store";
+}
 
 }  // namespace
 
@@ -524,7 +549,9 @@ void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept {
             status = log::pick(kind, kinds, "unknown");
             outcome = status;
             if (typed_kind(kind)) {
-                outcome = log::pick(text(error, "code"), codes, "unknown");
+                // A store error of a kind with no code ends as its kind.
+                const std::optional<ArgView> code = error.find("code");
+                outcome = code ? log::pick(code->as_string("code"), codes, "unknown") : status;
                 log::event(op, log::events::error_typed, status, outcome,
                            log::pick(text(error, "operation"), operation_names, "unknown"));
             }

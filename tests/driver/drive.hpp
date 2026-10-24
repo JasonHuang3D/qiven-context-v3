@@ -11,12 +11,14 @@
 // lowercase hexadecimal strings.
 //
 //   qiven3-drive-fake --root DIR [--seed N] [--config DIR] [--hal fake]
+//                     [--store sqlite|memory]
 //   qiven3-drive-windows [--config DIR] [--hal fake]
 //
 // A request is an object: "op", the operation's name, and its arguments.
 // A reply is {"ok":true} with "result" when the operation gives one, or
 // {"ok":false,"error":{...}}: "kind" "platform", "memory" or "hal" with
 // "code", "operation" and "detail" as the typed error carries them;
+// "store" for a store's typed error, with its fields (driver/store_ops.hpp);
 // "request" for a request the drive cannot read or an operation it lacks;
 // "exception" for any other exception, with its "detail". The drive goes
 // on after each.
@@ -44,7 +46,9 @@
 // The adapter is made at its first platform operation, so an adapter that
 // cannot be made is a reply. --config overrides the configuration
 // location; the fake's is otherwise "<root>/qiven3". --hal fake is refused
-// by a build with QIVEN3_HAL off, which has no HAL operation.
+// by a build with QIVEN3_HAL off, which has no HAL operation. --store, the
+// fake's drive alone, selects the store its store requests make, under
+// "<root>/stores" (driver/store_ops.hpp); without it there are none.
 //
 // This header is the drive's common half, no adapter's: its options, the
 // session's state (the HAL's, driver/hal_ops.hpp, in a build with it), the
@@ -78,13 +82,13 @@
 namespace qiven3::drive {
 
 struct Options {
-    std::optional<std::string> root, config;
+    std::optional<std::string> root, config, store;
     std::uint64_t seed = 0;
     bool hal_fake = false;
 };
 
-// The arguments; none for any other, `why` saying so. `fake` takes --root
-// and --seed, which the Windows drive refuses.
+// The arguments; none for any other, `why` saying so. `fake` takes --root,
+// --seed and --store, which the Windows drive refuses.
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why);
 // Arguments refused: `program: why` on standard error; the exit status, 2.
 int refuse(std::string_view program, const std::string& why);

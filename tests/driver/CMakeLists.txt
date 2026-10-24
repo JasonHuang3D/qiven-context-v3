@@ -19,8 +19,10 @@ if(QIVEN3_HAL)
   target_link_libraries(qiven3_drive_common PUBLIC qiven3_hal_fake)
 endif()
 
-qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp
-  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current)
+# The fake's drive alone has the store's requests, over support/stores'
+# factory (driver/store_ops.hpp).
+qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_wire.cpp store_wire.hpp
+  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores)
 
 if(WIN32)
   qiven3_executable(qiven3-drive-windows SOURCES instances_windows.cpp

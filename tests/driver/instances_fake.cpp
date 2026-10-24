@@ -1,6 +1,7 @@
 // qiven3-drive-fake: the drive for the fake platform, its instantiation
 // file. It instantiates the drive's platform half for the fake, adds the
-// fake's own operations and runs the request loop (driver/drive.hpp).
+// fake's own operations and runs the request loop (driver/drive.hpp), with
+// the store's requests where --store selects one (driver/store_ops.hpp).
 //
 // The fake's own: set_clock, its clock in microseconds; set_read_error,
 // read's io for a path; refuse_pages, the k-th call of pages from now
@@ -13,6 +14,7 @@
 #include <utility>
 
 #include "driver/platform_ops_impl.hpp"
+#include "driver/store_ops.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
 namespace qiven3::drive {
@@ -83,5 +85,5 @@ int main(int argc, char** argv) {
     drive.add("calls", calls);
     drive.add("written", written);
     drive.add("lent", lent);
-    return loop(drive);
+    return serve(session, drive);
 }

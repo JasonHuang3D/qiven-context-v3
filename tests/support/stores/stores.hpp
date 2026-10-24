@@ -5,7 +5,8 @@
 // store's case file; F::Store satisfies the contract's Store.
 //
 //   Site, site(seed)    the case's own ground, on the heap: a scratch
-//                       directory removed at its end, the fake platform
+//                       directory (fresh, or the root given) removed at
+//                       its end, the fake platform
 //                       over it, the engine heap once a SQLite factory asks
 //                       for it, the fixtures and the caller's arena
 //   Memory, Sqlite<H>   a factory over one Site, for one state each:
@@ -125,8 +126,12 @@ inline constexpr std::size_t arena_bytes = std::size_t{1} << 20U;
 
 class Site {
 public:
-    explicit Site(std::uint64_t seed)
-        : root_(fresh()), fake_(config(root_, seed)), book_(fake_), pages_(arena_bytes), arena_(pages_), chars_(arena_) {}
+    explicit Site(std::uint64_t seed) : Site(seed, fresh()) {}
+    // Over the root given, made where absent, and removed at its end as a
+    // fresh one is (the drive's, under its --root).
+    Site(std::uint64_t seed, std::filesystem::path root)
+        : root_(made(std::move(root))), fake_(config(root_, seed)), book_(fake_), pages_(arena_bytes), arena_(pages_),
+          chars_(arena_) {}
     Site(const Site&) = delete;
     Site& operator=(const Site&) = delete;
     Site(Site&&) = delete;
@@ -164,6 +169,10 @@ private:
             std::filesystem::temp_directory_path() / ("qiven3-stores-" + std::to_string(draw()) + std::to_string(draw()));
         std::filesystem::create_directories(out);
         return out;
+    }
+    static std::filesystem::path made(std::filesystem::path root) {
+        std::filesystem::create_directories(root);
+        return root;
     }
     static platform::fake::Config config(const std::filesystem::path& root, std::uint64_t seed) {
         platform::fake::Config c;
