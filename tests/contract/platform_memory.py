@@ -32,6 +32,12 @@ def operations(case):
     fresh = itertools.count()
     argv = [sys.executable, "-I", "-c", "print(1)"] if "processes" in case.TAGS else ["none"]
     text = "a\u00eb" if case.ADAPTER == "fake" else ""
+
+    def emptied():
+        made = root / f"emptied-{next(fresh)}"
+        made.mkdir()
+        return {"path": str(made)}
+
     return (
         ("name", lambda: {}),
         ("config_dir", lambda: {"create": False}),
@@ -41,6 +47,7 @@ def operations(case):
         ("synced", lambda: {"path": str(root)}),
         ("replace", lambda: {"path": str(root / "replaced.txt"), "data": "00"}),
         ("create", lambda: {"path": str(root / f"made-{next(fresh)}.txt")}),
+        ("remove_directory", emptied),
         ("read", lambda: {"path": str(data), "size": len(DATA)}),
         ("program", lambda: {"name": "a-program-on-no-path-entry"}),
         ("run", lambda: {"argv": argv, "caps": {"out": KIB, "err": KIB}}),

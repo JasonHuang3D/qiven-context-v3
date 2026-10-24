@@ -416,6 +416,29 @@ void FakePlatform::create(std::string_view path, bool directory) {
     static_cast<void>(std::fclose(file));
 }
 
+bool FakePlatform::remove_directory(std::string_view path) {
+    record("remove_directory");
+    const fs::path target = checked("remove_directory", path);
+    if (config_.root.empty() || !under(to_text(target), normal(config_.root))) {
+        fail(Code::path, "remove_directory", "outside the fake's root");
+    }
+    std::error_code error;
+    const fs::file_status status = fs::symlink_status(target, error);
+    if (fs::exists(status) && !fs::is_directory(status)) {
+        fail(Code::io, "remove_directory", "not a directory");
+    }
+    // remove refuses a directory not empty, as the system's removal does
+    // (ENOTEMPTY, or EEXIST, which POSIX allows): one holding anything is
+    // kept. None there is gone.
+    if (!fs::exists(status) || fs::remove(target, error) || !error) {
+        return true;
+    }
+    if (error == std::errc::directory_not_empty || error == std::errc::file_exists) {
+        return false;
+    }
+    fail(Code::io, "remove_directory", "remove: " + error.message());
+}
+
 void FakePlatform::read(std::string_view path, String& out) {
     record("read");
     out.clear();

@@ -1,7 +1,8 @@
 """The platform's cases P27 to P30, each defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
-Here: P27 (create and read, and two drives' creates racing), P28 (pages),
+Here: P27 (create and read, and two drives' creates racing, and
+remove_directory, create's counterpart for a directory), P28 (pages),
 P29 (normcase) and P30 (wipe, which digest.Key's ends and moves call;
 its unit cases count those calls on the fake). The Windows adapter's
 create and read are its module win/files', in package 5; until then a
@@ -12,6 +13,8 @@ the case is skipped.
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+from tests.drive.session import has_faults
 
 # normcase's vectors: each path, and its form on the Windows adapter, by
 # LCMapStringEx's invariant lowercase with '/' as '\'.
@@ -92,6 +95,44 @@ class PlatformLast:
                 error = self.failure(d.call, "read", path=str(written))
                 self.assert_platform_error(error, "io")
                 self.assertEqual(error.detail, planted)
+
+    def test_P27_remove_directory(self):
+        """remove_directory of an empty directory, of none, of one holding a
+        file and of one holding a directory, of a file and of a relative
+        path; on the fake, refused by its fault point."""
+        self.needs("files")
+        root = Path(self.files_root())
+        empty, full, nested, plain = root / "empty", root / "full", root / "nested", root / "plain"
+        with self.drive() as d:
+            if not self.CREATE_READ:
+                empty.mkdir()
+                error = self.failure(d.call, "remove_directory", path=str(empty))
+                self.assert_platform_error(error, "unsupported")
+                self.assertTrue(empty.is_dir())
+                self.skipTest("until package 5: the Windows adapter's remove_directory is win/files'")
+            empty.mkdir()
+            self.assertIs(d.call("remove_directory", path=str(empty)), True)
+            self.assertFalse(empty.exists())
+            self.assertIs(d.call("remove_directory", path=str(empty)), True)
+            full.mkdir()
+            (full / "inside").write_bytes(b"inside")
+            (nested / "inner").mkdir(parents=True)
+            for kept in (full, nested):
+                self.assertIs(d.call("remove_directory", path=str(kept)), False)
+            self.assertEqual((full / "inside").read_bytes(), b"inside")
+            self.assertTrue((nested / "inner").is_dir())
+            plain.write_bytes(b"plain")
+            self.assert_platform_error(self.failure(d.call, "remove_directory", path=str(plain)), "io")
+            self.assertEqual(plain.read_bytes(), b"plain")
+            self.assert_platform_error(self.failure(d.call, "remove_directory", path="relative"), "path")
+            if self.ADAPTER == "fake" and has_faults():
+                empty.mkdir()
+                # The drive's pages first, then the member.
+                reply = d.reply("remove_directory", path=str(empty), fault={"k": 2, "of": "platform"})
+                error = reply["error"]
+                self.assertEqual((error["kind"], error["code"], error["operation"]),
+                                 ("platform", "io", "remove_directory"), reply)
+                self.assertTrue(empty.is_dir())
 
     def test_P27_create_race(self):
         """Two drives on one root create the same absent files, each pair of

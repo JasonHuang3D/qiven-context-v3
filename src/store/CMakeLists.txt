@@ -6,6 +6,7 @@
 # of its own with its own analysis configuration, holds the engine's
 # calls, engine/sqlite.cpp alone including the engine's header and making
 # its every call; sqlite_open.cpp runs the open steps through its wrapper,
+# sqlite_create.hpp create's making and undoing on the platform,
 # sqlite_write.cpp the writes, sqlite_read.cpp the reads; sizes/, a
 # directory of its own for its analysis configuration too, reads a file's
 # size.
@@ -24,6 +25,7 @@ add_library(qiven3_store STATIC
   memory_state.cpp
   memory_state.hpp
   sizes/sizes.cpp
+  sqlite_create.hpp
   sqlite_open.cpp
   sqlite_read.cpp
   sqlite_store.hpp

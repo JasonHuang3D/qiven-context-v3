@@ -300,13 +300,22 @@ void probe(Connection& c, const WhereView& at);
 // Step 7: coherence, in one read transaction; StoreCorrupt incoherent or
 // forgotten_body.
 [[nodiscard]] Opened coherence(Connection& c, const WhereView& at);
+// A refused create's removals refused, a bit each in removal_names' order.
+using Refused = std::uint8_t;
+inline constexpr std::array<std::string_view, 5> removal_names = {"-journal", "-wal", "-shm", "the file",
+                                                                  "the directory"};
+inline constexpr Refused directory_refused = 1U << 4U;
 // A refused create's files removed: its -journal, -wal and -shm, each
 // tried, then the file once none of them is left, so that no later file
-// at path meets them; true when none is left.
-[[nodiscard]] bool unmake(std::string_view path) noexcept;
+// at path meets them; the removals refused.
+[[nodiscard]] Refused unmake(std::string_view path) noexcept;
+// In a handler: the error in flight raised again, a StoreError's,
+// MemoryError's or PlatformError's detail followed by "; removal refused: "
+// and each refused's name, as much as its detail holds; any other as it is.
+[[noreturn]] void reraise(Refused refused);
 // Steps 2 (the connection) to 7 on a file presence() passed, or that
-// create made. Under create, a step refused closes the connection, unmakes
-// the files and raises the step's error, whether or not each went.
+// create made (sqlite_create.hpp's made, which undoes a refused one); the
+// connection closed as a step's error leaves.
 [[nodiscard]] Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at,
                                  Opened& opened);
 

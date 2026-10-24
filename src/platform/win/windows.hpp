@@ -9,9 +9,9 @@
 //
 // Its first operations are the configuration location, resolve, normcase,
 // the console, random bytes, the clock, pages and wipe. The files'
-// operations (replace, stage, create, read, lock), the facts (facts,
-// synced, residual) and the processes (program, start, run) are
-// PlatformError unsupported until their modules (win/files, win/facts,
+// operations (replace, stage, create, remove_directory, read, lock), the
+// facts (facts, synced, residual) and the processes (program, start, run)
+// are PlatformError unsupported until their modules (win/files, win/facts,
 // win/process) are built; their handles' types are here so that the
 // adapter satisfies the concept now.
 //
@@ -173,6 +173,8 @@ public:
     void replace(std::string_view path, std::string_view data, Seconds deadline);
     WindowsStaged stage(std::string_view directory);
     void create(std::string_view path, bool directory);
+    // RemoveDirectoryW, win/files': error 145 false, 2 and 3 true.
+    bool remove_directory(std::string_view path);
     void read(std::string_view path, String& out);
     WindowsLock lock(std::string_view path, Seconds deadline);
     void program(std::string_view name, String& out);

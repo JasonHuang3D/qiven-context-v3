@@ -158,6 +158,8 @@ public:
     [[nodiscard]] constexpr std::string_view operation() const noexcept { return operation_.view(); }
     [[nodiscard]] constexpr std::string_view path() const noexcept { return path_.view(); }
     [[nodiscard]] constexpr std::string_view detail() const noexcept { return detail_.view(); }
+    // The detail replaced, as a step's error that a later step names more in.
+    constexpr void set_detail(std::string_view text) noexcept { detail_ = memory::Inline<detail_bytes>(text); }
     [[nodiscard]] constexpr std::string_view scope() const noexcept { return scope_.view(); }
     [[nodiscard]] constexpr std::string_view lane() const noexcept { return lane_.view(); }
     [[nodiscard]] constexpr std::string_view expected() const noexcept { return expected_.view(); }

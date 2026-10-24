@@ -2,8 +2,9 @@
 
 // The fake platform, qiven3_platform_fake: FakePlatform, a concrete type
 // satisfying the concept Platform on the C++ standard library alone, so the
-// seam is proved on every system. It is in memory but for create and read,
-// which work on real files (create under its scratch root alone), and
+// seam is proved on every system. It is in memory but for create,
+// remove_directory and read, which work on real files (the first two
+// under its scratch root alone), and
 // config_dir(true), which makes its configuration directory. Its pages are
 // the standard library's, aligned to 4,096 bytes and zeroed; its normcase
 // folds ASCII letters alone. It reads no registry and starts no process.
@@ -178,6 +179,9 @@ public:
     void replace(std::string_view path, std::string_view data, Seconds deadline);
     FakeStaged stage(std::string_view directory);
     void create(std::string_view path, bool directory);
+    // The empty directory at path removed (true, also when none is there);
+    // one holding anything kept (false); a file there io.
+    bool remove_directory(std::string_view path);
     void read(std::string_view path, String& out);
     FakeLock lock(std::string_view path, Seconds deadline);
     void program(std::string_view name, String& out);

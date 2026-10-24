@@ -98,7 +98,7 @@ NET_LIBS = frozenset(("ws2_32", "winhttp", "wininet"))
 LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_extension"))
 LOAD_PREFIX = "LoadLibrary"
 # B13: the platform's calls that write.
-PLATFORM_WRITES = frozenset(("replace", "stage", "create", "lock"))
+PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "lock"))
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {

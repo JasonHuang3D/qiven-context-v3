@@ -341,6 +341,8 @@ WindowsStaged WindowsPlatform::stage(std::string_view) { not_yet("stage"); }
 
 void WindowsPlatform::create(std::string_view, bool) { not_yet("create"); }
 
+bool WindowsPlatform::remove_directory(std::string_view) { not_yet("remove_directory"); }
+
 void WindowsPlatform::read(std::string_view, String& out) {
     out.clear();
     not_yet("read");

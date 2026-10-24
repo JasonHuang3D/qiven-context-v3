@@ -121,7 +121,7 @@ concept Pages = Handle<H> && requires(const H& h) {
     { h.bytes() } -> std::same_as<std::span<std::byte>>;
 };
 
-// The 21 members. standard_output() is the text's stdout(), named so since
+// The 22 members. standard_output() is the text's stdout(), named so since
 // stdout is a C macro. wipe's stores are never optimized away.
 template <class P>
 concept Platform = requires(P& p, const P& q, std::string_view s, bool b, Seconds d, const Command& c,
@@ -136,6 +136,7 @@ concept Platform = requires(P& p, const P& q, std::string_view s, bool b, Second
     p.replace(s, s, d);
     { p.stage(s) } -> Staged;
     p.create(s, b);  // if absent
+    { p.remove_directory(s) } -> std::same_as<bool>;  // false: not empty, kept
     p.read(s, out);  // a file, whole
     { p.lock(s, d) } -> Lock;
     p.program(s, out);

@@ -150,6 +150,11 @@ Result create(Drive<P>& d, memory::Arena&, ArgView request) {
 }
 
 template <class P>
+Result remove_directory(Drive<P>& d, memory::Arena&, ArgView request) {
+    return scalar(d.platform().remove_directory(text(request, "path")));
+}
+
+template <class P>
 Result read(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().read(text(request, "path"), out);
@@ -336,6 +341,7 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"synced", {ops::synced<P>, ops::member}},
         {"replace", {ops::replace<P>, ops::member}},
         {"create", {ops::create<P>, ops::member}},
+        {"remove_directory", {ops::remove_directory<P>, ops::member}},
         {"read", {ops::read<P>, ops::read_budget}},
         {"program", {ops::program<P>, ops::member}},
         {"run", {ops::run<P>, ops::run_budget}},

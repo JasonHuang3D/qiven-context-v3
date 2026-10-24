@@ -12,8 +12,9 @@
 // bytes; create: exists), create making the directory if absent and the
 // file by the platform's create; then the connection, identify, the
 // settings, create's schema and TRUNCATE checkpoint, the write probe on a
-// read-write object, coherence; a create refused past its file removes the
-// files it made (sqlite::connect). Errors name "open" and the resolved path.
+// read-write object, coherence; a create refused removes the files and
+// the empty directory it made, naming each removal refused in its error
+// (sqlite_create.hpp). Errors name "open" and the resolved path.
 // A pending purge's one attempt at open, on a read-write object.
 //
 // Each operation runs Gate first. append and forget: stage's check outside
@@ -63,6 +64,7 @@
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/exchange.hpp"
+#include "store/sqlite_create.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::store {
@@ -135,10 +137,8 @@ public:
                 throw StoreError(Code::internal, sqlite::open_name, resolved, "no engine heap installed");
             }
             sqlite::presence(resolved, create, at);
-            if (create) {
-                make(resolved, platform, at);
-            }
-            store.connection_ = sqlite::connect(resolved, create, read_only, at, store.opened_);
+            store.connection_ = create ? sqlite::made(resolved, platform, at, store.opened_)
+                                       : sqlite::connect(resolved, false, read_only, at, store.opened_);
             store.peak_ = arena.peak();
         }
         if (!read_only && store.opened_.pending()) {
@@ -345,29 +345,6 @@ private:
         String client{memory::Allocator<char>(arena)};
         if (platform.synced(resolved, client)) {
             throw StoreError(Code::location, op, resolved, "synced");
-        }
-    }
-
-    // create's directory, made if absent, and its file, made only if
-    // absent: one made meanwhile is StoreError exists.
-    static void make(std::string_view resolved, P& platform, const WhereView& at) {
-        const std::string_view directory = sqlite::directory_of(resolved);
-        if (!directory.empty() && !sqlite::is_directory(directory)) {
-            try {
-                platform.create(directory, true);
-            } catch (const platform::PlatformError& e) {
-                if (e.code != platform::Code::exists) {
-                    throw;
-                }
-            }
-        }
-        try {
-            platform.create(resolved, false);
-        } catch (const platform::PlatformError& e) {
-            if (e.code == platform::Code::exists) {
-                throw StoreError(Code::exists, at.operation, at.path, "a file was made meanwhile");
-            }
-            throw;
         }
     }
 

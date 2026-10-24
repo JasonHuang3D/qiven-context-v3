@@ -3,7 +3,8 @@
 // through the standard library's file system reads (a file's size by
 // sizes/); then identify, the settings, create's schema and its TRUNCATE
 // checkpoint, the write probe and coherence; a create refused at any of
-// them removes its files, through the wrapper's remove_file. This file
+// them removes its files, through the wrapper's remove_file, and raises
+// its error again naming each removal refused (reraise). This file
 // names nothing of the engine's own: every call is the wrapper's.
 
 #include <array>
@@ -17,6 +18,8 @@
 
 #include "store/codes.hpp"
 #include "store/engine/sqlite.hpp"
+#include "memory/memory.hpp"
+#include "platform/platform.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store::sqlite {
@@ -59,7 +62,8 @@ constexpr std::string_view entry_rows = "SELECT count(*) FROM entry";
 constexpr std::string_view body_rows = "SELECT count(*) FROM body";
 
 // A short statement or detail composed in place: a pragma, a setting's
-// name and value, a count; past its bytes the rest is dropped.
+// name and value, a count; past its bytes the rest is dropped. A byte past
+// a detail's, so that an Inline made of a full one cuts it at a code point.
 class Text {
 public:
     Text& add(std::string_view part) noexcept {
@@ -90,7 +94,7 @@ public:
     [[nodiscard]] std::string_view view() const noexcept { return {bytes_.data(), size_}; }
 
 private:
-    std::array<char, 96> bytes_{};
+    std::array<char, detail_bytes + 1> bytes_{};
     std::size_t size_ = 0;
 };
 
@@ -323,13 +327,48 @@ Opened coherence(Connection& c, const WhereView& at) {
     return opened;
 }
 
-bool unmake(std::string_view path) noexcept {
-    constexpr std::array<std::string_view, 3> sidecars = {"-journal", "-wal", "-shm"};
-    bool none = true;
-    for (const std::string_view suffix : sidecars) {
-        none = remove_file(path, suffix) && none;
+Refused unmake(std::string_view path) noexcept {
+    Refused refused = 0;
+    for (std::size_t i = 0; i < 3; ++i) {
+        if (!remove_file(path, removal_names.at(i))) {
+            refused = static_cast<Refused>(refused | (1U << i));
+        }
     }
-    return none && remove_file(path, {});
+    if (refused == 0 && !remove_file(path, {})) {
+        refused = 1U << 3U;
+    }
+    return refused;
+}
+
+void reraise(Refused refused) {
+    if (refused == 0) {
+        throw;
+    }
+    // The error's detail, then each refused removal's name.
+    const auto named = [refused](std::string_view detail) {
+        Text text;
+        text.add(detail).add(detail.empty() ? "" : "; ").add("removal refused: ");
+        std::string_view comma;
+        for (std::size_t i = 0; i < removal_names.size(); ++i) {
+            if ((refused & (1U << i)) != 0U) {
+                text.add(comma).add(removal_names.at(i));
+                comma = ", ";
+            }
+        }
+        return text;
+    };
+    try {
+        throw;
+    } catch (StoreError& e) {
+        e.set_detail(named(e.detail()).view());
+        throw;
+    } catch (memory::MemoryError& e) {
+        e.detail = decltype(e.detail)(named(e.detail.view()).view());
+        throw;
+    } catch (platform::PlatformError& e) {
+        e.detail = decltype(e.detail)(named(e.detail.view()).view());
+        throw;
+    }
 }
 
 namespace {
@@ -354,17 +393,7 @@ Connection connected(const memory::String& path, bool create, bool read_only, co
 }  // namespace
 
 Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
-    if (!create) {
-        return connected(path, false, read_only, at, opened);
-    }
-    try {
-        return connected(path, true, read_only, at, opened);
-    } catch (...) {
-        // The connection closed as the error left connected: what create
-        // made removed, the step's error raised whether or not it all went.
-        static_cast<void>(unmake(path));
-        throw;
-    }
+    return connected(path, create, read_only, at, opened);
 }
 
 }  // namespace qiven3::store::sqlite
