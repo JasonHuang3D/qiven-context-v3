@@ -9,9 +9,10 @@ import unittest
 
 from tests.contract.store_cases import StoreBinding, StoreCases
 from tests.contract.store_more import StoreMore
+from tests.contract.store_rest import StoreRest
 
 
-class Sqlite(StoreBinding, StoreCases, StoreMore, unittest.TestCase):
+class Sqlite(StoreBinding, StoreCases, StoreMore, StoreRest, unittest.TestCase):
     STORE = "sqlite"
     CAPABILITIES = {"durable": True, "files": True, "processes": True}
     ctest_labels = ("fake",)

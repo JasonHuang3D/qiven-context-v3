@@ -9,9 +9,10 @@ import unittest
 
 from tests.contract.store_cases import StoreBinding, StoreCases
 from tests.contract.store_more import StoreMore
+from tests.contract.store_rest import StoreRest
 
 
-class Memory(StoreBinding, StoreCases, StoreMore, unittest.TestCase):
+class Memory(StoreBinding, StoreCases, StoreMore, StoreRest, unittest.TestCase):
     STORE = "memory"
     CAPABILITIES = {"durable": False, "files": False, "processes": False}
     ctest_labels = ("fake",)

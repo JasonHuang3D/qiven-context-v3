@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "driver/store_held.hpp"
+#include "driver/store_own.hpp"
 #include "driver/store_threads.hpp"
 #include "driver/store_wire.hpp"
 #include "memory/arena.hpp"
@@ -444,6 +445,9 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"store_verify", {verify<F>, base}},
         {"store_plans", {own_sqlite<F, wire::plans>, nullptr}},
         {"store_seam_write", {own_sqlite<F, wire::seam_write>, nullptr}},
+        {"store_settings", {own_sqlite<F, wire::settings>, nullptr}},
+        {"store_open_at", {open_at<StoreDrive>, nullptr}},
+        {"store_import_undeferred", {import_undeferred<StoreDrive>, import_budget}},
         {"store_close", {close<F>, base}},
         {"store_read_only", {read_only<F>, nullptr}},
         {"store_limits", {limits<F>, nullptr}},

@@ -22,8 +22,8 @@ endif()
 # The fake's drive alone has the store's requests, over support/stores'
 # factory (driver/store_ops.hpp).
 qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
-  store_held.hpp store_plans.cpp store_threads.hpp store_wire.cpp store_wire.hpp
-  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores)
+  store_held.hpp store_own.hpp store_plans.cpp store_threads.hpp store_wire.cpp store_wire.hpp
+  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores qiven3_seams)
 
 if(WIN32)
   qiven3_executable(qiven3-drive-windows SOURCES instances_windows.cpp

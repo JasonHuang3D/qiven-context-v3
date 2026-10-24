@@ -136,9 +136,11 @@ Value fixture_made(const test::stage_book::Book& book, ArgView request);
 // and the export's statements by its name, its EXPLAIN QUERY PLAN lines as
 // the connection plans them; seam_write, the request's "sql" run there
 // (the seam of S18's incoherent rows), {"code"}: the engine's, 0 where it
-// ran.
+// ran; settings, [{"name", "value", "when", "read"}, ...], each of the
+// store's SETTINGS with the value the connection reads back (S19).
 Value plans(store::sqlite::Connection& c, ArgView request);
 Value seam_write(store::sqlite::Connection& c, ArgView request);
+Value settings(store::sqlite::Connection& c, ArgView request);
 
 // The bytes of the lines a request gives under key, each line and body;
 // the operation's budget over them.

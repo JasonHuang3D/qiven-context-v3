@@ -178,6 +178,9 @@ private:
         platform::fake::Config c;
         c.root = text(root);
         c.seed = seed;
+        // A folder the fake reports synced, as a client's under %OneDrive%
+        // (S22); no store is made there but by a case that asks.
+        c.synced.emplace_back(text(root / "OneDrive"), "OneDrive");
         return c;
     }
 

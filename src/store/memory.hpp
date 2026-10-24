@@ -70,14 +70,16 @@
 namespace qiven3::store {
 
 // A scan: the lanes of its range as they stood at its start, each read
-// from the seq after its start, one header at a time.
+// from the seq after its start, one header at a time. It borrows its store
+// object's gate: read while that object lives; once it closes or moves, the
+// gate raises StoreError closed, as SQLite's scan does.
 template <platform::Platform P>
 class MemoryScan {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
 
-    MemoryScan(state::State& s, P& platform, const RangeView& range, state::Countdown* countdown)
-        : state_(&s), pages_(platform.pages(operation_base)), gate_(false), countdown_(countdown),
+    MemoryScan(const Gate& gate, state::State& s, P& platform, const RangeView& range, state::Countdown* countdown)
+        : state_(&s), pages_(platform.pages(operation_base)), gate_(&gate), countdown_(countdown),
           after_(range.after.value_or(0) > 0 ? range.after.value_or(0) : 0) {
         const state::Locked lock(s, Operation::scan, {});
         const state::Data& d = lock.data();
@@ -104,7 +106,7 @@ public:
 
     // The next header into out; false at the end.
     bool next(Header& out) {
-        gate_.enter(Operation::scan, {});
+        gate_->enter(Operation::scan, {});
         memory::Arena arena(pages_.bytes().first(operation_base));
 #if defined(QIVEN3_FAULTS)
         if (countdown_ != nullptr) {
@@ -144,7 +146,7 @@ private:
     state::State* state_;
     Pages pages_;
     std::optional<state::Rows<Pos>> lanes_;
-    Gate gate_;
+    const Gate* gate_;
     [[maybe_unused]] state::Countdown* countdown_;
     std::int64_t after_;
     std::size_t lane_ = 0;
@@ -273,7 +275,7 @@ public:
 
     MemoryScan<P> scan(const RangeView& range) {
         gate_.enter(Operation::scan, {});
-        return MemoryScan<P>(*state_, *platform_, range, countdown_);
+        return MemoryScan<P>(gate_, *state_, *platform_, range, countdown_);
     }
 
     // As append, but forget entries alone, every lane as the guard expects

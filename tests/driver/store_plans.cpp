@@ -1,7 +1,8 @@
 // The SQLite store's own requests (driver/store_wire.hpp): the plans, each
 // of the view's reads and the export's statements, its EXPLAIN QUERY PLAN
 // lines as the store's own connection plans them; and the seam's statement
-// run through that connection (S18's incoherent rows).
+// run through that connection (S18's incoherent rows); and the settings,
+// each read back on that connection (S19).
 
 #include <array>
 #include <cstdint>
@@ -54,6 +55,26 @@ Value plans(store::sqlite::Connection& c, ArgView) {
 Value seam_write(store::sqlite::Connection& c, ArgView request) {
     Value out;
     out.set("code", std::int64_t{c.run(text(request, "sql"))});
+    return out;
+}
+
+// Each setting the store applies, with the value the connection reads
+// back: busy_timeout by its pragma, as the wrapper sets it.
+Value settings(store::sqlite::Connection& c, ArgView) {
+    const store::WhereView at = store::sqlite::site("settings", "");
+    constexpr std::array<std::string_view, 3> when = {"every", "read_write", "create"};
+    Value out = array();
+    for (const store::sqlite::Setting& s : store::sqlite::settings) {
+        store::sqlite::Statement read = c.prepare("PRAGMA " + std::string(s.name.view()), at);
+        Value item;
+        item.set("name", s.name.view());
+        item.set("value", s.value.view());
+        item.set("when", when.at(static_cast<std::size_t>(s.when)));
+        if (read.step(at)) {
+            item.set("read", read.text(0));
+        }
+        out.push(item);
+    }
     return out;
 }
 

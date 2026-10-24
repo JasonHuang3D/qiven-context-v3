@@ -251,6 +251,24 @@ class Drive:
         """A create over the SQLite state's file, which is there."""
         return StoreObject(self, self.call("factory_create", state=state)["store"], state)
 
+    def store_open_at(self, path, create=False, read_only=False, refuse=()):
+        """An open of the SQLite file at path, under the drive's Site root,
+        its object closed at once: {"made": True} or {"error"}; refuse, each
+        (of, k), countdowns armed for it (platform, arena, engine_call,
+        engine_heap), given back as "refused" [{of, calls, fired}]."""
+        given = [{"of": of, "k": k} for of, k in refuse]
+        args = {"refuse": given} if given else {}
+        return self.call("store_open_at", path=path, create=create, read_only=read_only, **args)
+
+    def store_import_undeferred(self, state, source):
+        """An import into the SQLite state's file through the seam whose
+        import does not defer foreign keys; source as StoreObject.import_'s."""
+        if isinstance(source, StoreExport):
+            return self.call("store_import_undeferred", state=state, export=source.id)
+        heads, lines = source
+        return self.call("store_import_undeferred", state=state, heads=list(heads),
+                         lines=[line_wire(x) for x in lines])
+
     def store_appender(self, state, batches, hold=0):
         """A thread of the drive's appending through a store object of its
         own over the state: batches, each (scope, lane, expected, entries),
@@ -387,6 +405,11 @@ class StoreObject:
         the last append's written, "appended" their count."""
         return self.call("store_fill", scope=scope, lane=lane, count=count, content=content, mark=mark,
                          writer=writer, minute=minute)
+
+    def settings(self):
+        """The SQLite store's SETTINGS, each {"name", "value", "when",
+        "read"}: read, the value its connection reads back."""
+        return self.call("store_settings")
 
     def seam_write(self, sql):
         """The seam's statement, run through the SQLite store's connection:
