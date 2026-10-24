@@ -2,7 +2,8 @@
 // the command line read; init refused for its warnings, then accepted,
 // the store created and the record read back by store_dir; init again
 // chosen; show; change to the same directory, then to another while the
-// old one still holds the store, not_moved; a usage error.
+// old one still holds the store, not_moved; a usage error. usage: each
+// usage error through main, exit 2.
 
 #include <array>
 #include <cstddef>
@@ -16,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
@@ -147,4 +149,51 @@ QIVEN3_CASE(location, smoke) {
     CHECK(moved.find("not_moved: store.db") != std::string::npos);
     CHECK(!fs::exists(scratch.root / "other"));
     CHECK_EQ(run(fake, {"move", dir}), location::usage);
+}
+
+// Each usage error through main: exit 2, the usage line alone, the platform
+// called for standard_output alone, nothing made; the statuses the text's.
+QIVEN3_CASE(location, usage) {
+    static_assert(location::recorded == 0 && location::refused == 1 && location::usage == 2 &&
+                  location::not_accepted == 4);
+    const Scratch scratch;
+    Fake fake(config(scratch.root, State::off));
+    const std::vector<std::vector<std::string_view>> errors = {
+        {},
+        {"move", "/d"},
+        {"init"},
+        {"init", "/d", "/e"},
+        {"init", "/d", "--accept", "--accept"},
+        {"init", "/d", "--config", "/c", "--config", "/c"},
+        {"init", "/d", "--config"},
+        {"init", "/d", "--config", ""},
+        {"show", "/d"},
+        {"show", "--accept"},
+        {"change", "--accept"},
+        {"change", "/d", "--force"},
+        {"--accept", "init", "/d"},
+        {"Init", "/d"},
+    };
+    std::size_t mark = 0;
+    for (const auto& e : errors) {
+        const std::size_t calls = fake.calls().size();
+        CHECK_EQ(location::main(e, fake), location::usage);
+        CHECK_EQ(since(fake, mark), std::string(location::detail::usage_line()));
+        CHECK_EQ(fake.calls().size(), calls + 1);
+        CHECK_EQ(fake.calls().back(), std::string("standard_output"));
+        CHECK(!location::config_option(e));
+    }
+    CHECK(!fs::exists(scratch.root / "config"));
+    std::cout << "location.usage: " << location::detail::usage_line();
+    const std::array<std::string_view, 4> late = {"change", "--accept", "--config", "/c"};
+    CHECK(!location::arguments(late));
+    const std::array<std::string_view, 4> given = {"change", "--accept", "/d", "--config=/c"};
+    CHECK(!location::arguments(given));
+    const std::array<std::string_view, 3> show = {"show", "--config", "/c"};
+    const auto s = location::arguments(show);
+    REQUIRE(s.has_value());
+    CHECK(s->command == location::Command::show && s->directory.empty() && s->config == "/c" && !s->accept);
+    CHECK(location::config_option(show) == std::optional<std::string_view>("/c"));
+    const std::array<std::string_view, 2> none = {"change", "/d"};
+    CHECK(location::arguments(none).has_value() && !location::config_option(none));
 }
