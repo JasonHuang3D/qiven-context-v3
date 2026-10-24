@@ -1,0 +1,284 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {"major": 3, "minor": 28, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"}
+    },
+    {
+      "name": "here",
+      "hidden": true,
+      "inherits": "base",
+      "description": "This machine: the pinned MSVC, SDK, CMake, Ninja and CPython, from a shell vcvars64.bat -vcvars_ver=14.44.35207 set up; the interpreter from QIVEN3_PYTHON or a user preset",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "QIVEN3_PIN_TOOLS": "ON",
+        "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "here",
+      "displayName": "Debug, MSVC",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "QIVEN3_FAULTS": "ON"}
+    },
+    {
+      "name": "release",
+      "inherits": "here",
+      "displayName": "Release with debug information, MSVC: the build the full suite runs on",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo"}
+    },
+    {
+      "name": "asan",
+      "inherits": "here",
+      "displayName": "AddressSanitizer, MSVC",
+      "description": "/fsanitize=address on every target; the runtime's DLL goes beside each test binary; v3's allocators on the system heap; the failing countdown",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON", "QIVEN3_FAULTS": "ON"}
+    },
+    {
+      "name": "fuzz",
+      "inherits": "here",
+      "displayName": "libFuzzer with AddressSanitizer, MSVC",
+      "description": "/fsanitize=fuzzer,address and /INCREMENTAL:NO; builds the fuzz targets",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "structure",
+      "inherits": "here",
+      "displayName": "Structure records, MSVC",
+      "description": "Includes: Ninja consumes the compiler's /showIncludes, so the build reruns each core source's compile_commands.json command with /showIncludes into a file. Names: dumpbin /symbols of each object. Link edges: CMake's --graphviz output. The structure tests read these files.",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_STRUCTURE": "ON"}
+    },
+    {
+      "name": "stack",
+      "inherits": "here",
+      "displayName": "The frame bound, MSVC: /analyze's C6262 at 4,096 bytes, an error",
+      "description": "/analyze /analyze:stacksize4096 over v3's own sources, by stack.ruleset: C6262 alone",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "stack"}
+    },
+    {
+      "name": "analysis",
+      "inherits": "here",
+      "displayName": "Static analysis, MSVC: the Core Guidelines checker, then clang-tidy",
+      "description": "/analyze with EspXEngine.dll and analysis.ruleset over v3's own sources; then the target qiven3_tidy runs clang-tidy, by .clang-tidy, over compile_commands.json's sources of src/ and tests/support/",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "analysis"}
+    },
+    {
+      "name": "nohal",
+      "inherits": "here",
+      "displayName": "Without the HAL, MSVC (H6)",
+      "description": "QIVEN3_HAL off: no qiven3_hal, no HAL fake and no H case but H6",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_HAL": "OFF"}
+    },
+    {
+      "name": "ci",
+      "hidden": true,
+      "inherits": "base",
+      "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN3_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN3_PYTHON, which the workflow sets",
+      "binaryDir": "${sourceDir}/build/ci",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"}
+    },
+    {
+      "name": "ci-windows",
+      "inherits": "ci",
+      "displayName": "CI on windows-latest, the image's MSVC",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}
+    },
+    {
+      "name": "ci-asan",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-latest, the image's MSVC: as asan",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "ci-stack",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-latest, the image's MSVC: as stack",
+      "cacheVariables": {"QIVEN3_ANALYZE": "stack"}
+    },
+    {
+      "name": "ci-analysis",
+      "inherits": "ci-windows",
+      "displayName": "CI on windows-latest, the image's MSVC: as analysis",
+      "cacheVariables": {"QIVEN3_ANALYZE": "analysis"}
+    },
+    {
+      "name": "linux-gcc",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "linux-clang",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's clang++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "linux-tsan",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's clang++: ThreadSanitizer alone",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
+    },
+    {
+      "name": "linux-fuzz",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's clang++: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+    },
+    {
+      "name": "linux-plain",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's g++, no sanitizer: the frame bound and the clean-binaries check",
+      "description": "Uninstrumented, so -Wframe-larger-than=4096 is on, which every sanitizer preset leaves out; the workflow checks its binaries for the checkout's and the runner's paths",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo"}
+    },
+    {
+      "name": "linux-msan",
+      "inherits": "ci",
+      "displayName": "CI on ubuntu-latest, the image's clang++: MemorySanitizer, a trial, against libc++ built under it from its own LLVM release",
+      "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS and CMAKE_EXE_LINKER_FLAGS, so that CMake's own probes compile and link against it; -stdlib=libc++ on the link line alone, since under -nostdinc++ a compile leaves it unused, which -Werror fails",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "QIVEN3_SANITIZE": "memory", "QIVEN3_SYSTEM_HEAP": "ON",
+        "CMAKE_C_FLAGS": "-fsanitize=memory",
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -stdlib=libc++ -L$env{QIVEN3_LIBCXX}/lib"
+      }
+    },
+    {
+      "name": "macos-clang",
+      "inherits": "ci",
+      "displayName": "CI on macos-latest, the image's Apple clang",
+      "description": "The deployment target macOS 15.0, the floor: a call newer than it an error",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin"},
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++",
+                         "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0"}
+    }
+  ],
+  "buildPresets": [
+    {"name": "debug", "configurePreset": "debug"},
+    {"name": "release", "configurePreset": "release"},
+    {"name": "asan", "configurePreset": "asan"},
+    {"name": "fuzz", "configurePreset": "fuzz"},
+    {"name": "structure", "configurePreset": "structure"},
+    {"name": "stack", "configurePreset": "stack"},
+    {"name": "analysis", "configurePreset": "analysis", "targets": ["all", "qiven3_tidy"]},
+    {"name": "nohal", "configurePreset": "nohal"},
+    {"name": "ci-windows", "configurePreset": "ci-windows"},
+    {"name": "ci-asan", "configurePreset": "ci-asan"},
+    {"name": "ci-stack", "configurePreset": "ci-stack"},
+    {"name": "ci-analysis", "configurePreset": "ci-analysis", "targets": ["all", "qiven3_tidy"]},
+    {"name": "linux-gcc", "configurePreset": "linux-gcc"},
+    {"name": "linux-clang", "configurePreset": "linux-clang"},
+    {"name": "linux-tsan", "configurePreset": "linux-tsan"},
+    {"name": "linux-fuzz", "configurePreset": "linux-fuzz"},
+    {"name": "linux-plain", "configurePreset": "linux-plain"},
+    {"name": "linux-msan", "configurePreset": "linux-msan"},
+    {"name": "macos-clang", "configurePreset": "macos-clang"}
+  ],
+  "testPresets": [
+    {
+      "name": "here",
+      "hidden": true,
+      "output": {"outputOnFailure": true},
+      "execution": {"jobs": 12}
+    },
+    {
+      "name": "full",
+      "inherits": "here",
+      "displayName": "The full suite: every label but fuzz, bench, drill and analysis",
+      "configurePreset": "release",
+      "filter": {"exclude": {"label": "^(fuzz|bench|drill|analysis)$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "fast",
+      "inherits": "here",
+      "displayName": "The fast group: the label fast, within 60 s",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^fast$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "structure",
+      "inherits": "here",
+      "displayName": "The structure tests, on the structure build, whose records they read",
+      "configurePreset": "structure",
+      "filter": {"include": {"name": "^tests[.]structure[.]"}, "exclude": {"label": "^analysis$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "asan",
+      "inherits": "here",
+      "displayName": "The full suite's C++ cases under AddressSanitizer",
+      "configurePreset": "asan",
+      "filter": {"include": {"label": "^cxx$"}, "exclude": {"label": "^(fuzz|bench|drill|analysis)$"}}
+    },
+    {
+      "name": "fuzz",
+      "inherits": "here",
+      "displayName": "Each fuzz target for a bounded time",
+      "configurePreset": "fuzz",
+      "filter": {"include": {"label": "^fuzz$"}}
+    },
+    {
+      "name": "bench",
+      "inherits": "here",
+      "displayName": "FA3's benchmark",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^bench$"}}
+    },
+    {
+      "name": "drill",
+      "inherits": "here",
+      "displayName": "The live drill",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^drill$"}}
+    },
+    {
+      "name": "analysis",
+      "inherits": "here",
+      "displayName": "The analysis tools' controls, after the analysis build",
+      "configurePreset": "analysis",
+      "filter": {"include": {"label": "^analysis$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "debugger",
+      "inherits": "here",
+      "displayName": "The cases that drive cdb or gdb, the loop's alone, never CI's",
+      "configurePreset": "release",
+      "filter": {"include": {"label": "^debugger$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "fake",
+      "displayName": "CI: the cases on the fakes, in the CI presets' shared build directory",
+      "configurePreset": "ci-windows",
+      "output": {"outputOnFailure": true},
+      "filter": {"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}},
+      "execution": {"noTestsAction": "error"}
+    },
+    {
+      "name": "ci-analysis",
+      "displayName": "CI: the analysis tools' controls, in the CI presets' shared build directory",
+      "configurePreset": "ci-analysis",
+      "output": {"outputOnFailure": true},
+      "filter": {"include": {"label": "^analysis$"}}
+    }
+  ]
+}

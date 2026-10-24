@@ -1,0 +1,6 @@
+# The Windows tools the debugger wrapper (tools/debug.py) and the watcher's
+# hang path (tools/watch.py) run, by tools/debuggers.py: one pin a line,
+# KIND NAME VERSION SHA256 SOURCE. A kits/ source is under the Windows
+# SDK's root, the registry's KitsRoot10. The version is the one the tool's
+# -version gives; the digest the file's, observed.
+debugger cdb 10.0.22621.1 78ab1fcf173c617a5d3735050e7c12cdb670c5a333836ecdf186f45fb63c5fba kits/Debuggers/x64/cdb.exe  # observed

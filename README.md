@@ -15,10 +15,39 @@ arrives with the code. Until then, this repository holds no specification.
 
 ## Building and running
 
-The build arrives with the first package of code: CMake and Ninja, C++20,
-`cmake --preset <name>` to configure out of the tree into `build/<name>/`,
-`cmake --build --preset <name>` to build and `ctest --preset <name>` to test.
-This section will name the presets and the pinned toolchain when they exist.
+CMake and Ninja, C++20: `cmake --preset <name>` configures out of the tree
+into `build/<name>/`, `cmake --build --preset <name>` builds and
+`ctest --preset <name>` tests. Nothing is installed.
+
+- Developer presets, on Windows with MSVC: `debug`, `release` (the build the
+  full suite runs on), `asan`, `fuzz`, `structure` (the structure records),
+  `stack` (the frame bound), `analysis` (static analysis, then clang-tidy)
+  and `nohal` (no HAL).
+- CI's presets, which share `build/ci`: `ci-windows`, `ci-asan`, `ci-stack`
+  and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
+  (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
+  `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
+  `macos-clang`. `.github/workflows/ci.yml` runs them at publication alone: on
+  pull requests into `main`, on release tags `v[0-9]*` and by hand, never on
+  a push to a branch. CI is a runtime evaluation, unpinned: the runners'
+  latest images with their own tools, CPython's current release by
+  `actions/setup-python`, each job printing its image and its tools'
+  versions; the pins stay in the local loop (`tools/loop.py`).
+- Test presets select by label: `full`, `fast`, `structure`, `asan`,
+  `fuzz`, `bench`, `drill`, `analysis` and `debugger` (the cases that drive
+  a debugger, never CI's); and, for CI, `fake` (the cases on the fakes) and
+  `ci-analysis`. Configure and build the `structure` preset before
+  `ctest --preset full`: the structure tests it runs read that build's
+  records.
+- The developer presets pin the toolchain (`QIVEN3_PIN_TOOLS`): configure
+  fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
+  CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython
+  3.15.0. Run them from a shell that `vcvars64.bat -vcvars_ver=14.44.35207`
+  has set up. CI's presets leave the option off; the loop sets it on them.
+- Name the interpreter by the environment variable `QIVEN3_PYTHON`, or in an
+  untracked `CMakeUserPresets.json` by a preset that inherits one of these
+  and sets the cache variable `Python3_EXECUTABLE`. No machine path is ever
+  committed.
 
 ## What this repository never holds
 

@@ -1,0 +1,21 @@
+# The analysis preset's clang-tidy checks, every finding an error. Each
+# check turned off, with its reason:
+# - cppcoreguidelines-avoid-magic-numbers, -avoid-do-while and -macro-usage,
+#   and bugprone-easily-swappable-parameters: style or a heuristic, holding
+#   no property; QIVEN3_CALL and the thread-safety attributes are macros.
+# - cppcoreguidelines-pro-bounds-constant-array-index: it asks for the
+#   Guidelines Support Library's gsl::at, which v3 does not take; the
+#   hardened library checks indexing.
+# A directory's own .clang-tidy turns a check off by file, with its reason.
+Checks: >-
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  clang-analyzer-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-macro-usage,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-pro-bounds-constant-array-index
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*[/\](src|tests[/\]support)[/\].*'

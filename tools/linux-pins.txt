@@ -1,0 +1,120 @@
+# The Linux toolchain of the local loop, on WSL2's Ubuntu 24.04 LTS: one pin
+# a line, KIND NAME VERSION SHA256 SOURCE, which tools/linux_pins.py checks
+# against the installed tools (see its text for each kind). A prefix/ source
+# is under the install prefix the check is given; path/ is found on PATH.
+# A trailing comment says where a digest comes from: published (the
+# release's own digest list), github-asset-digest (the release asset's digest
+# as GitHub gives it), observed (taken from the file here; for a download,
+# one whose release publishes no digest, or none of SHA-256, checked as the
+# comment says).
+# The compilers are under the prefix: clang, clang++ and llvm-symbolizer
+# from LLVM's release archive (llvm), by GitHub's asset digest; GCC built
+# under the prefix from gnu.org's release source (gcc-source), checked by
+# its published SHA-512 and its signature, with its prerequisites (gmp,
+# mpfr, mpc, isl, gettext) by GCC's own list of their SHA-512s, built in
+# GCC's tree; each by its versioned name in the prefix's bin/.
+# libcxx-msan is libc++ with libc++abi within it, built from llvm-source
+# under MemorySanitizer with origins as msan.yml builds it; the linux-msan
+# preset reads its prefix from QIVEN3_LIBCXX.
+# Each deb's digest is the archive index's, checked on the downloaded .deb
+# before it was installed, with no recommended package: make (CPython's
+# build), m4 and bzip2 (GCC's build), glibc's development files, and the
+# compilers before those under the prefix, gcc-14, g++-14, clang-18,
+# libclang-rt-18-dev and llvm-18, with their dependencies, which the loop no
+# longer runs and which stay until their removal.
+# Their hold: the deb pins of the source packages gcc-14 and
+# llvm-toolchain-18 are held (apt-mark hold) until then, and no other
+# package is, so that the system's updates stay on; tools/linux_pins.py
+# checks it.
+
+# The release archives, each kept in the prefix's downloads.
+download cmake 4.4.3 d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-linux-x86_64.tar.gz  # published
+download ninja 1.13.2 5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6 https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip  # github-asset-digest
+download cpython-source 3.15.0 ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575 https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz  # published
+download llvm 23.1.4 25d814fda50d5fb0084b42be09605d8b1595d49d5e2e03a3345d7e112ff6f9f3 https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-X64.tar.xz  # github-asset-digest
+download llvm-source 23.1.4 819ecf7351f1a66f76b2d701d8942faaf5faeb324cb90c9d5b090de142434bb2 https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/llvm-project-23.1.4.src.tar.xz  # github-asset-digest
+download gcc-source 16.2.0 e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz  # observed; its published SHA-512 and signature checked
+download gmp 6.3.0 ac28211a7cfb609bae2e2c8d6058d66c8fe96434f740cf6fe2e47b000d1c20cb https://gcc.gnu.org/pub/gcc/infrastructure/gmp-6.3.0.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download mpfr 4.2.2 9ad62c7dc910303cd384ff8f1f4767a655124980bb6d8650fe62c815a231bb7b https://gcc.gnu.org/pub/gcc/infrastructure/mpfr-4.2.2.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download mpc 1.3.1 ab642492f5cf882b74aa0cb730cd410a81edcdbec895183ce930e706c1c759b8 https://gcc.gnu.org/pub/gcc/infrastructure/mpc-1.3.1.tar.gz  # observed; checked by gcc-source's SHA-512 list
+download isl 0.24 fcf78dd9656c10eb8cf9fbd5f59a0b6b01386205fe1934b3b287a0a1898145c0 https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2  # observed; checked by gcc-source's SHA-512 list
+download gettext 0.22 49f089be11b490170bbf09ed2f51e5f5177f55be4cc66504a5861820e0fb06ab https://gcc.gnu.org/pub/gcc/infrastructure/gettext-0.22.tar.gz  # observed; checked by gcc-source's SHA-512 list
+
+# The tools under the prefix: each file's SHA-256 as installed (observed).
+command cmake 4.4.3 9bfcda3e6265ee82868cf355e364733c3e7b30e506a2d1a3b2727bc02e9b9bdc prefix/bin/cmake
+command ctest 4.4.3 a480363df1642d241fa805556ecbb505099d2fc96642a4335262c8c3faf192a5 prefix/bin/ctest
+command ninja 1.13.2 607e668f90dd6cd82e1a42ae572647ad1b1fd43063964295b9547836d8c15d99 prefix/bin/ninja
+command python3.15 3.15.0 dfafcc467e72b276ad5c50f75d21426b93fc0492dbc508387ffdf4ec72cc847d prefix/bin/python3.15  # built from cpython-source
+command clang-23 23.1.4 c336d48383874cffaab0dc4c5c359456d871f21380b746520dde5c7f4c125a67 prefix/bin/clang-23  # from llvm
+command clang++-23 23.1.4 c336d48383874cffaab0dc4c5c359456d871f21380b746520dde5c7f4c125a67 prefix/bin/clang++-23  # from llvm
+command llvm-symbolizer-23 23.1.4 98aa98682cbd6d8ef9804f9339d44af0307410cef610da2cc3b5ecf6888a3713 prefix/bin/llvm-symbolizer-23  # from llvm
+command gcc-16 16.2.0 4066972a8cccb6b99b8197f8d887686d360be99ee82963d0bbe2bcf74b5a8449 prefix/bin/gcc-16  # built from gcc-source
+command g++-16 16.2.0 340ce559fbb8f23c3c4c6a6444c8d48c3f9411aa5877d3af89d7a352cccf1f0e prefix/bin/g++-16  # built from gcc-source
+libcxx libcxx-msan 23.1.4 475342cb7e6bf92b3e14d5436114acf8f073d9c9ef97a55933ef3c2eca4d8edb prefix/libcxx-msan-23.1.4  # built from llvm-source; libc++.a's digest
+
+# The tools from the archive's packages, found on PATH: each file's SHA-256.
+command make 4.3 d78b8f1d099fbcfb6f2f49ab87223b9b68fb3956642f92d6ec6de812e8afa965 path/make
+
+# Ubuntu 24.04's packages, each .deb by the archive index's SHA-256.
+deb bzip2 1.0.8-5.1ubuntu0.1 60fb79214dd8366fa39d7e69911294e72b9f1a4425a3d22f211359c8626e4b9e ubuntu:noble-updates/main
+deb clang-18 1:18.1.3-1ubuntu1 628b16701014ef7ad648380b20ea74b90dd543857f933b3e34d2fc042783de25 ubuntu:noble-updates/universe
+deb cpp-14 14.2.0-4ubuntu2~24.04.1 4bc737f3aa5275dc4468f08119443a17f4a0ca87731f83cee4a187eda5bd862b ubuntu:noble-updates/universe
+deb cpp-14-x86-64-linux-gnu 14.2.0-4ubuntu2~24.04.1 57a15d7740b39a6719e04a633e3471c6811adf1597f0797bef5e0501fc7ad7c2 ubuntu:noble-updates/universe
+deb g++-14 14.2.0-4ubuntu2~24.04.1 1022aa40afd9d3c5e60a9e4172e01efc4a2854c27098d4b2f6bda7fe26748d35 ubuntu:noble-updates/universe
+deb g++-14-x86-64-linux-gnu 14.2.0-4ubuntu2~24.04.1 437bfbb2285ef9023d80a6cbcf5054f902814239317438801fcb873c4b4de8ac ubuntu:noble-updates/universe
+deb gcc-13-base 13.3.0-6ubuntu2~24.04.1 e859aca26585bb91113a451f1e66bc0e5283cb08797d679aacc1d936ae6dff8e ubuntu:noble-updates/main
+deb gcc-14 14.2.0-4ubuntu2~24.04.1 4fd974528294841c5a7d18d40dd7abb0788b3d80853970ed2d009c4172b845f4 ubuntu:noble-updates/universe
+deb gcc-14-x86-64-linux-gnu 14.2.0-4ubuntu2~24.04.1 863df95a0d9f21d2bdb24696d04cf5032c9cb0f87d20e78a57b04add2cb21f16 ubuntu:noble-updates/universe
+deb lib32gcc-s1 14.2.0-4ubuntu2~24.04.1 1802dc75345ccce457b44110a3819ca74ff8c33fc62394a78d0e59a11c0cf770 ubuntu:noble-updates/main
+deb lib32stdc++6 14.2.0-4ubuntu2~24.04.1 1fa581633023bd973015f0a9148c7c3f229cf9a6a55cfbffc4688644e9305ba3 ubuntu:noble-updates/main
+deb libasan8 14.2.0-4ubuntu2~24.04.1 8321aac6230fa1da320e76eb6288b7436164624aec449ed3933ea6c4cc86daac ubuntu:noble-updates/main
+deb libatomic1 14.2.0-4ubuntu2~24.04.1 fe49cbbc7be753528380c724a8eef5f1e31dffa9221f692c5069048d81c7449d ubuntu:noble-updates/main
+deb libc-bin 2.39-0ubuntu8.9 066398a06ef1a218d4109461d4c636eafe83322ad19b179de9ef7af42b3fec58 ubuntu:noble-updates/main
+deb libc-dev-bin 2.39-0ubuntu8.9 77db23aba4582d034d9a95e4818a16e7e51a2d4fb17a9204439688e288d67f4c ubuntu:noble-updates/main
+deb libc6 2.39-0ubuntu8.9 ff5557d99b51f761c4b7c92368b9cc45565eda17df9bf9eb4b134d09825008be ubuntu:noble-updates/main
+deb libc6-dev 2.39-0ubuntu8.9 e13d5fcc1b2a86f75bca8e0026a8e39f24fe97ca86e92be79991f8697eb1306f ubuntu:noble-updates/main
+deb libc6-i386 2.39-0ubuntu8.9 a7120e4653c257e87385d0be55afcaca6d28e27ff4879afe576ccf3832ef80e4 ubuntu:noble-updates/main
+deb libcc1-0 14.2.0-4ubuntu2~24.04.1 454456436ca767817a860557263d7cc2489f0a410f03efff4c0bb236d579ec09 ubuntu:noble-updates/main
+deb libclang-common-18-dev 1:18.1.3-1ubuntu1 d41631bb752815a8196261d1030c096591c59678c8adfbf2e6a740a691b49e80 ubuntu:noble-updates/universe
+deb libclang-cpp18 1:18.1.3-1ubuntu1 e91eda104813ee0468d145d010a4a4e142401f3f17f9a65596c66d416298d018 ubuntu:noble-updates/main
+deb libclang-rt-18-dev 1:18.1.3-1ubuntu1 82d5d27d12c0abdf4cefbafa6044e7544a4cbbbec9c04784f5ce326979842b2b ubuntu:noble-updates/universe
+deb libclang1-18 1:18.1.3-1ubuntu1 1ed67106d743ab4f12db2726c5fc11c436c5e1fba613e9f1006bf3fa05cc69bd ubuntu:noble-updates/main
+deb libcrypt-dev 1:4.4.36-4build1 2edff420ef80b4a3f3751e65c33423ef30e563122a58b759e4854ea8d84ba1b1 ubuntu:noble/main
+deb libgc1 1:8.2.6-1build1 67d4d83f1c7f3bc240d44f4d9133e08d0da3e5069e50e6dd15ea998af7bccd06 ubuntu:noble/main
+deb libgcc-13-dev 13.3.0-6ubuntu2~24.04.1 cd689db2691edaa10f37329307292796bb599e722e0505c79e14caaa1fe9a93a ubuntu:noble-updates/main
+deb libgcc-14-dev 14.2.0-4ubuntu2~24.04.1 055dfa5fa7448fe20ad2f3832df2edd2b0ffca7f8a6c5fbbc5576dc61b2eb8b7 ubuntu:noble-updates/main
+deb libgomp1 14.2.0-4ubuntu2~24.04.1 e8a95ec58125b4933597f30ff56c2ae10edf90f287262e366d4b6edea3019144 ubuntu:noble-updates/main
+deb libhwasan0 14.2.0-4ubuntu2~24.04.1 2195318cfe68fe16b601913ef7b33c9a900372f57861643fdc9ae6fef84534cd ubuntu:noble-updates/main
+deb libisl23 0.26-3build1.1 4e040926e50fb961fae9bf95660189d468336a4a17bc321872c434fc8f777e7f ubuntu:noble-updates/main
+deb libitm1 14.2.0-4ubuntu2~24.04.1 1fca498129dd3510294809d77ee754f72a9de281111200e9b7b9a5adf37faa9f ubuntu:noble-updates/main
+deb libllvm18 1:18.1.3-1ubuntu1 af6197096ce3b89aab86de59f01c1b5feb008b2ae1514a03906c0664edb8b0b1 ubuntu:noble-updates/main
+deb liblsan0 14.2.0-4ubuntu2~24.04.1 dc0c2a1a053e833ba4d71e1ec2ba4244fe301761ad4a91d6725f927a52d86a14 ubuntu:noble-updates/main
+deb libmpc3 1.3.1-1build1.1 cebe6098bb3d66fdacac9dc6fe406a651216d9c00f27c3f9c159d15d96cdf864 ubuntu:noble-updates/main
+deb libobjc-13-dev 13.3.0-6ubuntu2~24.04.1 6757dc7e223f69c6c41f9aba133f0b54fe4babc8f38a9e1a51d9b03a9a28e8a6 ubuntu:noble-updates/universe
+deb libobjc4 14.2.0-4ubuntu2~24.04.1 0c24f15d962c751bcca42450c418c33337b65f5f56c1bf46f69d9bf8d3a31cbe ubuntu:noble-updates/universe
+deb libpfm4 4.13.0+git32-g0d4ed0e-1ubuntu0.1 35bfadd7153aed69c963c0bfedb8023668a8e0d3dcc314c472123c132a8d8438 ubuntu:noble-updates/universe
+deb libquadmath0 14.2.0-4ubuntu2~24.04.1 dc8f0ca542e09d662f29370c8393c016440dd4bc5c996c5fcc19f632b63ce3b0 ubuntu:noble-updates/main
+deb libstdc++-13-dev 13.3.0-6ubuntu2~24.04.1 ee5633e863e19c3381ed97842ce35ed32ede96a3d1ae4e94c051d3036fe21347 ubuntu:noble-updates/main
+deb libstdc++-14-dev 14.2.0-4ubuntu2~24.04.1 6d223262b8cbe6d5150435056d58dffa8159d8582fc0df47fb45ea550cd37424 ubuntu:noble-updates/universe
+deb libtsan2 14.2.0-4ubuntu2~24.04.1 8cbcc9b3ae5ef23b449383d47a9035b27596e307d7dce7df9b83d47a7acd1d91 ubuntu:noble-updates/main
+deb libubsan1 14.2.0-4ubuntu2~24.04.1 a16dea3abe2dcac99bcfae27e7e5672fde64573c3c170dcb0cd55631238f9814 ubuntu:noble-updates/main
+deb linux-libc-dev 6.8.0-147.147 fec8e4a308c03cd98dace67370a8d5a8031c36741796065c9f6e3f9548ab0cd2 ubuntu:noble-updates/main
+deb llvm-18 1:18.1.3-1ubuntu1 139cb82e16e75fcdd4a56562804ff9bfb482b65d0929580d621d28088075a27e ubuntu:noble-updates/universe
+deb llvm-18-linker-tools 1:18.1.3-1ubuntu1 50f0bcfa784e42f8bf0eac31aeb6a20798fb6174cc31efe021f12ae71af91b23 ubuntu:noble-updates/universe
+deb llvm-18-runtime 1:18.1.3-1ubuntu1 1ad04ff658929491f8bf30fcf6454e07b1815a2b04164f1894156e92c91ef895 ubuntu:noble-updates/universe
+deb locales 2.39-0ubuntu8.9 f8310ef4ba442845cf5d44a5ce3d5d7accb659bae96b3a0999002132209cd367 ubuntu:noble-updates/main
+deb m4 1.4.19-4build1 30ea715845a1863abd55d11e47ab91513130bf347852d4cdeae69e9d98fa795c ubuntu:noble/main
+deb make 4.3-4.1build2 1fe6a815b56c7b6e9ce4086a363f09444bbd0a0d30e230c453d0b78e44b57a99 ubuntu:noble/main
+deb rpcsvc-proto 1.4.2-0ubuntu7 7eb710fe148d224c159ddec1ceb0ba53ead52a80a6793dcdae1474acf20d8f71 ubuntu:noble/main
+
+# The debugger, a development aid installed on the owner's word, gdb with no
+# recommended package: absent, its cases skip by name and its pins are noted;
+# present, each must hold.
+debugger gdb 15.1 3832cc070ae1716e322105d3b39fb398695e5f031c9d39224cf227a8c2b889f6 path/gdb
+debugger-deb gdb 15.1-1ubuntu1~24.04.1 7069c23ce3bc350646498e6607749c568f5c403b0db2204310a94baff3d85745 ubuntu:noble-updates/main
+debugger-deb libbabeltrace1 1.5.11-3build3 30f0b9fbe68115d7b50d478458e4d830695bce579529b52c7827720da9c0c2df ubuntu:noble/main
+debugger-deb libdebuginfod-common 0.190-1.1ubuntu0.1 aa25e83c64fdb547d923ea1aaaa8fb8c1cdca2db69a5f0b560f90c5b832e4a85 ubuntu:noble-updates/main
+debugger-deb libdebuginfod1t64 0.190-1.1ubuntu0.1 7ff18c57198200f4af7e50e0dce29366dc832c10d8c475ca7e0403083e042ea7 ubuntu:noble-updates/main
+debugger-deb libipt2 2.0.6-1build1 c14702719d594c1ca099e2cd9ff0e9bbd0215c9bb6bebb4a0d7651f984600995 ubuntu:noble/main
+debugger-deb libsource-highlight-common 3.1.9-4.3build1 3f331e390caadcff33f42f56acad1a8c7e8a1f282eb31316f489c38f6c2460a5 ubuntu:noble/main
+debugger-deb libsource-highlight4t64 3.1.9-4.3build1 e0ef35d9b76669f22c2ad4ab3b9141ac46d3662823c5bbea248c21db53879470 ubuntu:noble/main

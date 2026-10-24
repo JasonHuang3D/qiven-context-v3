@@ -1,0 +1,317 @@
+# The CI matrix: Windows with MSVC, Linux with gcc and with clang, macOS with
+# Apple clang, and the safety jobs. Each job checks out, takes CPython by
+# actions/setup-python, prints the image and each tool's version, configures
+# with its preset, builds every target its system builds and runs the cases
+# on the fakes (ctest --preset fake); the safety jobs add their sanitizer or
+# analysis, and every finding fails the run. A sanitizer enlarges frames, so
+# the frame bound and the clean-binaries check run on the builds with none:
+# linux-plain, macos-clang, windows-stack's /analyze and windows-msvc.
+# linux-msan is a trial of MemorySanitizer (msan.yml). The full suite, the
+# machine cases and the debugger cases among them, runs on a developer's
+# machine, never here.
+#
+# CI is a runtime evaluation, unpinned: the runners' latest images with
+# their own tools, a tool an image lacks at its current release. No step
+# checks a tool's digest or exact version, no preset here pins one, and no
+# step changes a system setting. A failure is a finding, traced against the
+# local pins (CMakeLists.txt's QIVEN3_PIN_ versions; Windows' tools in
+# tools/loop_windows.py; Linux's in tools/linux-pins.txt, checked by
+# tools/linux_pins.py), never fixed by a pin here.
+#
+# Standard GitHub-hosted runners only. Each action is pinned by a full commit
+# SHA of its own repository, its tag in a comment. No secret is read.
+
+name: ci
+
+# At publication alone: a pull request into main once it is ready for
+# review, a release tag, or by hand. A draft pull request runs no job:
+# each job's if skips it, and marking it ready (ready_for_review) runs
+# them. Never a push to a branch, never a schedule; the loop runs each
+# job of its system before (tools/loop.py).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer run cancels the older run of the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CTEST_PARALLEL_LEVEL: "4"
+  # Clean binaries: no binary, library, object or debug file of the build
+  # holds the checkout's path, in UTF-8 or UTF-16, either slash, any case,
+  # with or without its root. Arguments: the build directory, then each
+  # path. The build's CMakeCache.txt, which holds the checkout's path, is the
+  # check's control: it must be caught. CMake's own probes of the compiler,
+  # under the build's top CMakeFiles/, are built without the project's flags.
+  CLEAN_CHECK: |
+    import sys
+    from pathlib import Path
+    build = Path(sys.argv[1])
+    needles = {}
+    for value in sys.argv[2:]:
+        bare = value.split(":", 1)[-1] if value[1:2] == ":" else value
+        for whole in (value, bare.lstrip("/\\")):
+            for form in {whole, whole.replace("\\", "/"), whole.replace("/", "\\")}:
+                form = form.rstrip("/\\").lower()
+                if form:
+                    needles.update({form.encode("utf-8"): form, form.encode("utf-16-le"): form + " (UTF-16)"})
+    def held(path):
+        data = path.read_bytes().lower()
+        return sorted({text for needle, text in needles.items() if needle in data})
+    if not held(build / "CMakeCache.txt"):
+        sys.exit("clean: the control, CMakeCache.txt, holds none of the paths")
+    kinds = {".exe", ".dll", ".pdb", ".lib", ".obj", ".a", ".o", ""}
+    files = [p for p in sorted(build.rglob("*")) if p.is_file() and p.suffix.lower() in kinds
+             and (p.suffix or p.parent.name == "bin") and p.relative_to(build).parts[0] != "CMakeFiles"]
+    bad = [(p, held(p)) for p in files]
+    bad = [(p, h) for p, h in bad if h]
+    for p, h in bad:
+        print(f"clean: {p.relative_to(build)} holds {', '.join(h)}")
+    print(f"clean: {len(files)} files read, {len(bad)} holding a path; the control caught")
+    sys.exit(1 if bad else 0)
+
+jobs:
+  windows:
+    if: ${{ !github.event.pull_request.draft }}
+    name: ${{ matrix.job }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - job: windows-msvc
+            preset: ci-windows
+            clean: true
+          - job: windows-asan
+            preset: ci-asan
+          - job: windows-stack
+            preset: ci-stack
+          - job: windows-analysis
+            preset: ci-analysis
+            analysis: true
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
+
+      # The image's latest Visual Studio and its default toolset.
+      - name: MSVC's environment, vcvars64.bat
+        id: msvc
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          "QIVEN3_PYTHON=$env:PYTHON_PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $script = Join-Path $env:RUNNER_TEMP 'vcvars.cmd'
+          Set-Content -LiteralPath $script -Encoding ascii -Value @(
+            "@call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul || exit /b 1", '@set')
+          $lines = & cmd.exe /d /c $script
+          foreach ($line in $lines) {
+            if ($line -match '^([^=]+)=(.*)$' -and [Environment]::GetEnvironmentVariable($Matches[1]) -ne $Matches[2]) {
+              "$($Matches[1])=$($Matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+
+      # cl.exe prints its banner, the compiler's version, when run alone.
+      - name: The image and the tools this job runs
+        run: |
+          Write-Output "image $env:ImageOS $env:ImageVersion; $((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
+          Write-Output "Visual Studio $env:VSCMD_VER, toolset $env:VCToolsVersion, SDK $env:WindowsSDKVersion"
+          (Get-Command cl.exe).Source; (Get-Command cmake.exe).Source; (Get-Command ninja.exe).Source
+          cmd.exe /d /c "cl.exe 2>&1" | Select-Object -First 1
+          if ('${{ matrix.analysis }}' -eq 'true') { & (Join-Path $env:ProgramFiles 'LLVM\bin\clang-tidy.exe') --version }
+          & $env:QIVEN3_PYTHON -I -c "import sys; print('CPython', sys.version)"
+          ninja --version; ctest --version; cmake --version
+
+      - name: Configure (${{ matrix.preset }})
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --preset ${{ matrix.preset }}
+
+      - name: Build every target
+        id: build
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --build --preset ${{ matrix.preset }}
+
+      - name: The cases on the fakes
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ctest --preset fake
+
+      - name: The analysis tools' controls
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.analysis }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ctest --preset ci-analysis --no-tests=error
+
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.clean }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $check = Join-Path $env:RUNNER_TEMP 'clean_check.py'
+          Set-Content -LiteralPath $check -Value $env:CLEAN_CHECK -Encoding utf8
+          & $env:QIVEN3_PYTHON -I $check build/ci $env:GITHUB_WORKSPACE $env:RUNNER_TEMP
+
+      - name: The structure tests, B1 to B31, the safe subset's token rules among them
+        if: ${{ !cancelled() && steps.msvc.outcome == 'success' && matrix.analysis }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --preset ci-windows -B build/ci-structure -DQIVEN3_STRUCTURE=ON
+          cmake --build build/ci-structure
+          ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^tests[.]structure[.]' -LE '^analysis$'
+
+  linux:
+    if: ${{ !github.event.pull_request.draft }}
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [linux-gcc, linux-clang, linux-tsan, linux-fuzz, linux-plain]
+    # Each step's shell without address-space randomisation, for its own
+    # processes alone (setarch -R): the sanitizers' shadow memory may not map
+    # under the kernel's randomisation, which stays as the image sets it.
+    defaults:
+      run:
+        shell: setarch x86_64 -R bash --noprofile --norc -eo pipefail {0}
+    env:
+      # LeakSanitizer is AddressSanitizer's on Linux; use-after-return by its
+      # flag. Every report ends the process with a failing status.
+      ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:abort_on_error=0
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
+
+      - name: Ninja, by the image's package manager where the image lacks it
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+        run: |
+          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          command -v ninja || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ninja-build; }
+
+      - name: The image and the tools this job runs
+        run: |
+          echo "image $ImageOS $ImageVersion; $(. /etc/os-release && echo "$PRETTY_NAME"), kernel $(uname -r)"
+          echo "address-space randomisation: $(setarch --show 2>/dev/null || echo 'set off for these steps')"
+          for tool in gcc g++ clang clang++; do
+            echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
+          done
+          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
+
+      - name: Configure (${{ matrix.preset }})
+        run: cmake --preset ${{ matrix.preset }}
+
+      # -k 0: every failing source shows in one run, not the first alone.
+      - name: Build every target
+        id: build
+        run: cmake --build --preset ${{ matrix.preset }} -- -k 0
+
+      - name: The cases on the fakes, under the preset's sanitizers
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --preset fake
+
+      - name: Each fuzz target from its seeded corpus
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-fuzz' }}
+        run: ctest --test-dir build/ci --output-on-failure --no-tests=ignore -L '^fuzz$'
+
+      # The clean-binaries check on linux-plain alone: a sanitizer's metadata
+      # (UndefinedBehaviorSanitizer's check locations, AddressSanitizer's
+      # module names) holds each source's path as the compiler was given it,
+      # which the prefix map does not reach. linux-plain builds with none,
+      # under the frame bound.
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-plain' }}
+        run: |
+          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
+          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+
+  macos:
+    if: ${{ !github.event.pull_request.draft }}
+    name: macos-clang
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
+
+      - name: Ninja, by the image's package manager where the image lacks it
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+        run: |
+          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          command -v ninja || brew install ninja
+
+      - name: The image and the tools this job runs
+        run: |
+          echo "image $ImageOS $ImageVersion; macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion)), $(uname -m)"
+          xcode-select -p; command -v clang++ cmake ninja
+          clang++ --version | sed -n 1p
+          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
+
+      - name: Configure (macos-clang)
+        run: cmake --preset macos-clang
+
+      - name: Build every target
+        id: build
+        run: cmake --build --preset macos-clang -- -k 0
+
+      - name: The cases on the fakes
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --preset fake
+
+      - name: Clean binaries
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
+          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
