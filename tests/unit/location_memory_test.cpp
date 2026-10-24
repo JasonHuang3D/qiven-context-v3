@@ -1,21 +1,15 @@
-// location's budgets, counts and fault runs, on the fake over a scratch
-// directory of the case's own. The steps, each from its own state: init
-// into a new directory (the store created), into one holding a store
-// (opened), init with a record there (chosen), init warned (exit 4); show;
-// change to the recorded directory, to a new one (created), to one holding
-// a store (opened), and with the old one holding map-marks.json
-// (not_moved). budget: each step's command arena peak within its 1 MiB,
-// every page given back; store_dir's peak on the caller's arena. counts:
-// each step's command arena allocations, the store's arenas, the engine
-// calls the wrapper maps and the platform calls, exactly; the engine heap's
-// allocations with an engine installed; the platform's operations in
-// order. faults_*: each step run with each of these failed in turn, and
-// the engine heap's allocations with an engine installed: each run exit 1,
-// or the step's own status where the failure came after the record or was
-// absorbed; after each run every page given back, nothing but the record
-// in the configuration directory, the record as before or, at exit 0,
-// whole; after a refused run the next run, failing nothing, the step's
-// own status.
+// location's budgets, counts and fault runs, on the fake over a scratch directory of the case's own. The
+// steps, each from its own state: init into a new directory (the store created), into one holding a store
+// (opened), init with a record there (chosen), init warned (exit 4); show; change to the recorded directory,
+// to a new one (created), to one holding a store (opened), and with the old one holding map-marks.json
+// (not_moved). budget: each step's command arena peak within its 1 MiB, every page given back; store_dir's
+// peak on the caller's arena. counts: each step's command arena allocations, the store's arenas, the engine
+// calls the wrapper maps and the platform calls, exactly; the engine heap's allocations with an engine
+// installed; the platform's operations in order. faults_*: each step run with each of these failed in turn,
+// and the engine heap's allocations with an engine installed: each run exit 1, or the step's own status where
+// the failure came after the record or was absorbed; after each run every page given back, nothing but the
+// record in the configuration directory, the record as before or, at exit 0, whole; after a refused run the
+// next run, failing nothing, the step's own status.
 
 #include <array>
 #include <chrono>
@@ -52,8 +46,12 @@ namespace fs = std::filesystem;
 namespace location = qiven3::location;
 namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
-using qiven3::memory::Countdown;
 using qiven3::platform::State;
+#if defined(QIVEN3_FAULTS)
+using qiven3::memory::Countdown;
+#else
+using Countdown = void;  // nothing counts: run's arenas unused
+#endif
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -138,10 +136,17 @@ struct Bed {
         std::error_code error;
         fs::remove_all(root, error);
     }
+    // The root's length where the temporary directory leaves room: the strings location makes of its
+    // paths grow alike in every run, and counts pins their allocations.
+    static constexpr std::size_t root_length = 96;
     static fs::path fresh_root() {
         const auto device = std::make_unique<std::random_device>();
         std::random_device& draw = *device;
-        fs::path out = fs::temp_directory_path() / ("qiven3-location-m-" + std::to_string(draw()) + std::to_string(draw()));
+        fs::path out = fs::temp_directory_path() / "qiven3-location-m-";
+        const std::size_t at = text(out).size();
+        std::string digits = std::to_string(draw()) + std::to_string(draw());
+        digits.resize(at + 8 <= root_length ? root_length - at : 8, '0');
+        out += digits;
         fs::create_directories(out);
         return out;
     }
@@ -266,7 +271,6 @@ struct Count {
     std::size_t store = 0;
     std::size_t calls = 0;
     std::size_t platform = 0;
-    bool operator==(const Count&) const = default;
 };
 
 struct Typed {};
@@ -445,12 +449,11 @@ constexpr std::array<Step, 1> heap_create = {Step::init_new};
 constexpr std::array<Step, 1> heap_open = {Step::change_held};
 constexpr std::array<Kind, 1> heap_kind = {Kind::heap};
 
-
 // The counts each step makes, pinned as measured, and the platform's
 // operations in order. The command arena's count is its standard
-// library's (a string's growth): measured with MSVC's on Windows and with
-// libstdc++ and libc++ on Linux; the engine heap's its file layer's, on
-// Windows and Linux; elsewhere not compared.
+// library's at the root's length (a string's growth): MSVC's on Windows,
+// libstdc++'s and libc++'s on Linux; the engine heap's its file layer's,
+// on Windows and Linux; elsewhere not compared.
 struct Pinned {
     Step step;
     Count windows;
@@ -466,24 +469,24 @@ constexpr bool counts_pinned = false;
 constexpr std::string_view check_ops = "pages config_dir lock resolve pages resolve synced facts standard_output "
                                        "standard_output standard_output";
 constexpr std::array<Pinned, 9> pinned = {{
-    {Step::init_new, {26, 3, 98, 29}, {27, 3, 98, 29}, {25, 3, 98, 29},
+    {Step::init_new, {25, 3, 98, 29}, {27, 3, 98, 29}, {24, 3, 98, 29},
      "now pages pages resolve synced pages resolve synced create create replace random_bytes standard_output "
      "standard_output"},
-    {Step::init_held, {26, 2, 77, 24}, {27, 2, 77, 24}, {24, 2, 77, 24},
+    {Step::init_held, {25, 2, 77, 24}, {27, 2, 77, 24}, {25, 2, 77, 24},
      "now pages pages resolve synced replace random_bytes standard_output standard_output"},
     {Step::init_chosen, {5, 0, 0, 6}, {5, 0, 0, 6}, {5, 0, 0, 6}, "pages config_dir lock standard_output"},
     {Step::init_warned, {11, 1, 0, 14}, {10, 1, 0, 14}, {10, 1, 0, 14}, "standard_output"},
     {Step::show, {16, 0, 0, 12}, {17, 0, 0, 12}, {15, 0, 0, 12},
      "pages config_dir lock read facts standard_output standard_output standard_output standard_output "
      "standard_output"},
-    {Step::change_same, {25, 1, 0, 18}, {24, 1, 0, 18}, {20, 1, 0, 18}, "normcase normcase standard_output standard_output"},
-    {Step::change_new, {40, 3, 98, 33}, {39, 3, 98, 33}, {35, 3, 98, 33},
+    {Step::change_same, {25, 1, 0, 18}, {24, 1, 0, 18}, {22, 1, 0, 18}, "normcase normcase standard_output standard_output"},
+    {Step::change_new, {39, 3, 98, 33}, {39, 3, 98, 33}, {36, 3, 98, 33},
      "normcase normcase now pages pages resolve synced pages resolve synced create create standard_output replace "
      "random_bytes standard_output standard_output"},
-    {Step::change_held, {40, 2, 77, 28}, {39, 2, 77, 28}, {34, 2, 77, 28},
+    {Step::change_held, {39, 2, 77, 28}, {39, 2, 77, 28}, {37, 2, 77, 28},
      "normcase normcase now pages pages resolve synced standard_output replace random_bytes standard_output "
      "standard_output"},
-    {Step::change_left, {24, 1, 0, 17}, {22, 1, 0, 17}, {19, 1, 0, 17}, "normcase normcase standard_output"},
+    {Step::change_left, {24, 1, 0, 17}, {22, 1, 0, 17}, {21, 1, 0, 17}, "normcase normcase standard_output"},
 }};
 
 // The step's operations as pinned: init's and change's after the check's,
@@ -512,6 +515,9 @@ constexpr std::array<HeapPinned, 2> heap_pinned = {{{Step::init_new, 651, 639}, 
 
 QIVEN3_CASE(location, counts) {
     const auto b = std::make_unique<Bed>();
+    const bool at_length = text(b->root).size() == Bed::root_length;
+    std::cout << "location.counts: the root " << text(b->root).size() << " bytes"
+              << (at_length ? "" : ", the temporary directory too long: the command arena's count not compared") << "\n";
     Countdown arenas;
     Countdown store;
     Countdown calls;
@@ -545,7 +551,8 @@ QIVEN3_CASE(location, counts) {
 #else
         const Count want = p.libstdcxx;
 #endif
-        CHECK(!counts_pinned || got == want);
+        CHECK(!counts_pinned || (got.store == want.store && got.calls == want.calls && got.platform == want.platform));
+        CHECK(!counts_pinned || !at_length || got.arenas == want.arenas);
     }
     b->engine.emplace(*b->fake, 1);
     Countdown heap;
