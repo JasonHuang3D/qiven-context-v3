@@ -60,8 +60,6 @@ template <class Site>
 class Refusals {
 public:
     Refusals(Site& site, ArgView request) : site_(&site) {
-        // The engine made first, its pages taken before any countdown.
-        static_cast<void>(site.engine());
         const std::optional<ArgView> list = request.find("refuse");
         if (!list) {
             return;
@@ -122,6 +120,9 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
         const std::string path = under_site(site, text(request, "path"));
         const bool create = flag(request, "create", false);
         const bool read_only = flag(request, "read_only", false);
+        // The engine made first, in every build: its heap installed for the
+        // open, and under QIVEN3_FAULTS its pages taken before any countdown.
+        static_cast<void>(site.engine());
 #if defined(QIVEN3_FAULTS)
         Refusals<test::stores::Site> refusals(site, request);
 #else
