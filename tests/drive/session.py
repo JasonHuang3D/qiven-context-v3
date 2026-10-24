@@ -232,8 +232,10 @@ class Drive:
     def store_capabilities(self):
         return self.call("store_capabilities")
 
-    def store_make(self, limits=None):
-        made = self.call("factory_make", **({} if limits is None else {"limits": limits}))
+    def store_make(self, limits=None, heap=None):
+        """A new store; heap, the in-memory state's bytes where given."""
+        given = ({} if limits is None else {"limits": limits}) | ({} if heap is None else {"heap": heap})
+        made = self.call("factory_make", **given)
         return StoreObject(self, made["store"], made["state"], made.get("path"), made.get("directory"))
 
     def store_again(self, state):
@@ -248,6 +250,15 @@ class Drive:
     def store_create(self, state):
         """A create over the SQLite state's file, which is there."""
         return StoreObject(self, self.call("factory_create", state=state)["store"], state)
+
+    def store_appender(self, state, batches, hold=0):
+        """A thread of the drive's appending through a store object of its
+        own over the state: batches, each (scope, lane, expected, entries),
+        in order; after its first hold batches it holds, and this returns
+        once it does, until release() or join()."""
+        given = [{"scope": scope, "lane": lane, "entries": [entry_wire(e) for e in entries],
+                  **StoreObject._expected(expected)} for scope, lane, expected, entries in batches]
+        return StoreAppender(self, self.call("store_appender", state=state, batches=given, hold=hold)["appender"])
 
     def state_drop(self, state):
         self.call("factory_drop", state=state)
@@ -370,6 +381,13 @@ class StoreObject:
         view's reads and the export's statements."""
         return self.call("store_plans")
 
+    def fill(self, scope, lane, count, content, mark, writer, minute=0):
+        """count claims like A made and appended in the drive after the
+        lane's head, each content (text) with mark replaced by its seq:
+        the last append's written, "appended" their count."""
+        return self.call("store_fill", scope=scope, lane=lane, count=count, content=content, mark=mark,
+                         writer=writer, minute=minute)
+
     def seam_write(self, sql):
         """The seam's statement, run through the SQLite store's connection:
         the engine's code, 0 where it ran."""
@@ -429,8 +447,28 @@ class StoreExport:
     def close(self):
         self.drive.call("export_close", export=self.id)
 
+    def drain(self):
+        """The export read whole in the drive: {"count", "peak"}, the
+        greatest of its reads' arena peaks."""
+        return self.drive.call("export_drain", export=self.id)
+
     def drop(self):
         self.drive.call("export_drop", export=self.id)
+
+
+class StoreAppender:
+    """A drive's appending thread, by its id: release() lets it go on
+    from its hold; join() its end, {"appended"} and "error" where one
+    ended it."""
+
+    def __init__(self, drive, id):
+        self.drive, self.id = drive, id
+
+    def release(self):
+        self.drive.call("appender_release", appender=self.id)
+
+    def join(self):
+        return self.drive.call("appender_join", appender=self.id)
 
 
 def environment(**changes):

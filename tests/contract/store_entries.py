@@ -1,5 +1,6 @@
 """The entries the store cases append, and the check that a refusal wrote
-nothing: helpers of the case modules (store_cases.py), no case here.
+nothing: helpers of the case modules (store_cases.py, store_more.py), no
+case here.
 
 Every entry is a fixture of entries.json, as the drive's stage book stores
 it, or one made like a fixture through the drive's fixture_made, its fields
@@ -291,3 +292,38 @@ def oversized(m):
     content["admit"]["mistake"] = "x" * 70000
     assert len(canonical(content).encode("utf-8")) > 65536
     return m.on("A", SCOPE, "implementer", 1, None, 0, content)
+
+
+def exported(store, **range_):
+    """An export's snapshot figures and its lines read whole, the export
+    then closed and ended."""
+    x = store.export(**range_)
+    heads, lines = x.heads(), list(x)
+    x.close()
+    x.drop()
+    return heads, lines
+
+
+def lane_heads(lines):
+    """The head rows of an import's lines: each lane's last."""
+    out = {}
+    for line in lines:
+        h = header((line["line"], None))
+        out[h["scope"], h["lane"]] = {"scope": h["scope"], "lane": h["lane"], "id": h["id"], "seq": h["seq"]}
+    return [out[k] for k in sorted(out)]
+
+
+def as_line(entry, forgotten=False, body=True):
+    """An entry as an import's line: its body held, or not."""
+    return {"line": entry[0], "body": entry[1] if body and not forgotten else None, "forgotten": forgotten}
+
+
+def fillers(m, scope, lane, count, size=1024):
+    """count claims on (scope, lane), each body record about size bytes."""
+    probe = m.claim(scope, lane, 1, None, 0, text="x")
+    pad = max(1, min(990, size - len(probe[1]) + 1))
+    out, parent = [], None
+    for i in range(count):
+        parent = m.claim(scope, lane, i + 1, parent, i // 60, text=f"Entry {i + 1}: " + "f" * pad)
+        out.append(parent)
+    return out

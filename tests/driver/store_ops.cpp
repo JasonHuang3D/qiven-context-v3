@@ -10,6 +10,7 @@
 
 #include "driver/store_ops.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -23,6 +24,8 @@
 #include <utility>
 #include <vector>
 
+#include "driver/store_held.hpp"
+#include "driver/store_threads.hpp"
 #include "driver/store_wire.hpp"
 #include "memory/arena.hpp"
 #include "runner/runner.hpp"
@@ -36,19 +39,17 @@ namespace {
 using Fake = platform::fake::FakePlatform;
 using Result = std::optional<Value>;
 namespace stores = test::stores;
-
-// An object held by its id, and the id of what it was made over.
-template <class T>
-struct Kept {
-    std::unique_ptr<T> object;
-    std::int64_t parent = 0;
-};
-template <class T>
-using Table = std::map<std::int64_t, Kept<T>>;
+using held::id_value;
+using held::keep;
+using held::Kept;
+using held::named;
+using held::over;
+using held::Table;
 
 template <class F>
 class StoreDrive {
 public:
+    using Factory = F;
     using Store = typename F::Store;
     using Scan = decltype(std::declval<Store&>().scan(std::declval<const store::RangeView&>()));
     using Export = decltype(std::declval<Store&>().export_(store::Scopes{}, std::span<const store::AfterView>{}));
@@ -70,6 +71,7 @@ public:
     Table<Store>& objects() noexcept { return objects_; }
     Table<Scan>& scans() noexcept { return scans_; }
     Table<Export>& exports() noexcept { return exports_; }
+    Table<Appender<F>>& appenders() noexcept { return appenders_; }
     std::int64_t next_id() noexcept { return next_++; }
 
 private:
@@ -89,46 +91,12 @@ private:
     Table<Store> objects_;
     Table<Export> exports_;
     Table<Scan> scans_;
+    Table<Appender<F>> appenders_;  // last: each joined before its state ends
 };
-
-// The object a request names by key, or RequestError.
-template <class T>
-Kept<T>& named(Table<T>& table, ArgView request, std::string_view key) {
-    const auto found = table.find(integer(request, key));
-    if (found == table.end()) {
-        throw RequestError("no " + std::string(key) + " held by that id");
-    }
-    return found->second;
-}
-
-// The id a new object is held by.
-template <class F, class T>
-std::int64_t keep(StoreDrive<F>& d, Table<T>& table, std::unique_ptr<T> made, std::int64_t parent) {
-    const std::int64_t id = d.next_id();
-    table.emplace(id, Kept<T>{std::move(made), parent});
-    return id;
-}
-
-// Whether any object of the table was made over parent.
-template <class T>
-bool over(const Table<T>& table, std::int64_t parent) {
-    for (const auto& [id, kept] : table) {
-        if (kept.parent == parent) {
-            return true;
-        }
-    }
-    return false;
-}
 
 template <class F>
 typename F::Store& object(StoreDrive<F>& d, ArgView request) {
     return *named(d.objects(), request, "store").object;
-}
-
-Value id_value(std::string_view key, std::int64_t id) {
-    Value out;
-    out.set(key, id);
-    return out;
 }
 
 // The factory's requests.
@@ -136,7 +104,15 @@ Value id_value(std::string_view key, std::int64_t id) {
 template <class F>
 Result factory_make(StoreDrive<F>& d, memory::Arena&, ArgView request) {
     const store::Limits given = wire::limits_of(request);
-    auto factory = std::make_unique<F>(d.site());
+    std::unique_ptr<F> factory;
+    if constexpr (F::own == stores::Own::none) {
+        // The in-memory state's heap, its "heap" bytes where given (S12's
+        // 20,000 entries).
+        const std::int64_t heap = integer(request, "heap", static_cast<std::int64_t>(stores::Memory::default_heap));
+        factory = std::make_unique<F>(d.site(), static_cast<std::size_t>(std::max<std::int64_t>(heap, 0)));
+    } else {
+        factory = std::make_unique<F>(d.site());
+    }
     auto made = std::make_unique<typename F::Store>(factory->make(given));
     Value out;
     if constexpr (requires { factory->directory(); }) {
@@ -170,8 +146,8 @@ template <class F>
 Result factory_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     (void)named(d.states(), request, "state");
-    if (over(d.objects(), state)) {
-        throw RequestError("the state still has store objects held over it");
+    if (over(d.objects(), state) || over(d.appenders(), state)) {
+        throw RequestError("the state still has store objects or appenders held over it");
     }
     d.states().erase(state);
     return std::nullopt;
@@ -478,6 +454,11 @@ StoreDrive<F>::StoreDrive(Session& session, PlatformDrive<Fake>& platform) : ses
         {"export_next", {export_next<F>, export_budget}},
         {"export_close", {export_close<F>, base}},
         {"export_drop", {export_drop<F>, nullptr}},
+        {"store_appender", {start_appender<StoreDrive>, nullptr}},
+        {"appender_release", {release_appender<StoreDrive>, nullptr}},
+        {"appender_join", {join_appender<StoreDrive>, nullptr}},
+        {"store_fill", {fill_lane<StoreDrive>, nullptr}},
+        {"export_drain", {drain_export<StoreDrive>, nullptr}},
     };
     for (const auto& [key, entry] : table) {
         table_.emplace(key, entry);

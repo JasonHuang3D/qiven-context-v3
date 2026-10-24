@@ -14,8 +14,9 @@ of its own.
 import json
 from pathlib import Path
 
-from tests.contract.store_entries import (LANES, PERSON, SCOPE, Maker, canonical, file_state, guard_of, header, id_of,
-                                          scanned, seq_of, snapshot)
+from tests.contract.store_entries import (LANES, PERSON, SCOPE, Maker, as_line, canonical, exported, file_state,
+                                          fillers, guard_of, header, id_of, lane_heads, scanned, seq_of, snapshot,
+                                          writer_of)
 from tests.contract import store_files as files
 from tests.drive.session import FAKE, Drive, DriveError
 
@@ -23,44 +24,13 @@ from tests.drive.session import FAKE, Drive, DriveError
 BUILT = ("TEMP B-TREE", "AUTOMATIC", "MATERIALIZE", "BLOOM FILTER")
 EXPORT_STATEMENTS = ("forget_counts", "head_rows", "lane_rows")
 KIB = 1024
+# S12's 20,000 entries of 1 KiB on the in-memory store: its state's heap.
+HEAP = 128 * KIB * KIB
+# The engine's budget a connection: 2,000 KiB of page cache and 1 MiB.
+ENGINE_BUDGET = 2000 * KIB + KIB * KIB
 # C15's thresholds, the store's default limits.
 DEFAULTS = {"target_size": 512 * KIB * KIB, "warning_size": 640 * KIB * KIB, "max_size": 768 * KIB * KIB,
             "target_count": 400000, "warning_count": 480000, "max_count": 550000}
-
-
-def exported(store, **range_):
-    """An export's snapshot figures and its lines read whole, the export
-    then closed and ended."""
-    x = store.export(**range_)
-    heads, lines = x.heads(), list(x)
-    x.close()
-    x.drop()
-    return heads, lines
-
-
-def lane_heads(lines):
-    """The head rows of an import's lines: each lane's last."""
-    out = {}
-    for line in lines:
-        h = header((line["line"], None))
-        out[h["scope"], h["lane"]] = {"scope": h["scope"], "lane": h["lane"], "id": h["id"], "seq": h["seq"]}
-    return [out[k] for k in sorted(out)]
-
-
-def as_line(entry, forgotten=False, body=True):
-    """An entry as an import's line: its body held, or not."""
-    return {"line": entry[0], "body": entry[1] if body and not forgotten else None, "forgotten": forgotten}
-
-
-def fillers(m, scope, lane, count, size=KIB):
-    """count claims on (scope, lane), each body record about size bytes."""
-    probe = m.claim(scope, lane, 1, None, 0, text="x")
-    pad = max(1, min(990, size - len(probe[1]) + 1))
-    out, parent = [], None
-    for i in range(count):
-        parent = m.claim(scope, lane, i + 1, parent, i // 60, text=f"Entry {i + 1}: " + "f" * pad)
-        out.append(parent)
-    return out
 
 
 class StoreMore:
@@ -147,59 +117,61 @@ class StoreMore:
                     self.assertTrue(listed)
                     self.assertEqual(hits, [], f"{when}: {listed}")
 
+    def ten_a_lane(self, m, store):
+        """10 entries on each of the 3 lanes: each lane's last; all by id."""
+        last, held = {}, {}
+        for lane in LANES:
+            chain = m.chain(SCOPE, lane, 10)
+            store.append(SCOPE, lane, None, chain)
+            last[lane] = chain[-1]
+            held.update({id_of(e): e for e in chain})
+        return last, held
+
     def test_S12_export_during_appends(self):
-        """S12: appends of 1,000 entries over 3 lanes through a store object
-        of their own, between the reads of an export (the drive serves one
-        request at a time: the appends interleave with the export's reads);
-        each snapshot head its lane's greatest seq, every chain whole,
-        nothing past a head; an export from given seqs, only the lines after
-        them; own: sqlite, the export's statements' plans; an export read to
-        its first line, then a forget through again of a body later in it:
-        the body yielded, forgotten false, the snapshot's forget count the
-        old one (F104). The 20,000 entries' peak is not here (notes).
-        Needs: none."""
+        """S12: a thread of the drive's, with a store object of its own,
+        appends 1,000 entries over 3 lanes in batches of 34: it holds after
+        15 while an export's snapshot is read, then appends the rest while
+        the export is iterated whole: each snapshot head its lane's greatest
+        seq in it, every chain whole, nothing past a head, nothing the
+        thread appended after it. Needs: none."""
+        with self.drive() as drive:
+            self.needs(drive)
+            m, store = Maker(drive), drive.store_make()
+            last, held = self.ten_a_lane(m, store)
+            batches, appended, turn = [], 0, 0
+            while appended < 1000:
+                lane = LANES[turn % 3]
+                turn += 1
+                batch = m.chain(SCOPE, lane, min(34, 1000 - appended), after=last[lane], minute=seq_of(last[lane]))
+                batches.append((SCOPE, lane, id_of(last[lane]), batch))
+                last[lane], appended = batch[-1], appended + len(batch)
+                held.update({id_of(e): e for e in batch})
+            thread = drive.store_appender(store.state, batches, hold=15)
+            x = store.export()
+            snap = x.heads()
+            thread.release()
+            got = list(x)
+            self.assertEqual(thread.join(), {"appended": 1000})
+            x.close()
+            self.assertEqual([r["seq"] for r in snap["rows"]], [10 + 5 * 34] * 3)
+            self.assert_whole(got, snap["rows"], held)
+            self.assertEqual(sum(r["seq"] for r in store.heads()["rows"]), 1030)
+
+    def test_S12_snapshot(self):
+        """S12: an export from given seqs, only the lines after them; own:
+        sqlite, the export's statements' plans; an export read to its first
+        line, then a forget through again of a body later in it, and again
+        with the export's heads alone read: the body yielded, forgotten
+        false, the snapshot's forget count the old one (F104). Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
             own = drive.store_capabilities()["own"] == "sqlite"
             m, store = Maker(drive), drive.store_make()
             writer = drive.store_again(store.state)
-            last, held = {}, {}
-            for lane in LANES:
-                chain = m.chain(SCOPE, lane, 10)
-                store.append(SCOPE, lane, None, chain)
-                last[lane] = chain[-1]
-                held.update({id_of(e): e for e in chain})
-            begun = store.heads()
-            x = store.export()
-            snap = x.heads()
-            self.assertEqual(snap["rows"], begun["rows"])
-            got, appended, turn = [], 0, 0
-            while True:
-                line = x.next()
-                if appended < 1000:
-                    lane = LANES[turn % 3]
-                    turn += 1
-                    batch = m.chain(SCOPE, lane, min(34, 1000 - appended), after=last[lane],
-                                    minute=seq_of(last[lane]))
-                    writer.append(SCOPE, lane, id_of(last[lane]), batch)
-                    last[lane], appended = batch[-1], appended + len(batch)
-                    held.update({id_of(e): e for e in batch})
-                if line is None:
-                    break
-                got.append(line)
-            while appended < 1000:
-                lane = LANES[turn % 3]
-                turn += 1
-                batch = m.chain(SCOPE, lane, min(34, 1000 - appended), after=last[lane], minute=seq_of(last[lane]))
-                writer.append(SCOPE, lane, id_of(last[lane]), batch)
-                last[lane], appended = batch[-1], appended + len(batch)
-                held.update({id_of(e): e for e in batch})
-            x.close()
-            self.assert_whole(got, snap["rows"], held)
-            self.assertEqual(len(got), 30)
-            self.assertEqual(sum(r["seq"] for r in store.heads()["rows"]), 1030)
+            _, held = self.ten_a_lane(m, store)
             after = [(SCOPE, lane, 5) for lane in LANES]
             _, lines = exported(store, after=after)
+            self.assertEqual(len(lines), 15)
             self.assertEqual([x["line"] for x in lines],
                              [line for line in scanned(store) if seq_of((line, None)) > 5])
             if own:
@@ -209,6 +181,31 @@ class StoreMore:
                         for bad in BUILT:
                             self.assertNotIn(bad, line, f"{name}: {planned[name]}")
             self.f104(m, store, writer, held)
+
+    def test_S12_peak(self):
+        """S12: an export of 20,000 entries of 1 KiB bodies (at most; made
+        and appended in the drive by its fill) read whole in the drive: its
+        20,000 lines; the reads' arenas, the caller's and the export's own,
+        under 2 MiB [proposal] (F80); on SQLite the engine heap's growth
+        over the reads, its page cache's slots included, within the
+        engine's budget a connection: the slots alone pass 2 MiB once the
+        export's cache fills (notes). Needs: none."""
+        with self.drive() as drive:
+            self.needs(drive)
+            m, store = Maker(drive), drive.store_make(heap=HEAP)
+            probe = m.claim(SCOPE, "implementer", 1, None, 0, text="")
+            content = m.content("A")
+            content["claim"] = "Entry {seq}: " + "f" * (KIB - len(probe[1]) - len("Entry 00000: "))
+            writer = writer_of("implementer", header(m.fixture("A"))["writer"])
+            done = store.fill(SCOPE, "implementer", 20000, canonical(content), "{seq}", writer)
+            self.assertEqual((done["appended"], done["head"]["seq"]), (20000, 20000))
+            self.assertEqual(len(store.body(done["head"]["id"])), KIB)
+            x = store.export()
+            drained = x.drain()
+            x.close()
+            self.assertEqual(drained["count"], 20000)
+            self.assertLess(drained["peak"] + drained.get("own", 0), 2 * KIB * KIB)
+            self.assertLessEqual(drained["engine_most"] - drained["engine_before"], ENGINE_BUDGET)
 
     def assert_whole(self, got, rows, held):
         """Each snapshot head its lane's greatest seq, every chain whole,
@@ -228,20 +225,24 @@ class StoreMore:
         self.assertEqual(by_lane, {})
 
     def f104(self, m, store, writer, held):
-        x = store.export()
-        first = x.next()
-        forgets = x.heads()["forgets"]
-        target = [e for e in held.values() if header(e)["lane"] == "reviewer" and seq_of(e) == 2][0]
-        head = writer.head(SCOPE, "reviewer")
-        forget = m.forget(SCOPE, "reviewer", head["seq"] + 1, held[head["id"]], target, 900)
-        writer.forget(SCOPE, "reviewer", head["id"], [forget], guard_of(writer))
-        self.assertIsNone(writer.body(id_of(target)))
-        rest = [first] + list(x)
-        yielded = [line for line in rest if line["line"] == target[0]]
-        self.assertEqual(len(yielded), 1)
-        self.assertEqual((yielded[0]["body"], yielded[0]["forgotten"]), (target[1], False))
-        self.assertEqual(x.heads()["forgets"], forgets)
-        x.close()
+        """F104 twice: a forget through again of a body later in an export,
+        once the export has read its first line, then once it has read its
+        heads alone (its snapshot fixed from its first read): the body
+        yielded, forgotten false, the snapshot's forget count the old one."""
+        for seq, minute, line_first in ((2, 900, True), (3, 901, False)):
+            x = store.export()
+            first = [x.next()] if line_first else []
+            forgets = x.heads()["forgets"]
+            target = [e for e in held.values() if header(e)["lane"] == "reviewer" and seq_of(e) == seq][0]
+            head = writer.head(SCOPE, "reviewer")
+            forget = m.forget(SCOPE, "reviewer", head["seq"] + 1, held[head["id"]], target, minute)
+            writer.forget(SCOPE, "reviewer", head["id"], [forget], guard_of(writer))
+            held[id_of(forget)] = forget
+            self.assertIsNone(writer.body(id_of(target)))
+            yielded = [line for line in first + list(x) if line["line"] == target[0]]
+            self.assertEqual([(y["body"], y["forgotten"]) for y in yielded], [(target[1], False)], line_first)
+            self.assertEqual(x.heads()["forgets"], forgets)
+            x.close()
 
     def source(self, m, store):
         """S13's source: 2 scopes of 3 lanes; a check, a retire and a
@@ -305,13 +306,23 @@ class StoreMore:
             self.assertEqual(across.size()["volume"], store.size()["volume"])
             self.assertEqual(across.verify(), store.verify())
 
-    def test_S13_refused(self):
-        """S13's last four: a source holding a body its own forget targets;
-        a revision, not forgotten, of a forgotten version; a line lacking
-        its body record; a forgotten check of basis derived (F157); each
-        after 3,000 entries of 1 KiB, which spill pages into the -wal
-        (F158): EntryInvalid forgotten_body, forgotten_target, body_missing,
-        basis, nothing written, the -wal included. Needs: none."""
+    def test_S13_refused_forgotten(self):
+        """S13's last four, the first two (refused()): EntryInvalid
+        forgotten_body, forgotten_target. Needs: none."""
+        self.refused(("forgotten_body", "forgotten_target"))
+
+    def test_S13_refused_lines(self):
+        """S13's last four, the last two (refused()): EntryInvalid
+        body_missing, basis. Needs: none."""
+        self.refused(("body_missing", "basis"))
+
+    def refused(self, codes):
+        """S13's last four, those of codes: a source holding a body its own
+        forget targets; a revision, not forgotten, of a forgotten version;
+        a line lacking its body record; a forgotten check of basis derived
+        (F157); each after 3,000 entries of 1 KiB, which spill pages into
+        the -wal (F158): EntryInvalid forgotten_body, forgotten_target,
+        body_missing, basis, nothing written, the -wal included."""
         with self.drive() as drive:
             self.needs(drive)
             m = Maker(drive)
@@ -328,7 +339,7 @@ class StoreMore:
                 ("basis", [as_line(a1), as_line(check, True),
                            as_line(m.forget(SCOPE, "implementer", 3, check, check, 102))]),
             )
-            for code, tail in tails:
+            for code, tail in (t for t in tails if t[0] in codes):
                 with self.subTest(source=code):
                     store = drive.store_make()
                     lines = filler + sorted(tail, key=lambda x: (header((x["line"], None))["lane"],

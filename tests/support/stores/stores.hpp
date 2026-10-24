@@ -14,7 +14,7 @@
 //                       a directory of its own under the scratch root)
 //     again()           a second object over the same state (SQLite: a new
 //                       connection to its file; in-memory: one sharing its
-//                       state and its lock)
+//                       state and its lock); again(fake), on the fake given
 //     read_only()       a read-only object over it
 //     reopen()          a read-write object after the others closed, where
 //                       durable; on the in-memory store not applicable
@@ -195,7 +195,8 @@ private:
 inline std::unique_ptr<Site> site(std::uint64_t seed = 7) { return std::make_unique<Site>(seed); }
 
 // The in-memory store: its state on pages the fake gives, heap bytes of
-// them (the default holds S12's 20,000 entries of 1 KiB).
+// them (the default does not hold S12's 20,000 entries of 1 KiB, its
+// heap refusing one growth past some 47 MB held: S12 gives its own).
 class Memory {
 public:
     using Store = store::MemoryStore<Fake>;
@@ -216,6 +217,8 @@ public:
         return Store(*state_, site_->fake());
     }
     Store again() { return Store(state(), site_->fake()); }
+    // again on the fake given: a thread's own, the fake being thread: one.
+    Store again(Fake& on) { return Store(state(), on); }
     Store read_only() { return Store(state(), site_->fake(), true); }
     [[noreturn]] static Store reopen() { throw Skip{"not applicable: the memory store is not durable"}; }
 
@@ -255,6 +258,7 @@ public:
         return Store::open(path_, true, false, site_->fake(), limits_, hooks_);
     }
     Store again() { return Store::open(path(), false, false, site_->fake(), limits_, hooks_); }
+    Store again(Fake& on) { return Store::open(path(), false, false, on, limits_, hooks_); }
     Store read_only() { return Store::open(path(), false, true, site_->fake(), limits_, hooks_); }
     Store reopen() { return again(); }
     // create over the state's file, which is there: StoreError exists (S17).

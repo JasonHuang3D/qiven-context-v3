@@ -10,7 +10,7 @@
 // reply that made it, one count for all four, never given twice; a
 // request names its object by "state", "store", "scan" or "export". The
 // factory's requests: factory_make (its "limits", each threshold
-// optional), factory_again, factory_read_only and factory_reopen, each on
+// optional; on the in-memory store its state's "heap" bytes), factory_again, factory_read_only and factory_reopen, each on
 // a "state", and factory_create, the SQLite store's alone, a create over
 // the state's file (S17); factory_drop ends a state no object is held
 // over. The store's: store_capabilities, the type's; store_append, store_head,
@@ -24,7 +24,11 @@
 // export's: export_heads, export_next, export_close, and export_drop, its
 // end. fixture_entry gives a fixture's stored line and body record, by
 // its "name"; fixture_made one made like a fixture, its fields changed
-// (driver/store_wire.hpp).
+// (driver/store_wire.hpp). S12's: store_appender, a thread appending
+// through a store object of its own over a "state", and appender_join;
+// store_fill, a lane's claims made and appended in the drive; and
+// export_drain, an export read whole with its peak
+// (driver/store_threads.hpp).
 //
 // Bytes cross as hexadecimal, as the platform's do: an entry's "line" and
 // "body", a header's line, an export's lines. Ids, scopes and lanes are
@@ -44,7 +48,7 @@
 // StoreFull's). A tag the store lacks, as reopen on the in-memory store,
 // is a "request" error whose detail starts "not applicable:".
 //
-// thread: one
+// thread: one, and each appender's own (driver/store_threads.hpp)
 
 #include "driver/drive.hpp"
 #include "driver/platform_ops.hpp"
