@@ -5,12 +5,15 @@ mixes these into a TestCase with its adapter: ADAPTER, the name it gives;
 DRIVE, the drive's binary; TAGS, what it has of files, processes and
 machine; drive_args(config, seed), the drive's arguments for it;
 default_config(), where its configuration location lies with no override;
-files_root(), a directory its files' operations may write under; and
-COUNT_HANDLES, whether each drive's handle count is compared. A
-case needing a tag the adapter lacks is not applicable, a skip with the
-reason.
+files_root(), a directory its files' operations may write under;
+COUNT_HANDLES, whether each drive's handle count is compared; and, for
+the files' cases, hold(drive, **times), its holders
+(contract/platform_files.py). A case needing a tag the adapter lacks is
+not applicable, a skip with the reason.
 
-Here: P1 and P2. P3 to P9 come with the platform's files.
+Here: P1 and P2. P3 to P8 and P16 are location's
+(contract/platform_location.py), P9, P19 and P25 the files'
+(contract/platform_files.py).
 """
 
 import shutil

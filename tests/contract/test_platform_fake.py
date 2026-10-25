@@ -9,7 +9,9 @@ operations write under its root alone.
 import unittest
 
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
+from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import FAKE
@@ -39,8 +41,13 @@ class FakeBinding(PlatformBinding):
     def files_root(self):
         return self.root()
 
+    def hold(self, d, **times):
+        """The fake's holders: its busy counts, none given none."""
+        d.call("set_busy", **times)
 
-class Fake(FakeBinding, PlatformCases, PlatformRest, PlatformLast, PlatformMemory, unittest.TestCase):
+
+class Fake(FakeBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformRest, PlatformLast,
+           PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 

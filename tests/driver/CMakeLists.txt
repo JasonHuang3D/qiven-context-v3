@@ -8,6 +8,7 @@ add_library(qiven3_drive_common STATIC
   drive.hpp
   platform_ops.hpp
   platform_ops_impl.hpp
+  platform_files.hpp
 )
 target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests")
 # The request loop holds the process's log, kept for the entry's report.
@@ -20,10 +21,10 @@ if(QIVEN3_HAL)
 endif()
 
 # The fake's drive alone has the store's requests, over support/stores'
-# factory (driver/store_ops.hpp).
+# factory (driver/store_ops.hpp), and location's commands on the fake.
 qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
   store_held.hpp store_own.hpp store_plans.cpp store_race.hpp store_threads.hpp store_wire.cpp store_wire.hpp
-  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores qiven3_seams)
+  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores qiven3_seams qiven3_location)
 
 if(WIN32)
   qiven3_executable(qiven3-drive-windows SOURCES instances_windows.cpp

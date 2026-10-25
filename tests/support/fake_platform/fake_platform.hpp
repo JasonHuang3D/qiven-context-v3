@@ -155,6 +155,7 @@ public:
     explicit FakeOutput(Encoding encoding) noexcept : encoding_(encoding) {}
     void write(std::string_view utf8);
     [[nodiscard]] const std::string& bytes() const noexcept { return bytes_; }
+    void set_encoding(Encoding encoding) noexcept { encoding_ = encoding; }
 
 private:
     Encoding encoding_;
@@ -202,6 +203,20 @@ public:
     // The busy counts from now; the files' system calls.
     void set_busy(const Busy& busy) noexcept { files_.set_busy(busy); }
     [[nodiscard]] FakeFiles& files() noexcept { return files_; }
+    // From now: the facts of a path no prefix holds; the synced folders;
+    // the links resolve follows; the stream's encoding (the drive's own,
+    // as its cases remake the fake).
+    void set_default_facts(FakeFacts facts) noexcept { config_.default_facts = std::move(facts); }
+    void set_synced(std::vector<std::pair<std::string, std::string>> synced) noexcept {
+        config_.synced = std::move(synced);
+    }
+    void set_links(std::vector<std::pair<std::string, std::string>> links) noexcept {
+        config_.links = std::move(links);
+    }
+    void set_encoding(Encoding encoding) noexcept {
+        config_.encoding = encoding;
+        output_.set_encoding(encoding);
+    }
     // The k-th call of pages from now refuses, memory; 0 none.
     void refuse_pages(std::size_t k) noexcept;
     // The operations called, by the contract's names, in order.

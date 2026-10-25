@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "driver/platform_files.hpp"
 #include "driver/platform_ops.hpp"
 
 namespace qiven3::drive {
@@ -108,7 +109,7 @@ Result config_dir(Drive<P>& d, memory::Arena& arena, ArgView request) {
 template <class P>
 Result resolve(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
-    d.platform().resolve(text(request, "path"), out);
+    d.platform().resolve(given_path(request, "path"), out);
     return scalar(copy(out));
 }
 
@@ -139,7 +140,8 @@ Result synced(Drive<P>& d, memory::Arena& arena, ArgView request) {
 
 template <class P>
 Result replace(Drive<P>& d, memory::Arena&, ArgView request) {
-    d.platform().replace(text(request, "path"), from_hex(text(request, "data")), deadline(request, "deadline"));
+    d.platform().replace(given_path(request, "path"), from_hex(text(request, "data")),
+                         deadline(request, "deadline"));
     return std::nullopt;
 }
 
@@ -340,6 +342,14 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"facts", {ops::facts<P>, ops::member}},
         {"synced", {ops::synced<P>, ops::member}},
         {"replace", {ops::replace<P>, ops::member}},
+        {"stage", {ops::stage<P>, ops::member}},
+        {"staged_open", {ops::staged_open<P>, ops::member}},
+        {"sink_write", {ops::sink_write<P>, ops::member}},
+        {"sink_close", {ops::sink_close<P>, ops::member}},
+        {"publish", {ops::publish<P>, ops::member}},
+        {"discard", {ops::discard<P>, ops::member}},
+        {"lock", {ops::lock<P>, ops::member}},
+        {"lock_release", {ops::lock_release<P>, ops::member}},
         {"create", {ops::create<P>, ops::member}},
         {"remove_directory", {ops::remove_directory<P>, ops::member}},
         {"read", {ops::read<P>, ops::read_budget}},

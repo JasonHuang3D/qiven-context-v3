@@ -477,10 +477,14 @@ test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
-constexpr std::array<log::Name, 99> operation_names{
+constexpr std::array<log::Name, 116> operation_names{
     "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
     "replace", "create", "remove_directory", "read", "program", "run", "code_page", "stdout", "residual",
     "random_bytes", "wipe", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
+    // The files' handles' requests, and the operation their errors name.
+    "stage", "staged_open", "sink_write", "sink_close", "publish", "discard", "lock", "lock_release", "write",
+    // The fake's own (driver/instances_fake.cpp).
+    "set_busy", "set_facts", "set_synced", "set_links", "set_encoding", "kept", "location", "store_dir",
     "refuse_pages", "calls", "written", "lent", "hal_fake", "hal_facts", "hal_device",
     "hal_allocate", "hal_upload", "hal_download", "hal_free", "hal_run", "hal_counts",
     "allocate", "read_line", "wait",

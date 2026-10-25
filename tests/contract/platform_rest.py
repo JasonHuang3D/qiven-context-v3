@@ -2,8 +2,8 @@
 (contract/platform_cases.py names the binding's part).
 
 Here: P23 and P24 (PlatformRest), and P26 (PlatformRestMachine, apart, as
-it needs machine). P19 to P22 and P25 come with the platform's files,
-facts and processes.
+it needs machine). P19 and P25 are the files' (contract/platform_files.py);
+P20 to P22 come with the platform's processes and facts.
 """
 
 import json

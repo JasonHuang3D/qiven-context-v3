@@ -11,7 +11,9 @@ import sys
 import unittest
 
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
+from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import WINDOWS, Drive
@@ -38,8 +40,11 @@ def local_app_data():
 class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
-    # create and read are win/files', in package 5.
+    # create and read, replace, stage and lock are win/files', in package 5;
+    # the drive's location request is the fake's alone until then.
     CREATE_READ = False
+    STAGE_LOCK = False
+    LOCATION = False
     TAGS = frozenset({"files", "processes", "machine"})
     COUNT_HANDLES = True
     ctest_labels = ("drive",)
@@ -62,8 +67,8 @@ class WindowsBinding(PlatformBinding):
         return self.scratch
 
 
-class Windows(WindowsBinding, PlatformCases, PlatformRest, PlatformLast, PlatformMemory,
-              PlatformRestMachine, unittest.TestCase):
+class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformRest, PlatformLast,
+              PlatformMemory, PlatformRestMachine, unittest.TestCase):
     pass
 
 

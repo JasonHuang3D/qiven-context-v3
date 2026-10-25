@@ -14,7 +14,15 @@
 // the request's "size", the file's bytes as its caller knows them; run's
 // its caps; pages and the drive's own operations take none. Bytes cross
 // as hexadecimal; a deadline as an integer of milliseconds, 5000 when
-// absent. Pages a request takes stay held, by an id, until pages_free.
+// absent; a path as "path", or as "path_hex", its bytes in hexadecimal,
+// for one that is no UTF-8 (resolve, replace, stage, staged_open). Pages a
+// request takes stay held, by an id, until pages_free.
+//
+// The files' handles stay held by an id too (driver/platform_files.hpp):
+// stage's Staged until publish or discard ends it, staged_open's Sink
+// until sink_close, lock's Lock until lock_release; a publish or a discard
+// refused keeps its Staged, so that a later discard tries again. Each is
+// a member, on the member's budget.
 //
 // thread: one
 
@@ -23,6 +31,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "driver/drive.hpp"
@@ -35,6 +44,9 @@ template <platform::Platform P>
 class PlatformDrive {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
+    using Staged = decltype(std::declval<P&>().stage(std::string_view{}));
+    using Sink = decltype(std::declval<Staged&>().open(std::string_view{}));
+    using Lock = decltype(std::declval<P&>().lock(std::string_view{}, platform::Seconds{}));
     using Operation = std::optional<Value> (*)(PlatformDrive&, memory::Arena&, ArgView);
     // The operation's stated budget for this request, in bytes.
     using Budget = std::size_t (*)(ArgView);
@@ -60,6 +72,9 @@ public:
     // The adapter, made at the first call.
     P& platform();
     std::map<std::int64_t, Pages>& held() noexcept { return held_; }
+    std::map<std::int64_t, Staged>& staged() noexcept { return staged_; }
+    std::map<std::int64_t, Sink>& sinks() noexcept { return sinks_; }
+    std::map<std::int64_t, Lock>& locks() noexcept { return locks_; }
     std::int64_t next_id() noexcept { return next_++; }
 
 private:
@@ -76,6 +91,11 @@ private:
     std::optional<P> platform_;
     std::map<std::string, Entry, std::less<>> table_;
     std::map<std::int64_t, Pages> held_;
+    // After the adapter, so that each handle ends before it; a file before
+    // its staging directory.
+    std::map<std::int64_t, Staged> staged_;
+    std::map<std::int64_t, Sink> sinks_;
+    std::map<std::int64_t, Lock> locks_;
     std::int64_t next_ = 1;
 };
 
