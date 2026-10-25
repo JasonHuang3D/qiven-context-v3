@@ -8,7 +8,9 @@ download, a command, libc++, a deb, dpkg itself), a removed package
 installed; one whose configuration files alone are left is absent. An
 entry of the prefix, or of its downloads, that no pin names is noted, the
 check still passing. A malformed removed line refuses. The pin file
-itself parses, its removed packages pinned by no deb line.
+itself parses, its removed packages pinned by no deb line, and its binutils
+packages hold over dpkg and apt answering as pinned, a version off and a
+digest off each caught.
 
 On each system the check's commands are answered in its own process from
 the scratch's files; inside Linux once more by the check's own process,
@@ -36,6 +38,8 @@ PIN_FILE = ROOT / "tools" / "linux-pins.txt"
 URL = "https://example.invalid/releases/tool-1.0.tar.gz"
 TOOL = "#!/bin/sh\necho 'tool version {version}'\n"
 CONFIG = "#ifndef CONFIG\n#  define _LIBCPP_VERSION {number}\n#endif\n"
+# binutils' packages whose tools the builds and cases run, or which they load.
+BINUTILS = ("binutils", "binutils-common", "binutils-x86-64-linux-gnu", "libbinutils", "libctf0", "libsframe1")
 DPKG = 'shift 3\ncat "$FAKE/dpkg.txt"\n'
 APT = 'line=$(grep "^$2 " "$FAKE/apt.txt") || exit 100\necho "SHA256: ${line#* }"\n'
 
@@ -248,7 +252,40 @@ class PinFile(unittest.TestCase):
         self.assertEqual(len(removed), 39)
         self.assertTrue({"gcc-14", "g++-14", "clang-18", "llvm-18", "libclang-rt-18-dev"} <= removed, removed)
         self.assertFalse({"gcc-14-base", "libgcc-s1", "libstdc++6"} & removed)
-        self.assertEqual(len(pins) - len(removed), 41)
+        self.assertEqual(len(pins) - len(removed), 47)
+
+    def test_binutils(self):
+        """The binutils packages the builds run, pinned by the archive
+        index's digest at one version, hold over dpkg and apt answering as
+        pinned; a version off and a digest off are each caught."""
+        pins, _ = linux_pins.parse(PIN_FILE.read_text(encoding="utf-8"))
+        debs = [p for p in pins if p[1] == "deb" and p[2] in BINUTILS]
+        self.assertEqual(sorted(p[2] for p in debs), sorted(BINUTILS))
+        version = debs[0][3]
+        self.assertTrue(all(p[3] == version and p[5] == "ubuntu:noble-updates/main" for p in debs), debs)
+        text = "".join(f"deb {p[2]} {p[3]} {p[4]} {p[5]}\n" for p in debs)
+        for name, plant, pattern in (
+                ("holds", None, None),
+                ("version", lambda w: w.dpkg.update({"binutils": "2.42-4ubuntu2.99 binutils ii "}),
+                 r"mismatch: deb binutils: installed 2\.42-4ubuntu2\.99; the pin is " + re.escape(version) + "$"),
+                ("digest", lambda w: w.apt.update({f"libbinutils={version}": sha(b"another deb")}),
+                 r"mismatch: deb libbinutils " + re.escape(version) + ": the index's SHA-256 is "
+                 + sha(b"another deb") + "; the pin [0-9a-f]{64}$")):
+            with self.subTest(name):
+                world = World(self)
+                world.dpkg = {p[2]: f"{version} binutils ii " for p in debs}
+                world.apt = {f"{p[2]}={version}": p[4] for p in debs}
+                if plant:
+                    plant(world)
+                world.save()
+                status, lines = world.check(text)
+                if plant is None:
+                    self.assertEqual(status, 0, lines)
+                    self.assertEqual(lines[-1], f"linux-pins: {len(BINUTILS)} pins, 0 removed, 0 mismatches")
+                else:
+                    self.assertEqual(status, 2, lines)
+                    self.assertEqual(len([x for x in lines if "mismatch:" in x]), 1, lines)
+                    self.assertTrue(any(re.search(pattern, x) for x in lines), (pattern, lines))
 
 
 @unittest.skipIf(sys.platform == "win32", "not applicable on Windows: the fakes on PATH are POSIX shell scripts")

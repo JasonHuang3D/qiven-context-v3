@@ -548,25 +548,12 @@ if(QIVEN3_ANALYZE STREQUAL "analysis")
   file(GLOB qiven3_tidy_root CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/*.clang-tidy")
   list(APPEND qiven3_tidy_configs ${qiven3_tidy_root})
   list(FILTER qiven3_tidy_configs INCLUDE REGEX "/[.]clang-tidy$")
-  # clang-cl reads an option it does not know, /analyze's and /pathmap's, as
-  # a file and fails, and warns on /experimental: and /external:; the step
-  # reads the database without them.
-  file(WRITE "${PROJECT_BINARY_DIR}/tidy/database.cmake" [=[
-file(READ "${BUILD}/compile_commands.json" db)
-string(JSON count LENGTH "${db}")
-math(EXPR last "${count} - 1")
-foreach(i RANGE ${last})
-  string(JSON command GET "${db}" ${i} command)
-  string(REGEX REPLACE " (\"/(analyze|pathmap|experimental|external)[^\"]*\"|/(analyze|pathmap|experimental|external)[^ ]*)" "" command "${command}")
-  string(REPLACE "\\" "\\\\" command "${command}")
-  string(REPLACE "\"" "\\\"" command "${command}")
-  string(JSON db SET "${db}" ${i} command "\"${command}\"")
-endforeach()
-file(WRITE "${BUILD}/tidy/compile_commands.json" "${db}")
-]=])
+  # clang-tidy's copy of the database, without the options clang-cl fails or
+  # warns on, written only when it changes (cmake/tidy_database.cmake).
+  set(qiven3_tidy_database "${PROJECT_SOURCE_DIR}/cmake/tidy_database.cmake")
   add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/tidy/compile_commands.json"
-    COMMAND "${CMAKE_COMMAND}" "-DBUILD=${PROJECT_BINARY_DIR}" -P "${PROJECT_BINARY_DIR}/tidy/database.cmake"
-    DEPENDS "${PROJECT_BINARY_DIR}/compile_commands.json"
+    COMMAND "${CMAKE_COMMAND}" "-DBUILD=${PROJECT_BINARY_DIR}" -P "${qiven3_tidy_database}"
+    DEPENDS "${PROJECT_BINARY_DIR}/compile_commands.json" "${qiven3_tidy_database}"
     COMMENT "clang-tidy's database" VERBATIM)
   set(qiven3_stamps "")
   foreach(source IN LISTS qiven3_tidy_sources)

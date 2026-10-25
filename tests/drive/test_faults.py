@@ -37,6 +37,7 @@ the build's dumps/, where the watcher sends them.
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -390,15 +391,39 @@ class Signal(unittest.TestCase):
         self.assertEqual(undefined(obj) - SAFE, set())
 
     def test_K18_control(self):
+        """The copy compiled by the build's own command for signal.cpp, its
+        flags all kept (the hardening's among them), its source and object
+        the copy's and no dependency file written into the build."""
         source = binaries.ROOT / "src" / "diag" / "signal.cpp"
         with tempfile.TemporaryDirectory() as top:
             copy = Path(top) / "signal.cpp"
-            copy.write_bytes(source.read_bytes() + b"\n#include <cstdlib>\nvoid* qiven3_planted() { return std::malloc(1); }\n")
+            copy.write_bytes(source.read_bytes() + b"\n#include <cstdlib>\nvoid* qiven3_planted();\n"
+                             b"void* qiven3_planted() { return std::malloc(1); }\n")
             obj = Path(top) / "signal.o"
-            subprocess.run([build_option("CMAKE_CXX_COMPILER"), "-std=c++20", "-O2", "-fno-exceptions", "-c", "-I",
-                            str(binaries.ROOT / "src"), "-o", str(obj), str(copy)], check=True, capture_output=True,
-                           timeout=binaries.TIMEOUT)
+            argv, directory = control_command(source, copy, obj)
+            done = subprocess.run(argv, cwd=directory, capture_output=True, timeout=binaries.TIMEOUT, check=False)
+            self.assertEqual(done.returncode, 0, done.stderr.decode("utf-8", "replace")[-2000:])
             self.assertIn("malloc", undefined(obj) - SAFE)
+
+
+def control_command(source, copy, obj):
+    """The build's compile command for source, from its
+    compile_commands.json, compiling copy into obj instead: (argv, its
+    directory). The dependency file's options are dropped."""
+    entries = json.loads((binaries.directory("QIVEN3_BUILD") / "compile_commands.json").read_text(encoding="utf-8"))
+    entry = next(e for e in entries if Path(e["file"]).resolve() == source.resolve())
+    given = entry.get("arguments") or shlex.split(entry["command"])
+    argv, skip = [], False
+    for arg in given:
+        if skip:
+            skip = False
+        elif arg in ("-o", "-MF", "-MT", "-MQ"):
+            skip = True
+        elif arg not in ("-MD", "-MMD"):
+            argv.append(str(copy) if arg == entry["file"] else arg)
+    if argv.count(str(copy)) != 1:
+        raise AssertionError(f"the source is not once in its compile command: {given}")
+    return argv + ["-o", str(obj)], entry["directory"]
 
 
 class Out(unittest.TestCase):
