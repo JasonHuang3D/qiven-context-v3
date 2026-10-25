@@ -433,22 +433,28 @@ message(STATUS "qiven3: QIVEN3_HAL ${QIVEN3_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRU
 # sanitizer's runtime sits beside them all.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
-# qiven3_executable(<name> SOURCES <source>... [LINK <target>...] [DIAG <suffix>])
+# qiven3_executable(<name> SOURCES <source>... [LINK <target>...] [DIAG <suffix>] [WIDE])
 # Every executable of the build, and the one add_executable: its sources
 # with the diagnostic entry's object, linked with qiven3_diag and LINK, the
 # entry point qiven3_entry on Windows, and the binary listed in the build's
 # binaries.txt. DIAG names a variant of the entry's targets
 # (src/diag/CMakeLists.txt), for a binary on another runtime or memory.
+# WIDE, for a binary whose entry is wmain on Windows (the product's), takes
+# the entry's wide variant there.
 # Each library is on the link line once: CMake keeps a binary's own list in
 # its order and puts what they link after it, so qiven3_diag, which the
 # runner and the drives link, comes last, and LINK names no target that
 # another of the binary's targets links.
 function(qiven3_executable name)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "DIAG" "SOURCES;LINK")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "WIDE" "DIAG" "SOURCES;LINK")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_executable(${name}): no SOURCES")
   endif()
-  add_executable(${name} ${arg_SOURCES} $<TARGET_OBJECTS:qiven3_diag_entry${arg_DIAG}>)
+  set(entry "qiven3_diag_entry${arg_DIAG}")
+  if(arg_WIDE AND WIN32)
+    set(entry "qiven3_diag_entry_wide")
+  endif()
+  add_executable(${name} ${arg_SOURCES} $<TARGET_OBJECTS:${entry}>)
   target_link_libraries(${name} PRIVATE qiven3_flags ${arg_LINK} qiven3_diag${arg_DIAG})
   if(MSVC)
     target_link_options(${name} PRIVATE /ENTRY:qiven3_entry)

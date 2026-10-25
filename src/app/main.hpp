@@ -12,9 +12,10 @@
 // writes only through a platform, so main exits 1 with no line, or 2 for a
 // command line that is a usage error.
 //
-// The command line's text is taken as the system gives it, UTF-8 by the
-// subcommands' rules; the adapter refuses a path that is not (PlatformError
-// path).
+// The command line's text is UTF-8 by the subcommands' rules: on Windows
+// the binary's wmain converts the system's UTF-16 arguments to it
+// (app/instances.cpp); elsewhere it is taken as the system gives it, and
+// the adapter refuses a path that is not (PlatformError path).
 //
 // main is a template on the maker; app/main_impl.hpp defines it, and the
 // binary's instantiation file, app/instances.cpp, alone includes it.

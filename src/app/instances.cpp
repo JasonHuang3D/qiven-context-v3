@@ -3,6 +3,12 @@
 // adapter's maker, current(). Where no adapter is built there is no
 // Current: main is instantiated for current() alone, which throws, and the
 // binary exits 1, or 2 for a usage error (app/main.hpp).
+//
+// The command line reaches main as UTF-8. On Windows the binary's entry is
+// wmain, which takes the arguments as UTF-16, as the system holds them,
+// and the Windows adapter converts each strictly (run_utf8): an argument
+// that is not valid UTF-16 exits 1 with no line. Elsewhere main takes them
+// as the system gives them.
 
 #include <optional>
 #include <span>
@@ -25,7 +31,17 @@ namespace {
 
 int run(int argc, const char* const* argv) noexcept { return app::main(argc, argv, &platform::current); }
 
+#if defined(_WIN32)
+int run_wide(int argc, const wchar_t* const* argv) noexcept {
+    return platform::win::run_utf8(argc, argv, &run, app::refused);
+}
+#endif
+
 }  // namespace
 }  // namespace qiven3
 
+#if defined(_WIN32)
+int wmain(int argc, wchar_t** argv) { return qiven3::run_wide(argc, argv); }
+#else
 int main(int argc, char** argv) { return qiven3::run(argc, argv); }
+#endif

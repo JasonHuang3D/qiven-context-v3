@@ -7,6 +7,9 @@
 // includes them in its sources alone, never here: a HANDLE is held as the
 // void* it is.
 //
+// Beside it, the binary's command line, its UTF-16 arguments as UTF-8
+// (WindowsArguments, run_utf8).
+//
 // Its first operations are the configuration location, resolve, normcase,
 // the console, random bytes, the clock, pages and wipe. The files'
 // operations (replace, stage, create, remove_directory, read, lock), the
@@ -215,5 +218,56 @@ static_assert(sizeof(WindowsSink) == 8 && sizeof(WindowsLock) == 8, "one handle 
 static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
 static_assert(sizeof(WindowsPlatform) == 32, "the scratch's Pages, the override's size and two flags");
 #endif
+
+// n bytes as whole pages, zeroed: memory. WindowsPlatform::pages's body,
+// which the binary's arguments take before any adapter is made.
+[[nodiscard]] WindowsPages take_pages(std::size_t n);
+
+// The binary's command line (win/arguments.cpp): its arguments as the
+// system gives them to wmain, UTF-16, each converted strictly to UTF-8 and
+// ended by a null, argv[argc] null, on the caller's arena. A command line
+// is at most command_line_units units, so at most most_arguments
+// arguments, and a unit at most 3 bytes of UTF-8 (a surrogate pair's two,
+// 4): the conversion takes at most arguments_bound bytes.
+inline constexpr std::size_t command_line_units = 32767;
+inline constexpr std::size_t most_arguments = 16384;
+inline constexpr std::size_t arguments_bound =
+    3 * command_line_units + most_arguments + (most_arguments + 1) * sizeof(char*);
+
+class WindowsArguments {
+public:
+    // The bytes the conversion of `wide` takes on its arena: argc + 1
+    // pointers, then each argument's UTF-8 and its null. PlatformError
+    // path for an argument that is not valid UTF-16 (an unpaired
+    // surrogate), naming its index; memory past the bound's counts.
+    [[nodiscard]] static std::size_t bytes(std::span<const wchar_t* const> wide);
+    // Converted on the arena: two allocations, the pointers' then the
+    // text's, bytes(wide) in all, each a fault point of the arena's; the
+    // errors of bytes(), and MemoryError budget past the arena.
+    WindowsArguments(std::span<const wchar_t* const> wide, memory::Arena& arena);
+    WindowsArguments(const WindowsArguments&) = delete;
+    WindowsArguments& operator=(const WindowsArguments&) = delete;
+    WindowsArguments(WindowsArguments&&) = delete;
+    WindowsArguments& operator=(WindowsArguments&&) = delete;
+    ~WindowsArguments();
+
+    [[nodiscard]] int argc() const noexcept { return static_cast<int>(count_); }
+    [[nodiscard]] const char* const* argv() const noexcept { return static_cast<const char* const*>(pointers_); }
+
+private:
+    memory::Arena* arena_;
+    void* pointers_ = nullptr;  // count_ + 1 pointers
+    char* text_ = nullptr;
+    std::size_t count_ = 0;
+    std::size_t size_ = 0;  // the text's bytes
+};
+
+// A main that reads its arguments as UTF-8.
+using Utf8Main = int (*)(int argc, const char* const* argv) noexcept;
+
+// wmain's body: wide converted on pages taken for exactly its bytes, then
+// entry on them, entry's status; `refused` where the conversion or the
+// pages fail, with no line (no adapter is made to print one).
+int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, int refused) noexcept;
 
 }  // namespace qiven3::platform::win

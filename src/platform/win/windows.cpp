@@ -465,9 +465,11 @@ std::chrono::sys_time<std::chrono::milliseconds> WindowsPlatform::now() const {
     return std::chrono::floor<std::chrono::milliseconds>(std::chrono::system_clock::now());
 }
 
+WindowsPages WindowsPlatform::pages(std::size_t n) { return take_pages(n); }
+
 // n bytes rounded up to whole pages, reserved and committed at once, which
 // the system gives zeroed.
-WindowsPages WindowsPlatform::pages(std::size_t n) {
+WindowsPages take_pages(std::size_t n) {
     if (n == 0) {
         return WindowsPages();
     }

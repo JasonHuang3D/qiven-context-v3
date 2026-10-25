@@ -49,9 +49,10 @@ public:
     PlatformDrive& operator=(const PlatformDrive&) = delete;
     ~PlatformDrive() = default;
 
-    // An operation of the binary's own (the fake's), on no arena.
-    void add(std::string name, Operation operation) {
-        table_.insert_or_assign(std::move(name), Entry{operation, nullptr});
+    // An operation of the binary's own (the fake's, the adapter's): on no
+    // arena, or, given its budget, on an arena of it as a member's.
+    void add(std::string name, Operation operation, Budget budget = nullptr) {
+        table_.insert_or_assign(std::move(name), Entry{operation, budget});
     }
     // One request's reply, never throwing: the platform's operations, then
     // the common ones; each with "held" and its arena's record.

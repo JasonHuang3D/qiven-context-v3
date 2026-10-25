@@ -12,11 +12,21 @@
 #ifdef _WIN32
 #include <windows.h>
 
+// A binary whose entry is wmain, the product's, takes the entry's wide
+// variant, compiled with QIVEN3_WIDE_MAIN: the C runtime's start for wmain.
+#if defined(QIVEN3_WIDE_MAIN)
+extern "C" DWORD wmainCRTStartup(LPVOID);
+#else
 extern "C" DWORD mainCRTStartup(LPVOID);
+#endif
 
 extern "C" __declspec(safebuffers) DWORD qiven3_entry(LPVOID peb) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#if defined(QIVEN3_WIDE_MAIN)
+    return wmainCRTStartup(peb);
+#else
     return mainCRTStartup(peb);
+#endif
 }
 
 namespace {

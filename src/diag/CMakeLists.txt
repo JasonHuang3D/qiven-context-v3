@@ -43,3 +43,15 @@ function(qiven3_diag_targets suffix memory)
 endfunction()
 
 qiven3_diag_targets("" qiven3_memory)
+
+# qiven3_diag_entry_wide: the entry again for a binary whose entry is
+# wmain, the product's on Windows (qiven3_executable's WIDE), starting the
+# C runtime's wmain in place of main.
+if(WIN32)
+  add_library(qiven3_diag_entry_wide OBJECT entry.cpp diag.hpp)
+  target_include_directories(qiven3_diag_entry_wide PRIVATE "${PROJECT_SOURCE_DIR}/src")
+  target_link_libraries(qiven3_diag_entry_wide PRIVATE qiven3_flags)
+  target_compile_definitions(qiven3_diag_entry_wide
+    PRIVATE QIVEN3_WIDE_MAIN UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(qiven3_diag_entry_wide PRIVATE /wd4073)
+endif()

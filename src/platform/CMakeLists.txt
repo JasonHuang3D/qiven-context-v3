@@ -13,6 +13,7 @@ target_link_libraries(qiven3_platform PUBLIC qiven3_memory PRIVATE qiven3_flags)
 # product target that includes a Windows header or links a Windows library.
 if(WIN32)
   add_library(qiven3_platform_win STATIC
+    win/arguments.cpp
     win/handles.cpp
     win/paths.cpp
     win/paths.hpp
