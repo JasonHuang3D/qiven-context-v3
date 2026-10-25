@@ -34,6 +34,12 @@ read, every test on a build file's, tools/', a fixture's or a vector's
 change, or in a tree new or emptied; changed against the step's last
 passing run in its tree, which the tree records. Each step's line names its selection: how
 many of its tests, and why; a step with none affected does not run.
+The toolchain is an input too: each kept tree records the pins it was
+configured under (on Windows WINDOWS_PINS, the toolset, the SDK, CPython,
+clang-tidy and tools/windows-pins.txt; on Linux tools/linux-pins.txt and
+the prefix; on both the pins CMakeLists.txt sets). A tree whose pins
+changed, or that records none, is emptied before its configure, its line
+naming the pins that changed, and its steps run every test, saying why.
 
 The jobs and their steps are CI's (.github/workflows/ci.yml and msan.yml),
 with the local pins added: tools/loop_jobs.py, which a test checks against
@@ -67,17 +73,29 @@ the debugger cases under gdb. macOS stays with CI alone.
   build/JOB, kept as on Windows; each has its own TMPDIR, the
   clean-binaries check's RUNNER_TEMP. The logs are kept in the clone's
   build/loop/. Each configure with QIVEN3_PIN_TOOLS on and the pinned
-  compilers; each step under setarch -R, as CI's Linux shell. From Git
+  compilers; each step under setarch -R, as CI's Linux shell. From the
+  prefix and the pins the loop sets, for every step: GCC_HOME, the pinned
+  g++'s installation under the prefix, which clang's jobs take as
+  CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN and CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN
+  for their C++ library and start files (tools/loop_jobs.py; given as
+  QIVEN3_GCC); QIVEN3_LIBCXX, the libc++ built under MemorySanitizer; and
+  each sanitizer runtime's symbolizer, the pinned llvm-symbolizer, which no
+  runtime finds by its versioned name: ASAN_SYMBOLIZER_PATH,
+  LSAN_SYMBOLIZER_PATH, MSAN_SYMBOLIZER_PATH, TSAN_SYMBOLIZER_PATH and
+  UBSAN_SYMBOLIZER_PATH. From Git
   Bash, set MSYS_NO_PATHCONV=1 before giving a POSIX path as an argument,
   or give it by the environment.
 
 The answer is plain text: a line a tree and a step with its outcome and
-seconds; then, after every step's line, for each failing step, its first
-error lines before its last 30, up to 10, each with its line number in
-the log (a compiler's, a linker's or clang-tidy's error, MSVC's warning,
-an error under /WX, ninja's failed edge, CMake's error, ctest's failed
-tests, a Python traceback and its exception, unittest's FAIL and ERROR, a
-sanitizer's report), then its last 30 lines; at most 100 lines in all,
+seconds, a failing step's status named by tools/status.py, a ctest step's
+as ctest's own ("ctest's status: 8 tests failed": a test failed or timed
+out, or none ran under --no-tests=error); then, after every step's line,
+for each failing step, its first error lines before its last 30, up to
+10, each with its line number in the log (a compiler's, a linker's or
+clang-tidy's error, MSVC's warning, an error under /WX, ninja's failed
+edge, CMake's error, ctest's failed tests, a Python traceback and its
+exception, unittest's FAIL and ERROR, a sanitizer's report), then its last
+30 lines; at most 100 lines in all,
 the failing steps sharing the room by turns, each one's first error line
 before any one's second, the error lines before the tails. The seconds
 keep the host's pace on both systems (in WSL by CLOCK_MONOTONIC_RAW: the

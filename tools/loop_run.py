@@ -6,9 +6,15 @@ TREE_MARK, and kept from one run to the next, so that Ninja builds only
 what changed. A tree marked by another job, or by none, is emptied before
 the job runs in it, so that no file of another build stays (the
 clean-binaries check reads every file); a fresh run (tier 3) empties every
-tree it runs in. Emptying keeps each fuzz target's corpus, KEEP: libFuzzer
-grows it, and one run's finds carry to the next. Only a tree under the
-checkout's build/ is ever emptied.
+tree it runs in. The mark records, below the job's name, the toolchain's
+pins the tree was configured under, as the system's side gives them (a
+line a pin, its name, a tab, its value): a tree whose pins are not the
+run's, or that records none, is emptied before it is configured, since
+CMake keeps no cache made by another compiler; its line names the pins
+that changed, and its record of passes goes with it, so that its steps
+run every test (tools/loop_select.py). Emptying keeps each fuzz target's
+corpus, KEEP: libFuzzer grows it, and one run's finds carry to the next.
+Only a tree under the checkout's build/ is ever emptied.
 
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
@@ -226,7 +232,8 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
                 passed(step)
         else:
             counts[1] += 1
-            what = status if isinstance(status, str) else STATUS["line"](status)
+            namer = STATUS["ctest_line" if step.ci[:1] == ("ctest",) else "line"]  # a ctest step's status is ctest's
+            what = status if isinstance(status, str) else namer(status)
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
             report.fail(f"{job} {step.name}", log)
     return counts
@@ -259,35 +266,65 @@ def empty(root, tree):
     return len(kept)
 
 
-def own_tree(report, root, tree, job, fresh):
-    """The job's tree, kept when it is the job's own and the run is not
-    fresh; else emptied first. Marked as the job's."""
+def marked(marker):
+    """The mark's job and the pins it records, {name: value}; (None, {})
+    with no mark."""
+    try:
+        lines = marker.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None, {}
+    pins = dict(x.split("\t", 1) for x in lines[1:] if "\t" in x)
+    return (lines[0].strip() or None) if lines else None, pins
+
+
+def pins_changed(had, pins):
+    """Why the pins a tree records are not the run's; None when they are,
+    or when the run gives none (pins None)."""
+    if pins is None or had == pins:
+        return None
+    if not had:
+        return "it records no toolchain pins"
+    names = sorted(k for k in had.keys() | pins.keys() if had.get(k) != pins.get(k))
+    more = f" and {len(names) - 3} more" if len(names) > 3 else ""
+    return f"the toolchain's pins changed: {', '.join(names[:3])}{more}"
+
+
+def own_tree(report, root, tree, job, fresh, pins=None):
+    """The job's tree, kept when it is the job's own, configured under the
+    run's pins ({name: value}; None: not compared), and the run is not
+    fresh; else emptied first. Marked as the job's, with the pins. Returns
+    why it was emptied, or None."""
     marker = tree / TREE_MARK
-    held = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
-    if tree.exists() and (fresh or held != job):
+    held, had = marked(marker)
+    changed = pins_changed(had, pins) if held == job else None
+    why = None
+    if tree.exists() and (fresh or held != job or changed):
         kept = empty(root, tree)
-        why = "a fresh run" if held == job else f"it held {held or 'a build of no job of the loop'}"
+        why = f"it held {held or 'a build of no job of the loop'}" if held != job else \
+            "a fresh run" if fresh else changed
         corpus = f", {kept} corpus directories kept" if kept else ""
         report.line(f"{job} tree: {tree} emptied, {why}{corpus}", True)
     else:
         report.line(f"{job} tree: {tree} {'kept, its own' if held else 'new'}", True)
     tree.mkdir(parents=True, exist_ok=True)
-    marker.write_bytes(job.encode("utf-8") + b"\n")
+    pins = had if pins is None else pins
+    marker.write_bytes("".join([job + "\n", *(f"{k}\t{v}\n" for k, v in sorted(pins.items()))]).encode("utf-8"))
+    return why
 
 
-def drive(report, units, root, logs, command, env, phase="test"):
-    """Each unit (a job, or a suite of tier 3) in turn: its trees owned,
-    then its steps, command(unit, step) giving each step's argv; with the
-    unit's Selection (tools/loop_select.py), the checkout's files read as
-    it begins, and each step that passed recorded. Returns (passed,
-    failed, skipped)."""
+def drive(report, units, root, logs, command, env, phase="test", pins=None):
+    """Each unit (a job, or a suite of tier 3) in turn: its trees owned
+    under the toolchain's pins (own_tree), then its steps, command(unit,
+    step) giving each step's argv; with the unit's Selection
+    (tools/loop_select.py), the checkout's files read as it begins, told
+    which trees were emptied and why, and each step that passed recorded.
+    Returns (passed, failed, skipped)."""
     counts = [0, 0, 0]
     for unit in units:
-        for tree in unit.trees:
-            own_tree(report, root, root / tree, unit.name, unit.fresh)
+        emptied = {tree: own_tree(report, root, root / tree, unit.name, unit.fresh, pins) for tree in unit.trees}
         select = getattr(unit, "select", None)
         if select is not None:
-            select.start(unit)
+            select.start(unit, {tree: why for tree, why in emptied.items() if why})
         got = run_steps(report, unit.name, unit.steps, phase, lambda step, unit=unit: command(unit, step),
                         logs / unit.name, root, env, getattr(unit, "notes", None),
                         None if select is None else lambda step, unit=unit, select=select: select.passed(unit, step))
@@ -310,6 +347,24 @@ def clean_script(root, logs):
     logs.mkdir(parents=True, exist_ok=True)
     script.write_text("".join(line[4:] + "\n" for line in match.group(1).splitlines()), encoding="utf-8")
     return script
+
+
+def file_pins(text):
+    """The pins of a pin file's text, tools/linux-pins.txt's or
+    windows-pins.txt's form, KIND NAME VERSION SHA256 SOURCE a line, its
+    comments apart: {"KIND NAME": "VERSION SHA256 SOURCE"}."""
+    fields = [x.split("#", 1)[0].split() for x in text.splitlines()]
+    return {" ".join(f[:2]): " ".join(f[2:]) for f in fields if len(f) > 2}
+
+
+def cmake_pins(root):
+    """The pins CMakeLists.txt sets, which QIVEN3_PIN_TOOLS checks at
+    configure: {QIVEN3_PIN_NAME: value}."""
+    try:
+        text = (root / "CMakeLists.txt").read_text(encoding="utf-8")
+    except OSError as e:
+        raise CannotRun(f"CMakeLists.txt cannot be read for its pins: {e}") from e
+    return dict(re.findall(r"^set\((QIVEN3_PIN_\w+) ([^)\s]+)\)", text, re.MULTILINE))
 
 
 def sha256(path):

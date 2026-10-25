@@ -405,7 +405,7 @@ class OneClone(unittest.TestCase):
         clone under its own TMPDIR, a job's trees its build/JOB."""
         driven = []
 
-        def drive(report, units, root, logs, command, env, phase="test"):
+        def drive(report, units, root, logs, command, env, phase="test", pins=None):
             driven.append((units[0], root, env["TMPDIR"]))
             return [1, 0, 0]
 

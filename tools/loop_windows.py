@@ -114,6 +114,19 @@ def check_clang_tidy(env):
     return str(path)
 
 
+def windows_pins(root):
+    """The toolchain's pins each Windows tree records (tools/loop_run.py's
+    own_tree): WINDOWS_PINS, the toolset, the SDK, CPython, CLANG_TIDY,
+    tools/windows-pins.txt's and the pins CMakeLists.txt sets."""
+    try:
+        listed = file_pins((root / "tools" / "windows-pins.txt").read_text(encoding="utf-8"))
+    except OSError as e:
+        raise CannotRun(f"tools/windows-pins.txt cannot be read: {e}") from e
+    return {**{name: f"{version or VCVARS_VER} {digest}" for name, version, digest in WINDOWS_PINS},
+            "toolset": VCVARS_VER, "sdk": SDK, "cpython": ".".join(map(str, PYTHON[:3])),
+            "clang-tidy": " ".join(CLANG_TIDY), **listed, **cmake_pins(root)}
+
+
 def windows_command(root, logs, python, tools, extra, presets):
     """command(unit, step): the step's argv, its tool by its pinned path."""
 
@@ -150,6 +163,7 @@ def windows(args, report):
         select = Selection(ROOT, tools["ctest"], env, shutil.which("git"))
         for unit in units:
             unit.select = select
-    counts = drive(report, units, ROOT, logs, windows_command(ROOT, logs, python, tools, extra, presets), env, phase)
+    counts = drive(report, units, ROOT, logs, windows_command(ROOT, logs, python, tools, extra, presets), env, phase,
+                   windows_pins(ROOT))
     report.line(f"loop: logs in {logs}", True)
     return counts

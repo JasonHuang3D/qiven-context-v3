@@ -2,7 +2,9 @@
 pins checked and the working tree's snapshot made; inside WSL, by
 loop.py's --inside, the one clone synced once a run, then the units of the
 way, each job in its own build tree within the clone, build/JOB, kept
-across runs (tools/loop_run.py's own_tree; tier 3 empties it).
+across runs (tools/loop_run.py's own_tree; tier 3 empties it, and so does
+a change of the toolchain's pins: the pin file's, CMakeLists.txt's or the
+prefix).
 
 The clone is CLONE under the clone root (--clone): the loop writes nothing
 else there, and deletes nothing outside the clone's untracked files, which
@@ -163,6 +165,9 @@ def inside(args, report):
     symbolizer = [f[4] for f in lines if f[:1] == ["command"] and f[1].startswith("llvm-symbolizer")
                   and f[4].startswith("prefix/")]
     prefix = args.prefix.rstrip("/")
+    # The toolchain's pins each tree records (tools/loop_run.py's own_tree): the pin file's, the pins
+    # CMakeLists.txt sets, and the prefix the compilers are found under.
+    toolchain = {**file_pins(pins), **cmake_pins(ROOT), "prefix": prefix}
     env = dict(os.environ, **ENV["linux"], QIVEN3_PYTHON=sys.executable)
     env["PATH"] = prefix + "/bin:" + env.get("PATH", "")
     if libcxx:
@@ -195,7 +200,7 @@ def inside(args, report):
         temp = tempfile.mkdtemp(prefix=f"qiven3-loop-{unit.name}-")
         try:
             got = drive(report, [unit], clone, logs, linux_command(clone, logs, env, presets, temp),
-                        dict(env, TMPDIR=temp), phase)
+                        dict(env, TMPDIR=temp), phase, toolchain)
         finally:
             shutil.rmtree(temp, ignore_errors=True)
         counts = [a + b for a, b in zip(counts, got)]

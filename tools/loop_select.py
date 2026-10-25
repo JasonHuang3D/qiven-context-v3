@@ -7,7 +7,10 @@ tree affects, from the build graph, never from a list kept by hand.
   index, and git hash-object for a file changed or new), and each output of
   Ninja's log, .ninja_log, by its line as the step found it. A step that
   fails leaves its record as it was, so that its changes stay selected. A
-  tree new or emptied, or a step with no record in it, runs every test.
+  tree new or emptied, or a step with no record in it, runs every test;
+  the step's line names why a tree was emptied, the toolchain's pins
+  changed among them (tools/loop_run.py's own_tree): the record goes with
+  the tree it describes.
 - Every test, when a changed file is a build file (CMakeLists.txt, any
   *.cmake, CMakePresets.json), under tools/, a fixture or a vector
   (tests/fixtures/, tests/vectors/) or a workflow (.github/workflows/); and
@@ -268,12 +271,14 @@ class Selection:
     def __init__(self, root, ctest, env, git):
         self.root, self.ctest, self.env, self.git = Path(root), ctest, env, git
         self.sources, self.logs, self.steps = None, {}, {}
-        self.imports = None
+        self.imports, self.emptied = None, {}
 
-    def start(self, unit):
-        """The checkout's files as the unit's run begins."""
+    def start(self, unit, emptied=None):
+        """The checkout's files as the unit's run begins; emptied, {tree:
+        why}, the trees emptied for it (tools/loop_run.py's own_tree)."""
         self.sources = blobs(self.root, self.git)
         self.logs, self.imports = {}, Imports(self.root)
+        self.emptied = dict(emptied or {})
         unit.notes.clear()
 
     def listing(self, words):
@@ -304,6 +309,8 @@ class Selection:
         total = len(tests)
         if self.sources is None:
             chosen, why = None, "git cannot list the checkout"
+        elif record is None and tree in self.emptied:
+            chosen, why = None, f"its tree emptied, {self.emptied[tree]}"
         elif record is None:
             chosen, why = None, "no passing run of the step in this tree"
         else:

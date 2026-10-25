@@ -8,6 +8,11 @@ system status such as 0xC0000005 printed in hexadecimal; on Linux a
 negative value for a death by a signal, printed as "signal <number>" and
 named by the signal. Any other status is its number with "unnamed".
 
+A ctest step's status is ctest's own, named by CTEST in one line, "ctest's
+status: <value> <name>: <meaning>": ctest exits 8 when a test failed or
+timed out, or none ran under --no-tests=error, and 1 when it could not
+run. A death by a signal, or a Windows system status, stays the process's.
+
 Run as a script, it names each status its arguments give, in decimal or
 0x hexadecimal, a signal as -<number>:
 
@@ -44,6 +49,11 @@ SIGNALS = {11: "SIGSEGV", 7: "SIGBUS", 8: "SIGFPE", 4: "SIGILL", 6: "SIGABRT", 5
            15: "SIGTERM", 13: "SIGPIPE"}
 SIGNAL_MEANING = "Linux: a death by that signal, read from the wait status"
 UNNAMED = "unnamed"
+# ctest's exit statuses, as ctest 4.4.3 gives them: value: (name, meaning).
+CTEST = {
+    1: ("error", "ctest could not run: an argument, a preset or a test directory it cannot take"),
+    8: ("tests failed", "a test failed or timed out, or none ran under --no-tests=error"),
+}
 
 
 def value_text(status):
@@ -71,6 +81,16 @@ def line(status):
         return f"status: {value_text(status)} {UNNAMED}"
     name, meaning = found
     return f"status: {value_text(status)} {name}" + (f": {meaning}" if meaning else "")
+
+
+def ctest_line(status):
+    """A ctest step's status in one line: "ctest's status: <value> <name>:
+    <meaning>" by CTEST, "ctest's status: <value> unnamed" off it; a death
+    by a signal or a system status by line, as the process's."""
+    if status < 0 or status > 0xFFFF:
+        return line(status)
+    name, meaning = CTEST.get(status, (UNNAMED, ""))
+    return f"ctest's status: {status} {name}" + (f": {meaning}" if meaning else "")
 
 
 def parse(text):

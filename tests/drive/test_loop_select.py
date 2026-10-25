@@ -214,7 +214,7 @@ class Record(unittest.TestCase):
     def test_record(self):
         argv, line = self.run_tier()
         self.assertNotIn("--tests-from-file", argv)
-        self.assertIn("every test, 10 of 10: no passing run of the step in this tree", line)
+        self.assertIn("every test, 10 of 10: its tree emptied, it held a build of no job of the loop", line)
         self.assertTrue((self.tree / SELECT["RECORD"]).is_file())
         argv, line = self.run_tier()
         self.assertIsNone(argv)
