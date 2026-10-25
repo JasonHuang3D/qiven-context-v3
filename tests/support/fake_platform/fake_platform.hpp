@@ -136,6 +136,7 @@ public:
     FakeChild& operator=(const FakeChild&) = delete;
     ~FakeChild() = default;
 
+    // A failed allocation keeps the line, read whole by the next call.
     bool read_line(Seconds timeout, String& out);
     void write(std::string_view bytes);
     void close_input() noexcept {}
@@ -186,6 +187,8 @@ public:
     void read(std::string_view path, String& out);
     FakeLock lock(std::string_view path, Seconds deadline);
     void program(std::string_view name, String& out);
+    // start and run refuse a relative argv[0], a .cmd and a .bat, start,
+    // before they look the program up.
     FakeChild start(const Command& command);
     void run(const Command& command, std::string_view data, Ran& out);
     void code_page(String& out);

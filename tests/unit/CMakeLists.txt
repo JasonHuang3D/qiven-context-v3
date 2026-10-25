@@ -214,10 +214,19 @@ qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
 # files' cases on the fake: its pure checks evaluated by the compiler;
 # replace, stage and lock on real files in each case's scratch directory,
 # the fake's busy counts driving the retries (P9, P19, P20's lock, P25's
-# replace and open); each system and platform call failed in turn.
+# replace and open); stage's bound at its edge, each end freeing a slot;
+# each system and platform call failed in turn.
 qiven3_add_cases(qiven3_unit_files LABELS fast fake
   SOURCES files_test.cpp
   LINK qiven3_faults qiven3_platform_fake)
+
+# The fake's processes held to their contract: start and run refusing a
+# relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
+# its line on a failed allocation, by the budget and, under QIVEN3_FAULTS,
+# each of the line's allocations failed in turn.
+qiven3_add_cases(qiven3_unit_fake_process LABELS fast fake
+  SOURCES fake_process_test.cpp
+  LINK qiven3_platform_fake)
 
 # win/files' cases on the Windows adapter, on Windows alone: create, read,
 # remove_directory, replace and lock on real files in each case's scratch

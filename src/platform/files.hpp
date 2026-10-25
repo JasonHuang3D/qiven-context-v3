@@ -48,6 +48,14 @@ inline constexpr Error already_exists = 183;
 inline constexpr std::chrono::milliseconds interval{50};
 inline constexpr std::size_t random_count = 8;
 
+// stage's bound: at most 16 files open at once across a System's staging
+// directories; the next open is refused, io naming the bound, nothing made.
+// The sealer holds two open at once, a bundle's bodies and its headers; the
+// rest is the margin the other budgets keep. A file holds its slot until it
+// closes: by its Sink's close or end, by publish, which closes each still
+// open, or by discard or the Staged's end.
+inline constexpr std::size_t open_bound = 16;
+
 // A temporary name's 16 lowercase hexadecimal digits: replace's file is
 // ".<name>.<digits>.tmp" beside its target, stage's directory
 // ".<digits>.tmp" in its directory. The System composes each from them.
@@ -169,6 +177,7 @@ constexpr std::string_view last_component(std::string_view path) noexcept {
 //   open_staged(dir, path, file) a file in it, its parents too,
 //   exclusively; write(file, bytes); close(file) flushes and closes it, and
 //   is none for a closed one; close_all(dir) closes each still open;
+//   open_files() counts the files open across its staging directories;
 //   publish(dir, name) renames the directory to name beside it, with no
 //   replacing; discard(dir, left) closes and deletes its files and it,
 //   naming in left the file it could not delete by its path inside it,
@@ -195,6 +204,7 @@ concept System =
         { s.write(f, b) } -> std::same_as<Error>;
         { s.close(f) } noexcept -> std::same_as<Error>;
         { s.close_all(d) } -> std::same_as<Error>;
+        { std::as_const(s).open_files() } noexcept -> std::same_as<std::size_t>;
         { s.publish(d, p) } -> std::same_as<Error>;
         { s.discard(d, left) } noexcept -> std::same_as<Error>;
         { s.forget(d) } noexcept;
@@ -310,6 +320,11 @@ public:
     Sink<S> open(std::string_view path) {
         live("open");
         refuse("open", relative_fault(path));
+        if (system_->open_files() >= open_bound) {
+            Detail detail;
+            detail.number(open_bound).add(" files already open across the staged directories");
+            throw PlatformError(Code::io, "open", detail);
+        }
         typename S::File file{};
         const Error error = system_->open_staged(dir_, path, file);
         if (error != none) {

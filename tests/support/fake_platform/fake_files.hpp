@@ -71,6 +71,8 @@ public:
     files::Error write(const File& file, std::string_view bytes);
     files::Error close(const File& file) noexcept;
     files::Error close_all(const Dir& dir);
+    // The files open, across the staging directories: files' bound.
+    [[nodiscard]] std::size_t open_files() const noexcept;
     files::Error publish(const Dir& dir, std::string_view name);
     files::Error discard(const Dir& dir, Detail& left) noexcept;
     void forget(const Dir& dir) noexcept;

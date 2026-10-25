@@ -20,64 +20,6 @@ namespace qiven3::platform::fake {
 namespace fs = std::filesystem;
 namespace {
 
-// SHA-256 (FIPS 180-4), for the seed blocks alone.
-std::string sha256(const std::string& message) {
-    static constexpr std::array<std::uint32_t, 64> k = {
-        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
-    std::array<std::uint32_t, 8> h = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-                                      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
-    std::string data = message;
-    const std::uint64_t bits = static_cast<std::uint64_t>(message.size()) * 8;
-    data += static_cast<char>(0x80);
-    while (data.size() % 64 != 56) {
-        data += '\0';
-    }
-    for (unsigned shift = 64U; shift > 0U; shift -= 8U) {
-        data += static_cast<char>((bits >> (shift - 8U)) & 0xFFU);
-    }
-    const auto rotr = [](std::uint32_t x, unsigned n) { return (x >> n) | (x << (32U - n)); };
-    for (std::size_t at = 0; at < data.size(); at += 64) {
-        std::array<std::uint32_t, 64> w{};
-        for (std::size_t i = 0; i < 16; ++i) {
-            for (std::size_t b = 0; b < 4; ++b) {
-                w[i] = (w[i] << 8U) | static_cast<std::uint32_t>(static_cast<unsigned char>(data[at + i * 4 + b]));
-            }
-        }
-        for (std::size_t i = 16; i < 64; ++i) {
-            const std::uint32_t s0 = rotr(w[i - 15], 7U) ^ rotr(w[i - 15], 18U) ^ (w[i - 15] >> 3U);
-            const std::uint32_t s1 = rotr(w[i - 2], 17U) ^ rotr(w[i - 2], 19U) ^ (w[i - 2] >> 10U);
-            w[i] = w[i - 16] + s0 + w[i - 7] + s1;
-        }
-        std::array<std::uint32_t, 8> v = h;
-        for (std::size_t i = 0; i < 64; ++i) {
-            const std::uint32_t s1 = rotr(v[4], 6) ^ rotr(v[4], 11) ^ rotr(v[4], 25);
-            const std::uint32_t ch = (v[4] & v[5]) ^ (~v[4] & v[6]);
-            const std::uint32_t t1 = v[7] + s1 + ch + k[i] + w[i];
-            const std::uint32_t s0 = rotr(v[0], 2) ^ rotr(v[0], 13) ^ rotr(v[0], 22);
-            const std::uint32_t maj = (v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]);
-            const std::uint32_t t2 = s0 + maj;
-            v = {t1 + t2, v[0], v[1], v[2], v[3] + t1, v[4], v[5], v[6]};
-        }
-        for (std::size_t i = 0; i < 8; ++i) {
-            h[i] += v[i];
-        }
-    }
-    std::string digest;
-    for (std::uint32_t word : h) {
-        for (unsigned shift = 32U; shift > 0U; shift -= 8U) {
-            digest += static_cast<char>((word >> (shift - 8U)) & 0xFFU);
-        }
-    }
-    return digest;
-}
-
 [[noreturn]] void fail(Code code, std::string_view operation, std::string_view detail) {
     throw PlatformError(code, operation, detail);
 }
@@ -163,6 +105,26 @@ void set(Reading& out, const FakeReading& reading) {
     set(out.reason, reading.reason);
 }
 
+// argv[0]'s fault, as start and run refuse it before any program is looked
+// up, there being no shell: not absolute by the fake's rule (UTF-8 first,
+// which that rule reads), or a .cmd or a .bat, in any case; empty for none.
+std::string_view program_fault(std::string_view first) {
+    for (std::size_t at = 0; at < first.size();) {
+        if (!code_point(first, at)) {
+            return "argv[0] is not UTF-8";
+        }
+    }
+    if (!to_path(first).is_absolute()) {
+        return "argv[0] is not absolute";
+    }
+    const std::string_view tail = first.substr(first.size() < 4 ? 0 : first.size() - 4);
+    std::array<char, 4> folded{};
+    std::ranges::transform(tail, folded.begin(),
+                           [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; });
+    const std::string_view end(folded.data(), tail.size());
+    return end == ".cmd" || end == ".bat" ? "argv[0] is a .cmd or a .bat: no shell runs it" : "";
+}
+
 std::string joined(const Program& program) {
     std::string out;
     for (const std::string& line : program.lines) {
@@ -179,21 +141,6 @@ std::string named(std::errc error) {
 }
 
 }  // namespace
-
-std::array<std::uint8_t, 32> seed_block(std::uint64_t seed, std::uint64_t k) {
-    std::string message;
-    for (std::uint64_t value : {seed, k}) {
-        for (unsigned shift = 64U; shift > 0U; shift -= 8U) {
-            message += static_cast<char>((value >> (shift - 8U)) & 0xFFU);
-        }
-    }
-    const std::string digest = sha256(message);
-    std::array<std::uint8_t, 32> block{};
-    for (std::size_t i = 0; i < block.size(); ++i) {
-        block[i] = static_cast<std::uint8_t>(digest[i]);
-    }
-    return block;
-}
 
 // --- the handles ---
 
@@ -241,8 +188,10 @@ bool FakeChild::read_line(Seconds, String& out) {
         }
         return false;
     }
-    set(out, program_.lines[line_++]);
+    // Copied first: a failed allocation leaves the line to be read again.
+    set(out, program_.lines[line_]);
     out.push_back('\n');
+    ++line_;
     return true;
 }
 
@@ -479,6 +428,10 @@ void FakePlatform::program(std::string_view name, String& out) {
 const Program& FakePlatform::find(const Command& command, std::string_view operation) const {
     if (command.argv.empty()) {
         fail(Code::start, operation, "an empty argv");
+    }
+    const std::string_view fault = program_fault(command.argv.front());
+    if (!fault.empty()) {
+        fail(Code::start, operation, fault);
     }
     const std::vector<std::string> argv(command.argv.begin(), command.argv.end());
     const auto at = config_.programs.find(argv);

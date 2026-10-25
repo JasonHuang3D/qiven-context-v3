@@ -289,7 +289,7 @@ class Checkout(unittest.TestCase):
         header = (ROOT / "src/platform/files.hpp").read_text(encoding="utf-8")
         test = (ROOT / "tests/unit/files_test.cpp").read_text(encoding="utf-8")
         calls = [n for n, line in enumerate(test.split("\n"), 1) if re.search(r"[\w)]\.publish\(\"", line)]
-        self.assertEqual(len(calls), 7)
+        self.assertEqual(len(calls), 8)
         status, envelope, _ = nav("refs", "publish", "--file", "tests/unit/files_test.cpp", "--no-index")
         self.assertEqual(status, 0, envelope)
         found = symbol(envelope, "qiven3::platform::files::Staged::publish")

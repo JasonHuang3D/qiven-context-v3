@@ -2,7 +2,8 @@
 // replace, stage and lock over the fake's system calls on real files in a
 // scratch directory of each case's own, the busy counts driving the
 // retries, the fake's clock counting the waits (P9, P19, P20's lock and
-// P25's replace and open, as files defines them); each system call and
+// P25's replace and open, as files defines them); stage's bound at its
+// edge; each system call and
 // each platform call failed in turn, a typed error with nothing left.
 
 #include <algorithm>
@@ -305,6 +306,56 @@ QIVEN3_CASE(files, stage) {
     CHECK_EQ(listing(scratch.root), std::string("bag-1|bag-1/bagit.txt|bag-1/data|bag-1/data/headers.jsonl|"
                                                 "bag-2|bag-2/bagit.txt|bag-2/data|bag-2/data/headers.jsonl"));
     CHECK(thrown([&] { fake.stage(root + "/missing"); }).first == Code::io);
+    CHECK_EQ(fake.files().kept(), 0U);
+}
+
+// stage's bound on the fake: 16 open across two staging directories, the
+// 17th refused, io naming the bound, nothing made; one closed, then one more
+// open. Each end that frees a slot: a Sink's close and its end, publish,
+// discard and the Staged's end.
+QIVEN3_CASE(files, stage_bound) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config());
+    const std::string root = text(scratch.root);
+    std::size_t made = 0;
+    std::vector<qiven3::platform::fake::FakeSink> sinks;  // on the heap: 16 B each
+    // Opens in stage until the bound; then the next is refused, nothing made.
+    const auto fill = [&](qiven3::platform::fake::FakeStaged& stage) {
+        while (fake.files().open_files() < files::open_bound) {
+            sinks.push_back(stage.open("data/f" + std::to_string(made++)));
+        }
+        const std::string before = listing(scratch.root);
+        CHECK(thrown([&] { stage.open("refused"); }) ==
+              std::pair(Code::io, std::string("16 files already open across the staged directories")));
+        CHECK_EQ(listing(scratch.root), before);
+        CHECK_EQ(fake.files().open_files(), files::open_bound);
+    };
+    auto first = fake.stage(root);
+    auto second = fake.stage(root);
+    for (std::size_t i = 0; i < 8; ++i) {
+        sinks.push_back(first.open("data/f" + std::to_string(made++)));
+    }
+    fill(second);
+    CHECK_EQ(made, 16U);
+    sinks.front().close();  // its close
+    CHECK_EQ(fake.files().open_files(), 15U);
+    fill(first);
+    sinks.pop_back();  // its end
+    CHECK_EQ(fake.files().open_files(), 15U);
+    fill(second);
+    second.publish("bag", five);  // closes second's 9
+    CHECK_EQ(fake.files().open_files(), 7U);
+    CHECK(fs::is_regular_file(scratch.root / "bag/data/f17"));
+    fill(first);
+    first.discard();
+    CHECK_EQ(fake.files().open_files(), 0U);
+    {
+        auto third = fake.stage(root);
+        fill(third);
+    }  // its end
+    CHECK_EQ(fake.files().open_files(), 0U);
+    sinks.clear();
+    CHECK_EQ(listing(scratch.root).find(".tmp"), std::string::npos);
     CHECK_EQ(fake.files().kept(), 0U);
 }
 

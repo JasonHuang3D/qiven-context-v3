@@ -139,6 +139,8 @@ void FakeFiles::random_bytes(std::span<std::byte> into) { platform_->random_byte
 
 bool FakeFiles::absolute(std::string_view path) const { return to_path(path).is_absolute(); }
 
+std::size_t FakeFiles::open_files() const noexcept { return state_->open.size(); }
+
 std::size_t FakeFiles::kept() const noexcept { return state_->open.size() + state_->dirs.size() + state_->locks.size(); }
 
 Error FakeFiles::write_temporary(std::string_view path, const files::Digits& digits, std::string_view data) {
