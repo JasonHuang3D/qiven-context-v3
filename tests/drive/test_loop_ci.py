@@ -197,6 +197,8 @@ def ci_jobs():
 
 
 class LoopAgainstCI(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     @classmethod
     def setUpClass(cls):
         cls.loop = load_loop()

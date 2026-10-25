@@ -128,6 +128,7 @@ class World:
 
 class Check(unittest.TestCase):
     """Each rule of the check, a plant caught."""
+    ctest_labels = ("fake",)
 
     ctest_reads = ("tools/linux-pins.txt",)
 
@@ -236,6 +237,7 @@ class Check(unittest.TestCase):
 
 class PinFile(unittest.TestCase):
     """The pin file parses; its removed packages are the old compilers'."""
+    ctest_labels = ("fake",)
 
     ctest_reads = ("tools/linux-pins.txt",)
 
@@ -252,6 +254,7 @@ class PinFile(unittest.TestCase):
 @unittest.skipIf(sys.platform == "win32", "not applicable on Windows: the fakes on PATH are POSIX shell scripts")
 class Process(unittest.TestCase):
     """The check's own process over fakes on PATH."""
+    ctest_labels = ("fake",)
 
     ctest_reads = ("tools/linux-pins.txt",)
 

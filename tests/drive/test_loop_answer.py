@@ -70,6 +70,8 @@ def scratch(case):
 
 
 class Seconds(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     def test_in_all(self):
         """Each step's seconds, their sum and the inner summary's within
         the seconds in all, though the inner run's monotonic clock runs
@@ -126,6 +128,8 @@ class Seconds(unittest.TestCase):
 
 
 class Failing(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     def run_jobs(self, jobs, budget):
         """jobs: [(job, [(step, program or None for a pass)])], each step
         after the one before, as a job's; the lines of the answer."""

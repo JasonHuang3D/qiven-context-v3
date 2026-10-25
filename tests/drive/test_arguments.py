@@ -37,6 +37,8 @@ def measure(texts):
 
 
 class WindowsOnly(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     def setUp(self):
         if sys.platform != "win32":
             self.skipTest("not applicable: the binary takes UTF-16 arguments on Windows alone")

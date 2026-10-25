@@ -45,4 +45,5 @@ class Fake(FakeBinding, PlatformCases, PlatformRest, PlatformLast, PlatformMemor
 
 
 class FakeMachine(FakeBinding, PlatformRestMachine, unittest.TestCase):
-    """The machine cases, not applicable on the fake: no label fake."""
+    """The machine cases, not applicable on the fake: label machine, not fake."""
+    ctest_labels = ("machine",)

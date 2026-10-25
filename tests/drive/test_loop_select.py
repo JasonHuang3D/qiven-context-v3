@@ -100,6 +100,7 @@ def listing(tree):
 
 class Choose(unittest.TestCase):
     """choose() on a recorded graph: what each change selects."""
+    ctest_labels = ("fake",)
 
     def setUp(self):
         self.root = checkout(self)
@@ -174,6 +175,7 @@ class Choose(unittest.TestCase):
 class Record(unittest.TestCase):
     """The record through tier 1's steps on fakes: the fake step narrowed
     as the change since it last passed in its tree says."""
+    ctest_labels = ("fake",)
 
     def setUp(self):
         self.root = checkout(self)

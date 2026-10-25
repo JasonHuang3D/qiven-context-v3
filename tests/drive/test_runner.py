@@ -17,6 +17,7 @@ def lines(data):
 
 
 class Routes(unittest.TestCase):
+    ctest_labels = ("fake",)
     ctest_reads = ("qiven3_runner_demo",)
 
     def test_pass(self):

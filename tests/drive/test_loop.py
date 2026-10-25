@@ -10,7 +10,9 @@ with the fuzz corpus kept, a tree outside build/ never emptied. Linux's
 one clone on fakes: synced once a run, a sync that changes nothing
 rewriting no file, a build tree a job within it, tier 3 emptying those
 trees alone, the suites reading the jobs' trees. The cases that build run
-alone; those that reach WSL skip when it or its distribution is absent."""
+alone; those that reach WSL skip when it or its distribution is absent,
+and those on the loop's pinned interpreter or Windows tools where these
+do not hold, as on CI's images (tests/drive/pinned.py)."""
 
 import argparse
 import contextlib
@@ -25,6 +27,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.drive import pinned
+from tests.drive.pinned import prefix, wsl_ready
 from tests.drive.test_loop_ci import ROOT, load_loop
 
 LOOP = load_loop()
@@ -52,14 +56,6 @@ def run(script, *args, env=None):
     return done.returncode, done.stdout.decode("utf-8", "replace").splitlines(), done.stderr
 
 
-def wsl_ready():
-    wsl = shutil.which("wsl.exe") if WINDOWS else None
-    try:
-        return bool(wsl) and LOOP.DISTRO in LOOP.distros(wsl)
-    except LOOP.CannotRun:
-        return False
-
-
 def turned(digest):
     return ("1" if digest[0] == "0" else "0") + digest[1:]
 
@@ -73,7 +69,11 @@ def scratch_copy(case):
     return copy
 
 
-class Answer(unittest.TestCase):
+class Loop(unittest.TestCase):
+    ctest_labels = ("fake",)
+
+
+class Answer(Loop):
     """The answer's form, by steps of the interpreter alone."""
 
     def steps(self, codes, phase="test", program="[print('line', i) for i in range(200)]"):
@@ -168,7 +168,7 @@ class Answer(unittest.TestCase):
         self.assertIn("job build: skipped, configure did not pass", out.getvalue())
 
 
-class Arguments(unittest.TestCase):
+class Arguments(Loop):
     def test_refused(self):
         script = ROOT / "tools" / "loop.py"
         for args in (["frob", "windows"], ["build", "plan9"], ["test", "windows", "no-such-job"],
@@ -194,7 +194,7 @@ class Arguments(unittest.TestCase):
         self.assertEqual(err, b"")
 
 
-class Tiers(unittest.TestCase):
+class Tiers(Loop):
     """The ways on fakes: what each runs, and the kept trees, each step a
     fake command recording its argv in the job's tree."""
 
@@ -324,7 +324,7 @@ class Tiers(unittest.TestCase):
             self.assertTrue((tree / "file").is_file())
 
 
-class OneClone(unittest.TestCase):
+class OneClone(Loop):
     """Linux's one clone on fakes, on this system's git: a source repository
     in a scratch directory, synced into the clone root's clone/; each job's
     build tree within it; tier 3 emptying the build trees alone."""
@@ -461,20 +461,13 @@ class OneClone(unittest.TestCase):
         self.assertEqual(ran["linux-full"], [["ctest", "--preset", "full", "--test-dir", "build/linux-plain"]])
 
 
-def prefix():
-    """The toolchain's prefix in WSL, from QIVEN3_PREFIX: a case needing it
-    skips without it."""
-    if not os.environ.get("QIVEN3_PREFIX"):
-        raise unittest.SkipTest("QIVEN3_PREFIX is unset: the toolchain's prefix in WSL")
-    return os.environ["QIVEN3_PREFIX"]
-
-
 @unittest.skipUnless(WINDOWS, "the loop's windows runs on Windows")
-class Windows(unittest.TestCase):
+class Windows(Loop):
     ctest_serial = True
 
     def test_tool_missing(self):
         """vcvars' PATH without the tools: exit 2, cmake named."""
+        pinned.python()
         top = loop_scratch(self)
         vcvars = top / "vcvars64.bat"
         vcvars.write_text('@set "PATH=%SystemRoot%\\system32"\r\n@set VCToolsVersion=14.44.35207\r\n'
@@ -490,6 +483,8 @@ class Windows(unittest.TestCase):
         files: exit 2, the digests named. The scratch holds no source, so
         the real tree is never built or emptied even if the plant were
         missed; the loop's logs, vcvars' script among them, are its own."""
+        pinned.python()
+        pinned.windows_tools()
         top = loop_scratch(self)
         source = top / "tools" / "loop_windows.py"
         digest = dict((n, d) for n, _, d in LOOP.WINDOWS_PINS)["ninja"]
@@ -509,6 +504,7 @@ class Windows(unittest.TestCase):
         them (the watcher's): a name inherited keeps its case through
         vcvars, VCTOOLSVERSION here, and the loop reads it by name without
         regard to case, so the tools hold."""
+        pinned.windows_tools()
         top = Path(tempfile.mkdtemp(prefix="qiven3-loop-case-"))
         self.addCleanup(shutil.rmtree, top, ignore_errors=True)
         env = dict(os.environ, VCTOOLSVERSION=LOOP.VCVARS_VER)
@@ -526,6 +522,8 @@ class Windows(unittest.TestCase):
     def test_failing_step(self):
         """A compile error planted in a scratch copy: exit 1, the build's
         tail holding it, within the bound."""
+        pinned.python()
+        pinned.windows_tools()
         copy = scratch_copy(self)
         source = copy / "src" / "memory" / "arena.cpp"
         source.write_bytes(source.read_bytes() + f"#error {PLANT}\n".encode())
@@ -543,7 +541,7 @@ class Windows(unittest.TestCase):
         self.assertRegex(lines[-1], r"^loop: 1 passed, 1 failed, 0 skipped in \d+\.\d s; exit 1$")
 
 
-class Linux(unittest.TestCase):
+class Linux(Loop):
     ctest_serial = True
 
     @classmethod
@@ -594,6 +592,3 @@ class Linux(unittest.TestCase):
         self.assertEqual(sum(1 for x in lines if re.match(r"linux-gcc \S+: skipped", x)), 2, lines)
         self.assertRegex(lines[-1], r"^loop: 0 passed, 1 failed, 2 skipped in .*; exit 1;")
 
-
-if __name__ == "__main__":
-    unittest.main()

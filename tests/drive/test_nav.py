@@ -277,6 +277,7 @@ class Nav(unittest.TestCase):
 
 
 class Checkout(unittest.TestCase):
+    ctest_labels = ("fake",)
     ctest_reads = ("tools/nav.py", "tools/nav_query.py", "src/platform/files.hpp", "tests/unit/files_test.cpp")
 
     def setUp(self):

@@ -29,6 +29,7 @@ SLOW_LIMIT, FAST_LIMIT, OTHER_LIMIT, AFTER_LIMIT = 1800, 60, 300, 30
 
 class Select(unittest.TestCase):
     """Two ids, one the other's prefix: a substring selects both."""
+    ctest_labels = ("fake",)
 
     def test_a(self):
         self.assertTrue(True)
@@ -87,6 +88,8 @@ def samples(*ids):
 
 
 class PythonSide(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     def test_skip_code(self):
         cases = [
             (("Samples.test_passes",), 0, 1),

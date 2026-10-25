@@ -46,6 +46,7 @@ class Fake(Streams, unittest.TestCase):
 
 
 class Windows(Streams, unittest.TestCase):
+    ctest_labels = ("fake",)
     DRIVE = WINDOWS
 
     def setUp(self):

@@ -40,6 +40,7 @@ def scratch(case):
 class KeptTree(unittest.TestCase):
     """Tier 1's windows-msvc unit on fakes in a scratch checkout, its tree
     owned under the pins each run gives."""
+    ctest_labels = ("fake",)
 
     def setUp(self):
         self.root = checkout(self)
@@ -127,6 +128,7 @@ class KeptTree(unittest.TestCase):
 
 class SystemPins(unittest.TestCase):
     """Each system's side: the pins its trees record."""
+    ctest_labels = ("fake",)
 
     def test_windows(self):
         """Windows' table, the toolset, the SDK, CPython, clang-tidy, the
@@ -149,11 +151,15 @@ class SystemPins(unittest.TestCase):
 
     def test_pin_file(self):
         """A pin file's pins by kind and name, the comments apart: the
-        Linux file's every pin."""
+        Linux file's every pin, and none of its removed packages, which
+        no build uses: a removal's line is no pin a tree records."""
         text = (ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8")
         pins = RUN["file_pins"](text)
-        lines = [x for x in text.splitlines() if x.strip() and not x.startswith("#")]
-        self.assertEqual(len(pins), len(lines))
+        lines = [x.split("#", 1)[0].split() for x in text.splitlines() if x.strip() and not x.startswith("#")]
+        removed = [f for f in lines if f[0] == "removed"]
+        self.assertTrue(removed and all(len(f) == 2 for f in removed), removed)
+        self.assertEqual(len(pins), len(lines) - len(removed))
+        self.assertEqual([k for k in pins if k.split()[0] == "removed"], [])
         self.assertTrue(all("#" not in v for v in pins.values()), pins)
         self.assertIn("command g++-16", pins)
 
@@ -188,6 +194,7 @@ class SystemPins(unittest.TestCase):
 
 class Statuses(unittest.TestCase):
     """A failing step's status, as its line names it."""
+    ctest_labels = ("fake",)
 
     def fail_line(self, tool, code):
         top = scratch(self)
@@ -217,6 +224,8 @@ class Statuses(unittest.TestCase):
 
 
 class Help(unittest.TestCase):
+    ctest_labels = ("fake",)
+
     def test_help(self):
         """--help names GCC_HOME, the compiler option it fills, and each
         sanitizer runtime's symbolizer variable."""
