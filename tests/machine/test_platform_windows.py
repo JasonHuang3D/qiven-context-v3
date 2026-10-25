@@ -14,6 +14,7 @@ from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
+from tests.contract.platform_machine import PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_process import PlatformProcess
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
@@ -44,11 +45,15 @@ class WindowsBinding(PlatformBinding):
     # create and read, replace, stage and lock are win/files', in package 5;
     # the drive's location request is the fake's alone until then; program,
     # start and run are win/process', the children qiven3-child's, in
-    # package 5 too.
+    # package 5 too; so are facts and synced (win/facts'), program
+    # (win/process') and residual, the machine cases'.
     CREATE_READ = False
     STAGE_LOCK = False
     LOCATION = False
     PROCESSES = False
+    FACTS = False
+    PROGRAM = False
+    RESIDUAL = False
     TAGS = frozenset({"files", "processes", "machine"})
     COUNT_HANDLES = True
     ctest_labels = ("drive",)
@@ -72,8 +77,33 @@ class WindowsBinding(PlatformBinding):
 
 
 class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformRest,
-              PlatformLast, PlatformMemory, PlatformRestMachine, unittest.TestCase):
+              PlatformLast, PlatformMemory, PlatformMachine, PlatformRestMachine, unittest.TestCase):
     pass
+
+
+# The machine cases' skips until their members land; each case's flag
+# set true drops its entry here.
+UNTIL = {
+    "test_P17_facts_here": "until package 5: facts: win/facts",
+    "test_P18_residual_here": "until package 5: residual",
+    "test_P21_program": "until package 5: program: win/process",
+    "test_P22_forms_here": "until package 5: synced: win/facts",
+}
+
+
+class MachineUntil(unittest.TestCase):
+    """Windows' cases P17, P18, P21 and P22 run here: each member answers
+    unsupported, and the case skips, by its reason."""
+    ctest_labels = ("drive",)
+
+    def setUp(self):
+        if sys.platform != "win32":
+            self.skipTest("not applicable: the Windows adapter is built on Windows alone")
+
+    def test_machine_until(self):
+        reasons, others = skip_reasons(Windows, tuple(UNTIL))
+        self.assertEqual(others, [])
+        self.assertEqual(reasons, UNTIL)
 
 
 def plant_handle(pid):

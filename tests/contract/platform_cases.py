@@ -14,7 +14,8 @@ not applicable, a skip with the reason.
 Here: P1 and P2. P3 to P8 and P16 are location's
 (contract/platform_location.py), P9, P19 and P25 the files'
 (contract/platform_files.py), P10 to P15 and P20 the processes'
-(contract/platform_process.py).
+(contract/platform_process.py), P17, P18, P21 and P22 the machine's
+(contract/platform_machine.py).
 """
 
 import shutil
