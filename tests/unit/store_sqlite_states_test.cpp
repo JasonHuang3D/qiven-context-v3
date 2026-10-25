@@ -6,7 +6,8 @@
 // budget for a connection; cache_shared: two connections' caches at once,
 // within the slots and past them; slots_refused: an engine heap refused
 // while one is installed, its slots kept, or by its configuration's
-// failed call, none kept. pending: a
+// failed call, none kept; second_engine: an engine made while one is
+// installed refused before its pages, the first serving on. pending: a
 // forget's purge left pending by a reader's snapshot ("reader"), heads
 // reporting it; a writer holding the write lock, an append StoreBusy after
 // the busy wait and a purge pending "writer"; done once both end; scans by
@@ -527,4 +528,70 @@ QIVEN3_CASE(store_sqlite, paths) {
     CHECK_EQ(sqlite::directory_of("Q:\\a\\store.db"), std::string_view("Q:\\a"));
     CHECK_EQ(sqlite::directory_of("/a/b/store.db"), std::string_view("/a/b"));
     CHECK_EQ(sqlite::directory_of("store.db"), std::string_view());
+}
+
+// A second engine made while one is installed: refused, typed, before its
+// pages, the platform not called and the installed heap not asked, its
+// bytes and slots as before; an engine heap on pages of the case's own
+// refused by the heap's own check, as when two are made at once; the store
+// on the first then served: a scan, a forget with its purge, verify.
+QIVEN3_CASE(store_sqlite, second_engine) {
+    const auto rig = std::make_unique<Rig>();
+    const auto course = std::make_unique<Course>(rig->fake);
+    const auto store = std::make_unique<Store>(Store::open(text(rig->root / "e" / "store.db"), true, false, rig->fake));
+    course->fill(*store);
+    const Held before = held(*rig);
+    const std::size_t calls = rig->fake.calls().size();
+    const std::size_t lent = rig->fake.lent();
+    const std::string installed = "StoreError internal: an engine heap is installed already";
+#if defined(QIVEN3_FAULTS)
+    // The platform's calls, the engine's and the installed heap's allocations counted, none failed.
+    qiven3::memory::Countdown platform;
+    qiven3::memory::Countdown engine;
+    qiven3::memory::Countdown heap;
+    rig->fake.attach(&platform);
+    sqlite::attach_calls(&engine, nullptr);
+    rig->engine->heap().attach(&heap);
+#endif
+    const std::string refused = raised([&] { const Engine second(rig->fake); });
+#if defined(QIVEN3_FAULTS)
+    rig->fake.attach(nullptr);
+    sqlite::attach_calls(nullptr, nullptr);
+    rig->engine->heap().attach(nullptr);
+    std::cout << "store_sqlite.second_engine: faults: platform calls " << platform.calls() << ", engine calls "
+              << engine.calls() << ", engine heap allocations " << heap.calls() << "\n";
+    CHECK(platform.calls() == 0 && engine.calls() == 0 && heap.calls() == 0);
+#else
+    std::cout << "store_sqlite.second_engine: faults: not applicable: built without QIVEN3_FAULTS\n";
+#endif
+    CHECK_EQ(refused, installed);
+    CHECK_EQ(rig->fake.calls().size(), calls);
+    CHECK_EQ(rig->fake.lent(), lent);
+    {
+        std::vector<std::byte> pages(qiven3::store::engine_budget);
+        CHECK_EQ(raised([&] { const sqlite::EngineHeap h(pages, 1); }), installed);
+    }
+    const Held after = held(*rig);
+    std::cout << "store_sqlite.second_engine: " << refused << "; platform calls " << rig->fake.calls().size() - calls
+              << ", pages lent " << rig->fake.lent() - lent << "; heap " << after.used << " (peak " << after.peak
+              << ") of " << rig->engine->heap().budget() << ", slots " << after.slots.used << " of "
+              << after.slots.count << "\n";
+    CHECK(sqlite::engine_ready());
+    CHECK(after.used == before.used && after.peak == before.peak);
+    CHECK(after.slots.count == before.slots.count && after.slots.size == before.slots.size);
+    CHECK(after.slots.used == before.slots.used && after.slots.overflow == before.slots.overflow);
+    std::vector<std::byte> bytes(std::size_t{1} << 16U);
+    Arena arena(bytes);
+    const Chars chars(arena);
+    CHECK_EQ(scanned(*store, RangeView{qiven_scope, implementer_lane, std::nullopt}, chars), 4U);
+    {
+        Vector<Id> erased{chars};
+        const Written w =
+            store->forget(qiven_scope, implementer_lane, course->acc_id, course->e_lines, course->guard, erased);
+        CHECK(w.purge.done);
+    }
+    const qiven3::store::Counts counts = store->verify();
+    CHECK(counts.entries == 5 && counts.forgets == 1 && counts.lanes == 1);
+    CHECK_EQ(reason(store->close()), std::string("done"));
+    CHECK_EQ(arena.used(), 0U);
 }

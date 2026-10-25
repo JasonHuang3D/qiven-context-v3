@@ -71,7 +71,10 @@ namespace qiven3::store {
 
 // The engine heap over the platform's pages: the engine's budget, a
 // connection's, times connections. Made before the first open and kept
-// until every store it served is closed; one at a time in a process.
+// until every store it served is closed; one at a time in a process: one
+// made while another is installed is refused, StoreError internal, before
+// it takes its pages, with no platform call and no allocation, the
+// installed one unchanged.
 template <platform::Platform P>
 class Engine {
 public:
@@ -90,6 +93,11 @@ public:
 
 private:
     static std::size_t bytes(std::size_t connections) {
+        // Before the pages; between two made at once, the engine heap's
+        // own check, atomic, decides.
+        if (sqlite::engine_ready()) {
+            throw StoreError(Code::internal, sqlite::open_name, {}, "an engine heap is installed already");
+        }
         const std::optional<std::size_t> n = memory::mul(engine_budget, connections);
         if (!n || connections == 0) {
             throw memory::MemoryError::budget("store/sqlite", engine_budget, connections, 0);

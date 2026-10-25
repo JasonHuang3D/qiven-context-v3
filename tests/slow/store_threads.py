@@ -19,6 +19,11 @@ from tests.drive.session import DriveError, entry_wire
 
 # M5's and M6's floors: the changes of writer along M5's chain [proposal].
 M5_CHANGES = 34
+# M6 in three parts, each within 30 s under the thread sanitizer: each M6's whole procedure, its 6
+# threads into its 3 lanes, at a share of its 500 claims a thread; together 500 a thread, 1,000 a
+# lane, 3,000 entries.
+M6_CLAIMS = 500
+M6_PARTS = (167, 167, 166)
 CLAIM = re.compile(r"Thread (\d+) number (\d+)\.")
 
 
@@ -95,25 +100,42 @@ class StoreThreads:
             changes = sum(1 for a, b in zip(threads, threads[1:]) if a != b)
             self.assertGreaterEqual(changes, M5_CHANGES, f"changes of writer: {changes}")
 
-    def test_S21_m6_threads(self):
-        """S21 (M6 with threads): 6 threads append 500 claims each, one a
-        call, into 3 lanes each shared by 2, under M5's start, retry and
-        pause: 3,000 entries, each thread's number once, read from the
-        bodies; each lane one chain of 1,000 with conflicts above zero;
-        verify passes; the size and count equal the sums recomputed.
-        Needs: none; full suite (F127)."""
+    def m6_part(self, count):
+        """M6 with threads at count claims a thread, one a call, under M5's
+        start, retry and pause: 6 threads into 3 lanes each shared by 2;
+        6 x count entries, each thread's number once, read from the bodies;
+        each lane one chain of 2 x count with conflicts above zero; verify
+        passes; the size and count equal the sums recomputed."""
+        self.assertEqual(sum(M6_PARTS), M6_CLAIMS)
         with self.drive() as drive:
             self.needs(drive)
             m, store = Maker(drive), drive.store_make()
             lanes = [LANES[i // 2] for i in range(6)]
-            got = self.race(drive, store, m, lanes, 500)
+            got = self.race(drive, store, m, lanes, count)
             entries = []
             for lane in LANES:
                 mine = {i: t["ids"] for i, t in enumerate(got) if lanes[i] == lane}
-                entries += self.chain(store, lane, mine, 1000)[0]
+                entries += self.chain(store, lane, mine, 2 * count)[0]
                 conflicts = sum(got[i]["conflicts"] for i in mine)
                 self.assertGreater(conflicts, 0, f"{lane}: {got}")
             self.assert_whole(store, entries, 3)
+
+    def test_S21_m6a_threads(self):
+        """S21 (M6 with threads), its first part: m6_part at 167 claims a
+        thread, 1,002 entries, each lane a chain of 334. Needs: none; full
+        suite (F127)."""
+        self.m6_part(M6_PARTS[0])
+
+    def test_S21_m6b_threads(self):
+        """S21 (M6 with threads), its second part: m6_part at 167, as the
+        first. Needs: none; full suite (F127)."""
+        self.m6_part(M6_PARTS[1])
+
+    def test_S21_m6c_threads(self):
+        """S21 (M6 with threads), its third part: m6_part at 166, 996
+        entries, each lane a chain of 332. Needs: none; full suite
+        (F127)."""
+        self.m6_part(M6_PARTS[2])
 
     def test_S21_other_thread(self):
         """S21: each call on a store object, its scan and its export from

@@ -22,8 +22,12 @@
 // gives its snapshot's heads, forget count, size and count first, then its
 // lines; an import reads any Source of that shape, an export among them.
 //
-// A purge pending is a result with its reason, never an error. Every error
-// is a StoreError (errors.hpp), raised by the kinds raises() gives. Gate is
+// A purge pending is a result with its reason, never an error. The store's
+// own errors are StoreError (errors.hpp), of the kinds raises() gives;
+// beside them an operation raises MemoryError budget for an allocation
+// refused within it, the engine's heap's among them, never a StoreError,
+// and a platform call's PlatformError as the platform gives it (pages,
+// resolve, synced, create). Gate is
 // the check each store runs first: the thread that made the object, then
 // closed, then read-only. Hooks are the step hooks, begun, written,
 // committed and rebuilt, which do nothing in NoHooks; a store takes its
