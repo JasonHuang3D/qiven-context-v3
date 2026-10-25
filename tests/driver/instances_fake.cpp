@@ -24,12 +24,16 @@
 // store_dir, the recorded directory as "dir", or the StoreError refusing
 // it as "refused" (driver/store_wire.hpp's form). location takes its own
 // pages, its budget's, and no arena of the drive's; store_dir's is the
-// member's.
+// member's. For the processes' cases: set_programs, the programs start
+// and run find by their whole argv (the fake's Program); set_found, the
+// paths program(name) gives.
 
 #include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -204,6 +208,41 @@ Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
     return value;
 }
 
+// Each program by its whole argv: its "lines" (each given LF), "err",
+// exit "code", whether it "hang"s, and the stream it "flood"s, "out" or
+// "err"; the earlier ones dropped.
+Result set_programs(Drive& d, memory::Arena&, ArgView request) {
+    std::map<std::vector<std::string>, platform::fake::Program> programs;
+    for (const ArgView item : argument(request, "programs").as_array("programs")) {
+        platform::fake::Program program;
+        program.lines = item.find("lines") ? ops::strings(item, "lines") : std::vector<std::string>();
+        program.err = item.find("err") ? text(item, "err") : std::string();
+        const std::int64_t code = integer(item, "code", 0);
+        if (code < std::numeric_limits<int>::min() || code > std::numeric_limits<int>::max()) {
+            throw RequestError("code: an int");
+        }
+        program.code = static_cast<int>(code);
+        program.hang = flag(item, "hang", false);
+        program.flood = item.find("flood") ? text(item, "flood") : std::string();
+        if (!program.flood.empty() && program.flood != "out" && program.flood != "err") {
+            throw RequestError("flood: out or err");
+        }
+        programs.insert_or_assign(ops::strings(item, "argv"), std::move(program));
+    }
+    d.platform().set_programs(std::move(programs));
+    return std::nullopt;
+}
+
+// program(name)'s paths, [name, path] each; the earlier ones dropped.
+Result set_found(Drive& d, memory::Arena&, ArgView request) {
+    std::map<std::string, std::string, std::less<>> found;
+    for (auto& [name, path] : pairs(request, "found")) {
+        found.insert_or_assign(std::move(name), std::move(path));
+    }
+    d.platform().set_found(std::move(found));
+    return std::nullopt;
+}
+
 struct Own {
     const char* name;
     Drive::Operation operation;
@@ -211,7 +250,7 @@ struct Own {
 };
 
 // The fake's own operations; store_dir's arena the member's.
-constexpr std::array<Own, 14> own = {{
+constexpr std::array<Own, 16> own = {{
     {"set_clock", set_clock, nullptr},
     {"set_read_error", set_read_error, nullptr},
     {"refuse_pages", refuse_pages, nullptr},
@@ -226,6 +265,8 @@ constexpr std::array<Own, 14> own = {{
     {"set_encoding", set_encoding, nullptr},
     {"location", location_command, nullptr},
     {"store_dir", store_dir, ops::member},
+    {"set_programs", set_programs, nullptr},
+    {"set_found", set_found, nullptr},
 }};
 
 }  // namespace

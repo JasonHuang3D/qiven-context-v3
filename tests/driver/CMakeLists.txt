@@ -8,6 +8,7 @@ add_library(qiven3_drive_common STATIC
   drive.hpp
   platform_ops.hpp
   platform_ops_impl.hpp
+  platform_child.hpp
   platform_files.hpp
 )
 target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests")

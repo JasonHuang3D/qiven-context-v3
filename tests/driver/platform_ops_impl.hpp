@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "driver/platform_child.hpp"
 #include "driver/platform_files.hpp"
 #include "driver/platform_ops.hpp"
 
@@ -40,18 +41,6 @@ inline Value reading(const platform::Reading& r) {
     value.set("state", state_name(r.state));
     value.set("reason", copy(r.reason));
     return value;
-}
-
-inline std::vector<std::string> strings(ArgView request, std::string_view key) {
-    std::vector<std::string> out;
-    for (const ArgView item : argument(request, key).as_array(key)) {
-        out.push_back(item.as_string(key));
-    }
-    return out;
-}
-
-inline std::vector<std::string_view> views(const std::vector<std::string>& texts) {
-    return std::vector<std::string_view>(texts.begin(), texts.end());
 }
 
 inline std::string two(unsigned value) {
@@ -170,36 +159,12 @@ Result program(Drive<P>& d, memory::Arena& arena, ArgView request) {
     return scalar(copy(out));
 }
 
-// run's command: argv, cwd, env as [name, value] pairs, the deadline and
-// the caps ({"out": n, "err": n}, 1 MiB each when absent).
+// run's command, start's (driver/platform_child.hpp), and its "data".
 template <class P>
 Result run(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    const std::vector<std::string> argv = strings(request, "argv");
-    const std::vector<std::string_view> argv_views = views(argv);
-    const std::string cwd = request.find("cwd") ? text(request, "cwd") : std::string();
-    std::vector<std::pair<std::string, std::string>> env;
-    if (const std::optional<ArgView> given = request.find("env")) {
-        for (const ArgView pair : given->as_array("env")) {
-            const auto& two_items = pair.as_array("env");
-            if (two_items.size() != 2) {
-                throw RequestError("env: each item is [name, value]");
-            }
-            env.emplace_back(two_items[0].as_string("env"), two_items[1].as_string("env"));
-        }
-    }
-    const std::vector<std::pair<std::string_view, std::string_view>> env_views(env.begin(), env.end());
-    platform::Command command;
-    command.argv = argv_views;
-    command.cwd = cwd;
-    command.env = env_views;
-    command.deadline = deadline(request, "deadline");
-    const std::optional<ArgView> caps = request.find("caps");
-    const std::int64_t mib = 1 << 20;
-    command.caps.out = static_cast<std::uint64_t>(caps ? integer(*caps, "out", mib) : mib);
-    command.caps.err = static_cast<std::uint64_t>(caps ? integer(*caps, "err", mib) : mib);
     const std::string data = request.find("data") ? from_hex(text(request, "data")) : std::string();
     platform::Ran ran(arena);
-    d.platform().run(command, data, ran);
+    with_command(request, [&](const platform::Command& command) { d.platform().run(command, data, ran); });
     Value value;
     value.set("code", ran.code);
     value.set("out", to_hex(ran.out));
@@ -311,16 +276,8 @@ inline std::size_t read_budget(ArgView request) {
 }
 
 inline std::size_t run_budget(ArgView request) {
-    const std::optional<ArgView> caps = request.find("caps");
-    const std::int64_t mib = 1 << 20;
-    const auto cap = [&](std::string_view key) {
-        const std::int64_t n = caps ? integer(*caps, key, mib) : mib;
-        if (n < 0) {
-            throw RequestError(std::string(key) + ": a cap, not negative");
-        }
-        return static_cast<std::size_t>(n);
-    };
-    return sum(member_budget, sum(cap("out"), cap("err")));
+    const auto bytes = [&](std::string_view key) { return static_cast<std::size_t>(cap(request, key)); };
+    return sum(member_budget, sum(bytes("out"), bytes("err")));
 }
 
 #if defined(QIVEN3_FAULTS)
@@ -355,6 +312,13 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"read", {ops::read<P>, ops::read_budget}},
         {"program", {ops::program<P>, ops::member}},
         {"run", {ops::run<P>, ops::run_budget}},
+        {"start", {ops::start<P>, ops::member}},
+        {"child_read_line", {ops::child_read_line<P>, ops::member}},
+        {"child_write", {ops::child_write<P>, ops::member}},
+        {"child_close_input", {ops::child_close_input<P>, ops::member}},
+        {"child_wait", {ops::child_wait<P>, ops::member}},
+        {"child_kill", {ops::child_kill<P>, ops::member}},
+        {"child_end", {ops::child_end<P>, ops::member}},
         {"code_page", {ops::code_page<P>, ops::member}},
         {"stdout", {ops::standard_output<P>, ops::member}},
         {"residual", {ops::residual<P>, ops::member}},

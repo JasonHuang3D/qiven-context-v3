@@ -3,7 +3,8 @@
 
 Here: P23 and P24 (PlatformRest), and P26 (PlatformRestMachine, apart, as
 it needs machine). P19 and P25 are the files' (contract/platform_files.py);
-P20 to P22 come with the platform's processes and facts.
+P20 is the processes' (contract/platform_process.py); P21 and P22 come
+with the machine's facts.
 """
 
 import json

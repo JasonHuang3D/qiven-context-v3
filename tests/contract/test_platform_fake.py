@@ -1,7 +1,8 @@
 """The platform's cases on the fake, every system of the CI matrix, through
 qiven3-drive-fake.
 
-The fake has files, and lacks processes and machine. Its configuration
+The fake has files, and lacks processes and machine: its programs, by
+set_programs, carry the processes' cases' fake halves. Its configuration
 location with no override is the drive's, "<root>/qiven3"; its files'
 operations write under its root alone.
 """
@@ -13,6 +14,7 @@ from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_memory import PlatformMemory
+from tests.contract.platform_process import PlatformProcess
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import FAKE
 
@@ -46,8 +48,8 @@ class FakeBinding(PlatformBinding):
         d.call("set_busy", **times)
 
 
-class Fake(FakeBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformRest, PlatformLast,
-           PlatformMemory, unittest.TestCase):
+class Fake(FakeBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformRest,
+           PlatformLast, PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 

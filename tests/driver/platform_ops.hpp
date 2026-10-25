@@ -22,7 +22,8 @@
 // stage's Staged until publish or discard ends it, staged_open's Sink
 // until sink_close, lock's Lock until lock_release; a publish or a discard
 // refused keeps its Staged, so that a later discard tries again. Each is
-// a member, on the member's budget.
+// a member, on the member's budget. start's Child stays held by an id
+// until child_end (driver/platform_child.hpp), as a member too.
 //
 // thread: one
 
@@ -47,6 +48,7 @@ public:
     using Staged = decltype(std::declval<P&>().stage(std::string_view{}));
     using Sink = decltype(std::declval<Staged&>().open(std::string_view{}));
     using Lock = decltype(std::declval<P&>().lock(std::string_view{}, platform::Seconds{}));
+    using Child = decltype(std::declval<P&>().start(std::declval<const platform::Command&>()));
     using Operation = std::optional<Value> (*)(PlatformDrive&, memory::Arena&, ArgView);
     // The operation's stated budget for this request, in bytes.
     using Budget = std::size_t (*)(ArgView);
@@ -75,6 +77,7 @@ public:
     std::map<std::int64_t, Staged>& staged() noexcept { return staged_; }
     std::map<std::int64_t, Sink>& sinks() noexcept { return sinks_; }
     std::map<std::int64_t, Lock>& locks() noexcept { return locks_; }
+    std::map<std::int64_t, Child>& children() noexcept { return children_; }
     std::int64_t next_id() noexcept { return next_++; }
 
 private:
@@ -96,6 +99,7 @@ private:
     std::map<std::int64_t, Staged> staged_;
     std::map<std::int64_t, Sink> sinks_;
     std::map<std::int64_t, Lock> locks_;
+    std::map<std::int64_t, Child> children_;
     std::int64_t next_ = 1;
 };
 

@@ -15,6 +15,7 @@ from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_memory import PlatformMemory
+from tests.contract.platform_process import PlatformProcess
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import WINDOWS, Drive
 
@@ -41,10 +42,13 @@ class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
     # create and read, replace, stage and lock are win/files', in package 5;
-    # the drive's location request is the fake's alone until then.
+    # the drive's location request is the fake's alone until then; program,
+    # start and run are win/process', the children qiven3-child's, in
+    # package 5 too.
     CREATE_READ = False
     STAGE_LOCK = False
     LOCATION = False
+    PROCESSES = False
     TAGS = frozenset({"files", "processes", "machine"})
     COUNT_HANDLES = True
     ctest_labels = ("drive",)
@@ -67,8 +71,8 @@ class WindowsBinding(PlatformBinding):
         return self.scratch
 
 
-class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformRest, PlatformLast,
-              PlatformMemory, PlatformRestMachine, unittest.TestCase):
+class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformRest,
+              PlatformLast, PlatformMemory, PlatformRestMachine, unittest.TestCase):
     pass
 
 

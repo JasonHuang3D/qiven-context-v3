@@ -217,6 +217,10 @@ public:
         config_.encoding = encoding;
         output_.set_encoding(encoding);
     }
+    // From now: the programs start and run find, by their whole argv; the
+    // paths program(name) gives, by the name.
+    void set_programs(std::map<std::vector<std::string>, Program> programs) { config_.programs = std::move(programs); }
+    void set_found(std::map<std::string, std::string, std::less<>> found) { config_.found = std::move(found); }
     // The k-th call of pages from now refuses, memory; 0 none.
     void refuse_pages(std::size_t k) noexcept;
     // The operations called, by the contract's names, in order.
