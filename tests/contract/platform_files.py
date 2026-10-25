@@ -9,9 +9,9 @@ deadline; none given, none held. On the fake it is its busy counts;
 "target" and "temporary" hold replace's rename, "publish" publish's and
 discard's; on the Windows drive real handles (machine/windows_holds.py).
 The Windows adapter's replace, stage and lock are its module win/files',
-in package 5; replace and lock came first, so a binding with STAGE false
-checks that stage answers unsupported, and the case, or P25's part after
-replace, is skipped.
+and both bindings set STAGE true; a binding of an adapter without stage
+sets it false, checks that stage answers unsupported, and skips the case,
+or P25's part after replace.
 """
 
 import os

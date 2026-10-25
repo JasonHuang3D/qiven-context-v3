@@ -240,6 +240,16 @@ if(WIN32)
     LINK qiven3_faults qiven3_platform_win)
 endif()
 
+# win/files' stage on the Windows adapter, on Windows alone, as win_files':
+# stage, open, write, close, publish and discard on real files; the bound
+# of 16 open files to its edge; each Win32 call failed in turn; the heap
+# counted by the binary's own operator new, which no other binary has.
+if(WIN32)
+  qiven3_add_cases(qiven3_unit_win_files_stage LABELS fast fake
+    SOURCES win_files_stage_test.cpp win_files_stage_memory_test.cpp
+    LINK qiven3_faults qiven3_platform_win)
+endif()
+
 # store/errors' cases: each kind with its fields and its code, `secret`
 # with no id, the cuts at a code point and the names, evaluated by the
 # compiler; the widths against the entry's; each kind's line; an error

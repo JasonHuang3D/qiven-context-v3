@@ -340,7 +340,7 @@ void WindowsPlatform::replace(std::string_view path, std::string_view data, Seco
     files::replace(files_, path, data, deadline);
 }
 
-WindowsStaged WindowsPlatform::stage(std::string_view) { not_yet("stage"); }
+WindowsStaged WindowsPlatform::stage(std::string_view directory) { return files::stage(files_, directory); }
 
 void WindowsPlatform::create(std::string_view path, bool directory) { files_.create(path, directory); }
 

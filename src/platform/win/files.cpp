@@ -26,10 +26,30 @@ using paths::units;
     throw PlatformError(code, operation, detail);
 }
 
+// A handle closed at the scope's end.
+class Opened {
+public:
+    explicit Opened(void* handle) noexcept : handle_(handle) {}
+    Opened(const Opened&) = delete;
+    Opened& operator=(const Opened&) = delete;
+    Opened(Opened&&) = delete;
+    Opened& operator=(Opened&&) = delete;
+    ~Opened() {
+        if (handle_ != INVALID_HANDLE_VALUE) {
+            CloseHandle(handle_);
+        }
+    }
+
+private:
+    void* handle_;
+};
+
+}  // namespace
+
 // UTF-8 into `into`, strictly, ended by a null: its length, or 0 with
 // error the conversion's (1113), or 206 past the buffer. An empty text is
 // 0 with error 123 (ERROR_INVALID_NAME).
-std::size_t to_wide(std::string_view text, std::span<wchar_t> into, DWORD& error) noexcept {
+std::size_t WindowsFiles::to_wide(std::string_view text, std::span<wchar_t> into, DWORD& error) noexcept {
     into[0] = L'\0';
     error = ERROR_INVALID_NAME;
     if (text.empty()) {
@@ -57,28 +77,12 @@ std::size_t to_wide(std::string_view text, std::span<wchar_t> into, DWORD& error
 }
 
 // The handle closed, if open, and nulled.
-void shut(void*& handle) noexcept {
+void WindowsFiles::shut(void*& handle) noexcept {
     if (handle != nullptr && handle != INVALID_HANDLE_VALUE) {
         CloseHandle(handle);
     }
     handle = nullptr;
 }
-
-// A handle closed at the scope's end.
-class Opened {
-public:
-    explicit Opened(void* handle) noexcept : handle_(handle) {}
-    Opened(const Opened&) = delete;
-    Opened& operator=(const Opened&) = delete;
-    Opened(Opened&&) = delete;
-    Opened& operator=(Opened&&) = delete;
-    ~Opened() { shut(handle_); }
-
-private:
-    void* handle_;
-};
-
-}  // namespace
 
 bool WindowsFiles::faulted() noexcept {
 #if defined(QIVEN3_FAULTS)
@@ -231,26 +235,7 @@ files::Error WindowsFiles::delete_temporary(std::string_view path, const files::
     return DeleteFileW(second().data()) == FALSE ? GetLastError() : 0;
 }
 
-// --- stage: not built yet ---
-
-files::Error WindowsFiles::make_staged(std::string_view, const files::Digits&, Dir&) { return ERROR_NOT_SUPPORTED; }
-
-files::Error WindowsFiles::open_staged(const Dir&, std::string_view, File&) { return ERROR_NOT_SUPPORTED; }
-
-files::Error WindowsFiles::write(const File&, std::string_view) { return ERROR_NOT_SUPPORTED; }
-
-files::Error WindowsFiles::close(File& file) noexcept {
-    shut(file.handle);
-    return 0;
-}
-
-files::Error WindowsFiles::close_all(const Dir&) { return ERROR_NOT_SUPPORTED; }
-
-files::Error WindowsFiles::publish(const Dir&, std::string_view) { return ERROR_NOT_SUPPORTED; }
-
-files::Error WindowsFiles::discard(const Dir&, Detail&) noexcept { return 0; }
-
-void WindowsFiles::forget(Dir& dir) noexcept { dir.id = 0; }
+// --- stage: stage.cpp ---
 
 // --- lock ---
 

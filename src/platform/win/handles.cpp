@@ -1,7 +1,7 @@
 // The Windows adapter's handles (platform/win/windows.hpp): Pages over
-// VirtualAlloc, and stage's and the processes' handles, whose operations
-// are their modules' (win/files' stage, win/process) and PlatformError
-// unsupported until then. The Lock is files' (platform/win/files.hpp).
+// VirtualAlloc, and the processes' handle, whose operations are its
+// module's (win/process) and PlatformError unsupported until then. The
+// Lock, Staged and Sink are files' (platform/win/files.hpp).
 
 #include "platform/win/windows.hpp"
 
@@ -40,32 +40,6 @@ WindowsPages::~WindowsPages() {
 std::span<std::byte> WindowsPages::bytes() const noexcept {
     return std::span<std::byte>(static_cast<std::byte*>(address_), size_);
 }
-
-WindowsSink::WindowsSink(WindowsSink&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
-
-WindowsSink& WindowsSink::operator=(WindowsSink&& other) noexcept {
-    if (this != &other) {
-        WindowsSink old(std::move(*this));
-        handle_ = std::exchange(other.handle_, nullptr);
-    }
-    return *this;
-}
-
-WindowsSink::~WindowsSink() {
-    if (handle_ != nullptr) {
-        CloseHandle(handle_);
-    }
-}
-
-void WindowsSink::write(std::string_view) { not_yet("write"); }
-
-void WindowsSink::close() { not_yet("close"); }
-
-WindowsSink WindowsStaged::open(std::string_view) { not_yet("open"); }
-
-void WindowsStaged::publish(std::string_view, Seconds) { not_yet("publish"); }
-
-void WindowsStaged::discard() { not_yet("discard"); }
 
 WindowsChild::WindowsChild(WindowsChild&& other) noexcept
     : process_(std::exchange(other.process_, nullptr)), job_(std::exchange(other.job_, nullptr)),

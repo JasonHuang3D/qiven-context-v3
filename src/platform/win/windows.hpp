@@ -12,13 +12,13 @@
 //
 // Its first operations are the configuration location, resolve, normcase,
 // the console, random bytes, the clock, pages and wipe; win/files' are
-// replace, create, remove_directory, read and lock (platform/win/files.hpp).
-// stage, the facts (facts, synced, residual) and the processes (program,
-// start, run) are PlatformError unsupported until their modules (win/files'
-// stage, win/facts, win/process) are built; their handles' types are here so
-// that the adapter satisfies the concept now. A Lock is files' over the
-// adapter's WindowsFiles, which lives in the adapter: so the adapter does
-// not move, as a handle holds its System's address.
+// replace, stage, create, remove_directory, read and lock
+// (platform/win/files.hpp). The facts (facts, synced, residual) and the
+// processes (program, start, run) are PlatformError unsupported until their
+// modules (win/facts, win/process) are built; their handles' types are here
+// so that the adapter satisfies the concept now. A Lock, Staged and Sink
+// are files' over the adapter's WindowsFiles, which lives in the adapter:
+// so the adapter does not move, as a handle holds its System's address.
 //
 // Its scratch, a path's UTF-16 forms, lives in pages it takes once
 // through pages(): 128 KiB for two paths of 32,767 UTF-16 units, and the
@@ -42,60 +42,15 @@ namespace qiven3::platform::win {
 // "ERROR_PATH_NOT_FOUND (3)", or "Win32 error <n>" for one off the table.
 void add_error(Detail& detail, unsigned long error) noexcept;
 
-// Pages from VirtualAlloc, reserved and committed at once; the destructor
-// gives them back by VirtualFree. Empty for a count of 0.
-class WindowsPages {
-public:
-    WindowsPages() noexcept = default;
-    WindowsPages(void* address, std::size_t size) noexcept : address_(address), size_(size) {}
-    WindowsPages(WindowsPages&& other) noexcept;
-    WindowsPages& operator=(WindowsPages&& other) noexcept;
-    WindowsPages(const WindowsPages&) = delete;
-    WindowsPages& operator=(const WindowsPages&) = delete;
-    ~WindowsPages();
+// Pages: WindowsPages, in platform/win/files.hpp, as a staging directory
+// holds its path on them.
 
-    [[nodiscard]] std::span<std::byte> bytes() const noexcept;
-    // The pages' first byte, as VirtualAlloc gave it.
-    [[nodiscard]] void* address() const noexcept { return address_; }
-
-private:
-    void* address_ = nullptr;
-    std::size_t size_ = 0;
-};
-
-// A file written as a stream (win/files, package 5): one handle; the
-// destructor closes it.
-class WindowsSink {
-public:
-    WindowsSink() noexcept = default;
-    WindowsSink(WindowsSink&& other) noexcept;
-    WindowsSink& operator=(WindowsSink&& other) noexcept;
-    WindowsSink(const WindowsSink&) = delete;
-    WindowsSink& operator=(const WindowsSink&) = delete;
-    ~WindowsSink();
-
-    void write(std::string_view bytes);
-    void close();
-
-private:
-    void* handle_ = nullptr;
-};
-
-// A staging directory (win/files, package 5); the destructor discards it
-// if it is unpublished. It holds nothing until then.
-class WindowsStaged {
-public:
-    WindowsStaged() noexcept = default;
-    WindowsStaged(WindowsStaged&&) noexcept = default;
-    WindowsStaged& operator=(WindowsStaged&&) noexcept = default;
-    WindowsStaged(const WindowsStaged&) = delete;
-    WindowsStaged& operator=(const WindowsStaged&) = delete;
-    ~WindowsStaged() = default;
-
-    WindowsSink open(std::string_view path);
-    void publish(std::string_view name, Seconds deadline);
-    void discard();
-};
+// A file written as a stream and a staging directory (win/files): files'
+// over the adapter's WindowsFiles, as the Lock is. The Sink holds its
+// System's address and its file's serial; the Staged its System's
+// address, its Dir (id, pages, units) and its 16 digits.
+using WindowsSink = files::Sink<WindowsFiles>;
+using WindowsStaged = files::Staged<WindowsFiles>;
 
 // A held lock (win/files): its System's address and one handle; the
 // destructor unlocks and closes it.
@@ -208,20 +163,22 @@ static_assert(Pages<WindowsPages> && Sink<WindowsSink> && Staged<WindowsStaged> 
               Child<WindowsChild>);
 static_assert(Platform<WindowsPlatform>);
 
-// The pinned sizes, on x64: Pages its address and size; Sink one handle;
-// Lock its System's address and one handle; Child the process, the Job
-// Object and three pipes; the adapter its scratch, the override's size, two
-// flags and its WindowsFiles, the adapter's address and, under
-// QIVEN3_FAULTS, the countdown's.
+// The pinned sizes, on x64: Pages its address and size; Sink and Lock
+// their System's address and one handle (the Sink's its file's serial);
+// Staged its System's address, its Dir and its digits; Child the process,
+// the Job Object and three pipes; the adapter its scratch, the override's
+// size, two flags and its WindowsFiles: the adapter's address, under
+// QIVEN3_FAULTS the countdown's, stage's 16 slots of 24 bytes and a serial.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
-static_assert(sizeof(WindowsSink) == 8, "one handle");
+static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
+static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "the System's address, Dir, digits");
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
 #if defined(QIVEN3_FAULTS)
-static_assert(sizeof(WindowsFiles) == 16 && sizeof(WindowsPlatform) == 48, "scratch, size, flags, files");
+static_assert(sizeof(WindowsFiles) == 408 && sizeof(WindowsPlatform) == 440, "scratch, size, flags, files");
 #else
-static_assert(sizeof(WindowsFiles) == 8 && sizeof(WindowsPlatform) == 40, "scratch, size, flags, files");
+static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
 #endif
 #endif
 

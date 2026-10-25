@@ -46,14 +46,14 @@ def local_app_data():
 class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
-    # create, read, remove_directory, replace and lock are win/files'; its
-    # stage is left of it in package 5; the drive's location request is
-    # the fake's alone until then; program, start and run are win/process',
-    # the children qiven3-child's, in package 5 too; so are facts and
-    # synced (win/facts'), program (win/process') and residual, the
-    # machine cases'.
+    # create, read, remove_directory, replace, lock and stage are
+    # win/files'; the drive's location request is the fake's alone until
+    # package 5; program, start and run are win/process', the children
+    # qiven3-child's, in package 5 too; so are facts and synced
+    # (win/facts'), program (win/process') and residual, the machine
+    # cases'.
     CREATE_READ = True
-    STAGE = False
+    STAGE = True
     LOCATION = False
     PROCESSES = False
     FACTS = False
@@ -120,20 +120,18 @@ class MachineUntil(unittest.TestCase):
         self.assertEqual(reasons, UNTIL)
 
 
-# The files' cases' skips: P19's and P25's until stage lands, which STAGE
-# set true drops; P20's for its child half, after its lock half.
+# The files' cases' skips: P20's for its child half, after its lock half;
+# P19 and P25 run whole, STAGE true.
 FILES_UNTIL = {
-    **dict.fromkeys(("test_P19_publish", "test_P25_not_utf8"), "until package 5: stage: win/files"),
     "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
                      "win/process and qiven3-child",
 }
 
 
 class FilesUntil(unittest.TestCase):
-    """Windows' cases P19, P20 and P25 run here, each skipping by its
-    reason: P19 at stage, which answers unsupported; P25 after its resolve
-    and replace; P20 after its lock half, on a lock held by another
-    handle."""
+    """Windows' files cases run here, P20 alone skipping, by its reason,
+    after its lock half, on a lock held by another handle; P19 and P25
+    run through stage."""
     ctest_labels = ("drive",)
 
     def setUp(self):

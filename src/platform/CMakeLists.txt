@@ -19,6 +19,7 @@ if(WIN32)
     win/handles.cpp
     win/paths.cpp
     win/paths.hpp
+    win/stage.cpp
     win/windows.cpp
     win/windows.hpp
   )
