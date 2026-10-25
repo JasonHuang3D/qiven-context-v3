@@ -296,9 +296,10 @@ Error FakeFiles::discard(const Dir& dir, Detail& left) noexcept {
                 ++at;
             }
         }
+        // What is left is named by its path inside the directory, nothing
+        // for the directory itself; files names the directory.
         const fs::path& made = staging->second.temporary;
         if (faulted()) {
-            left.add(to_text(made.filename().u8string()));
             return files::general;
         }
         std::error_code error;
@@ -314,12 +315,10 @@ Error FakeFiles::discard(const Dir& dir, Detail& left) noexcept {
         }
         fs::remove_all(made, error);
         if (error) {
-            left.add("the staging directory");
             return win32(error, files::already_exists);
         }
         return files::none;
     } catch (...) {
-        left.add("the staging directory");
         return files::general;
     }
 }

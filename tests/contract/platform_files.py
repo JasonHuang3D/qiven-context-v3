@@ -147,9 +147,9 @@ class PlatformFiles:
             self.assertFalse((bags / "three").exists())
             left = staging_left(bags)
             self.assertEqual(len(left), 1, left)
-            # The detail names the file left by its path inside the staging
-            # directory, the first the held file stopped.
-            self.assertEqual(error.detail, "rename: error 5 (ERROR_ACCESS_DENIED); left bagit.txt, "
+            # The detail names the staging directory left and, by its path
+            # inside it, the first file the held file stopped.
+            self.assertEqual(error.detail, f"rename: error 5 (ERROR_ACCESS_DENIED); left {left[0]}/bagit.txt, "
                                            "delete: error 32 (ERROR_SHARING_VIOLATION)")
             self.assertTrue((bags / left[0] / "bagit.txt").is_file())
             self.hold(d)

@@ -88,7 +88,7 @@ the debugger cases under gdb. macOS stays with CI alone.
 
 The answer is plain text: a line a tree and a step with its outcome and
 seconds, a failing step's status named by tools/status.py, a ctest step's
-as ctest's own ("ctest's status: 8 tests failed": a test failed or timed
+as ctest's own ("ctest's status: 8 (tests failed)": a test failed or timed
 out, or none ran under --no-tests=error); then, after every step's line,
 for each failing step, its first error lines before its last 30, up to
 10, each with its line number in the log (a compiler's, a linker's or

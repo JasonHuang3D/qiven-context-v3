@@ -1,4 +1,4 @@
-"""The structure rules, B1, B2 and B5 to B17, as data, and one checker,
+"""The structure rules, B1, B2, B5 to B17 and B32, as data, and one checker,
 which also runs the safe subset's token rules, B18 to B31 (subset.py).
 
 A rule reads includes, names and link edges from the compiler's and the
@@ -297,7 +297,8 @@ def app_namespace(tokens, i):
 
 
 def source_rules(root, files, out):
-    """B1's text, B2's and B14's strings, B13's and B17's tokens, B15's lines.
+    """B1's text, B2's and B14's strings, B13's and B17's tokens, B15's lines,
+    B32's CR bytes.
     Gives the files holding a goldens path, for B14's writes."""
     goldens = set()
     for rel in files:
@@ -306,6 +307,10 @@ def source_rules(root, files, out):
         if name.endswith((".hpp", ".cpp", ".py", ".cmake")) or name == "CMakeLists.txt":
             if line_count(data) > 600:
                 out.add("B15", rel, detail=f"{line_count(data)} lines")
+            first_cr = data.find(b"\r")
+            if first_cr >= 0:
+                cr_line = data.count(b"\n", 0, first_cr) + 1
+                out.add("B32", rel, detail=f"line {cr_line}: a CR byte")
         text = data.decode("utf-8", "replace")
         if rel.startswith(("src/", "tests/")) and "sqlite3" in text:
             out.add("B1", rel, detail="the text sqlite3")

@@ -6,7 +6,7 @@ why; an unchanged pin keeps the tree and the narrow selection; a tree whose
 mark records no pins is emptied once. Each system's side gives its pins:
 Windows' table, tools/windows-pins.txt and CMakeLists.txt's; inside WSL
 the pin file's, CMakeLists.txt's and the prefix, to every unit it drives.
-A ctest step's status is named as ctest's, 8 as its tests failed; another
+A ctest step's status is named as ctest's, 8 as (tests failed); another
 step's 8 stays unnamed. And --help names GCC_HOME and each sanitizer
 runtime's symbolizer variable."""
 
@@ -209,14 +209,14 @@ class Statuses(unittest.TestCase):
 
     def test_ctest_status(self):
         """ctest's 8 by ctest's name; another tool's 8 unnamed."""
-        self.assertIn("FAIL, ctest's status: 8 tests failed: a test failed or timed out, or none ran under "
+        self.assertIn("FAIL, ctest's status: 8 (tests failed): a test failed or timed out, or none ran under "
                       "--no-tests=error, in", self.fail_line("ctest", 8))
         self.assertIn("FAIL, status: 8 unnamed, in", self.fail_line("cmake", 8))
 
     def test_ctest_line(self):
         """ctest's table, its unnamed statuses, and a death by a signal or a
         system status named as the process's."""
-        self.assertEqual(STATUS["ctest_line"](1), "ctest's status: 1 error: ctest could not run: an argument, "
+        self.assertEqual(STATUS["ctest_line"](1), "ctest's status: 1 (error): ctest could not run: an argument, "
                                                   "a preset or a test directory it cannot take")
         self.assertEqual(STATUS["ctest_line"](5), "ctest's status: 5 unnamed")
         for status in (-11, 0xC0000005):
@@ -237,7 +237,7 @@ class Help(unittest.TestCase):
                  *(r + "_SYMBOLIZER_PATH" for r in LOOP.LINUX["SANITIZER_RUNTIMES"])]
         for name in names:
             self.assertIn(name, text)
-        self.assertIn("ctest's status: 8 tests failed", text)
+        self.assertIn("ctest's status: 8 (tests failed)", text)
         self.assertIn("each kept tree records the pins it was configured under", text)
 
 

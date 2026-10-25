@@ -9,8 +9,9 @@ negative value for a death by a signal, printed as "signal <number>" and
 named by the signal. Any other status is its number with "unnamed".
 
 A ctest step's status is ctest's own, named by CTEST in one line, "ctest's
-status: <value> <name>: <meaning>": ctest exits 8 when a test failed or
-timed out, or none ran under --no-tests=error, and 1 when it could not
+status: <value> (<name>): <meaning>", its name in parentheses so that it
+reads as a status, not a count of tests: ctest exits 8 when a test failed
+or timed out, or none ran under --no-tests=error, and 1 when it could not
 run. A death by a signal, or a Windows system status, stays the process's.
 
 Run as a script, it names each status its arguments give, in decimal or
@@ -84,13 +85,13 @@ def line(status):
 
 
 def ctest_line(status):
-    """A ctest step's status in one line: "ctest's status: <value> <name>:
+    """A ctest step's status in one line: "ctest's status: <value> (<name>):
     <meaning>" by CTEST, "ctest's status: <value> unnamed" off it; a death
     by a signal or a system status by line, as the process's."""
     if status < 0 or status > 0xFFFF:
         return line(status)
     name, meaning = CTEST.get(status, (UNNAMED, ""))
-    return f"ctest's status: {status} {name}" + (f": {meaning}" if meaning else "")
+    return f"ctest's status: {status} " + (f"({name}): {meaning}" if meaning else name)
 
 
 def parse(text):

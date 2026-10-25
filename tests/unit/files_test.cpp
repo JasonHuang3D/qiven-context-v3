@@ -102,6 +102,22 @@ std::string listing(const fs::path& directory) {
     return out;
 }
 
+// The one staging directory in a directory, ".<16 digits>.tmp"; empty if
+// there is none or more than one.
+std::string staging_left(const fs::path& directory) {
+    std::string found;
+    std::size_t count = 0;
+    std::error_code error;
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory, error)) {
+        const std::string name = text(entry.path().filename());
+        if (entry.is_directory(error) && name.size() == 21 && name.starts_with(".") && name.ends_with(".tmp")) {
+            found = name;
+            ++count;
+        }
+    }
+    return count == 1 ? found : std::string();
+}
+
 // A scratch directory of the case's own, removed at its end.
 struct Scratch {
     Scratch() {
@@ -257,10 +273,14 @@ QIVEN3_CASE(files, stage) {
     auto held = staged("three");
     const auto [code, detail] = thrown([&] { held.publish("bag-3", five); });
     CHECK(code == Code::busy);
-    CHECK_EQ(detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED); left bagit.txt, "
-                                 "delete: error 32 (ERROR_SHARING_VIOLATION)"));
+    // The detail names the staging directory left and the held file in it.
+    const std::string left = staging_left(scratch.root);
+    CHECK_EQ(left.size(), 21U);
+    CHECK_EQ(detail, "rename: error 5 (ERROR_ACCESS_DENIED); left " + left + "/bagit.txt, "
+                     "delete: error 32 (ERROR_SHARING_VIOLATION)");
     CHECK(!fs::exists(scratch.root / "bag-3"));
-    CHECK(thrown([&] { held.discard(); }).first == Code::busy);
+    CHECK(thrown([&] { held.discard(); }) ==
+          std::pair(Code::busy, "left " + left + "/bagit.txt, delete: error 32 (ERROR_SHARING_VIOLATION)"));
     fake.set_busy(Busy{});
     held.discard();
     CHECK_EQ(listing(scratch.root).find(".tmp"), std::string::npos);
@@ -359,8 +379,11 @@ QIVEN3_CASE(files, faults) {
     {
         auto stage = fake.stage(root);
         stage.open("inside").close();
+        const std::string left = staging_left(scratch.root);
+        CHECK_EQ(left.size(), 21U);
         countdown.arm(1);
-        CHECK(thrown([&] { stage.discard(); }).first == Code::io);
+        CHECK(thrown([&] { stage.discard(); }) ==
+              std::pair(Code::io, "left " + left + ", delete: error 31 (ERROR_GEN_FAILURE)"));
         countdown.disarm();
     }
     CHECK(clean(0));

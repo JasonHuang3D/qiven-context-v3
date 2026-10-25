@@ -259,8 +259,8 @@ static_assert(Pages<FakePages> && Sink<FakeSink> && Staged<FakeStaged> && Lock<F
 static_assert(Platform<FakePlatform>);
 #if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
 static_assert(sizeof(FakePages) == 24, "the fake's Pages: its owner, address and count");
-static_assert(sizeof(FakeSink) == 16 && sizeof(FakeStaged) == 16 && sizeof(FakeLock) == 16,
-              "files' handles on the fake: the system and its id");
+static_assert(sizeof(FakeSink) == 16 && sizeof(FakeLock) == 16, "files' handles on the fake: the system and its id");
+static_assert(sizeof(FakeStaged) == 32, "the fake's Staged: the system, its id and the directory's 16 digits");
 #endif
 
 }  // namespace qiven3::platform::fake

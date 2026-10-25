@@ -171,8 +171,9 @@ constexpr std::string_view last_component(std::string_view path) noexcept {
 //   is none for a closed one; close_all(dir) closes each still open;
 //   publish(dir, name) renames the directory to name beside it, with no
 //   replacing; discard(dir, left) closes and deletes its files and it,
-//   naming in left what it could not delete; forget(dir) ends the system's
-//   record of a published or discarded one.
+//   naming in left the file it could not delete by its path inside it,
+//   nothing for the directory itself; forget(dir) ends the system's record
+//   of a published or discarded one.
 // - lock's: open_lock(path, held) opens path, made if missing; try_lock
 //   locks its first byte, or gives 33; unlock unlocks if locked and closes.
 template <class S>
@@ -281,20 +282,24 @@ private:
     typename S::File file_{};
 };
 
-// A staging directory; the destructor discards it if it is neither
-// published nor discarded, its error dropped. After publish, or a discard
-// that removed it, it is ended: open is io, publish io, discard none.
+// A staging directory, held with its digits; the destructor discards it if
+// it is neither published nor discarded, its error dropped. After publish,
+// or a discard that removed it, it is ended: open is io, publish io,
+// discard none.
 template <System S>
 class Staged {
 public:
     Staged() noexcept = default;
-    Staged(S& system, typename S::Dir dir) noexcept : system_(&system), dir_(std::move(dir)) {}
-    Staged(Staged&& other) noexcept : system_(std::exchange(other.system_, nullptr)), dir_(std::move(other.dir_)) {}
+    Staged(S& system, typename S::Dir dir, const Digits& name) noexcept
+        : system_(&system), dir_(std::move(dir)), name_(name) {}
+    Staged(Staged&& other) noexcept
+        : system_(std::exchange(other.system_, nullptr)), dir_(std::move(other.dir_)), name_(other.name_) {}
     Staged& operator=(Staged&& other) noexcept {
         if (this != &other) {
             end();
             system_ = std::exchange(other.system_, nullptr);
             dir_ = std::move(other.dir_);
+            name_ = other.name_;
         }
         return *this;
     }
@@ -316,7 +321,8 @@ public:
     // Closes each file still open, then renames the directory to name:
     // refused with 5 or 32, retried until the deadline, then busy; name
     // present, exists; another error io. Each discards first, its detail
-    // naming what is left.
+    // naming what is left: the staging directory, ".<digits>.tmp", and the
+    // file inside it that stopped the deletion.
     void publish(std::string_view name, Seconds deadline) {
         live("publish");
         refuse("publish", name_fault(name));
@@ -343,7 +349,8 @@ public:
     }
 
     // Deletes the directory and its files. A file held stops it, busy
-    // naming what is left, which a later discard tries again.
+    // naming what is left, as publish does, which a later discard tries
+    // again.
     void discard() {
         if (system_ == nullptr) {
             return;
@@ -362,7 +369,9 @@ private:
         }
     }
     void finish() noexcept { std::exchange(system_, nullptr)->forget(dir_); }
-    // The system's discard; its error and what is left added to detail.
+    // The system's discard; its error and what is left added to detail:
+    // "left .<digits>.tmp", then "/" and the path inside it the system
+    // names, if any.
     Error discard_into(Detail& detail) noexcept {
         Detail left;
         const Error error = system_->discard(dir_, left);
@@ -370,7 +379,11 @@ private:
             finish();
             return none;
         }
-        detail.add(detail.view().empty() ? "left " : "; left ").add(left.view());
+        detail.add(detail.view().empty() ? "left ." : "; left .").add(std::string_view(name_.data(), name_.size()));
+        detail.add(".tmp");
+        if (!left.view().empty()) {
+            detail.add("/").add(left.view());
+        }
         add_error(detail.add(", "), "delete", error);
         return error;
     }
@@ -385,6 +398,7 @@ private:
     }
     S* system_ = nullptr;
     typename S::Dir dir_{};
+    Digits name_{};
 };
 
 // A held lock; the destructor releases it.
@@ -482,7 +496,7 @@ Staged<S> stage(S& system, std::string_view directory) {
     if (error != none) {
         raise(Code::io, "stage", "make", error);
     }
-    return Staged<S>(system, std::move(dir));
+    return Staged<S>(system, std::move(dir), name);
 }
 
 // path's first byte locked: held by another, retried every 50 ms until the
