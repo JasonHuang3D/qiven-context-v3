@@ -200,7 +200,7 @@ class PlatformProcess:
         path = self.files_root() / "store.lock"
         with self.drive() as d:
             if not self.STAGE_LOCK:
-                self.files_unsupported(d, "lock", path=str(path))
+                self.files_unsupported(d)
             self.hold(d, lock=3)
             held = d.call("lock", path=str(path))["id"]
             self.assertEqual(self.failure(d.call, "lock_release", id=held + 1).kind, "request")

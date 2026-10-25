@@ -3,7 +3,8 @@
 the drive's platform half within its stated budget by the arena's count;
 a budget a byte short of its peak, MemoryError budget and nothing held;
 and, under QIVEN3_FAULTS, its fault sweep: each allocation on its arena,
-and on the fake each platform call, failed in turn.
+and each platform call, the fake's and the Windows adapter's win/files
+calls, failed in turn.
 
 The budgets are the text's for package 1: 64 KiB for each member, read's
 plus the file's size, run's plus its caps; pages(n) has none of its own.
@@ -111,9 +112,9 @@ class PlatformMemory:
             self.assertEqual(reply["held"], 0)
 
     def test_faults(self):
-        """Under QIVEN3_FAULTS, each operation's K-th allocation, and on
-        the fake its K-th platform call, failed for K from 1 until it
-        completes: each failed run a typed error, nothing held, the drive
+        """Under QIVEN3_FAULTS, each operation's K-th allocation, and its
+        K-th platform call, failed for K from 1 until it completes: each
+        failed run a typed error, nothing held, the drive
         answering; at completion K - 1 calls counted. Built without it, a
         fault is refused, not applicable."""
         with self.drive() as d:
@@ -124,13 +125,10 @@ class PlatformMemory:
                 self.skipTest("not applicable: built without QIVEN3_FAULTS")
             if debug_library():
                 self.skipTest("not applicable: MSVC's debug library allocates in a noexcept constructor")
-            kinds = ("allocation", "platform") if self.ADAPTER == "fake" else ("allocation",)
+            kinds = ("allocation", "platform")
             for op, args in operations(self):
                 for of in kinds:
                     with self.subTest(op=op, of=of):
                         k, reply = d.sweep(op, of, **args())
                         give_back(d, op, reply)
                         self.assertEqual(reply["fault"]["calls"], k - 1, reply)
-            if self.ADAPTER != "fake":
-                reply = d.reply("now", fault={"k": 1, "of": "platform"})
-                self.assertTrue(reply["error"]["detail"].startswith("not applicable:"), reply)

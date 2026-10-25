@@ -7,9 +7,10 @@ the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
 "target" and "temporary" hold replace's rename, "publish" publish's and
-discard's. The Windows adapter's replace and stage are its module
-win/files', in package 5; until then a binding with STAGE_LOCK false checks
-that each answers unsupported, and the case is skipped.
+discard's. The Windows adapter's replace, stage and lock are its module
+win/files', in package 5, and so are the Windows drive's holders; replace
+and lock came first, so a binding with STAGE_LOCK false checks that stage
+answers unsupported, and the case is skipped.
 """
 
 import os
@@ -45,11 +46,12 @@ def temporaries(directory):
 class PlatformFiles:
     STAGE_LOCK = True
 
-    def files_unsupported(self, d, op, **args):
-        """On an adapter without replace, stage and lock yet: op answers
-        unsupported, and the case is skipped."""
-        self.assert_platform_error(self.failure(d.call, op, **args), "unsupported")
-        self.skipTest("until package 5: the Windows adapter's replace, stage and lock are win/files'")
+    def files_unsupported(self, d):
+        """On an adapter without stage, and a binding without holders, yet:
+        stage answers unsupported, and the case is skipped."""
+        error = self.failure(d.call, "stage", path=str(self.files_root()))
+        self.assert_platform_error(error, "unsupported")
+        self.skipTest("until package 5: the Windows adapter's stage and the drive's holders are win/files'")
 
     def nothing_kept(self, d):
         """On the fake: no file, staging directory or lock held open."""
@@ -66,7 +68,7 @@ class PlatformFiles:
         target.write_bytes(b"old")
         with self.drive() as d:
             if not self.STAGE_LOCK:
-                self.files_unsupported(d, "replace", path=str(target), data=b"new".hex())
+                self.files_unsupported(d)
             for held, data in (("target", b"new 1"), ("temporary", b"new 2")):
                 with self.subTest(held=held, released=True):
                     target.write_bytes(b"old")
@@ -125,7 +127,7 @@ class PlatformFiles:
         bags.mkdir()
         with self.drive() as d:
             if not self.STAGE_LOCK:
-                self.files_unsupported(d, "stage", path=str(bags))
+                self.files_unsupported(d)
             for name, times in (("one", 0), ("two", 3)):
                 with self.subTest(name=name, held=times):
                     staged, open_sink = self.staged_bag(d, bags)
@@ -192,7 +194,7 @@ class PlatformFiles:
                     path = (prefix + b"a" + bad + b".txt").hex()
                     self.assert_platform_error(self.failure(d.call, "resolve", path_hex=path), "path")
                     if not self.STAGE_LOCK:
-                        self.files_unsupported(d, "replace", path=str(root / "x.txt"), data="00")
+                        self.files_unsupported(d)
                     self.assert_platform_error(self.failure(d.call, "replace", path_hex=path, data="00"), "path")
                     staged = d.call("stage", path=str(inside))["id"]
                     error = self.failure(d.call, "staged_open", id=staged, path_hex=(b"a" + bad).hex())

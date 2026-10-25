@@ -219,6 +219,17 @@ qiven3_add_cases(qiven3_unit_files LABELS fast fake
   SOURCES files_test.cpp
   LINK qiven3_faults qiven3_platform_fake)
 
+# win/files' cases on the Windows adapter, on Windows alone: create, read,
+# remove_directory, replace and lock on real files in each case's scratch
+# directory under the job's temporary directory; read's allocation counted;
+# each Win32 call failed in turn. fast, not fake: the adapter is the real
+# one, reached by tier 1's fast step.
+if(WIN32)
+  qiven3_add_cases(qiven3_unit_win_files LABELS fast
+    SOURCES win_files_test.cpp
+    LINK qiven3_faults qiven3_platform_win)
+endif()
+
 # store/errors' cases: each kind with its fields and its code, `secret`
 # with no id, the cuts at a code point and the names, evaluated by the
 # compiler; the widths against the entry's; each kind's line; an error

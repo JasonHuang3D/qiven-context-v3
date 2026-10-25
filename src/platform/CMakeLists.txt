@@ -14,6 +14,8 @@ target_link_libraries(qiven3_platform PUBLIC qiven3_memory PRIVATE qiven3_flags)
 if(WIN32)
   add_library(qiven3_platform_win STATIC
     win/arguments.cpp
+    win/files.cpp
+    win/files.hpp
     win/handles.cpp
     win/paths.cpp
     win/paths.hpp

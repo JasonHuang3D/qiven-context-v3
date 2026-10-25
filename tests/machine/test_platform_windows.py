@@ -42,12 +42,13 @@ def local_app_data():
 class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
-    # create and read, replace, stage and lock are win/files', in package 5;
-    # the drive's location request is the fake's alone until then; program,
-    # start and run are win/process', the children qiven3-child's, in
-    # package 5 too; so are facts and synced (win/facts'), program
-    # (win/process') and residual, the machine cases'.
-    CREATE_READ = False
+    # create, read, remove_directory, replace and lock are win/files'; its
+    # stage, and the drive's holders over real handles, are left of it in
+    # package 5; the drive's location request is the fake's alone until
+    # then; program, start and run are win/process', the children
+    # qiven3-child's, in package 5 too; so are facts and synced
+    # (win/facts'), program (win/process') and residual, the machine cases'.
+    CREATE_READ = True
     STAGE_LOCK = False
     LOCATION = False
     PROCESSES = False

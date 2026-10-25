@@ -11,12 +11,14 @@
 // (WindowsArguments, run_utf8).
 //
 // Its first operations are the configuration location, resolve, normcase,
-// the console, random bytes, the clock, pages and wipe. The files'
-// operations (replace, stage, create, remove_directory, read, lock), the
-// facts (facts, synced, residual) and the processes (program, start, run)
-// are PlatformError unsupported until their modules (win/files, win/facts,
-// win/process) are built; their handles' types are here so that the
-// adapter satisfies the concept now.
+// the console, random bytes, the clock, pages and wipe; win/files' are
+// replace, create, remove_directory, read and lock (platform/win/files.hpp).
+// stage, the facts (facts, synced, residual) and the processes (program,
+// start, run) are PlatformError unsupported until their modules (win/files'
+// stage, win/facts, win/process) are built; their handles' types are here so
+// that the adapter satisfies the concept now. A Lock is files' over the
+// adapter's WindowsFiles, which lives in the adapter: so the adapter does
+// not move, as a handle holds its System's address.
 //
 // Its scratch, a path's UTF-16 forms, lives in pages it takes once
 // through pages(): 128 KiB for two paths of 32,767 UTF-16 units, and the
@@ -30,7 +32,9 @@
 #include <span>
 #include <string_view>
 
+#include "platform/files.hpp"
 #include "platform/platform.hpp"
+#include "platform/win/files.hpp"
 
 namespace qiven3::platform::win {
 
@@ -93,22 +97,9 @@ public:
     void discard();
 };
 
-// A held lock (win/files, package 5): one handle; the destructor unlocks
-// and closes it.
-class WindowsLock {
-public:
-    WindowsLock() noexcept = default;
-    WindowsLock(WindowsLock&& other) noexcept;
-    WindowsLock& operator=(WindowsLock&& other) noexcept;
-    WindowsLock(const WindowsLock&) = delete;
-    WindowsLock& operator=(const WindowsLock&) = delete;
-    ~WindowsLock();
-
-    void release();
-
-private:
-    void* handle_ = nullptr;
-};
+// A held lock (win/files): its System's address and one handle; the
+// destructor unlocks and closes it.
+using WindowsLock = files::Lock<WindowsFiles>;
 
 // A started process tree in a Job Object (win/process): the process, the
 // Job Object and three pipes; the destructor kills the tree and closes
@@ -156,8 +147,9 @@ public:
     // config_dir, when given, overrides the known folder's qiven3. The
     // scratch is taken here: PlatformError memory if the system refuses it.
     explicit WindowsPlatform(std::optional<std::string_view> config_dir);
-    WindowsPlatform(WindowsPlatform&&) noexcept = default;
-    WindowsPlatform& operator=(WindowsPlatform&&) noexcept = default;
+    // Made in place, never moved: its handles hold its WindowsFiles' address.
+    WindowsPlatform(WindowsPlatform&&) = delete;
+    WindowsPlatform& operator=(WindowsPlatform&&) = delete;
     WindowsPlatform(const WindowsPlatform&) = delete;
     WindowsPlatform& operator=(const WindowsPlatform&) = delete;
     ~WindowsPlatform() = default;
@@ -195,28 +187,42 @@ public:
     [[nodiscard]] std::chrono::sys_time<std::chrono::milliseconds> now() const;
     // n bytes as whole pages, zeroed: memory.
     [[nodiscard]] WindowsPages pages(std::size_t n);
+#if defined(QIVEN3_FAULTS)
+    // The countdown win/files' calls ask first; null for none.
+    void attach(memory::Countdown* countdown) noexcept { files_.attach(countdown); }
+#endif
 
 private:
     friend class StandardOutput;
+    friend class WindowsFiles;
     void write_output(std::string_view utf8);
 
     WindowsPages scratch_;
     std::size_t override_ = 0;  // the override's UTF-16 units after the scratch
     bool overridden_ = false;
     bool bad_override_ = false;  // not UTF-8, or past 32,767 units: path at config_dir
+    WindowsFiles files_{*this};
 };
 
 static_assert(Pages<WindowsPages> && Sink<WindowsSink> && Staged<WindowsStaged> && Lock<WindowsLock> &&
               Child<WindowsChild>);
 static_assert(Platform<WindowsPlatform>);
 
-// The pinned sizes, on x64: Pages its address and size; Sink and Lock one
-// handle each; Child the process, the Job Object and three pipes.
+// The pinned sizes, on x64: Pages its address and size; Sink one handle;
+// Lock its System's address and one handle; Child the process, the Job
+// Object and three pipes; the adapter its scratch, the override's size, two
+// flags and its WindowsFiles, the adapter's address and, under
+// QIVEN3_FAULTS, the countdown's.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
-static_assert(sizeof(WindowsSink) == 8 && sizeof(WindowsLock) == 8, "one handle each");
+static_assert(sizeof(WindowsSink) == 8, "one handle");
+static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
-static_assert(sizeof(WindowsPlatform) == 32, "the scratch's Pages, the override's size and two flags");
+#if defined(QIVEN3_FAULTS)
+static_assert(sizeof(WindowsFiles) == 16 && sizeof(WindowsPlatform) == 48, "scratch, size, flags, files");
+#else
+static_assert(sizeof(WindowsFiles) == 8 && sizeof(WindowsPlatform) == 40, "scratch, size, flags, files");
+#endif
 #endif
 
 // n bytes as whole pages, zeroed: memory. WindowsPlatform::pages's body,

@@ -1,7 +1,7 @@
 // The Windows adapter's handles (platform/win/windows.hpp): Pages over
-// VirtualAlloc, and the files' and processes' handles, whose operations
-// are their modules' (win/files, win/process) and PlatformError unsupported
-// until then.
+// VirtualAlloc, and stage's and the processes' handles, whose operations
+// are their modules' (win/files' stage, win/process) and PlatformError
+// unsupported until then. The Lock is files' (platform/win/files.hpp).
 
 #include "platform/win/windows.hpp"
 
@@ -66,25 +66,6 @@ WindowsSink WindowsStaged::open(std::string_view) { not_yet("open"); }
 void WindowsStaged::publish(std::string_view, Seconds) { not_yet("publish"); }
 
 void WindowsStaged::discard() { not_yet("discard"); }
-
-WindowsLock::WindowsLock(WindowsLock&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
-
-WindowsLock& WindowsLock::operator=(WindowsLock&& other) noexcept {
-    if (this != &other) {
-        WindowsLock old(std::move(*this));
-        handle_ = std::exchange(other.handle_, nullptr);
-    }
-    return *this;
-}
-
-// Closing the handle ends its byte-range lock.
-WindowsLock::~WindowsLock() {
-    if (handle_ != nullptr) {
-        CloseHandle(handle_);
-    }
-}
-
-void WindowsLock::release() { not_yet("release"); }
 
 WindowsChild::WindowsChild(WindowsChild&& other) noexcept
     : process_(std::exchange(other.process_, nullptr)), job_(std::exchange(other.job_, nullptr)),
