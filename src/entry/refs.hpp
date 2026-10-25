@@ -30,7 +30,10 @@
 // reading, digest, client, session, message), each freed before the next:
 // an entry reference two, repo four to eight, transcript eight, output
 // two, fewer where a fault comes first. A compile's MemoryError leaves
-// nothing held. Each function is constexpr and a template on the
+// nothing held. check_subject_with and try_check_reference_with match
+// each syntax by the caller's match(pattern, text) instead, allocating
+// only what it does: content's walk passes its own, which compiles each
+// syntax once in a check. Each function is constexpr and a template on the
 // allocator, so its vectors run in constant evaluation too; it reads by
 // index, with no pointer arithmetic. refs logs nothing.
 //
@@ -267,9 +270,9 @@ constexpr bool check_name(std::string_view name) noexcept {
     return !s.fault && !s.control && !s.space && s.length >= 1 && s.length <= name_limit && !line_suffix(name);
 }
 
-// A subject; two allocations for a repo subject's repository syntax.
-template <typename A = std::allocator<char>>
-constexpr bool check_subject(std::string_view subject, const A& allocator = A()) {
+// A subject, each syntax by match(pattern, text).
+template <typename M>
+constexpr bool check_subject_with(std::string_view subject, const M& match) {
     const detail::Scan s = detail::scan(subject);
     const std::size_t colon = subject.find(':');
     if (s.fault || s.control || s.space || s.length > subject_limit || colon == std::string_view::npos ||
@@ -289,7 +292,7 @@ constexpr bool check_subject(std::string_view subject, const A& allocator = A())
     if (hash < slash) {
         return false;  // a # before any path
     }
-    if (!detail::matches(repository_syntax, rest.substr(0, slash), allocator)) {
+    if (!match(repository_syntax, rest.substr(0, slash))) {
         return false;
     }
     if (slash == std::string_view::npos) {
@@ -298,6 +301,14 @@ constexpr bool check_subject(std::string_view subject, const A& allocator = A())
     const std::string_view after = rest.substr(slash + 1);
     const std::size_t mark = after.find('#');
     return check_path(after.substr(0, mark)) && (mark == std::string_view::npos || check_name(after.substr(mark + 1)));
+}
+
+// A subject; two allocations for a repo subject's repository syntax.
+template <typename A = std::allocator<char>>
+constexpr bool check_subject(std::string_view subject, const A& allocator = A()) {
+    return check_subject_with(subject, [&allocator](std::string_view pattern, std::string_view text) {
+        return detail::matches(pattern, text, allocator);
+    });
 }
 
 namespace detail {
@@ -320,21 +331,21 @@ constexpr std::optional<Type> type_of(std::string_view text) noexcept {
     return std::nullopt;
 }
 
-// A present field's value, a string not empty, against its syntax.
-template <typename A>
-constexpr bool value_syntax(Field f, std::string_view text, const A& allocator) {
+// A present field's value, a string not empty, against its syntax, each
+// by match(pattern, text).
+template <typename M>
+constexpr bool value_syntax(Field f, std::string_view text, const M& match) {
     switch (f) {
-        case Field::id: return matches(header::id_syntax, text, allocator);
-        case Field::repository: return matches(repository_syntax, text, allocator);
+        case Field::id: return match(header::id_syntax, text);
+        case Field::repository: return match(repository_syntax, text);
         case Field::path: return check_path(text);
-        case Field::revision: return matches(revision_syntax, text, allocator);
+        case Field::revision: return match(revision_syntax, text);
         case Field::name: return check_name(text);
-        case Field::anchor:
-            return scan(text).length <= anchor_limit && !matches(anchor_line_syntax, text, allocator);
-        case Field::digest: return matches(header::content_syntax, text, allocator);
-        case Field::client: return matches(client_syntax, text, allocator);
-        case Field::session: return matches(session_syntax, text, allocator);
-        case Field::message: return matches(message_syntax, text, allocator);
+        case Field::anchor: return scan(text).length <= anchor_limit && !match(anchor_line_syntax, text);
+        case Field::digest: return match(header::content_syntax, text);
+        case Field::client: return match(client_syntax, text);
+        case Field::session: return match(session_syntax, text);
+        case Field::message: return match(message_syntax, text);
         case Field::type:
         case Field::command:
         case Field::none: return true;
@@ -344,9 +355,10 @@ constexpr bool value_syntax(Field f, std::string_view text, const A& allocator) 
 
 }  // namespace detail
 
-// The reference at node i of v: its first fault, or none.
-template <typename B>
-constexpr std::optional<RefError> try_check_reference(const canon::Basic<B>& v, json::Index i = 0) {
+// The reference at node i of v: its first fault, or none; each syntax by
+// match(pattern, text).
+template <typename B, typename M>
+constexpr std::optional<RefError> try_check_reference_with(const canon::Basic<B>& v, json::Index i, const M& match) {
     if (v.empty() || v.kind(i) != json::Kind::object) {
         return RefError{Code::type, Field::none, i};
     }
@@ -380,13 +392,22 @@ constexpr std::optional<RefError> try_check_reference(const canon::Basic<B>& v, 
             const bool fault = code == Code::type      ? v.kind(k + 1) != json::Kind::string
                                : code == Code::empty    ? v.text(k + 1).empty()
                                : code == Code::too_long ? f == Field::command && utf::length(v.text(k + 1)) > command_limit
-                                                        : !detail::value_syntax(f, v.text(k + 1), v.allocator());
+                                                        : !detail::value_syntax(f, v.text(k + 1), match);
             if (fault) {
                 return RefError{code, f, k};
             }
         }
     }
     return std::nullopt;
+}
+
+// The reference at node i of v: its first fault, or none; each syntax
+// compiled over v's allocator.
+template <typename B>
+constexpr std::optional<RefError> try_check_reference(const canon::Basic<B>& v, json::Index i = 0) {
+    return try_check_reference_with(v, i, [&v](std::string_view pattern, std::string_view text) {
+        return detail::matches(pattern, text, v.allocator());
+    });
 }
 
 // try_check_reference, a fault thrown as RefError.

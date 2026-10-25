@@ -30,8 +30,8 @@ import unittest
 from pathlib import Path
 
 from tests.contract.store_entries import (CLEARING, HEADER_ROWS, LANES, PARSER_ROWS, PERSON, SCOPE, Maker, body_rows,
-                                          chain_fields, changed_header, clearing, guard_of, header, id_of, oversized,
-                                          same_files, same_snapshot, scanned, snapshot, snapshot_files)
+                                          chain_fields, changed_header, clearing, guard_of, header, id_of, large,
+                                          oversized, same_files, same_snapshot, scanned, snapshot, snapshot_files)
 from tests.drive.session import FAKE, Drive, DriveError
 
 # The tags a case may name, in the order a reason lists them.
@@ -377,7 +377,10 @@ class StoreCases:
         """S4, part 1: the parser's and the validator's tables of
         the entry format (each row's bytes a header line; A changed once, its
         id kept), each EntryInvalid with its code; a content past 65,536
-        bytes, too_long at its field; nothing written. Needs: none."""
+        bytes and its field's bound, too_long at the field; a content past
+        65,536 bytes with every field within its limit (M2's, its U+0001
+        escaped), too_large, and at the bound: 65,537 bytes too_large,
+        65,536 admitted; nothing written by a refusal. Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
             m, store = Maker(drive), drive.store_make()
@@ -395,6 +398,11 @@ class StoreCases:
                     self.refuse(store, SCOPE, "implementer", None, [(a[0], record)], "EntryInvalid", code)
             self.refuse(store, SCOPE, "implementer", None, [oversized(m)], "EntryInvalid", "too_long",
                         field="admit.mistake")
+            for size in (None, 65537):
+                with self.subTest(too_large=size):
+                    self.refuse(store, SCOPE, "reviewer", None, [large(m, size)], "EntryInvalid", "too_large",
+                                index=0)
+            store.append(SCOPE, "reviewer", None, [large(m, 65536)])
             store.append(SCOPE, "implementer", None, [a])
 
     def test_S4_part_two(self):

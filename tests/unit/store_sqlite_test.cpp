@@ -502,18 +502,18 @@ std::string cut(const std::vector<Stored>& lines) {
 // Two lanes, reviewer's M2 and M1 forgotten; each read; then a body
 // record, a column and a line altered under the store.
 void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
-    const Book book(rig.fake);
+    const auto book = std::make_unique<const Book>(rig.fake);  // past a frame's share
     std::vector<std::byte> pages(std::size_t{1} << 17U);
     Arena arena(pages);
     const Chars chars(arena);
     Vector<Id> erased(chars);
     const auto store = std::make_unique<Store>(Store::open(text(rig.scratch.root / "r" / "store.db"), true, false, rig.fake));
-    const std::vector<Stored> mine = {book.stored("A"), book.stored("B")};
-    const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1"), book.stored("M2")};
+    const std::vector<Stored> mine = {book->stored("A"), book->stored("B")};
+    const std::vector<Stored> theirs = {book->stored("C"), book->stored("M1"), book->stored("M2")};
     (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
     (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
-    const auto f2 = std::make_unique<const Stored>(forget_of(book.stored("E"), theirs[2], theirs[2], reviewer, 4));
-    const auto f3 = std::make_unique<const Stored>(forget_of(book.stored("E"), theirs[1], *f2, reviewer, 5));
+    const auto f2 = std::make_unique<const Stored>(forget_of(book->stored("E"), theirs[2], theirs[2], reviewer, 4));
+    const auto f3 = std::make_unique<const Stored>(forget_of(book->stored("E"), theirs[1], *f2, reviewer, 5));
     const std::string a = id_of(mine[0]);
     const std::string b = id_of(mine[1]);
     const std::string m2 = id_of(theirs[2]);

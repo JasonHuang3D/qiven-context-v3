@@ -1,7 +1,7 @@
-// store/stage's budgets and fault runs, over three calls: an append of A,
+// store/stage's budgets and fault runs, over five calls: an append of A,
 // B and D on an empty lane; an append of A's content with a key in it, its
-// hit cleared; and a forget of E on implementer's lane held. Each line's
-// work on a fresh scratch arena, its peak one line's, and what check keeps
+// hit cleared; a forget of E on implementer's lane held; and two of a map
+// citing A (below). Each line's work on fresh scratch arenas, its peak one line's, and what check keeps
 // and admit takes on the operation's arena: the two together within the
 // operation's budget, 1 MiB plus 4 times the lines given; the operation's
 // arena as it was once the checked entries are dropped, what it took
@@ -16,7 +16,11 @@
 // body's value 4, and a header the view gives 1 (a first entry's parent, a
 // target). Append: 1 + 64 + 64 + 62 = 191 and 1 + 12 = 13, 204; the
 // secret's 1 + 34 + 4 + 24 + 1 + 1 + 2 = 67 and 1 + 4 = 5, 72; E's 4 + 1 +
-// 17 + 1 = 23 and 1 + 2 = 3, 26.
+// 17 + 1 = 23 and 1 + 2 = 3, 26. Then a map citing A, A held, by four
+// references and by 24, the most its lists hold, with a relation: every
+// syntax of its content compiled, nine, once each: 83 both, check's 74
+// (the room 1, part 1 43, the secret check's 28, the entry kept 2) and
+// admit's 9. Each line's scratch within the store's, its pages' half.
 // The runner's count after each case holds too.
 
 #include <cstddef>
@@ -61,6 +65,13 @@ std::vector<Case> cases(const Book& book) {
     out.push_back({"secret", {book.with_secret("A", std::nullopt)}, {}, Operation::append, std::nullopt, true, 72});
     const std::vector<Stored> lane = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
     out.push_back({"forget", {book.stored("E")}, lane, Operation::forget, id_of(lane.back()), false, 26});
+    // A map citing A, every syntax of its content compiled: by four
+    // references and by twenty-four, the most its lists hold; one count.
+    const std::vector<Stored> a = {book.stored("A")};
+    out.push_back({"four references", {book.with_references(4, id_of(a.back()))}, a, Operation::append, std::nullopt,
+                   false, 83});
+    out.push_back({"24 references", {book.with_references(24, id_of(a.back()))}, a, Operation::append, std::nullopt,
+                   false, 83});
     return out;
 }
 
@@ -107,6 +118,8 @@ QIVEN3_CASE(store_stage, budget) {
         CHECK_EQ(arena.used(), used);
         const std::size_t kept = arena.peak() - before;
         CHECK(kept + scratch.peak() <= budget_of(lines));
+        // The store's scratch is its pages' half.
+        CHECK(scratch.peak() <= budget_of(lines) / 2);
         // What stays on the operation's arena is bounded by the lines: the
         // per-line work is the scratch's.
         CHECK(kept <= 16384 + 8 * *qiven3::store::given(lines));
@@ -153,3 +166,4 @@ QIVEN3_CASE(store_stage, faults) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 #endif
 }
+

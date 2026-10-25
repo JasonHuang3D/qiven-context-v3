@@ -40,14 +40,15 @@
 // secret (A7); the field's path for a content fault, a secret and
 // forget_path (header.kind).
 //
-// Allocations. An entry's work is done on a scratch arena, which the
-// caller's scratch() gives afresh for each line, over the same pages: at
-// forget the line's value, four; part 1's (check's); at append the
-// content's value, four with a body, the secret check's 24 and its hits'
-// room for a first hit. Each is given back before the next line, so the
-// scratch peaks at one entry's. On the caller's allocator, what check
-// keeps: the entries' room, one; each entry's header, one, and body, one;
-// the call's hits' room, one where it is short. admit: part 2's
+// Allocations. An entry's work is done on scratch arenas, which the
+// caller's scratch() gives afresh over the same pages: at forget the
+// line's value, four; part 1's (check's); at append, once the entry is
+// kept, the secret check on one of its own: the content's value, four
+// with a body, the secret check's 24 and its hits' room for a first hit.
+// Each is given back before the next, so the scratch peaks at the greater
+// of one entry's part 1 and its secret check. On the caller's allocator,
+// what check keeps: the entries' room, one; each entry's header, one, and
+// body, one; the call's hits' room, one where it is short. admit: part 2's
 // (validator's) and the view's, on its allocator; import_line none but the
 // view's; import_entry validator's try_final's and the view's, on its
 // allocator. Platform calls: part 1's
@@ -279,19 +280,21 @@ Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at
     Checked<P> out(allocator);
     out.entries.reserve(lines.size());
     for (std::size_t i = 0; i < lines.size(); ++i) {
-        const Chars work(scratch());
-        const Entry<P> e = detail::part1(platform, at, i, lines[i], work);
-        out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
-        if (const std::optional<std::string_view> body = lines[i].body) {
-            out.size = detail::sum(out.size, detail::sum(body->size(), 1));
-        }
-        if (at.op == Operation::append) {
-            if (e.header().value(Slot::kind) == "forget") {
+        {
+            const Entry<P> e = detail::part1(platform, at, i, lines[i], Chars(scratch()));
+            out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
+            if (const std::optional<std::string_view> body = lines[i].body) {
+                out.size = detail::sum(out.size, detail::sum(body->size(), 1));
+            }
+            if (at.op == Operation::append && e.header().value(Slot::kind) == "forget") {
                 refuse(at, i, e.header().value(Slot::id), "forget_path", "header.kind");
             }
-            detail::secrets(at, i, e, out.hits, work);
+            out.entries.push_back(detail::keep(platform, e, lines[i], allocator));
         }
-        out.entries.push_back(detail::keep(platform, e, lines[i], allocator));
+        // The secret check on a scratch of its own, part 1's given back.
+        if (at.op == Operation::append) {
+            detail::secrets(at, i, out.entries.back(), out.hits, Chars(scratch()));
+        }
     }
     return out;
 }

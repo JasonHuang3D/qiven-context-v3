@@ -11,6 +11,7 @@
 // thread: one (the fake's).
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -191,6 +192,48 @@ public:
             writer = lane + std::string(f.writer.substr(f.writer.find('/')));
             f.lane = lane;
             f.writer = writer;
+        });
+    }
+
+    // M1's content as a root on reviewer's lane at seq 1, under M1's key,
+    // n references added (24 at most: evidence's 16, then source's 8), by
+    // turns an output, its command 400 U+0001, each a six-byte escape; a
+    // repo with each of its fields; and a transcript; each field within its
+    // limit. With an entry's id, the last an entry reference to it, and a
+    // relation to a repo subject: every syntax a map's content compiles.
+    [[nodiscard]] Stored with_references(std::size_t n, std::string_view entry = {}) const {
+        const std::string digest = std::string("\"digest\":\"hmac-sha256:") + std::string(64, '0') + "\"";
+        std::string command;
+        for (std::size_t i = 0; i < 400; ++i) {
+            command += "\\u0001";
+        }
+        const std::array<std::string, 3> made_refs = {
+            "{\"command\":\"" + command + "\"," + digest + ",\"type\":\"output\"}",
+            "{\"anchor\":\"f\"," + digest + ",\"name\":\"g\",\"path\":\"src/a.cpp\",\"repository\":\"qiven-context-v3\"," +
+                "\"revision\":\"" + std::string(40, 'a') + "\",\"type\":\"repo\"}",
+            "{\"client\":\"qiven-loop\"," + digest + ",\"message\":\"m:1\",\"session\":\"s-1\",\"type\":\"transcript\"}"};
+        std::array<std::string, 2> lists;  // evidence, source
+        for (std::size_t i = 0; i < n; ++i) {
+            std::string& list = lists.at(i < 16 ? 0 : 1);
+            const std::string item = !entry.empty() && i + 1 == n
+                                         ? "{\"id\":\"" + std::string(entry) + "\",\"type\":\"entry\"}"
+                                         : made_refs.at(i % 3);
+            list += (list.empty() ? "" : ",") + item;
+        }
+        std::string content(content_named("M1"));
+        if (!entry.empty()) {
+            content.insert(content.size() - 1,
+                           ",\"relations\":[{\"relation\":\"uses\",\"to\":\"repo:qiven-context-v3/src/a.cpp#f\"}]");
+        }
+        if (!lists[1].empty()) {
+            content.insert(content.size() - 1, ",\"source\":[" + lists[1] + "]");
+        }
+        if (!lists[0].empty()) {
+            content.insert(content.find("\"object\":"), "\"evidence\":[" + lists[0] + "],");
+        }
+        return made("M1", "M1", content, [](header::FieldsView& f) {
+            f.seq = 1;
+            f.parent = std::nullopt;
         });
     }
 

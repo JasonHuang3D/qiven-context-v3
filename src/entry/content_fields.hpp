@@ -21,8 +21,9 @@
 //
 // Allocations: two for each syntax the walk compiles, once in a check and
 // held until it ends (slug, id, digest, revision, clause id, test id,
-// client, session); a repo subject's two and each reference's (refs'
-// counts), each freed before the next. A compile's MemoryError leaves
+// client, session, repository, message, anchor's line reading), a
+// subject's and each reference's syntaxes among them, so that a check's
+// count does not grow with its references. A compile's MemoryError leaves
 // nothing held once the walk is dropped. Each function is constexpr and a
 // template on the allocator, so its vectors run in constant evaluation
 // too; it reads by index, with no pointer arithmetic, and never recurses.
@@ -43,6 +44,7 @@
 #include "entry/kinds.hpp"
 #include "entry/matcher.hpp"
 #include "entry/refs.hpp"
+#include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
@@ -103,10 +105,23 @@ inline constexpr std::array<std::string_view, 12> pattern_names = {
 namespace detail {
 
 // The syntaxes a walk compiles at most once each.
-enum class Syntax : std::uint8_t { slug, id, digest, revision, clause_id, test_id, client, session };
-inline constexpr std::array<std::string_view, 8> SYNTAXES = {
-    slug_syntax,      header::id_syntax, header::content_syntax, refs::revision_syntax,
-    clause_id_syntax, test_id_syntax,    refs::client_syntax,    refs::session_syntax,
+enum class Syntax : std::uint8_t {
+    slug,
+    id,
+    digest,
+    revision,
+    clause_id,
+    test_id,
+    client,
+    session,
+    repository,
+    message,
+    anchor_line,
+};
+inline constexpr std::array<std::string_view, 11> SYNTAXES = {
+    slug_syntax,          header::id_syntax,       header::content_syntax, refs::revision_syntax,
+    clause_id_syntax,     test_id_syntax,          refs::client_syntax,    refs::session_syntax,
+    refs::repository_syntax, refs::message_syntax, refs::anchor_line_syntax,
 };
 
 // Whether text is all whitespace: at least one code point, each of the 29.
@@ -386,7 +401,7 @@ private:
         using kinds::Value;
         switch (f.value) {
             case Value::one_of: return header::among(kinds::values(f), s);
-            case Value::subject: return refs::check_subject(s, v_->allocator());
+            case Value::subject: return refs::check_subject_with(s, matcher());
             case Value::slug: return match(Syntax::slug, s);
             case Value::time: return !utc::check_at(s);
             case Value::date: return utc::valid_date(s);
@@ -420,12 +435,25 @@ private:
         return matcher::hit(automaton, s);
     }
 
+    // refs' match(pattern, text) over the walk's automata: a pattern of
+    // SYNTAXES, by its text; any other is a broken invariant.
+    constexpr auto matcher() {
+        return [this](std::string_view pattern, std::string_view text) {
+            for (std::size_t i = 0; i < SYNTAXES.size(); ++i) {
+                if (SYNTAXES.at(i) == pattern) {
+                    return match(static_cast<Syntax>(i), text);
+                }
+            }
+            memory::fail_fast("content: a reference's syntax outside the walk's");
+        };
+    }
+
     // A reference, by refs; an accept's message a transcript one.
     constexpr void reference(json::Index k, bool transcript) {
         if (!can_improve(Code::unknown_field)) {
             return;
         }
-        if (const std::optional<refs::RefError> e = refs::try_check_reference(*v_, k)) {
+        if (const std::optional<refs::RefError> e = refs::try_check_reference_with(*v_, k, matcher())) {
             // The key at fault: an unknown one as written, else its field's.
             const std::string_view key = e->code == refs::Code::unknown_field ? v_->text(e->at) : refs::name(e->field);
             const bool length = e->code == refs::Code::too_long;
@@ -497,7 +525,7 @@ private:
             } else if (v_->text(m + 1).empty()) {
                 fault_at(v_->text(m), Code::empty);
             } else if (can_improve(Code::syntax) &&
-                       !refs::detail::value_syntax(*f, v_->text(m + 1), v_->allocator())) {
+                       !refs::detail::value_syntax(*f, v_->text(m + 1), matcher())) {
                 fault_at(v_->text(m), Code::syntax);
             }
         }

@@ -1,10 +1,15 @@
 // support/stores' smoke cases: the factory and the tags, written once as
 // a template on a factory and bound to each store as the S cases are:
 // make, again and read_only over one state, a read-only object's write
-// refused, close, then reopen where durable; and the case template of a
-// scan's end (store_scan_case.hpp) taken over the factory's objects.
+// refused, close, then reopen where durable; the case template of a
+// scan's end (store_scan_case.hpp) taken over the factory's objects; and
+// references: a map citing A, its 24 references the most its lists hold,
+// every syntax of its content among them, appended on each store, its
+// counted peak within its budget, 1 MiB plus 4 times the lines given.
 
+#include <cstddef>
 #include <filesystem>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -14,6 +19,7 @@
 
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
+#include "memory/memory.hpp"
 #include "store/errors.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/store_scan_case.hpp"
@@ -69,6 +75,32 @@ void scan_case(qiven3::test::Context& qiven3_ctx, F& f) {
     auto store = f.make();
     auto other = f.again();
     qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, f.site().book(), f.site().chars());
+}
+
+template <class F>
+void references_case(qiven3::test::Context& qiven3_ctx, F& f, std::string_view name) {
+    const stage_book::Book& book = f.site().book();
+    const std::vector<stage_book::Stored> a = {book.stored("A")};
+    const std::vector<stage_book::Stored> map = {book.with_references(24, stage_book::id_of(a[0]))};
+    const std::vector<qiven3::store::EntryView> lines = stage_book::views(map);
+    const auto store = std::make_unique<typename F::Store>(f.make());
+    (void)store->append(at_scope, at_lane, std::nullopt, stage_book::views(a));
+    std::string refused = "none";
+    try {
+        if (const std::optional<stage_book::Refusal> r =
+                stage_book::refused([&] { (void)store->append(at_scope, "reviewer", std::nullopt, lines); })) {
+            refused = r->code + " " + r->field + " " + r->detail;
+        }
+    } catch (const qiven3::memory::MemoryError&) {
+        refused = "MemoryError";
+    }
+    const std::size_t budget = *qiven3::store::operation_budget(*qiven3::store::given(lines));
+    std::cout << name << ": content " << map[0].content->size() << " bytes, refused " << refused << ", peak "
+              << store->peak() << " of " << budget << "\n";
+    CHECK_EQ(refused, std::string("none"));
+    CHECK(store->peak() <= budget);
+    CHECK_EQ(store->head(at_scope, "reviewer").value_or(qiven3::store::Head{}).seq, 1);
+    (void)store->close();
 }
 
 }  // namespace
@@ -145,4 +177,16 @@ QIVEN3_CASE(stores, two_states) {
         twice = true;
     }
     CHECK(twice);
+}
+
+QIVEN3_CASE(stores, memory_references) {
+    const auto site = stores::site();
+    stores::Memory f(*site);
+    references_case(qiven3_ctx, f, "stores.memory_references");
+}
+
+QIVEN3_CASE(stores, sqlite_references) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
+    references_case(qiven3_ctx, f, "stores.sqlite_references");
 }

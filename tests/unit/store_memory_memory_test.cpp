@@ -153,7 +153,7 @@ std::vector<Step> steps() {
                        (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
-    out.push_back({"append_acc", 0, true, {106, 7, 0, 1}, [](Bed& b, const Chars&) {
+    out.push_back({"append_acc", 0, true, {102, 7, 0, 1}, [](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -210,13 +210,13 @@ std::vector<Step> steps() {
                        x.close();
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"import", base, true, {399, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"import", base, true, {395, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> wrote(c);
                        (void)b.other.import_(x, wrote);
                        return Peaks{b.other.peak(), b.call->peak()};
                    }});
-    out.push_back({"verify", base, false, {230, 0, 0, 0}, [](Bed& b, const Chars&) {
+    out.push_back({"verify", base, false, {226, 0, 0, 0}, [](Bed& b, const Chars&) {
                        (void)b.store.verify();
                        return Peaks{b.store.peak(), 0};
                    }});

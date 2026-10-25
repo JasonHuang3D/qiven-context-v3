@@ -285,13 +285,38 @@ def clearing(m, digest, pattern, seq, parent, minute):
 
 def oversized(m):
     """A's claim, its mistake 70,000 bytes: a content past 65,536 bytes
-    canonical, refused by its field's bound, which the content check reads
-    before the content's (too_long at admit.mistake). A module at every
-    field's bound (MX) stays within 65,536 bytes."""
+    canonical and past its field's bound, which the content check reads
+    first (too_long at admit.mistake)."""
     content = m.content("A")
     content["admit"]["mistake"] = "x" * 70000
     assert len(canonical(content).encode("utf-8")) > 65536
     return m.on("A", SCOPE, "implementer", 1, None, 0, content)
+
+
+def large(m, size=None):
+    """M2's content as M1's, a root, on the reviewer's lane at seq 1, every
+    field within its limit: constraints of 8 items of 300 U+0001 and 24
+    output references, 16 in evidence and 8 in source, each command 400
+    U+0001, each U+0001 written as a six-byte escape: 75,523 bytes
+    canonical, too_large. With size, its commands cut from the last to
+    exactly size bytes: a few escapes made one ASCII byte each (5 bytes
+    less), then escapes dropped (6 less), each command keeping one."""
+    content = m.content("M2")
+    content["constraints"] = ["\u0001" * 300] * 8
+    refs = [{"command": "\u0001" * 400, "digest": "hmac-sha256:" + "0" * 64, "type": "output"} for _ in range(24)]
+    content["evidence"], content["source"] = refs[:16], refs[16:]
+    full = len(canonical(content).encode("utf-8"))
+    assert full == 75523, full
+    if size is not None:
+        over = full - size
+        ascii_ = next(b for b in range(6) if (over - 5 * b) % 6 == 0)
+        drop = (over - 5 * ascii_) // 6
+        for r in reversed(refs):
+            n = min(drop, len(r["command"]) - 1)
+            r["command"], drop = r["command"][n:], drop - n
+        refs[0]["command"] = "a" * ascii_ + refs[0]["command"][ascii_:]
+        assert drop == 0 and len(canonical(content).encode("utf-8")) == size
+    return m.on("M1", SCOPE, "reviewer", 1, None, 0, content)
 
 
 def exported(store, **range_):
