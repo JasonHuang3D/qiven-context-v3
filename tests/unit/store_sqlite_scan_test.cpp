@@ -1,11 +1,15 @@
 // store/sqlite's binding of the case a scan's end (store_scan_case.hpp):
 // a store created on the fake over a scratch directory of the case's own,
 // a second object opened on it, the case run on the two. The forget's
-// purge runs VACUUM between a scan's start and its end.
+// purge runs VACUUM between a scan's start and its end. And the scan's
+// bound on the pinned engine: entry's rowids kept by a purge's VACUUM
+// between two steps of a scan.
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <system_error>
@@ -19,6 +23,7 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/store_scan_case.hpp"
+#include "support/seams/seams.hpp"
 
 namespace {
 
@@ -70,6 +75,17 @@ struct Rig {
     qiven3::memory::Allocator<char> chars;
 };
 
+// Each id's rowid in entry, read through the seam, a space after each.
+std::string rowids(Store& store, const std::vector<std::string>& ids) {
+    std::string out;
+    for (const std::string& id : ids) {
+        const std::optional<std::int64_t> rowid =
+            qiven3::test::seams::read(store, "SELECT rowid FROM entry WHERE id = '" + id + "'");
+        out += (rowid ? std::to_string(*rowid) : std::string("none")) + " ";
+    }
+    return out;
+}
+
 }  // namespace
 
 QIVEN3_CASE(store_sqlite, scan_at_start) {
@@ -78,4 +94,59 @@ QIVEN3_CASE(store_sqlite, scan_at_start) {
     Store store = Store::open(path, true, false, rig->fake);
     Store other = Store::open(path, false, false, rig->fake);
     qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, rig->book, rig->chars);
+}
+
+// The scan's bound, rowid at most entry's greatest at its start, holds
+// while a VACUUM keeps entry's rowids: the pinned engine keeps a table's
+// rowids when it has an index, and entry has its keys'. Three lanes, then
+// a gap below all but A's rowid, as rows deleted would leave (entry rows
+// never are, so a fresh numbering differs from the store's only past such
+// a gap); a scan stepped once; B forgotten by E through the scanning
+// object, its purge's VACUUM on the connection the scan reads; the scan
+// stepped to its end. Each rowid is as before, and the scan gives what it
+// would have without the VACUUM. An engine renumbering entry fails both:
+// the rowids close the gap, and E, appended after the scan began, falls
+// under its bound.
+QIVEN3_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
+    using qiven3::test::stage_book::Stored;
+    namespace scan_case = qiven3::test::scan_case;
+    namespace stage_book = qiven3::test::stage_book;
+    const auto rig = std::make_unique<Rig>();
+    const std::string path = text(rig->root / "v" / "store.db");
+    Store store = Store::open(path, true, false, rig->fake);
+    const stage_book::Book& book = rig->book;
+    const std::vector<Stored> mine = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
+    const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1")};
+    const std::vector<Stored> tester = {book.on_lane("A", "tester")};
+    const std::vector<Stored> forgets = {book.stored("E")};
+    (void)store.append(scan_case::scope, scan_case::implementer, std::nullopt, stage_book::views(mine));
+    (void)store.append(scan_case::scope, scan_case::reviewer, std::nullopt, stage_book::views(theirs));
+    (void)store.append(scan_case::scope, "tester", std::nullopt, stage_book::views(tester));
+    CHECK_EQ(qiven3::test::seams::write(store, "UPDATE entry SET rowid = rowid + 1000 WHERE rowid > 1"), 0);
+    std::vector<std::string> ids;
+    for (const std::vector<Stored>* lane : {&mine, &theirs, &tester}) {
+        for (const Stored& s : *lane) {
+            ids.push_back(stage_book::id_of(s));
+        }
+    }
+    const std::string before = rowids(store, ids);
+    CHECK_EQ(before, std::string("1 1002 1003 1004 1005 1006 1007 "));
+
+    auto whole = store.scan(qiven3::store::RangeView{});
+    CHECK_EQ(scan_case::rest(whole, rig->chars, 1), scan_case::cut({mine[0]}));
+    // The guard's views over ids held for the call.
+    const std::string acc = stage_book::id_of(mine[3]);
+    const std::string m1 = stage_book::id_of(theirs[1]);
+    const std::vector<qiven3::store::GuardView> guard = {
+        qiven3::store::GuardView{scan_case::scope, scan_case::implementer, acc},
+        qiven3::store::GuardView{scan_case::scope, scan_case::reviewer, m1},
+        qiven3::store::GuardView{scan_case::scope, "tester", ids.back()}};
+    qiven3::store::Vector<qiven3::store::Id> erased(rig->chars);
+    CHECK(store.forget(scan_case::scope, scan_case::implementer, acc, stage_book::views(forgets), guard, erased)
+              .purge.done);
+    CHECK_EQ(qiven3::test::seams::read(store, "SELECT value FROM meta WHERE name = 'vacuumed'").value_or(-1),
+             std::int64_t{1});
+    CHECK_EQ(rowids(store, ids), before);
+    CHECK_EQ(scan_case::rest(whole, rig->chars), scan_case::cut({mine[1], mine[2], mine[3]}) +
+                                                     scan_case::cut(theirs) + scan_case::cut(tester));
 }

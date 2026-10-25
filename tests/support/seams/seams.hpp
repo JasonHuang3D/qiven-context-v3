@@ -13,6 +13,8 @@
 //   write(store, sql)   a statement run through the store's connection,
 //                       its engine's code given back: the incoherent rows
 //                       of S18, purged_above_vacuumed among them
+//   read(store, sql)    a one-column query's first row through the
+//                       store's connection: entry's rowids around a VACUUM
 //   vacuum_and_checkpoint(store)
 //                       VACUUM, then a TRUNCATE checkpoint, on a control
 //                       store's file (the two-wave store)
@@ -27,12 +29,15 @@
 // controls): the store's purge reads no policy from H for its VACUUM step
 // yet.
 //
-// Allocations: Steps, NoDeferral none; write none of the test's; the
-// naive store's strings and files' buffers. Platform calls: none; the
-// naive store's files by the standard library. thread: one, each object;
-// the naive store's processes share its directory without a lock.
+// Allocations: Steps, NoDeferral none; write none of the test's; read
+// its query's string; the naive store's strings and files' buffers.
+// Platform calls: none; the naive store's files by the standard library.
+// thread: one, each object; the naive store's processes share its
+// directory without a lock.
 
+#include <array>
 #include <concepts>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <span>
@@ -72,6 +77,18 @@ struct NoDeferral {
 template <class S>
 int write(S& store, std::string_view sql) {
     return store.connection().run(sql);
+}
+// A one-column query's first row read through the store's own connection;
+// none where it failed or gave no row.
+template <class S>
+std::optional<std::int64_t> read(S& store, std::string_view sql) {
+    std::array<std::int64_t, 2> row = {0, 0};
+    // The second column, 1, tells a row from none.
+    const std::string query = "SELECT q.*, 1 FROM (" + std::string(sql) + ") AS q";
+    if (store.connection().run(query, row) != 0 || row[1] != 1) {
+        return std::nullopt;
+    }
+    return row[0];
 }
 inline constexpr std::string_view purged_above_vacuumed =
     "UPDATE meta SET value = (SELECT value FROM meta WHERE name = 'vacuumed') + 1 WHERE name = 'purged'";
