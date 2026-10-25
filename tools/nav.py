@@ -11,8 +11,9 @@ build/windows-analysis/tidy/compile_commands.json, the one without
 Commands:
 - index: builds clangd's background index under build/nav/, from a copy of
   that database, and records the commit and each C and C++ file's blob it
-  was built at (build/nav/index.json). A heavy job, run only on request:
-  every translation unit is parsed.
+  was built at, and the version of the clangd that built it
+  (build/nav/index.json). A heavy job, run only on request: every
+  translation unit is parsed.
 - def NAME, refs NAME, callers NAME: a plain or qualified name (publish,
   Staged::publish). With --file, the symbols named so that FILE uses or
   declares; without it, every symbol of the index named so. A name that
@@ -45,8 +46,11 @@ The answer: one envelope, one line of JSON, at most 8,192 bytes, its fields:
     the symbols holds), such as a call through a template parameter, each
     with its use and what clangd gave. So no answer reads "no callers" in
     silence; read them by hand. Comments and literals are not uses;
-  - index: present or not; built, its commit, the time, and the C and C++
-    files changed since (changed), and whether clangd had loaded it;
+  - index: present or not; built, its commit, the time, the clangd that
+    built it, the C and C++ files changed since (changed), and whether
+    clangd had loaded it. An index whose record names another clangd than
+    the one the call runs, or none, is stale: answered as absent, the two
+    versions named under build;
   - every list as {count, shown, items}: at most --limit items (default
     20, at most 200), fewer where the envelope would pass its bound, the
     full count kept.
@@ -113,9 +117,10 @@ def snapshot(root):
     return commit, dict(zip(listed, blobs))
 
 
-def index_state(root, files):
-    """The index's age: absent, or its commit, time and the files changed
-    since by blob."""
+def index_state(root, files, clangd):
+    """The index's age: absent, or its commit, time, clangd and the files
+    changed since by blob; absent where the record names another clangd
+    than the call's version, clangd, or none."""
     nav = Path(root) / NAV
     try:
         record = json.loads((nav / RECORD).read_text(encoding="utf-8"))
@@ -123,9 +128,13 @@ def index_state(root, files):
         return {"present": False, "build": "nav.py index (heavy)"}
     if not (nav / ".cache").is_dir():
         return {"present": False, "build": "the record is there but not the index: nav.py index"}
+    built_by = record.get("clangd")
+    if not built_by or built_by != clangd:
+        return {"present": False, "build": f"stale: built by clangd {built_by or '(none named)'}, the call runs "
+                                           f"clangd {clangd or '(no version)'}: nav.py index (heavy)"}
     old = record.get("files", {})
     changed = None if files is None else sorted(p for p in set(old) | set(files) if old.get(p) != files.get(p))
-    return {"present": True, "commit": record.get("commit"), "built": record.get("built"),
+    return {"present": True, "commit": record.get("commit"), "built": record.get("built"), "clangd": built_by,
             "changed": changed if changed is not None else "unknown: git gave no listing"}
 
 
@@ -207,6 +216,7 @@ def build_index(args):
     shutil.copyfile(source / "compile_commands.json", nav / "compile_commands.json")
     entries = json.loads((nav / "compile_commands.json").read_text(encoding="utf-8"))
     commit, files = snapshot(args.root)
+    version = LSP["clangd_version"](args.clangd)
     start = time.monotonic()
     with Clangd(args.clangd, nav, args.root, background=True) as clangd:
         clangd.open(smallest(entries))  # a file opened loads the database
@@ -214,10 +224,12 @@ def build_index(args):
             raise Refusal("failed", "INDEX_TIMEOUT", f"the background index did not end in {INDEX_WAIT} s",
                           "run nav.py index again; clangd resumes from the shards written")
     seconds = round(time.monotonic() - start, 1)
-    record = {"commit": commit, "built": utc_now(), "database": DATABASE, "seconds": seconds, "files": files or {}}
+    record = {"commit": commit, "built": utc_now(), "clangd": version, "database": DATABASE, "seconds": seconds,
+              "files": files or {}}
     (nav / RECORD).write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
     shards = sum(1 for _ in (nav / ".cache").rglob("*.idx")) if (nav / ".cache").is_dir() else 0
-    return {"index": {"present": True, "commit": commit, "built": record["built"], "changed": listed([])},
+    return {"index": {"present": True, "commit": commit, "built": record["built"], "clangd": version,
+                      "changed": listed([])},
             "translation_units": len(entries), "shards": shards, "seconds": seconds}
 
 
@@ -229,9 +241,11 @@ def run(args):
     if args.command in ("type", "api"):
         return QUERY["single"](args, Clangd, database_dir(args.root))
     commit, files = snapshot(args.root)
-    state = {"present": False} if args.no_index else index_state(args.root, files)
+    clangd = None if args.no_index else LSP["clangd_version"](args.clangd)
+    state = {"present": False} if args.no_index else index_state(args.root, files, clangd)
     if not state["present"] and args.file is None:
-        raise Refusal("not_ready", "NO_INDEX", "no index, and no --file to answer from", NEXT["NO_INDEX"])
+        stale = f"; the index is {state['build']}" if state.get("build", "").startswith("stale") else ""
+        raise Refusal("not_ready", "NO_INDEX", f"no index, and no --file to answer from{stale}", NEXT["NO_INDEX"])
     background = state["present"]
     folder = args.root / NAV if background else database_dir(args.root)
     with Clangd(args.clangd, folder, args.root, background=background) as clangd:

@@ -9,7 +9,9 @@ declarations past the envelope's bound, are cut with their full count,
 the whole answer under detail_ref; a type on a line; the refusals. Then
 the background index over the scratch, built in a few seconds: the
 references from it, the template's call unresolved, and a file changed
-after it reported as changed. Skipped where clangd is absent.
+after it reported as changed; the clangd that built it recorded, and its
+record planted with another clangd's version, then with none: stale,
+refused without --file and absent with it. Skipped where clangd is absent.
 
 Checkout: the reviewer's facts on this checkout, from the analysis
 preset's stripped database, without the index: the call at
@@ -232,10 +234,14 @@ class Nav(unittest.TestCase):
                                 check=True).stdout.strip()
         self.assertEqual(envelope["data"]["index"]["commit"], commit)
         self.assertGreaterEqual(envelope["data"]["shards"], 2, envelope)
+        version = nav_lsp.clangd_version(nav_lsp.find_clangd())
+        self.assertRegex(version or "", r"^\d+\.\d+\.\d+$")
+        self.assertEqual(envelope["data"]["index"]["clangd"], version)
         status, envelope, _ = nav("refs", "publish", root=self.top)
         self.assertEqual(status, 0, envelope)
         index = envelope["data"]["index"]
-        self.assertEqual((index["present"], index["commit"], index["loaded"]), (True, commit, True), index)
+        self.assertEqual((index["present"], index["commit"], index["loaded"], index["clangd"]),
+                         (True, commit, True, version), index)
         self.assertEqual(index["changed"]["count"], 0)
         found = symbol(envelope, "mini::Staged::publish")
         self.assertEqual(found["references"]["items"], [f"tests/mini/use.cpp:{n}" for n in self.publish_lines()])
@@ -251,6 +257,23 @@ class Nav(unittest.TestCase):
         self.assertEqual(status, 0, envelope)
         self.assertEqual(envelope["data"]["index"]["changed"], {"count": 1, "shown": 1, "items": ["src/mini/tick.cpp"]})
         self.assertEqual(symbol(envelope, "mini::tick")["definition"], f"src/mini/tick.cpp:{line_of(TICK, 'int tick')}")
+        self.other_clangd(version)
+
+    def other_clangd(self, version):
+        """The record planted with another clangd's version, then with none:
+        the index stale, refused without --file, absent with it."""
+        path = self.top / "build" / "nav" / "index.json"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for planted, named in (("1.0.0", "1.0.0"), (None, "(none named)")):
+            record["clangd"] = planted
+            path.write_text(json.dumps(record), encoding="utf-8")
+            build = f"stale: built by clangd {named}, the call runs clangd {version}: nav.py index (heavy)"
+            status, envelope, _ = nav("refs", "publish", root=self.top)
+            self.assertEqual((status, envelope["code"]), (1, "NO_INDEX"), envelope)
+            self.assertTrue(envelope["data"]["message"].endswith(f"; the index is {build}"), envelope)
+            status, envelope, _ = nav("refs", "publish", "--file", "tests/mini/use.cpp", root=self.top)
+            self.assertEqual(status, 0, envelope)
+            self.assertEqual(envelope["data"]["index"], {"present": False, "build": build})
 
 
 class Checkout(unittest.TestCase):

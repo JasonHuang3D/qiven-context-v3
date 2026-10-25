@@ -534,9 +534,14 @@ if(QIVEN3_ANALYZE STREQUAL "analysis")
   endwhile()
   list(REMOVE_DUPLICATES qiven3_tidy_sources)
   file(GLOB_RECURSE qiven3_tidy_inputs CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/src/*.hpp" "${PROJECT_SOURCE_DIR}/tests/support/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/.clang-tidy" "${PROJECT_SOURCE_DIR}/src/*/.clang-tidy")
-  list(APPEND qiven3_tidy_inputs "${PROJECT_SOURCE_DIR}/.clang-tidy")
+    "${PROJECT_SOURCE_DIR}/src/*.hpp" "${PROJECT_SOURCE_DIR}/tests/support/*.hpp")
+  # Each .clang-tidy at any depth, a new one reconfiguring; a source's step
+  # depends on those of its directory and of each directory above it.
+  file(GLOB_RECURSE qiven3_tidy_configs CONFIGURE_DEPENDS
+    "${PROJECT_SOURCE_DIR}/src/*.clang-tidy" "${PROJECT_SOURCE_DIR}/tests/*.clang-tidy")
+  file(GLOB qiven3_tidy_root CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/*.clang-tidy")
+  list(APPEND qiven3_tidy_configs ${qiven3_tidy_root})
+  list(FILTER qiven3_tidy_configs INCLUDE REGEX "/[.]clang-tidy$")
   # clang-cl reads an option it does not know, /analyze's and /pathmap's, as
   # a file and fails, and warns on /experimental: and /external:; the step
   # reads the database without them.
@@ -562,15 +567,26 @@ file(WRITE "${BUILD}/tidy/compile_commands.json" "${db}")
     file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
     string(MAKE_C_IDENTIFIER "${rel}" stamp)
     set(stamp "${PROJECT_BINARY_DIR}/tidy/${stamp}.stamp")
+    get_filename_component(source_dir "${source}" DIRECTORY)
+    set(configs "")
+    foreach(config IN LISTS qiven3_tidy_configs)
+      get_filename_component(config_dir "${config}" DIRECTORY)
+      string(FIND "${source_dir}/" "${config_dir}/" at)
+      if(at EQUAL 0)
+        list(APPEND configs "${config}")
+      endif()
+    endforeach()
     add_custom_command(OUTPUT "${stamp}"
       COMMAND "${QIVEN3_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" --quiet "${source}"
       COMMAND "${CMAKE_COMMAND}" -E touch "${stamp}"
-      DEPENDS "${source}" "${PROJECT_BINARY_DIR}/tidy/compile_commands.json" ${qiven3_tidy_inputs}
+      DEPENDS "${source}" "${PROJECT_BINARY_DIR}/tidy/compile_commands.json" ${qiven3_tidy_inputs} ${configs}
       COMMENT "clang-tidy ${rel}" VERBATIM)
     list(APPEND qiven3_stamps "${stamp}")
   endforeach()
   add_custom_target(qiven3_tidy DEPENDS ${qiven3_stamps})
   add_dependencies(qiven3_tidy ${qiven3_tidy_targets})
   list(LENGTH qiven3_stamps qiven3_count)
-  message(STATUS "qiven3: clang-tidy over ${qiven3_count} sources, target qiven3_tidy")
+  list(LENGTH qiven3_tidy_configs qiven3_config_count)
+  message(STATUS "qiven3: clang-tidy over ${qiven3_count} sources, ${qiven3_config_count} .clang-tidy files, target "
+    "qiven3_tidy")
 endif()

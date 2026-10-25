@@ -33,12 +33,19 @@ fields, separated by white space, a '#' starting a comment:
   SHA-256 must be SHA256, and include/c++/v1/__config's _LIBCPP_VERSION
   must be VERSION's major, then its minor and its patch level in two digits
   each (23.1.4 is 230104).
+- removed: a package an earlier toolchain's removal took, a line of two
+  fields, KIND NAME: dpkg must not list it installed. A name both removed
+  and pinned as a deb is malformed.
+- The prefix: each entry of DIR's top level, and of DIR/downloads, that no
+  pin names, by its path or by where a pinned path resolves, is noted, an
+  earlier toolchain's leftover until it is removed.
 
 Exits 0 when every pin holds; otherwise names each mismatch, one a line,
 and exits 2, as it does when it cannot run (no pin file, a malformed line).
 """
 
 import argparse
+import contextlib
 import hashlib
 import re
 import shutil
@@ -47,7 +54,8 @@ import sys
 from pathlib import Path
 
 PINS = Path(__file__).resolve().parent / "linux-pins.txt"
-KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx")
+KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx", "removed")
+FIELDS = {"removed": 2}  # a kind's fields where they are not 5
 HELD = ()  # none: the compilers are under the prefix, and no package is held
 HEX = re.compile(r"[0-9a-f]{64}")
 SHOWN = 40  # mismatches printed at most, then a count of the rest
@@ -55,27 +63,31 @@ TIMEOUT = 60
 
 
 def parse(text):
-    """The pins, as (line number, kind, name, version, sha256, source), and
-    each malformed line's finding."""
+    """The pins, as (line number, kind, name, version, sha256, source), a
+    removed line's last three empty, and each malformed line's finding."""
     pins, findings, seen = [], [], set()
     for number, line in enumerate(text.splitlines(), 1):
         line = line.split("#", 1)[0].strip()
         if not line:
             continue
         fields = line.split()
-        if len(fields) != 5:
-            findings.append(f"line {number}: {len(fields)} fields, not 5")
+        want = FIELDS.get(fields[0], 5)
+        if len(fields) != want:
+            findings.append(f"line {number}: {len(fields)} fields, not {want}")
             continue
-        kind, name, version, digest, source = fields
+        kind, name, version, digest, source = fields if want == 5 else (*fields, "", "", "")
         if kind not in KINDS:
             findings.append(f"line {number}: kind {kind!r} is none of {', '.join(KINDS)}")
-        elif not HEX.fullmatch(digest):
+        elif want == 5 and not HEX.fullmatch(digest):
             findings.append(f"line {number}: {name}'s SHA-256 is not 64 lower-case hex digits")
         elif (kind, name) in seen:
             findings.append(f"line {number}: {kind} {name} pinned twice")
         else:
             seen.add((kind, name))
             pins.append((number, kind, name, version, digest, source))
+    debs = {name for _, kind, name, *_ in pins if kind in ("deb", "debugger-deb")}
+    findings += [f"line {number}: {name} both removed and pinned as a deb"
+                 for number, kind, name, *_ in pins if kind == "removed" and name in debs]
     return pins, findings
 
 
@@ -128,12 +140,18 @@ def index_digest(name, version):
 
 def check_debs(pins, out, notes):
     debs = [p for p in pins if p[1] in ("deb", "debugger-deb")]
-    if not debs:
+    removed = [p[2] for p in pins if p[1] == "removed"]
+    if not debs and not removed:
         return
     if shutil.which("dpkg-query") is None or shutil.which("apt-cache") is None:
         out.append("deb: dpkg-query or apt-cache is not on PATH")
         return
-    have = installed_debs([p[2] for p in debs])
+    every = installed_debs()
+    for name in removed:
+        if name in every:
+            out.append(f"removed {name}: installed {every[name][0]}, where the removal took it "
+                       f"(apt-get remove {name})")
+    have = installed_debs([p[2] for p in debs]) if debs else {}
     for _, kind, name, version, digest, source in debs:
         if not source.startswith("ubuntu:"):
             out.append(f"{kind} {name}: source {source!r} is not ubuntu:SUITE/COMPONENT")
@@ -148,7 +166,7 @@ def check_debs(pins, out, notes):
             notes.append(f"{kind} {name} {version}: the archive's index no longer lists it; digest not re-read")
         elif listed != digest:
             out.append(f"{kind} {name} {version}: the index's SHA-256 is {listed}; the pin {digest}")
-    check_hold(debs, have, installed_debs(), out)
+    check_hold(debs, have, every, out)
 
 
 def check_hold(debs, have, every, out):
@@ -232,10 +250,30 @@ def check_libcxx(prefix, name, version, digest, source, out):
         out.append(f"libcxx {name}: _LIBCPP_VERSION is {match.group(1) if match else 'absent'}; the pin {want}")
 
 
+def check_prefix(prefix, pins, notes):
+    """A note of each entry of the prefix's top level, and of its downloads,
+    that no pin names, by its path or where a pinned path resolves."""
+    top = prefix.resolve()
+    named = {"downloads"} if any(p[1] == "download" for p in pins) else set()
+    for *_, source in pins:
+        path = under(prefix, source)
+        if path is None:
+            continue
+        named.add(source.removeprefix("prefix/").split("/", 1)[0])
+        with contextlib.suppress(OSError, ValueError):
+            named.add(path.resolve().relative_to(top).parts[0])
+    fetched = {p[5].rsplit("/", 1)[-1] for p in pins if p[1] == "download"}
+    for folder, kept, where in ((prefix, named, "the prefix"), (prefix / "downloads", fetched, "the downloads")):
+        if folder.is_dir() and (folder != prefix / "downloads" or fetched):
+            notes += [f"{where}: {entry.name} is named by no pin" for entry in sorted(folder.iterdir())
+                      if entry.name not in kept]
+
+
 def check(prefix, pins):
     """The mismatches of every pin, and the notes."""
     out, notes = [], []
     check_debs(pins, out, notes)
+    check_prefix(prefix, pins, notes)
     for _, kind, name, version, digest, source in pins:
         if kind == "download":
             check_download(prefix, name, digest, source, out)
@@ -274,7 +312,9 @@ def main(argv=None):
         print(f"linux-pins: mismatch: {line}")
     if len(mismatches) > SHOWN:
         print(f"linux-pins: and {len(mismatches) - SHOWN} more mismatches")
-    print(f"linux-pins: {len(pins)} pins, {len(mismatches)} mismatch{'' if len(mismatches) == 1 else 'es'}")
+    removed = sum(1 for p in pins if p[1] == "removed")
+    print(f"linux-pins: {len(pins) - removed} pins, {removed} removed, "
+          f"{len(mismatches)} mismatch{'' if len(mismatches) == 1 else 'es'}")
     return 2 if mismatches else 0
 
 

@@ -1,6 +1,7 @@
 # The Linux toolchain of the local loop, on WSL2's Ubuntu 24.04 LTS: one pin
-# a line, KIND NAME VERSION SHA256 SOURCE, which tools/linux_pins.py checks
-# against the installed tools (see its text for each kind). A prefix/ source
+# a line, KIND NAME VERSION SHA256 SOURCE, or removed NAME for a package that
+# must be absent, which tools/linux_pins.py checks against the installed
+# tools (see its text for each kind). A prefix/ source
 # is under the install prefix the check is given; path/ is found on PATH.
 # A trailing comment says where a digest comes from: published (the
 # release's own digest list), github-asset-digest (the release asset's digest
@@ -76,3 +77,49 @@ debugger-deb libdebuginfod1t64 0.190-1.1ubuntu0.1 7ff18c57198200f4af7e50e0dce293
 debugger-deb libipt2 2.0.6-1build1 c14702719d594c1ca099e2cd9ff0e9bbd0215c9bb6bebb4a0d7651f984600995 ubuntu:noble/main
 debugger-deb libsource-highlight-common 3.1.9-4.3build1 3f331e390caadcff33f42f56acad1a8c7e8a1f282eb31316f489c38f6c2460a5 ubuntu:noble/main
 debugger-deb libsource-highlight4t64 3.1.9-4.3build1 e0ef35d9b76669f22c2ad4ab3b9141ac46d3662823c5bbea248c21db53879470 ubuntu:noble/main
+
+# The packages the old compilers' removal took, each absent: gcc-14's and
+# llvm-toolchain-18's by name, not by source package, since the system's
+# runtime of gcc-14 (gcc-14-base, libgcc-s1, libstdc++6) stays; then what
+# they alone had brought in.
+removed cpp-14
+removed cpp-14-x86-64-linux-gnu
+removed g++-14
+removed g++-14-x86-64-linux-gnu
+removed gcc-14
+removed gcc-14-x86-64-linux-gnu
+removed lib32gcc-s1
+removed lib32stdc++6
+removed libasan8
+removed libatomic1
+removed libcc1-0
+removed libgcc-14-dev
+removed libgomp1
+removed libhwasan0
+removed libitm1
+removed liblsan0
+removed libobjc4
+removed libquadmath0
+removed libstdc++-14-dev
+removed libtsan2
+removed libubsan1
+
+removed clang-18
+removed libclang-common-18-dev
+removed libclang-cpp18
+removed libclang-rt-18-dev
+removed libclang1-18
+removed libllvm18
+removed llvm-18
+removed llvm-18-linker-tools
+removed llvm-18-runtime
+
+removed gcc-13-base
+removed libgcc-13-dev
+removed libobjc-13-dev
+removed libstdc++-13-dev
+removed libc6-i386
+removed libgc1
+removed libisl23
+removed libmpc3
+removed libpfm4
