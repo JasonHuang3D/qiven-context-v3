@@ -5,6 +5,7 @@ the fake, and the machine cases.
 Its configuration location with no override is LocalAppData's qiven3, the
 known folder read here through the system's own call. Each case's drive
 holds as many handles at its end as before it; HandleCount plants a leak.
+The files' holders are real handles (machine/windows_holds.py).
 """
 
 import sys
@@ -19,6 +20,7 @@ from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_process import PlatformProcess
 from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
 from tests.drive.session import WINDOWS, Drive
+from tests.machine.windows_holds import HeldDrive
 
 
 def local_app_data():
@@ -43,13 +45,13 @@ class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
     # create, read, remove_directory, replace and lock are win/files'; its
-    # stage, and the drive's holders over real handles, are left of it in
-    # package 5; the drive's location request is the fake's alone until
-    # then; program, start and run are win/process', the children
-    # qiven3-child's, in package 5 too; so are facts and synced
-    # (win/facts'), program (win/process') and residual, the machine cases'.
+    # stage is left of it in package 5; the drive's location request is
+    # the fake's alone until then; program, start and run are win/process',
+    # the children qiven3-child's, in package 5 too; so are facts and
+    # synced (win/facts'), program (win/process') and residual, the
+    # machine cases'.
     CREATE_READ = True
-    STAGE_LOCK = False
+    STAGE = False
     LOCATION = False
     PROCESSES = False
     FACTS = False
@@ -75,6 +77,15 @@ class WindowsBinding(PlatformBinding):
 
     def files_root(self):
         return self.scratch
+
+    def drive(self, config=None, seed=None, env=None, cwd=None):
+        return HeldDrive(*self.drive_args(config, seed), drive=self.DRIVE, env=env, cwd=cwd,
+                         count_handles=self.COUNT_HANDLES)
+
+    def hold(self, d, **times):
+        """The holders: real handles, armed on the next request naming a
+        path (machine/windows_holds.py)."""
+        d.hold(**times)
 
 
 class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformRest,
@@ -105,6 +116,32 @@ class MachineUntil(unittest.TestCase):
         reasons, others = skip_reasons(Windows, tuple(UNTIL))
         self.assertEqual(others, [])
         self.assertEqual(reasons, UNTIL)
+
+
+# The files' cases' skips: P19's and P25's until stage lands, which STAGE
+# set true drops; P20's for its child half, after its lock half.
+FILES_UNTIL = {
+    **dict.fromkeys(("test_P19_publish", "test_P25_not_utf8"), "until package 5: stage: win/files"),
+    "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
+                     "win/process and qiven3-child",
+}
+
+
+class FilesUntil(unittest.TestCase):
+    """Windows' cases P19, P20 and P25 run here, each skipping by its
+    reason: P19 at stage, which answers unsupported; P25 after its resolve
+    and replace; P20 after its lock half, on a lock held by another
+    handle."""
+    ctest_labels = ("drive",)
+
+    def setUp(self):
+        if sys.platform != "win32":
+            self.skipTest("not applicable: the Windows adapter is built on Windows alone")
+
+    def test_files_until(self):
+        reasons, others = skip_reasons(Windows, tuple(FILES_UNTIL))
+        self.assertEqual(others, [])
+        self.assertEqual(reasons, FILES_UNTIL)
 
 
 def plant_handle(pid):

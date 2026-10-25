@@ -10,7 +10,8 @@ on an adapter with processes. The Windows adapter's program, start and
 run are its module win/process', and the children its cases start are
 qiven3-child's, both in package 5; until then a binding with PROCESSES
 false checks that start answers unsupported, and the child half is
-skipped. P20's lock is the files' (STAGE_LOCK, contract/platform_files.py).
+skipped. P20's lock is the files', its holder the binding's hold()
+(contract/platform_files.py).
 """
 
 import re
@@ -199,8 +200,6 @@ class PlatformProcess:
         each a child: one recorded, the other chosen (the child half)."""
         path = self.files_root() / "store.lock"
         with self.drive() as d:
-            if not self.STAGE_LOCK:
-                self.files_unsupported(d)
             self.hold(d, lock=3)
             held = d.call("lock", path=str(path))["id"]
             self.assertEqual(self.failure(d.call, "lock_release", id=held + 1).kind, "request")
