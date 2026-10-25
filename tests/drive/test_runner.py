@@ -61,9 +61,11 @@ class Routes(unittest.TestCase):
 
     def test_crash(self):
         """A crash is not caught: the system's status, or, in a build under
-        a sanitizer whose runtime reports the access and exits 1, that
-        status and its report: UndefinedBehaviorSanitizer's, which stops
-        first where it is on, else AddressSanitizer's."""
+        a sanitizer, whose runtime takes the signal, reports the access and
+        exits, its status and its report: UndefinedBehaviorSanitizer's,
+        which stops first where it is on, else AddressSanitizer's, each 1;
+        ThreadSanitizer's, 66, its runtime's own exit code; MemorySanitizer's,
+        1."""
         ran = binaries.run(DEMO, ["--run", "demo.crash"])
         self.assertEqual(ran.out, b"")
         sanitize = build_option("QIVEN3_SANITIZE") or ""
@@ -73,6 +75,12 @@ class Routes(unittest.TestCase):
         elif "address" in sanitize:
             self.assertEqual(ran.status, 1)
             self.assertIn(b"AddressSanitizer", ran.err)
+        elif "thread" in sanitize:
+            self.assertEqual(ran.status, 66)
+            self.assertIn(b"ThreadSanitizer: SEGV on unknown address", ran.err)
+        elif "memory" in sanitize:
+            self.assertEqual(ran.status, 1)
+            self.assertIn(b"MemorySanitizer: SEGV on unknown address", ran.err)
         elif sys.platform == "win32":
             self.assertEqual(ran.status, 0xC0000005)  # STATUS_ACCESS_VIOLATION
         else:
