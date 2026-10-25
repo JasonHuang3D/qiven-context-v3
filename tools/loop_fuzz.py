@@ -10,18 +10,22 @@ tests/fuzz/CMakeLists.txt). Each runs as
     <binary> -max_total_time=<seconds> -timeout=10 -artifact_prefix=<artifacts>/ <corpus>
 
 libFuzzer stopping at the time or at its first finding, whose input it
-writes under the artifacts. A line a target with its outcome and seconds.
+writes under the artifacts. A line a target with its outcome and seconds,
+by the loop's clock, tools/loop_run.py's now(): in WSL2 the raw clock,
+which the guest's time daemon never slews.
 Exit 0 when every target ran its time with no finding, 1 when one found or
 failed, 2 when it could not run (no list, no target, a bad argument).
 """
 
+import runpy
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 MARGIN = 120  # seconds past the fuzzing time before a target counts as hung
 INPUT_TIMEOUT = 10  # libFuzzer's -timeout: seconds an input
+# The loop's clock, by runpy: under -I this directory is off sys.path.
+now = runpy.run_path(str(Path(__file__).resolve().with_name("loop_run.py")))["now"]
 
 
 def targets(tree):
@@ -53,7 +57,7 @@ def main(argv):
         return 2
     failed = 0
     for name, binary, corpus, artifacts in listed:
-        start = time.monotonic()
+        start = now()
         argv = [binary, f"-max_total_time={seconds}", f"-timeout={INPUT_TIMEOUT}", f"-artifact_prefix={artifacts}/",
                 corpus]
         print("$ " + " ".join(argv), flush=True)
@@ -65,7 +69,7 @@ def main(argv):
         except OSError as e:
             status, what = 1, f"FAIL, cannot start: {e}"
         failed += status != 0
-        print(f"fuzz {name}: {what} in {time.monotonic() - start:.1f} s", flush=True)
+        print(f"fuzz {name}: {what} in {now() - start:.1f} s", flush=True)
     print(f"loop_fuzz: {len(listed) - failed} of {len(listed)} targets ran {seconds} s with no finding")
     return 1 if failed else 0
 

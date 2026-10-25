@@ -45,7 +45,7 @@ add_library(qiven3_secret STATIC src/entry/secret.cpp)
 add_library(qiven3_reader STATIC src/reader/secret_include.cpp src/reader/replace_call.cpp)
 target_link_libraries(qiven3_reader PUBLIC qiven3_store)
 add_library(qiven3_mapcheck STATIC src/qiven3/mapcheck.cpp)
-add_library(qiven3_base STATIC src/qiven3/clean.cpp)
+add_library(qiven3_base STATIC src/qiven3/clean.cpp src/app/main.cpp)
 target_link_libraries(qiven3_base PUBLIC qiven3_platform qiven3_flags)
 add_library(qiven3_location STATIC src/qiven3/location.cpp)
 target_link_libraries(qiven3_location PUBLIC qiven3_mapcheck qiven3_platform_win ws2_32 ole32)
@@ -126,6 +126,13 @@ PLANTS = {
     "src/entry/ofstream.cpp": "#include <fstream>\nvoid entry_write() { std::ofstream f(\"x\"); f << 1; }\n",
     "src/entry/stream_mode.cpp": "#include <fstream>\nbool entry_mode() "
         "{ std::ifstream f(\"x\", std::ios::out); return f.good(); }\n",
+    # B17's mode app beside qiven3::app, the binary's namespace, in each
+    # spelling (clean), another namespace's app and the stream's (planted).
+    "src/entry/ios_app.cpp": "#include <fstream>\nbool entry_append() "
+        "{ std::ifstream f(\"x\", std::ios::app); return f.good(); }\n",
+    "src/entry/other_app.cpp": "namespace other::app { int entry_other(); }\nint other::app::entry_other() { return 0; }\n",
+    "src/app/main.cpp": "namespace qiven3::app { int one(); }\nnamespace qiven3 {\nnamespace app {\nint two();\n}\n}\n"
+        "int qiven3::app::one() { return ::qiven3::app::two(); }\nint qiven3::app::two() { return 2; }\n",
     "src/entry/secret.hpp": "#pragma once\nint secret_check();\n",
     "src/entry/secret.cpp": "#include \"entry/secret.hpp\"\nint secret_check() { return 0; }\n",
     "src/reader/secret_include.cpp": "#include \"entry/secret.hpp\"\nint reader_secret() { return secret_check(); }\n",
@@ -227,7 +234,8 @@ PLANTED = [
     ("B17", "src/entry/windows_include.cpp", "os"), ("B17", "src/entry/rename.cpp", "name"),
     ("B17", "src/entry/fs_remove.cpp", "name"), ("B17", "src/entry/wfopen.cpp", "name"),
     ("B17", "src/entry/get_acp.cpp", "name"), ("B17", "src/entry/ofstream.cpp", "name"),
-    ("B17", "src/entry/stream_mode.cpp", "mode"), ("B17", "src/app/instances.cpp", "include"),
+    ("B17", "src/entry/stream_mode.cpp", "mode"), ("B17", "src/entry/ios_app.cpp", "mode"),
+    ("B17", "src/entry/other_app.cpp", "mode"), ("B17", "src/app/instances.cpp", "include"),
     ("B17", "src/app/instances.cpp", "name"), ("B17", "qiven3_location", "link"),
     ("B17", "src/entry/malloc.hpp", "include"), ("B17", "src/memory/new.hpp", "include"),
     *(("B17", f"src/entry/crt_{n.lstrip('_')}.cpp", "name") for n in B17_ADDED),
@@ -242,7 +250,7 @@ CLEAN = [
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
-    "src/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp",
+    "src/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp", "src/app/main.cpp",
 ]
 
 # The safe subset's plants (subset.py), headers no target compiles: each of

@@ -3,7 +3,8 @@ steps of the interpreter alone. Its seconds: an inner run in its own
 process, its monotonic clock running fast as WSL2's slewed guest clock
 has, relayed as linux's from Windows: each step's seconds and the inner
 summary's within the seconds in all, and the inner run bound to the lines
-this side left, none dropped. Its failing steps: three failing builds of a
+this side left, none dropped; loop_fuzz's seconds by the loop's clock,
+the monotonic one running fast. Its failing steps: three failing builds of a
 gate's form, fuzz's last, each one's first error lines shown within the
 bound, the tails sharing what is left; an error line within its tail shown
 there alone; a failing step with no error line keeping its tail."""
@@ -12,11 +13,15 @@ import contextlib
 import io
 import os
 import re
+import runpy
 import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tests.drive.test_loop_ci import ROOT, load_loop
 
@@ -92,6 +97,32 @@ class Seconds(unittest.TestCase):
         self.assertLessEqual(summary, in_all, lines[-1])
         self.assertLessEqual(sum(steps), summary + 0.05 * len(steps), (steps, lines[-1]))
         self.assertEqual((len(lines), report.dropped), (LOOP.LINES, 0), lines[-3:])
+
+    def test_fuzz(self):
+        """loop_fuzz's seconds by the loop's clock, now(): a target that
+        runs a second shows a second, though the monotonic clock, and in
+        WSL every clock but the raw one, runs at twice the host's."""
+        top = scratch(self)
+        (top / "tests").mkdir()
+        (top / "tests" / "fuzz_targets.txt").write_text("t\tbinary\tcorpus\tartifacts\n", encoding="utf-8")
+        fuzz = runpy.run_path(str(ROOT / "tools" / "loop_fuzz.py"))
+        host, origin = time.monotonic, time.monotonic()
+        patches = [mock.patch.object(time, "monotonic", lambda: origin + (host() - origin) * FAST),
+                   mock.patch.object(subprocess, "run", lambda *a, **k: (time.sleep(SLEEP), mock.Mock(returncode=0))[1])]
+        if hasattr(time, "clock_gettime"):
+            get, raw = time.clock_gettime, time.CLOCK_MONOTONIC_RAW
+            fast = {c: get(c) for c in (time.CLOCK_MONOTONIC, raw)}
+            patches.append(mock.patch.object(time, "clock_gettime", lambda c: get(c) if c == raw else
+                                             fast.setdefault(c, get(c)) + (get(c) - fast[c]) * FAST))
+        out = io.StringIO()
+        with contextlib.ExitStack() as stack, contextlib.redirect_stdout(out):
+            for patch in patches:
+                stack.enter_context(patch)
+            status = fuzz["main"]([str(top), "1"])
+        self.assertEqual(status, 0, out.getvalue())
+        found = re.search(r"^fuzz t: pass in (\d+\.\d) s$", out.getvalue(), re.MULTILINE)
+        self.assertIsNotNone(found, out.getvalue())
+        self.assertTrue(0.8 * SLEEP <= float(found.group(1)) < 1.5 * SLEEP, out.getvalue())
 
 
 class Failing(unittest.TestCase):

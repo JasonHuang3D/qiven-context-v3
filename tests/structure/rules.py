@@ -288,6 +288,14 @@ def is_git(value):
     return value in GIT_LITERALS or value.startswith(GIT_PREFIXES) or value in GIT_COMMANDS
 
 
+def app_namespace(tokens, i):
+    """Whether tokens[i], `app` after `::`, names the binary's namespace,
+    qiven3::app, not a stream's mode: `qiven3` before the `::`, written as
+    one qualified name (namespace qiven3::app, qiven3::app::main); nested,
+    `app` follows no `::`."""
+    return tokens[i][1] == "app" and i >= 2 and tokens[i - 2][0:2] == ("id", "qiven3")
+
+
 def source_rules(root, files, out):
     """B1's text, B2's and B14's strings, B13's and B17's tokens, B15's lines.
     Gives the files holding a goldens path, for B14's writes."""
@@ -318,7 +326,8 @@ def source_rules(root, files, out):
                     and after == "(":
                 out.add("B13", rel, detail=f"line {line}: a platform call that writes, {value}")
             if (is_core(rel) or is_instantiation(rel)) and (
-                    (value in STREAM_MODES and before == "::") or value in STREAM_TYPES):
+                    (value in STREAM_MODES and before == "::" and not app_namespace(tokens, i))
+                    or value in STREAM_TYPES):
                 out.add("B17", rel, "mode", f"line {line}: a stream's writing mode, {value}")
     return goldens
 
