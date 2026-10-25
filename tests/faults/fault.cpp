@@ -15,6 +15,9 @@
 //   out        "out: plant" through diag::Out, twice; exit 0
 //   hang       the main thread and one more, each blocked for ever
 //   watch      a counter written three times, 1, 2 and 3; exit 0
+//   span       a read of a span's element past its end, which the hardened
+//              library stops before the read
+//   span-in    the same read in bounds, span's control; exit 0
 //
 // Before its plant each run keeps a Log's crash buffer and ends 20
 // operations "plant" in it, more than the report's 16 events, which so
@@ -26,6 +29,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <span>
 #include <stdexcept>
 #include <string_view>
 #include <thread>
@@ -89,6 +93,19 @@ QIVEN3_PLANT int plant_parameter() {
     const int read = one[past];
     return read + 1;
 #endif
+}
+
+// Index 1 of a span over the first of two elements, or 0, the control.
+// Standard error is unbuffered: the line before the read is written, and
+// the line after it, naming the element read, only if the read happened.
+QIVEN3_PLANT int plant_span(std::size_t index) {
+    const std::array<int, 2> both{1, 2};
+    const std::span<const int> first(both.data(), 1);
+    const volatile std::size_t at = index;
+    std::fputs("span: reading\n", stderr);
+    const int read = first[at];
+    std::fputs(read == both[1] ? "span: read past the end\n" : "span: read in bounds\n", stderr);
+    return 0;
 }
 
 QIVEN3_PLANT int plant_overflow(int depth) {
@@ -184,7 +201,11 @@ int main(int argc, char** argv) {
     if (plant == "watch") {
         return plant_watch();
     }
-    std::fputs("usage: qiven3-fault null|abort|assert|parameter|overflow|exception|failfast|out|hang|watch\n",
-               stderr);
+    if (plant == "span" || plant == "span-in") {
+        return plant_span(plant == "span" ? 1 : 0);
+    }
+    std::fputs(
+        "usage: qiven3-fault null|abort|assert|parameter|overflow|exception|failfast|out|hang|watch|span|span-in\n",
+        stderr);
     return 2;
 }
