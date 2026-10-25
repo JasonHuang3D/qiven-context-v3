@@ -3,7 +3,7 @@
 A binding (contract/test_platform_fake.py, machine/test_platform_windows.py)
 mixes these into a TestCase with its adapter: ADAPTER, the name it gives;
 DRIVE, the drive's binary; TAGS, what it has of files, processes and
-machine; drive_args(config, seed), the drive's arguments for it;
+machine, and "own: fake" on the fake; drive_args(config, seed), the drive's arguments for it;
 default_config(), where its configuration location lies with no override;
 files_root(), a directory its files' operations may write under;
 COUNT_HANDLES, whether each drive's handle count is compared; and, for
@@ -15,7 +15,8 @@ Here: P1 and P2. P3 to P8 and P16 are location's
 (contract/platform_location.py), P9, P19 and P25 the files'
 (contract/platform_files.py), P10 to P15 and P20 the processes'
 (contract/platform_process.py), P17, P18, P21 and P22 the machine's
-(contract/platform_machine.py).
+(contract/platform_machine.py); the fake's own cases, "own: fake",
+contract/platform_own.py.
 """
 
 import shutil

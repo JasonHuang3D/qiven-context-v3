@@ -231,10 +231,11 @@ qiven3_add_cases(qiven3_unit_fake_process LABELS fast fake
 # win/files' cases on the Windows adapter, on Windows alone: create, read,
 # remove_directory, replace and lock on real files in each case's scratch
 # directory under the job's temporary directory; read's allocation counted;
-# each Win32 call failed in turn. fast, not fake: the adapter is the real
-# one, reached by tier 1's fast step.
+# each Win32 call failed in turn. fast and fake: they need no processes,
+# machine fact or debugger, so every Windows job's fake step and CI's run
+# them, as tier 1's fast step does.
 if(WIN32)
-  qiven3_add_cases(qiven3_unit_win_files LABELS fast
+  qiven3_add_cases(qiven3_unit_win_files LABELS fast fake
     SOURCES win_files_test.cpp
     LINK qiven3_faults qiven3_platform_win)
 endif()
@@ -323,7 +324,8 @@ qiven3_add_cases(qiven3_unit_stores LABELS fast fake
 # chosen, show, change to the same directory, then not_moved; each usage
 # error; the record and its refused forms, not_chosen, the guard, the
 # warnings, init's and change's rules, ASCII output, the lock held; the
-# budgets, counts and fault runs of each command and of store_dir.
+# budgets, counts and fault runs of each command and of store_dir, over
+# support/fixtures/location_bed.hpp's steps.
 qiven3_add_cases(qiven3_unit_location LABELS fast fake
-  SOURCES location_test.cpp location_cases_test.cpp location_memory_test.cpp
+  SOURCES location_test.cpp location_cases_test.cpp location_memory_test.cpp location_faults_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_location)

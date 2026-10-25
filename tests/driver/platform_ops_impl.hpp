@@ -281,7 +281,7 @@ inline std::size_t run_budget(ArgView request) {
 }
 
 #if defined(QIVEN3_FAULTS)
-// The adapter's fault points, which the fake alone has.
+// The adapter's fault points, which every adapter the drive serves has.
 template <class P>
 concept Faulted = requires(P& p, memory::Countdown* countdown) { p.attach(countdown); };
 #endif
@@ -363,12 +363,8 @@ template <platform::Platform P>
 Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     P& p = platform();
 #if defined(QIVEN3_FAULTS)
-    Faults& faults = session_.faults();
-    if constexpr (ops::Faulted<P>) {
-        p.attach(&faults.platform);
-    } else if (faults.armed == &faults.platform) {
-        throw RequestError("not applicable: this adapter has no fault points; the fake's calls fail in turn");
-    }
+    static_assert(ops::Faulted<P>, "every adapter the drive serves has fault points");
+    p.attach(&session_.faults().platform);
 #endif
     if (entry.budget == nullptr) {
         memory::Arena none{std::span<std::byte>{}};
@@ -397,10 +393,8 @@ Value PlatformDrive<P>::reply(ArgView request) {
         answer = caught(op);
     }
 #if defined(QIVEN3_FAULTS)
-    if constexpr (ops::Faulted<P>) {
-        if (platform_) {
-            platform_->attach(nullptr);
-        }
+    if (platform_) {
+        platform_->attach(nullptr);
     }
 #endif
     return finish(session_, std::move(answer), holding());

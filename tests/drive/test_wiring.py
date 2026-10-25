@@ -6,6 +6,7 @@ past it."""
 
 import json
 import re
+import sys
 import unittest
 from pathlib import Path
 
@@ -21,6 +22,8 @@ STRUCTURE = "tests.structure."
 ANALYSIS = "tests.structure.test_analysis."
 SAMPLE = "tests.drive.samples."
 SELECT = "tests.drive.test_wiring.Select."
+# The Windows adapter's own file cases, on Windows alone.
+WIN_FILES = "win_files."
 # A fuzz target's run, under libFuzzer alone: fuzz.<target>.
 FUZZ = "fuzz."
 # The watcher's limits by label, and CTest's seconds past them.
@@ -207,6 +210,11 @@ class Registered(unittest.TestCase):
         self.assertIn("tests.drive.test_hang.HangStacks.test_K8_hang", expected["debugger"])
         self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])
+        # win/files' cases in the fake selection, which every Windows job
+        # and CI's Windows jobs run.
+        win_files = {name for name in tests if name.startswith(WIN_FILES)}
+        self.assertEqual(bool(win_files), sys.platform == "win32")
+        self.assertLessEqual(win_files, expected["fake"] & expected["fast"])
         self.assertNotIn("tests.drive.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))
         for preset, names in expected.items():
