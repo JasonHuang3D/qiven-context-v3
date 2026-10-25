@@ -148,20 +148,23 @@ void encode(std::span<const wchar_t> text, std::span<char> into, std::size_t& he
 }  // namespace
 
 void add_error(Detail& detail, unsigned long error) noexcept {
-    static constexpr std::array<std::pair<unsigned long, std::string_view>, 26> names = {{
-        {1, "ERROR_INVALID_FUNCTION"},       {2, "ERROR_FILE_NOT_FOUND"},
-        {3, "ERROR_PATH_NOT_FOUND"},         {5, "ERROR_ACCESS_DENIED"},
-        {6, "ERROR_INVALID_HANDLE"},         {8, "ERROR_NOT_ENOUGH_MEMORY"},
-        {21, "ERROR_NOT_READY"},             {31, "ERROR_GEN_FAILURE"},
-        {32, "ERROR_SHARING_VIOLATION"},     {33, "ERROR_LOCK_VIOLATION"},
-        {50, "ERROR_NOT_SUPPORTED"},         {53, "ERROR_BAD_NETPATH"},
-        {67, "ERROR_BAD_NET_NAME"},          {80, "ERROR_FILE_EXISTS"},
-        {87, "ERROR_INVALID_PARAMETER"},     {109, "ERROR_BROKEN_PIPE"},
-        {122, "ERROR_INSUFFICIENT_BUFFER"},  {123, "ERROR_INVALID_NAME"},
-        {145, "ERROR_DIR_NOT_EMPTY"},        {183, "ERROR_ALREADY_EXISTS"},
-        {206, "ERROR_FILENAME_EXCED_RANGE"}, {232, "ERROR_NO_DATA"},
-        {267, "ERROR_DIRECTORY"},            {1113, "ERROR_NO_UNICODE_TRANSLATION"},
-        {1920, "ERROR_CANT_ACCESS_FILE"},    {1921, "ERROR_CANT_RESOLVE_FILENAME"},
+    static constexpr std::array<std::pair<unsigned long, std::string_view>, 31> names = {{
+        {1, "ERROR_INVALID_FUNCTION"},         {2, "ERROR_FILE_NOT_FOUND"},
+        {3, "ERROR_PATH_NOT_FOUND"},           {5, "ERROR_ACCESS_DENIED"},
+        {6, "ERROR_INVALID_HANDLE"},           {8, "ERROR_NOT_ENOUGH_MEMORY"},
+        {14, "ERROR_OUTOFMEMORY"},             {21, "ERROR_NOT_READY"},
+        {31, "ERROR_GEN_FAILURE"},             {32, "ERROR_SHARING_VIOLATION"},
+        {33, "ERROR_LOCK_VIOLATION"},          {50, "ERROR_NOT_SUPPORTED"},
+        {53, "ERROR_BAD_NETPATH"},             {67, "ERROR_BAD_NET_NAME"},
+        {80, "ERROR_FILE_EXISTS"},             {87, "ERROR_INVALID_PARAMETER"},
+        {109, "ERROR_BROKEN_PIPE"},            {122, "ERROR_INSUFFICIENT_BUFFER"},
+        {123, "ERROR_INVALID_NAME"},           {145, "ERROR_DIR_NOT_EMPTY"},
+        {183, "ERROR_ALREADY_EXISTS"},         {203, "ERROR_ENVVAR_NOT_FOUND"},
+        {206, "ERROR_FILENAME_EXCED_RANGE"},   {232, "ERROR_NO_DATA"},
+        {234, "ERROR_MORE_DATA"},              {259, "ERROR_NO_MORE_ITEMS"},
+        {267, "ERROR_DIRECTORY"},              {1113, "ERROR_NO_UNICODE_TRANSLATION"},
+        {1630, "ERROR_UNSUPPORTED_TYPE"},      {1920, "ERROR_CANT_ACCESS_FILE"},
+        {1921, "ERROR_CANT_RESOLVE_FILENAME"},
     }};
     for (const auto& entry : names) {
         if (entry.first == error) {
@@ -329,13 +332,6 @@ void WindowsPlatform::normcase(std::string_view path, String& out) {
     narrow(Code::path, "normcase", b.first(static_cast<std::size_t>(n)), out);
 }
 
-void WindowsPlatform::facts(std::string_view, Facts&) { not_yet("facts"); }
-
-bool WindowsPlatform::synced(std::string_view, String& out) {
-    out.clear();
-    not_yet("synced");
-}
-
 void WindowsPlatform::replace(std::string_view path, std::string_view data, Seconds deadline) {
     files::replace(files_, path, data, deadline);
 }
@@ -428,11 +424,6 @@ void WindowsPlatform::write_output(std::string_view utf8) {
     if (held > 0) {
         put(std::span<const char>(bytes).first(held));
     }
-}
-
-void WindowsPlatform::residual(std::span<const std::string_view>, Vector<Row>& out) {
-    out.clear();
-    not_yet("residual");
 }
 
 // The system's cryptographic generator, through a block on the stack that

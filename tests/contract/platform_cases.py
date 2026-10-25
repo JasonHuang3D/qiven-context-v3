@@ -106,7 +106,9 @@ class PlatformCases:
             with self.subTest(LOCALAPPDATA=value):
                 with self.drive(env=environment(LOCALAPPDATA=value)) as d:
                     self.assertEqual(d.config_dir(), expected)
-        self.assertFalse(Path(elsewhere).exists())
+        # Nothing of v3's under the moved LOCALAPPDATA: the system's own
+        # services may make their caches there.
+        self.assertFalse(Path(elsewhere, "qiven3").exists())
 
         with self.drive(config=override) as d:
             self.assertEqual(d.config_dir(create=True), override)

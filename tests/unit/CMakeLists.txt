@@ -250,6 +250,25 @@ if(WIN32)
     LINK qiven3_faults qiven3_platform_win)
 endif()
 
+# win/facts' cases on the Windows adapter, on Windows alone, that read no
+# machine fact: the rules the compiler evaluates, the names, each member's
+# refusals and first failed call. fast and fake, as win_files'.
+if(WIN32)
+  qiven3_add_cases(qiven3_unit_win_facts LABELS fast fake
+    SOURCES win_facts_test.cpp
+    LINK qiven3_faults qiven3_platform_win)
+endif()
+
+# win/facts' cases on this machine's facts: facts, residual and synced read
+# here against the case's own reads, their allocations counted, each
+# platform call failed in turn. machine: they read the machine's facts, so
+# the full and asan presets run them, not the fast or fake ones.
+if(WIN32)
+  qiven3_add_cases(qiven3_unit_win_facts_machine LABELS machine
+    SOURCES win_facts_machine_test.cpp win_facts_faults_test.cpp
+    LINK qiven3_faults qiven3_platform_win)
+endif()
+
 # store/errors' cases: each kind with its fields and its code, `secret`
 # with no id, the cuts at a code point and the names, evaluated by the
 # compiler; the widths against the entry's; each kind's line; an error

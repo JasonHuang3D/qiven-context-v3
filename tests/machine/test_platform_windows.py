@@ -15,7 +15,7 @@ from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
-from tests.contract.platform_machine import PlatformMachine, skip_reasons
+from tests.contract.platform_machine import UNTIL_LOCATION, PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import CASES as OWN_CASES
 from tests.contract.platform_own import PlatformOwn
@@ -47,18 +47,17 @@ class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
     # create, read, remove_directory, replace, lock and stage are
-    # win/files'; the drive's location request is the fake's alone until
-    # package 5; program, start and run are win/process', the children
-    # qiven3-child's, in package 5 too; so are facts and synced
-    # (win/facts'), program (win/process') and residual, the machine
-    # cases'.
+    # win/files'; facts, synced and residual win/facts'; the drive's
+    # location request is the fake's alone until package 5; program, start
+    # and run are win/process', the children qiven3-child's, in package 5
+    # too, so program is the machine cases'.
     CREATE_READ = True
     STAGE = True
     LOCATION = False
     PROCESSES = False
-    FACTS = False
+    FACTS = True
     PROGRAM = False
-    RESIDUAL = False
+    RESIDUAL = True
     TAGS = frozenset({"files", "processes", "machine"})
     COUNT_HANDLES = True
     ctest_labels = ("drive",)
@@ -96,18 +95,18 @@ class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, Pl
 
 
 # The machine cases' skips until their members land; each case's flag
-# set true drops its entry here.
+# set true drops its entry here. P17 and P18 run; P22 waits on the drive's
+# location request after synced's, LOCATION.
 UNTIL = {
-    "test_P17_facts_here": "until package 5: facts: win/facts",
-    "test_P18_residual_here": "until package 5: residual",
     "test_P21_program": "until package 5: program: win/process",
-    "test_P22_forms_here": "until package 5: synced: win/facts",
+    "test_P22_forms_here": UNTIL_LOCATION,
 }
 
 
 class MachineUntil(unittest.TestCase):
-    """Windows' cases P17, P18, P21 and P22 run here: each member answers
-    unsupported, and the case skips, by its reason."""
+    """Windows' cases P21 and P22 run here: program answers unsupported,
+    and P21 skips; synced answers and P22 skips on the drive's location
+    request; each by its reason."""
     ctest_labels = ("drive",)
 
     def setUp(self):

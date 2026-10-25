@@ -13,10 +13,11 @@
 // Its first operations are the configuration location, resolve, normcase,
 // the console, random bytes, the clock, pages and wipe; win/files' are
 // replace, stage, create, remove_directory, read and lock
-// (platform/win/files.hpp). The facts (facts, synced, residual) and the
-// processes (program, start, run) are PlatformError unsupported until their
-// modules (win/facts, win/process) are built; their handles' types are here
-// so that the adapter satisfies the concept now. A Lock, Staged and Sink
+// (platform/win/files.hpp); win/facts' are facts, synced and residual
+// (platform/win/facts.hpp). The processes (program, start, run) are
+// PlatformError unsupported until their module (win/process) is built;
+// their handle's type is here so that the adapter satisfies the concept
+// now. A Lock, Staged and Sink
 // are files' over the adapter's WindowsFiles, which lives in the adapter:
 // so the adapter does not move, as a handle holds its System's address.
 //
@@ -118,7 +119,11 @@ public:
     // A path's form for comparison, '/' as '\' and case folded by
     // LCMapStringEx: path.
     void normcase(std::string_view path, String& out);
+    // A resolved path's volume, System Protection, File History and
+    // BitLocker (win/facts): path; a read refused or failing is unknown.
     void facts(std::string_view path, Facts& out);
+    // The sync client whose folder holds a resolved path, false for none
+    // (win/facts): path.
     bool synced(std::string_view path, String& out);
     void replace(std::string_view path, std::string_view data, Seconds deadline);
     WindowsStaged stage(std::string_view directory);
@@ -133,6 +138,8 @@ public:
     // The console's code page, cp<n>.
     void code_page(String& out);
     [[nodiscard]] StandardOutput standard_output() noexcept { return StandardOutput(*this); }
+    // The platform's six residual rows for the caller's absolute paths
+    // (win/facts): path.
     void residual(std::span<const std::string_view> paths, Vector<Row>& out);
     // into.size() bytes from the system's generator: io.
     void random_bytes(std::span<std::byte> into);

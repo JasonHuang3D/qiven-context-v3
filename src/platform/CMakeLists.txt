@@ -14,19 +14,24 @@ target_link_libraries(qiven3_platform PUBLIC qiven3_memory PRIVATE qiven3_flags)
 if(WIN32)
   add_library(qiven3_platform_win STATIC
     win/arguments.cpp
+    win/facts.cpp
+    win/facts.hpp
+    win/facts_calls.cpp
+    win/facts_calls.hpp
     win/files.cpp
     win/files.hpp
     win/handles.cpp
     win/paths.cpp
     win/paths.hpp
     win/stage.cpp
+    win/synced.cpp
     win/windows.cpp
     win/windows.hpp
   )
   target_compile_definitions(qiven3_platform_win PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
   target_link_libraries(qiven3_platform_win
     PUBLIC qiven3_platform qiven3_memory
-    PRIVATE qiven3_flags kernel32 shell32 ole32 bcrypt)
+    PRIVATE qiven3_flags kernel32 advapi32 shell32 ole32 bcrypt)
 endif()
 
 # qiven3_platform_current: current() and adapter_for, which a binary's main

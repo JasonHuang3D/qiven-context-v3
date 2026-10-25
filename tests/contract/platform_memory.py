@@ -4,7 +4,7 @@ the drive's platform half within its stated budget by the arena's count;
 a budget a byte short of its peak, MemoryError budget and nothing held;
 and, under QIVEN3_FAULTS, its fault sweep: each allocation on its arena,
 and each platform call, the fake's and the Windows adapter's win/files
-calls, failed in turn.
+and win/facts calls, failed in turn.
 
 The budgets are the text's for package 1: 64 KiB for each member, read's
 plus the file's size, run's plus its caps; pages(n) has none of its own.
@@ -114,8 +114,9 @@ class PlatformMemory:
     def test_faults(self):
         """Under QIVEN3_FAULTS, each operation's K-th allocation, and its
         K-th platform call, failed for K from 1 until it completes: each
-        failed run a typed error, nothing held, the drive
-        answering; at completion K - 1 calls counted. Built without it, a
+        failed run a typed error, or for facts' and residual's platform
+        calls the failed read unknown (session.unknown_read), nothing held,
+        the drive answering; at completion K - 1 calls counted. Built without it, a
         fault is refused, not applicable."""
         with self.drive() as d:
             if not has_faults():

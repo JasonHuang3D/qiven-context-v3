@@ -9,11 +9,12 @@ The count: every reply's arena must have held nothing once the
 operation's values were gone, and a drive's last reply must give 0 bytes
 held, or the test fails. A drive counting handles (the machine cases)
 holds as many after the test as before it. A fault is the reply's own
-(sweep).
+(sweep); facts' and residual's failed reads are unknown (unknown_read).
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,33 @@ from tests.drive import binaries
 # adapter's, built on Windows alone.
 FAKE = "qiven3-drive-fake"
 WINDOWS = "qiven3-drive-windows"
+
+# The operations whose failed read is unknown, not an error: a platform
+# call of theirs failed may answer. A fault fails its call with error 31,
+# a COM call's as its HRESULT; a reading's reason then names the call.
+UNKNOWN_READS = ("facts", "residual")
+FAULTED_REASON = re.compile(r"[A-Za-z][\w:]*: (HRESULT 0x8007001f, )?ERROR_GEN_FAILURE \(31\)")
+READINGS = ("protection", "file_history", "bitlocker")
+
+
+def unknown_read(op, run, faulted, completed):
+    """A fault's answer against the completed one. facts: the same volume,
+    one reading unlike the completed one's, unknown, its reason naming the
+    failed call and the fault's error. residual: the same rows, each as
+    completed or unknown, at most one unlike; a row holds no reason, so a
+    row read unknown either way is not told apart."""
+    if op == "facts":
+        unlike = [key for key in READINGS if faulted[key] != completed[key]]
+        if (faulted["volume"] != completed["volume"] or len(unlike) != 1
+                or faulted[unlike[0]]["state"] != "unknown"
+                or not FAULTED_REASON.fullmatch(faulted[unlike[0]]["reason"])):
+            raise AssertionError(f"{run}: not an unknown naming the failed call: {faulted}, completed {completed}")
+        return
+    names = [row["name"] for row in completed]
+    unlike = [row for row, done in zip(faulted, completed, strict=False) if row != done]
+    if ([row["name"] for row in faulted] != names or len(unlike) > 1
+            or any(row["applies"] != "unknown" for row in unlike)):
+        raise AssertionError(f"{run}: not the rows with one read unknown: {faulted}, completed {completed}")
 
 
 class DriveError(Exception):
@@ -201,14 +229,22 @@ class Drive:
         """The fault sweep of `op`: its K-th allocation (`of` "allocation")
         or platform call ("platform") failed for K from 1 until a run makes
         fewer and completes. Each failed run must end in a typed error
-        holding no more than before, the drive answering. Gives K at
-        completion, so K - 1 runs failed, and that run's reply."""
+        holding no more than before, the drive answering; but a platform
+        call of facts or residual, whose failed read is unknown: there an
+        answer is a failed run's end too where unknown_read() holds it
+        against the completed answer. Gives K at completion, so K - 1 runs
+        failed, and that run's reply."""
         before = self.held or 0
+        answered = []
         for k in range(1, limit + 1):
             reply = self.reply(op, fault={"k": k, "of": of}, **args)
             if not reply["fault"]["fired"]:
+                for at, given in answered:
+                    unknown_read(op, f"{op}, {of} {at}", given["result"], reply["result"])
                 return k, reply
-            if reply.get("ok") or reply["error"]["kind"] not in ("platform", "memory", "hal"):
+            if reply.get("ok") and of == "platform" and op in UNKNOWN_READS:
+                answered.append((k, reply))
+            elif reply.get("ok") or reply["error"]["kind"] not in ("platform", "memory", "hal"):
                 raise AssertionError(f"{op}, {of} {k}: not a typed error: {reply}")
             if reply["held"] != before:
                 raise AssertionError(f"{op}, {of} {k}: {reply['held']} bytes held, {before} before")

@@ -139,6 +139,14 @@ public:
     void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
+    // Whether the countdown fires: the call then fails with 31. win/facts'
+    // calls ask it too.
+    bool faulted() noexcept;
+    // path's UTF-16 in the adapter's first path buffer, for create, read,
+    // remove_directory and win/facts' members: text_fault's, then the
+    // conversion's, then not absolute: path. Its length.
+    std::size_t checked(std::string_view operation, std::string_view path);
+
 private:
     // An open file of a staging directory: its handle, its directory's id
     // and its serial; all 0 when free. files' bound refuses an open at
@@ -150,14 +158,9 @@ private:
         std::uint64_t file = 0;
     };
 
-    // Whether the countdown fires: the call then fails with 31.
-    bool faulted() noexcept;
     // The adapter's two path buffers.
     [[nodiscard]] std::span<wchar_t> first() const noexcept;
     [[nodiscard]] std::span<wchar_t> second() const noexcept;
-    // path's UTF-16 in first(), for create, read and remove_directory:
-    // text_fault's, then the conversion's, then not absolute: path.
-    std::size_t checked(std::string_view operation, std::string_view path);
     // The temporary file's UTF-16 in second(), path's in first(): 0, or the
     // conversion's error.
     unsigned long temporary(std::string_view path, const files::Digits& digits);
