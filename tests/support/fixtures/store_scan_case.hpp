@@ -13,7 +13,8 @@
 //
 // thread: one.
 
-#include <memory>
+#include <cstddef>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -43,12 +44,12 @@ inline std::string cut(const std::vector<Stored>& lines) {
     return ids;
 }
 
-// What a scan still gives, cut so.
+// What a scan still gives, at most `most` headers, cut so.
 template <store::Scan H>
-std::string rest(H& scan, const Chars& chars) {
+std::string rest(H& scan, const Chars& chars, std::size_t most = std::numeric_limits<std::size_t>::max()) {
     std::string ids;
     store::Header h(chars);
-    while (scan.next(h)) {
+    for (std::size_t n = 0; n < most && scan.next(h); ++n) {
         ids += std::string(h.value(entry::header::Slot::id).substr(7, 8)) + " ";
     }
     return ids;
@@ -68,18 +69,15 @@ void scan_ends_at_start(Context& qiven3_ctx, S& store, S& other, const stage_boo
     auto whole = store.scan(store::RangeView{});
     auto lane = store.scan(store::RangeView{scope, reviewer, std::nullopt});
     auto after = store.scan(store::RangeView{std::nullopt, std::nullopt, 1});
-    const auto first = std::make_unique<store::Header>(chars);  // past a frame's share, as forgot
-    CHECK(whole.next(*first));
-    CHECK_EQ(std::string(first->value(entry::header::Slot::id).substr(7, 8)) + " ", cut({mine[0]}));
+    CHECK_EQ(rest(whole, chars, 1), cut({mine[0]}));
 
     const std::string acc = stage_book::id_of(mine[3]);
     const std::string m1 = stage_book::id_of(theirs[1]);
     const std::vector<store::GuardView> guard = {store::GuardView{scope, implementer, acc},
                                                  store::GuardView{scope, reviewer, m1}};
     store::Vector<store::Id> erased(chars);
-    const auto forgot = std::make_unique<const store::Written>(
-        other.forget(scope, implementer, acc, stage_book::views(forgets), guard, erased));
-    CHECK(forgot->purge.done);
+    // The Written a temporary: its share of the frame held for the forget alone.
+    CHECK(other.forget(scope, implementer, acc, stage_book::views(forgets), guard, erased).purge.done);
     CHECK_EQ(erased.size(), 1U);
     (void)store.append(scope, reviewer, m1, stage_book::views(later));
     (void)other.append(scope, "tester", std::nullopt, stage_book::views(tester));
