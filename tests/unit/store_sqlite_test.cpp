@@ -385,12 +385,12 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const std::vector<Stored> acc = {book.stored("ACC")};
     const std::vector<EntryView> acc_lines = views(acc);
     (void)store.append(qiven_scope, implementer, id_of(later[0]), acc_lines);
-    const qiven3::store::Sizes sizes = store.size();
-    CHECK_EQ(sizes.volume.count, 4U);
-    CHECK_EQ(sizes.volume.size, added(first) + added(later) + added(acc));
-    REQUIRE(sizes.figures == 6U);
-    CHECK_EQ(sizes.view()[0].name.view(), std::string_view("page_size"));
-    CHECK(sizes.view()[0].value >= 512U && sizes.view()[3].value > 0U);
+    const auto sizes = std::make_unique<const qiven3::store::Sizes>(store.size());  // past a frame's share
+    CHECK_EQ(sizes->volume.count, 4U);
+    CHECK_EQ(sizes->volume.size, added(first) + added(later) + added(acc));
+    REQUIRE(sizes->figures == 6U);
+    CHECK_EQ(sizes->view()[0].name.view(), std::string_view("page_size"));
+    CHECK(sizes->view()[0].value >= 512U && sizes->view()[3].value > 0U);
 
     const std::vector<Stored> wrong = {book.stored("A")};
     const std::vector<Stored> call = {book.stored("E")};
@@ -405,7 +405,7 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const Written f = store.forget(qiven_scope, implementer, head, call_lines, guard, erased);
     CHECK_EQ(f.head.id.view(), id_of(call[0]));
     CHECK_EQ(f.volume.count, 5U);
-    CHECK_EQ(f.volume.size, sizes.volume.size - (first[1].record->size() + 1U) + call[0].line.size() + 1U);
+    CHECK_EQ(f.volume.size, sizes->volume.size - (first[1].record->size() + 1U) + call[0].line.size() + 1U);
     REQUIRE(erased.size() == 1U);
     CHECK_EQ(erased[0].view(), id_of(first[1]));
     CHECK(f.purge.done);
@@ -512,20 +512,20 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1"), book.stored("M2")};
     (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
     (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
-    const Stored f2 = forget_of(book.stored("E"), theirs[2], theirs[2], reviewer, 4);
-    const Stored f3 = forget_of(book.stored("E"), theirs[1], f2, reviewer, 5);
+    const auto f2 = std::make_unique<const Stored>(forget_of(book.stored("E"), theirs[2], theirs[2], reviewer, 4));
+    const auto f3 = std::make_unique<const Stored>(forget_of(book.stored("E"), theirs[1], *f2, reviewer, 5));
     const std::string a = id_of(mine[0]);
     const std::string b = id_of(mine[1]);
     const std::string m2 = id_of(theirs[2]);
     const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, b}, GuardView{qiven_scope, reviewer, m2}};
-    const std::vector<Stored> forgets = {f2, f3};
+    const std::vector<Stored> forgets = {*f2, *f3};
     (void)store->forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
     CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));
     Vector<qiven3::store::LaneHead> rows(chars);
-    const qiven3::store::Heads all = store->heads(std::nullopt, rows);
+    const auto all = std::make_unique<const qiven3::store::Heads>(store->heads(std::nullopt, rows));
     REQUIRE(rows.size() == 2U);
     CHECK(rows[1].lane.view() == reviewer && rows[1].head.seq == 5);
-    CHECK(all.forgets == 2U && all.purge.done);
+    CHECK(all->forgets == 2U && all->purge.done);
     const std::array<std::string_view, 2> sets = {"person", "project:*"};
     CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
@@ -538,7 +538,7 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(store->peak() > 0 && store->peak() <= qiven3::store::operation_base);
     qiven3::memory::String record(chars);
     CHECK(store->body(a, record) && std::string_view(record) == *mine[0].record);
-    CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(f2), record));
+    CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(*f2), record));
     CHECK(store->forgotten(id_of(theirs[1])) && !store->forgotten(a));
     const std::string none = "sha256:" + std::string(64, '0');
     CHECK(raised([&] { store->header(none, *out); }).starts_with("NotFound"));
@@ -546,8 +546,8 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(raised([&] { (void)store->forgotten(none); }).starts_with("NotFound"));
 
     CHECK_EQ(scanned(*store, chars, {}), cut(mine) + cut(theirs) + cut(forgets));
-    CHECK_EQ(scanned(*store, chars, {qiven_scope, reviewer, 2}), cut({theirs[2], f2, f3}));
-    CHECK_EQ(scanned(*store, chars, {std::nullopt, std::nullopt, 4}), cut({f3}));
+    CHECK_EQ(scanned(*store, chars, {qiven_scope, reviewer, 2}), cut({theirs[2], *f2, *f3}));
+    CHECK_EQ(scanned(*store, chars, {std::nullopt, std::nullopt, 4}), cut({*f3}));
     CHECK_EQ(scanned(*store, chars, {"person", std::nullopt, std::nullopt}), std::string());
 
     sqlite::Connection& c = store->connection();

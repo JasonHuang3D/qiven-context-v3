@@ -44,6 +44,28 @@ if(NOT MSVC AND NOT APPLE)
   endif()
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
+# On Linux the rest of the hardening a distribution's compiler may turn on
+# by default, stated here as PIE is, for every target, SQLite's C included,
+# so that a compiler built with its own defaults, which turns on none of it,
+# builds as CI's image compilers do: the stack protector, stack-clash
+# probes, CET's branch and return checks, relro and now, and a build id.
+# These are ELF and x86-64 options; macos-clang, Mach-O on arm64, built on
+# CI alone, takes its platform's defaults.
+# _FORTIFY_SOURCE=3 where the build optimizes and no sanitizer runs; always
+# undefined first, so that a compiler defining it by default builds the same
+# and meets no redefinition. The presets under a sanitizer, linux-gcc,
+# linux-clang, linux-tsan, linux-fuzz and linux-msan, leave it undefined:
+# the runtimes intercept a few of glibc's checking functions, not
+# __memcpy_chk and its kin, so a call the checks take goes around the
+# sanitizer, and glibc's own abort stands for the sanitizer's report.
+if(NOT MSVC AND NOT APPLE)
+  add_compile_options(-fstack-protector-strong -fstack-clash-protection -fcf-protection=full
+    -U_FORTIFY_SOURCE)
+  if(NOT QIVEN3_SANITIZE)
+    add_compile_options("$<$<CONFIG:Release,RelWithDebInfo,MinSizeRel>:-D_FORTIFY_SOURCE=3>")
+  endif()
+  add_link_options(LINKER:-z,relro,-z,now LINKER:--build-id)
+endif()
 
 # The pins of this machine's toolchain, which QIVEN3_PIN_TOOLS checks: MSVC
 # on Windows; in WSL2 g++ 16 and clang 23 as tools/linux-pins.txt has them.
