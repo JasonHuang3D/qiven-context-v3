@@ -11,6 +11,7 @@ debugger, and skip as K8 does.
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -152,8 +153,9 @@ class HangBound(unittest.TestCase):
             status, err = watched([binaries.path(FAULT), "hang"], build, LIMIT)
             text = "\n".join(err)
             self.assertEqual(status, 124, text)
-            self.assertEqual(err[-2:], [removed(names[0]), status_table.line(124) + f"; dumps.case past {LIMIT} s"],
-                             text)
+            self.assertEqual(err[-2], removed(names[0]), text)
+            self.assertRegex(err[-1], "^" + re.escape(status_table.line(124)) + r"; \d+ of \d+ threads' stacks written, "
+                             rf"its dump {re.escape(FAULT)}-\d+-hang\.(?:dmp|core); dumps\.case past {LIMIT} s$")
             kept = held(dumps)
             self.assertEqual(len(kept), KEPT, kept)
             suffix = "-hang." + ("dmp" if WINDOWS else "core")

@@ -187,15 +187,25 @@ def hang_lines(text):
     return threads, kept
 
 
+def hang_dump(pid, binary, dumps):
+    """The dump hang_stacks has the debugger write, <binary>-<pid>-hang.dmp
+    (.core) in dumps; None when dumps is not given."""
+    return Path(dumps) / f"{Path(binary).stem}-{pid}-hang.{'dmp' if WINDOWS else 'core'}" if dumps else None
+
+
+def stacks_of(lines):
+    """The threads whose stacks the hang's lines hold: their headers."""
+    header = CDB_THREAD if WINDOWS else GDB_THREAD
+    return sum(1 for line in lines if header.match(line))
+
+
 def hang_stacks(pid, binary, dumps):
     """Every thread's stack of the running process pid, its binary's
     symbols beside it, and its dump <binary>-<pid>-hang.dmp (.core) in
     dumps when it is given: (threads, lines). NotFound when no debugger
     is at hand or it cannot run."""
     debugger = find()
-    dump = None
-    if dumps:
-        dump = Path(dumps) / f"{Path(binary).stem}-{pid}-hang.{'dmp' if WINDOWS else 'core'}"
+    dump = hang_dump(pid, binary, dumps)
     try:
         done = subprocess.run(hang_command(debugger, pid, binary, dump), capture_output=True,
                               stdin=subprocess.DEVNULL, timeout=HANG_SECONDS, check=False)

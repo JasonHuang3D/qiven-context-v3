@@ -335,14 +335,14 @@ qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
 # directory; its smoke case: create, identify, the settings read back, the
 # files open refuses, the guard and coherence; its writes case: append,
 # forget, purge, size and close; its reads; its budgets, counts and fault
-# runs; the engine heap's page cache, a purge held pending, forged files;
-# a scan's end at each lane's length at its start (store_scan_case.hpp),
-# and entry's rowids kept by a purge's VACUUM between two steps of a scan,
-# read through the seams; a create refused at each call, and its removals
-# refused.
+# runs, the create's and the forget's in parts; the engine heap's page
+# cache, a purge held pending, forged files; a scan's end at each lane's
+# length at its start (store_scan_case.hpp), and entry's rowids kept by a
+# purge's VACUUM between two steps of a scan, read through the seams; a
+# create refused at each call, in parts, and its removals refused.
 qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
-          store_sqlite_scan_test.cpp store_sqlite_create_test.cpp
+          store_sqlite_scan_test.cpp store_sqlite_create_test.cpp store_sqlite_parts_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_seams qiven3_store)
 
 # store/exchange's cases: the SQLite store's export, import and verify on

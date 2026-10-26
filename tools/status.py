@@ -27,7 +27,7 @@ TABLE = {
     0: ("passed", ""),
     1: ("failed", "a case failed, or a main returned its error status"),
     3: ("abort", "Windows: the C runtime's abort"),
-    124: ("hang", "the watcher's: past its limit, every stack written, killed"),
+    124: ("hang", "the watcher's: past its limit, killed"),
     125: ("skipped", "the runner's skip code"),
     127: ("loader", "Linux: the loader could not load a library"),
     0x80000003: ("STATUS_BREAKPOINT", "a breakpoint instruction, with no debugger"),

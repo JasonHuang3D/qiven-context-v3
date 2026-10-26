@@ -4,6 +4,7 @@ its exit with the case's status (a signal as 128 plus its number), its
 limit's 124, its error mode on Windows, and the table's own rows."""
 
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -47,9 +48,18 @@ class Watch(unittest.TestCase):
         self.assertEqual(os.path.normcase(out[2]), os.path.normcase(str(build / "logs" / "watch.env_case.jsonl")))
 
     def test_limit(self):
+        """Past its limit: 124, the status line naming what the watcher
+        wrote, "no debugger, no stack written" where it said it had no
+        debugger, else the stacks of the threads and the dump."""
         ran, _, err, seconds = watch("import time; time.sleep(60)", limit=1)
         self.assertEqual(ran, 124)
-        self.assertTrue(err[-1].startswith(status_table.line(124) + "; watch.case past 1 s"), err)
+        last = re.fullmatch(re.escape(status_table.line(124)) + r"; (?P<written>.+); watch\.case past 1 s", err[-1])
+        self.assertIsNotNone(last, err)
+        if "hang: no debugger, no stacks" in err:
+            self.assertEqual(last["written"], "no debugger, no stack written", err)
+        else:
+            self.assertRegex(last["written"], r"^(?:\d+ of \d+ threads' stacks|no stack) written, "
+                                              r"(?:its dump \S+-hang\.(?:dmp|core)|no dump)$")
         self.assertLess(seconds, 20)
 
     def test_system_status(self):

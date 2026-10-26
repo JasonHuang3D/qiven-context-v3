@@ -1,11 +1,11 @@
 // store/sqlite's refused create, on the fake over a scratch directory of
-// the case's own. create_refused and its parts: four passes, each refusing
-// in turn every call of one kind a create makes: the fake's platform calls,
-// the store's arena allocations, the engine calls the wrapper maps
-// (open_v2, the settings, the schema, its TRUNCATE checkpoint, the probe,
-// coherence), in create_refused, and the engine heap's allocations, in
-// three parts by their k (create_refused_heap, _heap_middle, _heap_rest),
-// each part within 30 s on every job. After each refused run nothing is
+// the case's own. create_refused, in parts (create_refused_part1 to _part15,
+// support/faults/parts.hpp), each within 30 s on every job: four passes,
+// each refusing in turn every call of one kind a create makes: the fake's
+// platform calls, the store's arena allocations, the engine calls the
+// wrapper maps (open_v2, the settings, the schema, its TRUNCATE checkpoint,
+// the probe, coherence), and the engine heap's allocations, the parts by
+// their first points (parts below). After each refused run nothing is
 // left, the directory create made removed too, and a second create makes
 // the store. create_unremoved: a removal itself refused, by the countdowns (the
 // engine heap's first allocation refused, then one of the four files'
@@ -16,6 +16,7 @@
 // left empty and the next create made; a directory there before create
 // kept.
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -40,6 +41,7 @@
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
+#include "support/faults/parts.hpp"
 
 #if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
@@ -212,16 +214,11 @@ std::string_view step_of(Kind kind, const Bounds& b, std::size_t at) {
     return "past coherence";
 }
 
-// One pass: each call of kind refused in turn. from and to bound the runs
-// that execute: a run k before from fails at once by its own k calls,
-// executing nothing; a run past to completes at once, refusing nothing,
-// and ends the pass. Each run from from executes, counted.
-void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, std::size_t from = 1,
-          std::size_t to = SIZE_MAX) {
+// One pass: each call of kind refused in turn, the runs of the part's
+// range r executing (support/faults/parts.hpp's PartRuns).
+void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, qiven3::test::FaultRange r) {
     const Bounds b = measure(rig, kind);
-    std::size_t run = 0;
-    std::size_t executed = 0;
-    bool skipped = false;
+    qiven3::test::PartRuns part(r);
     std::map<std::string, std::size_t> by_step;
     std::map<std::string, std::size_t> raised;
     std::size_t left = 0;
@@ -234,17 +231,7 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, std::size_t fr
     Countdown c;
     const auto op = [&] {
         done = false;
-        skipped = ++run < from || run > to;
-        if (run < from) {
-            for (std::size_t i = 0; i < run; ++i) {
-                static_cast<void>(c.fail());
-            }
-            throw Typed{};
-        }
-        if (run > to) {
-            return;
-        }
-        ++executed;
+        part.enter<Typed>(c);
         rig.detail.clear();
         try {
             made.emplace(Store::open(rig.path, true, false, rig.fake));
@@ -268,7 +255,7 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, std::size_t fr
         }
     };
     const auto check = [&](std::size_t k) {
-        if (skipped) {
+        if (part.skipped()) {
             return true;
         }
         made.reset();
@@ -295,8 +282,8 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, std::size_t fr
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<Typed>(qiven3_ctx.log, "store_sqlite.create", c, op, check);
     attach(rig, kind, nullptr);
     std::cout << "store_sqlite.create_refused: " << kind_names.at(static_cast<std::size_t>(kind)) << ": "
-              << runs.typed << " runs refused, completed at " << runs.completed_at << " (executing " << from
-              << " to " << (to == SIZE_MAX ? runs.completed_at : to) << ", " << executed << " runs); files left " << left
+              << runs.typed << " runs refused, completed at " << runs.completed_at << " (executing " << r.from
+              << " to " << part.last(runs) << ", " << part.executed() << " runs); files left " << left
               << ", its directory left empty " << emptied << ", a removal named " << named
               << ", a second create made " << again << "; untyped "
               << runs.untyped << ", unchecked " << runs.unchecked << "\n  by step:";
@@ -314,50 +301,46 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, std::size_t fr
     CHECK_EQ(left, 0U);
     CHECK_EQ(emptied, 0U);
     CHECK_EQ(named, 0U);
-    // Each run of the part executed: every fault point from from to to, or
-    // to the completing run.
-    CHECK_EQ(executed, (to == SIZE_MAX ? runs.completed_at : to) - from + 1);
-    CHECK(to == SIZE_MAX || runs.completed_at == to + 1);
+    // Each run of the part's range executed, up to the completing one.
+    CHECK(part.held(runs));
     if (kind == Kind::call) {
-        CHECK_EQ(runs.completed_at, b.last.at(4) + 1);
-        CHECK(b.checkpoint > 0 && by_step["checkpoint"] == b.checkpoint);
-        for (const std::string_view step : step_names) {
-            CHECK(by_step[std::string(step)] > 0);
+        CHECK(!part.completed_here(runs) || runs.completed_at == b.last.at(4) + 1);
+        // Each step of the calls the part refused has its refused runs, by
+        // step_of; the checkpoint's each.
+        std::map<std::string, std::size_t> want;
+        const std::size_t last = runs.completed_at == 0 ? 0 : std::min(runs.completed_at - 1, r.to);
+        for (std::size_t k = r.from; k <= last; ++k) {
+            ++want[std::string(step_of(kind, b, k))];
+        }
+        for (const auto& [step, n] : want) {
+            CHECK(by_step[step] > 0);
+        }
+        CHECK(b.checkpoint > 0 && by_step["checkpoint"] == want["checkpoint"]);
+    }
+}
+
+// The passes in order: the platform's calls, the arena's allocations, the
+// engine calls, the engine heap's allocations. The parts' first points:
+// the first three passes, the engine calls' from k 48 in a part of their
+// own, then the engine heap's 50 k a part, the last to its completing run
+// (650 on Windows, 640 on Linux); each part within 30 s on every job.
+constexpr std::array<Kind, 4> kinds = {Kind::platform, Kind::arena, Kind::call, Kind::heap};
+constexpr qiven3::test::FaultParts<15> parts{{{{0, 1}, {2, 48}, {3, 1}, {3, 51}, {3, 101}, {3, 151}, {3, 201},
+                                              {3, 251}, {3, 301}, {3, 351}, {3, 401}, {3, 451}, {3, 501},
+                                              {3, 551}, {3, 601}}}};
+static_assert(parts.whole());
+
+void create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
+    CHECK(qiven3::test::registered("store_sqlite.create_refused", parts.from.size()));
+    const auto rig = std::make_unique<Rig>();
+    for (std::size_t p = 0; p < kinds.size(); ++p) {
+        if (!parts.range(i, p).none()) {
+            pass(qiven3_ctx, *rig, kinds.at(p), parts.range(i, p));
         }
     }
 }
 
-// The heap pass's parts, each from its k to the next part's less one, the
-// last to the completing run: together every fault point once, as the
-// compiler checks.
-constexpr std::array<std::size_t, 3> heap_from = {1, 251, 451};
-struct Range {
-    std::size_t from;
-    std::size_t to;
-};
-constexpr Range heap_range(std::size_t part) {
-    return {heap_from.at(part), part + 1 < heap_from.size() ? heap_from.at(part + 1) - 1 : SIZE_MAX};
-}
-static_assert(heap_range(0).from == 1 && heap_range(0).from <= heap_range(0).to &&
-              heap_range(0).to + 1 == heap_range(1).from && heap_range(1).from <= heap_range(1).to &&
-              heap_range(1).to + 1 == heap_range(2).from && heap_range(2).to == SIZE_MAX);
-
-void heap_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
-    const auto rig = std::make_unique<Rig>();
-    pass(qiven3_ctx, *rig, Kind::heap, heap_range(part).from, heap_range(part).to);
-}
-
 }  // namespace
-
-QIVEN3_CASE(store_sqlite, create_refused) {
-    const auto rig = std::make_unique<Rig>();
-    for (const Kind kind : {Kind::platform, Kind::arena, Kind::call}) {
-        pass(qiven3_ctx, *rig, kind);
-    }
-}
-QIVEN3_CASE(store_sqlite, create_refused_heap) { heap_part(qiven3_ctx, 0); }
-QIVEN3_CASE(store_sqlite, create_refused_heap_middle) { heap_part(qiven3_ctx, 1); }
-QIVEN3_CASE(store_sqlite, create_refused_heap_rest) { heap_part(qiven3_ctx, 2); }
 
 QIVEN3_CASE(store_sqlite, create_unremoved) {
     const auto rig = std::make_unique<Rig>();
@@ -456,19 +439,28 @@ QIVEN3_CASE(store_sqlite, create_unremoved) {
     CHECK_EQ(rig->create(), std::string("made"));
 }
 #else
-QIVEN3_CASE(store_sqlite, create_refused) {
+namespace {
+void create_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 }
-QIVEN3_CASE(store_sqlite, create_refused_heap) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
-}
-QIVEN3_CASE(store_sqlite, create_refused_heap_middle) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
-}
-QIVEN3_CASE(store_sqlite, create_refused_heap_rest) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
-}
+}  // namespace
 QIVEN3_CASE(store_sqlite, create_unremoved) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 }
 #endif
+
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 1, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 2, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 3, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 4, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 5, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 6, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 7, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 8, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 9, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 10, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 11, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 12, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 13, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 14, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 15, create_part)

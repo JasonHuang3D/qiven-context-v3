@@ -31,7 +31,9 @@ fault the drives run, it runs the case and names how it ended.
   directory; with no debugger at hand, "hang: no debugger, no stacks" and
   the reason. Then it kills the case's process tree (taskkill /T /F; on
   Linux the case's process group, which it started, by SIGKILL), names
-  the status and exits 124.
+  the status with what it wrote ("no debugger, no stack written", or the
+  stacks written of the threads and its dump or "no dump") and the case,
+  "status: 124 hang: ...; <written>; <test> past <s> s", and exits 124.
 - After the case ends, a hang's or not, the build's dumps/ is bounded by
   tools/dumps.py: at most its DUMPS_KEPT dumps, the oldest removed first,
   none the case wrote; a line before the status line names each removed.
@@ -216,13 +218,21 @@ def kill_tree(process):
 
 
 def hang(process, command, env, limit):
-    """The hang's lines: every thread's stack, by the debugger."""
+    """The hang's lines, every thread's stack by the debugger, and what it
+    wrote, for the status line: "no debugger, no stack written", or
+    "<n> of <threads> threads' stacks written" ("no stack written" for
+    none) and "its dump <file>" or "no dump"."""
     binary = shutil.which(command[0]) or command[0]
+    dumps = env.get("QIVEN3_DUMP_DIR")
     try:
-        threads, lines = DEBUGGERS["hang_stacks"](process.pid, binary, env.get("QIVEN3_DUMP_DIR"))
+        threads, lines = DEBUGGERS["hang_stacks"](process.pid, binary, dumps)
     except DEBUGGERS["NotFound"] as e:
-        return ["hang: no debugger, no stacks", f"hang: {e}"]
-    return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines]
+        return ["hang: no debugger, no stacks", f"hang: {e}"], "no debugger, no stack written"
+    stacks = DEBUGGERS["stacks_of"](lines)
+    dump = DEBUGGERS["hang_dump"](process.pid, binary, dumps)
+    written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
+    written += f", its dump {dump.name}" if dump is not None and dump.is_file() else ", no dump"
+    return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines], written
 
 
 def bound(process):
@@ -265,12 +275,13 @@ def main(argv=None):
     try:
         status = process.wait(timeout=args.limit)
     except subprocess.TimeoutExpired:
-        print("\n".join(hang(process, args.command, env, args.limit)), file=sys.stderr, flush=True)
+        lines, written = hang(process, args.command, env, args.limit)
+        print("\n".join(lines), file=sys.stderr, flush=True)
         kill_tree(process)
         process.wait()
         reader.join(READER_WAIT)
         bound(process)
-        print(f"{STATUS['line'](HANG)}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
+        print(f"{STATUS['line'](HANG)}; {written}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
         return HANG
     reader.join(READER_WAIT)
     bound(process)

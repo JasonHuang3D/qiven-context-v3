@@ -6,7 +6,8 @@ drive(), needs(), the typed error's check; StoreCases' nothing_written).
 
 S19, S24 and S28 are the SQLite store's own: its settings read back on its
 connection, an import through the seam that does not defer foreign keys,
-and a create refused call by call through the drive's countdowns. S22
+and a create refused call by call through the drive's countdowns, in parts
+(S28_PARTS). S22
 needs files: the guard on a path in a checkout and in a folder the Site's
 fake reports synced. S21, with its threads, is the slow group's.
 """
@@ -28,6 +29,22 @@ TEXT_SETTINGS = (("journal_mode", "wal"), ("synchronous", "2"), ("secure_delete"
 KINDS = ("platform", "arena", "engine_call", "engine_heap")
 REMOVALS = ("-journal", "-wal", "-shm", "the file")
 TYPED = ("store", "memory", "platform")
+# S28's refusals in parts, test_S28_refused_part1 on, each within 30 s on
+# every job, as store_sqlite.create_refused's: each part's first point, a
+# pass of KINDS by its place and its k; a part runs the points from its own
+# up to the next part's, the last to its pass's completing create. The
+# platform's, the arena's and the engine calls' to k 47; the engine calls'
+# from k 48; the engine heap's 50 k a part.
+S28_PARTS = ((0, 1), (2, 48), *((3, k) for k in range(1, 602, 50)))
+
+
+def s28_range(part, kind):
+    """The k part (from 0) runs of pass kind: (first, last), last None to
+    the completing create; None when it runs none."""
+    (start_pass, start_k), end = S28_PARTS[part], S28_PARTS[part + 1] if part + 1 < len(S28_PARTS) else None
+    if kind < start_pass or (end is not None and (kind > end[0] or (kind == end[0] and end[1] == 1))):
+        return None
+    return (start_k if kind == start_pass else 1, end[1] - 1 if end is not None and kind == end[0] else None)
 
 
 def error_of(reply):
@@ -378,14 +395,16 @@ class StoreRest:
         reply = drive.store_open_at(f"{name}/store.db", create=True, refuse=refuse)
         return error_of(reply), reply.get("refused", [])
 
-    def sweep(self, drive, kind):
+    def sweep(self, drive, kind, first=1, last=None):
         """S28's pass of one kind: each of its calls refused in turn, k from
-        1 until a create completes with its countdown not fired: a typed
-        error, nothing left, the next create made. The refused runs."""
+        first until a create completes with its countdown not fired, or to
+        last: a typed error, nothing left, the next create made. The
+        refused runs."""
         root, refused = self.site_root(), 0
-        for k in range(1, 5000):
+        for k in range(first, 5000 if last is None else last + 1):
             error, counts = self.create(drive, "c", [(kind, k)])
             if error is None and not counts[0]["fired"]:
+                shutil.rmtree(root / "c")
                 break
             if error is not None:
                 refused += 1
@@ -396,9 +415,10 @@ class StoreRest:
                 self.assertEqual(self.create(drive, "c")[0], None, f"{kind} {k}: the next create")
             shutil.rmtree(root / "c")
         else:
-            self.fail(f"{kind}: no create completed in 5,000 calls")
-        shutil.rmtree(root / "c")
-        self.assertGreater(refused, 0, kind)
+            if last is None:
+                self.fail(f"{kind}: no create completed in 5,000 calls")
+        if first == 1:
+            self.assertGreater(refused, 0, kind)
         return refused
 
     def faults_drive(self):
@@ -413,21 +433,21 @@ class StoreRest:
             raise
         return drive
 
-    def test_S28_refused_calls(self):
-        """S28: create with each of its platform calls, its arenas'
-        allocations and its engine calls refused in turn: a typed error, no
-        file left nor the directory it made, and the next create made.
-        Needs: own: sqlite."""
+    def s28_part(self, part):
+        """S28's part (from 0) of the refusals: create with each of its
+        platform calls, its arenas' allocations, its engine calls and its
+        engine heap's allocations refused in turn, the points of the part
+        (S28_PARTS): a typed error, no file left nor the directory it made,
+        and the next create made. The parts rise from pass 0's k 1, and the
+        class holds every part's case, and none past them."""
+        self.assertTrue(S28_PARTS[0] == (0, 1) and all(a < b for a, b in zip(S28_PARTS, S28_PARTS[1:])), S28_PARTS)
+        held = [hasattr(type(self), f"test_S28_refused_part{i}") for i in range(1, len(S28_PARTS) + 2)]
+        self.assertEqual(held, [True] * len(S28_PARTS) + [False])
         with self.faults_drive() as drive:
-            for kind in KINDS[:3]:
-                with self.subTest(kind=kind):
-                    self.sweep(drive, kind)
-
-    def test_S28_refused_heap(self):
-        """S28: create with each of its engine heap's allocations refused in
-        turn, as test_S28_refused_calls. Needs: own: sqlite."""
-        with self.faults_drive() as drive:
-            self.sweep(drive, "engine_heap")
+            for kind, name in enumerate(KINDS):
+                if (ks := s28_range(part, kind)) is not None:
+                    with self.subTest(kind=name, first=ks[0], last=ks[1]):
+                        self.sweep(drive, name, *ks)
 
     def test_S28_unremoved(self):
         """S28: a refused create's removals refused too: with a file's, the
@@ -458,3 +478,18 @@ class StoreRest:
             self.assertNotIn("removal refused", error["detail"])
             self.assertEqual(list((root / "before").iterdir()), [])
             self.assertEqual(self.create(drive, "before"), (None, []))
+
+
+def s28_case(part):
+    """S28's part (from 0) as a case of StoreRest's, named and described."""
+    def case(self):
+        self.s28_part(part)
+    kind, k = S28_PARTS[part]
+    case.__name__ = f"test_S28_refused_part{part + 1}"
+    case.__doc__ = (f"S28, part {part + 1} of {len(S28_PARTS)}, from {KINDS[kind]}'s k {k}: as "
+                    "StoreRest.s28_part. Needs: own: sqlite.")
+    return case
+
+
+for _part in range(len(S28_PARTS)):
+    setattr(StoreRest, f"test_S28_refused_part{_part + 1}", s28_case(_part))

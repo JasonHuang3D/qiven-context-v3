@@ -6,7 +6,9 @@ beside its binaries, both threads' sleep called from the binary's own
 code, which names no function), its dump, status 124,
 no window, within the limit plus 30 s and 200 lines; a case's process
 tree killed with it; and with no debugger at hand, "hang: no debugger, no
-stacks", still killed, 124.
+stacks", still killed, 124. The status line names what the watcher wrote:
+the stacks of the threads and the dump, or "no debugger, no stack
+written".
 
 On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt; on
 Linux gdb, pinned in tools/linux-pins.txt. Where it is absent, K8 skips by
@@ -116,7 +118,6 @@ class HangStacks(unittest.TestCase):
         self.assertEqual(status, 124, text)
         self.assertEqual(seen, [], "K8: a window opened")
         self.assertLessEqual(seconds, LIMIT + AFTER, text)
-        self.assertEqual(err[-1], status_table.line(124) + f"; K8 past {LIMIT} s", text)
         at = next((i for i, line in enumerate(err) if HANG.match(line)), None)
         self.assertIsNotNone(at, text)
         hang = err[at:-1]
@@ -145,6 +146,9 @@ class HangStacks(unittest.TestCase):
         self.assertEqual(len(written), 1, f"K8: the dumps {written}")
         magic = b"MDMP" if WINDOWS else b"\x7fELF"
         self.assertEqual(written[0].read_bytes()[:4], magic)
+        # The status names what the watcher wrote: the stacks of the threads, and the dump.
+        self.assertEqual(err[-1], status_table.line(124) + f"; {len(stacks)} of {threads} threads' stacks written, "
+                         f"its dump {written[0].name}; K8 past {LIMIT} s", text)
 
 
 class Hang(unittest.TestCase):
@@ -174,6 +178,7 @@ class Hang(unittest.TestCase):
                                                  "hang.none", 1, env)
         self.assertEqual(status, 124, err)
         self.assertEqual(err[-3:-1], ["hang: no debugger, no stacks", f"hang: {debuggers.NO_GDB}"], err)
+        self.assertEqual(err[-1], status_table.line(124) + "; no debugger, no stack written; hang.none past 1 s", err)
         self.assertLessEqual(seconds, 1 + AFTER, err)
 
     def test_hang_lines_bound(self):
