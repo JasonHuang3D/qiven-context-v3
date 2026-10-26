@@ -1,11 +1,8 @@
-"""CI at publication alone: each workflow under .github/workflows runs on a
-pull request into main, on a release tag of the version pattern v[0-9]* and
-by manual dispatch, and on nothing else: never a push to a branch, never a
-schedule, never a pull request into another branch. The pull request's
-event types are the default three and ready_for_review, which runs a draft
-once it is marked ready (each job skips a draft: test_loop_ci.py). A newer
-run cancels the older of its ref, and no job is kept off one of those events
-by the event's name.
+"""CI by manual dispatch alone: each workflow under .github/workflows runs
+by workflow_dispatch and on nothing else: never a pull request, a tag, a
+push to a branch or a schedule. No job or step is guarded by its event: no
+draft guard, no if on the event's name. A newer run cancels the older of
+its ref.
 
 CI a runtime evaluation, unpinned (Unpinned below): the
 runners' latest images, no digest, exact version or versioned tool in a
@@ -21,11 +18,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
-EVENTS = {
-    "pull_request": {"branches": ["main"], "types": ["opened", "synchronize", "reopened", "ready_for_review"]},
-    "push": {"tags": ["v[0-9]*"]},
-    "workflow_dispatch": {},
-}
+EVENTS = {"workflow_dispatch": {}}
+EVENT_GUARD = re.compile(r"github\.event\.pull_request|\.draft\b")
 GROUP = "${{ github.workflow }}-${{ github.ref }}"
 
 
@@ -121,8 +115,11 @@ def findings(text):
         found.append(f"concurrency {conc}")
     _, jobs = block(lines, "jobs")
     for job, body in sorted(mapping(jobs).items()):
-        if isinstance(body, dict) and "event_name" in str(body.get("if", "")):
+        if isinstance(body, dict) and "github.event" in str(body.get("if", "")):
             found.append(f"job {job} kept off an event")
+    for number, line in enumerate(lines, 1):
+        if not line.lstrip().startswith("#") and EVENT_GUARD.search(line.split(" #", 1)[0]):
+            found.append(f"line {number}: a draft guard")
     return found
 
 
@@ -261,42 +258,53 @@ class Triggers(unittest.TestCase):
 
     def test_planted(self):
         text = (WORKFLOWS / "ci.yml").read_bytes().decode("utf-8")
-        head = ("on:\n  pull_request:\n    branches: [main]\n"
-                "    types: [opened, synchronize, reopened, ready_for_review]\n"
-                "  push:\n    tags: [\"v[0-9]*\"]\n  workflow_dispatch:\n")
+        head = "on:\n  workflow_dispatch:\n"
         self.assertEqual(text.count(head), 1)
-        plants = {
-            "push to a branch": head.replace("    tags:", "    branches: [main]\n    tags:"),
-            "bare push": head.replace("  push:\n    tags: [\"v[0-9]*\"]\n", "  push:\n"),
-            "push of any branch but one": head + "  push:\n    branches-ignore: [dev]\n",
-            "schedule": head + "  schedule:\n    - cron: \"0 3 * * *\"\n",
-            "pull request into another branch": head.replace("[main]", "[dev]"),
-            "pull request into any branch": head.replace("    branches: [main]\n", ""),
-            "pull request into main and others": head.replace("[main]", "[main, \"release/*\"]"),
-            "pull request target": head + "  pull_request_target:\n",
-            "no dispatch": head.replace("  workflow_dispatch:\n", ""),
-            "flow form": "on: [push, pull_request, workflow_dispatch]\n",
-            "scalar form": "on: push\n",
-            "quoted key": head.replace("on:", "'on':") + "  schedule:\n    - cron: \"0 3 * * *\"\n",
-            "any tag": head.replace("[\"v[0-9]*\"]", "[\"v*\"]"),
+        for form in ("on: [workflow_dispatch]\n", "on: workflow_dispatch\n", "'on':\n  workflow_dispatch:\n"):
+            with self.subTest(control=form):
+                self.assertEqual(findings(text.replace(head, form)), [])
+        request = "  pull_request:\n    branches: [main]\n"
+        plants = {  # each copy and the rule that must name it
+            "pull request": (head + request, "trigger pull_request"),
+            "ready pull request": (head + request + "    types: [opened, ready_for_review]\n", "trigger pull_request"),
+            "release tag": (head + "  push:\n    tags: [\"v[0-9]*\"]\n", "trigger push"),
+            "push to a branch": (head + "  push:\n    branches: [main]\n", "trigger push"),
+            "bare push": (head + "  push:\n", "trigger push"),
+            "schedule": (head + "  schedule:\n    - cron: \"0 3 * * *\"\n", "trigger schedule"),
+            "pull request target": (head + "  pull_request_target:\n", "trigger pull_request_target"),
+            "a pull request, no dispatch": ("on:\n" + request, "no trigger workflow_dispatch"),
+            "dispatch with an input": (head + "    inputs:\n      ref:\n        type: string\n",
+                                       "trigger workflow_dispatch: "),
+            "flow form": ("on: [push, pull_request, workflow_dispatch]\n", "trigger pull_request"),
+            "scalar form": ("on: push\n", "no trigger workflow_dispatch"),
+            "quoted key": (head.replace("on:", "'on':") + "  schedule:\n    - cron: \"0 3 * * *\"\n",
+                           "trigger schedule"),
         }
-        for name, planted in plants.items():
+        for name, (planted, rule) in plants.items():
             with self.subTest(plant=name):
-                self.assertNotEqual(findings(text.replace(head, planted)), [])
+                self.assertIn(rule, " | ".join(findings(text.replace(head, planted))))
         conc = "  cancel-in-progress: true\n"
         self.assertEqual(text.count(conc), 1)
         group = "  group: " + GROUP + "\n"
+        macos = "    name: macos-clang\n"
+        draft = "if: ${{ !github.event.pull_request.draft }}\n"
+        msan = (WORKFLOWS / "msan.yml").read_bytes().decode("utf-8")
         others = {
-            "older run kept": text.replace(conc, "  cancel-in-progress: false\n"),
-            "group of the branch alone": text.replace(group, "  group: ${{ github.ref }}\n"),
-            "job kept off an event": text.replace(
-                "    name: macos-clang\n", "    name: macos-clang\n    if: github.event_name == 'pull_request'\n"),
-            "no triggers": text.replace(head, ""),
+            "older run kept": (text.replace(conc, "  cancel-in-progress: false\n"), "concurrency"),
+            "group of the branch alone": (text.replace(group, "  group: ${{ github.ref }}\n"), "concurrency"),
+            "job kept off an event": (text.replace(macos, macos + "    if: github.event_name == 'pull_request'\n"),
+                                      "job macos kept off an event"),
+            "draft guard on a job": (text.replace(macos, macos + "    " + draft), "a draft guard"),
+            "draft guard on msan's job": (msan.replace("    name: linux-msan\n", "    name: linux-msan\n    " + draft),
+                                          "a draft guard"),
+            "draft guard on a step": (
+                text.replace("    steps:\n", "    steps:\n      - " + draft + "        run: exit\n", 1), "a draft guard"),
+            "no triggers": (text.replace(head, ""), "no triggers"),
         }
-        for name, planted in others.items():
+        for name, (planted, rule) in others.items():
             with self.subTest(plant=name):
-                self.assertNotEqual(planted, text)
-                self.assertNotEqual(findings(planted), [])
+                self.assertNotIn(planted, (text, msan))
+                self.assertIn(rule, " | ".join(findings(planted)))
 
 
 class Unpinned(unittest.TestCase):

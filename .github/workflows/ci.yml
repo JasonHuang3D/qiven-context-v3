@@ -23,17 +23,10 @@
 
 name: ci
 
-# At publication alone: a pull request into main once it is ready for
-# review, a release tag, or by hand. A draft pull request runs no job:
-# each job's if skips it, and marking it ready (ready_for_review) runs
-# them. Never a push to a branch, never a schedule; the loop runs each
-# job of its system before (tools/loop.py).
+# By manual dispatch alone: never a pull request, a tag or a push to a
+# branch, never a schedule; the loop runs each job of its system before
+# (tools/loop.py).
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    tags: ["v[0-9]*"]
   workflow_dispatch:
 
 permissions:
@@ -81,7 +74,6 @@ env:
 
 jobs:
   windows:
-    if: ${{ !github.event.pull_request.draft }}
     name: ${{ matrix.job }}
     runs-on: windows-latest
     timeout-minutes: 45
@@ -186,7 +178,6 @@ jobs:
           ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^tests[.]structure[.]' -LE '^analysis$'
 
   linux:
-    if: ${{ !github.event.pull_request.draft }}
     name: ${{ matrix.preset }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -264,7 +255,6 @@ jobs:
           "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
 
   macos:
-    if: ${{ !github.event.pull_request.draft }}
     name: macos-clang
     runs-on: macos-latest
     timeout-minutes: 45

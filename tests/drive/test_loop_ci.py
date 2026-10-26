@@ -20,10 +20,9 @@ tests run in windows-analysis's steps; tier 3's suites build the
 structure, nohal and fuzz presets and run the full and fuzz test presets.
 Each Windows job's trees are its own: no two jobs share one.
 
-Neither workflow runs a draft pull request's jobs: each job's if is DRAFT,
-and the pull request's event types are READY, ready_for_review among them,
-so that marking one ready runs them; a workflow copy without either is
-caught."""
+Each job of either workflow runs on each dispatch, as each of the loop's
+runs on its tier: no job has an if, a draft guard or any other (the
+triggers: test_triggers.py); a workflow copy with one is caught."""
 
 import json
 import re
@@ -36,8 +35,6 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 CI_ONLY = {"macos-clang"}  # no machine for it (the loop's text)
 PIN = "-DQIVEN3_PIN_TOOLS=ON"
 FAMILY = {"g++": "GCC", "clang++": "CLANG"}  # a CI preset's compiler: its pin's name in CMakeLists.txt
-DRAFT = "${{ !github.event.pull_request.draft }}"  # each job's if: a draft pull request runs none
-READY = {"opened", "synchronize", "reopened", "ready_for_review"}  # the pull request's event types
 
 
 def preset_compilers():
@@ -142,24 +139,14 @@ def commands(step, matrix):
     return out
 
 
-def draft_findings(text):
-    """Each way a workflow runs a draft pull request's jobs, or runs none
-    when one is marked ready."""
+def guard_findings(text):
+    """Each job of a workflow kept off a dispatch by an if."""
     top = blocks(text.splitlines(), 0)
-    found = []
-    events = blocks(top.get("on", [""])[1:], 2)
-    request = blocks(events.get("pull_request", [""])[1:], 4)
-    types = request.get("types", ["types:"])[0].split(":", 1)[1].strip()
-    if not (types.startswith("[") and types.endswith("]")) or \
-            {t.strip() for t in types[1:-1].split(",")} != READY:
-        found.append(f"pull request types {types or None}")
     jobs = blocks(top.get("jobs", [""])[1:], 2)
-    if not jobs:
-        found.append("no jobs")
+    found = [] if jobs else ["no jobs"]
     for job, job_lines in jobs.items():
-        conditions = [line.split(":", 1)[1].strip() for line in blocks(job_lines[1:], 4).get("if", [])[:1]]
-        if conditions != [DRAFT]:
-            found.append(f"job {job} runs a draft pull request")
+        for line in blocks(job_lines[1:], 4).get("if", [])[:1]:
+            found.append(f"job {job} has an if: {line.split(':', 1)[1].strip()}")
     return found
 
 
@@ -378,34 +365,32 @@ class LoopAgainstCI(unittest.TestCase):
                     with self.subTest(job=name, key=key):
                         self.assertIn(key, self.loop.ENV[system])
 
-    def test_draft(self):
-        """No job of either workflow runs for a draft pull request; marking
-        it ready runs them."""
+    def test_every_job_runs(self):
+        """No job of either workflow is kept off a dispatch."""
         for name in ("ci.yml", "msan.yml"):
             with self.subTest(workflow=name):
-                self.assertEqual(draft_findings((WORKFLOWS / name).read_text(encoding="utf-8")), [])
+                self.assertEqual(guard_findings((WORKFLOWS / name).read_text(encoding="utf-8")), [])
 
-    def test_draft_planted(self):
-        """Copies of each workflow, each without the condition on one job or
-        without the ready event, are caught."""
-        condition = "    if: " + DRAFT + "\n"
-        ready = ", ready_for_review]"
+    def test_guard_planted(self):
+        """Copies of each workflow, one job given back the draft guard or
+        another if, are caught by the job's name; one with no jobs too."""
+        guards = {"draft guard": "${{ !github.event.pull_request.draft }}",
+                  "event's name": "github.event_name == 'pull_request'"}
         for name in ("ci.yml", "msan.yml"):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             jobs = blocks(blocks(text.splitlines(), 0)["jobs"][1:], 2)
-            self.assertEqual(text.count(condition), len(jobs))
-            self.assertEqual(text.count(ready), 1)
-            plants = {"no ready event": text.replace(ready, "]"),
-                      "no types": text.replace(text[text.index("    types: "):text.index(ready) + len(ready) + 1], ""),
-                      "every job runs": text.replace(condition, "")}
+            self.assertTrue(jobs)
+            plants = {"no jobs": (text[:text.index("\njobs:\n") + 1], "no jobs")}
             for job in jobs:
-                head = "  " + job + ":\n" + condition
-                plants[f"{job} runs"] = text.replace(head, "  " + job + ":\n")
-                plants[f"{job} kept by another if"] = text.replace(head, "  " + job + ":\n    if: ${{ always() }}\n")
-            for plant, planted in plants.items():
+                head = "  " + job + ":\n"
+                self.assertEqual(text.count(head), 1)
+                for guard, condition in guards.items():
+                    plants[f"{job}, {guard}"] = (text.replace(head, head + "    if: " + condition + "\n"),
+                                                 f"job {job} has an if: {condition}")
+            for plant, (planted, rule) in plants.items():
                 with self.subTest(workflow=name, plant=plant):
                     self.assertNotEqual(planted, text)
-                    self.assertNotEqual(draft_findings(planted), [])
+                    self.assertIn(rule, guard_findings(planted))
 
     def test_parser_sees_each_kind(self):
         """The parser's controls: each workflow's shapes found, so that an

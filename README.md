@@ -27,9 +27,8 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
   (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
   `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
-  `macos-clang`. `.github/workflows/ci.yml` runs them at publication alone: on
-  pull requests into `main`, on release tags `v[0-9]*` and by hand, never on
-  a push to a branch. CI is a runtime evaluation, unpinned: the runners'
+  `macos-clang`. `.github/workflows/ci.yml` runs them by manual dispatch
+  alone, never on a pull request, a tag or a push to a branch. CI is a runtime evaluation, unpinned: the runners'
   latest images with their own tools, CPython's current release by
   `actions/setup-python`, each job printing its image and its tools'
   versions; the pins stay in the local loop (`tools/loop.py`).
