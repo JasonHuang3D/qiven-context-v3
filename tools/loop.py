@@ -73,16 +73,14 @@ the debugger cases under gdb. macOS stays with CI alone.
   build/JOB, kept as on Windows; each has its own TMPDIR, the
   clean-binaries check's RUNNER_TEMP. The logs are kept in the clone's
   build/loop/. Each configure with QIVEN3_PIN_TOOLS on and the pinned
-  compilers; each step under setarch -R, as CI's Linux shell. From the
-  prefix and the pins the loop sets, for every step: GCC_HOME, the pinned
-  g++'s installation under the prefix, which clang's jobs take as
-  CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN and CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN
-  for their C++ library and start files (tools/loop_jobs.py; given as
-  QIVEN3_GCC); QIVEN3_LIBCXX, the libc++ built under MemorySanitizer; and
-  each sanitizer runtime's symbolizer, the pinned llvm-symbolizer, which no
-  runtime finds by its versioned name: ASAN_SYMBOLIZER_PATH,
-  LSAN_SYMBOLIZER_PATH, MSAN_SYMBOLIZER_PATH, TSAN_SYMBOLIZER_PATH and
-  UBSAN_SYMBOLIZER_PATH. From Git
+  compilers, clang taking the system's only GCC, the pinned one, for its
+  C++ library and start files; each step under setarch -R, as CI's Linux
+  shell. From the prefix and the pins the loop sets, for every step:
+  QIVEN3_LIBCXX, the libc++ built under MemorySanitizer; and each
+  sanitizer runtime's symbolizer, the pinned llvm-symbolizer by its pin's
+  source, so that no runtime takes one it looks for itself:
+  ASAN_SYMBOLIZER_PATH, LSAN_SYMBOLIZER_PATH, MSAN_SYMBOLIZER_PATH,
+  TSAN_SYMBOLIZER_PATH and UBSAN_SYMBOLIZER_PATH. From Git
   Bash, set MSYS_NO_PATHCONV=1 before giving a POSIX path as an argument,
   or give it by the environment.
 

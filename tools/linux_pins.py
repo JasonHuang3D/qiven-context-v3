@@ -14,10 +14,11 @@ fields, separated by white space, a '#' starting a comment:
   the archive's index (apt-cache show NAME=VERSION) must still give SHA256
   for its .deb; an index that no longer lists that version is noted, its
   digest not re-read. SOURCE is ubuntu:SUITE/COMPONENT.
-- The hold: no package may be held (apt-mark hold). The compilers are
-  under the prefix, moved by a re-pin alone, so that nothing is held and
-  the system's updates stay on; HELD, the source packages whose deb pins
-  would be held, is empty.
+- The compilers' hold: each installed package built from the source
+  packages HELD (gcc-13 and llvm-toolchain-18) must be held (apt-mark
+  hold), so that it moves by a deliberate re-pin alone, and must be pinned
+  as a deb; no other package may be held, so that the system's updates
+  stay on.
 - download: a release file, kept as DIR/downloads/ and the URL's last
   part, its SHA-256 re-read. SOURCE is the URL.
 - command: a tool. SOURCE is prefix/PATH, under DIR, or path/NAME, found
@@ -31,8 +32,9 @@ fields, separated by white space, a '#' starting a comment:
 - libcxx: libc++ with libc++abi within it, built under MemorySanitizer.
   SOURCE is prefix/PATH, its install's prefix under DIR: lib/libc++.a's
   SHA-256 must be SHA256, and include/c++/v1/__config's _LIBCPP_VERSION
-  must be VERSION's major, then its minor and its patch level in two digits
-  each (23.1.4 is 230104).
+  must be VERSION's major, then its minor in two digits and 00 (18.1.3 is
+  180100: libc++ 18 leaves the patch level out, which the LLVM source's
+  download pin holds).
 - removed: a package an earlier toolchain's removal took, a line of two
   fields, KIND NAME: dpkg must not list it installed. A name both removed
   and pinned as a deb is malformed.
@@ -56,7 +58,7 @@ from pathlib import Path
 PINS = Path(__file__).resolve().parent / "linux-pins.txt"
 KINDS = ("deb", "download", "command", "debugger", "debugger-deb", "libcxx", "removed")
 FIELDS = {"removed": 2}  # a kind's fields where they are not 5
-HELD = ()  # none: the compilers are under the prefix, and no package is held
+HELD = ("gcc-13", "llvm-toolchain-18")  # the source packages of the pinned compilers, held
 HEX = re.compile(r"[0-9a-f]{64}")
 SHOWN = 40  # mismatches printed at most, then a count of the rest
 TIMEOUT = 60
@@ -166,19 +168,22 @@ def check_debs(pins, out, notes):
             notes.append(f"{kind} {name} {version}: the archive's index no longer lists it; digest not re-read")
         elif listed != digest:
             out.append(f"{kind} {name} {version}: the index's SHA-256 is {listed}; the pin {digest}")
-    check_hold(debs, have, every, out)
+    check_hold(debs, every, out)
 
 
-def check_hold(debs, have, every, out):
-    """Each pinned package of a HELD source held; no other package held."""
-    compilers = {name for _, kind, name, *_ in debs if kind == "deb" and name in have and have[name][1] in HELD}
+def check_hold(debs, every, out):
+    """Each installed package of a HELD source held and pinned as a deb; no
+    other package held."""
+    pinned = {name for _, kind, name, *_ in debs if kind == "deb"}
+    compilers = {name for name, (_, source, _) in every.items() if source in HELD}
     for name in sorted(compilers):
-        if not have[name][2]:
-            out.append(f"deb {name}: a pinned package of {have[name][1]}, not held "
-                       f"(apt-mark hold {name})")
+        if not every[name][2]:
+            out.append(f"deb {name}: a package of {every[name][1]}, not held (apt-mark hold {name})")
+        if name not in pinned:
+            out.append(f"deb {name}: a package of {every[name][1]}, installed {every[name][0]}, pinned as no deb")
     for name in sorted(n for n, (_, _, held) in every.items() if held and n not in compilers):
-        out.append(f"deb {name}: held, where no package is (apt-mark unhold {name}): the compilers are under "
-                   "the prefix, and the system's updates stay on")
+        out.append(f"deb {name}: held, but no package of {' or '.join(HELD)}: only the compilers are held, "
+                   f"the system's updates stay on (apt-mark unhold {name})")
 
 
 def check_download(prefix, name, digest, source, out):
@@ -244,7 +249,7 @@ def check_libcxx(prefix, name, version, digest, source, out):
     if len(parts) != 3 or not all(p.isdigit() for p in parts):
         out.append(f"libcxx {name}: version {version!r} is not MAJOR.MINOR.PATCH")
         return
-    want = f"{int(parts[0])}{int(parts[1]):02d}{int(parts[2]):02d}"
+    want = f"{int(parts[0])}{int(parts[1]):02d}00"
     match = re.search(r"^#\s*define _LIBCPP_VERSION (\d+)$", config.read_text(errors="replace"), re.MULTILINE)
     if match is None or match.group(1) != want:
         out.append(f"libcxx {name}: _LIBCPP_VERSION is {match.group(1) if match else 'absent'}; the pin {want}")

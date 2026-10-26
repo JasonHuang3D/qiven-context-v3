@@ -3,7 +3,8 @@ fake dpkg and apt answers each case makes in a scratch directory of its
 own: a pin file of every kind over them holds; then each rule's plant is
 caught, named in its mismatch, with exit 2: a digest changed (a download, a
 command, the libc++ archive, a deb's index), a version changed (dpkg's,
---version's, _LIBCPP_VERSION's), a package held, a pinned file missing (a
+--version's, _LIBCPP_VERSION's), a package of no compiler's source held, a
+compiler's package not held or pinned by no deb, a pinned file missing (a
 download, a command, libc++, a deb, dpkg itself), a removed package
 installed; one whose configuration files alone are left is absent. An
 entry of the prefix, or of its downloads, that no pin names is noted, the
@@ -42,6 +43,7 @@ CONFIG = "#ifndef CONFIG\n#  define _LIBCPP_VERSION {number}\n#endif\n"
 BINUTILS = ("binutils", "binutils-common", "binutils-x86-64-linux-gnu", "libbinutils", "libctf0", "libsframe1")
 DPKG = 'shift 3\ncat "$FAKE/dpkg.txt"\n'
 APT = 'line=$(grep "^$2 " "$FAKE/apt.txt") || exit 100\necho "SHA256: ${line#* }"\n'
+GCC = "13.3.0-6ubuntu2~24.04.1"  # a pinned compiler's package, of a held source
 
 
 def sha(data):
@@ -60,10 +62,10 @@ class World:
         self.download = self.write(self.prefix / "downloads" / URL.rsplit("/", 1)[-1], b"the release archive\n")
         self.tool = self.write(self.prefix / "tool-1.0" / "bin" / "tool", TOOL.format(version="1.0").encode())
         self.make = self.write(self.top / "path" / "make", TOOL.format(version="4.3").encode())
-        self.libcxx = self.prefix / "libcxx-msan-23.1.4"
+        self.libcxx = self.prefix / "libcxx-msan-18.1.3"
         self.archive = self.write(self.libcxx / "lib" / "libc++.a", b"the archive\n")
         self.config = self.write(self.libcxx / "include" / "c++" / "v1" / "__config",
-                                 CONFIG.format(number=230104).encode())
+                                 CONFIG.format(number=180100).encode())
         self.linked = False
         try:
             (self.prefix / "bin").mkdir()
@@ -72,8 +74,9 @@ class World:
         except OSError:  # no right to link: the command named in its own directory
             shutil.rmtree(self.prefix / "bin", ignore_errors=True)
         self.dpkg = {"make": "4.3-4.1build2 make-dfsg ii ", "libc6": "2.39-0ubuntu8.9 glibc ii ",
-                     "gcc-14-base": "14.2.0-4ubuntu2 gcc-14 ii "}
-        self.apt = {"make=4.3-4.1build2": sha(b"make deb"), "libc6=2.39-0ubuntu8.9": sha(b"libc6 deb")}
+                     "gcc-14-base": "14.2.0-4ubuntu2 gcc-14 ii ", "gcc-13": f"{GCC} gcc-13 hi "}
+        self.apt = {"make=4.3-4.1build2": sha(b"make deb"), "libc6=2.39-0ubuntu8.9": sha(b"libc6 deb"),
+                    f"gcc-13={GCC}": sha(b"gcc-13 deb")}
         self.dpkg_on_path = True
         self.save()
 
@@ -95,11 +98,12 @@ class World:
             f"download tool 1.0 {sha(self.download.read_bytes())} {URL}",
             f"command tool 1.0 {sha(self.tool.read_bytes())} {tool}",
             f"command make 4.3 {sha(self.make.read_bytes())} path/make",
-            f"libcxx libcxx-msan 23.1.4 {sha(self.archive.read_bytes())} prefix/libcxx-msan-23.1.4",
+            f"libcxx libcxx-msan 18.1.3 {sha(self.archive.read_bytes())} prefix/libcxx-msan-18.1.3",
             f"deb make 4.3-4.1build2 {self.apt['make=4.3-4.1build2']} ubuntu:noble/main",
             f"deb libc6 2.39-0ubuntu8.9 {self.apt['libc6=2.39-0ubuntu8.9']} ubuntu:noble-updates/main",
+            f"deb gcc-13 {GCC} {self.apt[f'gcc-13={GCC}']} ubuntu:noble-updates/main",
             f"debugger gdb 15.1 {sha(b'gdb')} path/gdb",
-            "removed gcc-14  # the old compiler", "removed libmpc3", extra)) + "\n"
+            "removed gcc-14  # the old compiler", "removed libstdc++-14-dev", extra)) + "\n"
 
     def which(self, name):
         if name in ("dpkg-query", "apt-cache"):
@@ -152,7 +156,7 @@ class Check(unittest.TestCase):
         world = World(self)
         status, lines = world.check()
         self.assertEqual(status, 0, lines)
-        self.assertEqual(lines[-1], "linux-pins: 7 pins, 2 removed, 0 mismatches")
+        self.assertEqual(lines[-1], "linux-pins: 8 pins, 2 removed, 0 mismatches")
         self.assertEqual([x for x in lines if "note" in x],
                          ["linux-pins: note: debugger gdb: absent from PATH; its debugger cases skip by name"])
 
@@ -175,8 +179,10 @@ class Check(unittest.TestCase):
                  r"mismatch: deb libc6: installed 2\.39-0ubuntu8\.10; the pin is 2\.39-0ubuntu8\.9"),
                 ("--version", lambda w: w.make.write_bytes(TOOL.format(version="4.3.1").encode()),
                  r"mismatch: command make: --version gives 'tool version 4\.3\.1'; the pin is 4\.3$"),
-                ("_LIBCPP_VERSION", lambda w: w.config.write_bytes(CONFIG.format(number=230105).encode()),
-                 r"mismatch: libcxx libcxx-msan: _LIBCPP_VERSION is 230105; the pin 230104")):
+                ("_LIBCPP_VERSION", lambda w: w.config.write_bytes(CONFIG.format(number=180200).encode()),
+                 r"mismatch: libcxx libcxx-msan: _LIBCPP_VERSION is 180200; the pin 180100"),
+                ("_LIBCPP_VERSION's patch level", lambda w: w.config.write_bytes(CONFIG.format(number=180103).encode()),
+                 r"mismatch: libcxx libcxx-msan: _LIBCPP_VERSION is 180103; the pin 180100")):
             with self.subTest(name):
                 self.caught(plant, pattern)
 
@@ -191,9 +197,20 @@ class Check(unittest.TestCase):
                          ["linux-pins: mismatch: command make: --version gives 'tool version 4.3.1'; the pin is 4.3"])
 
     def test_held(self):
+        """The compilers' hold: a package of no compiler's source held, a
+        pinned compiler's package not held, and an installed package of a
+        compiler's source pinned by no deb, each caught."""
         self.caught(lambda w: w.dpkg.update({"gcc-14-base": "14.2.0-4ubuntu2 gcc-14 hi "}),
-                    r"mismatch: deb gcc-14-base: held, where no package is \(apt-mark unhold gcc-14-base\)")
+                    r"mismatch: deb gcc-14-base: held, but no package of gcc-13 or llvm-toolchain-18: only the "
+                    r"compilers are held, the system's updates stay on \(apt-mark unhold gcc-14-base\)$")
         self.caught(lambda w: w.dpkg.update({"make": "4.3-4.1build2 make-dfsg hi "}), r"mismatch: deb make: held")
+        self.caught(lambda w: w.dpkg.update({"gcc-13": f"{GCC} gcc-13 ii "}),
+                    r"mismatch: deb gcc-13: a package of gcc-13, not held \(apt-mark hold gcc-13\)$")
+        lines = self.caught(lambda w: w.dpkg.update({"llvm-18-dev": "1:18.1.3-1ubuntu1 llvm-toolchain-18 ii "}),
+                            r"mismatch: deb llvm-18-dev: a package of llvm-toolchain-18, "
+                            r"installed 1:18\.1\.3-1ubuntu1, pinned as no deb$")
+        self.assertIn("linux-pins: mismatch: deb llvm-18-dev: a package of llvm-toolchain-18, not held "
+                      "(apt-mark hold llvm-18-dev)", lines)
 
     def test_missing(self):
         for name, plant, pattern in (
@@ -210,8 +227,9 @@ class Check(unittest.TestCase):
                 self.caught(plant, pattern)
 
     def test_removed_present(self):
-        self.caught(lambda w: w.dpkg.update({"libmpc3": "1.3.1-1build1.1 mpclib3 ii "}),
-                    r"mismatch: removed libmpc3: installed 1\.3\.1-1build1\.1, where the removal took it")
+        self.caught(lambda w: w.dpkg.update({"libstdc++-14-dev": "14.2.0-4ubuntu2~24.04.1 gcc-14 ii "}),
+                    r"mismatch: removed libstdc\+\+-14-dev: installed 14\.2\.0-4ubuntu2~24\.04\.1, where the removal "
+                    r"took it")
         world = World(self)  # removed, its configuration files kept: not installed
         world.dpkg.update({"gcc-14": "14.2.0-4ubuntu2 gcc-14 rc "})
         world.save()
@@ -220,19 +238,20 @@ class Check(unittest.TestCase):
 
     def test_leftovers_noted(self):
         world = World(self)
-        (world.prefix / "libcxx-msan-18.1.3" / "lib").mkdir(parents=True)
-        world.write(world.prefix / "downloads" / "llvm-project-18.1.3.src.tar.xz", b"old\n")
+        (world.prefix / "libcxx-msan-23.1.4" / "lib").mkdir(parents=True)
+        world.write(world.prefix / "downloads" / "llvm-project-23.1.4.src.tar.xz", b"old\n")
         status, lines = world.check()
         self.assertEqual(status, 0, lines)
-        self.assertIn("linux-pins: note: the prefix: libcxx-msan-18.1.3 is named by no pin", lines)
-        self.assertIn("linux-pins: note: the downloads: llvm-project-18.1.3.src.tar.xz is named by no pin", lines)
+        self.assertIn("linux-pins: note: the prefix: libcxx-msan-23.1.4 is named by no pin", lines)
+        self.assertIn("linux-pins: note: the downloads: llvm-project-23.1.4.src.tar.xz is named by no pin", lines)
         self.assertEqual(sum("named by no pin" in x for x in lines), 2, lines)
 
     def test_malformed(self):
         world = World(self)
-        for extra, pattern in (("removed gcc-14 14.2.0", r"malformed: line 11: 3 fields, not 2$"),
-                               ("removed libc6", r"malformed: line 11: libc6 both removed and pinned as a deb$"),
-                               ("removed libmpc3", r"malformed: line 11: removed libmpc3 pinned twice$")):
+        for extra, pattern in (("removed gcc-14 14.2.0", r"malformed: line 12: 3 fields, not 2$"),
+                               ("removed libc6", r"malformed: line 12: libc6 both removed and pinned as a deb$"),
+                               ("removed libstdc++-14-dev",
+                                r"malformed: line 12: removed libstdc\+\+-14-dev pinned twice$")):
             with self.subTest(extra):
                 status, lines = world.check(world.pins(extra))
                 self.assertEqual(status, 2, lines)
@@ -240,7 +259,8 @@ class Check(unittest.TestCase):
 
 
 class PinFile(unittest.TestCase):
-    """The pin file parses; its removed packages are the old compilers'."""
+    """The pin file parses; its removed packages are gcc-14's compilers' and
+    their development files', and its compilers the archive's, on PATH."""
     ctest_labels = ("fake",)
 
     ctest_reads = ("tools/linux-pins.txt",)
@@ -249,10 +269,14 @@ class PinFile(unittest.TestCase):
         pins, findings = linux_pins.parse(PIN_FILE.read_text(encoding="utf-8"))
         self.assertEqual(findings, [])
         removed = {p[2] for p in pins if p[1] == "removed"}
-        self.assertEqual(len(removed), 39)
-        self.assertTrue({"gcc-14", "g++-14", "clang-18", "llvm-18", "libclang-rt-18-dev"} <= removed, removed)
-        self.assertFalse({"gcc-14-base", "libgcc-s1", "libstdc++6"} & removed)
-        self.assertEqual(len(pins) - len(removed), 47)
+        self.assertEqual(removed, {"cpp-14", "cpp-14-x86-64-linux-gnu", "g++-14", "g++-14-x86-64-linux-gnu", "gcc-14",
+                                   "gcc-14-x86-64-linux-gnu", "libgcc-14-dev", "libstdc++-14-dev"})
+        self.assertEqual(len(pins) - len(removed), 77)
+        commands = {p[2]: p[5] for p in pins if p[1] == "command"}
+        for name in ("gcc-13", "g++-13", "clang-18", "clang++-18", "llvm-symbolizer-18"):
+            self.assertEqual(commands.get(name), "path/" + name)
+        debs = {p[2] for p in pins if p[1] == "deb"}
+        self.assertTrue({"gcc-13", "g++-13", "clang-18", "libclang-rt-18-dev", "llvm-18"} <= debs, debs)
 
     def test_binutils(self):
         """The binutils packages the builds run, pinned by the archive
@@ -310,7 +334,7 @@ class Process(unittest.TestCase):
                 "--pins", str(world.top / "pins.txt")]
         done = subprocess.run(argv, capture_output=True, text=True, env=env, timeout=120, check=False)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertEqual(done.stdout.splitlines()[-1], "linux-pins: 7 pins, 2 removed, 0 mismatches")
+        self.assertEqual(done.stdout.splitlines()[-1], "linux-pins: 8 pins, 2 removed, 0 mismatches")
         self.assertNotIn("named by no pin", done.stdout)
         world.dpkg.update({"gcc-14": "14.2.0-4ubuntu2 gcc-14 ii "})
         world.save()

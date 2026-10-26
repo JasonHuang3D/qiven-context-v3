@@ -7,8 +7,9 @@ mark records no pins is emptied once. Each system's side gives its pins:
 Windows' table, tools/windows-pins.txt and CMakeLists.txt's; inside WSL
 the pin file's, CMakeLists.txt's and the prefix, to every unit it drives.
 A ctest step's status is named as ctest's, 8 as (tests failed); another
-step's 8 stays unnamed. And --help names GCC_HOME and each sanitizer
-runtime's symbolizer variable."""
+step's 8 stays unnamed. Inside WSL each sanitizer runtime's symbolizer is
+the pinned file, and no GCC installation is given; --help names each
+symbolizer variable."""
 
 import argparse
 import contextlib
@@ -28,7 +29,7 @@ LOOP = load_loop()
 RUN = LOOP.RUN
 STATUS = RUN["STATUS"]
 JOB = "windows-msvc"
-PINS = {"cl": "14.44.35207 one", "QIVEN3_PIN_GCC": "16.2.0", "command g++-16": "16.2.0 two prefix/bin/g++-16"}
+PINS = {"cl": "14.44.35207 one", "QIVEN3_PIN_GCC": "13.3.0", "command g++-13": "13.3.0 two path/g++-13"}
 
 
 def scratch(case):
@@ -91,13 +92,13 @@ class KeptTree(unittest.TestCase):
         self.assertEqual(self.mark(), (JOB, PINS))
         planted = self.tree / "CMakeCache.txt"
         planted.write_text("made by another compiler\n", encoding="utf-8")
-        repinned = dict(PINS, **{"command g++-16": "16.3.0 three prefix/bin/g++-16"})
+        repinned = dict(PINS, **{"command g++-13": "13.4.0 three path/g++-13"})
         self.stamps["qiven3_unit_utc"] += 1
         argv, tree, fake = self.run_tier(repinned)
-        self.assertEqual(tree, f"{JOB} tree: {self.tree} emptied, the toolchain's pins changed: command g++-16")
+        self.assertEqual(tree, f"{JOB} tree: {self.tree} emptied, the toolchain's pins changed: command g++-13")
         self.assertFalse(planted.exists())
         self.assertNotIn("--tests-from-file", argv)
-        self.assertIn("every test, 10 of 10: its tree emptied, the toolchain's pins changed: command g++-16", fake)
+        self.assertIn("every test, 10 of 10: its tree emptied, the toolchain's pins changed: command g++-13", fake)
         self.assertEqual(self.mark(), (JOB, repinned))
         self.stamps["qiven3_unit_utc"] += 1
         argv, tree, fake = self.run_tier(repinned)
@@ -161,17 +162,18 @@ class SystemPins(unittest.TestCase):
         self.assertEqual(len(pins), len(lines) - len(removed))
         self.assertEqual([k for k in pins if k.split()[0] == "removed"], [])
         self.assertTrue(all("#" not in v for v in pins.values()), pins)
-        self.assertIn("command g++-16", pins)
+        self.assertIn("command g++-13", pins)
 
     def test_inside(self):
         """Inside WSL, every unit driven under the pin file's pins,
         CMakeLists.txt's and the prefix; the sync and the drive faked."""
         base = scratch(self)
         linux = LOOP.LINUX["inside"].__globals__
-        given = []
+        given, envs = [], []
 
         def drive(report, units, root, logs, command, env, phase="test", pins=None):
             given.append(pins)
+            envs.append(env)
             return [1, 0, 0]
 
         saved = {k: linux[k] for k in ("sync", "drive")}
@@ -190,6 +192,30 @@ class SystemPins(unittest.TestCase):
                     **RUN["cmake_pins"](ROOT), "prefix": "/nonexistent/prefix"}
         self.assertTrue(all(pins == expected for pins in given), given[0])
         self.assertIn("QIVEN3_PIN_GCC", expected)
+        # Each runtime's symbolizer the pinned file, by its pin's source (none where it is not found, as
+        # on Windows); no GCC installation given, clang taking the system's only GCC.
+        source = [v.split()[-1] for k, v in expected.items() if k.startswith("command llvm-symbolizer")]
+        self.assertEqual(len(source), 1, expected)
+        for env in envs:
+            symbolizer = linux["pinned_file"](source[0], "/nonexistent/prefix", env["PATH"])
+            self.assertEqual({env.get(r + "_SYMBOLIZER_PATH") for r in LOOP.LINUX["SANITIZER_RUNTIMES"]},
+                             {symbolizer})
+            self.assertNotIn("QIVEN3_GCC", env)
+
+    def test_symbolizer(self):
+        """A command pin's file: prefix/PATH under the prefix, path/NAME by
+        the PATH given (a planted file, on POSIX, where a bare name is a
+        command), None for another form or a name not found."""
+        pinned_file = LOOP.LINUX["pinned_file"]
+        self.assertEqual(pinned_file("prefix/bin/llvm-symbolizer-18", "/p", ""), "/p/bin/llvm-symbolizer-18")
+        self.assertIsNone(pinned_file("usr/bin/llvm-symbolizer-18", "/p", ""))
+        bin_dir = scratch(self)
+        self.assertIsNone(pinned_file("path/llvm-symbolizer-18", "/p", str(bin_dir)))
+        if os.name == "posix":
+            planted = bin_dir / "llvm-symbolizer-18"
+            planted.write_bytes(b"#!/bin/sh\n")
+            planted.chmod(0o755)
+            self.assertEqual(pinned_file("path/llvm-symbolizer-18", "/p", str(bin_dir)), str(planted))
 
 
 class Statuses(unittest.TestCase):
@@ -227,16 +253,17 @@ class Help(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_help(self):
-        """--help names GCC_HOME, the compiler option it fills, and each
-        sanitizer runtime's symbolizer variable."""
+        """--help names QIVEN3_LIBCXX and each sanitizer runtime's
+        symbolizer variable, and no GCC installation the loop gives."""
         done = subprocess.run([sys.executable, "-I", str(ROOT / "tools" / "loop.py"), "--help"],
                               stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
         text = " ".join(done.stdout.decode("utf-8", "replace").split())
         self.assertEqual(done.returncode, 0, text[-400:])
-        names = ["GCC_HOME", "CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN", "QIVEN3_LIBCXX",
-                 *(r + "_SYMBOLIZER_PATH" for r in LOOP.LINUX["SANITIZER_RUNTIMES"])]
+        names = ["QIVEN3_LIBCXX", *(r + "_SYMBOLIZER_PATH" for r in LOOP.LINUX["SANITIZER_RUNTIMES"])]
         for name in names:
             self.assertIn(name, text)
+        for name in ("GCC_HOME", "QIVEN3_GCC", "EXTERNAL_TOOLCHAIN"):
+            self.assertNotIn(name, text)
         self.assertIn("ctest's status: 8 (tests failed)", text)
         self.assertIn("each kept tree records the pins it was configured under", text)
 

@@ -7,8 +7,7 @@ sanitizers' options, CTest's parallel level and the Linux shell are CI's.
 The pins are the loop's alone, as its additions to CI's configure: the
 pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop.py), and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
-version, clang's with the pinned GCC's installation (GCC_HOME, given at run
-time). The loop's own jobs, LOCAL, are in no workflow: windows-symbols
+version, and nothing else: clang takes the system's only GCC. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
 builds release, which keeps its PDBs, and runs fake's selection and then
 the debugger preset, a label no workflow runs; nor are its own steps,
 LOCAL_STEPS, after CI's: linux-plain's debugger step, that label on its
@@ -225,8 +224,7 @@ class LoopAgainstCI(unittest.TestCase):
     def test_additions(self):
         """The loop's own additions: the pinned tools' option on each
         configure, and on Linux's the pinned compilers in place
-        of the preset's, clang's with GCC_HOME as its GCC installation,
-        as the text states; nothing else."""
+        of the preset's, as the text states; nothing else."""
         compilers = preset_compilers()
         cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
         pins = linux_pins()
@@ -240,11 +238,6 @@ class LoopAgainstCI(unittest.TestCase):
                             self.assertEqual(rest, ())
                             continue
                         c, cxx = compilers[preset]
-                        gcc_home = self.loop.TABLE["GCC_HOME"]
-                        home = () if FAMILY[cxx] == "GCC" else tuple(
-                            f"-DCMAKE_{lang}_COMPILER_EXTERNAL_TOOLCHAIN={gcc_home}" for lang in ("C", "CXX"))
-                        self.assertEqual(rest[2:], home)
-                        rest = rest[:2]
                         self.assertEqual(len(rest), 2, rest)
                         got_c, got_cxx = (x.split("=", 1)[1] for x in rest)
                         self.assertEqual(rest[0].split("=")[0] + rest[1].split("=")[0],

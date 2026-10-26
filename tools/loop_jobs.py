@@ -9,12 +9,10 @@ test reads one against the other (tests/drive/test_loop_ci.py):
 - every configure adds QIVEN3_PIN_TOOLS, under which configure fails on
   any compiler, CMake, Ninja or CPython but the pinned (tier 3 adds a fresh
   cache, tools/loop_tiers.py);
-- the Linux configures name the pinned compilers, gcc-16 and g++-16 or
-  clang-23 and clang++-23, where CI's presets take the image's gcc, g++,
-  clang and clang++ (tools/linux-pins.txt pins them); clang's also select
-  the pinned GCC's installation, GCC_HOME, for its C++ library and start
-  files, where clang would take the system's newest GCC: tools/loop_linux.py
-  gives it from the prefix at run time, as it gives QIVEN3_LIBCXX;
+- the Linux configures name the pinned compilers, gcc-13 and g++-13 or
+  clang-18 and clang++-18, where CI's presets take the image's gcc, g++,
+  clang and clang++ (tools/linux-pins.txt pins them); clang takes the
+  system's only GCC, the pinned one, for its C++ library and start files;
 - windows-analysis's configure names the pinned clang-tidy, which the loop
   checks by SHA-256 and version (tools/loop_windows.py's CLANG_TIDY).
 
@@ -62,15 +60,10 @@ LINUX_SHELL = ("setarch", "x86_64", "-R")
 CLEAN = "clean-check"  # CI's clean-binaries check, its script read from ci.yml
 PIN = "-DQIVEN3_PIN_TOOLS=ON"
 
-# The pinned compilers of the Linux jobs, by the compiler CI's preset names;
-# clang's with the pinned GCC's installation, GCC_HOME, which the loop
-# replaces by its directory under the prefix (tools/loop_linux.py).
-GCC_HOME = "${QIVEN3_GCC}"
+# The pinned compilers of the Linux jobs, by the compiler CI's preset names.
 LINUX_COMPILERS = {
-    "gcc": ("-DCMAKE_C_COMPILER=gcc-16", "-DCMAKE_CXX_COMPILER=g++-16"),
-    "clang": ("-DCMAKE_C_COMPILER=clang-23", "-DCMAKE_CXX_COMPILER=clang++-23",
-              "-DCMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN=" + GCC_HOME,
-              "-DCMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN=" + GCC_HOME),
+    "gcc": ("-DCMAKE_C_COMPILER=gcc-13", "-DCMAKE_CXX_COMPILER=g++-13"),
+    "clang": ("-DCMAKE_C_COMPILER=clang-18", "-DCMAKE_CXX_COMPILER=clang++-18"),
 }
 
 

@@ -151,19 +151,17 @@ def relay(report, inner, begun):
 def inside(args, report):
     """Inside WSL, the pins checked: the one clone synced, then each unit
     in its own build tree within it, under its own TMPDIR. From the prefix
-    and the pins: QIVEN3_LIBCXX, the pinned g++'s installation for clang's
-    jobs (GCC_HOME), and each sanitizer runtime's symbolizer, the pinned
-    llvm-symbolizer, which no runtime finds by its versioned name."""
+    and the pins: QIVEN3_LIBCXX, and each sanitizer runtime's symbolizer,
+    the pinned llvm-symbolizer, by its pin's source, so that every runtime
+    takes the pinned file rather than one it looks for itself (GCC's take
+    their own symbolizer and ignore it)."""
     git = shutil.which("git")
     if not git:
         raise CannotRun("git is missing from WSL's PATH")
     pins = Path(args.pins or ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8")  # checked: its form holds
     lines = [x.split("#", 1)[0].split() for x in pins.splitlines()]
     libcxx = [f[4] for f in lines if f[:1] == ["libcxx"]]
-    gxx = LINUX_COMPILERS["gcc"][1].split("=", 1)[1]
-    gcc = [f[4] for f in lines if f[:2] == ["command", gxx] and f[4].startswith("prefix/")]
-    symbolizer = [f[4] for f in lines if f[:1] == ["command"] and f[1].startswith("llvm-symbolizer")
-                  and f[4].startswith("prefix/")]
+    symbolizer = [f[4] for f in lines if f[:1] == ["command"] and f[1].startswith("llvm-symbolizer")]
     prefix = args.prefix.rstrip("/")
     # The toolchain's pins each tree records (tools/loop_run.py's own_tree): the pin file's, the pins
     # CMakeLists.txt sets, and the prefix the compilers are found under.
@@ -172,10 +170,9 @@ def inside(args, report):
     env["PATH"] = prefix + "/bin:" + env.get("PATH", "")
     if libcxx:
         env["QIVEN3_LIBCXX"] = prefix + "/" + libcxx[0].removeprefix("prefix/")
-    if gcc:  # the driver's link, prefix/bin/g++-N, resolved: INSTALL/bin/g++
-        env["QIVEN3_GCC"] = str(Path(prefix + "/" + gcc[0].removeprefix("prefix/")).resolve().parents[1])
-    for runtime in SANITIZER_RUNTIMES if symbolizer else ():
-        env[runtime + "_SYMBOLIZER_PATH"] = prefix + "/" + symbolizer[0].removeprefix("prefix/")
+    found = symbolizer and pinned_file(symbolizer[0], prefix, env["PATH"])
+    for runtime in SANITIZER_RUNTIMES if found else ():
+        env[runtime + "_SYMBOLIZER_PATH"] = found
     base = Path(os.path.expanduser(args.clone))
     if not base.is_absolute() or str(base.resolve()).startswith("/mnt/"):
         raise CannotRun(f"the clone {base} must be an absolute path on WSL's own file system, never under /mnt/")
@@ -210,8 +207,8 @@ def inside(args, report):
 
 def linux_command(clone, logs, env, presets, temp):
     """command(unit, step): the step's argv in the clone, under setarch -R,
-    its tool by the prefix's PATH, GCC_HOME by QIVEN3_GCC; the clean check
-    given the job's TMPDIR."""
+    its tool by the prefix's PATH; the clean check given the job's
+    TMPDIR."""
 
     def command(unit, step):
         argv = local_argv(unit, step, presets)
@@ -222,10 +219,19 @@ def linux_command(clone, logs, env, presets, temp):
             return [*LINUX_SHELL, sys.executable, "-I", str(script), argv[1], str(clone), temp]
         if argv[0] == FUZZ_TIMED:
             return [*LINUX_SHELL, sys.executable, "-I", str(clone / "tools" / "loop_fuzz.py"), *argv[1:]]
-        rest = [a.replace(GCC_HOME, env.get("QIVEN3_GCC", GCC_HOME)) for a in argv[1:]]
-        return [*LINUX_SHELL, shutil.which(argv[0], path=env["PATH"]) or argv[0], *rest]
+        return [*LINUX_SHELL, shutil.which(argv[0], path=env["PATH"]) or argv[0], *argv[1:]]
 
     return command
+
+
+def pinned_file(source, prefix, path):
+    """The file a command pin's source names: prefix/PATH under the prefix,
+    path/NAME by the PATH given; None when it is neither, or not found."""
+    if source.startswith("prefix/"):
+        return prefix + "/" + source.removeprefix("prefix/")
+    if source.startswith("path/"):
+        return shutil.which(source.removeprefix("path/"), path=path)
+    return None
 
 
 def earlier_clones(base):
