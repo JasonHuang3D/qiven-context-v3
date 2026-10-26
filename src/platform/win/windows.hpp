@@ -14,10 +14,9 @@
 // the console, random bytes, the clock, pages and wipe; win/files' are
 // replace, stage, create, remove_directory, read and lock
 // (platform/win/files.hpp); win/facts' are facts, synced and residual
-// (platform/win/facts.hpp). The processes (program, start, run) are
-// PlatformError unsupported until their module (win/process) is built;
-// their handle's type is here so that the adapter satisfies the concept
-// now. A Lock, Staged and Sink
+// (platform/win/facts.hpp); win/process' are program, start and the
+// Child's tree (process.cpp, child.cpp), run and read_line PlatformError
+// unsupported until its second part. A Lock, Staged and Sink
 // are files' over the adapter's WindowsFiles, which lives in the adapter:
 // so the adapter does not move, as a handle holds its System's address.
 //
@@ -58,8 +57,10 @@ using WindowsStaged = files::Staged<WindowsFiles>;
 using WindowsLock = files::Lock<WindowsFiles>;
 
 // A started process tree in a Job Object (win/process): the process, the
-// Job Object and three pipes; the destructor kills the tree and closes
-// each.
+// Job Object and three pipes, under QIVEN3_FAULTS the countdown its calls
+// ask first; the destructor kills the tree and closes each. write, wait
+// and kill fail io; wait past its timeout deadline, the tree running;
+// kill ends the tree, its exit code 1, and again nothing more.
 class WindowsChild {
 public:
     WindowsChild() noexcept = default;
@@ -76,12 +77,18 @@ public:
     void kill();
 
 private:
+    friend class WindowsPlatform;
+    WindowsChild(void* process, void* job, void* input, void* output, void* error) noexcept;
     void close_all() noexcept;
+    bool faulted() noexcept;
     void* process_ = nullptr;
     void* job_ = nullptr;
     void* input_ = nullptr;
     void* output_ = nullptr;
     void* error_ = nullptr;
+#if defined(QIVEN3_FAULTS)
+    memory::Countdown* countdown_ = nullptr;
+#endif
 };
 
 class WindowsPlatform;
@@ -132,7 +139,11 @@ public:
     bool remove_directory(std::string_view path);
     void read(std::string_view path, String& out);
     WindowsLock lock(std::string_view path, Seconds deadline);
+    // <name>.exe in the first absolute entry of v3's own PATH that holds it
+    // as a file, resolved (win/process): start.
     void program(std::string_view name, String& out);
+    // A process tree started suspended in a new Job Object, its three pipe
+    // ends alone inherited, then resumed (win/process): start.
     WindowsChild start(const Command& command);
     void run(const Command& command, std::string_view data, Ran& out);
     // The console's code page, cp<n>.
@@ -158,11 +169,14 @@ private:
     friend class StandardOutput;
     friend class WindowsFiles;
     void write_output(std::string_view utf8);
+    // resolve's body on the first path buffer's first `given` units: path.
+    void resolve_units(std::size_t given, String& out);
 
     WindowsPages scratch_;
     std::size_t override_ = 0;  // the override's UTF-16 units after the scratch
     bool overridden_ = false;
     bool bad_override_ = false;  // not UTF-8, or past 32,767 units: path at config_dir
+    bool error_mode_ = false;    // set by the first start
     WindowsFiles files_{*this};
 };
 
@@ -173,18 +187,20 @@ static_assert(Platform<WindowsPlatform>);
 // The pinned sizes, on x64: Pages its address and size; Sink and Lock
 // their System's address and one handle (the Sink's its file's serial);
 // Staged its System's address, its Dir and its digits; Child the process,
-// the Job Object and three pipes; the adapter its scratch, the override's
-// size, two flags and its WindowsFiles: the adapter's address, under
+// the Job Object and three pipes, under QIVEN3_FAULTS the countdown's
+// address; the adapter its scratch, the override's size, three flags and
+// its WindowsFiles: the adapter's address, under
 // QIVEN3_FAULTS the countdown's, stage's 16 slots of 24 bytes and a serial.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
 static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "the System's address, Dir, digits");
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
-static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
 #if defined(QIVEN3_FAULTS)
+static_assert(sizeof(WindowsChild) == 48, "process, Job Object, three pipes, the countdown");
 static_assert(sizeof(WindowsFiles) == 408 && sizeof(WindowsPlatform) == 440, "scratch, size, flags, files");
 #else
+static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
 static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
 #endif
 #endif

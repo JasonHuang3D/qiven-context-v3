@@ -137,6 +137,8 @@ public:
 
 #if defined(QIVEN3_FAULTS)
     void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    // The countdown, which a started Child's calls ask too.
+    [[nodiscard]] memory::Countdown* countdown() const noexcept { return countdown_; }
 #endif
 
     // Whether the countdown fires: the call then fails with 31. win/facts'

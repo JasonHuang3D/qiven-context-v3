@@ -259,10 +259,16 @@ void WindowsPlatform::config_dir(bool create, String& out) {
 // path began with it, "\\?\UNC\" read as "\\"; on a drive letter, or path.
 void WindowsPlatform::resolve(std::string_view path, String& out) {
     out.clear();
+    resolve_units(wide("resolve", path, paths::scratch(scratch_).first(units)), out);
+}
+
+// resolve's body on the first path buffer's first `given` units, which
+// program's candidate takes too.
+void WindowsPlatform::resolve_units(std::size_t given, String& out) {
+    out.clear();
     const std::span<wchar_t> all = paths::scratch(scratch_);
     const std::span<wchar_t> a = all.first(units);
     const std::span<wchar_t> b = all.subspan(units, units);
-    const std::size_t given = wide("resolve", path, a);
     if (std::ranges::any_of(a.first(given), paths::control)) {
         fail(Code::path, "resolve", "holds a control character");
     }
@@ -346,12 +352,7 @@ void WindowsPlatform::read(std::string_view path, String& out) { files_.read(pat
 
 WindowsLock WindowsPlatform::lock(std::string_view path, Seconds deadline) { return files::lock(files_, path, deadline); }
 
-void WindowsPlatform::program(std::string_view, String& out) {
-    out.clear();
-    not_yet("program");
-}
-
-WindowsChild WindowsPlatform::start(const Command&) { not_yet("start"); }
+// program and start: win/process (process.cpp).
 
 void WindowsPlatform::run(const Command&, std::string_view, Ran&) { not_yet("run"); }
 

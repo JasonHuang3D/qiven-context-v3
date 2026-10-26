@@ -49,13 +49,14 @@ class WindowsBinding(PlatformBinding):
     # create, read, remove_directory, replace, lock and stage are
     # win/files'; facts, synced and residual win/facts'; the drive's
     # location request is the fake's alone until package 5; program, start
-    # and run are win/process', the children qiven3-child's, in package 5
-    # too, so program is the machine cases'.
+    # and run are win/process', program and start built, run until its
+    # second part, the children qiven3-child's, in package 5 too; program is
+    # the machine cases'.
     CREATE_READ = True
     LOCATION = False
     PROCESSES = False
     FACTS = True
-    PROGRAM = False
+    PROGRAM = True
     RESIDUAL = True
     TAGS = frozenset({"files", "processes", "machine"})
     COUNT_HANDLES = True
@@ -94,18 +95,16 @@ class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, Pl
 
 
 # The machine cases' skips until their members land; each case's flag
-# set true drops its entry here. P17 and P18 run; P22 waits on the drive's
-# location request after synced's, LOCATION.
+# set true drops its entry here. P17, P18 and P21 run; P22 waits on the
+# drive's location request after synced's, LOCATION.
 UNTIL = {
-    "test_P21_program": "until package 5: program: win/process",
     "test_P22_forms_here": UNTIL_LOCATION,
 }
 
 
 class MachineUntil(unittest.TestCase):
-    """Windows' cases P21 and P22 run here: program answers unsupported,
-    and P21 skips; synced answers and P22 skips on the drive's location
-    request; each by its reason."""
+    """Windows' case P22 runs here: synced answers and P22 skips on the
+    drive's location request, by its reason."""
     ctest_labels = ("drive",)
 
     def setUp(self):
