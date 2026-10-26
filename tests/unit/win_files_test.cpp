@@ -334,7 +334,9 @@ QIVEN3_CASE(win_files, replace) {
 // adapter's Win32 calls, and the held replace of deadline 0 makes those of
 // a replace that renames at its first try, and one more, its temporary
 // file's deletion: one rename, so no pause, which only comes before
-// another; the deadline's replace more. Released, the new bytes.
+// another; the deadline's replace no fewer, more only where its first try
+// ends before the deadline, which a slow disk need not give. Released, the
+// new bytes.
 QIVEN3_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -381,7 +383,7 @@ QIVEN3_CASE(win_files, replace_held) {
 #if defined(QIVEN3_FAULTS)
     CHECK(first_try > 0U);
     CHECK_EQ(once, first_try + 1);
-    CHECK(retried > once);
+    CHECK(retried >= once);
     CHECK(!countdown.fired());
     platform.attach(nullptr);
 #else
