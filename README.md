@@ -28,8 +28,10 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
   `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
   `macos-clang`. `.github/workflows/ci.yml` runs them by manual dispatch
-  alone, never on a pull request, a tag or a push to a branch. CI is a runtime evaluation, unpinned: the runners'
-  latest images with their own tools, CPython's current release by
+  alone, never on a pull request, a tag or a push to a branch, and a later
+  dispatch never cancels a run in progress. CI is a runtime evaluation, unpinned:
+  Linux on the `ubuntu-24.04` image, Windows and macOS on the runners'
+  latest images, each with its own tools, CPython's current release by
   `actions/setup-python`, each job printing its image and its tools'
   versions; the pins stay in the local loop (`tools/loop.py`).
 - Test presets select by label: `full`, `fast`, `structure`, `asan`,

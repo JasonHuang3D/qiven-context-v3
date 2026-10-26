@@ -11,7 +11,8 @@
 # last step states the outcome: what was built, in what time, and what ran.
 #
 # CI is a runtime evaluation, unpinned, as ci.yml's text has it: the
-# image's own tools, the version of each printed, no system setting changed.
+# ubuntu-24.04 image's own tools, the version of each printed, no system
+# setting changed.
 #
 # Its own workflow, apart from ci.yml's matrix, so that the trial's outcome
 # is its own run's. Standard GitHub-hosted runners only; each action pinned
@@ -29,10 +30,12 @@ on:
 permissions:
   contents: read
 
-# A newer run cancels the older run of the same ref.
+# A later dispatch never cancels a run in progress. The group is the
+# commit's, so a run of another commit never shares it; a repeated dispatch
+# of the same commit waits for the running one, the latest waiting alone.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   CTEST_PARALLEL_LEVEL: "4"
@@ -42,7 +45,7 @@ env:
 jobs:
   linux-msan:
     name: linux-msan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     # Each step's shell without address-space randomisation, for its own
     # processes alone (setarch -R): the sanitizer's shadow memory may not map

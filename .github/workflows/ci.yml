@@ -10,8 +10,10 @@
 # machine cases and the debugger cases among them, runs on a developer's
 # machine, never here.
 #
-# CI is a runtime evaluation, unpinned: the runners' latest images with
-# their own tools, a tool an image lacks at its current release. No step
+# CI is a runtime evaluation, unpinned: Linux on the ubuntu-24.04 image, the
+# release the local loop's Linux runs, Windows and macOS on the runners'
+# latest images, each with its own tools, a tool an image lacks at its
+# current release. No step
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
 # local pins (CMakeLists.txt's QIVEN3_PIN_ versions; Windows' tools in
@@ -32,10 +34,12 @@ on:
 permissions:
   contents: read
 
-# A newer run cancels the older run of the same ref.
+# A later dispatch never cancels a run in progress. The group is the
+# commit's, so a run of another commit never shares it; a repeated dispatch
+# of the same commit waits for the running one, the latest waiting alone.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   CTEST_PARALLEL_LEVEL: "4"
@@ -179,7 +183,7 @@ jobs:
 
   linux:
     name: ${{ matrix.preset }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false

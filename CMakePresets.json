@@ -112,35 +112,35 @@
     {
       "name": "linux-gcc",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "displayName": "CI on ubuntu-24.04, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-clang",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's clang++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
+      "displayName": "CI on ubuntu-24.04, the image's clang++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-tsan",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's clang++: ThreadSanitizer alone",
+      "displayName": "CI on ubuntu-24.04, the image's clang++: ThreadSanitizer alone",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
     },
     {
       "name": "linux-fuzz",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's clang++: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "displayName": "CI on ubuntu-24.04, the image's clang++: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-plain",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's g++, no sanitizer: the frame bound and the clean-binaries check",
+      "displayName": "CI on ubuntu-24.04, the image's g++, no sanitizer: the frame bound and the clean-binaries check",
       "description": "Uninstrumented, so -Wframe-larger-than=4096 is on, which every sanitizer preset leaves out; the workflow checks its binaries for the checkout's and the runner's paths",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo"}
@@ -148,7 +148,7 @@
     {
       "name": "linux-msan",
       "inherits": "ci",
-      "displayName": "CI on ubuntu-latest, the image's clang++: MemorySanitizer, a trial, against libc++ built under it from its own LLVM release",
+      "displayName": "CI on ubuntu-24.04, the image's clang++: MemorySanitizer, a trial, against libc++ built under it from its own LLVM release",
       "description": "QIVEN3_LIBCXX names the prefix of a static libc++, libc++abi within it, built with -fsanitize=memory, which the workflow builds; the flags go in CMAKE_CXX_FLAGS and CMAKE_EXE_LINKER_FLAGS, so that CMake's own probes compile and link against it; -stdlib=libc++ on the link line alone, since under -nostdinc++ a compile leaves it unused, which -Werror fails",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {

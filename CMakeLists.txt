@@ -17,6 +17,13 @@ set_property(CACHE QIVEN3_LOG_MIN PROPERTY STRINGS "" "trace" "debug" "info" "wa
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# C, which sqlite3.c alone is, likewise: C17 without GNU extensions, so that
+# its dialect never follows a compiler's default. C17 is the newest standard
+# each compiler here takes whole (MSVC as /std:c17); SQLite needs C89, and
+# strict C only drops its forced inlining of one function (__STRICT_ANSI__).
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 # Headers, not named modules: no module dependency scan.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # The C runtime linked statically, so that a binary imports the system's

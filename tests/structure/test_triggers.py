@@ -1,15 +1,17 @@
 """CI by manual dispatch alone: each workflow under .github/workflows runs
 by workflow_dispatch and on nothing else: never a pull request, a tag, a
 push to a branch or a schedule. No job or step is guarded by its event: no
-draft guard, no if on the event's name. A newer run cancels the older of
-its ref.
+draft guard, no if on the event's name. A later dispatch never cancels a
+run in progress: each workflow's concurrency group, and any job's, names
+the workflow and the commit, and none cancels in progress.
 
-CI a runtime evaluation, unpinned (Unpinned below): the
-runners' latest images, no digest, exact version or versioned tool in a
-workflow or a CI preset, no system setting changed, no debugger case run,
-and each job printing its image and its tools' versions. Read from each
-workflow's and CMakePresets.json's text, and over planted copies that break
-each rule."""
+CI a runtime evaluation, unpinned (Unpinned below): each Linux job on
+ubuntu-24.04, named by that label, each Windows and macOS job on its
+runner's latest image, and no other label; no digest, exact version or
+versioned tool in a workflow or a CI preset, no system setting changed, no
+debugger case run, and each job printing its image and its tools' versions.
+Read from each workflow's and CMakePresets.json's text, and over planted
+copies that break each rule."""
 
 import json
 import re
@@ -20,7 +22,10 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 EVENTS = {"workflow_dispatch": {}}
 EVENT_GUARD = re.compile(r"github\.event\.pull_request|\.draft\b")
-GROUP = "${{ github.workflow }}-${{ github.ref }}"
+# What a concurrency group must name: the workflow, so that two workflows of
+# one commit never share it, and the commit, so that no run of another
+# commit does.
+GROUP_NAMES = ("github.workflow", "github.sha")
 
 
 def unquote(text):
@@ -90,6 +95,22 @@ def mapping(lines):
     return out
 
 
+def concurrency_findings(where, conc):
+    """Each way a concurrency mapping lets a later dispatch cancel a run in
+    progress: a group that does not name the workflow and the commit, or a
+    cancel-in-progress but false (absent is false)."""
+    found = []
+    group = conc.get("group")
+    names = re.findall(r"\$\{\{(.*?)\}\}", group) if isinstance(group, str) else []
+    for name in GROUP_NAMES:
+        if not any(re.search(r"(?<![\w.])" + re.escape(name) + r"(?![\w.])", expr) for expr in names):
+            found.append(f"{where}: group {group!r} does not name {name}")
+    cancel = conc.get("cancel-in-progress")
+    if cancel not in (None, "false"):
+        found.append(f"{where}: cancel-in-progress {cancel!r}")
+    return found
+
+
 def findings(text):
     """Each way this workflow's text breaks the triggers' rules."""
     lines = text.splitlines()
@@ -110,25 +131,28 @@ def findings(text):
         if got != filters:
             found.append(f"trigger {name}: {got} is not {filters}")
     _, conc = block(lines, "concurrency")
-    conc = mapping(conc)
-    if conc.get("group") != GROUP or conc.get("cancel-in-progress") != "true":
-        found.append(f"concurrency {conc}")
+    found += concurrency_findings("concurrency", mapping(conc))
     _, jobs = block(lines, "jobs")
     for job, body in sorted(mapping(jobs).items()):
         if isinstance(body, dict) and "github.event" in str(body.get("if", "")):
             found.append(f"job {job} kept off an event")
+        if isinstance(body, dict) and "concurrency" in body:
+            own = body["concurrency"]
+            found += concurrency_findings(f"job {job}'s concurrency", own if isinstance(own, dict) else {"group": own})
     for number, line in enumerate(lines, 1):
         if not line.lstrip().startswith("#") and EVENT_GUARD.search(line.split(" #", 1)[0]):
             found.append(f"line {number}: a draft guard")
     return found
 
 
-IMAGES = {"windows-latest", "ubuntu-latest", "macos-latest"}
-# What each job prints, by its image: the image, CPython, CMake, CTest and
+# The one runner label of each system's jobs, by the job's name: Linux on
+# the release the local loop's Linux runs, Windows and macOS on their latest.
+LABELS = {"windows": "windows-latest", "linux": "ubuntu-24.04", "macos": "macos-latest"}
+# What each job prints, by its label: the image, CPython, CMake, CTest and
 # Ninja, and the compilers.
 PRINTS = ("ImageOS", "ImageVersion", "sys.version", "cmake --version", "ctest --version", "ninja --version")
 COMPILER_PRINTS = {"windows-latest": ("cl.exe", "VCToolsVersion", "WindowsSDKVersion"),
-                   "ubuntu-latest": ("clang++", "--version"), "macos-latest": ("clang++ --version", "sw_vers")}
+                   "ubuntu-24.04": ("clang++", "--version"), "macos-latest": ("clang++ --version", "sw_vers")}
 VERSION = re.compile(r"(?<![\w.])\d+\.\d+(?:\.\d+)*(?![\w.])")
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{40,}(?![0-9a-fA-F])")
 VERSIONED_TOOL = re.compile(r"(?<![\w-])(gcc|g\+\+|clang|clang\+\+|clang-tidy|llvm-[a-z]+|cl)-\d+")
@@ -180,12 +204,15 @@ def ctest_findings(line):
 
 def unpinned_findings(text):
     """Each way a workflow's text pins a tool, sets a system setting, runs
-    a debugger case, runs on a fixed image or prints no versions."""
+    a debugger case, runs on a label but its system's or prints no versions."""
     found = []
     for number, line in enumerate(text.splitlines(), 1):
         code = line.split(" #", 1)[0] if not line.lstrip().startswith("#") else ""
         if not code.strip() or re.match(r"^\s*(- )?uses:", code):
             continue
+        label = re.fullmatch(r"\s*runs-on:\s*(\S+)\s*", code)
+        if label and label.group(1) in LABELS.values():
+            continue  # the label, its release's number, checked by its job below
         for rule, pattern in (("a digest", DIGEST), ("an exact version", VERSION), ("a versioned tool", VERSIONED_TOOL),
                               ("a pin", PINNING), ("a system setting", SETTING)):
             if pattern.search(code):
@@ -199,8 +226,9 @@ def unpinned_findings(text):
     for job, lines in sorted(job_blocks(text).items()):
         body = "\n".join(lines)
         runs = re.findall(r"^    runs-on:\s*(\S+)", body, re.MULTILINE)
-        if len(runs) != 1 or runs[0] not in IMAGES:
-            found.append(f"job {job}: runs on {runs}, not a latest image")
+        system = job.split("-", 1)[0]
+        if len(runs) != 1 or runs[0] != LABELS.get(system):
+            found.append(f"job {job}: runs on {runs}, not {LABELS.get(system, 'a system named by the job')}")
             continue
         missing = [token for token in PRINTS + COMPILER_PRINTS[runs[0]] if token not in body]
         if missing:
@@ -232,7 +260,8 @@ def preset_findings(text):
             if key.endswith("_COMPILER") and not re.fullmatch(r"cl|gcc|g\+\+|clang|clang\+\+", value):
                 found.append(f"preset {name}: {key} {value}, not the image's")
         words = f"{preset.get('displayName', '')} {preset.get('description', '')}"
-        if re.search(r"(windows|ubuntu|macos)-\d", words) or VERSIONED_TOOL.search(words):
+        images = set(re.findall(r"(?<![\w-])(?:windows|ubuntu|macos)-\w+(?:\.\w+)*", words)) - set(LABELS.values())
+        if images or VERSIONED_TOOL.search(words):
             found.append(f"preset {name}: names a fixed image or tool: {words[:80]}")
     tests = {p["name"]: p for p in data["testPresets"]}
     for name in sorted(CTEST_PRESETS):
@@ -283,15 +312,44 @@ class Triggers(unittest.TestCase):
         for name, (planted, rule) in plants.items():
             with self.subTest(plant=name):
                 self.assertIn(rule, " | ".join(findings(text.replace(head, planted))))
-        conc = "  cancel-in-progress: true\n"
+        conc = "  cancel-in-progress: false\n"
         self.assertEqual(text.count(conc), 1)
-        group = "  group: " + GROUP + "\n"
+        group = "  group: ${{ github.workflow }}-${{ github.sha }}\n"
+        self.assertEqual(text.count(group), 1)
         macos = "    name: macos-clang\n"
         draft = "if: ${{ !github.event.pull_request.draft }}\n"
         msan = (WORKFLOWS / "msan.yml").read_bytes().decode("utf-8")
+        own = "    concurrency:\n      group: ${{ github.workflow }}-${{ github.sha }}-macos\n"
+        controls = {  # the same property in other words: each must pass
+            "cancel-in-progress left to its default": text.replace(conc, ""),
+            "the ref beside the commit": text.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}-"
+                                                             "${{ github.sha }}\n"),
+            "one expression": text.replace(group, "  group: ${{ format('{0}-{1}', github.workflow, github.sha) }}\n"),
+            "a job's own group of the commit": text.replace(macos, macos + own + "      cancel-in-progress: false\n"),
+        }
+        for name, planted in controls.items():
+            with self.subTest(control=name):
+                self.assertNotEqual(planted, text)
+                self.assertEqual(findings(planted), [])
         others = {
-            "older run kept": (text.replace(conc, "  cancel-in-progress: false\n"), "concurrency"),
-            "group of the branch alone": (text.replace(group, "  group: ${{ github.ref }}\n"), "concurrency"),
+            "a run in progress cancelled": (text.replace(conc, "  cancel-in-progress: true\n"),
+                                            "concurrency: cancel-in-progress 'true'"),
+            "cancelled by an expression": (text.replace(conc, "  cancel-in-progress: ${{ github.ref != 'x' }}\n"),
+                                           "concurrency: cancel-in-progress"),
+            "msan's run in progress cancelled": (msan.replace(conc, "  cancel-in-progress: true\n"),
+                                                 "concurrency: cancel-in-progress 'true'"),
+            "the group back on the ref": (text.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}\n"),
+                                          "does not name github.sha"),
+            "msan's group on the ref": (msan.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}\n"),
+                                        "does not name github.sha"),
+            "the commit's group shared by both workflows": (text.replace(group, "  group: ${{ github.sha }}\n"),
+                                                            "does not name github.workflow"),
+            "the commit's name as text": (text.replace(group, "  group: ci-github.sha\n"), "does not name github.sha"),
+            "a job's own group cancelling": (text.replace(macos, macos + own + "      cancel-in-progress: true\n"),
+                                             "job macos's concurrency: cancel-in-progress"),
+            "a job's own group of the branch": (
+                text.replace(macos, macos + "    concurrency: ${{ github.ref }}\n"), "job macos's concurrency: group"),
+            "no concurrency": (text.replace("concurrency:\n" + group + conc, ""), "concurrency: group None"),
             "job kept off an event": (text.replace(macos, macos + "    if: github.event_name == 'pull_request'\n"),
                                       "job macos kept off an event"),
             "draft guard on a job": (text.replace(macos, macos + "    " + draft), "a draft guard"),
@@ -345,8 +403,18 @@ class Unpinned(unittest.TestCase):
             "a system setting": (msan, "      # libc++ with libc++abi",
                                  "      - name: Randomisation\n        run: sudo sysctl -w vm.mmap_rnd_bits=28\n\n"
                                  "      # libc++ with libc++abi"),
-            "a fixed image": (ci, "runs-on: windows-latest", "runs-on: windows-2022"),
-            "a fixed Linux image": (msan, "runs-on: ubuntu-latest", "runs-on: ubuntu-24.04"),
+            "Windows on a fixed image": (ci, "runs-on: windows-latest", "runs-on: windows-2025"),
+            "macOS on a fixed image": (ci, "runs-on: macos-latest", "runs-on: macos-15"),
+            "Linux on the latest image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
+            "msan on the latest image": (msan, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
+            "Linux on an older release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-22.04"),
+            "msan on an older release": (msan, "runs-on: ubuntu-24.04", "runs-on: ubuntu-22.04"),
+            "Linux on a later release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-26.04"),
+            "Linux on an arm image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-24.04-arm"),
+            "Linux on Windows' label": (ci, "runs-on: ubuntu-24.04", "runs-on: windows-latest"),
+            "macOS on Linux's label": (ci, "runs-on: macos-latest", "runs-on: ubuntu-24.04"),
+            "Linux by a matrix": (ci, "runs-on: ubuntu-24.04", "runs-on: ${{ matrix.os }}"),
+            "a second label": (ci, "runs-on: ubuntu-24.04", "runs-on: [ubuntu-24.04, self-hosted]"),
             "the debugger preset": (ci, "run: ctest --preset fake\n\n      - name: Each fuzz",
                                     "run: ctest --preset debugger\n\n      - name: Each fuzz"),
             "the debugger label": (msan, "-L '^cxx$'", "-L '^(cxx|debugger)$'"),
@@ -373,6 +441,10 @@ class Unpinned(unittest.TestCase):
                                      '"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++-16", "CMAKE_BUILD_TYPE": '
                                      '"RelWithDebInfo"}'),
             "a fixed image named": ('"CI on windows-latest, the image\'s MSVC"', '"CI on windows-2022, MSVC 19.44"'),
+            "Linux on the latest image": ('"CI on ubuntu-24.04, the image\'s g++, no sanitizer',
+                                          '"CI on ubuntu-latest, the image\'s g++, no sanitizer'),
+            "Linux on an older release": ('"CI on ubuntu-24.04, the image\'s g++, no sanitizer',
+                                          '"CI on ubuntu-22.04, the image\'s g++, no sanitizer'),
             "fake takes the debugger cases": ('"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}',
                                               '"include": {"label": "^(fake|debugger)$"}'),
             "fake excludes none": ('"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}',
