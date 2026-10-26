@@ -3,8 +3,9 @@
 // scratch directory of each case's own, the busy counts driving the
 // retries, the fake's clock counting the waits (P9, P19, P20's lock and
 // P25's replace and open, as files defines them); stage's bound at its
-// edge; each system call and
-// each platform call failed in turn, a typed error with nothing left.
+// edge; an open whose record's insert throws, nothing left; each system
+// call and each platform call failed in turn, a typed error with nothing
+// left.
 
 #include <algorithm>
 #include <array>
@@ -359,6 +360,35 @@ QIVEN3_CASE(files, stage_bound) {
     CHECK_EQ(fake.files().kept(), 0U);
 }
 
+// An open whose record's insert throws (its fault point, open's second
+// call): io, and no file, no parent made by the open, nothing more open or
+// kept; the next open makes its file.
+QIVEN3_CASE(files, stage_insert) {
+#if defined(QIVEN3_FAULTS)
+    const Scratch scratch;
+    FakePlatform fake(scratch.config());
+    qiven3::memory::Countdown countdown;
+    auto stage = fake.stage(text(scratch.root));
+    const std::string before = listing(scratch.root);
+    const std::size_t kept = fake.files().kept();
+    fake.attach(&countdown);
+    countdown.arm(2);
+    CHECK(thrown([&] { stage.open("data/headers.jsonl"); }) ==
+          std::pair(Code::io, std::string("open: error 31 (ERROR_GEN_FAILURE)")));
+    countdown.disarm();
+    fake.attach(nullptr);
+    CHECK_EQ(listing(scratch.root), before);
+    CHECK_EQ(fake.files().open_files(), 0U);
+    CHECK_EQ(fake.files().kept(), kept);
+    stage.open("data/headers.jsonl").close();
+    CHECK(fs::is_regular_file(scratch.root / staging_left(scratch.root) / "data/headers.jsonl"));
+    stage.discard();
+    CHECK_EQ(fake.files().kept(), 0U);
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+#endif
+}
+
 // P20's lock on the fake: held, then released before the deadline; held
 // past it; another holder's count.
 QIVEN3_CASE(files, lock) {
@@ -410,7 +440,8 @@ QIVEN3_CASE(files, faults) {
     };
     // record, random_bytes, write, rename.
     runs("files.replace", [&] { fake.replace(text(target), "new", five); }, 5);
-    // record, random_bytes, make, open, write, close, close_all, publish.
+    // record, random_bytes, make, open and its record's insert, write,
+    // close, close_all, publish.
     runs("files.stage", [&] {
         std::error_code error;
         fs::remove_all(scratch.root / "bag", error);
@@ -419,7 +450,7 @@ QIVEN3_CASE(files, faults) {
         sink.write("{}\n");
         sink.close();
         stage.publish("bag", five);
-    }, 9);
+    }, 10);
     // record, open, try_lock.
     runs("files.lock", [&] { fake.lock(root + "/location.lock", five).release(); }, 4);
     // A lock's other error: io at once, not retried as a holder's.

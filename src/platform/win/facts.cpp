@@ -47,6 +47,19 @@ void readings::add_result(Detail& detail, long result) noexcept {
     }
 }
 
+State readings::unopened(Detail& reason, long status) noexcept {
+    if (status == ERROR_ACCESS_DENIED) {
+        reason.add("admin_only");
+        return State::unknown;
+    }
+    if (status == ERROR_FILE_NOT_FOUND) {
+        reason.add("HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SPP\\Clients: ");
+    }
+    reason.add("RegOpenKeyExW: ");
+    add_error(reason, static_cast<unsigned long>(status));
+    return State::unknown;
+}
+
 namespace {
 
 using paths::units;
@@ -108,9 +121,9 @@ std::size_t mount(WindowsFiles& f, const wchar_t* path, std::span<wchar_t> into,
 // System Protection on the volume mounted at root: the policy's DisableSR
 // 1 off; else the SPP Clients key read, every value a list naming the
 // volumes it protects (RegEnumValueW, then RegGetValueW of each), on for
-// a volume one names and off for another or for no key; the key or a
-// value refused unknown, admin_only. No value's name is assumed. `list`
-// takes each value.
+// a volume one names and off for another; the key unopened unknown
+// (readings::unopened), a value refused unknown, admin_only. No value's
+// name is assumed. `list` takes each value.
 State protection(WindowsFiles& f, const wchar_t* root, std::span<wchar_t> list, Detail& reason) noexcept {
     DWORD value = 0;
     LSTATUS status = get_dword(f, HKEY_LOCAL_MACHINE, L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\SystemRestore",
@@ -123,15 +136,8 @@ State protection(WindowsFiles& f, const wchar_t* root, std::span<wchar_t> list, 
     }
     Key clients;
     status = open_key(f, HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SPP\\Clients", clients);
-    if (status == ERROR_ACCESS_DENIED) {
-        reason.add("admin_only");
-        return State::unknown;
-    }
-    if (status == ERROR_FILE_NOT_FOUND) {
-        return State::off;
-    }
     if (status != ERROR_SUCCESS) {
-        return unknown(reason, "RegOpenKeyExW", static_cast<unsigned long>(status));
+        return readings::unopened(reason, status);
     }
     std::array<wchar_t, 64> volume{};
     DWORD error = ERROR_GEN_FAILURE;

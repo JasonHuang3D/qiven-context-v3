@@ -1,6 +1,7 @@
 // win/facts' cases that read no machine fact, on the Windows adapter: the
 // rules platform/win/facts.hpp states, evaluated by the compiler; an
-// HRESULT's names and the error table's names win/facts added; each
+// HRESULT's names and the error table's names win/facts added; System
+// Protection's key unopened, unknown with its reason; each
 // member's refusal of a path before any read, its out cleared; and, under
 // QIVEN3_FAULTS, each member's first call failed, a typed error before any
 // machine fact is read. The reads of this machine are
@@ -176,6 +177,22 @@ QIVEN3_CASE(win_facts, names) {
     CHECK_EQ(error_text(234), std::string("ERROR_MORE_DATA (234)"));
     CHECK_EQ(error_text(259), std::string("ERROR_NO_MORE_ITEMS (259)"));
     CHECK_EQ(error_text(1630), std::string("ERROR_UNSUPPORTED_TYPE (1630)"));
+}
+
+// System Protection's key unopened: unknown, never off; missing, the key
+// named first; refused, admin_only; another error, the call and the error.
+QIVEN3_CASE(win_facts, unopened) {
+    const std::array<std::pair<long, std::string_view>, 3> statuses = {{
+        {2, "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SPP\\Clients: RegOpenKeyExW: "
+            "ERROR_FILE_NOT_FOUND (2)"},
+        {5, "admin_only"},
+        {31, "RegOpenKeyExW: ERROR_GEN_FAILURE (31)"},
+    }};
+    for (const auto& [status, named] : statuses) {
+        Detail reason;
+        CHECK(readings::unopened(reason, status) == State::unknown);
+        CHECK_EQ(std::string(reason.view()), std::string(named));
+    }
 }
 
 // A relative path and a text no path holds: path, before any read, each

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iterator>
 #include <map>
+#include <new>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -208,18 +209,30 @@ Error FakeFiles::open_staged(const Dir& dir, std::string_view path, File& out) {
         return files::path_not_found;
     }
     const fs::path made = staging->second.temporary / to_path(path);
+    // The record's node first, so that its insert failing makes nothing:
+    // taken out, then put back, with no allocation, once the file is made.
+    // The insert is a fault point, its allocation's throw; that is general.
+    const std::size_t id = state_->next + 1;
+    decltype(state_->open)::node_type record;
+    try {
+        if (faulted()) {
+            throw std::bad_alloc();
+        }
+        record = state_->open.extract(state_->open.emplace(id, State::Open{Stream(), dir.id}).first);
+    } catch (const std::bad_alloc&) {
+        return files::general;
+    }
     std::error_code error;
     fs::create_directories(made.parent_path(), error);
     if (error) {
         return win32(error, files::already_exists);
     }
-    Stream stream;
-    const Error opened = open_new(made, stream);
+    const Error opened = open_new(made, record.mapped().stream);
     if (opened != files::none) {
         return opened;
     }
-    out.id = ++state_->next;
-    state_->open.emplace(out.id, State::Open{std::move(stream), dir.id});
+    out.id = state_->next = id;
+    state_->open.insert(std::move(record));
     return files::none;
 }
 

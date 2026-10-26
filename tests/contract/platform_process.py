@@ -27,7 +27,7 @@ START_CALLS, READ_LINE_CALLS = 2, 1
 KILLS = 20
 # P15's arguments: an empty one, one with spaces and quotes, one with e
 # diaeresis.
-ARGS = ("", 'a "quoted" word, two  spaces', "ë")
+ARGS = ("", 'a "quoted" word, two  spaces', "\u00eb")
 # The cases needing processes, not applicable on the fake.
 CASES = ("test_P10_replace_killed", "test_P11_tree", "test_P12_deadline", "test_P13_caps",
          "test_P14_environment", "test_P15_argv", "test_P20_lock")

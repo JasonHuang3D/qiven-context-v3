@@ -8,10 +8,7 @@ succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
 "target" and "temporary" hold replace's rename, "publish" publish's and
 discard's; on the Windows drive real handles (machine/windows_holds.py).
-The Windows adapter's replace, stage and lock are its module win/files',
-and both bindings set STAGE true; a binding of an adapter without stage
-sets it false, checks that stage answers unsupported, and skips the case,
-or P25's part after replace.
+The Windows adapter's replace, stage and lock are its module win/files'.
 """
 
 import os
@@ -45,15 +42,6 @@ def temporaries(directory):
 
 
 class PlatformFiles:
-    STAGE = True
-
-    def stage_unsupported(self, d):
-        """On an adapter without stage yet: stage answers unsupported, and
-        the case is skipped."""
-        error = self.failure(d.call, "stage", path=str(self.files_root()))
-        self.assert_platform_error(error, "unsupported")
-        self.skipTest("until package 5: stage: win/files")
-
     def nothing_kept(self, d):
         """On the fake: no file, staging directory or lock held open."""
         if self.ADAPTER == "fake":
@@ -125,8 +113,6 @@ class PlatformFiles:
         bags = Path(self.files_root()) / "bags"
         bags.mkdir()
         with self.drive() as d:
-            if not self.STAGE:
-                self.stage_unsupported(d)
             for name, times in (("one", 0), ("two", 3)):
                 with self.subTest(name=name, held=times):
                     staged, open_sink = self.staged_bag(d, bags)
@@ -194,8 +180,6 @@ class PlatformFiles:
                     self.assert_platform_error(self.failure(d.call, "resolve", path_hex=path), "path")
                     self.assert_platform_error(self.failure(d.call, "replace", path_hex=path, data="00"), "path")
             self.assertEqual(sorted(p.name for p in root.iterdir()), before)
-            if not self.STAGE:
-                self.stage_unsupported(d)
             for bad in NOT_UTF8:
                 with self.subTest(bytes=bad.hex(), member="stage"):
                     staged = d.call("stage", path=str(inside))["id"]

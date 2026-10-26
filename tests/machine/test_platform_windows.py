@@ -52,7 +52,6 @@ class WindowsBinding(PlatformBinding):
     # and run are win/process', the children qiven3-child's, in package 5
     # too, so program is the machine cases'.
     CREATE_READ = True
-    STAGE = True
     LOCATION = False
     PROCESSES = False
     FACTS = True
@@ -120,7 +119,7 @@ class MachineUntil(unittest.TestCase):
 
 
 # The files' cases' skips: P20's for its child half, after its lock half;
-# P19 and P25 run whole, STAGE true.
+# P19 and P25 run whole.
 FILES_UNTIL = {
     "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
                      "win/process and qiven3-child",

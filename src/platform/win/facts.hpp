@@ -2,16 +2,17 @@
 
 // win/facts: the Windows adapter's machine facts. WindowsPlatform's
 // facts, synced and residual are in facts.cpp; here are the rules they
-// apply that read no machine fact, each one the compiler can evaluate:
+// apply that read no machine fact, the compiler able to evaluate each of
 // BitLocker's value as a state, a System Protection list naming a volume,
-// a residual row's applies folded over the paths, a sync root's client,
-// the residual rows' texts; and an HRESULT
-// as a detail names it.
+// a residual row's applies folded over the paths, a sync root's client and
+// the residual rows' texts; and an HRESULT as a detail names it, and
+// System Protection's key unopened.
 //
 // Each member reads as a standard user, with no process, never elevating
 // and never retrying a refused read by another route. In facts a read
 // refused or failing is unknown, its call and error the reason, System
-// Protection's list refused (error 5) unknown with the reason admin_only;
+// Protection's list refused (error 5) unknown with the reason admin_only,
+// its key missing unknown with the reason naming the key (unopened);
 // in synced a read failing but for none there is PlatformError path, so
 // that no synced folder is missed; in residual a row's read failing is
 // applies unknown. Under QIVEN3_FAULTS each Win32, registry, COM and
@@ -131,5 +132,11 @@ inline constexpr std::array<RowView, 6> rows = {{
 // (31)" for a Win32 error's, the adapter's names after it; "HRESULT
 // 0x80004005, E_FAIL" for one of the few COM names here; else its number.
 void add_result(Detail& detail, long result) noexcept;
+
+// System Protection where RegOpenKeyExW does not open its SPP Clients key,
+// by the call's status: unknown, never off, the reason admin_only where
+// refused (5), else the call and its error, the key's name first where it
+// is missing (2), as its place is not measured here.
+State unopened(Detail& reason, long status) noexcept;
 
 }  // namespace qiven3::platform::win::readings

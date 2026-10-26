@@ -8,7 +8,9 @@
 // counts, how often a call refuses as a holder would before it succeeds,
 // each refusal counted down. Under QIVEN3_FAULTS each call giving an error
 // asks the countdown first and, when it fires, gives 31 (a close, a
-// discard's close and an unlock done first, so nothing stays open).
+// discard's close and an unlock done first, so nothing stays open);
+// open_staged asks it again at its record's insert, before it makes
+// anything, as that allocation's throw, also 31.
 //
 // thread: one
 
