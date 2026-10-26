@@ -16,10 +16,12 @@
 // completes: a container's room grown before a later allocation failed
 // stays, as a vector's reserve does, and saves the next run one allocation.
 // The run completes past the last failure. The runner's count after each
-// case holds too.
+// case holds too. faults runs in four parts of the course, each its runs
+// counted, the parts together every fault point.
 // maximum: a module of 64 KiB content appended, imported into the second
 // state and verified, each peak within its operation's budget.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -329,9 +331,43 @@ QIVEN3_CASE(store_memory, counts) {
 #endif
 }
 
-QIVEN3_CASE(store_memory, faults) {
 #if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+namespace {
+
+// The fault runs in parts, each well under the watcher's limit on every
+// job: a part's steps, from to to (past its last), after the steps before
+// it run once with nothing failed; and the runs its steps refuse in all,
+// counted. The parts tile the course, so that together they refuse every
+// fault point the whole course reaches.
+struct Part {
+    std::size_t from;
+    std::size_t to;
+    std::size_t runs;
+};
+constexpr std::size_t step_count = 16;
+constexpr std::array<Part, 4> fault_parts{
+    {{0, 3, 331}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+constexpr bool tiled() {
+    std::size_t next = 0;
+    for (const Part& p : fault_parts) {
+        if (p.from != next || p.to <= p.from) {
+            return false;
+        }
+        next = p.to;
+    }
+    return next == step_count;
+}
+static_assert(tiled());
+
+void faults_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
+    const Part& range = fault_parts.at(part);
+    const std::vector<Step> course = steps();
+    REQUIRE(course.size() == step_count);
     const auto b = std::make_unique<Bed>();
+    for (std::size_t i = 0; i < range.from; ++i) {
+        const Chars c = b->caller();
+        (void)course.at(i).run(*b, c);
+    }
     qiven3::memory::Countdown countdown;
     const auto attach = [&](qiven3::memory::Countdown* c) {
         b->store.attach(c);
@@ -342,7 +378,8 @@ QIVEN3_CASE(store_memory, faults) {
         b->fake.attach(c);
     };
     std::size_t total = 0;
-    for (const Step& s : steps()) {
+    for (std::size_t i = range.from; i < range.to; ++i) {
+        const Step& s = course.at(i);
         const std::string before = fingerprint(b->store) + " | " + fingerprint(b->other);
         const std::size_t held1 = held(b->state);
         const std::size_t held2 = held(b->state2);
@@ -409,11 +446,28 @@ QIVEN3_CASE(store_memory, faults) {
                   << " platform calls failed, each typed, the state as it was, the heaps' room grown " << rises
                   << " times\n";
     }
-    std::cout << "store_memory.faults: " << total << " runs\n";
-#else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
-#endif
+    // Every fault point of the part's steps refused, none dropped.
+    CHECK_EQ(total, range.runs);
+    std::cout << "store_memory.faults: part " << part << ", steps " << range.from << " to " << range.to - 1 << ": "
+              << total << " runs\n";
 }
+
+}  // namespace
+#else
+namespace {
+
+void faults_part(qiven3::test::Context&, std::size_t) {
+    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+}
+
+}  // namespace
+#endif
+
+// The parts: make to append_acc; head to export; import; verify and close.
+QIVEN3_CASE(store_memory, faults) { faults_part(qiven3_ctx, 0); }
+QIVEN3_CASE(store_memory, faults_reads) { faults_part(qiven3_ctx, 1); }
+QIVEN3_CASE(store_memory, faults_import) { faults_part(qiven3_ctx, 2); }
+QIVEN3_CASE(store_memory, faults_rest) { faults_part(qiven3_ctx, 3); }
 
 namespace {
 

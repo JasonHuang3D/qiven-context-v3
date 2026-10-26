@@ -14,11 +14,12 @@ record planted with another clangd's version, then with none: stale,
 refused without --file and absent with it. Skipped where clangd is absent.
 
 Checkout: the reviewer's facts on this checkout, from the analysis
-preset's stripped database, without the index: the call at
-tests/unit/files_test.cpp's first.publish resolves to Staged::publish's
-definition with its seven references, and system_->publish in
-src/platform/files.hpp, a call through a template parameter, is listed
-under unresolved; the lines found by grep, not written here. Skipped where
+preset's stripped database, without the index: the calls of a fixture of
+its own, tests/drive/fixtures/nav_publish.cpp, never built, resolve to
+Staged::publish's definition with their three references, and
+system_->publish in src/platform/files.hpp, a call through a template
+parameter, is listed under unresolved; the lines found by grep, not written
+here, so that no product test's edit moves the count. Skipped where
 clangd or the database is absent; labelled drive alone, so that it runs in
 the full suite."""
 
@@ -37,6 +38,8 @@ from tools import nav_lsp
 ROOT = Path(__file__).resolve().parents[2]
 NAV = ROOT / "tools" / "nav.py"
 DATABASE = "build/windows-analysis/tidy/compile_commands.json"
+# Checkout's own calls of Staged::publish, three.
+FIXTURE = "tests/drive/fixtures/nav_publish.cpp"
 BOUND = 8192
 TIMEOUT = 600
 CALLERS = 12
@@ -278,7 +281,7 @@ class Nav(unittest.TestCase):
 
 class Checkout(unittest.TestCase):
     ctest_labels = ("fake",)
-    ctest_reads = ("tools/nav.py", "tools/nav_query.py", "src/platform/files.hpp", "tests/unit/files_test.cpp")
+    ctest_reads = ("tools/nav.py", "tools/nav_query.py", "src/platform/files.hpp", FIXTURE)
 
     def setUp(self):
         clangd_or_skip(self)
@@ -287,14 +290,14 @@ class Checkout(unittest.TestCase):
 
     def test_publish(self):
         header = (ROOT / "src/platform/files.hpp").read_text(encoding="utf-8")
-        test = (ROOT / "tests/unit/files_test.cpp").read_text(encoding="utf-8")
-        calls = [n for n, line in enumerate(test.split("\n"), 1) if re.search(r"[\w)]\.publish\(\"", line)]
-        self.assertEqual(len(calls), 8)
-        status, envelope, _ = nav("refs", "publish", "--file", "tests/unit/files_test.cpp", "--no-index")
+        test = (ROOT / FIXTURE).read_text(encoding="utf-8")
+        calls = [n for n, line in enumerate(test.split("\n"), 1) if re.search(r"[\w)]\.publish\(", line)]
+        self.assertEqual(len(calls), 3)
+        status, envelope, _ = nav("refs", "publish", "--file", FIXTURE, "--no-index")
         self.assertEqual(status, 0, envelope)
         found = symbol(envelope, "qiven3::platform::files::Staged::publish")
         self.assertEqual(found["definition"], f"src/platform/files.hpp:{line_of(header, 'void publish(std::')}")
-        self.assertEqual(found["references"]["items"], [f"tests/unit/files_test.cpp:{n}" for n in calls])
+        self.assertEqual(found["references"]["items"], [f"{FIXTURE}:{n}" for n in calls])
         status, envelope, _ = nav("refs", "Staged::publish", "--file", "src/platform/files.hpp", "--no-index")
         self.assertEqual(status, 0, envelope)
         self.assertIn(f"src/platform/files.hpp:{line_of(header, 'system_->publish(')}", unresolved_at(envelope))

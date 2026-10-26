@@ -10,6 +10,7 @@
 #include <string>
 
 #include "log/log.hpp"
+#include "platform/platform.hpp"
 #include "runner/runner.hpp"
 #include "support/log/cases.hpp"
 #include "support/log/journal.hpp"
@@ -157,6 +158,17 @@ QIVEN3_CASE(runner, exception_fails) {
     const Ran other = run(qiven3_ctx, [](Context&) { throw 7; });
     CHECK_EQ(other.status, qiven3::test::exit_fail);
     CHECK(holds(other.out, "exception of an unknown type\n"));
+}
+
+QIVEN3_CASE(runner, platform_error_named) {
+    const Ran r = run(qiven3_ctx, [](Context&) {
+        throw qiven3::platform::PlatformError(qiven3::platform::Code::busy, "replace", "the target is held");
+    });
+    CHECK_EQ(r.status, qiven3::test::exit_fail);
+    CHECK(holds(r.out, "platform error busy: the target is held\n"));
+    CHECK(!holds(r.out, "unknown type"));
+    CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
+    CHECK(holds(r.event, R"("outcome":"fail")"));
 }
 
 QIVEN3_CASE(runner, check_eq_shows) {

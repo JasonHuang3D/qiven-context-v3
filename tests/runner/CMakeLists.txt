@@ -6,11 +6,13 @@ add_library(qiven3_runner STATIC
 )
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
 # Its main holds the process's log (support/log/journal.hpp), kept for the
-# entry's report.
-target_link_libraries(qiven3_runner PUBLIC qiven3_memory qiven3_log PRIVATE qiven3_flags qiven3_diag)
+# entry's report; a PlatformError escaping a case is named by its code
+# (qiven3_platform).
+target_link_libraries(qiven3_runner PUBLIC qiven3_memory qiven3_log PRIVATE qiven3_flags qiven3_diag
+                      qiven3_platform)
 
 # The runner's own cases, each a CTest test.
-qiven3_add_cases(qiven3_runner_test LABELS fast SOURCES runner_test.cpp)
+qiven3_add_cases(qiven3_runner_test LABELS fast SOURCES runner_test.cpp LINK qiven3_platform)
 
 # One case per route, run as processes by tests/drive/test_runner.py; never
 # a CTest test itself.

@@ -12,6 +12,7 @@
 
 #include "log/catalogue.hpp"
 #include "memory/memory.hpp"
+#include "platform/platform.hpp"
 #include "support/log/journal.hpp"
 
 namespace qiven3::test {
@@ -115,6 +116,10 @@ int run_case(const Case& c, std::ostream& out, log::Log& log) {
     } catch (const std::exception& e) {
         ++ctx.failures;
         out << "exception: " << e.what() << "\n";
+    } catch (const platform::PlatformError& e) {
+        // A plain value with no base: its code's name and its detail.
+        ++ctx.failures;
+        out << "platform error " << platform::name(e.code) << ": " << e.detail.view() << "\n";
     } catch (...) {
         ++ctx.failures;
         out << "exception of an unknown type\n";
