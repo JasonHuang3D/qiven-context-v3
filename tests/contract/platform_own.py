@@ -14,13 +14,12 @@ held and released.
 
 import time
 
-from tests.contract.platform_process import ARGS, lock_half, named, programs
+from tests.contract.platform_process import ARGS, NEW, OLD, lock_half, named, programs
 from tests.drive.session import has_faults
 
 # replace's calls, its fault points: its pages, replace, its temporary
 # name's random_bytes, the write and the rename.
 REPLACE_CALLS = 5
-OLD, NEW = b"the old bytes, whole\n", b"the new bytes\n"
 # The fake's refusals: each argv[0] one of its programs, so the refusal alone
 # keeps it from running, then its detail.
 NOT_ABSOLUTE, NO_SHELL = "argv[0] is not absolute", "argv[0] is a .cmd or a .bat: no shell runs it"

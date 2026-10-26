@@ -1,6 +1,7 @@
 """The platform's cases on the Windows adapter, here, through
 qiven3-drive-windows: those needing neither processes nor machine, as on
-the fake, and the machine cases; the fake's own cases, not applicable here.
+the fake, the process cases over qiven3-child platform's children, and the
+machine cases; the fake's own cases, not applicable here.
 
 Its configuration location with no override is LocalAppData's qiven3, the
 known folder read here through the system's own call. Each case's drive
@@ -49,11 +50,11 @@ class WindowsBinding(PlatformBinding):
     # create, read, remove_directory, replace, lock and stage are
     # win/files'; facts, synced and residual win/facts'; the drive's
     # location request is the fake's alone until package 5; program, start
-    # and run are win/process', built, the children qiven3-child's, in
-    # package 5 too; program is the machine cases'.
+    # and run are win/process', their children qiven3-child platform's;
+    # program is the machine cases'.
     CREATE_READ = True
     LOCATION = False
-    PROCESSES = False
+    PROCESSES = True
     FACTS = True
     PROGRAM = True
     RESIDUAL = True
@@ -116,18 +117,19 @@ class MachineUntil(unittest.TestCase):
         self.assertEqual(reasons, UNTIL)
 
 
-# The files' cases' skips: P20's for its child half, after its lock half;
-# P19 and P25 run whole.
+# The files' and processes' cases' skips: P20's for its child half, after
+# its lock half, on the child that runs init; P10 to P15, P19 and P25 run
+# whole.
 FILES_UNTIL = {
     "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
-                     "qiven3-child",
+                     "the child that runs init",
 }
 
 
 class FilesUntil(unittest.TestCase):
-    """Windows' files cases run here, P20 alone skipping, by its reason,
-    after its lock half, on a lock held by another handle; P19 and P25
-    run through stage."""
+    """Windows' files and processes cases run here, P20 alone skipping,
+    by its reason, after its lock half, timed, on a lock held by another
+    handle; P19 and P25 run through stage, P10 to P15 over qiven3-child."""
     ctest_labels = ("drive",)
 
     def setUp(self):

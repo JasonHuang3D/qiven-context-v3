@@ -12,14 +12,20 @@
 // - print OUT ERR CODE: OUT's bytes, in hex, on out and ERR's on err;
 //   exit CODE.
 // - cat [CODE]: its input copied to out to the input's end; exit CODE.
-// - replace PATH HEX MS: HEX's bytes written to PATH.part and flushed,
-//   "written" on out, MS milliseconds asleep, then PATH.part renamed onto
-//   PATH, "renamed" on out: the write and the rename a kill falls between.
-// - tree MS [exit]: "platform sleep MS" started by the adapter's start, a
-//   grandchild in a job of its own nested in its parent's, its id on out as
-//   "grandchild <id>", then "pid <its id>"; then MS milliseconds asleep, or
-//   with exit ended at once by _Exit(3), its job's handle closed by the
-//   system, which kills the grandchild (kill on close).
+// - replace PATH HEX MS: PATH held by a reader of its own, sharing reading
+//   alone, so that a rename onto it fails and is retried; "held" on out;
+//   then the adapter's own replace of PATH by HEX's bytes, its deadline MS
+//   milliseconds: its temporary file written, flushed and closed, its
+//   rename retried every 50 ms, the time a kill falls between the write and
+//   the rename; past the deadline, the error's code on out ("busy"), exit 1.
+// - tree MS [exit|out BYTES|err BYTES]: "platform sleep MS" started by the
+//   adapter's start, a grandchild in a job of its own nested in its
+//   parent's, its id on out as "grandchild <id>", then "pid <its id>"; then
+//   MS milliseconds asleep; with exit ended at once by _Exit(3), its job's
+//   handle closed by the system, which kills the grandchild (kill on
+//   close); with out or err, once its input gives a line or ends, first
+//   BYTES bytes on that stream, as flood's, so its two lines are read
+//   before a cap is passed.
 // - gone PID MS: "gone" where the process PID ends within MS milliseconds
 //   or is none, else "running".
 // A wrong argument ends it with child::usage_status and a line on err; a
@@ -182,32 +188,30 @@ int replace(std::span<const std::string_view> args) {
         return wrong("replace PATH HEX MS");
     }
     const std::wstring path = wide(args[0]);
-    const std::wstring part = path + L".part";
-    const HANDLE file =
-        CreateFileW(part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
+    const HANDLE reader = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                                      FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (reader == INVALID_HANDLE_VALUE) {
         return failed("CreateFileW");
     }
-    DWORD wrote = 0;
-    const bool written = WriteFile(file, data->data(), static_cast<DWORD>(data->size()), &wrote, nullptr) != 0 &&
-                         wrote == data->size() && FlushFileBuffers(file) != 0;
-    CloseHandle(file);
-    if (!written) {
-        return failed("WriteFile");
+    put(STD_OUTPUT_HANDLE, "held\n");
+    int status = 0;
+    try {
+        platform::win::WindowsPlatform adapter(std::nullopt);
+        adapter.replace(args[0], *data, platform::Seconds(static_cast<double>(*ms) / 1000.0));
+        put(STD_OUTPUT_HANDLE, "replaced\n");
+    } catch (const platform::PlatformError& error) {
+        put(STD_OUTPUT_HANDLE, std::string(platform::name(error.code)) + "\n");
+        status = 1;
     }
-    put(STD_OUTPUT_HANDLE, "written\n");
-    Sleep(static_cast<DWORD>(*ms));
-    if (MoveFileExW(part.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0) {
-        return failed("MoveFileExW");
-    }
-    put(STD_OUTPUT_HANDLE, "renamed\n");
-    return 0;
+    CloseHandle(reader);
+    return status;
 }
 
 int tree(std::span<const std::string_view> args) {
     const std::optional<std::uint64_t> ms = args.empty() ? std::nullopt : number(args[0]);
-    if (!ms || args.size() > 2 || (args.size() == 2 && args[1] != "exit")) {
-        return wrong("tree MS [exit]");
+    const bool floods = args.size() == 3 && (args[1] == "out" || args[1] == "err") && number(args[2]).has_value();
+    if (!ms || !(args.size() == 1 || (args.size() == 2 && args[1] == "exit") || floods)) {
+        return wrong("tree MS [exit|out BYTES|err BYTES]");
     }
     std::wstring self(32767, L'\0');
     const DWORD n = GetModuleFileNameW(nullptr, self.data(), static_cast<DWORD>(self.size()));
@@ -231,6 +235,15 @@ int tree(std::span<const std::string_view> args) {
         pid_line("pid", GetCurrentProcessId());
         if (args.size() == 2) {
             std::_Exit(3);  // no destructor: the system closes the job's handle
+        }
+        if (floods) {
+            char byte = 0;
+            DWORD got = 0;
+            while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), &byte, 1, &got, nullptr) != 0 && got == 1 &&
+                   byte != '\n') {
+            }
+            const std::array<std::string_view, 3> past = {args[1], args[2], args[0]};
+            return flood(past);
         }
         Sleep(static_cast<DWORD>(*ms));
     } catch (const platform::PlatformError& error) {
