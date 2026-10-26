@@ -1,5 +1,6 @@
 """K11: each binary of the build's binaries.txt imports only its system's
-libraries, or its preset's residual, read by tests/structure/imports.py
+libraries, Windows' API sets among Windows' own, or its preset's residual,
+read by tests/structure/imports.py
 from its bytes; on Linux it names its loader, holds no run path, and needs
 no glibc symbol version past the floor's, GLIBC_2.39. The controls:
 qiven3-fault-import, which imports the test tree's own library, is caught;
@@ -82,15 +83,32 @@ class Imports(unittest.TestCase):
 
     def test_K11_lists(self):
         """The residuals by the build's sanitizers, case aside on Windows."""
-        pe = imports.Imports("pe", ("KERNEL32.dll", "clang_rt.asan_dynamic-x86_64.dll", "VCRUNTIME140.dll",
-                                    "api-ms-win-crt-heap-l1-1-0.dll"))
-        self.assertEqual(imports.outside(pe, "windows", ""), list(pe.names[1:]))
-        self.assertEqual(imports.outside(pe, "windows", "address"), list(pe.names[2:]))
+        pe = imports.Imports("pe", ("KERNEL32.dll", "api-ms-win-crt-heap-l1-1-0.dll",
+                                    "clang_rt.asan_dynamic-x86_64.dll", "VCRUNTIME140.dll"))
+        self.assertEqual(imports.outside(pe, "windows", ""), list(pe.names[2:]))
+        self.assertEqual(imports.outside(pe, "windows", "address"), list(pe.names[3:]))
         self.assertEqual(imports.outside(pe, "windows", "fuzzer,address"), [])
         elf = imports.Imports("elf", ("libc.so.6", "libc++.so.1", "libstdc++.so.6"))
         self.assertEqual(imports.outside(elf, "linux", "address,undefined"), ["libc++.so.1", "libstdc++.so.6"])
         self.assertEqual(imports.outside(elf, "linux", "memory"), ["libstdc++.so.6"])
         self.assertEqual(imports.outside(elf, "linux", "memory", "Clang"), ["libstdc++.so.6"])
+
+    def test_K11_api_sets(self):
+        """Windows' API sets pass in every preset as Windows' own, case
+        aside; a library outside the system's, a name only like an API set,
+        or a path, is refused."""
+        sets = ("api-ms-win-core-synch-l1-2-0.dll", "API-MS-Win-Core-ProcessThreads-L1-1-3.DLL",
+                "ext-ms-win-ntuser-window-l1-1-0.dll")
+        refused = ("vcruntime140.dll", "foo.dll", "api-ms-win-core-x.dll.evil", "api-ms-win-core-synch.dll",
+                   "api-ms-win-core-synch-l1-2.dll", "api-ms-win-l1-1-0.dll", "xapi-ms-win-core-synch-l1-2-0.dll",
+                   "ext-ms-onecore-x-l1-1-0.dll", "sub/api-ms-win-core-synch-l1-2-0.dll",
+                   "..\\api-ms-win-core-synch-l1-2-0.dll", "api-ms-win-core-synch-l1-2-0.dll ",
+                   "api-ms-win-core-synch-l1-\N{ARABIC-INDIC DIGIT TWO}-0.dll")
+        pe = imports.Imports("pe", ("kernel32.dll",) + sets + refused)
+        self.assertEqual(imports.outside(pe, "windows", ""), list(refused))
+        self.assertEqual(imports.outside(pe, "windows", "address"), list(refused))
+        self.assertEqual(imports.outside(pe, "windows", "fuzzer,address"), list(refused[1:]))
+        self.assertEqual(imports.outside(imports.Imports("elf", ("libc.so.6",) + sets), "linux", ""), list(sets))
 
     def test_K11_resolver(self):
         """libresolv.so.2 under clang's sanitizer runtimes alone: an image

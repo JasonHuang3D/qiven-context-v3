@@ -16,6 +16,7 @@ load, each import found nowhere. Run as a script it prints a binary's
 imports, one a line.
 """
 
+import re
 import struct
 import sys
 from dataclasses import dataclass
@@ -24,12 +25,14 @@ from pathlib import Path
 # The system's libraries a binary may import, case aside on Windows.
 WINDOWS_SYSTEM = frozenset(("kernel32.dll", "ntdll.dll", "advapi32.dll", "shell32.dll", "ole32.dll",
                             "bcrypt.dll", "dbghelp.dll"))
+# Windows' API sets, Windows' own: contract names the loader maps to the
+# system's libraries, by their whole form, a bare name and no path.
+API_SET = re.compile(r"(?:api|ext)-ms-win(?:-[a-z0-9]+)+-l[0-9]+-[0-9]+-[0-9]+\.dll", re.ASCII)
 LINUX_SYSTEM = frozenset(("libc.so.6", "libm.so.6", "ld-linux-x86-64.so.2", "libpthread.so.0", "libdl.so.2",
                           "librt.so.1"))
 # Each preset's residual beyond the list, by its sanitizers.
 ASAN_DLL = "clang_rt.asan_dynamic-x86_64.dll"
 FUZZ_DLLS = frozenset(("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "ucrtbase.dll", ASAN_DLL))
-FUZZ_PREFIX = "api-ms-win-crt-"  # the universal C runtime's API sets, under /MD
 MSAN_LIBS = frozenset(("libc++.so.1", "libc++abi.so.1"))
 # clang's sanitizer runtimes link glibc's resolver, which the system's list
 # lacks: the residual of a build by clang under a sanitizer alone, never gcc's.
@@ -218,15 +221,15 @@ def read_file(path):
 
 def outside(imports, system, sanitize, compiler=""):
     """Each import on neither the system's list nor the preset's residual,
-    given the build's QIVEN3_SANITIZE and its C++ compiler's CMake id."""
+    given the build's QIVEN3_SANITIZE and its C++ compiler's CMake id; on
+    Windows an API set, Windows' own, passes in every preset."""
     if system == "windows":
         allowed = set(WINDOWS_SYSTEM)
         if "fuzzer" in sanitize:
             allowed |= FUZZ_DLLS
         elif "address" in sanitize:
             allowed.add(ASAN_DLL)
-        return [n for n in imports.names
-                if n.lower() not in allowed and not ("fuzzer" in sanitize and n.lower().startswith(FUZZ_PREFIX))]
+        return [n for n in imports.names if n.lower() not in allowed and not API_SET.fullmatch(n.lower())]
     allowed = set(LINUX_SYSTEM) | (MSAN_LIBS if sanitize == "memory" else set())
     if sanitize and compiler == CLANG:
         allowed |= SANITIZER_LIBS

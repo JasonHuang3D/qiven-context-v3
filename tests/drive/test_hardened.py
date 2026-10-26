@@ -2,11 +2,9 @@
 index 1 of a span over the first of two elements; each library stops the
 process before the read, in every build, sanitizers' included:
 - libc++ (linux-msan, against the prefix's libc++ under MemorySanitizer):
-  the extensive mode's default semantic, quick-enforce, a trap with no
-  line written, SIGILL; its words, the report the enforcing semantic would
-  write ("libc++ Hardening assertion __idx < size() failed: ..."), are the
-  trap's message, which clang leaves in the binary's debug information:
-  found there, though which trap stopped the process is not read;
+  the extensive mode's trap, SIGILL. The case asserts that the trap fires,
+  not the library's words: whether a release writes a line before it, or
+  leaves a message in the binary, is the toolchain's;
 - libstdc++ (_GLIBCXX_ASSERTIONS, every other Linux build): its assertion's
   line, then SIGABRT;
 - MSVC's library (_MSVC_STL_HARDENING): a fail-fast with no line written,
@@ -17,7 +15,6 @@ after it only if it read, which is absent. The control, span-in, the same
 read in bounds, writes the line after and exits 0.
 """
 
-import re
 import signal
 import sys
 import unittest
@@ -32,8 +29,6 @@ BEFORE = "span: reading"
 AFTER = "span: read "  # the line after the read: "span: read past the end" or "span: read in bounds"
 FAIL_FAST = 0xC0000409
 LIBSTDCXX_LINE = r".*[/\\]span:\d+: .*Assertion '__idx < size\(\)' failed\."
-LIBCXX_TRAP = (rb"__clang_trap_msg\$libc\+\+\$span:\d+: libc\+\+ Hardening assertion __idx < size\(\) failed: "
-               rb"span<T>::operator\[\]\(index\): index out of range\n\0")
 
 
 def library():
@@ -64,8 +59,6 @@ class Hardened(unittest.TestCase):
         self.assertEqual(lines[-1] if lines else "", status_table.line(status if WINDOWS else 128 - status), text)
         if found == "libstdc++":
             self.assertRegex(lines[1] if len(lines) > 1 else "", f"^{LIBSTDCXX_LINE}$", text)
-        if found == "libc++":
-            self.assertTrue(re.search(LIBCXX_TRAP, binaries.path(FAULT).read_bytes()), "K20: no libc++ trap's words")
         print(f"K20: {found} stopped the read past the span's end: {lines[-1]}")
 
     def test_K20_control(self):

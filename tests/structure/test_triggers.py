@@ -149,10 +149,11 @@ def findings(text):
 # the release the local loop's Linux runs, Windows and macOS on their latest.
 LABELS = {"windows": "windows-latest", "linux": "ubuntu-24.04", "macos": "macos-latest"}
 # What each job prints, by its label: the image, CPython, CMake, CTest and
-# Ninja, and the compilers.
+# Ninja, and the compilers; on Linux glibc as well, ldd's first line.
 PRINTS = ("ImageOS", "ImageVersion", "sys.version", "cmake --version", "ctest --version", "ninja --version")
 COMPILER_PRINTS = {"windows-latest": ("cl.exe", "VCToolsVersion", "WindowsSDKVersion"),
-                   "ubuntu-24.04": ("clang++", "--version"), "macos-latest": ("clang++ --version", "sw_vers")}
+                   "ubuntu-24.04": ("clang++", "--version", "ldd --version"),
+                   "macos-latest": ("clang++ --version", "sw_vers")}
 VERSION = re.compile(r"(?<![\w.])\d+\.\d+(?:\.\d+)*(?![\w.])")
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{40,}(?![0-9a-fA-F])")
 VERSIONED_TOOL = re.compile(r"(?<![\w-])(gcc|g\+\+|clang|clang\+\+|clang-tidy|llvm-[a-z]+|cl)-\d+")
@@ -423,6 +424,8 @@ class Unpinned(unittest.TestCase):
             "no selection": (ci, "-R '^tests[.]structure[.]' -LE '^analysis$'", "-LE '^analysis$'"),
             "no versions printed": (ci, mac_tools, ""),
             "no Ninja version": (msan, "ninja --version\n", "\n"),
+            "no glibc on Linux": (ci, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),
+            "no glibc under msan": (msan, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),
         }
         for name, (text, old, new) in plants.items():
             with self.subTest(plant=name):

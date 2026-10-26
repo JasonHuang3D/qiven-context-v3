@@ -29,7 +29,7 @@ STRUCTURE = "tests/structure/"
 Finding = namedtuple("Finding", "rule where kind detail")
 
 # The content rule's documented example values, each exempt by exact value,
-# with its source: a drive-letter path whose first directory this machine has.
+# with its source: a drive-letter path into a profile's root.
 EXAMPLES = {
     "C:/Users/ABC": "normcase's first vector, by CPython's ntpath and LCMapStringEx "
                     "(tests/contract/platform_last.py)",

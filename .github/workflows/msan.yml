@@ -78,6 +78,7 @@ jobs:
       - name: The image and the tools this job runs, and the clang++ release
         run: |
           echo "image $ImageOS $ImageVersion; $(. /etc/os-release && echo "$PRETTY_NAME"), kernel $(uname -r)"
+          echo "glibc: $(ldd --version | sed -n 1p)"
           for tool in clang clang++; do
             echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
           done

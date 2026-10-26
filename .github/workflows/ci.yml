@@ -225,6 +225,7 @@ jobs:
         run: |
           echo "image $ImageOS $ImageVersion; $(. /etc/os-release && echo "$PRETTY_NAME"), kernel $(uname -r)"
           echo "address-space randomisation: $(setarch --show 2>/dev/null || echo 'set off for these steps')"
+          echo "glibc: $(ldd --version | sed -n 1p)"
           for tool in gcc g++ clang clang++; do
             echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
           done

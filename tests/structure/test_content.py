@@ -5,10 +5,12 @@ repository: its name, its directories' and its files'; nor a name of this
 machine, its user's or its own, where it stands as a component of a path.
 
 The paths are read when the test runs, so that it holds none: the
-checkout's own, the user profile, the interpreter's and the toolchain's
-directories, in either slash, escaped or not, and any case; and any
-drive-letter path (X:\\dir, X:/dir) or its /x/dir form whose first
-directory this machine has. A documented example value a fixture holds is
+checkout's own and its parent, the user profile, the interpreter's and the
+toolchain's directories, in either slash, escaped or not, and any case. And
+any drive-letter path (X:\\dir, X:/dir) or its /x/dir form whose first
+directory is a profile's root, Users or Documents and Settings, in any case:
+read from the text alone, never from what this machine's drives hold, so it
+reads the same on every host. A documented example value a fixture holds is
 listed in rules.EXAMPLES with its source, exempt by exact value.
 
 The names are read when the test runs as well: the user's from USERNAME,
@@ -30,6 +32,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tests.structure import rules
 
@@ -95,11 +98,20 @@ PRIVATE = private_names()
 STOP = " \t\r\n\"'`<>|*?;,()[]{}"
 DRIVE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]):(?:\\|/)+([^\\/" + re.escape(STOP) + r":]+)")
 POSIX = re.compile(r"(?<![A-Za-z0-9_.:/~-])/([A-Za-z])/([^\\/" + re.escape(STOP) + r":]+)")
+# A profile's root as a drive path's first directory, in small letters:
+# Users, and Documents and Settings, which the patterns cut at its space.
+PROFILE_ROOTS = frozenset(("users", "documents"))
+DRIVE_FINDING = "a drive path into a profile's root"
+# The vendored SQLite's drive paths, its documentation's examples: no
+# profile's root, so outside the rule on every host.
+VENDORED_DRIVES = "c:/temp C:/lib/mathfuncs.dll C:/Documents%20and%20Settings/fred/Desktop/data.db"
 
 
 def machine_paths():
-    """This machine's directories, each with two components at least."""
-    found = {str(rules.ROOT), sys.prefix, sys.base_prefix, os.path.dirname(sys.executable)}
+    """This machine's directories, each with two components at least, the
+    checkout's parent with one."""
+    parent = os.path.normpath(rules.ROOT.parent)
+    found = {str(rules.ROOT), parent, sys.prefix, sys.base_prefix, os.path.dirname(sys.executable)}
     for name in ("USERPROFILE", "HOME", "VCToolsInstallDir", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir",
                  "UniversalCRTSdkDir", "QIVEN3_CTEST"):
         if os.environ.get(name):
@@ -111,7 +123,7 @@ def machine_paths():
     for path in found:
         path = os.path.normpath(path).rstrip("\\/")
         parts = path.replace("\\", "/").split("/")
-        if len(parts) < 3 or not os.path.isabs(path):
+        if len(parts) < (2 if path == parent else 3) or not os.path.isabs(path):
             continue
         slash = "/".join(parts)
         forms |= {slash.lower(), slash.replace("/", "\\").lower(), slash.replace("/", "\\\\").lower()}
@@ -159,8 +171,8 @@ def token_at(text, start):
     return text[start:end].replace("\\\\", "\\")
 
 
-def exists(letter, first):
-    return os.path.isdir(f"{letter}:\\{first}")
+def profile_root(first):
+    return first.lower() in PROFILE_ROOTS
 
 
 def content_findings(root, files, paths, names=()):
@@ -173,8 +185,8 @@ def content_findings(root, files, paths, names=()):
             if path in lower:
                 found.append((rel, "a path of this machine"))
         for match in list(DRIVE.finditer(text)) + list(POSIX.finditer(text)):
-            if exists(match.group(1), match.group(2)) and token_at(text, match.start()) not in rules.EXAMPLES:
-                found.append((rel, "a drive path whose first directory this machine has"))
+            if profile_root(match.group(2)) and token_at(text, match.start()) not in rules.EXAMPLES:
+                found.append((rel, DRIVE_FINDING))
         if named and named.search(text):
             found.append((rel, "a name of this machine"))
         for name, pattern in COMPILED.items():
@@ -199,13 +211,15 @@ class Content(unittest.TestCase):
                                           machine_names()), [])
 
     def test_planted(self):
-        drive, first = rules.ROOT.drive[0], rules.ROOT.parts[1]
+        drive = rules.ROOT.drive[0]
         none = absent_drive()
         plants = {
             "checkout.txt": str(rules.ROOT) + "\\x",
             "slash.py": "p = '" + rules.ROOT.as_posix().upper() + "/y'\n",
-            "drive.cpp": f"// {drive}:\\{first}-not-the-checkout\\x and {drive}:/{first}/y\n",
-            "posix.md": f"cd /{drive.lower()}/{first}\n",
+            "parent.md": "see " + rules.ROOT.parent.as_posix().lower() + "/elsewhere/x\n",
+            "drive.cpp": f"// {none}:\\Users\\someone\\x and {none.lower()}:/USERS/y\n",
+            "posix.md": f"cd /{none.lower()}/users/someone\n",
+            "settings.txt": f"{drive}:\\\\Documents and Settings\\\\someone\n",
             "profile.txt": os.environ["USERPROFILE"] + "\\Documents\n",
             "interpreter.json": '{"python": "' + sys.base_prefix.replace("\\", "\\\\") + '"}\n',
             "repository.md": "the " + "qiven" + "-DOCS repository\n",
@@ -224,7 +238,8 @@ class Content(unittest.TestCase):
             "header.txt": "Authorization: Bearer " + "a" * 20 + "\n",
             "command.sh": "mysql --password " + "p" * 8 + "\n",
             "tencent.ini": "SecretId=AKID" + "a1B2" * 8 + "\n",
-            "clean.txt": f"{none}:\\no-such\\x /{none.lower()}/x C:/Users/ABC docs/FORMAT.md "
+            "clean.txt": f"{none}:\\no-such\\x /{none.lower()}/x C:/Users/ABC docs/FORMAT.md {VENDORED_DRIVES} "
+                         + f"{drive}:/Windows/System32 /{drive.lower()}/Usersx/y "
                          + "ghp_" + "A" * 35 + " password: see the vault " + "https://example.com:8080/a@b\n"
                          + "README.md cognition, a challenge, ARCH, QTest, a law firm, work-line, the "
                          + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n"
@@ -242,18 +257,35 @@ class Content(unittest.TestCase):
         files = {rel for rel, _ in found}
         names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
                  "directory.txt", "context.cmake", "word.md"}
-        self.assertEqual(files, {"checkout.txt", "slash.py", "drive.cpp", "posix.md", "profile.txt",
-                                 "interpreter.json", "key.txt", "token.py", "password.ini", "header.txt",
-                                 "command.sh", "tencent.ini"} | names)
+        self.assertEqual(files, {"checkout.txt", "slash.py", "parent.md", "drive.cpp", "posix.md", "settings.txt",
+                                 "profile.txt", "interpreter.json", "key.txt", "token.py", "password.ini",
+                                 "header.txt", "command.sh", "tencent.ini"} | names)
         self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
-        self.assertIn(("drive.cpp", "a drive path whose first directory this machine has"), found)
-        self.assertIn(("posix.md", "a drive path whose first directory this machine has"), found)
+        self.assertEqual({rel for rel, why in found if why == DRIVE_FINDING} - {"profile.txt"},
+                         {"drive.cpp", "posix.md", "settings.txt"})
+        self.assertIn(("parent.md", "a path of this machine"), found)
         hits = {why for _, why in found if why.startswith("a hit of ")}
         self.assertEqual(hits, {"a hit of private-key", "a hit of github-ghp", "a hit of pair-password",
                                 "a hit of auth-header", "a hit of cli-secret", "a hit of tencent-akid"})
         self.assertEqual({rel: why for rel, why in found if rel in ("header.txt", "command.sh", "tencent.ini")},
                          {"header.txt": "a hit of auth-header", "command.sh": "a hit of cli-secret",
                           "tencent.ini": "a hit of tencent-akid"})
+
+    def test_drive_host(self):
+        """The drive rule reads the text alone: with every directory faked
+        present, then absent, the vendored file is clean and a planted
+        profile path refused, alike."""
+        none = absent_drive()
+        outcomes = []
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "plant.txt").write_bytes(f"{none}:\\Users\\someone\\x {VENDORED_DRIVES}\n".encode("utf-8"))
+            for present in (True, False):
+                with mock.patch("os.path.isdir", return_value=present), \
+                        mock.patch("os.path.exists", return_value=present):
+                    outcomes.append((content_findings(rules.ROOT, [rules.VENDORED], []),
+                                     content_findings(root, ["plant.txt"], [])))
+        self.assertEqual(outcomes, [([], [("plant.txt", DRIVE_FINDING)])] * 2)
 
     def test_planted_names(self):
         """Each plant in a fresh scratch tree: a name of this machine as a
