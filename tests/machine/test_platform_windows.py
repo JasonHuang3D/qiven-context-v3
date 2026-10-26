@@ -49,9 +49,8 @@ class WindowsBinding(PlatformBinding):
     # create, read, remove_directory, replace, lock and stage are
     # win/files'; facts, synced and residual win/facts'; the drive's
     # location request is the fake's alone until package 5; program, start
-    # and run are win/process', program and start built, run until its
-    # second part, the children qiven3-child's, in package 5 too; program is
-    # the machine cases'.
+    # and run are win/process', built, the children qiven3-child's, in
+    # package 5 too; program is the machine cases'.
     CREATE_READ = True
     LOCATION = False
     PROCESSES = False
@@ -121,7 +120,7 @@ class MachineUntil(unittest.TestCase):
 # P19 and P25 run whole.
 FILES_UNTIL = {
     "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
-                     "win/process and qiven3-child",
+                     "qiven3-child",
 }
 
 

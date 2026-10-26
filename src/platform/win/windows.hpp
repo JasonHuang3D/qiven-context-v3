@@ -14,9 +14,8 @@
 // the console, random bytes, the clock, pages and wipe; win/files' are
 // replace, stage, create, remove_directory, read and lock
 // (platform/win/files.hpp); win/facts' are facts, synced and residual
-// (platform/win/facts.hpp); win/process' are program, start and the
-// Child's tree (process.cpp, child.cpp), run and read_line PlatformError
-// unsupported until its second part. A Lock, Staged and Sink
+// (platform/win/facts.hpp); win/process' are program, start (process.cpp),
+// the Child and run (child.cpp). A Lock, Staged and Sink
 // are files' over the adapter's WindowsFiles, which lives in the adapter:
 // so the adapter does not move, as a handle holds its System's address.
 //
@@ -26,11 +25,13 @@
 //
 // thread: one (an adapter object serves one thread at a time: its scratch)
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <thread>
 
 #include "platform/files.hpp"
 #include "platform/platform.hpp"
@@ -56,15 +57,24 @@ using WindowsStaged = files::Staged<WindowsFiles>;
 // destructor unlocks and closes it.
 using WindowsLock = files::Lock<WindowsFiles>;
 
-// A started process tree in a Job Object (win/process): the process, the
-// Job Object and three pipes, under QIVEN3_FAULTS the countdown its calls
-// ask first; the destructor kills the tree and closes each. write, wait
-// and kill fail io; wait past its timeout deadline, the tree running;
-// kill ends the tree, its exit code 1, and again nothing more.
+// A started process tree in a Job Object (win/process): its pages, which
+// hold its state (the process, the Job Object, the input's pipe, two
+// events, under QIVEN3_FAULTS the countdown its calls ask first) and its
+// two streams, each read by a thread into a buffer of its cap and a byte;
+// and its three threads: out's reader, err's reader and the deadline's
+// watch. The state lives on the pages so that the threads keep its address
+// while the Child moves. Past a cap the tree is killed and each next call
+// but kill throws output naming the stream; at the deadline the tree is
+// killed and each next call but kill throws deadline; kill() stops both.
+// read_line and wait past their timeout throw deadline, the tree running;
+// a failing call is io. The destructor kills the tree, joins the threads
+// and closes each handle.
+struct ChildState;  // child.cpp's
+
 class WindowsChild {
 public:
     WindowsChild() noexcept = default;
-    WindowsChild(WindowsChild&& other) noexcept;
+    WindowsChild(WindowsChild&& other) noexcept = default;
     WindowsChild& operator=(WindowsChild&& other) noexcept;
     WindowsChild(const WindowsChild&) = delete;
     WindowsChild& operator=(const WindowsChild&) = delete;
@@ -78,17 +88,23 @@ public:
 
 private:
     friend class WindowsPlatform;
-    WindowsChild(void* process, void* job, void* input, void* output, void* error) noexcept;
-    void close_all() noexcept;
+    // The pages for the state and the streams' buffers, and the events,
+    // each call asking the adapter's countdown, which the Child then keeps:
+    // start, before any process.
+    WindowsChild(const Caps& caps, WindowsFiles& files);
+    // The started tree's handles taken, then the threads started, the
+    // deadline counted from here: start; past a failure the destructor
+    // kills the tree.
+    void begin(void* process, void* job, void* input, void* output, void* error, Seconds deadline);
+    // run's rest: data written, the input closed, both streams read to
+    // their end, the exit code waited for, the streams copied into out.
+    void finish(std::string_view data, Ran& out);
+    [[nodiscard]] ChildState& state() const noexcept;
     bool faulted() noexcept;
-    void* process_ = nullptr;
-    void* job_ = nullptr;
-    void* input_ = nullptr;
-    void* output_ = nullptr;
-    void* error_ = nullptr;
-#if defined(QIVEN3_FAULTS)
-    memory::Countdown* countdown_ = nullptr;
-#endif
+    void check(std::string_view operation) const;
+    bool changed(std::chrono::steady_clock::time_point until, std::string_view operation);
+    WindowsPages pages_;
+    std::array<std::jthread, 3> threads_;
 };
 
 class WindowsPlatform;
@@ -186,9 +202,9 @@ static_assert(Platform<WindowsPlatform>);
 
 // The pinned sizes, on x64: Pages its address and size; Sink and Lock
 // their System's address and one handle (the Sink's its file's serial);
-// Staged its System's address, its Dir and its digits; Child the process,
-// the Job Object and three pipes, under QIVEN3_FAULTS the countdown's
-// address; the adapter its scratch, the override's size, three flags and
+// Staged its System's address, its Dir and its digits; Child its pages and
+// three threads (std::jthread, 24 bytes each), its handles and the
+// countdown on the pages; the adapter its scratch, the override's size, three flags and
 // its WindowsFiles: the adapter's address, under
 // QIVEN3_FAULTS the countdown's, stage's 16 slots of 24 bytes and a serial.
 #if defined(_WIN64)
@@ -196,11 +212,10 @@ static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address 
 static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "the System's address, Dir, digits");
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
+static_assert(sizeof(WindowsChild) == 88, "its pages and three threads");
 #if defined(QIVEN3_FAULTS)
-static_assert(sizeof(WindowsChild) == 48, "process, Job Object, three pipes, the countdown");
 static_assert(sizeof(WindowsFiles) == 408 && sizeof(WindowsPlatform) == 440, "scratch, size, flags, files");
 #else
-static_assert(sizeof(WindowsChild) == 40, "process, Job Object, three pipes");
 static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
 #endif
 #endif

@@ -9,8 +9,8 @@ found by its whole argv gives its lines, its err and its code, or hangs,
 or floods a stream) is the fake's own cases' (contract/platform_own.py).
 The Windows adapter's program, start and run are its module win/process',
 and the children its cases start are qiven3-child's, both in package 5;
-until then a binding with PROCESSES false checks that run, the module's
-last member, answers unsupported, and the child half is skipped. P20's lock is the files', its
+until the children land a binding with PROCESSES false checks that run
+refuses a relative argv[0] (start), and the child half is skipped. P20's lock is the files', its
 holder the binding's hold() (contract/platform_files.py): on the Windows
 adapter its lock half runs before that skip.
 """
@@ -79,12 +79,13 @@ class PlatformProcess:
 
     def child_half(self, what):
         """The case's child half, its need met: until the adapter's children
-        are written, run answers unsupported and the case skips; on an
-        adapter with them, until the half is written, a failure."""
+        are written, run refuses a relative argv[0] (start) and the case
+        skips; on an adapter with them, until the half is written, a
+        failure."""
         if not self.PROCESSES:
             with self.drive() as d:
-                self.assert_platform_error(self.failure(d.call, "run", argv=["none"]), "unsupported")
-            self.skipTest(f"until package 5: {what}: win/process and qiven3-child")
+                self.assert_platform_error(self.failure(d.call, "run", argv=["none"]), "start")
+            self.skipTest(f"until package 5: {what}: qiven3-child")
         self.fail(f"the child half is not written: {what}")
 
     def test_P10_replace_killed(self):

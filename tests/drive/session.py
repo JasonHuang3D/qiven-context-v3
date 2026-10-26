@@ -128,15 +128,19 @@ def handle_count(pid):
 
 
 # The requests that make the adapter and the system's lazily made state
-# (a provider's handle, the shell's for the known folder) before a handle
-# count is taken: each member a case calls without starting a process or
-# writing, twice, on the temporary directory, then pages taken and freed.
+# (a provider's handle, the shell's for the known folder, the handles a
+# process's first child leaves: 3 on the Windows drive) before a handle
+# count is taken: each member a case calls without writing, twice, on the
+# temporary directory, a run of the system's cmd among them, then pages
+# taken and freed.
 def warm_requests():
     where = tempfile.gettempdir()
+    cmd = os.path.join(os.environ.get("SystemRoot", ""), "System32", "cmd.exe")
     once = [{"op": "name"}, {"op": "now"}, {"op": "code_page"}, {"op": "random_bytes", "n": 32},
             {"op": "normcase", "path": where}, {"op": "config_dir"}, {"op": "resolve", "path": where},
             {"op": "facts", "path": where}, {"op": "synced", "path": where},
-            {"op": "program", "name": "cmd"}, {"op": "residual", "paths": [where]}]
+            {"op": "program", "name": "cmd"}, {"op": "residual", "paths": [where]},
+            {"op": "run", "argv": [cmd, "/c", "exit"]}]
     return once + once + [{"op": "pages", "n": 1}]
 
 

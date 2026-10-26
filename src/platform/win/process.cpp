@@ -1,13 +1,15 @@
 // win/process (platform/win/windows.hpp): program, start and the Child's
 // process tree on the Windows adapter, the one module that starts a
-// process. start builds its inputs on the adapter's scratch and takes no
-// memory of its own: the attribute list on the scratch's first bytes, then
+// process. start builds its inputs on the adapter's scratch, and takes
+// the Child's pages for its state and streams before any pipe (child.cpp):
+// the attribute list on the scratch's first bytes, then
 // in the first path buffer argv[0], the working directory and the
 // environment block, and in the second the command line. The child is
 // created suspended, in a new Job Object from its creation (the attribute
 // list's job list), with no window and a Unicode environment, inheriting
-// its three pipe ends alone; then its thread resumed. The Child's
-// members, which end the tree by its Job Object, are child.cpp's.
+// its three pipe ends alone; then its thread resumed and the Child's
+// threads started. The Child's members, which end the tree by its Job
+// Object, and run are child.cpp's.
 //
 // Each Win32 call asks the adapter's countdown first and, when it fires,
 // fails as the call would with error 31 (ERROR_GEN_FAILURE); a handle the
@@ -410,6 +412,7 @@ WindowsChild WindowsPlatform::start(const Command& command) {
     const std::size_t block = at;
     environment(files_, command.env, a, at);
     command_line(argv, b);
+    WindowsChild child(command.caps, files_);
 
     Owned in_read;
     Owned in_write;
@@ -493,11 +496,9 @@ WindowsChild WindowsPlatform::start(const Command& command) {
     if (resume_fault || ResumeThread(thread.get()) == static_cast<DWORD>(-1)) {
         failed(Code::start, "start", "ResumeThread", resume_fault ? ERROR_GEN_FAILURE : GetLastError());
     }
-    WindowsChild child(process.release(), job.release(), in_write.release(), out_read.release(),
-                       err_read.release());
-#if defined(QIVEN3_FAULTS)
-    child.countdown_ = files_.countdown();
-#endif
+    // On a failure here the Child's destructor ends the tree.
+    child.begin(process.release(), job.release(), in_write.release(), out_read.release(), err_read.release(),
+                command.deadline);
     return child;
 }
 

@@ -35,10 +35,6 @@ using paths::units;
     fail(code, operation, detail);
 }
 
-[[noreturn]] void not_yet(std::string_view operation) {
-    fail(Code::unsupported, operation, "not implemented by the Windows adapter yet");
-}
-
 // UTF-8 into `into`, strictly, ended by a null: its length in units. A
 // refusal, or a path past the buffer, is path.
 std::size_t wide(std::string_view operation, std::string_view text, std::span<wchar_t> into) {
@@ -352,9 +348,7 @@ void WindowsPlatform::read(std::string_view path, String& out) { files_.read(pat
 
 WindowsLock WindowsPlatform::lock(std::string_view path, Seconds deadline) { return files::lock(files_, path, deadline); }
 
-// program and start: win/process (process.cpp).
-
-void WindowsPlatform::run(const Command&, std::string_view, Ran&) { not_yet("run"); }
+// program and start: win/process (process.cpp); run its child.cpp's.
 
 void WindowsPlatform::code_page(String& out) {
     UINT page = GetConsoleOutputCP();
