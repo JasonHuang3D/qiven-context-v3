@@ -1,1 +1,23 @@
-* -text
+# Every text file is committed and checked out with LF on every system,
+# whatever core.autocrlf a host sets; git tells text from binary by content.
+* text=auto eol=lf
+
+# The hashed data, which cases read by their bytes: kept byte for byte,
+# never normalized, whatever their content. A directory's pattern ends in
+# /** because an attributes pattern does not reach into a directory.
+# The fixtures: the data the cases read and the code that lays it out.
+tests/fixtures/** -text
+tests/support/fixtures/** -text
+tests/drive/fixtures/** -text
+# The digest vectors.
+tests/vectors/** -text
+# The fuzz targets' regression corpora: inputs by their bytes, named by
+# their SHA-1.
+tests/fuzz/digest/regress/** -text
+tests/fuzz/entry/regress/** -text
+# The vendored code, kept as its upstream ships it.
+third_party/** -text
+
+# Windows' command interpreter reads its scripts with CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

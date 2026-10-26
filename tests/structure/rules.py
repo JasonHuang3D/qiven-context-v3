@@ -4,14 +4,16 @@ which also runs the safe subset's token rules, B18 to B31 (subset.py).
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
 identifiers and #include directives from the sources by the rules' lexer
-(lexer.py); no rule reads C++ by a regular expression. The one text rule
-is B1's, a substring search for sqlite3. check() applies every rule to one
+(lexer.py); no rule reads C++ by a regular expression. The text rules are
+B1's, a substring search for sqlite3, and B32's, a search of each text
+file's bytes for those git cannot fix. check() applies every rule to one
 tree, v3's or the planted one, and gives its findings. STATED holds the
 allowances the text states beyond the rows' cells, each with its reason;
 an allowance the text lacks has no place here.
 """
 
 import os
+import re
 from collections import namedtuple
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -90,6 +92,8 @@ GIT_LITERALS = frozenset(("git", "git.exe"))
 GIT_PREFIXES = ("git ", "refs/", "GIT_", "GCM_")
 GIT_COMMANDS = frozenset(("cat-file", "rev-parse", "hash-object", "ls-tree", "commit-tree", "ls-remote",
                           "update-ref", "fast-import"))
+# B32: in a text file, the bytes git cannot fix: a CR before no LF, and each control byte but tab and LF.
+B32_BYTES = re.compile(rb"\r(?!\n)|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 CRT_IO_HEADERS = frozenset(("io.h", "direct.h", "process.h", "conio.h"))
 PROCESS_NAMES = frozenset(("system", "_wsystem", "_popen", "_wpopen", "ShellExecuteW", "ShellExecuteExW",
                            "WinExec", "fork", "posix_spawn"))
@@ -296,21 +300,42 @@ def app_namespace(tokens, i):
     return tokens[i][1] == "app" and i >= 2 and tokens[i - 2][0:2] == ("id", "qiven3")
 
 
+def text_attributes(root):
+    """The lines of the root's .gitattributes that set the text attribute,
+    in order: [(pattern, text)]. -text and binary unset it; text, text=...
+    and !text leave the file text to B32, git's own content check aside."""
+    path = root / ".gitattributes"
+    lines = [x.split() for x in path.read_text(encoding="utf-8").splitlines()] if path.is_file() else []
+    return [(f[0], a not in ("-text", "binary")) for f in lines if f and not f[0].startswith("#") for a in f[1:]
+            if a in ("-text", "binary", "text", "!text") or a.startswith("text=")]
+
+
+def is_text(rel, attributes):
+    """Whether .gitattributes treats rel as text: the last line matching it
+    decides, a pattern with a slash matched against the path from the root,
+    one without against the name; fnmatch's * crosses a slash, as ** does."""
+    matched = [text for pattern, text in attributes
+               if fnmatchcase(rel if "/" in pattern else rel.rsplit("/", 1)[-1], pattern.lstrip("/"))]
+    return matched[-1] if matched else True
+
+
 def source_rules(root, files, out):
     """B1's text, B2's and B14's strings, B13's and B17's tokens, B15's lines,
-    B32's CR bytes.
+    B32's bytes in every file .gitattributes treats as text.
     Gives the files holding a goldens path, for B14's writes."""
     goldens = set()
+    attributes = text_attributes(root)
     for rel in files:
         data = (root / rel).read_bytes()
         name = rel.rsplit("/", 1)[-1]
         if name.endswith((".hpp", ".cpp", ".py", ".cmake")) or name == "CMakeLists.txt":
             if line_count(data) > 600:
                 out.add("B15", rel, detail=f"{line_count(data)} lines")
-            first_cr = data.find(b"\r")
-            if first_cr >= 0:
-                cr_line = data.count(b"\n", 0, first_cr) + 1
-                out.add("B32", rel, detail=f"line {cr_line}: a CR byte")
+        found = B32_BYTES.search(data) if is_text(rel, attributes) else None
+        if found:
+            line = data.count(b"\n", 0, found.start()) + 1
+            what = "a lone CR" if found.group() == b"\r" else f"the control byte 0x{found.group()[0]:02x}"
+            out.add("B32", rel, detail=f"line {line}: {what}")
         text = data.decode("utf-8", "replace")
         if rel.startswith(("src/", "tests/")) and "sqlite3" in text:
             out.add("B1", rel, detail="the text sqlite3")

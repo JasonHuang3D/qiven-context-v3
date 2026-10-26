@@ -28,6 +28,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive import pinned
+from tests.drive.own_git import own_git
 from tests.drive.pinned import prefix, wsl_ready
 from tests.drive.test_loop_ci import ROOT, load_loop
 
@@ -325,9 +326,10 @@ class Tiers(Loop):
 
 
 class OneClone(Loop):
-    """Linux's one clone on fakes, on this system's git: a source repository
-    in a scratch directory, synced into the clone root's clone/; each job's
-    build tree within it; tier 3 emptying the build trees alone."""
+    """Linux's one clone on fakes, on this system's git in an environment of
+    the case's own (tests/drive/own_git.py): a source repository in a
+    scratch directory, synced into the clone root's clone/; each job's build
+    tree within it; tier 3 emptying the build trees alone."""
 
     def setUp(self):
         self.git = shutil.which("git")
@@ -335,6 +337,7 @@ class OneClone(Loop):
             self.skipTest("git is missing from PATH")
         top = Path(tempfile.mkdtemp(prefix="qiven3-loop-clone-"))
         self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        own_git(self, top)  # the case's git and the loop's under it read no host config (969)
         self.source, self.base = top / "source", top / "root"
         self.source.mkdir()
         self.fixture_git("init", "-q")
@@ -346,9 +349,7 @@ class OneClone(Loop):
         self.linux = LOOP.LINUX["inside"].__globals__
 
     def fixture_git(self, *argv):
-        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="case",
-                   GIT_AUTHOR_EMAIL="case@localhost", GIT_COMMITTER_NAME="case", GIT_COMMITTER_EMAIL="case@localhost")
-        done = subprocess.run([self.git, *argv], cwd=self.source, env=env, stdin=subprocess.DEVNULL,
+        done = subprocess.run([self.git, *argv], cwd=self.source, stdin=subprocess.DEVNULL,
                               capture_output=True, timeout=120, check=True)
         return done.stdout.decode("utf-8").strip()
 
