@@ -22,6 +22,7 @@
 #include "entry/validator.hpp"
 #include "qiven3/canon.hpp"
 #include "runner/runner.hpp"
+#include "support/fixtures/filled.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -46,7 +47,7 @@ constexpr std::string_view L = "implementer";
 // Ids: sha256: and 64 hex, the last two n's.
 constexpr validator::Id make_id(std::size_t n) {
     constexpr std::string_view hex = "0123456789abcdef";
-    std::string text = "sha256:" + std::string(62, '0');
+    std::string text = "sha256:" + fixtures::filled(62, '0');
     text.push_back(hex.at((n / 16) % 16));
     text.push_back(hex.at(n % 16));
     return validator::Id::of(text);

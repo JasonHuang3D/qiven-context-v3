@@ -17,10 +17,12 @@
 #include "qiven3/json.hpp"
 #include "qiven3/utf.hpp"
 #include "runner/runner.hpp"
+#include "support/fixtures/filled.hpp"
 
 namespace {
 
 using qiven3::ParseCode;
+using qiven3::test::fixtures::filled;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
 namespace json = qiven3::json;
@@ -55,7 +57,7 @@ constexpr bool replaced(std::u16string_view name, std::string_view want) {
 }
 
 constexpr bool deep(std::size_t levels, ParseCode want) {
-    std::string text(levels, '[');
+    const std::string text = filled(levels, '[');
     return scanned(text) == want;
 }
 
@@ -116,7 +118,7 @@ constexpr std::optional<ParseCode> nested(std::size_t levels) {
         text += R"({"a":)";
     }
     text += "{}";
-    text += std::string(levels - 1, '}');
+    text += filled(levels - 1, '}');
     return parsed(text);
 }
 
@@ -182,11 +184,11 @@ static_assert(framed("\xe8\xae\xb0\xe5\xbf\x86", "0000000000000006e8aeb0e5bf86")
 static_assert(id_of_entry_a() == "sha256:902380391ae283f1a88e038cf525aea22d5e4ed0ca3f852c8acdf43457b3b119");
 static_assert(hexed(digest::sha256("abc")) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 static_assert(hexed(digest::sha256("")) == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-static_assert(hexed(digest::sha256(std::string(56, 'a'))) ==
+static_assert(hexed(digest::sha256(filled(56, 'a'))) ==
               "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a");
 static_assert(hexed(digest::hmac("Jefe", "what do ya want for nothing?")) ==
               "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
-static_assert(hexed(digest::hmac(std::string(131, '\xaa'), "Test Using Larger Than Block-Size Key - Hash Key First")) ==
+static_assert(hexed(digest::hmac(filled(131, '\xaa'), "Test Using Larger Than Block-Size Key - Hash Key First")) ==
               "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
 static_assert(hexed(digest::hmac(fixtures_key(), "{}")) ==
               "86227fe96722a2247dcfee12c07d89c1b0567bbc9aa6a8d804838f66a3da843f");

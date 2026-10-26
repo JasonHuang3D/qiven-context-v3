@@ -150,7 +150,7 @@ constexpr std::size_t index(Slot s) noexcept { return static_cast<std::size_t>(s
 // constructor's call.
 struct PartsView {
     std::array<Form, slot_count> forms{};
-    std::array<std::string_view, slot_count> bytes{};
+    std::array<std::string_view, slot_count> bytes = memory::each_value<std::string_view, slot_count>();
     std::int64_t seq = 0;
     bool unknown = false;
 };
@@ -406,7 +406,7 @@ constexpr Header<A> make(const FieldsView& f, const A& allocator = A()) {
     if (f.id) {
         put(Slot::id, f.id, Form::text);
     } else {
-        std::array<digest::Field, field_count> fields{};
+        std::array<digest::Field, field_count> fields = memory::each_value<digest::Field, field_count>();
         for (std::size_t i = 0; i < field_count; ++i) {
             if (parts.forms.at(i) != Form::absent) {
                 fields.at(i) = parts.bytes.at(i);

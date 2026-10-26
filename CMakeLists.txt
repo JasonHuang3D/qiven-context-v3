@@ -186,8 +186,11 @@ else()
   if(NOT QIVEN3_SANITIZE)
     list(APPEND qiven3_cxx_flags -Wframe-larger-than=4096)
   endif()
+  # On clang, and AppleClang, the constant evaluator's steps are twice its
+  # default: check's vectors, each a whole entry, take up to about 1.2
+  # million on libstdc++ 13 under its assertions.
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    list(APPEND qiven3_cxx_flags -Wthread-safety)
+    list(APPEND qiven3_cxx_flags -Wthread-safety -fconstexpr-steps=2097152)
   endif()
 endif()
 add_library(qiven3_flags INTERFACE)

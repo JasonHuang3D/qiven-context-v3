@@ -21,6 +21,7 @@
 #include "entry/served.hpp"
 #include "qiven3/canon.hpp"
 #include "runner/runner.hpp"
+#include "support/fixtures/filled.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace {
@@ -34,6 +35,7 @@ using projectmap::FileCode;
 using projectmap::FileError;
 using projectmap::System;
 using qiven3::ParseCode;
+using qiven3::test::fixtures::filled;
 using qiven3::test::fixtures::MemoryView;
 
 #define HEX "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -48,9 +50,9 @@ using qiven3::test::fixtures::MemoryView;
 // The syntaxes.
 static_assert(projectmap::repository("qiven-context-v3") && projectmap::repository("a.b_c-9"));
 static_assert(!projectmap::repository("-x") && !projectmap::repository("a/b") && !projectmap::repository(""));
-static_assert(projectmap::repository(std::string(100, 'a')) && !projectmap::repository(std::string(101, 'a')));
+static_assert(projectmap::repository(filled(100, 'a')) && !projectmap::repository(filled(101, 'a')));
 static_assert(projectmap::ref("main") && projectmap::ref("feature/x.y_z-1") && !projectmap::ref("/main"));
-static_assert(projectmap::ref(std::string(200, 'r')) && !projectmap::ref(std::string(201, 'r')) &&
+static_assert(projectmap::ref(filled(200, 'r')) && !projectmap::ref(filled(201, 'r')) &&
               !projectmap::ref("a b"));
 static_assert(projectmap::version_id("sha256:" HEX) && !projectmap::version_id("sha256:" HEX "0") &&
               !projectmap::version_id("sha256:0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef"));

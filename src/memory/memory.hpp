@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "memory/fail.hpp"
@@ -60,6 +61,17 @@ constexpr std::optional<std::size_t> mul(std::size_t a, std::size_t b) noexcept 
         return std::nullopt;
     }
     return a * b;
+}
+
+// N value-initialized T, each element given its own initializer, as `{}`
+// gives them: g++ 13.3, in constant evaluation, refuses to read an element
+// of a second array of a class type initialized by one repeated
+// initializer.
+template <typename T, std::size_t N>
+constexpr std::array<T, N> each_value() {
+    return []<std::size_t... I>(std::index_sequence<I...>) {
+        return std::array<T, N>{((void)I, T())...};
+    }(std::make_index_sequence<N>());
 }
 
 // At most N bytes of text held in place, cut at a code point: a cut never

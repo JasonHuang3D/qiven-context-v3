@@ -413,7 +413,9 @@ QIVEN3_CASE(store_memory, exchange) {
     Store other(rig->state2, rig->fake);
     ListSource bad;
     bad.lines = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC"), book.stored("E")};
-    bad.given = {lane_head(qiven_scope, implementer_lane, id_of(bad.lines.back()), 5)};
+    // Pushed, not assigned from a list: g++ 13 under the sanitizers takes
+    // the list's copy for a read past its one head (-Warray-bounds).
+    bad.given.push_back(lane_head(qiven_scope, implementer_lane, id_of(bad.lines.back()), 5));
     Vector<LaneHead> wrote(rig->chars);
     const std::optional<Refusal> refusal = refused([&] { (void)other.import_(bad, wrote); });
     REQUIRE(refusal.has_value());
