@@ -35,6 +35,7 @@
 #include <span>
 #include <string_view>
 #include <thread>
+#include <type_traits>
 #include <utility>
 
 #include "memory/fail.hpp"
@@ -114,6 +115,10 @@ struct ChildState {
     std::uint32_t reason = 0;  // shared: a Reason, the first kept
     std::uint32_t killed = 0;  // kill() called: no reason thrown since
 };
+// The constructor's memcpy onto the pages makes the state there: so its
+// type is trivially copyable, and an aggregate, an implicit-lifetime type.
+static_assert(std::is_trivially_copyable_v<ChildState> && std::is_aggregate_v<ChildState>,
+              "the state is placed on the pages by memcpy");
 
 namespace {
 

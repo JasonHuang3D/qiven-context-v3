@@ -2,7 +2,9 @@
 // its first argument the subcommand. A subcommand is one row of the table
 // below: its name, its function (child/child.hpp) and its usage line. An
 // unknown or missing subcommand prints the usage lines on standard error
-// and ends with child::usage_status.
+// and ends with child::usage_status. On Windows its entry is wmain, as the
+// product's: each argument converted from UTF-16 by the Windows adapter
+// (run_utf8), one that is not valid UTF-16 ending it with usage_status.
 
 #include <array>
 #include <cstddef>
@@ -12,6 +14,10 @@
 #include <vector>
 
 #include "child/child.hpp"
+
+#if defined(_WIN32)
+#include "platform/win/windows.hpp"
+#endif
 
 namespace {
 
@@ -25,6 +31,8 @@ struct Subcommand {
 
 constexpr std::array subcommands{
     Subcommand{"probe", qiven3::child::probe, "probe match|parse|refs: one facility over each input line (probe.cpp)"},
+    Subcommand{"platform", qiven3::child::platform, "platform sleep|env|argv|flood|print|cat|replace|tree|gone ...: "
+                                                    "the process cases' children (platform.cpp)"},
 };
 
 int usage(std::string_view why) {
@@ -35,10 +43,8 @@ int usage(std::string_view why) {
     return qiven3::child::usage_status;
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {
-    const std::span<char*> given(argv, argc > 0 ? static_cast<std::size_t>(argc) : 0U);
+int run(int argc, const char* const* argv) noexcept {
+    const std::span<const char* const> given(argv, argc > 0 ? static_cast<std::size_t>(argc) : 0U);
     std::vector<std::string_view> args;
     for (std::size_t i = 1; i < given.size(); ++i) {
         args.emplace_back(given[i]);
@@ -53,3 +59,13 @@ int main(int argc, char** argv) {
     }
     return usage("an unknown subcommand");
 }
+
+}  // namespace
+
+#if defined(_WIN32)
+int wmain(int argc, wchar_t** argv) {
+    return qiven3::platform::win::run_utf8(argc, argv, &run, qiven3::child::usage_status);
+}
+#else
+int main(int argc, char** argv) { return run(argc, argv); }
+#endif

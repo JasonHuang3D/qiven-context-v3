@@ -19,4 +19,7 @@ inline constexpr int usage_status = 2;
 // probe: applies one facility to each input line (probe.cpp).
 int probe(std::span<const std::string_view> args);
 
+// platform: the process cases' children, on Windows (platform.cpp).
+int platform(std::span<const std::string_view> args);
+
 }  // namespace qiven3::child
