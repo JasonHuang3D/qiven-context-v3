@@ -275,7 +275,8 @@ QIVEN3_CASE(files, stage) {
     auto held = staged("three");
     const auto [code, detail] = thrown([&] { held.publish("bag-3", five); });
     CHECK(code == Code::busy);
-    // The detail names the staging directory left and the held file in it.
+    // The detail names the staging directory left and the held file in it,
+    // the first by its path inside (files.stage_order).
     const std::string left = staging_left(scratch.root);
     CHECK_EQ(left.size(), 21U);
     CHECK_EQ(detail, "rename: error 5 (ERROR_ACCESS_DENIED); left " + left + "/bagit.txt, "
@@ -307,6 +308,33 @@ QIVEN3_CASE(files, stage) {
     CHECK_EQ(listing(scratch.root), std::string("bag-1|bag-1/bagit.txt|bag-1/data|bag-1/data/headers.jsonl|"
                                                 "bag-2|bag-2/bagit.txt|bag-2/data|bag-2/data/headers.jsonl"));
     CHECK(thrown([&] { fake.stage(root + "/missing"); }).first == Code::io);
+    CHECK_EQ(fake.files().kept(), 0U);
+}
+
+// The file the held discard names is the code's, not the listing's: files
+// made in an order, and named so, that the order of their making, its
+// reverse (tmpfs lists the newest first) and a listing by names upper-cased
+// would each give another first. The first by its path inside, component
+// by component in UTF-8's byte order, is named: B/y.txt, B ending before
+// B-x.txt and B before a.txt; the Windows adapter's walk meets it first.
+QIVEN3_CASE(files, stage_order) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config());
+    auto stage = fake.stage(text(scratch.root));
+    constexpr std::array<std::string_view, 4> made{"a.txt", "B-x.txt", "B/y.txt", "c/d.txt"};
+    for (const std::string_view path : made) {
+        stage.open(path).close();
+    }
+    const std::string left = staging_left(scratch.root);
+    const std::string busy = ", delete: error 32 (ERROR_SHARING_VIOLATION)";
+    fake.set_busy(Busy{.publish = never});
+    CHECK(thrown([&] { stage.discard(); }) == std::pair(Code::busy, "left " + left + "/B/y.txt" + busy));
+    const auto [code, detail] = thrown([&] { stage.publish("bag", five); });
+    CHECK(code == Code::busy);
+    CHECK_EQ(detail, "rename: error 5 (ERROR_ACCESS_DENIED); left " + left + "/B/y.txt" + busy);
+    fake.set_busy(Busy{});
+    stage.discard();
+    CHECK_EQ(listing(scratch.root), std::string());
     CHECK_EQ(fake.files().kept(), 0U);
 }
 

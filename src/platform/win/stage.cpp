@@ -61,6 +61,17 @@ void name_into(Detail& left, std::span<wchar_t> path, std::size_t from, std::siz
     }
 }
 
+// Whether name a comes before b by their code points, the order UTF-8's
+// bytes give: a surrogate's unit ranked above every other unit.
+bool before(std::wstring_view a, std::wstring_view b) noexcept {
+    const auto rank = [](wchar_t unit) {
+        const auto u = static_cast<std::uint32_t>(unit);
+        return u >= 0xE000U ? u - 0x800U : u >= 0xD800U ? u + 0x2000U : u;
+    };
+    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(),
+                                        [&](wchar_t x, wchar_t y) { return rank(x) < rank(y); });
+}
+
 }  // namespace
 
 WindowsFiles::Slot* WindowsFiles::held(std::uint64_t file) noexcept {
@@ -267,21 +278,25 @@ void WindowsFiles::forget(Dir& dir) noexcept {
     dir = Dir{};
 }
 
-// From the staging directory down: a directory's first entry by its own
-// FindFirstFileW handle; its files and links deleted as they come; a
-// directory descended into, the handle closed first; an empty one removed,
-// then its parent searched again. Each step deletes an entry or stops, so
-// the walk ends; a directory gone (2, 3) counts as removed.
+// From the staging directory down, in a fixed order: a directory searched
+// whole by its own FindFirstFileW handle for its least entry by before(),
+// kept in second(), which discard does not otherwise use, the handle
+// closed; a file or a link deleted, or a directory descended into, then
+// the directory searched again; an empty one removed, then its parent
+// searched again. Each step deletes an entry or stops, so the walk ends; a
+// directory gone (2, 3) counts as removed. The first entry that fails stops
+// it, and left names it: its files are met by their paths inside, component
+// by component in UTF-8's byte order, whatever order the file system lists
+// them in.
 files::Error WindowsFiles::walk(const Dir& dir, Detail& left) noexcept {
     const std::span<wchar_t> a = first();
+    const std::span<wchar_t> least = second();
     const std::size_t root = dir.units;
     std::copy_n(path_of(dir).begin(), root + 1, a.begin());
     std::size_t n = root;
     WIN32_FIND_DATAW found{};
     for (;;) {
         DWORD error = n + 2 >= units ? ERROR_FILENAME_EXCED_RANGE : 0;
-        std::size_t failed_at = n;
-        bool descend = false;
         bool gone = false;
         HANDLE search = INVALID_HANDLE_VALUE;
         if (error == 0) {
@@ -297,32 +312,15 @@ files::Error WindowsFiles::walk(const Dir& dir, Detail& left) noexcept {
             a[n] = L'\0';
             gone = error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
         }
+        // The least entry: its name in least, size units, 0 for none.
+        std::size_t size = 0;
+        DWORD attributes = 0;
         for (bool more = error == 0; more;) {
             const std::wstring_view entry(static_cast<const wchar_t*>(found.cFileName));
-            if (entry != L"." && entry != L"..") {
-                const std::size_t end = n + 1 + entry.size();
-                if (end >= units) {
-                    error = ERROR_FILENAME_EXCED_RANGE;
-                    break;
-                }
-                a[n] = L'\\';
-                std::copy(entry.begin(), entry.end(), a.begin() + static_cast<std::ptrdiff_t>(n + 1));
-                a[end] = L'\0';
-                const bool directory = (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                if (directory && (found.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
-                    descend = true;
-                    n = end;
-                    break;
-                }
-                // A file, or a link removed as itself.
-                const bool fault = faulted();
-                const BOOL removed = fault ? FALSE : directory ? RemoveDirectoryW(a.data()) : DeleteFileW(a.data());
-                if (removed == FALSE) {
-                    error = fault ? ERROR_GEN_FAILURE : GetLastError();
-                    failed_at = end;
-                    break;
-                }
-                a[n] = L'\0';
+            if (entry != L"." && entry != L".." && (size == 0 || before(entry, std::wstring_view(least.data(), size)))) {
+                std::copy(entry.begin(), entry.end(), least.begin());
+                size = entry.size();
+                attributes = found.dwFileAttributes;
             }
             if (faulted()) {
                 error = ERROR_GEN_FAILURE;
@@ -336,8 +334,31 @@ files::Error WindowsFiles::walk(const Dir& dir, Detail& left) noexcept {
         if (search != INVALID_HANDLE_VALUE) {
             FindClose(search);
         }
-        if (descend) {
-            continue;
+        std::size_t failed_at = n;
+        if (error == 0 && size != 0) {
+            const std::size_t end = n + 1 + size;
+            if (end >= units) {
+                error = ERROR_FILENAME_EXCED_RANGE;
+            } else {
+                a[n] = L'\\';
+                std::copy_n(least.begin(), size, a.begin() + static_cast<std::ptrdiff_t>(n + 1));
+                a[end] = L'\0';
+                const bool directory = (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                if (directory && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) {
+                    n = end;
+                    continue;
+                }
+                // A file, or a link removed as itself; then its directory
+                // searched again.
+                const bool fault = faulted();
+                const BOOL removed = fault ? FALSE : directory ? RemoveDirectoryW(a.data()) : DeleteFileW(a.data());
+                if (removed != FALSE) {
+                    a[n] = L'\0';
+                    continue;
+                }
+                error = fault ? ERROR_GEN_FAILURE : GetLastError();
+                failed_at = end;
+            }
         }
         if (error != 0 && !gone) {
             name_into(left, a, root + 1, failed_at);

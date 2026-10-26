@@ -8,6 +8,7 @@
 // staging directory, handle or place left (the heap's count is
 // win_files_stage_memory_test.cpp's).
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -344,6 +345,44 @@ QIVEN3_CASE(win_files_stage, discard) {
     CHECK(fs::is_empty(scratch.root));
 }
 
+// The file discard names is the code's, not the listing's: files made in
+// an order, and named so, that the order of their making and a listing by
+// names upper-cased would each give another first. All held, the first by
+// its path inside, component by component in UTF-8's byte order, is named:
+// B/y.txt, B ending before B-x.txt and B before a.txt. a.txt alone held,
+// the walk deletes those before it and names it.
+QIVEN3_CASE(win_files_stage, discard_order) {
+    const Scratch scratch;
+    WindowsPlatform platform(std::nullopt);
+    WindowsStaged staged = platform.stage(text(scratch.root));
+    const std::string name = staging_left(scratch.root).front();
+    const fs::path inside = scratch.root / name;
+    constexpr std::array<std::string_view, 4> made{"a.txt", "B-x.txt", "B/y.txt", "c/d.txt"};
+    for (const std::string_view path : made) {
+        staged.open(path).close();
+    }
+    const std::string busy = ", delete: error 32 (ERROR_SHARING_VIOLATION)";
+    {
+        std::vector<std::ifstream> readers;
+        for (const std::string_view path : made) {
+            readers.emplace_back(inside / fs::path(path), std::ios::binary);
+            CHECK(readers.back().is_open());
+        }
+        const Thrown held = thrown([&] { staged.discard(); });
+        CHECK(held.code == Code::busy);
+        CHECK_EQ(held.detail, "left " + name + "/B/y.txt" + busy);
+    }
+    {
+        const std::ifstream reader(inside / "a.txt", std::ios::binary);
+        CHECK_EQ(thrown([&] { staged.discard(); }).detail, "left " + name + "/a.txt" + busy);
+        CHECK(!fs::exists(inside / "B"));
+        CHECK(!fs::exists(inside / "B-x.txt"));
+        CHECK(fs::is_regular_file(inside / "c" / "d.txt"));
+    }
+    staged.discard();
+    CHECK(staging_left(scratch.root).empty());
+}
+
 // The bound to its edge: 16 open across two staging directories, the 17th
 // io naming the bound with nothing made; then each end that frees a place,
 // the places it frees opened again, one more refused: a Sink's close, its
@@ -427,17 +466,20 @@ QIVEN3_CASE(win_files_stage, faults) {
     };
     // stage's 3 (the draw, the pages, CreateDirectoryW); an empty
     // directory's discard 4 (FindFirstFileW, FindNextFileW for . and ..,
-    // RemoveDirectoryW).
+    // RemoveDirectoryW). discard searches a directory whole once a step: k
+    // entries, . and .. among them, k + 1 calls; then 1 for each file
+    // deleted and each directory removed.
     check("win_files_stage.stage", [&] { platform.stage(dir).discard(); }, 8);
     // open's 1 a parent and 1 CreateFileW, 3 here; the discard of three
-    // levels, each visited twice but the deepest: 3 + 3 + 6 + 4 + 4.
+    // levels, each searched with its one entry, then the file deleted, then
+    // each searched empty and removed: 4 + 4 + 4 + 1 + 3 * (3 + 1).
     check("win_files_stage.open", [&] {
         WindowsStaged staged = platform.stage(dir);
         const WindowsSink sink = staged.open("a/b/c.txt");
         staged.discard();
-    }, 27);
+    }, 32);
     // write's 1 a chunk, close's 2 (FlushFileBuffers, CloseHandle); the
-    // discard of one file 6.
+    // discard of one file 4 + 1 + 3 + 1.
     check("win_files_stage.write", [&] {
         WindowsStaged staged = platform.stage(dir);
         WindowsSink sink = staged.open("w.txt");
@@ -445,7 +487,7 @@ QIVEN3_CASE(win_files_stage, faults) {
         sink.write("more");
         sink.close();
         staged.discard();
-    }, 15);
+    }, 18);
     // publish's close of each file still open 2, its MoveFileExW 1.
     check("win_files_stage.publish", [&] {
         WindowsStaged staged = platform.stage(dir);
@@ -456,13 +498,14 @@ QIVEN3_CASE(win_files_stage, faults) {
         second.write("{}");
         staged.publish("out", five);
     }, 14);
-    // A tree's discard: two files and a directory, 5 + 6 + 4.
+    // A tree's discard: two files and a directory, one.txt first, then
+    // sub's: 5 + 1, 4, 4 + 1, 3 + 1, 3 + 1.
     check("win_files_stage.discard", [&] {
         WindowsStaged staged = platform.stage(dir);
         staged.open("one.txt").close();
         staged.open("sub/two.txt").close();
         staged.discard();
-    }, 26);
+    }, 34);
 
     const auto fault_at = [&](std::size_t k) {
         countdown.arm(k);

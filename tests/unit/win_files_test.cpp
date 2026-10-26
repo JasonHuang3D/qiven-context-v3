@@ -329,31 +329,64 @@ QIVEN3_CASE(win_files, replace) {
 }
 
 // P9's reader on the adapter: a reader holds the target past the deadline,
-// busy with the old bytes and no temporary file; a deadline of 0 one try;
-// released, the new bytes.
+// busy with the old bytes and no temporary file; a deadline of 0 one try:
+// under QIVEN3_FAULTS an unarmed countdown, which fails none, counts the
+// adapter's Win32 calls, and the held replace of deadline 0 makes those of
+// a replace that renames at its first try, and one more, its temporary
+// file's deletion: one rename, so no pause, which only comes before
+// another; the deadline's replace more. Released, the new bytes.
 QIVEN3_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path target = scratch.root / "map-marks.json";
     write_bytes(target, "old");
+#if defined(QIVEN3_FAULTS)
+    qiven3::memory::Countdown countdown;
+    platform.attach(&countdown);
+#endif
+    // The Win32 calls op makes; 0 without QIVEN3_FAULTS.
+    const auto calls = [&](auto op) {
+        std::size_t made = 0;
+#if defined(QIVEN3_FAULTS)
+        countdown.disarm();
+        op();
+        made = countdown.calls();
+#else
+        op();
+#endif
+        return made;
+    };
+    std::size_t retried = 0;
+    std::size_t once = 0;
     {
         const std::ifstream reader(target, std::ios::binary);  // shares read and write, not delete
         CHECK(reader.is_open());
         const auto start = std::chrono::steady_clock::now();
-        const Thrown held = thrown([&] { platform.replace(text(target), "new", short_wait); });
+        Thrown held;
+        retried = calls([&] { held = thrown([&] { platform.replace(text(target), "new", short_wait); }); });
         const auto waited = std::chrono::steady_clock::now() - start;
         CHECK(held.code == Code::busy);
         CHECK_EQ(held.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
         CHECK(waited >= 200ms && waited < 2s);
-        const auto once = std::chrono::steady_clock::now();
-        CHECK(thrown([&] { platform.replace(text(target), "new", Seconds{0.0}); }).code == Code::busy);
-        CHECK(std::chrono::steady_clock::now() - once < 50ms);  // one try, no pause
+        Thrown zero;
+        once = calls([&] { zero = thrown([&] { platform.replace(text(target), "new", Seconds{0.0}); }); });
+        CHECK(zero.code == Code::busy);
+        CHECK_EQ(zero.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
         CHECK(!temporary_left(scratch.root));
     }
     CHECK_EQ(bytes_of(target), std::string("old"));
-    platform.replace(text(target), "new", five);
+    const std::size_t first_try = calls([&] { platform.replace(text(target), "new", five); });
     CHECK_EQ(bytes_of(target), std::string("new"));
     CHECK(!temporary_left(scratch.root));
+#if defined(QIVEN3_FAULTS)
+    CHECK(first_try > 0U);
+    CHECK_EQ(once, first_try + 1);
+    CHECK(retried > once);
+    CHECK(!countdown.fired());
+    platform.attach(nullptr);
+#else
+    static_cast<void>(retried + once + first_try);
+#endif
 }
 
 QIVEN3_CASE(win_files, lock) {

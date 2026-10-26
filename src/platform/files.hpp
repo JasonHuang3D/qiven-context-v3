@@ -181,8 +181,10 @@ constexpr std::string_view last_component(std::string_view path) noexcept {
 //   publish(dir, name) renames the directory to name beside it, with no
 //   replacing; discard(dir, left) closes and deletes its files and it,
 //   naming in left the file it could not delete by its path inside it,
-//   nothing for the directory itself; forget(dir) ends the system's record
-//   of a published or discarded one.
+//   the first such by that path, component by component in UTF-8's byte
+//   order, whatever order the system lists in, so the same file on every
+//   host; nothing for the directory itself; forget(dir) ends the system's
+//   record of a published or discarded one.
 // - lock's: open_lock(path, held) opens path, made if missing; try_lock
 //   locks its first byte, or gives 33; unlock unlocks if locked and closes.
 template <class S>

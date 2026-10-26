@@ -1,5 +1,6 @@
 #include "support/fake_platform/fake_files.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
@@ -38,6 +39,15 @@ std::string to_text(const std::u8string& units) {
 }
 
 fs::path to_path(const files::Digits& digits) { return to_path(std::string_view(digits.data(), digits.size())); }
+
+// Whether path a comes before b, component by component in UTF-8's byte
+// order: as bytes, '/' below every other, the order of the Windows
+// adapter's discard (platform/win/stage.cpp).
+bool before(const std::u8string& a, const std::u8string& b) noexcept {
+    const auto rank = [](char8_t c) { return c == u8'/' ? 0U : static_cast<unsigned>(c) + 1U; };
+    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(),
+                                        [&](char8_t x, char8_t y) { return rank(x) < rank(y); });
+}
 
 // replace's file beside path: ".<name>.<digits>.tmp".
 fs::path temporary(std::string_view path, const files::Digits& digits) {
@@ -318,14 +328,22 @@ Error FakeFiles::discard(const Dir& dir, Detail& left) noexcept {
             return files::general;
         }
         std::error_code error;
-        // A file held inside: the first one found is what is left.
+        // A file held inside: what is left is its first file by before(),
+        // whatever order the listing gives.
         if (busy_.publish != 0) {
+            std::u8string first;
             for (const fs::directory_entry& entry : fs::recursive_directory_iterator(made, error)) {
                 if (entry.is_regular_file(error)) {
-                    refused(busy_.publish);
-                    left.add(to_text(fs::relative(entry.path(), made, error).generic_u8string()));
-                    return files::sharing_violation;
+                    std::u8string inside = fs::relative(entry.path(), made, error).generic_u8string();
+                    if (first.empty() || before(inside, first)) {
+                        first = std::move(inside);
+                    }
                 }
+            }
+            if (!first.empty()) {
+                refused(busy_.publish);
+                left.add(to_text(first));
+                return files::sharing_violation;
             }
         }
         fs::remove_all(made, error);

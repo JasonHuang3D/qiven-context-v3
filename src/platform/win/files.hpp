@@ -102,8 +102,9 @@ public:
     // kept; close_all: close for each of the directory's. publish:
     // MoveFileExW with no flag to name beside the directory. discard: its
     // files closed unchecked, then its tree deleted without recursion, one
-    // FindFirstFileW handle at a time, stopping at the first failure, which
-    // left names by its path inside with '/'. forget: the directory's
+    // FindFirstFileW handle at a time, each directory's least entry by its
+    // code points first, stopping at the first failure, which left names by
+    // its path inside with '/'. forget: the directory's
     // slots closed unchecked and its pages given back.
     files::Error make_staged(std::string_view directory, const files::Digits& digits, Dir& out);
     files::Error open_staged(const Dir& dir, std::string_view path, File& out);
