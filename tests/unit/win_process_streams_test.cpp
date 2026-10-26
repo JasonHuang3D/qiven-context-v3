@@ -8,7 +8,6 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,11 +22,25 @@ using qiven3::memory::Allocator;
 using qiven3::memory::Arena;
 using qiven3::platform::Ran;
 
+// Whether text holds word whole: no word character ([A-Za-z0-9_], a
+// regex's \b) on either side of it.
+bool holds_word(std::string_view text, std::string_view word) {
+    const auto inner = [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    };
+    for (std::size_t at = text.find(word); at != std::string_view::npos; at = text.find(word, at + 1)) {
+        const std::size_t end = at + word.size();
+        if ((at == 0 || !inner(text.at(at - 1))) && (end == text.size() || !inner(text.at(end)))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Whether an output error's detail names the stream and not the other.
 bool names(const Thrown& t, std::string_view stream) {
-    const std::string other = stream == "out" ? "err" : "out";
-    return t.code == Code::output && std::regex_search(t.detail, std::regex("\\b" + std::string(stream) + "\\b")) &&
-           !std::regex_search(t.detail, std::regex("\\b" + other + "\\b"));
+    const std::string_view other = stream == "out" ? "err" : "out";
+    return t.code == Code::output && holds_word(t.detail, stream) && !holds_word(t.detail, other);
 }
 
 }  // namespace
@@ -86,6 +99,8 @@ QIVEN3_CASE(win_process, read_line_timeout) {
 // write, the tree killed (run ends long before the child's sleep); at the
 // cap whole. kill() stops the reason.
 QIVEN3_CASE(win_process, caps) {
+    CHECK(holds_word("out", "out") && holds_word("the (out) cap", "out") && holds_word("x out", "out"));
+    CHECK(!holds_word("stdout", "out") && !holds_word("out_", "out") && !holds_word("err0 errs", "err"));
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);

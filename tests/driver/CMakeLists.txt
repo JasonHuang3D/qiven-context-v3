@@ -25,7 +25,8 @@ endif()
 # factory (driver/store_ops.hpp), and location's commands on the fake.
 qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
   store_held.hpp store_own.hpp store_plans.cpp store_race.hpp store_threads.hpp store_wire.cpp store_wire.hpp
-  LINK qiven3_drive_common qiven3_platform_fake qiven3_platform_current qiven3_stores qiven3_seams qiven3_location)
+  LINK qiven3_drive_common qiven3_stores qiven3_seams qiven3_location qiven3_platform_fake qiven3_platform_current
+       qiven3_runner)
 
 if(WIN32)
   qiven3_executable(qiven3-drive-windows SOURCES instances_windows.cpp

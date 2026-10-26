@@ -76,7 +76,7 @@ if(QIVEN3_SANITIZE MATCHES "fuzzer")
     set(dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     file(MAKE_DIRECTORY "${dir}/corpus" "${dir}/artifacts")
     qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
-      LINK qiven3_base qiven3_entry qiven3_platform_fake)
+      LINK qiven3_entry qiven3_base qiven3_platform_fake)
     target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
     if(NOT MSVC)
       # libFuzzer's main, here alone; MSVC's /fsanitize=fuzzer brings it to

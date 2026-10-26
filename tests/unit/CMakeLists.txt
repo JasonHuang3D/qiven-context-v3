@@ -90,7 +90,7 @@ set_target_properties(qiven3_log_plant PROPERTIES QIVEN3_PLANT ON EXPORT_COMPILE
 # fixtures, the linear read, compile's budget and fault run.
 qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
   SOURCES matcher_test.cpp
-  LINK qiven3_faults qiven3_fixtures qiven3_secret qiven3_matcher)
+  LINK qiven3_faults qiven3_fixtures qiven3_secret)
 
 # secret's cases: the twelve patterns, a header hit refused with its
 # pattern and path, each table and clearing fixture in a content string,
@@ -292,7 +292,7 @@ endif()
 # thrown and caught; the fault run over none.
 qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
   SOURCES store_errors_test.cpp
-  LINK qiven3_faults qiven3_secret qiven3_entry qiven3_store)
+  LINK qiven3_faults qiven3_store qiven3_secret qiven3_entry)
 
 # store/codes' cases: the table's named numbers, its order and its names;
 # each row of the mapping and each purge reason, evaluated by the compiler;
@@ -343,7 +343,7 @@ qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
           store_sqlite_scan_test.cpp store_sqlite_create_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store qiven3_seams)
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_seams qiven3_store)
 
 # store/exchange's cases: the SQLite store's export, import and verify on
 # the fake over a scratch directory; its smoke case: a round trip, a
@@ -363,7 +363,7 @@ qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
 # a SQLite store's among them.
 qiven3_add_cases(qiven3_unit_stores LABELS fast fake
   SOURCES stores_test.cpp seams_test.cpp scan_test.cpp
-  LINK qiven3_stores qiven3_seams qiven3_scan)
+  LINK qiven3_stores qiven3_seams qiven3_scan qiven3_runner)
 
 # location's cases: the commands on the fake over a scratch directory; its
 # smoke case: the command line, init warned then recorded, store_dir,

@@ -14,13 +14,19 @@ set(qiven3_bin "${PROJECT_BINARY_DIR}/bin")
 #                  [LIMIT <seconds>])
 # A case binary: its sources, linked with the runner; each case a CTest test
 # labelled cxx and LABELS, under the watcher's limit by its labels, or LIMIT
-# where the binary states its own (runner/ctest_tests.cmake).
+# where the binary states its own (runner/ctest_tests.cmake). The runner
+# comes first, or where LINK names it: after a target that links it
+# (support/stores), so that it is on the link line once.
 function(qiven3_add_cases target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "LIMIT" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_add_cases(${target}): no SOURCES")
   endif()
-  qiven3_executable(${target} SOURCES ${arg_SOURCES} LINK qiven3_runner ${arg_LINK})
+  set(links qiven3_runner ${arg_LINK})
+  if(qiven3_runner IN_LIST arg_LINK)
+    set(links ${arg_LINK})
+  endif()
+  qiven3_executable(${target} SOURCES ${arg_SOURCES} LINK ${links})
   list(JOIN arg_LABELS "," labels)
   set_property(GLOBAL APPEND PROPERTY QIVEN3_CASE_BINARIES ${target})
   set_property(GLOBAL PROPERTY QIVEN3_CASE_LABELS_${target} "${labels}")

@@ -211,8 +211,12 @@ elseif(NOT QIVEN3_SANITIZE MATCHES "memory")
   target_compile_options(qiven3_flags INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:-ftrivial-auto-var-init=pattern>")
 endif()
 # The linker's warnings are errors too, on the same targets. Each binary
-# reserves 1 MiB of stack for its main thread.
+# reserves 1 MiB of stack for its main thread. On Windows each target names
+# the system's libraries it links, and CMake's default list, which named
+# some of them again on every link line, is emptied.
 if(MSVC)
+  set(CMAKE_C_STANDARD_LIBRARIES "")
+  set(CMAKE_CXX_STANDARD_LIBRARIES "")
   target_link_options(qiven3_flags INTERFACE /WX /STACK:1048576)
 elseif(APPLE)
   target_link_options(qiven3_flags INTERFACE LINKER:-fatal_warnings)
@@ -451,10 +455,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 # (src/diag/CMakeLists.txt), for a binary on another runtime or memory.
 # WIDE, for a binary whose entry is wmain on Windows (the product's), takes
 # the entry's wide variant there.
-# Each library is on the link line once: CMake keeps a binary's own list in
-# its order and puts what they link after it, so qiven3_diag, which the
-# runner and the drives link, comes last, and LINK names no target that
-# another of the binary's targets links.
+# Each library is on the link line once (tests/structure/test_links.py):
+# CMake keeps a binary's own list in its order, puts what they link after
+# it, and names a library again when one after it links it. So LINK names
+# a target before none that links it, and qiven3_diag, last, follows each
+# that links it: a binary whose targets bring the runner names it.
 function(qiven3_executable name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "WIDE" "DIAG" "SOURCES;LINK")
   if(NOT arg_SOURCES)

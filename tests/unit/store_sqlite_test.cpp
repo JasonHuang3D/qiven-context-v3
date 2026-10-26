@@ -146,6 +146,18 @@ std::string raised(const F& f) {
     return "none";
 }
 
+// A frame of the function's own: clang inlined smoke's steps, and a store
+// for each open, into frames past the bound. open_error: what open raised.
+#ifdef __GNUC__
+#define QIVEN3_OWN_FRAME __attribute__((noinline))
+#else
+#define QIVEN3_OWN_FRAME
+#endif
+QIVEN3_OWN_FRAME std::string open_error(Rig& rig, const fs::path& path, bool create = false, bool read_only = false,
+                                        const Limits& limits = Limits{}) {
+    return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits); });
+}
+
 std::string bytes_of(const fs::path& path) {
     std::ifstream in(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
@@ -183,7 +195,7 @@ void settings_table(qiven3::test::Context& qiven3_ctx) {
 }
 
 // create, then what it made, read through the store's connection.
-void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     Store store = Store::open(text(path), true, false, rig.fake);
     CHECK(!store.read_only());
@@ -208,7 +220,7 @@ void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(store.verify() == qiven3::store::Counts{});
 
     const std::string before = bytes_of(path);
-    CHECK(raised([&] { (void)Store::open(text(path), true, false, rig.fake); }).starts_with("StoreError exists"));
+    CHECK(open_error(rig, path, true).starts_with("StoreError exists"));
     CHECK(bytes_of(path) == before);
     CHECK(store.close().done);
     CHECK(raised([&] { (void)store.close(); }) == "StoreError closed");
@@ -216,7 +228,7 @@ void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // open again, read-write and read-only.
-void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const std::string path = text(rig.scratch.root / "a" / "store.db");
     Store store = Store::open(path, false, false, rig.fake);
     CHECK(!sqlite::differing(store.connection(), test_at).has_value());
@@ -230,50 +242,40 @@ void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // The files open refuses.
-void refused(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void refused(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
-    CHECK(raised([&] { (void)Store::open(text(root / "none.db"), false, false, rig.fake); }) ==
-          "StoreError missing");
+    CHECK(open_error(rig, root / "none.db") == "StoreError missing");
     write_file(root / "empty.db", "");
-    CHECK(raised([&] { (void)Store::open(text(root / "empty.db"), false, false, rig.fake); })
-              .starts_with("StoreCorrupt corrupt"));
+    CHECK(open_error(rig, root / "empty.db").starts_with("StoreCorrupt corrupt"));
     write_file(root / "foreign.db", "");
     alter(root / "foreign.db", "CREATE TABLE t (x INTEGER)");
     const std::string foreign = bytes_of(root / "foreign.db");
-    CHECK(raised([&] { (void)Store::open(text(root / "foreign.db"), false, false, rig.fake); }) ==
-          "StoreCorrupt foreign: application_id 0");
+    CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt foreign: application_id 0");
     CHECK(bytes_of(root / "foreign.db") == foreign);
     alter(root / "foreign.db", "PRAGMA application_id = 1903571713");
     alter(root / "foreign.db", "PRAGMA user_version = 2");
-    CHECK(raised([&] { (void)Store::open(text(root / "foreign.db"), false, false, rig.fake); }) ==
-          "StoreCorrupt version: user_version 2");
+    CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt version: user_version 2");
     write_file(root / "text.db", std::string(1024, 'x'));
-    CHECK(raised([&] { (void)Store::open(text(root / "text.db"), false, false, rig.fake); })
-              .starts_with("StoreCorrupt not_a_store"));
-    CHECK(raised([&] { (void)Store::open(text(root / "ro.db"), true, true, rig.fake); }) ==
-          "StoreError read_only: create");
+    CHECK(open_error(rig, root / "text.db").starts_with("StoreCorrupt not_a_store"));
+    CHECK(open_error(rig, root / "ro.db", true, true) == "StoreError read_only: create");
     Limits wrong;
     wrong.max_count = 1;
-    CHECK(raised([&] { (void)Store::open(text(root / "l.db"), true, false, rig.fake, wrong); }) ==
-          "StoreError settings: limits");
+    CHECK(open_error(rig, root / "l.db", true, false, wrong) == "StoreError settings: limits");
     CHECK(!fs::exists(root / "ro.db") && !fs::exists(root / "l.db"));
 }
 
 // The guard: a checkout by a .git directory, then a file, and a synced
 // folder, by open and alone; nothing made.
-void guarded(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void guarded(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
     fs::create_directories(root / "repo" / ".git");
     fs::create_directories(root / "work");
     write_file(root / "work" / ".git", "gitdir: elsewhere\n");
     fs::create_directories(root / "cloud");
-    CHECK(raised([&] { (void)Store::open(text(root / "repo" / "sub" / "store.db"), true, false, rig.fake); }) ==
-          "StoreError location: checkout");
+    CHECK(open_error(rig, root / "repo" / "sub" / "store.db", true) == "StoreError location: checkout");
     CHECK(!fs::exists(root / "repo" / "sub"));
-    CHECK(raised([&] { (void)Store::open(text(root / "work" / "store.db"), true, false, rig.fake); }) ==
-          "StoreError location: checkout");
-    CHECK(raised([&] { (void)Store::open(text(root / "cloud" / "store.db"), true, false, rig.fake); }) ==
-          "StoreError location: synced");
+    CHECK(open_error(rig, root / "work" / "store.db", true) == "StoreError location: checkout");
+    CHECK(open_error(rig, root / "cloud" / "store.db", true) == "StoreError location: synced");
     CHECK(!fs::exists(root / "cloud" / "store.db"));
     CHECK(raised([&] { Store::guard(text(root / "repo"), rig.fake); }) == "StoreError location: checkout");
     CHECK(raised([&] { Store::guard(text(root / "cloud" / "deep"), rig.fake); }) == "StoreError location: synced");
@@ -281,15 +283,13 @@ void guarded(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // Coherence refuses a meta that disagrees with the rows.
-void incoherent(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void incoherent(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     alter(path, "UPDATE meta SET value = 1 WHERE name = 'forgets'");
-    CHECK(raised([&] { (void)Store::open(text(path), false, false, rig.fake); })
-              .starts_with("StoreCorrupt incoherent: meta: forgets"));
+    CHECK(open_error(rig, path).starts_with("StoreCorrupt incoherent: meta: forgets"));
     alter(path, "UPDATE meta SET value = 0 WHERE name = 'forgets'");
     alter(path, "INSERT INTO meta (name, value) VALUES ('other', 0)");
-    CHECK(raised([&] { (void)Store::open(text(path), false, false, rig.fake); })
-              .starts_with("StoreCorrupt incoherent: meta: a row of another name"));
+    CHECK(open_error(rig, path).starts_with("StoreCorrupt incoherent: meta: a row of another name"));
     alter(path, "DELETE FROM meta WHERE name = 'other'");
     {
         Store store = Store::open(text(path), false, false, rig.fake);
@@ -298,7 +298,7 @@ void incoherent(qiven3::test::Context& qiven3_ctx, Rig& rig) {
         store.connection().exec("UPDATE meta SET value = value WHERE name = 'size'", test_at);
         CHECK_EQ(store.connection().changes(), 1);
     }
-    CHECK(raised([&] { (void)Store::open(text(path), false, false, rig.fake); }) == "none");
+    CHECK(open_error(rig, path) == "none");
 }
 
 constexpr std::string_view qiven_scope = "project:qiven";
