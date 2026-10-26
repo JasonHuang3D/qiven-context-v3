@@ -117,19 +117,20 @@ class MachineUntil(unittest.TestCase):
         self.assertEqual(reasons, UNTIL)
 
 
-# The files' and processes' cases' skips: P20's for its child half, after
-# its lock half, on the child that runs init; P10 to P15, P19 and P25 run
+# The files' and processes' cases' skips: none. P20, the last of them to
+# skip, runs whole, its child half's two init runs over qiven3-child
+# platform init, after its lock half, timed; P10 to P15, P19 and P25 run
 # whole.
-FILES_UNTIL = {
-    "test_P20_lock": "until package 5: two init runs at once, each a child: one recorded, the other chosen: "
-                     "the child that runs init",
-}
+FILES_UNTIL = {}
+# The cases pinned running whole here, no skip: P20, its child half last.
+FILES_WHOLE = ("test_P20_lock",)
 
 
 class FilesUntil(unittest.TestCase):
-    """Windows' files and processes cases run here, P20 alone skipping,
-    by its reason, after its lock half, timed, on a lock held by another
-    handle; P19 and P25 run through stage, P10 to P15 over qiven3-child."""
+    """Windows' files and processes cases run here, none skipping: P20
+    whole, its lock half timed on a lock held by another handle, its child
+    half two init children at once; P19 and P25 run through stage, P10 to
+    P15 over qiven3-child."""
     ctest_labels = ("drive",)
 
     def setUp(self):
@@ -137,9 +138,9 @@ class FilesUntil(unittest.TestCase):
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
 
     def test_files_until(self):
-        reasons, others = skip_reasons(Windows, tuple(FILES_UNTIL))
+        reasons, others = skip_reasons(Windows, FILES_WHOLE + tuple(FILES_UNTIL))
         self.assertEqual(others, [])
-        self.assertEqual(reasons, FILES_UNTIL)
+        self.assertEqual(reasons, dict.fromkeys(FILES_WHOLE) | FILES_UNTIL)
 
 
 class OwnNotApplicable(unittest.TestCase):

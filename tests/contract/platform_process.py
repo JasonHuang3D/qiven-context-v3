@@ -12,10 +12,12 @@ and the children its cases start are qiven3-child platform's, started
 through the drive; a binding with PROCESSES false checks that run refuses
 a relative argv[0] (start), and the child half is skipped. P20's lock is
 the files', its holder the binding's hold() (contract/platform_files.py),
-timed where P20 runs; its child half waits on its init child. P11's
-supervisor is a drive holding the tree, killed by the test.
+timed where P20 runs; its child half's two init runs are qiven3-child
+platform init's, each location's init on the adapter. P11's supervisor is
+a drive holding the tree, killed by the test.
 """
 
+import json
 import os
 import re
 import time
@@ -293,13 +295,47 @@ class PlatformProcess:
         """lock held, then released before the deadline; held past it:
         acquired; busy; a deadline of 0, one try (the lock half), timed.
         Two init runs at once, each a child: one recorded, the other chosen
-        (the child half)."""
+        (the child half). Each child, over one configuration directory and
+        a directory of its own, says ready, then runs init once its input
+        ends, the two inputs ended together: one exits 0, recorded, the
+        record naming its directory, which holds the store; the other exits
+        1 on one line naming chosen, its directory left empty."""
         self.needs("processes")
         with self.drive() as d:
             lock_half(self, d, timed=True)
-        what = "two init runs at once, each a child: one recorded, the other chosen"
-        self.child_half(what)
-        self.skipTest(f"until package 5: {what}: the child that runs init")
+        self.child_half("two init runs at once, each a child: one recorded, the other chosen")
+        config = self.files_root() / "inits"
+        chosen = [self.files_root() / f"init-{k}" for k in range(2)]
+        for each in chosen:
+            each.mkdir()
+        with self.drive() as d:
+            children = [d.call("start", argv=self.child("init", config, each), deadline=LONG)["id"]
+                        for each in chosen]
+            for child in children:
+                self.assertEqual(self.lines(d, child, 1), ["ready"])
+            for child in children:
+                d.call("child_close_input", id=child)
+            codes = [d.call("child_wait", id=child, timeout=LINE_TIMEOUT) for child in children]
+            said = [self.rest(d, child) for child in children]
+            for child in children:
+                d.call("child_end", id=child)
+        self.assertEqual(sorted(codes), [0, 1], said)
+        won = codes.index(0)
+        lost = 1 - won
+        self.assertTrue(said[won][-1].startswith("recorded"), said)
+        self.assertEqual(len(said[lost]), 1, said)
+        self.assertIn("chosen", said[lost][0])
+        record = json.loads((config / "location.json").read_bytes())
+        self.assertTrue(os.path.samefile(record["dir"], chosen[won]), record)
+        self.assertTrue((chosen[won] / "store.db").is_file())
+        self.assertEqual(list(chosen[lost].iterdir()), [])
+
+    def rest(self, d, child):
+        """The child's lines left, each without its LF, to its output's end."""
+        out = []
+        while (line := d.call("child_read_line", id=child, timeout=LINE_TIMEOUT)) is not None:
+            out.append(bytes.fromhex(line).decode().rstrip("\n"))
+        return out
 
     def test_child_memory(self):
         """Each Child request within the member's budget, nothing left on its

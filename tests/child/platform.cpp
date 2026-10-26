@@ -28,6 +28,11 @@
 //   before a cap is passed.
 // - gone PID MS: "gone" where the process PID ends within MS milliseconds
 //   or is none, else "running".
+// - init CONFIG DIR: "ready" on out; once its input gives a line or ends,
+//   location's init of DIR with --accept, on the adapter made with CONFIG
+//   as its configuration directory (instances.cpp instantiates location's
+//   main on it): init's lines on out, its exit status the child's. Two at
+//   once over one CONFIG are P20's child half.
 // A wrong argument ends it with child::usage_status and a line on err; a
 // failed call with 1. The forms run on Windows alone: elsewhere usage.
 
@@ -55,6 +60,7 @@
 
 #include "memory/arena.hpp"
 #include "platform/win/windows.hpp"
+#include "qiven3/location.hpp"
 #endif
 
 namespace qiven3::child {
@@ -207,6 +213,14 @@ int replace(std::span<const std::string_view> args) {
     return status;
 }
 
+// Until the input gives a line or ends.
+void await_line() {
+    char byte = 0;
+    DWORD got = 0;
+    while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), &byte, 1, &got, nullptr) != 0 && got == 1 && byte != '\n') {
+    }
+}
+
 int tree(std::span<const std::string_view> args) {
     const std::optional<std::uint64_t> ms = args.empty() ? std::nullopt : number(args[0]);
     const bool floods = args.size() == 3 && (args[1] == "out" || args[1] == "err") && number(args[2]).has_value();
@@ -237,11 +251,7 @@ int tree(std::span<const std::string_view> args) {
             std::_Exit(3);  // no destructor: the system closes the job's handle
         }
         if (floods) {
-            char byte = 0;
-            DWORD got = 0;
-            while (ReadFile(GetStdHandle(STD_INPUT_HANDLE), &byte, 1, &got, nullptr) != 0 && got == 1 &&
-                   byte != '\n') {
-            }
+            await_line();
             const std::array<std::string_view, 3> past = {args[1], args[2], args[0]};
             return flood(past);
         }
@@ -270,6 +280,22 @@ int gone(std::span<const std::string_view> args) {
     CloseHandle(process);
     put(STD_OUTPUT_HANDLE, status == WAIT_OBJECT_0 ? "gone\n" : "running\n");
     return 0;
+}
+
+int init(std::span<const std::string_view> args) {
+    if (args.size() != 2) {
+        return wrong("init CONFIG DIR");
+    }
+    put(STD_OUTPUT_HANDLE, "ready\n");
+    await_line();
+    const std::array<std::string_view, 5> argv = {"init", args[1], "--accept", "--config", args[0]};
+    try {
+        platform::win::WindowsPlatform adapter(args[0]);
+        return location::main(std::span<const std::string_view>(argv), adapter);
+    } catch (const platform::PlatformError& error) {
+        put(STD_ERROR_HANDLE, std::string("qiven3-child platform: init: ").append(error.detail.view()).append("\n"));
+        return 1;
+    }
 }
 
 }  // namespace
@@ -327,7 +353,10 @@ int platform(std::span<const std::string_view> args) {
     if (what == "gone") {
         return gone(rest);
     }
-    return wrong("sleep|env|argv|flood|print|cat|replace|tree|gone: an unknown form");
+    if (what == "init") {
+        return init(rest);
+    }
+    return wrong("sleep|env|argv|flood|print|cat|replace|tree|gone|init: an unknown form");
 }
 
 #else
