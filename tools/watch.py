@@ -29,10 +29,14 @@ fault the drives run, it runs the case and names how it ended.
   <n> threads" and every thread's stack, at most 16 threads and 200 lines,
   and writes <binary>-<pid>-hang.dmp (.core on Linux) in the dumps'
   directory; with no debugger at hand, "hang: no debugger, no stacks" and
-  the reason. Then it kills the case's process tree (taskkill /T /F; on
-  Linux the case's process group, which it started, by SIGKILL), names
-  the status with what it wrote ("no debugger, no stack written", or the
-  stacks written of the threads and its dump or "no dump") and the case,
+  the reason. The debugger is the pinned one, but in a CI job on Windows,
+  where the image keeps its own tools, the image's cdb, unpinned
+  (tools/debuggers.py's hang_debugger). Then it kills the case's process
+  tree (taskkill /T /F; on Linux the case's process group, which it
+  started, by SIGKILL), names the status with what it wrote ("no
+  debugger, no stack written: <why>", or the stacks written of the
+  threads and its dump or "no dump", and by a CI image's cdb its version
+  and path) and the case,
   "status: 124 hang: ...; <written>; <test> past <s> s", and exits 124.
 - After the case ends, a hang's or not, the build's dumps/ is bounded by
   tools/dumps.py: at most its DUMPS_KEPT dumps, the oldest removed first,
@@ -219,19 +223,21 @@ def kill_tree(process):
 
 def hang(process, command, env, limit):
     """The hang's lines, every thread's stack by the debugger, and what it
-    wrote, for the status line: "no debugger, no stack written", or
-    "<n> of <threads> threads' stacks written" ("no stack written" for
-    none) and "its dump <file>" or "no dump"."""
+    wrote, for the status line: "no debugger, no stack written: <why>",
+    or "<n> of <threads> threads' stacks written" ("no stack written" for
+    none) and "its dump <file>" or "no dump", then, by a CI image's
+    debugger, ", by the image's cdb <version> at <path>, unpinned (CI)"."""
     binary = shutil.which(command[0]) or command[0]
     dumps = env.get("QIVEN3_DUMP_DIR")
     try:
-        threads, lines = DEBUGGERS["hang_stacks"](process.pid, binary, dumps)
+        threads, lines, how = DEBUGGERS["hang_stacks"](process.pid, binary, dumps)
     except DEBUGGERS["NotFound"] as e:
-        return ["hang: no debugger, no stacks", f"hang: {e}"], "no debugger, no stack written"
+        return ["hang: no debugger, no stacks", f"hang: {e}"], f"no debugger, no stack written: {e}"
     stacks = DEBUGGERS["stacks_of"](lines)
     dump = DEBUGGERS["hang_dump"](process.pid, binary, dumps)
     written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
     written += f", its dump {dump.name}" if dump is not None and dump.is_file() else ", no dump"
+    written += f", {how}" if how else ""
     return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines], written
 
 

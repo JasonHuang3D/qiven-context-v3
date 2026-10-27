@@ -27,6 +27,10 @@ KIB = 1024
 # C15's thresholds, the store's default limits.
 DEFAULTS = {"target_size": 512 * KIB * KIB, "warning_size": 640 * KIB * KIB, "max_size": 768 * KIB * KIB,
             "target_count": 400000, "warning_count": 480000, "max_count": 550000}
+# S13's refused sources, a case each (test_S13_refused_<source>), so that
+# one import of the 3,000 fillers' lines is a case's: two to a case passed
+# 30 s on CI's sanitized jobs.
+S13_REFUSED = ("forgotten_body", "forgotten_target", "body_missing", "basis")
 
 
 class StoreMore:
@@ -277,23 +281,17 @@ class StoreMore:
             self.assertEqual(across.size()["volume"], store.size()["volume"])
             self.assertEqual(across.verify(), store.verify())
 
-    def test_S13_refused_forgotten(self):
-        """S13's last four, the first two (refused()): EntryInvalid
-        forgotten_body, forgotten_target. Needs: none."""
-        self.refused(("forgotten_body", "forgotten_target"))
-
-    def test_S13_refused_lines(self):
-        """S13's last four, the last two (refused()): EntryInvalid
-        body_missing, basis. Needs: none."""
-        self.refused(("body_missing", "basis"))
-
-    def refused(self, codes):
-        """S13's last four, those of codes: a source holding a body its own
-        forget targets; a revision, not forgotten, of a forgotten version;
-        a line lacking its body record; a forgotten check of basis derived
-        (F157); each after 3,000 entries of 1 KiB, which spill pages into
-        the -wal (F158): EntryInvalid forgotten_body, forgotten_target,
-        body_missing, basis, nothing written, the -wal included."""
+    def refused(self, code):
+        """S13's last four, the source of code (S13_REFUSED), a case each:
+        a source holding a body its own forget targets; a revision, not
+        forgotten, of a forgotten version; a line lacking its body record;
+        a forgotten check of basis derived (F157); each after 3,000 entries
+        of 1 KiB, which spill pages into the -wal (F158): EntryInvalid
+        forgotten_body, forgotten_target, body_missing, basis, nothing
+        written, the -wal included. The class holds a case for each source
+        of S13_REFUSED and no other, and the sources are those four."""
+        held = sorted(name for name in dir(type(self)) if name.startswith("test_S13_refused_"))
+        self.assertEqual(held, sorted(f"test_S13_refused_{c}" for c in S13_REFUSED))
         with self.drive() as drive:
             self.needs(drive)
             m = Maker(drive)
@@ -310,17 +308,17 @@ class StoreMore:
                 ("basis", [as_line(a1), as_line(check, True),
                            as_line(m.forget(SCOPE, "implementer", 3, check, check, 102))]),
             )
-            for code, tail in (t for t in tails if t[0] in codes):
-                with self.subTest(source=code):
-                    store = drive.store_make()
-                    lines = filler + sorted(tail, key=lambda x: (header((x["line"], None))["lane"],
-                                                                 header((x["line"], None))["seq"]))
-                    before = snapshot(store)
-                    error = self.failure(store.import_, (lane_heads(lines), lines))
-                    self.assert_store_error(error, "EntryInvalid", code)
-                    self.nothing_written(store, before, code)
-                    if store.path is not None:
-                        self.assertIn((file_state(store.path + "-wal") or (0,))[0], (0,))
+            self.assertEqual([t[0] for t in tails], list(S13_REFUSED))
+            tail = dict(tails)[code]
+            store = drive.store_make()
+            lines = filler + sorted(tail, key=lambda x: (header((x["line"], None))["lane"],
+                                                         header((x["line"], None))["seq"]))
+            before = snapshot(store)
+            error = self.failure(store.import_, (lane_heads(lines), lines))
+            self.assert_store_error(error, "EntryInvalid", code)
+            self.nothing_written(store, before, code)
+            if store.path is not None:
+                self.assertIn((file_state(store.path + "-wal") or (0,))[0], (0,))
 
     def test_S14_import_not_empty(self):
         """S14: an import into a store holding an entry: StoreNotEmpty;
@@ -542,3 +540,17 @@ class StoreMore:
 # The seam's row of S18 (support/seams' purged_above_vacuumed).
 PURGED_ABOVE_VACUUMED = ("UPDATE meta SET value = (SELECT value FROM meta WHERE name = 'vacuumed') + 1 "
                          "WHERE name = 'purged'")
+
+
+def s13_case(code):
+    """S13's refused source code as a case of StoreMore's, named and
+    described."""
+    def case(self):
+        self.refused(code)
+    case.__name__ = f"test_S13_refused_{code}"
+    case.__doc__ = f"S13's last four, the source {code}: as StoreMore.refused, EntryInvalid {code}. Needs: none."
+    return case
+
+
+for _code in S13_REFUSED:
+    setattr(StoreMore, f"test_S13_refused_{_code}", s13_case(_code))

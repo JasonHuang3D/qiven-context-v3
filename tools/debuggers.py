@@ -13,13 +13,18 @@ each found and checked against its pin, and their output bounded.
   pin does.
 - hang_stacks(): every thread's stack of a running process, by the
   debugger attached without stopping it, and a dump of it; the watcher
-  writes them before it kills a case past its limit.
+  writes them before it kills a case past its limit. Its debugger is the
+  pinned one, but in a CI job on Windows (GitHub Actions' GITHUB_ACTIONS
+  "true", which the runner sets in every step), where the image keeps its
+  own tools: there the image's cdb, unpinned, named by its path and
+  version (image_cdb()), or Absent naming where it looked.
 
 Run by the pinned interpreter under -I, from its file (runpy): it imports
 nothing of this directory.
 """
 
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -37,6 +42,10 @@ HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
 HANG_SECONDS = 25.0  # the debugger's time, within the 30 s after the limit
 NO_GDB = "no gdb: none on PATH"
+# A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
+# workflows set no variable of their own that names CI.
+CI_VARIABLE = "GITHUB_ACTIONS"
+CDB_VERSION = re.compile(r"\bversion (\d+(?:\.\d+)+)")
 # A thread's header in cdb's ~*kn, and in gdb's thread apply all bt.
 CDB_THREAD = re.compile(r"^[.#]?\s*\d+\s+Id: [0-9a-f]+\.[0-9a-f]+ ")
 GDB_THREAD = re.compile(r"^Thread \d+ \(")
@@ -142,6 +151,50 @@ def find():
     return find_cdb() if WINDOWS else find_gdb()
 
 
+def on_ci():
+    """Whether this runs in a CI job: GITHUB_ACTIONS "true"."""
+    return os.environ.get(CI_VARIABLE) == "true"
+
+
+def image_cdb():
+    """A CI image's own cdb, unpinned: cdb on PATH, else the SDK's
+    Debuggers/x64/cdb.exe, the SDK's root WindowsSdkDir (vcvars sets it),
+    else the registry's KitsRoot10; (path, version) by its -version.
+    Absent naming where it looked; NotFound when its version cannot be
+    read."""
+    found = shutil.which("cdb")
+    if found is None:
+        sdk = os.environ.get("WindowsSdkDir")
+        root, how = (Path(sdk), "WindowsSdkDir") if sdk else (kits_root(), "the registry's KitsRoot10")
+        if root is None:
+            raise Absent("no cdb: none on PATH, and no Windows SDK: no WindowsSdkDir, the registry naming no "
+                         "KitsRoot10")
+        found = root / "Debuggers" / "x64" / "cdb.exe"
+        if not found.is_file():
+            raise Absent(f"no cdb: none on PATH, none at {found.as_posix()}, the SDK's root by {how}")
+    path = Path(found)
+    try:
+        done = subprocess.run([str(path), "-version"], capture_output=True, stdin=subprocess.DEVNULL, timeout=30,
+                              check=False)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise NotFound(f"{path.as_posix()} -version: {e}") from e
+    text = done.stdout.decode("utf-8", "replace")
+    version = CDB_VERSION.search(text)
+    if version is None:
+        raise NotFound(f"{path.as_posix()} -version gives no version: {text.strip()[:80]!r}")
+    return path, version.group(1)
+
+
+def hang_debugger():
+    """The hang's debugger: (path, how), how None for the pinned one
+    (find()); in a CI job on Windows the image's cdb (image_cdb()), how
+    naming its version and path."""
+    if WINDOWS and on_ci():
+        path, version = image_cdb()
+        return path, f"by the image's cdb {version} at {path.as_posix()}, unpinned (CI)"
+    return find(), None
+
+
 def module(binary):
     """cdb's name of a binary's module: its stem, each character other
     than a letter, a digit or _ as _."""
@@ -202,15 +255,15 @@ def stacks_of(lines):
 def hang_stacks(pid, binary, dumps):
     """Every thread's stack of the running process pid, its binary's
     symbols beside it, and its dump <binary>-<pid>-hang.dmp (.core) in
-    dumps when it is given: (threads, lines). NotFound when no debugger
-    is at hand or it cannot run."""
-    debugger = find()
+    dumps when it is given: (threads, lines, how), how hang_debugger()'s.
+    NotFound when no debugger is at hand or it cannot run."""
+    debugger, how = hang_debugger()
     dump = hang_dump(pid, binary, dumps)
     try:
         done = subprocess.run(hang_command(debugger, pid, binary, dump), capture_output=True,
                               stdin=subprocess.DEVNULL, timeout=HANG_SECONDS, check=False)
     except subprocess.TimeoutExpired as e:
-        return hang_lines((e.stdout or b"").decode("utf-8", "replace"))
+        return (*hang_lines((e.stdout or b"").decode("utf-8", "replace")), how)
     except OSError as e:
         raise NotFound(f"{Path(debugger).name}: {e}") from e
-    return hang_lines(done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace"))
+    return (*hang_lines(done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")), how)
