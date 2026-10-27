@@ -26,8 +26,8 @@ preset's binaryDir; a directory CI names is replaced. Each preset's
 binaryDir is read from CMakePresets.json.
 
 Run by tools/loop.py, given tools/loop_jobs.py's names (runpy's
-init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, TIER2_STEPS,
-SUITES, TIMED_ONLY, CLEAN, FUZZ_TIMED.
+init_globals): JOBS, JOB_ENV, Step, TREES, READS, TIER1, TIER1_STEPS,
+TIER2_STEPS, SUITES, TIMED_ONLY, CLEAN, FUZZ_TIMED.
 """
 
 import json
@@ -43,12 +43,14 @@ class Unit:
     trees it owns, whether they are emptied and configured with --fresh,
     the steps whose tests affected() may narrow (every ctest step of tiers
     1 and 2), and the run's Selection (tools/loop_select.py), None outside
-    a run, with each narrowed step's note."""
+    a run, with each narrowed step's note; and the job's own environment
+    over its system's (JOB_ENV), which its steps run under."""
 
-    __slots__ = ("name", "system", "steps", "map", "trees", "fresh", "narrow", "way", "select", "notes")
+    __slots__ = ("name", "system", "steps", "map", "trees", "fresh", "narrow", "way", "select", "notes", "env")
 
     def __init__(self, name, system, steps, way, presets):
         self.name, self.system, self.steps, self.way = name, system, list(steps), way
+        self.env = dict(JOB_ENV.get(name, {}))
         own = TREES.get(name, {})
         self.map = {**own, **READS.get(name, {})}
         self.fresh = way == "3"

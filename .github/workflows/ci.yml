@@ -80,7 +80,11 @@ jobs:
   windows:
     name: ${{ matrix.job }}
     runs-on: windows-latest
-    timeout-minutes: 45
+    # Each entry's time limit and ctest's parallel level, over the workflow's
+    # 4. windows-asan runs ctest at 2: at 4 it stalled 40 to 50 s with no case
+    # finished, all four slots holding store_sqlite fault parts, on that job
+    # alone. windows-analysis has 60 minutes: it came within one of 45.
+    timeout-minutes: ${{ matrix.minutes }}
     strategy:
       fail-fast: false
       matrix:
@@ -88,13 +92,23 @@ jobs:
           - job: windows-msvc
             preset: ci-windows
             clean: true
+            parallel: 4
+            minutes: 45
           - job: windows-asan
             preset: ci-asan
+            parallel: 2
+            minutes: 45
           - job: windows-stack
             preset: ci-stack
+            parallel: 4
+            minutes: 45
           - job: windows-analysis
             preset: ci-analysis
             analysis: true
+            parallel: 4
+            minutes: 60
+    env:
+      CTEST_PARALLEL_LEVEL: ${{ matrix.parallel }}
     defaults:
       run:
         shell: pwsh

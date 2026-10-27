@@ -41,7 +41,8 @@ which the suite reads and never owns.
 Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
 
-# The environment CI's jobs set, by system (ci.yml's and msan.yml's env).
+# The environment CI's jobs set, by system (ci.yml's and msan.yml's env),
+# then by job (JOB_ENV); the loop sets a job's both on each of its steps.
 ENV = {
     "windows": {"CTEST_PARALLEL_LEVEL": "4"},
     "linux": {
@@ -52,6 +53,9 @@ ENV = {
         "MSAN_OPTIONS": "halt_on_error=1",
     },
 }
+# A job's own, over its system's: ci.yml's matrix entry's. windows-asan runs
+# ctest at 2, where four store_sqlite fault parts at once stalled it.
+JOB_ENV = {"windows-asan": {"CTEST_PARALLEL_LEVEL": "2"}}
 
 # The shell CI's Linux steps run in, before its bash: address-space
 # randomisation off for the step's own processes (setarch -R), the

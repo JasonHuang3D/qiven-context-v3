@@ -43,7 +43,7 @@ WIDTH = 400  # a tail line's characters at most
 # report.
 ERROR_LINE = re.compile(r"\berror( [A-Z]+\d+)?:|\bwarning C\d+:|^FAILED: |CMake Error|\*\*\*(Failed|Exception|Timeout)"
                         r"|tests FAILED|^Traceback |^[\w.]*(Error|Exception): |^(FAIL|ERROR): |Sanitizer:")
-STEP_TIMEOUT = 45 * 60  # CI's job limit
+STEP_TIMEOUT = 45 * 60  # CI's least job limit (windows-analysis's and linux-msan's are 60)
 TREE_MARK = ".qiven3-loop-job"
 KEEP = ("fuzz/*/corpus",)  # kept through emptying, relative to the tree
 LOOP_WHO = ("qiven3 loop", "loop@localhost")  # the author and committer git_env names for the loop's tools
@@ -320,7 +320,8 @@ def drive(report, units, root, logs, command, env, phase="test", pins=None):
     step) giving each step's argv; with the unit's Selection
     (tools/loop_select.py), the checkout's files read as it begins, told
     which trees were emptied and why, and each step that passed recorded.
-    Returns (passed, failed, skipped)."""
+    Each step runs under env with the unit's own over it (its env, CI's
+    job-level values). Returns (passed, failed, skipped)."""
     counts = [0, 0, 0]
     for unit in units:
         emptied = {tree: own_tree(report, root, root / tree, unit.name, unit.fresh, pins) for tree in unit.trees}
@@ -328,7 +329,7 @@ def drive(report, units, root, logs, command, env, phase="test", pins=None):
         if select is not None:
             select.start(unit, {tree: why for tree, why in emptied.items() if why})
         got = run_steps(report, unit.name, unit.steps, phase, lambda step, unit=unit: command(unit, step),
-                        logs / unit.name, root, env, getattr(unit, "notes", None),
+                        logs / unit.name, root, {**env, **getattr(unit, "env", {})}, getattr(unit, "notes", None),
                         None if select is None else lambda step, unit=unit, select=select: select.passed(unit, step))
         counts = [a + b for a, b in zip(counts, got)]
     return counts

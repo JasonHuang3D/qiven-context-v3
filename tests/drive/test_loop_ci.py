@@ -1,9 +1,11 @@
-"""The loop's jobs against CI's: tools/loop_jobs.py's JOBS, ENV and
+"""The loop's jobs against CI's: tools/loop_jobs.py's JOBS, ENV, JOB_ENV and
 LINUX_SHELL, read against .github/workflows/ci.yml and msan.yml, so that the
 loop and CI cannot drift. Each job of the workflows but macOS's is the
 loop's, by the same preset; each step of a job that runs a preset's build or
 reads its tree is the loop's step, in CI's order, with CI's command; the
-sanitizers' options, CTest's parallel level and the Linux shell are CI's.
+sanitizers' options, CTest's parallel level and the Linux shell are CI's,
+each job's environment its own, matrix values read, as drive gives it to
+the job's steps; the loop's step limit is CI's least job limit.
 The pins are the loop's alone, as its additions to CI's configure: the
 pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop.py), and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
@@ -30,6 +32,7 @@ import re
 import shlex
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -151,20 +154,28 @@ def guard_findings(text):
     return found
 
 
+def expand(value, matrix):
+    """A value with each ${{ matrix.NAME }} replaced by the matrix entry's."""
+    return re.sub(r"\$\{\{ *matrix\.(\w+) *\}\}", lambda m: matrix[m.group(1)], value)
+
+
 def ci_jobs():
-    """{job: (preset, [commands], env)} of both workflows."""
+    """{job: (preset, [commands], env, minutes)} of both workflows, each
+    matrix value read from the job's entry."""
     jobs = {}
     for name in ("ci.yml", "msan.yml"):
         lines = (WORKFLOWS / name).read_text(encoding="utf-8").splitlines()
         top = blocks(lines, 0)
         top_env = env_of(top.get("env", []), 2)
         for job_name, job_lines in blocks(top["jobs"][1:], 2).items():
-            job_env = dict(top_env, **env_of(blocks(job_lines[1:], 4).get("env", []), 6))
+            keys = blocks(job_lines[1:], 4)
+            job_env = dict(top_env, **env_of(keys.get("env", []), 6))
+            limit = keys.get("timeout-minutes", [":"])[0].split(":", 1)[1].strip()
             text = "\n".join(job_lines)
             if "include:" in text:
                 matrices, current = [], None
                 for line in job_lines:
-                    m = re.match(r"^ +(- )?(job|preset|clean|analysis): (.*)$", line)
+                    m = re.match(r"^ +(- )?(job|preset|clean|analysis|parallel|minutes): (.*)$", line)
                     if m and m.group(1):
                         current = {}
                         matrices.append(current)
@@ -179,7 +190,8 @@ def ci_jobs():
                 matrices = [{"job": title, "preset": presets.pop() if len(presets) == 1 else title}]
             for matrix in matrices:
                 cmds = [c for s in steps_of(job_lines) if holds(s["if"], matrix) for c in commands(s, matrix)]
-                jobs[matrix["job"]] = (matrix["preset"], cmds, job_env)
+                jobs[matrix["job"]] = (matrix["preset"], cmds, {k: expand(v, matrix) for k, v in job_env.items()},
+                                       expand(limit, matrix))
     return jobs
 
 
@@ -385,16 +397,48 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual([n for n, u in two.items() if drive in u.steps], ["windows-msvc"])
 
     def test_environment(self):
+        """Each job's environment in the loop, its system's with its unit's
+        own over it, equals the job's in the workflows, matrix values read:
+        CTest's parallel level and the sanitizers' options; a job's own
+        names only what CI sets on it."""
+        self.assertLessEqual(set(self.loop.TABLE["JOB_ENV"]), set(self.ci_jobs()))
         for name, (system, _, _) in self.ci_jobs().items():
             ci_env = self.ci[name][2]
-            for key, value in self.loop.ENV[system].items():
-                if key in ci_env:
-                    with self.subTest(job=name, key=key):
-                        self.assertEqual(value, ci_env[key])
+            unit, = self.loop.plan("test", system, [name])
+            env = {**self.loop.ENV[system], **unit.env}
+            for key, value in env.items():
+                with self.subTest(job=name, key=key):
+                    if key in ci_env or key in unit.env:
+                        self.assertEqual(value, ci_env.get(key))
             for key in ci_env:
                 if key.endswith("_OPTIONS") or key == "CTEST_PARALLEL_LEVEL":
                     with self.subTest(job=name, key=key):
-                        self.assertIn(key, self.loop.ENV[system])
+                        self.assertIn(key, env)
+
+    def test_steps_take_the_jobs_environment(self):
+        """drive runs each unit's steps under the system's environment with
+        the unit's own over it, each unit's its own; a job with one is among
+        them, the case's control."""
+        seen, given = {}, {"CTEST_PARALLEL_LEVEL": "the system's", "KEPT": "1"}
+
+        def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, passed=None):
+            seen[job] = dict(env)
+            return [0, 0, 0]
+
+        for system in ("windows", "linux"):
+            units = self.loop.plan("test", system, [n for n, j in self.ci_jobs().items() if j[0] == system])
+            with mock.patch.dict(self.loop.drive.__globals__, run_steps=run_steps, own_tree=lambda *args: None):
+                self.loop.drive(None, units, ROOT, ROOT / "build" / "loop", None, dict(given))
+            for unit in units:
+                with self.subTest(job=unit.name):
+                    self.assertEqual(seen[unit.name], {**given, **self.loop.TABLE["JOB_ENV"].get(unit.name, {})})
+        self.assertEqual(set(seen), set(self.ci_jobs()))
+        self.assertTrue(any(env != given for env in seen.values()))
+
+    def test_step_limit(self):
+        """The loop's step limit is CI's least job limit."""
+        limits = {name: int(self.ci[name][3]) for name in self.ci_jobs()}
+        self.assertEqual(self.loop.RUN["STEP_TIMEOUT"], min(limits.values()) * 60, limits)
 
     def test_every_job_runs(self):
         """No job of either workflow is kept off a dispatch."""
@@ -433,7 +477,9 @@ class LoopAgainstCI(unittest.TestCase):
                       self.ci["linux-msan"][1])
         self.assertEqual(self.ci["linux-gcc"][2]["TSAN_OPTIONS"], "halt_on_error=1:second_deadlock_stack=1")
         self.assertEqual(self.ci["linux-msan"][2]["MSAN_OPTIONS"], "halt_on_error=1")
-        self.assertTrue(all(len(c) >= 3 for c in self.ci.values()))
+        self.assertTrue(all(len(c) >= 4 for c in self.ci.values()))
+        self.assertTrue(all(re.fullmatch(r"[1-9]\d*", c[2]["CTEST_PARALLEL_LEVEL"]) for c in self.ci.values()))
+        self.assertTrue(all(re.fullmatch(r"[1-9]\d*", c[3]) for c in self.ci.values()))
         self.assertTrue(all(len(c[1]) >= 3 for c in self.ci.values()))
 
 
