@@ -33,9 +33,11 @@ TYPED = ("store", "memory", "platform")
 # every job, as store_sqlite.create_refused's: each part's first point, a
 # pass of KINDS by its place and its k; a part runs the points from its own
 # up to the next part's, the last to its pass's completing create. The
-# platform's, the arena's and the engine calls' to k 47; the engine calls'
-# from k 48; the engine heap's 50 k a part.
-S28_PARTS = ((0, 1), (2, 48), *((3, k) for k in range(1, 602, 50)))
+# platform's, the arena's and the engine calls' to k 23; the engine calls'
+# from k 24, 48 and 71; the engine heap's 25 k a part: half the stretches
+# a CI Windows job ran in up to 28.2 s, so that each part takes 20 s or
+# under there.
+S28_PARTS = ((0, 1), (2, 24), (2, 48), (2, 71), *((3, k) for k in range(1, 627, 25)))
 
 
 def s28_range(part, kind):

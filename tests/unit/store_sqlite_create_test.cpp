@@ -1,5 +1,5 @@
 // store/sqlite's refused create, on the fake over a scratch directory of
-// the case's own. create_refused, in parts (create_refused_part1 to _part15,
+// the case's own. create_refused, in parts (create_refused_part1 to _part36,
 // support/faults/parts.hpp), each within 30 s on every job: four passes,
 // each refusing in turn every call of one kind a create makes: the fake's
 // platform calls, the store's arena allocations, the engine calls the
@@ -320,14 +320,27 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, qiven3::test::
 }
 
 // The passes in order: the platform's calls, the arena's allocations, the
-// engine calls, the engine heap's allocations. The parts' first points:
-// the first three passes, the engine calls' from k 48 in a part of their
-// own, then the engine heap's 50 k a part, the last to its completing run
-// (650 on Windows, 640 on Linux); each part within 30 s on every job.
+// engine calls, the engine heap's allocations. The parts' first points, a
+// row a stretch: the first two passes and the engine calls to k 47; the
+// engine calls from k 48; the engine heap's 50 k a stretch, the last to its
+// completing run (650 on Windows, 640 on Linux). Each stretch is cut in
+// even parts by the slowest seconds a CI Windows job ran it in (beside it),
+// so that each part takes 20 s or under there, within 30 s on every job.
 constexpr std::array<Kind, 4> kinds = {Kind::platform, Kind::arena, Kind::call, Kind::heap};
-constexpr qiven3::test::FaultParts<15> parts{{{{0, 1}, {2, 48}, {3, 1}, {3, 51}, {3, 101}, {3, 151}, {3, 201},
-                                              {3, 251}, {3, 301}, {3, 351}, {3, 401}, {3, 451}, {3, 501},
-                                              {3, 551}, {3, 601}}}};
+constexpr qiven3::test::FaultParts<36> parts{{{
+    {0, 1}, {2, 13}, {2, 31},                                    // 42.0 s
+    {2, 48}, {2, 71},                                            // 27.3 s
+    {3, 1},                                                      // 16.8 s
+    {3, 51},                                                     // 19.8 s
+    {3, 101}, {3, 126}, {3, 151}, {3, 176},                      // 23.7, 25.6 s
+    {3, 201}, {3, 226}, {3, 251}, {3, 276},                      // 26.7, 25.6 s
+    {3, 301}, {3, 310}, {3, 319}, {3, 327}, {3, 335}, {3, 343},  // 82.9 s
+    {3, 351}, {3, 368}, {3, 385},                                // 42.2 s
+    {3, 401}, {3, 418}, {3, 435},                                // 40.9 s
+    {3, 451}, {3, 468}, {3, 485},                                // 39.9 s
+    {3, 501}, {3, 526}, {3, 551}, {3, 576},                      // 22.9, 22.5 s
+    {3, 601}, {3, 626},                                          // 23.3 s
+}}};
 static_assert(parts.whole());
 
 void create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
@@ -464,3 +477,24 @@ QIVEN3_FAULT_PART(store_sqlite, create_refused, 12, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 13, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 14, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 15, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 16, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 17, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 18, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 19, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 20, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 21, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 22, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 23, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 24, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 25, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 26, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 27, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 28, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 29, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 30, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 31, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 32, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 33, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 34, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 35, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 36, create_part)

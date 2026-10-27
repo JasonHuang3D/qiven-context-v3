@@ -209,14 +209,24 @@ constexpr std::array<Kind, 1> heap_kind = {Kind::heap};
 // Each case's parts by their first points, pass and k (passes() numbers the passes), each part within 30 s on
 // every job. init: the platform calls' passes; the arenas'; the engine calls' of init new from k 1, 34 and 67;
 // the rest. change: the platform calls' passes; the command arena's of show, change same and change new; the
-// rest to change new's engine calls, from k 1, 34 and 67; the rest and store_dir's (pass 20). init's create
-// under the engine heap: 41 k a part, the last to its completing run (652 on Windows, 640 on Linux).
+// rest to change new's engine calls, from k 1, 34 and 67 (67 to its completing run, 99, in three); the rest and
+// store_dir's (pass 20). init's create under the engine heap: 41 k a stretch, the last to its completing run
+// (652 on Windows, 640 on Linux). A stretch a CI Windows job ran in over 20 s (its slowest seconds beside it)
+// is cut in even parts, each taking 20 s or under there.
 constexpr qiven3::test::FaultParts<6> init_parts{{{{0, 1}, {4, 1}, {12, 1}, {12, 34}, {12, 67}, {13, 1}}}};
-constexpr qiven3::test::FaultParts<7> change_parts{
-    {{{0, 1}, {5, 1}, {8, 1}, {17, 1}, {17, 34}, {17, 67}, {18, 1}}}};
-constexpr qiven3::test::FaultParts<16> heap_create_parts{
-    {{{0, 1}, {0, 42}, {0, 83}, {0, 124}, {0, 165}, {0, 206}, {0, 247}, {0, 288}, {0, 329}, {0, 370}, {0, 411},
-      {0, 452}, {0, 493}, {0, 534}, {0, 575}, {0, 616}}}};
+constexpr qiven3::test::FaultParts<9> change_parts{
+    {{{0, 1}, {5, 1}, {8, 1}, {17, 1}, {17, 34}, {17, 67}, {17, 78}, {17, 89}, {18, 1}}}};  // 17, 67: 46.0 s
+constexpr qiven3::test::FaultParts<23> heap_create_parts{{{
+    {0, 1}, {0, 22},                           // 27.7 s
+    {0, 42}, {0, 83},                          // 14.3, 19.2 s
+    {0, 124}, {0, 145},                        // 20.4 s
+    {0, 165}, {0, 206}, {0, 247}, {0, 288},    // 19.0, 19.1, 17.7, 18.3 s
+    {0, 329},                                  // 18.6 s
+    {0, 370}, {0, 384}, {0, 398},              // 46.3 s
+    {0, 411}, {0, 425}, {0, 439},              // 45.5 s
+    {0, 452}, {0, 473},                        // 28.6 s
+    {0, 493}, {0, 534}, {0, 575}, {0, 616},    // 19.3, 19.4, 19.1, 19.4 s
+}}};
 static_assert(init_parts.whole() && change_parts.whole() && heap_create_parts.whole());
 
 void init_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
@@ -261,6 +271,8 @@ QIVEN3_FAULT_PART(location, faults_change, 4, change_part)
 QIVEN3_FAULT_PART(location, faults_change, 5, change_part)
 QIVEN3_FAULT_PART(location, faults_change, 6, change_part)
 QIVEN3_FAULT_PART(location, faults_change, 7, change_part)
+QIVEN3_FAULT_PART(location, faults_change, 8, change_part)
+QIVEN3_FAULT_PART(location, faults_change, 9, change_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 1, heap_create_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 2, heap_create_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 3, heap_create_part)
@@ -277,3 +289,10 @@ QIVEN3_FAULT_PART(location, faults_heap_create, 13, heap_create_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 14, heap_create_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 15, heap_create_part)
 QIVEN3_FAULT_PART(location, faults_heap_create, 16, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 17, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 18, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 19, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 20, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 21, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 22, heap_create_part)
+QIVEN3_FAULT_PART(location, faults_heap_create, 23, heap_create_part)
