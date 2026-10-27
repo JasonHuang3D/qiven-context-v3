@@ -10,6 +10,7 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "support/fake_platform/fake_platform.hpp"
 
@@ -232,14 +233,34 @@ Error FakeFiles::open_staged(const Dir& dir, std::string_view path, File& out) {
     } catch (const std::bad_alloc&) {
         return files::general;
     }
+    // Its parents, each made unless present: those absent, the deepest
+    // first. A failure removes those made, so that a failed open makes
+    // nothing (938); the file's open is a fault point, as the adapter's.
     std::error_code error;
+    std::vector<fs::path> absent;
+    for (fs::path parent = made.parent_path();
+         parent != staging->second.temporary && !fs::exists(parent, error) && !error; parent = parent.parent_path()) {
+        absent.push_back(parent);
+    }
+    const auto failing = [&](Error failed) {
+        for (const fs::path& parent : absent) {
+            std::error_code left;
+            if (!fs::remove(parent, left) && left) {
+                break;
+            }
+        }
+        return failed;
+    };
     fs::create_directories(made.parent_path(), error);
     if (error) {
-        return win32(error, files::already_exists);
+        return failing(win32(error, files::already_exists));
+    }
+    if (faulted()) {
+        return failing(files::general);
     }
     const Error opened = open_new(made, record.mapped().stream);
     if (opened != files::none) {
-        return opened;
+        return failing(opened);
     }
     out.id = state_->next = id;
     state_->open.insert(std::move(record));

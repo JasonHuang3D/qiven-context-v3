@@ -2,6 +2,7 @@
 # built on every system; its files' system calls under files' retries;
 # its seed blocks.
 add_library(qiven3_platform_fake STATIC
+  fake_echo.cpp
   fake_files.cpp
   fake_files.hpp
   fake_platform.cpp

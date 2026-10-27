@@ -209,8 +209,8 @@ Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
 }
 
 // Each program by its whole argv: its "lines" (each given LF), "err",
-// exit "code", whether it "hang"s, and the stream it "flood"s, "out" or
-// "err"; the earlier ones dropped.
+// exit "code", whether it "hang"s, the stream it "flood"s, "out" or "err",
+// and what it "echo"es, "cwd" or "env"; the earlier ones dropped.
 Result set_programs(Drive& d, memory::Arena&, ArgView request) {
     std::map<std::vector<std::string>, platform::fake::Program> programs;
     for (const ArgView item : argument(request, "programs").as_array("programs")) {
@@ -226,6 +226,10 @@ Result set_programs(Drive& d, memory::Arena&, ArgView request) {
         program.flood = item.find("flood") ? text(item, "flood") : std::string();
         if (!program.flood.empty() && program.flood != "out" && program.flood != "err") {
             throw RequestError("flood: out or err");
+        }
+        program.echo = item.find("echo") ? text(item, "echo") : std::string();
+        if (!program.echo.empty() && program.echo != "cwd" && program.echo != "env") {
+            throw RequestError("echo: cwd or env");
         }
         programs.insert_or_assign(ops::strings(item, "argv"), std::move(program));
     }

@@ -40,7 +40,12 @@ struct Program {
     int code = 0;                    // its exit code
     bool hang = false;               // never ends: the call is deadline
     std::string flood;               // "out" or "err": past any cap, output naming it
+    std::string echo;                // "cwd" or "env": its lines its command's (fake_echo.cpp)
 };
+
+// A program's lines as it runs under command: its own, or, for one that
+// echoes, its command's cwd or environment (fake_echo.cpp).
+std::vector<std::string> echoed(const Program& program, const Command& command);
 
 // The fake's stream: UTF-8 bytes as given, or ASCII, each code point above
 // U+007F one '?'. An invalid UTF-8 byte is one '?' in either.

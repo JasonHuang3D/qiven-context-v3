@@ -172,26 +172,48 @@ files::Error WindowsFiles::open_staged(const Dir& dir, std::string_view path, Fi
     }
     const std::size_t end = n + m;
     std::replace(a.begin() + static_cast<std::ptrdiff_t>(n), a.begin() + static_cast<std::ptrdiff_t>(end), L'/', L'\\');
-    // Its parents, each made unless present.
+    // Its parents, each made unless present; once one is made, each below
+    // it is. A failure removes those made, the deepest first, so that a
+    // failed open makes nothing (938); a removal failing stops there, its
+    // rest left to discard.
+    // The separators after the first parent made and after the last; none
+    // made, first past last.
+    std::size_t first_made = end;
+    std::size_t last_made = 0;
+    const auto failing = [&](DWORD error) {
+        for (std::size_t at = last_made + 1; at-- > first_made;) {
+            if (a[at] != L'\\') {
+                continue;
+            }
+            a[at] = L'\0';
+            if (faulted() || RemoveDirectoryW(a.data()) == FALSE) {
+                break;
+            }
+        }
+        return error;
+    };
     for (std::size_t at = n; at < end; ++at) {
         if (a[at] != L'\\') {
             continue;
         }
         a[at] = L'\0';
         if (faulted()) {
-            return ERROR_GEN_FAILURE;
+            return failing(ERROR_GEN_FAILURE);
         }
-        if (CreateDirectoryW(a.data(), nullptr) == FALSE && GetLastError() != ERROR_ALREADY_EXISTS) {
-            return GetLastError();
+        if (CreateDirectoryW(a.data(), nullptr) != FALSE) {
+            first_made = std::min(first_made, at);
+            last_made = at;
+        } else if (GetLastError() != ERROR_ALREADY_EXISTS) {
+            return failing(GetLastError());
         }
         a[at] = L'\\';
     }
     if (faulted()) {
-        return ERROR_GEN_FAILURE;
+        return failing(ERROR_GEN_FAILURE);
     }
     void* file = CreateFileW(a.data(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE) {
-        return GetLastError();
+        return failing(GetLastError());
     }
     *slot = Slot{file, dir.id, ++serial_};
     out.serial = slot->file;

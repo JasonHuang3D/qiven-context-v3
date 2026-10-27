@@ -15,6 +15,13 @@ the files', its holder the binding's hold() (contract/platform_files.py),
 timed where P20 runs; its child half's two init runs are qiven3-child
 platform init's, each location's init on the adapter. P11's supervisor is
 a drive holding the tree, killed by the test.
+
+The readings where the text is silent run on every adapter, the fake's
+programs echoing their command as the child's forms print it: an empty
+cwd is v3's own working directory; a caller's environment pair replaces
+the allowlist's entry of the same name; read_line and wait past their
+timeout answer deadline and leave the tree running, which the Child's end
+stops.
 """
 
 import json
@@ -41,8 +48,9 @@ ALLOWLIST = ("SystemRoot", "SystemDrive", "TEMP", "TMP")
 GONE, LONG = 1.0, 60000
 DEADLINE, TREE_DEADLINE = 1000, 6000
 CAP, FLOOD = 4096, 100000
-# The child's lines: a timeout, in ms, past a slow start here.
-LINE_TIMEOUT = 30000
+# The child's lines: a timeout, in ms, past a slow start here; one a
+# sleeping child is past.
+LINE_TIMEOUT, SHORT = 30000, 200
 # P20's lock half, timed: the holder's 3 counts of 50 ms; the deadline
 # past which busy, its slack; in seconds.
 HELD, PAST, SLACK = 0.15, 0.3, 1.0
@@ -336,6 +344,74 @@ class PlatformProcess:
         while (line := d.call("child_read_line", id=child, timeout=LINE_TIMEOUT)) is not None:
             out.append(bytes.fromhex(line).decode().rstrip("\n"))
         return out
+
+    def echo(self, d, form, *args):
+        """The argv of a program printing its cwd or its environment, as
+        qiven3-child platform's form of that name: on the fake its program
+        echoing it (set_programs' "echo"), elsewhere the child."""
+        if self.ADAPTER == "fake":
+            return programs(self, d, echo={"echo": form, "args": args})["echo"]
+        self.child_half(f"a child printing its {form}")
+        return self.child(form, *args)
+
+    def test_cwd(self):
+        """An empty cwd: the program runs in v3's own working directory; a
+        given one: in it; by run and by start, on every adapter."""
+        own, given = self.files_root() / "own", self.files_root() / "given"
+        own.mkdir()
+        given.mkdir()
+        with self.drive(cwd=str(own)) as d:
+            argv = self.echo(d, "cwd")
+            for cwd, where in (("", own), (str(given), given)):
+                with self.subTest(cwd=cwd):
+                    ran = d.call("run", argv=argv, cwd=cwd)
+                    (line,) = bytes.fromhex(ran["out"]).decode().splitlines()
+                    self.assertTrue(os.path.samefile(line, where), (line, where))
+                    child = d.call("start", argv=argv, cwd=cwd)["id"]
+                    (line,) = self.lines(d, child, 1)
+                    self.assertTrue(os.path.samefile(line, where), (line, where))
+                    d.call("child_end", id=child)
+
+    def test_environment_replaced(self):
+        """A caller's pair of an allowlist name, ASCII letters folded,
+        replaces v3's own entry of that name: the name once, the caller's
+        value; the allowlist's other names v3's own holds kept, nothing
+        else; on every adapter."""
+        env = {**os.environ, "TEMP": os.environ.get("TEMP") or str(self.files_root())}
+        pairs = [["TEMP", str(self.files_root() / "temp")], ["tmp", "a tmp"]]
+        held = {name.casefold() for name in env}
+        own = [n.casefold() for n in ALLOWLIST if n.casefold() in held]
+        with self.drive(env=env) as d:
+            argv = self.echo(d, "env", "TEMP", "TMP")
+            ran = d.call("run", argv=argv, env=pairs)
+        lines = bytes.fromhex(ran["out"]).decode().splitlines()
+        self.assertEqual(sorted(n.casefold() for n in lines[:-2]), sorted({*own, "temp", "tmp"}), lines)
+        self.assertEqual(lines[-2:], [f"TEMP={pairs[0][1]}", f"TMP={pairs[1][1]}"])
+
+    def test_past_timeout(self):
+        """read_line and wait past their timeout: deadline, the tree left
+        running, each again; then the Child's end stops it. On the fake its
+        hanging program; elsewhere qiven3-child's sleep, its process
+        running after the timeouts and gone after the end."""
+        with self.drive() as d:
+            if self.ADAPTER == "fake":
+                argv = programs(self, d, sleeper={"lines": ["pid 0"], "hang": True})["sleeper"]
+            else:
+                self.child_half("a child past read_line's and wait's timeouts")
+                argv = self.child("sleep", LONG)
+            child = d.call("start", argv=argv, deadline=LONG)["id"]
+            (line,) = self.lines(d, child, 1)
+            pid = int(line.split()[1])
+            for op in ("child_read_line", "child_wait") * 2:
+                with self.subTest(op=op):
+                    error = self.failure(d.call, op, id=child, timeout=SHORT)
+                    self.assert_platform_error(error, "deadline")
+            if self.ADAPTER != "fake":
+                ran = d.call("run", argv=self.child("gone", pid, 0))
+                self.assertEqual(bytes.fromhex(ran["out"]), b"running\n", pid)
+            d.call("child_end", id=child)
+            if self.ADAPTER != "fake":
+                self.assert_gone(d, pid)
 
     def test_child_memory(self):
         """Each Child request within the member's budget, nothing left on its

@@ -125,6 +125,46 @@ std::string_view program_fault(std::string_view first) {
     return end == ".cmd" || end == ".bat" ? "argv[0] is a .cmd or a .bat: no shell runs it" : "";
 }
 
+bool utf8(std::string_view text) {
+    for (std::size_t at = 0; at < text.size();) {
+        if (!code_point(text, at)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// The command's cwd and environment refused as the Windows adapter refuses
+// them, start: a cwd not UTF-8, not absolute or no directory; a pair's name
+// empty or holding '=' or a null, its value a null, or either not UTF-8.
+void command_fault(const Command& command, std::string_view operation) {
+    if (!command.cwd.empty()) {
+        if (!utf8(command.cwd)) {
+            fail(Code::start, operation, "cwd is not UTF-8");
+        }
+        const fs::path cwd = to_path(command.cwd);
+        std::error_code error;
+        if (!cwd.is_absolute()) {
+            fail(Code::start, operation, "cwd is not absolute");
+        }
+        if (!fs::is_directory(cwd, error)) {
+            fail(Code::start, operation, "cwd is no directory");
+        }
+    }
+    for (const auto& pair : command.env) {
+        const std::string_view name = pair.first;
+        const std::string_view value = pair.second;
+        if (name.empty() || name.find_first_of(std::string_view("=\0", 2)) != std::string_view::npos ||
+            value.find('\0') != std::string_view::npos) {
+            fail(Code::start, operation,
+                 "an environment name empty or holding '=' or a null, or a value holding a null");
+        }
+        if (!utf8(name) || !utf8(value)) {
+            fail(Code::start, operation, "an environment pair is not UTF-8");
+        }
+    }
+}
+
 std::string joined(const Program& program) {
     std::string out;
     for (const std::string& line : program.lines) {
@@ -433,6 +473,7 @@ const Program& FakePlatform::find(const Command& command, std::string_view opera
     if (!fault.empty()) {
         fail(Code::start, operation, fault);
     }
+    command_fault(command, operation);
     const std::vector<std::string> argv(command.argv.begin(), command.argv.end());
     const auto at = config_.programs.find(argv);
     if (at == config_.programs.end()) {
@@ -443,12 +484,15 @@ const Program& FakePlatform::find(const Command& command, std::string_view opera
 
 FakeChild FakePlatform::start(const Command& command) {
     record("start");
-    return FakeChild(find(command, "start"));
+    Program chosen = find(command, "start");
+    chosen.lines = echoed(chosen, command);
+    return FakeChild(std::move(chosen));
 }
 
 void FakePlatform::run(const Command& command, std::string_view, Ran& out) {
     record("run");
-    const Program& chosen = find(command, "run");
+    Program chosen = find(command, "run");
+    chosen.lines = echoed(chosen, command);
     if (!chosen.flood.empty()) {
         fail(Code::output, "run", chosen.flood);
     }

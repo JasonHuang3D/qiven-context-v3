@@ -2,7 +2,8 @@
 (contract/platform_cases.py names the binding's part): replace's and
 stage's files, through the drive's handles (driver/platform_files.hpp).
 
-Here: P9 (replace held), P19 (publish) and P25 (not UTF-8). A holder is
+Here: P9 (replace held), P19 (publish), P25 (not UTF-8) and a failed open
+making nothing, under faults (938). A holder is
 the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
@@ -11,9 +12,12 @@ discard's; on the Windows drive real handles (machine/windows_holds.py).
 The Windows adapter's replace, stage and lock are its module win/files'.
 """
 
+import itertools
 import os
 import re
 from pathlib import Path
+
+from tests.drive.session import debug_library, has_faults
 
 # replace's temporary file beside its target, and stage's directory.
 TEMPORARY = re.compile(r"\.(?P<name>.+)\.[0-9a-f]{16}\.tmp")
@@ -191,3 +195,41 @@ class PlatformFiles:
             self.nothing_kept(d)
         self.assertEqual(sorted(p.name for p in root.iterdir()), before)
         self.assertEqual(list(inside.iterdir()), [])
+
+    def test_open_failed(self):
+        """938: a Staged's open of a file two directories down, each of its
+        platform calls failed in turn: io (memory for a page's), and nothing left in the staging
+        directory, the parents made before the failure removed. Then its
+        file's own open failed, its parents made first, and one more file
+        opened and published: the published directory holds that file
+        alone. Built without QIVEN3_FAULTS, not applicable."""
+        self.needs("files")
+        if not has_faults() or debug_library():
+            self.skipTest("not applicable: a fault run needs QIVEN3_FAULTS and the release library")
+        bags = Path(self.files_root()) / "opened"
+        bags.mkdir()
+        deep = "a/b/c.txt"
+        with self.drive() as d:
+            staged = d.call("stage", path=str(bags))["id"]
+            (inside,) = staging_left(bags)
+            for k in itertools.count(1):
+                reply = d.reply("staged_open", id=staged, path=deep, fault={"k": k, "of": "platform"})
+                if not reply["fault"]["fired"]:
+                    break
+                with self.subTest(k=k):
+                    self.assertEqual(reply["error"]["kind"], "platform", reply)
+                    self.assertIn(reply["error"]["code"], ("io", "memory"), reply)
+                    self.assertEqual(list((bags / inside).iterdir()), [])
+            self.assertTrue(reply["ok"], reply)
+            self.assertIsNone(d.call("discard", id=staged))
+            # The last call failed is the file's own open, after its parents.
+            staged = d.call("stage", path=str(bags))["id"]
+            reply = d.reply("staged_open", id=staged, path=deep, fault={"k": k - 1, "of": "platform"})
+            self.assertEqual((reply["error"]["kind"], reply["error"]["code"]), ("platform", "io"), reply)
+            sink = d.call("staged_open", id=staged, path="kept.txt")["id"]
+            d.call("sink_write", id=sink, data=b"kept\n".hex())
+            self.assertIsNone(d.call("publish", id=staged, name="bag"))
+            self.nothing_kept(d)
+        self.assertEqual(sorted(p.relative_to(bags / "bag").as_posix() for p in (bags / "bag").rglob("*")),
+                         ["kept.txt"])
+        self.assertEqual(bag_of(bags / "bag"), {"kept.txt": b"kept\n"})

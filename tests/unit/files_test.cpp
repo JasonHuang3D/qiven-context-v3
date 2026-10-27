@@ -468,8 +468,8 @@ QIVEN3_CASE(files, faults) {
     };
     // record, random_bytes, write, rename.
     runs("files.replace", [&] { fake.replace(text(target), "new", five); }, 5);
-    // record, random_bytes, make, open and its record's insert, write,
-    // close, close_all, publish.
+    // record, random_bytes, make, open, its record's insert and its file's
+    // open, write, close, close_all, publish.
     runs("files.stage", [&] {
         std::error_code error;
         fs::remove_all(scratch.root / "bag", error);
@@ -478,7 +478,7 @@ QIVEN3_CASE(files, faults) {
         sink.write("{}\n");
         sink.close();
         stage.publish("bag", five);
-    }, 10);
+    }, 11);
     // record, open, try_lock.
     runs("files.lock", [&] { fake.lock(root + "/location.lock", five).release(); }, 4);
     // A lock's other error: io at once, not retried as a holder's.

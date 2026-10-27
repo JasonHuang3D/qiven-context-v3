@@ -5,6 +5,7 @@
 // - sleep MS: "pid <its id>" on out, then MS milliseconds asleep; exit 0.
 // - env [NAME...]: each name of its environment block a line, in the
 //   block's order; then each NAME given as "NAME=<value>", or "NAME unset".
+// - cwd: its working directory, a line.
 // - argv [ARG...]: each ARG a line, its UTF-8 bytes in hex, an empty ARG
 //   an empty line.
 // - flood out|err BYTES [MS]: BYTES bytes on the stream, lines of 63 'x'
@@ -315,6 +316,18 @@ int platform(std::span<const std::string_view> args) {
     if (what == "env") {
         return env(rest);
     }
+    if (what == "cwd") {
+        std::wstring here(32767, L'\0');
+        const DWORD n = rest.empty() ? GetCurrentDirectoryW(static_cast<DWORD>(here.size()), here.data()) : 0;
+        if (!rest.empty()) {
+            return wrong("cwd");
+        }
+        if (n == 0 || n >= here.size()) {
+            return failed("GetCurrentDirectoryW");
+        }
+        put(STD_OUTPUT_HANDLE, utf8(std::wstring_view(here.data(), n)) + "\n");
+        return 0;
+    }
     if (what == "argv") {
         for (const std::string_view arg : rest) {
             std::string line;
@@ -356,7 +369,7 @@ int platform(std::span<const std::string_view> args) {
     if (what == "init") {
         return init(rest);
     }
-    return wrong("sleep|env|argv|flood|print|cat|replace|tree|gone|init: an unknown form");
+    return wrong("sleep|env|cwd|argv|flood|print|cat|replace|tree|gone|init: an unknown form");
 }
 
 #else
