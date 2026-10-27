@@ -49,32 +49,32 @@ def distros(wsl):
 def snapshot(root):
     """A commit object of the working tree, untracked files included and
     ignored ones not, made from a copy of the index: the tree and its index
-    are not touched. HEAD itself when nothing differs."""
+    are not touched. HEAD itself when nothing differs. git runs under its
+    own environment (tools/loop_run.py's git_env), never the host's
+    config."""
     git = shutil.which("git")
     if not git:
         raise CannotRun("git is missing from PATH")
-
-    def ask(*argv, env=None):
-        status, text = capture([git, *argv], cwd=root, env=env)
-        if status != 0:
-            raise CannotRun(f"git {argv[0]}: {text.strip()[-200:]}")
-        return text.strip()
-
-    gitdir = Path(ask("rev-parse", "--absolute-git-dir"))
-    head = ask("rev-parse", "--verify", "HEAD")
     with tempfile.TemporaryDirectory(prefix="qiven3-loop-") as tmp:
+        own = git_env(tmp, *LOOP_WHO)
+
+        def ask(*argv, env=own):
+            status, text = capture([git, *argv], cwd=root, env=env)
+            if status != 0:
+                raise CannotRun(f"git {argv[0]}: {text.strip()[-200:]}")
+            return text.strip()
+
+        gitdir = Path(ask("rev-parse", "--absolute-git-dir"))
+        head = ask("rev-parse", "--verify", "HEAD")
         index = Path(tmp) / "index"
         if (gitdir / "index").is_file():
             shutil.copyfile(gitdir / "index", index)
-        env = dict(os.environ, GIT_INDEX_FILE=str(index))
-        ask("add", "-A", env=env)
-        tree = ask("write-tree", env=env)
-    if tree == ask("rev-parse", "HEAD^{tree}"):
-        return head
-    who = {"GIT_AUTHOR_NAME": "qiven3 loop", "GIT_AUTHOR_EMAIL": "loop@localhost",
-           "GIT_COMMITTER_NAME": "qiven3 loop", "GIT_COMMITTER_EMAIL": "loop@localhost"}
-    return ask("commit-tree", tree, "-p", head, "-m", "the loop's snapshot of the working tree",
-               env=dict(os.environ, **who))
+        with_index = dict(own, GIT_INDEX_FILE=str(index))
+        ask("add", "-A", env=with_index)
+        tree = ask("write-tree", env=with_index)
+        if tree == ask("rev-parse", "HEAD^{tree}"):
+            return head
+        return ask("commit-tree", tree, "-p", head, "-m", "the loop's snapshot of the working tree")
 
 
 def linux(args, report):
@@ -243,7 +243,8 @@ def earlier_clones(base):
 def sync(git, clone, source, commit):
     """The clone at the commit, fetched from the Windows checkout: build/
     kept, untracked files removed, a file whose content is the same left
-    untouched (git's checkout rewrites only what differs)."""
+    untouched (git's checkout rewrites only what differs). git runs under
+    its own environment (tools/loop_run.py's git_env)."""
     clone.mkdir(parents=True, exist_ok=True)
     steps = [] if (clone / ".git").is_dir() else [["init", "-q"]]
     # Protocol v2 serves an unadvertised commit; the option asks it of v0.
@@ -251,7 +252,9 @@ def sync(git, clone, source, commit):
                source, commit],
               ["checkout", "-q", "--force", "--detach", commit],
               ["clean", "-q", "-ffdx", "--exclude=/build/"]]
-    for argv in steps:
-        status, text = capture([git, *argv], cwd=clone)
-        if status != 0:
-            raise CannotRun(f"git {argv[0] if argv[0] != '-c' else 'fetch'} in {clone}: {text.strip()[-200:]}")
+    with tempfile.TemporaryDirectory(prefix="qiven3-loop-") as tmp:
+        own = git_env(tmp, *LOOP_WHO)
+        for argv in steps:
+            status, text = capture([git, *argv], cwd=clone, env=own)
+            if status != 0:
+                raise CannotRun(f"git {argv[0] if argv[0] != '-c' else 'fetch'} in {clone}: {text.strip()[-200:]}")

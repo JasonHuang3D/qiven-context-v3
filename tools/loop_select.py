@@ -41,6 +41,7 @@ import ast
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 RECORD = ".qiven3-loop-passed.json"
@@ -77,15 +78,25 @@ def shown(names):
 
 def blobs(root, git):
     """{path: blob id} of each file of the checkout, ignored ones apart, as
-    its working tree holds it; None when git cannot tell."""
+    its working tree holds it; None when git cannot tell. git runs under
+    its own environment (tools/loop_run.py's git_env)."""
+    if not git:
+        return None
+    try:
+        with tempfile.TemporaryDirectory(prefix="qiven3-loop-") as tmp:
+            return listed(root, git, git_env(tmp, *LOOP_WHO))
+    except OSError:
+        return None
+
+
+def listed(root, git, env):
+    """blobs() under git's own environment env."""
     def run(*argv, data=None):
-        done = subprocess.run([git, *argv], cwd=root, input=data, capture_output=True, timeout=300)
+        done = subprocess.run([git, *argv], cwd=root, input=data, capture_output=True, env=env, timeout=300)
         if done.returncode != 0:
             raise OSError(done.stderr.decode("utf-8", "replace").strip()[-200:])
         return done.stdout
 
-    if not git:
-        return None
     try:
         out = {}
         for entry in run("ls-files", "-s", "-z").split(b"\0"):

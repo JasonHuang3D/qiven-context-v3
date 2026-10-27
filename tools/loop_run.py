@@ -20,6 +20,7 @@ Loaded by runpy.run_path: under -I this directory is off sys.path.
 """
 
 import hashlib
+import os
 import re
 import runpy
 import shutil
@@ -45,6 +46,7 @@ ERROR_LINE = re.compile(r"\berror( [A-Z]+\d+)?:|\bwarning C\d+:|^FAILED: |CMake 
 STEP_TIMEOUT = 45 * 60  # CI's job limit
 TREE_MARK = ".qiven3-loop-job"
 KEEP = ("fuzz/*/corpus",)  # kept through emptying, relative to the tree
+LOOP_WHO = ("qiven3 loop", "loop@localhost")  # the author and committer git_env names for the loop's tools
 
 
 class CannotRun(Exception):
@@ -373,6 +375,35 @@ def sha256(path):
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def git_env(top, name, email):
+    """git's own environment, the loop's tools' and each case's
+    (tests/drive/own_git.py), so that git computes the same and succeeds
+    whatever the host's git config says: the inherited environment less
+    every GIT_ variable (a tool sets its own on purpose, a snapshot's
+    GIT_INDEX_FILE), git's system config and attributes off, its global
+    config, excludes and attributes each an empty file under top, a
+    scratch directory, hooks from an empty directory under it, and, in
+    git's command scope, which no config file overrides, each setting a
+    host's config could turn against it: core.autocrlf false (the
+    checkout's .gitattributes governs line endings), no fsmonitor, no
+    signing, the initial branch, and the author and committer named."""
+    top = Path(top)
+    empty, hooks = top / "gitconfig", top / "githooks"
+    empty.write_bytes(b"")
+    hooks.mkdir(exist_ok=True)
+    config = {"core.autocrlf": "false", "core.safecrlf": "false", "core.hooksPath": hooks.as_posix(),
+              "core.excludesFile": empty.as_posix(), "core.attributesFile": empty.as_posix(),
+              "core.fsmonitor": "false", "commit.gpgsign": "false", "tag.gpgsign": "false",
+              "init.defaultBranch": "main"}
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+    env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email,
+               GIT_CONFIG_NOSYSTEM="1", GIT_ATTR_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(empty),
+               GIT_CONFIG_COUNT=str(len(config)))
+    for i, (key, value) in enumerate(config.items()):
+        env[f"GIT_CONFIG_KEY_{i}"], env[f"GIT_CONFIG_VALUE_{i}"] = key, value
+    return env
 
 
 def capture(argv, **kw):

@@ -1,40 +1,29 @@
 """A git environment of a case's own: the case's git, and the git the code
 under test runs, read no inherited GIT_ variable, no system or global
-config and no system attributes file, and set in git's command scope,
-which no config file overrides, each setting a host's config could turn
-against a case: core.autocrlf false, hooks from an empty directory, no
-signing, the initial branch, and the author and committer named; so that
-a repository's commits and checkouts hold the same bytes, and its commands
-succeed, on every host, whatever the host's git config says (CI's Windows
-images set core.autocrlf=true in the system config)."""
+config and no system or global attributes or excludes file, and set in
+git's command scope, which no config file overrides, each setting a
+host's config could turn against a case: core.autocrlf false, hooks from
+an empty directory, no fsmonitor, no signing, the initial branch, and the
+author and committer named; so that a repository's commits and checkouts
+hold the same bytes, and its commands succeed, on every host, whatever
+the host's git config says (CI's Windows images set core.autocrlf=true in
+the system config). The environment is the loop's tools' own,
+tools/loop_run.py's git_env, with the case's identity."""
 
 import os
 import shutil
 import tempfile
-from pathlib import Path
 from unittest import mock
 
-WHO = {"GIT_AUTHOR_NAME": "case", "GIT_AUTHOR_EMAIL": "case@localhost",
-       "GIT_COMMITTER_NAME": "case", "GIT_COMMITTER_EMAIL": "case@localhost"}
+from tools.loop_run import git_env as tools_git_env
+
+WHO = ("case", "case@localhost")
 
 
 def git_env(top):
-    """The inherited environment less every GIT_ variable, git's system
-    config and attributes off, its global config an empty file under top,
-    a scratch directory, hooks from an empty directory under it, and the
-    command scope's settings."""
-    top = Path(top)
-    empty, hooks = top / "gitconfig", top / "githooks"
-    empty.write_bytes(b"")
-    hooks.mkdir(exist_ok=True)
-    config = {"core.autocrlf": "false", "core.safecrlf": "false", "core.hooksPath": hooks.as_posix(),
-              "commit.gpgsign": "false", "tag.gpgsign": "false", "init.defaultBranch": "main"}
-    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
-    env.update(WHO, GIT_CONFIG_NOSYSTEM="1", GIT_ATTR_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(empty),
-               GIT_CONFIG_COUNT=str(len(config)))
-    for i, (key, value) in enumerate(config.items()):
-        env[f"GIT_CONFIG_KEY_{i}"], env[f"GIT_CONFIG_VALUE_{i}"] = key, value
-    return env
+    """tools/loop_run.py's git_env under top, a scratch directory, the
+    author and committer the case's."""
+    return tools_git_env(top, *WHO)
 
 
 def own_git(case, top=None):
