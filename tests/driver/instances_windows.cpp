@@ -9,6 +9,13 @@
 // integers, since a request's text holds no lone surrogate. It answers
 // "argv", each argument's UTF-8 as hexadecimal, "argc", and "ended",
 // whether argv[argc] is null.
+//
+// For location's: store_dir, the recorded directory as "dir", or the
+// StoreError refusing it as "refused" (driver/store_wire.hpp's form), on
+// the member's arena, as the fake's drive answers it. Location's commands
+// themselves run here as the binary, qiven3 location ..., whose standard
+// output the case reads (contract/platform_location.py): the drive's own
+// stream stays its replies'.
 
 #include <cstdint>
 #include <span>
@@ -17,7 +24,10 @@
 #include <vector>
 
 #include "driver/platform_ops_impl.hpp"
+#include "driver/store_wire.hpp"
 #include "platform/current.hpp"
+#include "qiven3/location.hpp"
+#include "qiven3/location_impl.hpp"
 
 namespace qiven3::drive {
 
@@ -78,6 +88,19 @@ Result arguments(Drive&, memory::Arena& arena, ArgView request) {
     return value;
 }
 
+Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
+    memory::String dir = ops::string(arena);
+    Value value;
+    try {
+        location::store_dir(d.platform(), dir);
+    } catch (const store::StoreError& error) {
+        value.set("refused", wire::error(error));
+        return value;
+    }
+    value.set("dir", ops::copy(dir));
+    return value;
+}
+
 }  // namespace
 }  // namespace qiven3::drive
 
@@ -91,5 +114,6 @@ int main(int argc, char** argv) {
     Session session(*options);
     Drive drive(session, make);
     drive.add("arguments", arguments, arguments_budget);
+    drive.add("store_dir", store_dir, ops::member);
     return loop(drive);
 }

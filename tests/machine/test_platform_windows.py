@@ -16,7 +16,7 @@ from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
-from tests.contract.platform_machine import UNTIL_LOCATION, PlatformMachine, skip_reasons
+from tests.contract.platform_machine import PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import CASES as OWN_CASES
 from tests.contract.platform_own import PlatformOwn
@@ -48,12 +48,13 @@ class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
     # create, read, remove_directory, replace, lock and stage are
-    # win/files'; facts, synced and residual win/facts'; the drive's
-    # location request is the fake's alone until package 5; program, start
-    # and run are win/process', their children qiven3-child platform's;
+    # win/files'; facts, synced and residual win/facts'; location's
+    # commands run as the binary, qiven3 location ..., the drive answering
+    # store_dir, the facts and the clock the system's; program, start and
+    # run are win/process', their children qiven3-child platform's;
     # program is the machine cases'.
     CREATE_READ = True
-    LOCATION = False
+    SYSTEM_LOCATION = True
     PROCESSES = True
     FACTS = True
     PROGRAM = True
@@ -98,17 +99,19 @@ class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, Pl
     pass
 
 
-# The machine cases' skips until their members land; each case's flag
-# set true drops its entry here. P17, P18 and P21 run; P22 waits on the
-# drive's location request after synced's, LOCATION.
-UNTIL = {
-    "test_P22_forms_here": UNTIL_LOCATION,
-}
+# The machine cases' skips until their members land: none. P17, P18 and
+# P21 run; P22, the last of them to skip, runs through location's init
+# as the binary, its synced forms each skipping alone by its reason
+# where this machine has no OneDrive folder; P6, the fake's warnings, is
+# not applicable here.
+UNTIL = {"test_P6_warnings": "not applicable: the warnings are the fake's facts, set by request"}
+# The cases pinned running here, no skip: P22.
+MACHINE_RUNS = ("test_P22_forms_here",)
 
 
 class MachineUntil(unittest.TestCase):
-    """Windows' case P22 runs here: synced answers and P22 skips on the
-    drive's location request, by its reason."""
+    """Windows' case P22 runs here, no skip at its own level, through
+    location's init as the binary; P6 is not applicable, by its reason."""
     ctest_labels = ("drive",)
 
     def setUp(self):
@@ -116,9 +119,9 @@ class MachineUntil(unittest.TestCase):
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
 
     def test_machine_until(self):
-        reasons, others = skip_reasons(Windows, tuple(UNTIL))
+        reasons, others = skip_reasons(Windows, MACHINE_RUNS + tuple(UNTIL))
         self.assertEqual(others, [])
-        self.assertEqual(reasons, UNTIL)
+        self.assertEqual(reasons, dict.fromkeys(MACHINE_RUNS) | UNTIL)
 
 
 # The files' and processes' cases' skips: none. P20, the last of them to

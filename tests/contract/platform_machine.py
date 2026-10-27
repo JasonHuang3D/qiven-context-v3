@@ -9,13 +9,15 @@ applicable. On the Windows adapter facts and synced are its module
 win/facts', program its module win/process', and residual its own member,
 each in package 5; until each lands a binding with FACTS, PROGRAM or
 RESIDUAL false checks that the member answers unsupported and skips. P22's
-guard runs through the drive's location request, the fake's alone until
-then (LOCATION, contract/platform_location.py). skip_reasons() runs a
+guard runs through location's init as the binding runs it (contract/
+platform_location.py); its synced forms read this machine's OneDrive
+first, each skipping by its reason where it has none. skip_reasons() runs a
 binding's machine cases and gives each one's skip reason: the bindings'
 own checks pin them.
 """
 
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -33,7 +35,8 @@ RESIDUAL_HERE = (("restore_points", "unknown"), ("file_history", "no"), ("pagefi
                  ("hibernation", "no"), ("crash_dumps", "yes"), ("encryption", "yes"))
 # P22: the variables naming the synced folder, dropped for its last form.
 ONEDRIVE = ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
-UNTIL_LOCATION = "until package 5's adapter cases: the Windows drive has no location request"
+NO_ONEDRIVE = "not applicable: no synced folder here: none of the OneDrive variables set"
+DROPPED_NONE = "not applicable: with the OneDrive variables dropped, synced answers none for the folder here"
 
 
 def logical_drives():
@@ -123,33 +126,32 @@ class PlatformMachine:
         with self.drive() as d:
             self.assert_platform_error(self.failure(d.call, "program", name="qiven3-on-no-entry"), "start")
 
-    def guarded(self, d, given):
-        """init through the guard, accepted: its exit status and output."""
-        result = d.call("location", argv=["init", str(given), "--accept"])
-        return result["code"], bytes.fromhex(result["out"]).decode("utf-8")
+    def guarded(self, d, given, env=None):
+        """init through the guard, accepted, with the case's configuration
+        directory, under env as d's: its exit status and output."""
+        return self.command(d, "init", given, "--accept", "--config", self.scratch / "config", env=env)[:2]
 
     def test_P22_forms_here(self):
         """The guard through a junction, a symlink (where the token may make
-        one) and a subst drive into a checkout: checkout three times; the
+        one) and a subst drive into a checkout: checkout three times; a
+        \\\\.\\ form of a checkout: checkout, the form resolved; the
         \\\\?\\ and \\\\localhost\\C$ forms of a synced folder: path twice;
-        a \\\\.\\ form of a checkout: checkout, the form resolved; the
-        synced folder with the OneDrive variables dropped: synced. Nothing
-        recorded, no file made."""
+        the synced folder with the OneDrive variables dropped: synced.
+        Nothing recorded, no file made. The synced forms read the machine
+        first: with no OneDrive variable set, or synced answering none for
+        the folder once they are dropped, each skips by its reason."""
         self.needs("machine")
         self.waiting(self.FACTS, "synced: win/facts", "synced", path=str(self.scratch))
-        if not self.LOCATION:
-            self.skipTest(UNTIL_LOCATION)
         given_cloud = next((os.environ[n] for n in ONEDRIVE if os.environ.get(n)), None)
-        self.assertIsNotNone(given_cloud, "no synced folder here: none of the OneDrive variables set")
-        cloud = Path(os.path.realpath(given_cloud))
+        cloud = Path(os.path.realpath(given_cloud)) if given_cloud else None
         repo = self.scratch / "repo"
         (repo / ".git").mkdir(parents=True)
         repo = Path(os.path.realpath(repo))
         config = self.scratch / "config"
         record = config / "location.json"
 
-        def refused(d, given, resolved, detail):
-            code, out = self.guarded(d, given)
+        def refused(d, given, resolved, detail, env=None):
+            code, out = self.guarded(d, given, env)
             self.assertEqual((code, out), (1, f"StoreError location: guard {resolved}; {detail}\n"))
             self.assertFalse(Path(resolved).exists())
             self.assertFalse(record.exists())
@@ -173,16 +175,29 @@ class PlatformMachine:
                     self.skipTest(f"not applicable: this token makes no symlink: {e}")
                 refused(d, link / "s", repo / "s", "checkout")
         with self.drive(config=str(config)) as d:
-            unc = f"\\\\localhost\\{str(cloud)[0]}$\\{str(cloud)[3:]}\\s"
-            for name, given in (("\\\\?\\", f"\\\\?\\{cloud}\\s"), ("\\\\localhost\\C$", unc)):
-                with self.subTest(form=name):
-                    code, out = self.guarded(d, given)
-                    self.assertEqual(code, 1, out)
-                    self.assertTrue(out.startswith("PlatformError path: "), out)
-                    self.assertFalse(record.exists())
             with self.subTest(form="\\\\.\\"):
                 refused(d, f"\\\\.\\{repo}\\s", repo / "s", "checkout")
-        dropped = environment(**{n: None for n in ONEDRIVE})
-        with self.drive(config=str(config), env=dropped) as d:
-            refused(d, cloud / "s", cloud / "s", "synced")
+            with self.subTest(form="synced"):
+                if cloud is None:
+                    self.skipTest(NO_ONEDRIVE)
+                unc = f"\\\\localhost\\{str(cloud)[0]}$\\{str(cloud)[3:]}\\s"
+                for name, given in (("\\\\?\\", f"\\\\?\\{cloud}\\s"), ("\\\\localhost\\C$", unc)):
+                    with self.subTest(form=name):
+                        code, out = self.guarded(d, given)
+                        self.assertEqual(code, 1, out)
+                        self.assertTrue(out.startswith("PlatformError path: "), out)
+                        self.assertFalse(record.exists())
+        if cloud is None:
+            return
+        # By name in any case: a copy of os.environ on Windows holds each
+        # name upper-cased, so environment(OneDrive=None) drops none.
+        upper = {n.upper() for n in ONEDRIVE}
+        dropped = {name: value for name, value in os.environ.items() if name.upper() not in upper}
+        with self.drive(config=str(config), env=dropped) as d, self.subTest(form="variables dropped"):
+            if d.call("synced", path=str(cloud)) is None:
+                self.skipTest(DROPPED_NONE)
+            if not (cloud / "s").exists():
+                # A guard that failed to refuse would make it in the real folder.
+                self.addCleanup(shutil.rmtree, cloud / "s", True)
+            refused(d, cloud / "s", cloud / "s", "synced", dropped)
 
