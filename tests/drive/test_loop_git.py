@@ -12,7 +12,8 @@ global attributes file and its filter that fails, and an inherited
 GIT_DIR, GIT_WORK_TREE or GIT_INDEX_FILE pointing elsewhere: each tool
 succeeds, with the same blob ids, the same snapshot (its tree and parent;
 HEAD itself for a clean checkout) and the same clone as under a clean
-config."""
+config. And git starts no background work under that environment: the
+settings against it are in its command scope and in force."""
 
 import os
 import shutil
@@ -37,6 +38,9 @@ HOOKS = ("post-checkout", "reference-transaction", "pre-commit", "post-commit", 
 SETTINGS = ("signing", "hooks", "autocrlf", "safecrlf", "fsmonitor", "file protocol", "excludes", "filter",
             "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")
 FAILED = "failed: "  # a tool's exception, as computed
+# No background work (git_env): what git would otherwise start after a
+# command and leave writing in the repository, and its value in force.
+QUIET = {"maintenance.auto": "false", "maintenance.autoDetach": "false", "gc.auto": "0", "gc.autoDetach": "false"}
 
 
 def hostile(top, name):
@@ -165,6 +169,17 @@ class OwnGit(unittest.TestCase):
                 with mock.patch.dict(os.environ, hostile(self.top / str(i), name), clear=True):
                     got = self.computed(self.top / "clones" / str(i))
                 self.assertEqual(self.described(got, self.top / "clones" / str(i)), expected)
+
+    def test_no_background_work(self):
+        """git's environment holds each setting against background work in
+        its command scope, and git reads each in force there over a
+        repository's config that says the opposite."""
+        scoped = {os.environ[f"GIT_CONFIG_KEY_{i}"]: os.environ[f"GIT_CONFIG_VALUE_{i}"]
+                  for i in range(int(os.environ.get("GIT_CONFIG_COUNT", "0")))}
+        self.assertEqual({key: scoped.get(key) for key in QUIET}, QUIET)
+        for key, value in QUIET.items():
+            self.ask(self.clean, "config", "--local", key, "1" if value == "0" else "true")
+        self.assertEqual({key: self.ask(self.clean, "config", "--get", key) for key in QUIET}, QUIET)
 
 
 if __name__ == "__main__":

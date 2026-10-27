@@ -47,6 +47,9 @@ STEP_TIMEOUT = 45 * 60  # CI's least job limit (windows-analysis's and linux-msa
 TREE_MARK = ".qiven3-loop-job"
 KEEP = ("fuzz/*/corpus",)  # kept through emptying, relative to the tree
 LOOP_WHO = ("qiven3 loop", "loop@localhost")  # the author and committer git_env names for the loop's tools
+# git_env's settings against git's background work: no automatic maintenance
+# after a command, no automatic gc, and either in the foreground if run.
+QUIET = {"maintenance.auto": "false", "maintenance.autoDetach": "false", "gc.auto": "0", "gc.autoDetach": "false"}
 
 
 class CannotRun(Exception):
@@ -389,7 +392,11 @@ def git_env(top, name, email):
     git's command scope, which no config file overrides, each setting a
     host's config could turn against it: core.autocrlf false (the
     checkout's .gitattributes governs line endings), no fsmonitor, no
-    signing, the initial branch, and the author and committer named."""
+    signing, the initial branch, and the author and committer named; and
+    no background work, so that no git command leaves a process writing in
+    a repository after it returns (a newer git detaches the maintenance a
+    commit or a fetch starts, an older one gc --auto): no automatic
+    maintenance or gc, and either in the foreground should one run."""
     top = Path(top)
     empty, hooks = top / "gitconfig", top / "githooks"
     empty.write_bytes(b"")
@@ -397,7 +404,7 @@ def git_env(top, name, email):
     config = {"core.autocrlf": "false", "core.safecrlf": "false", "core.hooksPath": hooks.as_posix(),
               "core.excludesFile": empty.as_posix(), "core.attributesFile": empty.as_posix(),
               "core.fsmonitor": "false", "commit.gpgsign": "false", "tag.gpgsign": "false",
-              "init.defaultBranch": "main"}
+              "init.defaultBranch": "main", **QUIET}
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
     env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email,
                GIT_CONFIG_NOSYSTEM="1", GIT_ATTR_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(empty),

@@ -6,7 +6,8 @@ time grows with the square of a string's length.
 - The twelve patterns of the secret check against re.search over the
   string, on strings mixing the patterns' fragments, their halves and ten
   non-ASCII characters, and on long ones built of the same parts.
-- The syntaxes, printed ^...$, against re.fullmatch with what lies between.
+- The syntaxes, printed ^...$, against re.fullmatch with what lies between,
+  the strings in parts, a case each (SYNTAX_SPLIT).
 - 4,000 fresh SHA-256 and HMAC-SHA-256 digests, which no pattern hits.
 - The strict parser's code against the six steps written on json.loads
   with its four hooks (strict() below), on mutated JSON texts.
@@ -59,6 +60,12 @@ SYNTAXES = (
     r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",  # its session
     r"^L[0-9]+(-L?[0-9]+)?$",  # an anchor that reads as a line
 )
+# The syntaxes' strings in parts, a case each (test_syntaxes_part1 on), by
+# their indices in the strings, start and end, every syntax over each part:
+# the probe's time grows with the short strings, under the bounded repeats
+# ({0,199} the most), and one syntax alone over them all would pass 30 s on
+# CI's slowest job; a fifth of them, every syntax, stays near 15 s.
+SYNTAX_SPLIT = ((0, 40_041), (40_041, 80_081), (80_081, 120_121), (120_121, 160_161), (160_161, 200_201))
 PLANT = "^[^a]{2}$"
 
 NONASCII = ("\u00e9", "\u0085", "\u2028", "\U0001F600", "\u4e2d", "\u8bb0", "\u5fc6", "\uff1a", "\u3000", "\u00a0")
@@ -176,14 +183,24 @@ class Matcher(unittest.TestCase):
         report("the twelve patterns", len(strings), count, began)
         self.assertEqual(count, 0, first)
 
-    def test_syntaxes(self):
+    def syntaxes(self, part):
+        """Every syntax over the strings of SYNTAX_SPLIT's part (from 1),
+        the strings generated whole in each part. The class holds a case for
+        each part and no other, and the parts hold every string once, in
+        order, their sizes within one of each other."""
+        held = sorted(name for name in dir(type(self)) if name.startswith("test_syntaxes"))
+        self.assertEqual(held, sorted(f"test_syntaxes_part{i}" for i in range(1, len(SYNTAX_SPLIT) + 1)))
         began = time.perf_counter()
         rng = random.Random(SEED + 1)
         strings = [""] + [mixed(rng, SYNTAX_PARTS, 1, 4) for _ in range(SYNTAX_STRINGS)]
         strings += [long_string(rng, SYNTAX_PARTS) for _ in range(LONG_STRINGS)]
+        self.assertEqual([i for start, end in SYNTAX_SPLIT for i in range(start, end)], list(range(len(strings))))
+        sizes = [end - start for start, end in SYNTAX_SPLIT]
+        self.assertLessEqual(max(sizes) - min(sizes), 1, sizes)
+        start, end = SYNTAX_SPLIT[part - 1]
         compiled = [re.compile(p[1:-1]) for p in SYNTAXES]
-        count, first = self.compare(list(SYNTAXES), [c.fullmatch for c in compiled], strings)
-        report("the syntaxes", len(strings), count, began)
+        count, first = self.compare(list(SYNTAXES), [c.fullmatch for c in compiled], strings[start:end])
+        report(f"the syntaxes, part {part}", end - start, count, began)
         self.assertEqual(count, 0, first)
 
     def test_digests_hit_none(self):
@@ -215,6 +232,19 @@ class Matcher(unittest.TestCase):
         count, _ = self.compare([PATTERNS["sk-key"]], [wrong.search], strings)
         report("the planted sk-key oracle, {31,}", len(strings), count, began)
         self.assertGreater(count, 0)
+
+
+def syntaxes_case(part):
+    """SYNTAX_SPLIT's part as a case of Matcher's, named and described."""
+    def case(self):
+        self.syntaxes(part)
+    case.__name__ = f"test_syntaxes_part{part}"
+    case.__doc__ = f"Every syntax over the strings of SYNTAX_SPLIT's part {part}: as Matcher.syntaxes."
+    return case
+
+
+for _part in range(1, len(SYNTAX_SPLIT) + 1):
+    setattr(Matcher, f"test_syntaxes_part{_part}", syntaxes_case(_part))
 
 
 class Refused(Exception):

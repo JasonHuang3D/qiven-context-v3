@@ -11,7 +11,8 @@ the background index over the scratch, built in a few seconds: the
 references from it, the template's call unresolved, and a file changed
 after it reported as changed; the clangd that built it recorded, and its
 record planted with another clangd's version, then with none: stale,
-refused without --file and absent with it. Skipped where clangd is absent.
+refused without --file and absent with it: three cases, each building the
+index once, the whole having passed 30 s. Skipped where clangd is absent.
 
 Checkout: the reviewer's facts on this checkout, from the analysis
 preset's stripped database, without the index: the calls of a fixture of
@@ -235,7 +236,10 @@ class Nav(unittest.TestCase):
         status, envelope, _ = nav("refs", "publish", "--file", "tests/mini/use.cpp", root=self.top)
         self.assertEqual((status, envelope["code"]), (1, "DATABASE_ABSENT"))
 
-    def test_index_and_stale(self):
+    def indexed(self):
+        """The scratch checkout indexed, the index's record checked; its
+        commit and the clangd that built it. Each case of the index builds
+        it once: the whole passed 30 s on CI's Windows jobs."""
         status, envelope, _ = nav("index", root=self.top)
         self.assertEqual(status, 0, envelope)
         commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(self.top), capture_output=True, text=True,
@@ -245,6 +249,11 @@ class Nav(unittest.TestCase):
         version = nav_lsp.clangd_version(nav_lsp.find_clangd())
         self.assertRegex(version or "", r"^\d+\.\d+\.\d+$")
         self.assertEqual(envelope["data"]["index"]["clangd"], version)
+        return commit, version
+
+    def test_index_used(self):
+        """The index loaded and current: refs and def by it."""
+        commit, version = self.indexed()
         status, envelope, _ = nav("refs", "publish", root=self.top)
         self.assertEqual(status, 0, envelope)
         index = envelope["data"]["index"]
@@ -259,17 +268,22 @@ class Nav(unittest.TestCase):
         self.assertEqual((status, envelope["data"]["symbols"]["count"]), (0, 1), envelope)
         self.assertEqual(symbol(envelope, "mini::Fake::publish")["definition"],
                          f"src/mini/fake.hpp:{line_of(FAKE, 'int publish(')}")
+
+    def test_index_stale_file(self):
+        """A file changed after the index: named as changed, def still
+        answering from it."""
+        self.indexed()
         with open(self.top / "src/mini/tick.cpp", "a", encoding="utf-8") as f:
             f.write("// changed after the index\n")
         status, envelope, _ = nav("def", "tick", root=self.top)
         self.assertEqual(status, 0, envelope)
         self.assertEqual(envelope["data"]["index"]["changed"], {"count": 1, "shown": 1, "items": ["src/mini/tick.cpp"]})
         self.assertEqual(symbol(envelope, "mini::tick")["definition"], f"src/mini/tick.cpp:{line_of(TICK, 'int tick')}")
-        self.other_clangd(version)
 
-    def other_clangd(self, version):
+    def test_index_stale_clangd(self):
         """The record planted with another clangd's version, then with none:
         the index stale, refused without --file, absent with it."""
+        _, version = self.indexed()
         path = self.top / "build" / "nav" / "index.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         for planted, named in (("1.0.0", "1.0.0"), (None, "(none named)")):

@@ -4,7 +4,8 @@
 - The whitespace table, 29 code points, against the pinned interpreter's
   str.isspace over every code point but the surrogates, so a new pin
   re-checks it; and a name and a path holding each code point between two
-  letters, against the rules written below on str.isspace.
+  letters, against the rules written below on str.isspace; in parts, a
+  case each (WHITESPACE_SPLIT).
 - check_path, check_name and check_subject against the same rules, on
   strings generated from a fixed seed out of the rules' own parts.
 - The plants, each of which must disagree: a table without U+3000, and a
@@ -26,6 +27,10 @@ STRINGS = 100_000
 SUFFIX = re.compile(r"(:[0-9]+([:-][0-9]+)?|#L[0-9]+(-L?[0-9]+)?)$")
 TYPES = ("entity", "activity", "repo", "item", "clause", "module", "entry", "scope")
 REPOSITORY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+# The whitespace sweep in parts, a case each (test_whitespace_part1 on), by
+# their indices in code_points(), start and end: the 1,112,064 code points
+# alone and between two letters passed 30 s whole on CI's slowest job.
+WHITESPACE_SPLIT = ((0, 370_688), (370_688, 741_376), (741_376, 1_112_064))
 
 
 def control(c):
@@ -95,21 +100,32 @@ class Refs(unittest.TestCase):
     ctest_reads = ("qiven3-child",)
     ctest_labels = ("fake",)
 
-    def test_whitespace(self):
+    def whitespace(self, part):
+        """The code points of WHITESPACE_SPLIT's part (from 1), alone and
+        between two letters. The class holds a case for each part and no
+        other, the parts hold every code point once, in order, their sizes
+        within one of each other, and str.isspace holds 29 of them."""
+        held = sorted(name for name in dir(type(self)) if name.startswith("test_whitespace"))
+        self.assertEqual(held, sorted(f"test_whitespace_part{i}" for i in range(1, len(WHITESPACE_SPLIT) + 1)))
         began = time.perf_counter()
-        points = code_points()
+        everyone = code_points()
+        self.assertEqual([i for start, end in WHITESPACE_SPLIT for i in range(start, end)], list(range(len(everyone))))
+        sizes = [end - start for start, end in WHITESPACE_SPLIT]
+        self.assertLessEqual(max(sizes) - min(sizes), 1, sizes)
+        self.assertEqual(sum(c.isspace() for c in everyone), 29)
+        start, end = WHITESPACE_SPLIT[part - 1]
+        points = everyone[start:end]
         got = answers(self, points)
         wrong = [hex(ord(c)) for c, row in zip(points, got) if (row[0] == "1") != c.isspace()]
-        print(f"refs: whitespace: {len(points)} code points, {sum(r[0] == '1' for r in got)} in the table, "
-              f"{len(wrong)} disagreements, {time.perf_counter() - began:.1f} s")
+        print(f"refs: whitespace, part {part}: {len(points)} code points, {sum(r[0] == '1' for r in got)} in "
+              f"the table, {len(wrong)} disagreements, {time.perf_counter() - began:.1f} s")
         self.assertEqual(wrong, [])
-        self.assertEqual(sum(r[0] == "1" for r in got), 29)
         # Each code point between two letters, as a name and as a path.
         between = ["a" + c + "b" for c in points]
         got = answers(self, between)
         wrong = [(hex(ord(s[1])), row) for s, row in zip(between, got)
                  if (row[1] == "1") != path_ok(s) or (row[2] == "1") != name_ok(s)]
-        print(f"refs: between: {len(between)} strings, {len(wrong)} disagreements, "
+        print(f"refs: between, part {part}: {len(between)} strings, {len(wrong)} disagreements, "
               f"{time.perf_counter() - began:.1f} s")
         self.assertEqual(wrong[:5], [])
 
@@ -142,6 +158,19 @@ class Refs(unittest.TestCase):
         print(f"refs: plants: without U+3000 {no_ideographic}, without #LN-LM {no_lines} disagreements")
         self.assertGreater(no_ideographic, 0)
         self.assertGreater(no_lines, 0)
+
+
+def whitespace_case(part):
+    """WHITESPACE_SPLIT's part as a case of Refs', named and described."""
+    def case(self):
+        self.whitespace(part)
+    case.__name__ = f"test_whitespace_part{part}"
+    case.__doc__ = f"The code points of WHITESPACE_SPLIT's part {part}: as Refs.whitespace."
+    return case
+
+
+for _part in range(1, len(WHITESPACE_SPLIT) + 1):
+    setattr(Refs, f"test_whitespace_part{_part}", whitespace_case(_part))
 
 
 if __name__ == "__main__":
