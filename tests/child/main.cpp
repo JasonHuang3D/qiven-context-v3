@@ -6,17 +6,20 @@
 // product's: each argument converted from UTF-16 by the Windows adapter
 // (run_utf8), one that is not valid UTF-16 ending it with usage_status.
 // run is noexcept, as run_utf8's entry is: an exception ends the child
-// there, by one line on standard error and child::exception_status.
+// there, by one line on standard error and child::exception_status; a
+// MemoryError's line names it.
 
 #include <array>
 #include <cstddef>
 #include <cstdio>
+#include <initializer_list>
 #include <iostream>
 #include <span>
 #include <string_view>
 #include <vector>
 
 #include "child/child.hpp"
+#include "memory/memory.hpp"
 
 #if defined(_WIN32)
 #include "platform/win/windows.hpp"
@@ -63,6 +66,16 @@ int run(int argc, const char* const* argv) noexcept {
             }
         }
         return usage("an unknown subcommand");
+    } catch (const qiven3::memory::MemoryError& e) {
+        // Named as the runner names one: its code's name, its operation and
+        // its detail.
+        for (const std::string_view part : {std::string_view("qiven3-child: a memory error ended the subcommand: "),
+                                            qiven3::memory::name(e.code), std::string_view(" in "),
+                                            e.operation.view(), std::string_view(": "), e.detail.view(),
+                                            std::string_view("\n")}) {
+            static_cast<void>(std::fwrite(part.data(), 1, part.size(), stderr));
+        }
+        return qiven3::child::exception_status;
     } catch (...) {
         std::fputs("qiven3-child: an exception ended the subcommand\n", stderr);
         return qiven3::child::exception_status;

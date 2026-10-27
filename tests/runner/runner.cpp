@@ -148,6 +148,12 @@ int run_case(const Case& c, std::ostream& out, log::Log& log) {
         const std::string_view code = store_code(e);
         out << "store error " << store::name(e.kind()) << (code.empty() ? "" : " ") << code << ": " << e.detail()
             << "\n";
+    } catch (const memory::MemoryError& e) {
+        // As PlatformError's: its code's name, the operation that raised it
+        // (the allocator) and its detail.
+        ++ctx.failures;
+        out << "memory error " << memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
+            << "\n";
     } catch (...) {
         ++ctx.failures;
         out << "exception of an unknown type\n";

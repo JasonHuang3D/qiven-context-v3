@@ -26,6 +26,17 @@ STAGING = re.compile(r"\.[0-9a-f]{16}\.tmp")
 # P19's files, by their relative paths.
 BAG = {"bagit.txt": b"BagIt-Version: 1.0\n", "data/headers.jsonl": b'{"id":"a"}\n'}
 
+# A Staged's open of "a/b/c.txt" under faults, by adapter: each platform
+# call failed in turn, as (call, code, operation). The fake's pages() is a
+# fault point, the drive's pages(budget) the request's first call; the
+# Windows adapter's is none. Each of the open's own answers io.
+OPEN_CALLS = {
+    "fake": (("the drive's pages(budget)", "memory", "pages"), ("open_staged's entry", "io", "open"),
+             ("the record's insert", "io", "open"), ("the file's open", "io", "open")),
+    "windows": (("CreateDirectoryW of a", "io", "open"), ("CreateDirectoryW of a/b", "io", "open"),
+                ("CreateFileW", "io", "open")),
+}
+
 # P25's bytes: an invalid byte, then a lone surrogate's three bytes.
 NOT_UTF8 = (b"\xff", b"\xed\xa0\x80")
 
@@ -198,8 +209,12 @@ class PlatformFiles:
 
     def test_open_failed(self):
         """938: a Staged's open of a file two directories down, each of its
-        platform calls failed in turn: io (memory for a page's), and nothing left in the staging
-        directory, the parents made before the failure removed. Then its
+        platform calls failed in turn (OPEN_CALLS), each answering the one
+        kind of the call failed, and nothing left in the staging directory,
+        the parents made before the failure removed. memory answers on the
+        fake alone, at k 1: the drive's own pages(budget) for the request's
+        arena, a fault point of the fake's pages(), none of the Windows
+        adapter's; each call of the open's own answers io. Then its
         file's own open failed, its parents made first, and one more file
         opened and published: the published directory holds that file
         alone. Built without QIVEN3_FAULTS, not applicable."""
@@ -209,6 +224,7 @@ class PlatformFiles:
         bags = Path(self.files_root()) / "opened"
         bags.mkdir()
         deep = "a/b/c.txt"
+        calls = OPEN_CALLS[self.ADAPTER]
         with self.drive() as d:
             staged = d.call("stage", path=str(bags))["id"]
             (inside,) = staging_left(bags)
@@ -216,11 +232,14 @@ class PlatformFiles:
                 reply = d.reply("staged_open", id=staged, path=deep, fault={"k": k, "of": "platform"})
                 if not reply["fault"]["fired"]:
                     break
-                with self.subTest(k=k):
-                    self.assertEqual(reply["error"]["kind"], "platform", reply)
-                    self.assertIn(reply["error"]["code"], ("io", "memory"), reply)
+                with self.subTest(k=k, call=calls[k - 1][0] if k <= len(calls) else None):
+                    self.assertLessEqual(k, len(calls), reply)
+                    error = reply["error"]
+                    got = (error["kind"], error["code"], error["operation"])
+                    self.assertEqual(got, ("platform", *calls[k - 1][1:]), reply)
                     self.assertEqual(list((bags / inside).iterdir()), [])
             self.assertTrue(reply["ok"], reply)
+            self.assertEqual(k - 1, len(calls))
             self.assertIsNone(d.call("discard", id=staged))
             # The last call failed is the file's own open, after its parents.
             staged = d.call("stage", path=str(bags))["id"]

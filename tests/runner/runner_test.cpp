@@ -10,6 +10,7 @@
 #include <string>
 
 #include "log/log.hpp"
+#include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "runner/runner.hpp"
 #include "store/errors.hpp"
@@ -190,6 +191,17 @@ QIVEN3_CASE(runner, store_error_named) {
     CHECK(holds(locked.out, "store error StoreLocked held: another writer\n"));
     const Ran none = run(qiven3_ctx, [](Context&) { throw qiven3::store::StoreError::not_found("get", "a.db", "e1"); });
     CHECK(holds(none.out, "store error NotFound: \n"));
+}
+
+QIVEN3_CASE(runner, memory_error_named) {
+    // A MemoryError has no base: its code's name, its operation and its
+    // detail are named, and the case is counted failed.
+    const Ran r = run(qiven3_ctx, [](Context&) { throw qiven3::memory::MemoryError::budget("arena", 64, 80, 16); });
+    CHECK_EQ(r.status, qiven3::test::exit_fail);
+    CHECK(holds(r.out, "memory error budget in arena: budget 64, request 80, held 16\n"));
+    CHECK(!holds(r.out, "unknown type"));
+    CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
+    CHECK(holds(r.event, R"("outcome":"fail")"));
 }
 
 QIVEN3_CASE(runner, check_eq_shows) {
