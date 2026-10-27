@@ -258,29 +258,9 @@ if(NOT QIVEN3_CPLUSPLUS_20)
   message(FATAL_ERROR "qiven3: __cplusplus is below 202002 under the build's flags")
 endif()
 
+# The sanitizers, libFuzzer's main on the fuzz targets alone.
 if(QIVEN3_SANITIZE)
-  if(MSVC)
-    # cl ignores a combined /fsanitize=fuzzer,address with D9002, exit 0 even
-    # under /WX: one option per sanitizer.
-    string(REPLACE "," ";" qiven3_sanitizers "${QIVEN3_SANITIZE}")
-    foreach(sanitizer IN LISTS qiven3_sanitizers)
-      add_compile_options("/fsanitize=${sanitizer}")
-    endforeach()
-    add_link_options(/INCREMENTAL:NO)
-  else()
-    # libFuzzer's main is linked into the fuzz targets alone; every other
-    # target takes its instrumentation without it.
-    string(REPLACE "fuzzer" "fuzzer-no-link" qiven3_sanitizers "${QIVEN3_SANITIZE}")
-    add_compile_options("-fsanitize=${qiven3_sanitizers}" -fno-sanitize-recover=all
-      -fno-omit-frame-pointer)
-    add_link_options("-fsanitize=${qiven3_sanitizers}")
-    # MemorySanitizer's report names where the unwritten bytes came from.
-    if(QIVEN3_SANITIZE STREQUAL "memory")
-      add_compile_options(-fsanitize-memory-track-origins=2)
-      add_link_options(-fsanitize-memory-track-origins=2)
-    endif()
-  endif()
-  message(STATUS "qiven3: sanitizers ${QIVEN3_SANITIZE}")
+  include("${PROJECT_SOURCE_DIR}/cmake/sanitize.cmake")
 endif()
 
 # The standard library's hardened mode, in every build: an index past a

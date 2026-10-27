@@ -34,13 +34,6 @@ endif()
 # copy of it alone finds no library.
 add_library(qiven3_fault_lib SHARED fault_lib.cpp)
 target_link_libraries(qiven3_fault_lib PRIVATE qiven3_flags)
-# MSVC's /fsanitize=fuzzer brings libFuzzer's main, which a library lacks
-# the input function for: the library is built without it.
-if(MSVC AND QIVEN3_SANITIZE MATCHES "fuzzer")
-  get_target_property(qiven3_fault_lib_options qiven3_fault_lib COMPILE_OPTIONS)
-  list(REMOVE_ITEM qiven3_fault_lib_options "/fsanitize=fuzzer")
-  set_target_properties(qiven3_fault_lib PROPERTIES COMPILE_OPTIONS "${qiven3_fault_lib_options}")
-endif()
 set_target_properties(qiven3_fault_lib PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 qiven3_executable(qiven3-fault-import SOURCES fault_import.cpp LINK qiven3_fault_lib)
 set_target_properties(qiven3-fault-import PROPERTIES SKIP_BUILD_RPATH ON)

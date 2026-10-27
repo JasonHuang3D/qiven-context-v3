@@ -45,7 +45,7 @@
       "name": "fuzz",
       "inherits": "here",
       "displayName": "libFuzzer with AddressSanitizer, MSVC",
-      "description": "/fsanitize=fuzzer,address and /INCREMENTAL:NO; builds the fuzz targets",
+      "description": "/fsanitize=address and libFuzzer's coverage options on every target, /fsanitize=fuzzer on the fuzz targets alone, and /INCREMENTAL:NO; builds the fuzz targets",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address", "QIVEN3_SYSTEM_HEAP": "ON"}
     },
     {

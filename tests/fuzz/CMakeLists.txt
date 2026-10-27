@@ -78,9 +78,11 @@ if(QIVEN3_SANITIZE MATCHES "fuzzer")
     qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
       LINK qiven3_entry qiven3_base qiven3_platform_fake)
     target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
-    if(NOT MSVC)
-      # libFuzzer's main, here alone; MSVC's /fsanitize=fuzzer brings it to
-      # a binary that has none.
+    # libFuzzer's main, here alone (cmake/sanitize.cmake): MSVC's
+    # /fsanitize=fuzzer on the target's own object names it to the link.
+    if(MSVC)
+      target_compile_options(qiven3_fuzz_${target} PRIVATE /fsanitize=fuzzer)
+    else()
       target_link_options(qiven3_fuzz_${target} PRIVATE -fsanitize=fuzzer)
     endif()
     string(APPEND fuzz_lines "${target}\t$<TARGET_FILE:qiven3_fuzz_${target}>\t${dir}/corpus\t${dir}/artifacts\n")
