@@ -26,6 +26,7 @@ handle count is not changed.
 import functools
 import os
 import threading
+import time
 from pathlib import Path
 
 from tests.contract.platform_files import STAGING, TEMPORARY
@@ -111,6 +112,7 @@ class Holder:
         self.done = threading.Event()
         self.timer = None
         self.watcher = None
+        self.taken = self.released = None
         if kind == "temporary":
             self.gate = reader(self.path)
             self.handles.append(self.gate)
@@ -121,7 +123,9 @@ class Holder:
             self.timed()
 
     def timed(self):
-        """A count above 0: released that many intervals from now."""
+        """A count above 0: released that many intervals from now. The
+        holder's own times: taken now, released when its handles close."""
+        self.taken = time.monotonic()
         if self.times > 0:
             self.timer = threading.Timer(self.times * INTERVAL, self.release)
             self.timer.daemon = True
@@ -152,10 +156,14 @@ class Holder:
                 return
 
     def release(self):
-        """Every handle closed; idempotent, from any thread."""
+        """Every handle closed; idempotent, from any thread. The release's
+        time is read before the first handle closes, so that nothing the
+        holder kept from another handle is had before it."""
         with self.mutex:
             self.done.set()
             handles, self.handles = self.handles, []
+            if handles and self.released is None:
+                self.released = time.monotonic()
         for handle in handles:
             kernel32().CloseHandle(handle)
 
@@ -177,7 +185,14 @@ class HeldDrive(Drive):
         self.pending = {}
         self.holders = []
         self.staged = {}
+        self.ended = {}
         super().__init__(*args, **kwargs)
+
+    def holder_times(self, kind):
+        """The last ended holder of the kind's own times: (taken,
+        released), each by time.monotonic(), None for one not reached."""
+        holder = self.ended[kind]
+        return holder.taken, holder.released
 
     def hold(self, **times):
         unknown = set(times) - set(KINDS)
@@ -192,6 +207,7 @@ class HeldDrive(Drive):
         for holder in self.holders:
             if every or holder.times > 0:
                 holder.end()
+                self.ended[holder.kind] = holder
             else:
                 kept.append(holder)
         self.holders = kept

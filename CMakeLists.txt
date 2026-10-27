@@ -498,9 +498,10 @@ while(qiven3_dirs)
 endwhile()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
-# The analysis preset over the sources of src/ and tests/support/: /analyze
-# on their targets, then clang-tidy over compile_commands.json, each source
-# its own step after every target is built, by .clang-tidy. A header-only
+# The analysis preset over the sources of src/, tests/support/ and
+# tests/child/ (qiven3-child, the Windows adapter's children): /analyze on
+# their targets, then clang-tidy over compile_commands.json, each source its
+# own step after every target is built, by .clang-tidy. A header-only
 # module is read through its unit in tests/support/headers/.
 if(QIVEN3_ANALYZE STREQUAL "analysis")
   set(qiven3_tidy_targets "")
@@ -520,7 +521,7 @@ if(QIVEN3_ANALYZE STREQUAL "analysis")
         continue()
       endif()
       list(APPEND qiven3_tidy_targets ${target})
-      if(NOT rel MATCHES "^(src|tests/support)(/|$)")
+      if(NOT rel MATCHES "^(src|tests/support|tests/child)(/|$)")
         continue()
       endif()
       target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${qiven3_analysis_options}>")

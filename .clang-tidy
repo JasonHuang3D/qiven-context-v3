@@ -35,4 +35,4 @@ Checks: >-
   -cppcoreguidelines-explicit-constructor,
   -bugprone-unsafe-to-allow-exceptions
 WarningsAsErrors: '*'
-HeaderFilterRegex: '.*[/\](src|tests[/\]support)[/\].*'
+HeaderFilterRegex: '.*[/\](src|tests[/\]support|tests[/\]child)[/\].*'

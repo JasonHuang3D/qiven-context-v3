@@ -8,7 +8,8 @@ default_config(), where its configuration location lies with no override;
 files_root(), a directory its files' operations may write under;
 COUNT_HANDLES, whether each drive's handle count is compared; and, for
 the files' cases, hold(drive, **times), its holders
-(contract/platform_files.py). A case needing a tag the adapter lacks is
+(contract/platform_files.py), and, where P20 runs timed, held(drive,
+kind), a holder's own times, taken and released. A case needing a tag the adapter lacks is
 not applicable, a skip with the reason.
 
 Here: P1 and P2. P3 to P8 and P16 are location's

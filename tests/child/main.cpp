@@ -5,9 +5,12 @@
 // and ends with child::usage_status. On Windows its entry is wmain, as the
 // product's: each argument converted from UTF-16 by the Windows adapter
 // (run_utf8), one that is not valid UTF-16 ending it with usage_status.
+// run is noexcept, as run_utf8's entry is: an exception ends the child
+// there, by one line on standard error and child::exception_status.
 
 #include <array>
 #include <cstddef>
+#include <cstdio>
 #include <iostream>
 #include <span>
 #include <string_view>
@@ -45,20 +48,25 @@ int usage(std::string_view why) {
 }
 
 int run(int argc, const char* const* argv) noexcept {
-    const std::span<const char* const> given(argv, argc > 0 ? static_cast<std::size_t>(argc) : 0U);
-    std::vector<std::string_view> args;
-    for (std::size_t i = 1; i < given.size(); ++i) {
-        args.emplace_back(given[i]);
-    }
-    if (args.empty()) {
-        return usage("no subcommand");
-    }
-    for (const Subcommand& s : subcommands) {
-        if (s.name == args.front()) {
-            return s.run(std::span<const std::string_view>(args).subspan(1));
+    try {
+        const std::span<const char* const> given(argv, argc > 0 ? static_cast<std::size_t>(argc) : 0U);
+        std::vector<std::string_view> args;
+        for (std::size_t i = 1; i < given.size(); ++i) {
+            args.emplace_back(given[i]);
         }
+        if (args.empty()) {
+            return usage("no subcommand");
+        }
+        for (const Subcommand& s : subcommands) {
+            if (s.name == args.front()) {
+                return s.run(std::span<const std::string_view>(args).subspan(1));
+            }
+        }
+        return usage("an unknown subcommand");
+    } catch (...) {
+        std::fputs("qiven3-child: an exception ended the subcommand\n", stderr);
+        return qiven3::child::exception_status;
     }
-    return usage("an unknown subcommand");
 }
 
 }  // namespace

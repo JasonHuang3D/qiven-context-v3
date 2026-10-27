@@ -12,6 +12,7 @@
 #include "log/log.hpp"
 #include "platform/platform.hpp"
 #include "runner/runner.hpp"
+#include "store/errors.hpp"
 #include "support/log/cases.hpp"
 #include "support/log/journal.hpp"
 
@@ -169,6 +170,26 @@ QIVEN3_CASE(runner, platform_error_named) {
     CHECK(!holds(r.out, "unknown type"));
     CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
     CHECK(holds(r.event, R"("outcome":"fail")"));
+}
+
+QIVEN3_CASE(runner, store_error_named) {
+    // A StoreError has no base: its kind, its kind's code and its detail
+    // are named, each kind's code as message() names it, and none for a
+    // kind with none.
+    const Ran own = run(qiven3_ctx, [](Context&) {
+        throw qiven3::store::StoreError(qiven3::store::Code::internal, "open", "a.db", "no engine heap installed");
+    });
+    CHECK_EQ(own.status, qiven3::test::exit_fail);
+    CHECK(holds(own.out, "store error StoreError internal: no engine heap installed\n"));
+    CHECK(!holds(own.out, "unknown type"));
+    CHECK(holds(own.out, "FAIL sample.case: 1 failed\n"));
+    CHECK(holds(own.event, R"("outcome":"fail")"));
+    const Ran locked = run(qiven3_ctx, [](Context&) {
+        throw qiven3::store::StoreError::locked("open", "a.db", qiven3::store::Cause::held, "another writer");
+    });
+    CHECK(holds(locked.out, "store error StoreLocked held: another writer\n"));
+    const Ran none = run(qiven3_ctx, [](Context&) { throw qiven3::store::StoreError::not_found("get", "a.db", "e1"); });
+    CHECK(holds(none.out, "store error NotFound: \n"));
 }
 
 QIVEN3_CASE(runner, check_eq_shows) {

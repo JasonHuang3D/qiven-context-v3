@@ -302,7 +302,7 @@ class Tiers(Loop):
         out = self.drive(root, [three["windows-msvc"]])
         self.assertIn(f"windows-msvc tree: {root / msvc} emptied, a fresh run, 1 corpus directories kept", out)
         ran = self.ran(root, msvc)
-        self.assertEqual(len(ran), steps)
+        self.assertEqual(len(ran), len(three["windows-msvc"].steps))  # tier 2's drive step not tier 3's
         self.assertIn("--fresh", ran[0])
         self.assertEqual(seed.read_bytes(), b"kept")
         self.assertFalse((root / msvc / "fuzz" / "t" / "artifacts").exists())

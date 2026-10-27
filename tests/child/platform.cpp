@@ -55,6 +55,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -95,9 +96,9 @@ int failed(std::string_view call) {
 
 std::optional<std::uint64_t> number(std::string_view text) {
     std::uint64_t value = 0;
-    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-    return error == std::errc() && end == text.data() + text.size() && !text.empty() ? std::optional(value)
-                                                                                      : std::nullopt;
+    const char* const last = std::to_address(text.end());
+    const auto [end, error] = std::from_chars(std::to_address(text.begin()), last, value);
+    return error == std::errc() && end == last && !text.empty() ? std::optional(value) : std::nullopt;
 }
 
 std::optional<std::string> unhex(std::string_view hex) {
@@ -107,8 +108,10 @@ std::optional<std::string> unhex(std::string_view hex) {
     std::string out;
     for (std::size_t i = 0; i < hex.size(); i += 2) {
         std::uint8_t byte = 0;
-        const auto [end, error] = std::from_chars(hex.data() + i, hex.data() + i + 2, byte, 16);
-        if (error != std::errc() || end != hex.data() + i + 2) {
+        const std::string_view two = hex.substr(i, 2);
+        const char* const last = std::to_address(two.end());
+        const auto [end, error] = std::from_chars(std::to_address(two.begin()), last, byte, 16);
+        if (error != std::errc() || end != last) {
             return std::nullopt;
         }
         out.push_back(static_cast<char>(byte));
@@ -141,9 +144,13 @@ int env(std::span<const std::string_view> names) {
     if (block == nullptr) {
         return failed("GetEnvironmentStringsW");
     }
-    for (const wchar_t* at = block; *at != L'\0'; at += std::wstring_view(at).size() + 1) {
-        const std::wstring_view pair(at);
+    // Each pair to its NUL; the next begins past that NUL, reached through
+    // a view of the pair, its NUL and the unit after it, a unit the block
+    // holds, since it ends in a second NUL.
+    for (std::wstring_view pair(block); !pair.empty();) {
         put(STD_OUTPUT_HANDLE, utf8(pair.substr(0, pair.find(L'=', 1))) + "\n");
+        const std::wstring_view on(pair.data(), pair.size() + 2);
+        pair = std::wstring_view(std::to_address(on.substr(pair.size() + 1).begin()));
     }
     FreeEnvironmentStringsW(block);
     for (const std::string_view name : names) {

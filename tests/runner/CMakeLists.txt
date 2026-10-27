@@ -7,7 +7,8 @@ add_library(qiven3_runner STATIC
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
 # Its main holds the process's log (support/log/journal.hpp), kept for the
 # entry's report; a PlatformError escaping a case is named by its code
-# (qiven3_platform).
+# (qiven3_platform), a StoreError by its kind and code, store/errors.hpp's
+# names, constant in the header, so that nothing of qiven3_store is linked.
 target_link_libraries(qiven3_runner PUBLIC qiven3_memory qiven3_log PRIVATE qiven3_flags qiven3_diag
                       qiven3_platform)
 

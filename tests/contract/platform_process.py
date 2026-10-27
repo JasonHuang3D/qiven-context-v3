@@ -88,14 +88,17 @@ def programs(case, d, **given):
 def lock_half(case, d, timed=False):
     """lock held, then released before the deadline; held past it; a
     deadline of 0, one try: acquired; busy; busy, then acquired once the
-    holder lets go. Timed, where the deadlines are kept: acquired after
-    the holder's time and before the deadline, busy no sooner than its
-    deadline, and at 0 without waiting."""
+    holder lets go. Timed, where the deadlines are kept: acquired no
+    sooner than the holder's own release, read by the holder itself, the
+    holder having held its time, and before the deadline; busy no sooner
+    than its deadline, and at 0 without waiting."""
     path = case.files_root() / "store.lock"
     case.hold(d, lock=3)
-    began = time.monotonic()
+    asked = time.monotonic()
     held = d.call("lock", path=str(path))["id"]
-    waited = time.monotonic() - began
+    acquired = time.monotonic()
+    waited = acquired - asked
+    holder = case.held(d, "lock") if timed else None
     case.assertEqual(case.failure(d.call, "lock_release", id=held + 1).kind, "request")
     d.call("lock_release", id=held)
     case.assertEqual(case.failure(d.call, "lock_release", id=held).kind, "request")
@@ -107,7 +110,13 @@ def lock_half(case, d, timed=False):
     case.assert_platform_error(case.failure(d.call, "lock", path=str(path), deadline=0), "busy")
     once = time.monotonic() - began
     if timed:
-        case.assertTrue(HELD - TICK <= waited < 5.0, waited)
+        # The lower bound from the holder's own release: acquired no
+        # sooner than the holder let go, which held the lock its time.
+        taken, released = holder
+        case.assertIsNotNone(released, "the holder never let go")
+        case.assertGreaterEqual(released - taken, HELD - TICK, "the holder held the lock short of its time")
+        case.assertTrue(asked <= taken and released <= acquired, (asked, taken, released, acquired))
+        case.assertLess(waited, 5.0, waited)
         case.assertTrue(PAST - TICK <= past < PAST + SLACK, past)
         case.assertLess(once, PAST, once)
     case.hold(d, lock=1)

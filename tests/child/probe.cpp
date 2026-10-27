@@ -69,7 +69,7 @@ bool unhex(std::string_view hex, std::string& out) {
         if (high < 0 || low < 0) {
             return false;
         }
-        out.push_back(static_cast<char>((high << 4) | low));
+        out.push_back(static_cast<char>((static_cast<unsigned>(high) << 4U) | static_cast<unsigned>(low)));
     }
     return true;
 }

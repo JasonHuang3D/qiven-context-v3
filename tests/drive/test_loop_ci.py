@@ -18,7 +18,8 @@ one step, fast, the fast test preset's selection on the job's own build,
 without the structure tests on Windows, and builds no structure tree, whose
 tests run in windows-analysis's steps; tier 3's suites build the
 structure, nohal and fuzz presets and run the full and fuzz test presets.
-Each Windows job's trees are its own: no two jobs share one.
+Tier 2 adds one step, in no workflow: the Windows drive's contract file on
+windows-msvc's build. Each Windows job's trees are its own: no two jobs share one.
 
 Each job of either workflow runs on each dispatch, as each of the loop's
 runs on its tier: no job has an if, a draft guard or any other (the
@@ -352,6 +353,36 @@ class LoopAgainstCI(unittest.TestCase):
             self.assertEqual(len(owned), len(set(owned)), owned)
             self.assertNotIn("build/ci", owned)
         self.assertEqual({name: trees[name] for name in linux}, {name: {"build/ci": "build/" + name} for name in linux})
+
+    def test_tier_two(self):
+        """Tier 2's own step: the Windows drive's contract file, every
+        test of tests/machine/test_platform_windows.py and no other, after
+        windows-msvc's steps on its own tree; in no workflow, and in no
+        other way, tier 3's full suite running the label machine whole."""
+        table = self.loop.TABLE
+        drive = table["DRIVE_WINDOWS"]
+        self.assertEqual(table["TIER2_STEPS"], {"windows-msvc": (drive,)})
+        self.assertEqual(drive.ci[:5], ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error"))
+        self.assertEqual(drive.ci[5], "-R")
+        self.assertEqual(len(drive.ci), 7)
+        self.assertTrue((ROOT / "tests" / "machine" / "test_platform_windows.py").is_file())
+        chosen = re.compile(drive.ci[6])
+        for name, picked in (("tests.machine.test_platform_windows.Windows.test_P20_lock", True),
+                             ("tests.machine.test_platform_windows.HandleCount.test_planted_leak", True),
+                             ("tests.contract.test_platform_fake.FakeMachine.test_P17_facts_here", False),
+                             ("win_process.deadline", False), ("tests.machine.test_platform_windowsX.A.b", False)):
+            self.assertEqual(bool(chosen.search(name)), picked, name)
+        self.assertNotIn(drive.ci, self.ci["windows-msvc"][1])
+        presets = self.loop.binary_dirs()
+        jobs = [n for n, job in self.loop.JOBS.items() if job[0] == "windows"]
+        for way in ("1", "2", "3"):
+            msvc = {u.name: u for u in self.loop.plan(way, "windows", jobs)}["windows-msvc"]
+            self.assertEqual(msvc.steps[-1] is drive, way == "2", way)
+            self.assertEqual(sum(s.name == "drive" for s in msvc.steps), int(way == "2"), way)
+        two = {u.name: u for u in self.loop.plan("2", "windows", jobs)}
+        self.assertEqual(self.loop.local_argv(two["windows-msvc"], drive, presets),
+                         ["ctest", "--test-dir", "build/windows-msvc", *drive.ci[3:]])
+        self.assertEqual([n for n, u in two.items() if drive in u.steps], ["windows-msvc"])
 
     def test_environment(self):
         for name, (system, _, _) in self.ci_jobs().items():

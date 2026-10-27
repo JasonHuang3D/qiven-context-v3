@@ -6,8 +6,9 @@ and each step's command in its job's own trees.
   tests, then TIER1_STEPS: fast's label on its build, with no structure
   build (the structure tests run in tier 2's windows-analysis and in tier
   3); each ctest step narrowed by affected() to the affected tests.
-- Tier 2, a unit's gate: every job of the system in its kept trees, each
-  ctest step narrowed by affected().
+- Tier 2, a unit's gate: every job of the system in its kept trees, then
+  TIER2_STEPS on its job's build (the Windows drive's contract file on
+  windows-msvc's); each ctest step narrowed by affected().
 - Tier 3, the boundary run: every job of the system from emptied trees,
   each configure with --fresh, every test of each job; then SUITES, once a
   system: the full suite and the fuzz targets, each for a time when one is
@@ -25,8 +26,8 @@ preset's binaryDir; a directory CI names is replaced. Each preset's
 binaryDir is read from CMakePresets.json.
 
 Run by tools/loop.py, given tools/loop_jobs.py's names (runpy's
-init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, SUITES,
-TIMED_ONLY, CLEAN, FUZZ_TIMED.
+init_globals): JOBS, Step, TREES, READS, TIER1, TIER1_STEPS, TIER2_STEPS,
+SUITES, TIMED_ONLY, CLEAN, FUZZ_TIMED.
 """
 
 import json
@@ -67,7 +68,8 @@ def plan(way, system, jobs, fuzz_time=None, root=None):
         return [Unit(name, system, [*JOBS[name][2], *TIER1_STEPS.get(name, ())], way, presets)]
     if way in TIERS:
         jobs = [n for n, job in JOBS.items() if job[0] == system]
-    units = [Unit(name, system, JOBS[name][2], way, presets) for name in jobs]
+    added = TIER2_STEPS if way == "2" else {}
+    units = [Unit(name, system, [*JOBS[name][2], *added.get(name, ())], way, presets) for name in jobs]
     if way == "3":
         for name, (where, steps) in SUITES.items():
             if where == system and (fuzz_time is not None or name not in TIMED_ONLY):

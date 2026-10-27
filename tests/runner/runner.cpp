@@ -9,10 +9,12 @@
 #include <exception>
 #include <iostream>
 #include <set>
+#include <string_view>
 
 #include "log/catalogue.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "store/errors.hpp"
 #include "support/log/journal.hpp"
 
 namespace qiven3::test {
@@ -91,6 +93,25 @@ constexpr log::Name passed = "pass";
 constexpr log::Name skipped = "skip";
 constexpr log::Name failed = "fail";
 
+// A StoreError's code by its kind, as message() names it: StoreError's own
+// code, StoreLocked's cause, StoreCorrupt's or StoreFull's code,
+// EntryInvalid's entry code; empty for a kind with none.
+std::string_view store_code(const store::StoreError& e) {
+    if (const auto code = e.code()) {
+        return store::name(*code);
+    }
+    if (const auto cause = e.cause()) {
+        return store::name(*cause);
+    }
+    if (const auto corrupt = e.corrupt()) {
+        return store::name(*corrupt);
+    }
+    if (const auto full = e.full()) {
+        return store::name(*full);
+    }
+    return e.kind() == store::Kind::entry_invalid ? e.entry_code() : std::string_view();
+}
+
 // The case's end in log: its outcome's name, the time since start and the
 // bytes ctx's allocators hold; status, given back.
 int ended(const Case& c, const Context& ctx, std::chrono::steady_clock::time_point start, int status) {
@@ -120,6 +141,13 @@ int run_case(const Case& c, std::ostream& out, log::Log& log) {
         // A plain value with no base: its code's name and its detail.
         ++ctx.failures;
         out << "platform error " << platform::name(e.code) << ": " << e.detail.view() << "\n";
+    } catch (const store::StoreError& e) {
+        // As PlatformError's: its kind, its kind's code where it has one,
+        // and its detail.
+        ++ctx.failures;
+        const std::string_view code = store_code(e);
+        out << "store error " << store::name(e.kind()) << (code.empty() ? "" : " ") << code << ": " << e.detail()
+            << "\n";
     } catch (...) {
         ++ctx.failures;
         out << "exception of an unknown type\n";

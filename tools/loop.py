@@ -13,7 +13,10 @@ jobs as below, or build or test of the jobs named:
   on Windows. Tier 1 builds no structure tree: the structure tests run in
   tier 2's windows-analysis and in tier 3. Workers run tier 1 alone.
 - 2, a unit's gate: every job of the system, each in its own kept tree,
-  configured without --fresh, running its tests.
+  configured without --fresh, running its tests; on Windows then the
+  Windows drive's contract file (tests/machine/test_platform_windows.py)
+  on windows-msvc's build, the adapter's cases over real files and
+  processes, the rest of the label machine left to tier 3.
 - 3, the boundary run: every job of the system from emptied trees, each
   configure with --fresh, every test of each; then, once a system, the full
   suite and the fuzz targets: on Windows the structure and nohal presets'

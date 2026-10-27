@@ -88,6 +88,10 @@ class WindowsBinding(PlatformBinding):
         path (machine/windows_holds.py)."""
         d.hold(**times)
 
+    def held(self, d, kind):
+        """The kind's last holder's own times, (taken, released)."""
+        return d.holder_times(kind)
+
 
 class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn,
               PlatformRest, PlatformLast, PlatformMemory, PlatformMachine, PlatformRestMachine, unittest.TestCase):

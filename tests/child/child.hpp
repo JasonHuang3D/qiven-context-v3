@@ -15,6 +15,8 @@ namespace qiven3::child {
 // The exit status of a caller's mistake: an unknown subcommand, a wrong
 // argument, a malformed input line.
 inline constexpr int usage_status = 2;
+// The exit status of an exception that ends a subcommand (main.cpp).
+inline constexpr int exception_status = 3;
 
 // probe: applies one facility to each input line (probe.cpp).
 int probe(std::span<const std::string_view> args);
