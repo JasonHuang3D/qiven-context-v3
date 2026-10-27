@@ -179,6 +179,8 @@ public:
 #if defined(QIVEN3_FAULTS)
     // The countdown win/files' calls ask first; null for none.
     void attach(memory::Countdown* countdown) noexcept { files_.attach(countdown); }
+    // The trace win/files' retries record their clock into; null for none.
+    void trace(ClockTrace* into) noexcept { files_.trace(into); }
 #endif
 
 private:
@@ -206,7 +208,8 @@ static_assert(Platform<WindowsPlatform>);
 // three threads (std::jthread, 24 bytes each), its handles and the
 // countdown on the pages; the adapter its scratch, the override's size, three flags and
 // its WindowsFiles: the adapter's address, under
-// QIVEN3_FAULTS the countdown's, stage's 16 slots of 24 bytes and a serial.
+// QIVEN3_FAULTS the countdown's and the trace's, stage's 16 slots of 24
+// bytes and a serial.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
 static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
@@ -214,7 +217,7 @@ static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "t
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsChild) == 88, "its pages and three threads");
 #if defined(QIVEN3_FAULTS)
-static_assert(sizeof(WindowsFiles) == 408 && sizeof(WindowsPlatform) == 440, "scratch, size, flags, files");
+static_assert(sizeof(WindowsFiles) == 416 && sizeof(WindowsPlatform) == 448, "scratch, size, flags, files");
 #else
 static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
 #endif

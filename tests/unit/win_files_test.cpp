@@ -128,6 +128,31 @@ struct Pages {
 constexpr Seconds five{5.0};
 constexpr Seconds short_wait{0.2};
 
+// The steady clock in whole milliseconds, as the adapter's elapsed() reads
+// it: two readings hold between them every span it reads in their while.
+std::chrono::milliseconds steady_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
+}
+
+#if defined(QIVEN3_FAULTS)
+using qiven3::platform::win::ClockTrace;
+
+// A retry loop's clock by its trace, read between before and after: its
+// reads in order within them, the first at its start, then one after each
+// refused try; a pause of the text's 50 ms after each such read but a
+// spent one. Spent: it gave up at its first read past the deadline, never
+// before; else every read short of it.
+void check_clock(qiven3::test::Context& qiven3_ctx, const ClockTrace& t, std::chrono::milliseconds before,
+                 std::chrono::milliseconds after, Seconds deadline, bool spent) {
+    CHECK(t.reads >= (spent ? 2U : 1U));
+    CHECK(before <= t.first && t.first <= t.previous && t.previous <= t.last && t.last <= after);
+    CHECK_EQ(t.pauses, spent ? t.reads - 2 : t.reads - 1);
+    CHECK(t.asked == 50ms * static_cast<std::chrono::milliseconds::rep>(t.pauses));
+    CHECK(t.previous - t.first < deadline);
+    CHECK(spent == (t.last - t.first >= deadline));
+}
+#endif
+
 }  // namespace
 
 QIVEN3_CASE(win_files, create) {
@@ -329,14 +354,14 @@ QIVEN3_CASE(win_files, replace) {
 }
 
 // P9's reader on the adapter: a reader holds the target past the deadline,
-// busy with the old bytes and no temporary file; a deadline of 0 one try:
-// under QIVEN3_FAULTS an unarmed countdown, which fails none, counts the
-// adapter's Win32 calls, and the held replace of deadline 0 makes those of
-// a replace that renames at its first try, and one more, its temporary
-// file's deletion: one rename, so no pause, which only comes before
-// another; the deadline's replace no fewer, more only where its first try
-// ends before the deadline, which a slow disk need not give. Released, the
-// new bytes.
+// busy with the old bytes and no temporary file, never before the deadline
+// by the clock the adapter reads; a deadline of 0 one try. Under
+// QIVEN3_FAULTS the trace shows the retries as check_clock states them,
+// and an unarmed countdown, which fails none, counts the adapter's Win32
+// calls: the held replace of deadline 0 makes those of a replace that
+// renames at its first try, and one more, its temporary file's deletion;
+// the deadline's replace those and one rename more for each pause.
+// Released, the new bytes.
 QIVEN3_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -345,6 +370,8 @@ QIVEN3_CASE(win_files, replace_held) {
 #if defined(QIVEN3_FAULTS)
     qiven3::memory::Countdown countdown;
     platform.attach(&countdown);
+    ClockTrace held_trace;
+    ClockTrace zero_trace;
 #endif
     // The Win32 calls op makes; 0 without QIVEN3_FAULTS.
     const auto calls = [&](auto op) {
@@ -363,15 +390,27 @@ QIVEN3_CASE(win_files, replace_held) {
     {
         const std::ifstream reader(target, std::ios::binary);  // shares read and write, not delete
         CHECK(reader.is_open());
-        const auto start = std::chrono::steady_clock::now();
+#if defined(QIVEN3_FAULTS)
+        platform.trace(&held_trace);
+#endif
+        const auto before = steady_ms();
         Thrown held;
         retried = calls([&] { held = thrown([&] { platform.replace(text(target), "new", short_wait); }); });
-        const auto waited = std::chrono::steady_clock::now() - start;
+        const auto after = steady_ms();
         CHECK(held.code == Code::busy);
         CHECK_EQ(held.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
-        CHECK(waited >= 200ms && waited < 2s);
+        CHECK(after - before >= short_wait);
+#if defined(QIVEN3_FAULTS)
+        check_clock(qiven3_ctx, held_trace, before, after, short_wait, true);
+        platform.trace(&zero_trace);
+#endif
         Thrown zero;
         once = calls([&] { zero = thrown([&] { platform.replace(text(target), "new", Seconds{0.0}); }); });
+#if defined(QIVEN3_FAULTS)
+        platform.trace(nullptr);
+        CHECK_EQ(zero_trace.reads, 2U);  // its start, and its one try's
+        CHECK_EQ(zero_trace.pauses, 0U);
+#endif
         CHECK(zero.code == Code::busy);
         CHECK_EQ(zero.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
         CHECK(!temporary_left(scratch.root));
@@ -383,7 +422,7 @@ QIVEN3_CASE(win_files, replace_held) {
 #if defined(QIVEN3_FAULTS)
     CHECK(first_try > 0U);
     CHECK_EQ(once, first_try + 1);
-    CHECK(retried >= once);
+    CHECK_EQ(retried, once + held_trace.pauses);
     CHECK(!countdown.fired());
     platform.attach(nullptr);
 #else
@@ -391,19 +430,30 @@ QIVEN3_CASE(win_files, replace_held) {
 #endif
 }
 
+// P20's lock half: held past the deadline, busy, never before it by the
+// clock the adapter reads, and under QIVEN3_FAULTS the retries as
+// check_clock states them; at 0 busy; released, acquired.
 QIVEN3_CASE(win_files, lock) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path file = scratch.root / "location.lock";
     auto held = platform.lock(text(file), five);
     CHECK(fs::is_regular_file(file));
-    const auto start = std::chrono::steady_clock::now();
+#if defined(QIVEN3_FAULTS)
+    ClockTrace trace;
+    platform.trace(&trace);
+#endif
+    const auto before = steady_ms();
     const Thrown second = thrown([&] { platform.lock(text(file), short_wait); });
-    const auto waited = std::chrono::steady_clock::now() - start;
+    const auto after = steady_ms();
     CHECK(second.code == Code::busy);
     CHECK_EQ(second.operation, std::string("lock"));
     CHECK_EQ(second.detail, std::string("lock: error 33 (ERROR_LOCK_VIOLATION)"));
-    CHECK(waited >= 200ms && waited < 2s);
+    CHECK(after - before >= short_wait);
+#if defined(QIVEN3_FAULTS)
+    platform.trace(nullptr);
+    check_clock(qiven3_ctx, trace, before, after, short_wait, true);
+#endif
     CHECK(thrown([&] { platform.lock(text(file), Seconds{0.0}); }).code == Code::busy);
     auto moved = std::move(held);
     moved.release();

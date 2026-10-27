@@ -138,6 +138,32 @@ std::size_t fill(WindowsStaged& staged, std::vector<WindowsSink>& sinks, std::st
 
 constexpr Seconds five{5.0};
 constexpr Seconds short_wait{0.2};
+
+// The steady clock in whole milliseconds, as the adapter's elapsed() reads
+// it: two readings hold between them every span it reads in their while.
+std::chrono::milliseconds steady_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
+}
+
+#if defined(QIVEN3_FAULTS)
+using qiven3::platform::win::ClockTrace;
+
+// A retry loop's clock by its trace, read between before and after, as
+// win_files_test.cpp's check_clock: its reads in order within them, the
+// first at its start, then one after each refused try; a pause of the
+// text's 50 ms after each such read but a spent one. Spent: it gave up at
+// its first read past the deadline, never before; else every read short
+// of it.
+void check_clock(qiven3::test::Context& qiven3_ctx, const ClockTrace& t, std::chrono::milliseconds before,
+                 std::chrono::milliseconds after, Seconds deadline, bool spent) {
+    CHECK(t.reads >= (spent ? 2U : 1U));
+    CHECK(before <= t.first && t.first <= t.previous && t.previous <= t.last && t.last <= after);
+    CHECK_EQ(t.pauses, spent ? t.reads - 2 : t.reads - 1);
+    CHECK(t.asked == 50ms * static_cast<std::chrono::milliseconds::rep>(t.pauses));
+    CHECK(t.previous - t.first < deadline);
+    CHECK(spent == (t.last - t.first >= deadline));
+}
+#endif
 constexpr std::string_view bound_detail = "16 files already open across the staged directories";
 constexpr std::string_view closed_handle = "write: error 6";  // 6 is off files' table of names
 constexpr std::string_view ended = "the staging directory is published or discarded";
@@ -246,12 +272,18 @@ QIVEN3_CASE(win_files_stage, publish_exists) {
     CHECK(fs::is_empty(scratch.root / "empty"));
 }
 
-// P19's held rows: a file inside held, released before the deadline, then
-// held past it: busy naming the staging directory left and the file that
-// stopped its discard; released, a discard removes it.
+// P19's held rows: a file inside held, released before the deadline,
+// published once released; then held past it: busy, never before the
+// deadline by the clock the adapter reads, naming the staging directory
+// left and the file that stopped its discard; released, a discard removes
+// it. Under QIVEN3_FAULTS the trace shows each publish's retries as
+// check_clock states them.
 QIVEN3_CASE(win_files_stage, publish_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
+#if defined(QIVEN3_FAULTS)
+    ClockTrace trace;
+#endif
     const auto bag = [&](WindowsStaged& staged) {
         WindowsSink bagit = staged.open("bagit.txt");
         bagit.write("BagIt-Version: 1.0\n");
@@ -266,15 +298,23 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         const fs::path inside = scratch.root / staging_left(scratch.root).front();
         auto reader = std::make_unique<std::ifstream>(inside / "bagit.txt", std::ios::binary);
         CHECK(reader->is_open());
-        const auto start = std::chrono::steady_clock::now();
+#if defined(QIVEN3_FAULTS)
+        platform.trace(&trace);
+#endif
+        const auto before = steady_ms();
         std::jthread release([&] {
             std::this_thread::sleep_for(150ms);
             reader->close();
         });
         staged.publish("one", five);
-        const auto waited = std::chrono::steady_clock::now() - start;
+        const auto after = steady_ms();
         release.join();
-        CHECK(waited >= 100ms && waited < 2s);
+        CHECK(after - before >= 100ms);  // not before the release
+#if defined(QIVEN3_FAULTS)
+        platform.trace(nullptr);
+        check_clock(qiven3_ctx, trace, before, after, five, false);
+        trace = ClockTrace{};
+#endif
         CHECK_EQ(bytes_of(scratch.root / "one" / "data" / "headers.jsonl"), std::string("{}\n"));
         CHECK(staging_left(scratch.root).empty());
     }
@@ -284,14 +324,21 @@ QIVEN3_CASE(win_files_stage, publish_held) {
     {
         const std::ifstream reader(scratch.root / name / "bagit.txt", std::ios::binary);
         CHECK(reader.is_open());
-        const auto start = std::chrono::steady_clock::now();
+#if defined(QIVEN3_FAULTS)
+        platform.trace(&trace);
+#endif
+        const auto before = steady_ms();
         const Thrown held = thrown([&] { staged.publish("two", short_wait); });
-        const auto waited = std::chrono::steady_clock::now() - start;
+        const auto after = steady_ms();
         CHECK(held.code == Code::busy);
         CHECK_EQ(held.operation, std::string("publish"));
         CHECK_EQ(held.detail, "rename: error 5 (ERROR_ACCESS_DENIED); left " + name +
                                   "/bagit.txt, delete: error 32 (ERROR_SHARING_VIOLATION)");
-        CHECK(waited >= 200ms && waited < 2s);
+        CHECK(after - before >= short_wait);
+#if defined(QIVEN3_FAULTS)
+        platform.trace(nullptr);
+        check_clock(qiven3_ctx, trace, before, after, short_wait, true);
+#endif
         CHECK(!fs::exists(scratch.root / "two"));
         CHECK(fs::is_regular_file(scratch.root / name / "bagit.txt"));
     }

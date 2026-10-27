@@ -106,10 +106,26 @@ void WindowsFiles::random_bytes(std::span<std::byte> into) {
 }
 
 std::chrono::milliseconds WindowsFiles::elapsed() const noexcept {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
+    const auto read =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
+#if defined(QIVEN3_FAULTS)
+    if (trace_ != nullptr) {
+        trace_->first = trace_->reads == 0 ? read : trace_->first;
+        trace_->previous = trace_->reads == 0 ? read : trace_->last;
+        trace_->last = read;
+        ++trace_->reads;
+    }
+#endif
+    return read;
 }
 
 void WindowsFiles::pause(std::chrono::milliseconds wait) noexcept {
+#if defined(QIVEN3_FAULTS)
+    if (trace_ != nullptr) {
+        ++trace_->pauses;
+        trace_->asked += wait;
+    }
+#endif
     // Below DWORD's largest value, which Sleep takes as no deadline.
     constexpr std::chrono::milliseconds::rep longest = std::numeric_limits<DWORD>::max() - 1;
     const auto count = std::clamp<std::chrono::milliseconds::rep>(wait.count(), 0, longest);
