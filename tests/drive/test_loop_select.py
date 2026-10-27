@@ -24,6 +24,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.drive.own_git import own_git
 from tests.drive.test_loop_ci import load_loop
 
 LOOP = load_loop()
@@ -64,9 +65,12 @@ def git(root, *argv):
 
 
 def checkout(case):
-    """A scratch checkout, its files in git's index, and its tree."""
+    """A scratch checkout, its files in git's index, and its tree; the
+    case's git and the selection's under the case's own environment
+    (tests/drive/own_git.py), which reads no host config (992)."""
     top = Path(tempfile.mkdtemp(prefix="qiven3-loop-select-"))
     case.addCleanup(shutil.rmtree, top, ignore_errors=True)
+    own_git(case)
     for rel, text in FILES.items():
         (top / rel).parent.mkdir(parents=True, exist_ok=True)
         (top / rel).write_bytes(text.encode("utf-8"))

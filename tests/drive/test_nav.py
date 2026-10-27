@@ -21,7 +21,10 @@ system_->publish in src/platform/files.hpp, a call through a template
 parameter, is listed under unresolved; the lines found by grep, not written
 here, so that no product test's edit moves the count. Skipped where
 clangd or the database is absent; labelled drive alone, so that it runs in
-the full suite."""
+the full suite.
+
+Each case's git, and the tool's, run under the case's own git environment
+(tests/drive/own_git.py), which reads no host config (992)."""
 
 import json
 import os
@@ -33,6 +36,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.drive.own_git import own_git
 from tools import nav_lsp
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -132,6 +136,7 @@ def scratch(case):
     """The scratch checkout: the project, its database, one commit."""
     top = Path(tempfile.mkdtemp(prefix="qiven3-nav-")).resolve()
     case.addCleanup(shutil.rmtree, top, ignore_errors=True)
+    own_git(case)
     for rel, text in FILES.items():
         (top / rel).parent.mkdir(parents=True, exist_ok=True)
         (top / rel).write_bytes(text.encode("utf-8"))
@@ -287,6 +292,7 @@ class Checkout(unittest.TestCase):
         clangd_or_skip(self)
         if not (ROOT / DATABASE).is_file():
             self.skipTest(f"no stripped database: {DATABASE}, the analysis preset's, is not built")
+        own_git(self)
 
     def test_publish(self):
         header = (ROOT / "src/platform/files.hpp").read_text(encoding="utf-8")
