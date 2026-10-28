@@ -69,7 +69,9 @@ std::vector<Case> cases() {
 // The format's identities, entries of no fixture: IC, the import's
 // checkpoint for lane implementer, and LC, that lane's first checkpoint
 // revising it; IQ, the import's question q1, and LQ, a slot's revising
-// it. Their header lines and contents, made once.
+// it. Their header lines and contents, made once. Each content's strings
+// take more than 22 bytes, past every standard library's short-string
+// buffer, so that its value's text takes its allocation on each.
 struct Made {
     std::string_view name;
     std::string header;
@@ -98,9 +100,11 @@ const std::vector<Made>& made() {
         return std::vector<Made>{
             {"IC", line("checkpoint", "import", a, std::nullopt),
              R"({"for_lane":"implementer","next_action":"n","progress":"p"})"},
-            {"LC", line("checkpoint", "implementer/s39", b, a), R"({"next_action":"m","progress":"q"})"},
-            {"IQ", line("question", "import", a, std::nullopt), R"({"question":"x","question_id":"q1"})"},
-            {"LQ", line("question", "implementer/s39", b, a), R"({"question":"y","question_id":"q1"})"},
+            {"LC", line("checkpoint", "implementer/s39", b, a),
+             R"({"next_action":"the next step","progress":"what is done"})"},
+            {"IQ", line("question", "import", a, std::nullopt),
+             R"({"question":"which one first","question_id":"q1"})"},
+            {"LQ", line("question", "implementer/s39", b, a), R"({"question":"which one now","question_id":"q1"})"},
         };
     }();
     return all;
