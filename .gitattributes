@@ -19,6 +19,7 @@ tests/vectors/ids.json -text
 tests/fuzz/digest/regress/** -text
 tests/fuzz/entry/regress/** -text
 tests/fuzz/wire/regress/** -text
+tests/fuzz/yaml/regress/** -text
 # The vendored SQLite amalgamation, as its upstream ships it: each file's
 # SHA-256 pinned in CMakeLists.txt and checked on every configure.
 third_party/sqlite/sqlite3.c -text

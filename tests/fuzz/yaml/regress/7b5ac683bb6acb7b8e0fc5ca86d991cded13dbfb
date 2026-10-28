@@ -1,0 +1,15 @@
+record_schema_version: 1.0.0
+profile: "implementer"
+continuity_scope: lane-one
+task_id: "task-synthetic-01"
+objective: "carry the synthetic plan to its end"
+next_action: open PR #12 and wait for review
+decision_status: 'settled'
+evidence_refs:
+- "notes/one.md"
+- "notes/two.md"
+# a comment between
+
+- plain item
+open_questions:
+phase: "café — done"

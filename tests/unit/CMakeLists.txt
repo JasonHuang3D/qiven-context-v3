@@ -241,6 +241,12 @@ qiven3_add_cases(qiven3_unit_wire LABELS fast fake
   SOURCES wire_test.cpp wire_memory_test.cpp
   LINK qiven3_wire qiven3_platform_fake)
 
+# import/yaml: each form of the flat subset read, each refusal naming its
+# line, the first faulty line deciding, an arena too small.
+qiven3_add_cases(qiven3_unit_yaml LABELS fast fake
+  SOURCES yaml_test.cpp
+  LINK qiven3_import qiven3_platform_fake)
+
 # win/files' cases on the Windows adapter, on Windows alone: create, read,
 # remove_directory, replace and lock on real files in each case's scratch
 # directory under the job's temporary directory; read's allocation counted;
