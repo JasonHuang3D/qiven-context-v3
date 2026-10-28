@@ -5,6 +5,8 @@
 // object as its name, unchecked with no mark and fresh with its map
 // check's at; a reflection writer's lesson served as a claim until lifted;
 // an object's and a list's forms and a deeper value's canonical JSON; a
+// checkpoint's detail not shown; an item's state last on line 3 and not
+// among its fields; the longest label served whole on line 2; a
 // stub, its cost the block's units, not its bytes; cost in UTF-16 units;
 // map_mark's syntax; BUDGETS. At run time,
 // over tests/fixtures/: M1 stale and M2 fresh with their map checks' at,
@@ -13,7 +15,8 @@
 // served; MX's block of 42,658 units over a page and its stub of 201; and
 // the refusals: a kind not served, a state not served, a mark on another
 // kind, a content without its band, its name or a repo object's path, a
-// when without its quality, a content not an object.
+// when without its quality, a content not an object, an item without its
+// state.
 
 #include <array>
 #include <cstddef>
@@ -63,7 +66,7 @@ constexpr std::string render(const std::string& line, std::string_view content, 
     const header::Header<> h = header::parse_line(line);
     canon::Basic<> v;
     canon::parse(content, v);
-    const labels::Label label = labels::label(*labels::version_of(h), checks);
+    const labels::Label label = labels::label(*labels::version_of(h, v), checks);
     std::string out;
     if (stub) {
         served::stub(h, v, state, label, mark, out);
@@ -188,6 +191,68 @@ static_assert(render(head("decision", "claimed", "implementer/s39"),
               "  - [1,{\"z\":false}]\n"
               "\n");
 
+// A checkpoint's detail is not shown; its other fields are, for_lane among
+// them. An item's state ends line 3 and is not repeated among its fields;
+// its common item field is never shown.
+static_assert(render(head("checkpoint", "claimed", "implementer/s39"),
+                     R"({"band":"core","detail":"The rest of the record.","for_lane":"reviewer",)"
+                     R"("next_action":"Run tier 1.","progress":"Built.","subject":"activity:x"})") ==
+              "checkpoint activity:x [core] 0123456789abcdef\n"
+              "by: claim by implementer/s39\n"
+              "state: none\n"
+              "progress: Built.\n"
+              "next_action: Run tier 1.\n"
+              "for_lane: reviewer\n"
+              "\n");
+static_assert(render(head("item", "claimed", "implementer/s39"),
+                     R"({"band":"core","item":"x","item_id":"x","state":"active","subject":"item:x",)"
+                     R"("title":"Do x.","when":{"quality":"exact","time":"2026-10-17T00:00:00.000Z"}})",
+                     FORKED) ==
+              "item item:x [core] 0123456789abcdef\n"
+              "by: claim by implementer/s39\n"
+              "state: none; when 2026-10-17T00:00:00.000Z (exact); forked +2; duplicate +1; item active\n"
+              "item_id: x\n"
+              "title: Do x.\n"
+              "\n");
+
+// The longest label (labels' capacity) served whole on line 2: the owner's words
+// as quoted in a path of 200 four-byte characters, refuted by transcript.
+constexpr std::string_view W1 = "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr/s123456789";
+constexpr std::string_view W2 = "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/s987654321";
+constexpr std::string_view REV = "0123456789abcdef0123456789abcdef01234567";
+constexpr std::string wide_path() {
+    std::string p;
+    for (std::size_t i = 0; i < 200; ++i) {
+        p += "\xF0\x9F\x98\x80";
+    }
+    return p;
+}
+constexpr labels::CheckView refuting() {
+    labels::CheckView c;
+    c.writer = W2;
+    c.method = fold::Method::transcript;
+    c.result = fold::Result::refuted;
+    c.transcript = fold::Transcript::reverified;
+    return c;
+}
+constexpr std::array<labels::CheckView, 1> REFUTING = {refuting()};
+constexpr std::string long_label_line() {
+    return "by: the owner's words as quoted in " + wide_path() + " (" + std::string(REV) + "), recorded by " +
+           std::string(W1) + "; refuted by " + std::string(W2) + " (transcript)\n";
+}
+constexpr std::string quoted_block() {
+    return render(head("direction", "owner-words", W1),
+                  R"({"band":"core","source":[{"digest":"d1","path":")" + wide_path() +
+                      R"(","repository":"r","revision":")" + std::string(REV) +
+                      R"(","type":"repo"}],"subject":"activity:x","words":"Keep it."})",
+                  SERVED, std::nullopt, REFUTING);
+}
+static_assert(long_label_line().size() == 4 + labels::capacity + 1);
+static_assert(quoted_block() == "direction activity:x [core] 0123456789abcdef\n" + long_label_line() +
+                                    "state: none\n"
+                                    "words: Keep it.\n"
+                                    "\n");
+
 // A stub: lines 1 to 3, the block's cost and full id, the empty line.
 static_assert(render(head("claim", "claimed", "implementer/s39"), R"({"band":"core","claim":"x","subject":"entity:x"})",
                      SERVED, std::nullopt, {}, true) ==
@@ -251,7 +316,7 @@ served::State state(std::span<const Held* const> record) {
     return served::State{fold::fold(std::span<const fold::ItemView>(items), "2026-10-18T00:00:00.000Z"), 0};
 }
 
-labels::Label own(const Held& x) { return labels::label(*labels::version_of(x.h), {}); }
+labels::Label own(const Held& x) { return labels::label(*labels::version_of(x.h, x.v), {}); }
 
 std::string block(const Held& x, const served::State& s, const std::optional<MapMark>& mark = std::nullopt) {
     std::string out;
@@ -412,4 +477,10 @@ QIVEN3_CASE(served, refusals) {
     CHECK(code(line, R"({"band":"core","claim":"x","subject":"entity:x","when":{"time":"2026-10-17T00:00:00.000Z"}})",
                SERVED, std::nullopt) == served::Code::content);
     CHECK(code(line, R"(["x"])", SERVED, std::nullopt) == served::Code::content);
+    // An item without its state, or with a state of another type.
+    CHECK(code(head("item", "claimed", "implementer/s39"), R"({"band":"core","item_id":"x","subject":"item:x"})",
+               SERVED, std::nullopt) == served::Code::content);
+    CHECK(code(head("item", "claimed", "implementer/s39"),
+               R"({"band":"core","item_id":"x","state":1,"subject":"item:x"})", SERVED,
+               std::nullopt) == served::Code::content);
 }

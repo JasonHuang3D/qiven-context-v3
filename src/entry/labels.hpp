@@ -12,8 +12,12 @@
 // The base by basis: owner-words reads its bindings, a live accept, or a
 // live transcript check of result verified, by another writer; the earliest
 // re-verified one makes the owner's word, else the earliest unverified one
-// a record bound (unverified), else unbound. observed, claimed and derived
-// name the writer. Then the strongest live check by another writer adds
+// a record bound (unverified), else the version's document of record, the
+// first repo reference with a revision in its source, the owner's words as
+// quoted in its path at its revision, recorded by the writer, else
+// unbound. The document of record is no binding and lifts nothing; its
+// digest is checked off the request path, never here. observed, claimed
+// and derived name the writer. Then the strongest live check by another writer adds
 // its suffix, the earliest among equals named, by this precedence: refuted
 // (test or rerun, or a transcript re-verified), accepted (an accept
 // re-verified), verified (test or rerun, or a transcript re-verified),
@@ -25,14 +29,16 @@
 // one served on request. Strength verified or accepted lifts a reflection
 // writer's lesson (lifted).
 //
-// version_of and check_of read a header and its content: the basis; a
-// check's method and result; the transcript reference's message and
-// digest, an accept's message, or a transcript check's first transcript
-// reference in its evidence.
+// version_of and check_of read a header and its content: the basis and
+// the document of record; a check's method and result; the transcript
+// reference's message and digest, an accept's message, or a transcript
+// check's first transcript reference in its evidence.
 //
 // Allocations: none. A label is a value of a fixed capacity, the longest
-// label the writer's and message's syntaxes allow; a longer one is
-// MemoryError budget. Each is constexpr, so its vectors run in constant
+// label a valid entry gives: the owner's words as quoted in a path of
+// refs' limit, each character four UTF-8 bytes, with a refutation by
+// transcript, each writer at its syntax's longest; a longer one is
+// MemoryError budget, never cut. Each is constexpr, so its vectors run in constant
 // evaluation too; it reads by index, with no pointer arithmetic. labels
 // logs nothing.
 //
@@ -48,6 +54,7 @@
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
+#include "entry/refs.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
@@ -69,10 +76,13 @@ constexpr std::string_view name(Strength s) noexcept { return strength_names[sta
 // An owner-words version's binding: none, unverified or re-verified.
 enum class Binding : std::uint8_t { none, unverified, reverified };
 
-// The version as the label reads it: views made and dropped in the call.
+// The version as the label reads it: views made and dropped in the call;
+// its document of record's path and revision, both empty with none.
 struct VersionView {
     std::string_view writer;
     Basis basis = Basis::claimed;
+    std::string_view path;
+    std::string_view revision;
 };
 
 // A check or an accept of the version, in the order: its writer, and for
@@ -92,11 +102,22 @@ struct CheckView {
 static_assert(sizeof(CheckView) == 56, "CheckView's size is pinned: three views and five flags, padded");
 #endif
 
-// The longest label: owner-words bound (unverified) with a refutation by
-// transcript, each writer and the message at their syntaxes' longest.
+// The longest label: owner-words as quoted in a document of record, its
+// path at refs' limit in characters of four UTF-8 bytes each and its
+// revision of 40 hex digits, with a refutation by transcript, each writer
+// at its syntax's longest. An accepted suffix, the longest, never follows
+// an owner-words base: an accept by another writer is its binding. The
+// longest bound base, 296 bytes, and the owner's word's, 212, are shorter.
 inline constexpr std::size_t writer_max = 32 + 2 + 9;
 inline constexpr std::size_t message_max = 128;
-inline constexpr std::size_t capacity = 365;
+inline constexpr std::size_t path_max = refs::path_limit * 4;
+inline constexpr std::size_t revision_size = 40;
+// "the owner's words as quoted in <path> (<revision>), recorded by <writer>"
+inline constexpr std::size_t quoted_max = 31 + path_max + 2 + revision_size + 15 + writer_max;
+// "; refuted by <writer> (transcript)"
+inline constexpr std::size_t suffix_max = 13 + writer_max + 2 + 10 + 1;
+inline constexpr std::size_t capacity = quoted_max + suffix_max;
+static_assert(quoted_max == 931 && suffix_max == 69 && capacity == 1000, "the longest label, by its parts");
 
 // A label: its text in place, its strength and its binding.
 struct Label {
@@ -111,7 +132,7 @@ struct Label {
         return strength == Strength::verified || strength == Strength::accepted;
     }
 };
-static_assert(sizeof(Label) == 370, "Label's size is pinned: its size, two flags and the text, padded");
+static_assert(sizeof(Label) == 1004, "Label's size is pinned: its size, two flags and the text");
 
 namespace detail {
 
@@ -212,18 +233,25 @@ constexpr Label label(const VersionView& version, std::span<const CheckView> che
                 detail::put(l, ", bound by ");
                 detail::put(l, checks[binder].writer);
                 detail::put(l, ")");
+            } else if (l.binding == Binding::unverified) {
+                detail::put(l, "the model's record of the owner's words, by ");
+                detail::put(l, version.writer);
+                detail::put(l, ", bound (unverified) by ");
+                detail::put(l, checks[binder].writer);
+                detail::put(l, " (transcript ");
+                detail::put(l, checks[binder].message);
+                detail::put(l, ")");
+            } else if (!version.revision.empty()) {
+                detail::put(l, "the owner's words as quoted in ");
+                detail::put(l, version.path);
+                detail::put(l, " (");
+                detail::put(l, version.revision);
+                detail::put(l, "), recorded by ");
+                detail::put(l, version.writer);
             } else {
                 detail::put(l, "the model's record of the owner's words, by ");
                 detail::put(l, version.writer);
-                if (l.binding == Binding::unverified) {
-                    detail::put(l, ", bound (unverified) by ");
-                    detail::put(l, checks[binder].writer);
-                    detail::put(l, " (transcript ");
-                    detail::put(l, checks[binder].message);
-                    detail::put(l, ")");
-                } else {
-                    detail::put(l, ", unbound");
-                }
+                detail::put(l, ", unbound");
             }
             break;
         case Basis::observed:
@@ -272,15 +300,30 @@ constexpr Label label(const VersionView& version, std::span<const CheckView> che
     return l;
 }
 
-// A header's version as the label reads it; none when its basis is no
+// A version as the label reads it, with views of its header and content:
+// its writer, its basis and its document of record, the first repo
+// reference with a revision in its source; none when its basis is no
 // basis.
-template <typename A>
-constexpr std::optional<VersionView> version_of(const header::Header<A>& h) {
+template <typename A, typename B>
+constexpr std::optional<VersionView> version_of(const header::Header<A>& h, const canon::Basic<B>& content) {
     const std::optional<Basis> b = basis_of(h.value(header::Slot::basis));
     if (!b) {
         return std::nullopt;
     }
-    return VersionView{h.value(header::Slot::writer), *b};
+    VersionView v{h.value(header::Slot::writer), *b, {}, {}};
+    const std::optional<json::Index> source = detail::child(content, 0, "source");
+    if (!source || content.kind(*source) != json::Kind::array) {
+        return v;
+    }
+    for (json::Index k = *source + 1; k < content.next(*source); k = content.next(k)) {
+        const std::string_view revision = kinds::detail::member(content, k, "revision");
+        if (kinds::detail::member(content, k, "type") == "repo" && !revision.empty()) {
+            v.path = kinds::detail::member(content, k, "path");
+            v.revision = revision;
+            break;
+        }
+    }
+    return v;
 }
 
 // A check's or an accept's entry as the label reads it, with views of its

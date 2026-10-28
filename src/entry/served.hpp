@@ -11,10 +11,12 @@
 // 2. by: <label>, the label as labels gives it;
 // 3. state: <mark>, then ; map check <at> when a map's mark is given, and
 //    each that applies: ; as of <date>, ; when <time> (<quality>),
-//    ; expires <time>, ; forked +<n>, ; duplicate +<n>;
-// 4. the kind's own fields present, in kinds' order, but a map's object
-//    and a direction's clears, each by its form, its text escaped onto
-//    one line (served_text.hpp).
+//    ; expires <time>, ; forked +<n>, ; duplicate +<n>; and last, on an
+//    item, ; item <state>, its state field's value;
+// 4. the kind's own fields present, in kinds' order, but a map's object,
+//    a direction's clears, a checkpoint's detail and an item's state, each
+//    by its form, its text escaped onto one line (served_text.hpp). The
+//    common fields are never among them.
 //
 // The mark: a map version's is the marks file's, fresh or stale with its
 // map check's at, which the caller reads (projectmap's parser) and gives
@@ -23,8 +25,8 @@
 // the count of the other records of its identity the fold serves, which
 // the caller's selection gives (duplicate). A kind that is not served is
 // ServedError kind; a state the fold does not serve, ServedError state; a
-// served kind's content without its band, its name or a field's shape,
-// ServedError content. The content is the admitted, canonical one, so its
+// served kind's content without its band, its name, an item's state or a
+// field's shape, ServedError content. The content is the admitted, canonical one, so its
 // members are read in code point order as they stand.
 //
 // stub writes lines 1 to 3, then stub: <cost> units; read by id <id>, the
@@ -177,6 +179,7 @@ struct LinesView {
     std::string_view time;
     std::string_view quality;
     std::string_view expires;
+    std::string_view item_state;
     std::size_t kind_index = 0;
     Mark mark = Mark::none;
     std::optional<MapMark> map;
@@ -245,6 +248,12 @@ constexpr LinesView lines(const header::Header<A>& h, const canon::Basic<B>& v, 
         }
     }
     l.expires = text_of(v, 0, "expires");
+    if (l.kind == "item") {
+        l.item_state = text_of(v, 0, "state");
+        if (l.item_state.empty()) {
+            refuse(Code::content);
+        }
+    }
     l.forks = state.fold.forks;
     l.duplicates = state.duplicates;
     return l;
@@ -296,7 +305,15 @@ constexpr void put_lines(K& k, const LinesView& l) {
     put_part(k, "; expires ", l.expires);
     put_count(k, "; forked +", l.forks);
     put_count(k, "; duplicate +", l.duplicates);
+    put_part(k, "; item ", l.item_state);
     k.push_back('\n');
+}
+
+// Whether field is shown among a block's fields: a map's object (line 1),
+// a direction's clears, a checkpoint's detail and an item's state (line 3)
+// are not.
+constexpr bool shown(const LinesView& l, std::string_view field) noexcept {
+    return field != "object" && field != "clears" && field != "detail" && !(field == "state" && l.kind == "item");
 }
 
 // The block, lines 1 to 3 and the kind's own fields, then the empty line.
@@ -305,7 +322,7 @@ constexpr void put_block(K& k, const LinesView& l, const canon::Basic<B>& v) {
     put_lines(k, l);
     for (const kinds::Field& f : kinds::fields(kinds::KINDS.at(l.kind_index))) {
         const std::string_view field = f.name.view();
-        if (field == "object" || field == "clears") {
+        if (!shown(l, field)) {
             continue;
         }
         if (const std::optional<json::Index> i = v.find(0, field)) {

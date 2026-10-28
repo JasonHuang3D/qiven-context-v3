@@ -363,7 +363,7 @@ std::string block(Context& c, const Value& v) {
     const served::Mark m = mark == served::name(served::Mark::fresh) ? served::Mark::fresh : served::Mark::stale;
     const header::Header<>& h = heads[*self];
     std::string out;
-    served::block(h, values[*self], served::State{state, 0}, labels::label(*labels::version_of(h), {}),
+    served::block(h, values[*self], served::State{state, 0}, labels::label(*labels::version_of(h, values[*self]), {}),
                   served::map_mark(m, at), out);
     if (const std::string f = same("block", out, text(v, "block")); !f.empty()) {
         return f;

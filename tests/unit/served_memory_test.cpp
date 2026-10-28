@@ -56,7 +56,7 @@ Held held(const canon::Basic<>& all, std::string_view name) {
     }
     Held e{header::parse_line(x->header), canon::Basic<>(), labels::Label(), std::nullopt};
     canon::parse(*x->content, e.v);
-    e.label = labels::label(*labels::version_of(e.h), {});
+    e.label = labels::label(*labels::version_of(e.h, e.v), {});
     if (name == "M1") {
         e.mark = served::map_mark(served::Mark::stale, "2026-10-17T12:00:00.000Z");
     }

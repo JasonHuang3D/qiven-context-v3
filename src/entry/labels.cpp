@@ -9,7 +9,7 @@ namespace qiven3::entry::labels {
 
 using Alloc = memory::Allocator<char>;
 
-template std::optional<VersionView> version_of(const header::Header<Alloc>&);
+template std::optional<VersionView> version_of(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
 template std::optional<CheckView> check_of(const header::Header<Alloc>&, const canon::Basic<Alloc>&, bool, Transcript);
 
 }  // namespace qiven3::entry::labels
