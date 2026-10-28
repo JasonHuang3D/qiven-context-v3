@@ -10,7 +10,7 @@
 # tools/fuzz_seeds.py and grown by libFuzzer, its findings under
 # fuzz/<target>/artifacts/; the listing step (runner/ctest_tests.cmake)
 # makes each a CTest test labelled fuzz from fuzz_targets.txt.
-set(qiven3_fuzz_targets digest entry)
+set(qiven3_fuzz_targets digest entry wire)
 
 # The kept inputs: an array of bytes each, and the tables the case reads.
 set(arrays "")
@@ -67,8 +67,8 @@ std::span<const std::uint8_t> kept_bytes(std::size_t i) noexcept { return spans[
 ")
 
 qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
-  SOURCES regress_test.cpp "${regress_source}" digest/target.cpp entry/target.cpp
-  LINK qiven3_platform_fake qiven3_entry)
+  SOURCES regress_test.cpp "${regress_source}" digest/target.cpp entry/target.cpp wire/target.cpp
+  LINK qiven3_platform_fake qiven3_entry qiven3_wire)
 
 if(QIVEN3_SANITIZE MATCHES "fuzzer")
   set(fuzz_lines "")
@@ -76,7 +76,7 @@ if(QIVEN3_SANITIZE MATCHES "fuzzer")
     set(dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     file(MAKE_DIRECTORY "${dir}/corpus" "${dir}/artifacts")
     qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
-      LINK qiven3_entry qiven3_base qiven3_platform_fake)
+      LINK qiven3_entry qiven3_base qiven3_platform_fake qiven3_wire)
     target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
     # libFuzzer's main, here alone (cmake/sanitize.cmake): MSVC's
     # /fsanitize=fuzzer on the target's own object names it to the link.

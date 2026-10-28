@@ -6,22 +6,18 @@
 #include <string_view>
 
 #include "qiven3/location.hpp"
+#include "wire/wire.hpp"
 
 namespace qiven3 {
 namespace app {
 
-std::optional<CommandView> command(int argc, const char* const* argv, Views& views) noexcept {
-    if (argc < 2 || argv == nullptr) {
+std::optional<CommandView> command(const wire::RequestView& request, Views& views) noexcept {
+    const std::size_t given = request.size();
+    if (given == 0 || given > views.size()) {
         return std::nullopt;
     }
-    const std::size_t given = static_cast<std::size_t>(argc) - 1;
-    if (given > views.size()) {
-        return std::nullopt;
-    }
-    const std::span<const char* const> all(argv, static_cast<std::size_t>(argc));
     for (std::size_t i = 0; i < given; ++i) {
-        const char* text = all[i + 1];
-        views.at(i) = text == nullptr ? std::string_view{} : std::string_view(text);
+        views.at(i) = request[i];
     }
     const std::span<const std::string_view> read(views.data(), given);
     if (read.front() == "location") {

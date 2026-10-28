@@ -146,7 +146,18 @@ class Binary(WindowsOnly):
     def test_unpaired(self):
         done = self.run_binary("location", "init", str(self.root / "store"), "--config",
                                str(self.root / ("caf\ud800")))
-        self.assertEqual((done.returncode, done.stdout, done.stderr), (1, b"", b""))
+        # A request the wire cannot read: its status, 2, and no answer.
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (2, b"", b""))
+        self.assertEqual(list(self.root.iterdir()), [])
+
+    def test_bound(self):
+        """16 arguments reach location, whose usage error answers; 17 are
+        past the wire's bound: status 2 and no answer."""
+        at = self.run_binary("location", "move", *["x"] * 14)
+        self.assertEqual(at.returncode, 2)
+        self.assertTrue(at.stdout.startswith(b"usage: "), at)
+        past = self.run_binary("location", "move", *["x"] * 15)
+        self.assertEqual((past.returncode, past.stdout, past.stderr), (2, b"", b""))
         self.assertEqual(list(self.root.iterdir()), [])
 
 

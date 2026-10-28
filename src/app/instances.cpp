@@ -7,8 +7,9 @@
 // The command line reaches main as UTF-8. On Windows the binary's entry is
 // wmain, which takes the arguments as UTF-16, as the system holds them,
 // and the Windows adapter converts each strictly (run_utf8): an argument
-// that is not valid UTF-16 exits 1 with no line. Elsewhere main takes them
-// as the system gives them.
+// that is not valid UTF-16 is a request the wire cannot read, and exits 2
+// with no line (wire::failed). Elsewhere main takes them as the system
+// gives them, and the wire reads them.
 
 #include <optional>
 #include <span>
@@ -17,6 +18,7 @@
 #include "app/main_impl.hpp"
 #include "platform/current.hpp"
 #include "qiven3/location_impl.hpp"
+#include "wire/wire.hpp"
 
 namespace qiven3 {
 
@@ -33,7 +35,7 @@ int run(int argc, const char* const* argv) noexcept { return app::main(argc, arg
 
 #if defined(_WIN32)
 int run_wide(int argc, const wchar_t* const* argv) noexcept {
-    return platform::win::run_utf8(argc, argv, &run, app::refused);
+    return platform::win::run_utf8(argc, argv, &run, wire::failed);
 }
 #endif
 

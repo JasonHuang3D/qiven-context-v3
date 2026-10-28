@@ -18,14 +18,16 @@
 #include "qiven3/location.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
+#include "wire/wire.hpp"
 
 namespace qiven3::location {
 namespace detail {
 
-// A line to standard_output(), whose failure a caller decides.
+// A line to standard output through the wire, whose failure a caller
+// decides.
 template <platform::Platform P>
 void say(P& platform, std::string_view line) {
-    platform.standard_output().write(line);
+    wire::write(platform, line);
 }
 
 // A line printed where the exit status carries the outcome: false where

@@ -16,6 +16,7 @@ namespace qiven3::fuzz {
 // Each target's function, its target.cpp's.
 int digest_input(const std::uint8_t* data, std::size_t size);
 int entry_input(const std::uint8_t* data, std::size_t size);
+int wire_input(const std::uint8_t* data, std::size_t size);
 
 // regress_inputs.cpp's: how many kept inputs, and each one's target, name
 // and bytes.
@@ -50,3 +51,5 @@ std::size_t kept(qiven3::test::Context& qiven3_ctx, std::string_view target, con
 QIVEN3_CASE(fuzz_regress, digest) { CHECK(kept(qiven3_ctx, "digest", qiven3::fuzz::digest_input) > 0); }
 
 QIVEN3_CASE(fuzz_regress, entry) { CHECK(kept(qiven3_ctx, "entry", qiven3::fuzz::entry_input) > 0); }
+
+QIVEN3_CASE(fuzz_regress, wire) { CHECK(kept(qiven3_ctx, "wire", qiven3::fuzz::wire_input) > 0); }
