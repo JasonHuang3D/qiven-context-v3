@@ -1,9 +1,13 @@
 // kinds' cases: the 22 kinds against header's closed sets; served, the
 // project-only kinds, the bases and a check's basis by its method; each
 // kind's own fields and limits, a direction's clears, the common when and
-// a lesson's pins among them; the common fields' carriage on each kind and
-// its rules resolved; record identity on a map, an item, a clause and a
-// checkpoint, and none elsewhere. Each is evaluated by the compiler on
+// a lesson's pins among them; the format's changes (the checkpoint's and
+// question's limits, detail, for_lane by import alone, question_id, a
+// decision's closes, the common item in a project scope, when on retire);
+// the common fields' carriage on each kind and its rules resolved; record
+// identity on a map, an item, a clause, a checkpoint (its for_lane first)
+// and a question with a question_id, and none elsewhere. Each is
+// evaluated by the compiler on
 // std::allocator; identity again at run time over tests/fixtures/, where A
 // to E, ACC and ACC2, and every entry but the maps, have none, and M2, M1's
 // revision with another digest, keeps M1's.
@@ -19,6 +23,7 @@
 
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
+#include "entry/kinds_identity.hpp"
 #include "qiven3/canon.hpp"
 #include "runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
@@ -141,6 +146,40 @@ static_assert(kinds::values(*key(kinds::Shape::when, "quality")).size() == 4 &&
               kinds::members(kinds::Shape::when).size() == 2);
 static_assert(kinds::common_carried(kind("lesson"), Common::when) == Carried::optional);
 static_assert(kinds::common_carried(kind("usage"), Common::when) == Carried::refused);
+static_assert(kinds::common_carried(kind("retire"), Common::when) == Carried::optional);
+static_assert(kinds::common_carried(kind("check"), Common::when) == Carried::refused &&
+              kinds::common_carried(kind("forget"), Common::when) == Carried::refused);
+
+// The format's changes: the limits, detail, for_lane, question_id and
+// closes.
+static_assert(field("checkpoint", "progress")->limit == 1000 && field("checkpoint", "next_action")->limit == 2100);
+static_assert(field("checkpoint", "decision_status")->limit == 1600 && field("question", "question")->limit == 1500);
+static_assert(field("checkpoint", "detail")->limit == 8000 && field("checkpoint", "detail")->carried == Carried::optional);
+static_assert(field("checkpoint", "for_lane")->value == Value::lane &&
+              field("checkpoint", "for_lane")->carried == Carried::by_import);
+static_assert(kinds::resolve(Carried::by_import, "import", Basis::claimed) == Carried::optional);
+static_assert(kinds::resolve(Carried::by_import, "implementer/s39", Basis::claimed) == Carried::refused &&
+              kinds::resolve(Carried::by_import, "loop", Basis::claimed) == Carried::refused);
+static_assert(field("question", "question_id")->value == Value::slug && field("question", "question_id")->limit == 64);
+static_assert(field("decision", "closes")->value == Value::id && field("decision", "closes")->items == 8 &&
+              field("decision", "closes")->carried == Carried::optional);
+static_assert(!field("claim", "for_lane") && !field("item", "detail") && !field("claim", "closes"));
+
+// The common item: a slug of 64, on served kinds but item and map, in a
+// project scope alone.
+static_assert(kinds::COMMON.at(static_cast<std::size_t>(Common::item)).value == Value::slug &&
+              kinds::COMMON.at(static_cast<std::size_t>(Common::item)).limit == 64);
+static_assert(kinds::common_carried(kind("claim"), Common::item) == Carried::by_scope &&
+              kinds::common_carried(kind("checkpoint"), Common::item) == Carried::by_scope);
+static_assert(kinds::common_carried(kind("item"), Common::item) == Carried::refused &&
+              kinds::common_carried(kind("map"), Common::item) == Carried::refused);
+static_assert(kinds::common_carried(kind("retire"), Common::item) == Carried::refused &&
+              kinds::common_carried(kind("usage"), Common::item) == Carried::refused &&
+              kinds::common_carried(kind("episode"), Common::item) == Carried::refused);
+static_assert(kinds::resolve(Carried::by_scope, "learner/s1", Basis::claimed, {}, "project:qiven") == Carried::optional);
+static_assert(kinds::resolve(Carried::by_scope, "learner/s1", Basis::claimed, {}, "person") == Carried::refused &&
+              kinds::resolve(Carried::by_scope, "learner/s1", Basis::claimed, {}, "life") == Carried::refused &&
+              kinds::resolve(Carried::by_scope, "learner/s1", Basis::claimed) == Carried::refused);
 
 // A lesson's pins: up to 8 of type (four), name 200 and version 64,
 // required on a tool alone.
@@ -236,6 +275,21 @@ static_assert(same(record("checkpoint", "implementer", R"({"progress":"a"})"),
                    record("checkpoint", "implementer", R"({"progress":"b"})")));
 static_assert(!same(record("checkpoint", "implementer", R"({"progress":"a"})"),
                     record("checkpoint", "reviewer", R"({"progress":"a"})")));
+// A checkpoint's for_lane before its header's lane: the import's record of
+// lane implementer is that lane's, as a live slot's is.
+static_assert(part(record("checkpoint", "import", R"({"for_lane":"implementer"})"), 0, "implementer"));
+static_assert(same(record("checkpoint", "import", R"({"for_lane":"implementer","progress":"a"})"),
+                   record("checkpoint", "implementer", R"({"progress":"b"})")));
+static_assert(!same(record("checkpoint", "import", R"({"for_lane":"implementer"})"),
+                    record("checkpoint", "import", R"({"progress":"a"})")));
+static_assert(!same(record("checkpoint", "import", R"({"for_lane":"implementer"})"),
+                    record("checkpoint", "import", R"({"for_lane":"reviewer"})")));
+// A question's question_id, in any lane; none without one.
+static_assert(same(record("question", "a", R"({"question":"x","question_id":"q1"})"),
+                   record("question", "b", R"({"question":"y","question_id":"q1"})")));
+static_assert(!same(record("question", "a", R"({"question_id":"q1"})"), record("question", "a", R"({"question_id":"q2"})")));
+static_assert(!same(record("question", "a", R"({"question_id":"p3"})"), record("item", "a", R"({"item_id":"p3"})")));
+static_assert(none(record("question", "a", R"({"question":"x"})")) && none(record("question", "a", "")));
 // A part the content lacks reads empty.
 static_assert(part(record("item", "a", R"({"state":"open"})"), 0, ""));
 
@@ -305,5 +359,6 @@ QIVEN3_CASE(kinds, tables) {
     }
     std::cout << "kinds.tables: " << KINDS.size() << " kinds, " << fields << " fields of their own, "
               << kinds::COMMON.size() << " common\n";
-    CHECK_EQ(fields, 70U);
+    CHECK_EQ(fields, 74U);
+    CHECK_EQ(kinds::COMMON.size(), 11U);
 }

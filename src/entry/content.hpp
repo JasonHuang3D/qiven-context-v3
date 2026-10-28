@@ -13,9 +13,11 @@
 // unknown_field and not_allowed after them.
 //
 // The content is one object. A key is a common field, carried by its row
-// for the kind, the writer's role and the basis, or one of the kind's own,
-// by its row: one no kind defines is unknown_field, one this kind or
-// writer may not carry not_allowed. Members are read in the value's order,
+// for the kind, the writer's role, the basis and the scope (an item
+// outside a project scope is not_allowed), or one of the kind's own, by
+// its row (a checkpoint's for_lane by writer import alone): one no kind
+// defines is unknown_field, one this kind, writer or scope may not carry
+// not_allowed. Members are read in the value's order,
 // each by content_fields' walk; then each required field absent, the
 // common ones in their table's order, then the kind's own; then the kind's
 // rules: a map carries contract or constraints (else missing, contract); a
@@ -81,14 +83,12 @@ constexpr std::optional<Row> row(const kinds::Kind& k, std::string_view key, con
     for (std::size_t c = 0; c < kinds::COMMON.size(); ++c) {
         if (kinds::COMMON.at(c).name == key) {
             const auto which = static_cast<kinds::Common>(c);
-            const kinds::Carried carried =
-                kinds::resolve(kinds::common_carried(k, which), walk.writer(), walk.basis());
-            return Row{kinds::COMMON.at(c), carried, true, which};
+            return Row{kinds::COMMON.at(c), walk.resolve(kinds::common_carried(k, which)), true, which};
         }
     }
     for (const kinds::Field& f : kinds::fields(k)) {
         if (f.name == key) {
-            return Row{f, kinds::resolve(f.carried, walk.writer(), walk.basis()), false, kinds::Common::subject};
+            return Row{f, walk.resolve(f.carried), false, kinds::Common::subject};
         }
     }
     return std::nullopt;
@@ -186,7 +186,8 @@ constexpr std::optional<ContentError> try_check(const header::Header<A>& h, cons
     if (content.empty()) {
         return std::nullopt;
     }
-    detail::WalkView<B> walk(content, h.value(header::Slot::writer), *basis, h.value(header::Slot::at));
+    detail::WalkView<B> walk(content, h.value(header::Slot::writer), *basis, h.value(header::Slot::scope),
+                             h.value(header::Slot::at));
     if (content.kind(0) != json::Kind::object) {
         walk.fault(Code::type);
         return walk.best();
@@ -211,14 +212,13 @@ constexpr std::optional<ContentError> try_check(const header::Header<A>& h, cons
     // The required fields absent: the common ones, then the kind's own.
     for (std::size_t c = 0; c < kinds::COMMON.size(); ++c) {
         const kinds::Field& f = kinds::COMMON.at(c);
-        const kinds::Carried carried =
-            kinds::resolve(kinds::common_carried(kind, static_cast<kinds::Common>(c)), walk.writer(), walk.basis());
+        const kinds::Carried carried = walk.resolve(kinds::common_carried(kind, static_cast<kinds::Common>(c)));
         if (carried == kinds::Carried::required && !content.find(0, f.name.view())) {
             walk.fault_at(f.name.view(), Code::missing);
         }
     }
     for (const kinds::Field& f : kinds::fields(kind)) {
-        if (kinds::resolve(f.carried, walk.writer(), walk.basis()) == kinds::Carried::required &&
+        if (walk.resolve(f.carried) == kinds::Carried::required &&
             !content.find(0, f.name.view())) {
             walk.fault_at(f.name.view(), Code::missing);
         }

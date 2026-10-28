@@ -9,17 +9,14 @@
 // value (text, a closed set, a named syntax, a reference, an object of
 // exact keys), how it is carried, its limit in characters (per item on a
 // list) and, on a list, its most items; an object's keys are a shape's
-// fields. A rule that turns on the writer, the basis or a pin's type is
-// carried as such, and resolve reads it for one entry. kinds checks no
-// content: content reads these tables, its codes and their order its own.
+// fields. A rule that turns on the writer, the basis, the scope or a pin's
+// type is carried as such, and resolve reads it for one entry. kinds checks
+// no content: content reads these tables, its codes and their order its
+// own.
 //
 // served(kind) is whether a kind is served: all but episode, usage and the
-// change kinds. identity(header, content) is a record's identity in its
-// scope: a map's object (its type, then repository, path and name, or the
-// root's id), an item's item_id, a clause's clause_id, a checkpoint's
-// lane; none for every other kind. Its parts view the header's and the
-// content's text, the content as content's check passed it; a part the
-// content lacks reads empty.
+// change kinds. A record's identity, what Holds names, is read by
+// kinds_identity.
 //
 // Allocations: none; every operation reads its arguments in place and
 // returns views or values. Each is constexpr, so its vectors run in
@@ -68,6 +65,8 @@ enum class Carried : std::uint8_t {
     by_writer,  // required for a slot or loop, optional for import
     by_admit,   // required for a slot or import, optional for loop
     by_type,    // required on a pin of type tool, else optional
+    by_import,  // optional for import, else refused
+    by_scope,   // optional in a project scope, else refused
 };
 
 // A field's value, or a list item's. text is a string within its limit;
@@ -97,6 +96,7 @@ enum class Value : std::uint8_t {
     transcript,
     map_object,
     only_true,
+    lane,  // a lane name, none of owner, loop or import
 };
 
 // The objects of exact keys, each a table of fields.
@@ -241,8 +241,8 @@ constexpr std::span<const std::string_view> values(const Field& f) noexcept { re
 
 // The common fields, in the table's order; each kind carries them by
 // common_carried. Their carriage here is a placeholder.
-enum class Common : std::uint8_t { subject, applies_to, source, evidence, episode, band, admit, expires, when, as_of };
-inline constexpr std::array<Field, 10> COMMON = {
+enum class Common : std::uint8_t { subject, applies_to, source, evidence, episode, band, admit, expires, when, as_of, item };
+inline constexpr std::array<Field, 11> COMMON = {
     detail::of("subject", Value::subject, Carried::optional, 160),
     detail::object("applies_to", Carried::optional, Shape::applies_to),
     detail::list("source", Value::reference, Carried::optional, 8),
@@ -253,6 +253,7 @@ inline constexpr std::array<Field, 10> COMMON = {
     detail::of("expires", Value::time, Carried::optional),
     detail::object("when", Carried::optional, Shape::when),
     detail::of("as_of", Value::date, Carried::optional),
+    detail::of("item", Value::slug, Carried::optional, 64),
 };
 
 namespace detail {
@@ -266,9 +267,11 @@ inline constexpr std::array<Field, 4> observation_fields = {text("command", R, 4
                                                             of("revision", Value::revision, O),
                                                             text("environment", O, 200)};
 inline constexpr std::array<Field, 1> claim_fields = {text("claim", R, 1000)};
-inline constexpr std::array<Field, 2> decision_fields = {text("decides", R, 500), texts("reasons", O, 8, 300)};
-inline constexpr std::array<Field, 3> question_fields = {text("question", R, 500), texts("options", O, 6, 200),
-                                                         text("recommendation", O, 500)};
+inline constexpr std::array<Field, 3> decision_fields = {text("decides", R, 500), texts("reasons", O, 8, 300),
+                                                         list("closes", Value::id, O, 8)};
+inline constexpr std::array<Field, 4> question_fields = {text("question", R, 1500), texts("options", O, 6, 200),
+                                                         text("recommendation", O, 500),
+                                                         of("question_id", Value::slug, O, 64)};
 inline constexpr std::array<Field, 4> lesson_fields = {text("lesson", R, 500), object("trigger", R, Shape::trigger),
                                                        list("covered_by", Value::test_id, O, 16),
                                                        object("pins", O, Shape::pin, 8)};
@@ -289,9 +292,9 @@ inline constexpr std::array<Field, 5> module_fields = {
 inline constexpr std::array<Field, 6> item_fields = {
     of("item_id", Value::slug, R, 64), one("state", R, Set::item_states), text("title", O, 200), text("turn", O, 64),
     list("waits_on", Value::slug, O, 16, 64), of("under", Value::slug, O, 64)};
-inline constexpr std::array<Field, 4> checkpoint_fields = {text("progress", R, 1000), text("next_action", R, 500),
-                                                           text("decision_status", O, 300),
-                                                           list("refs", Value::id, O, 32)};
+inline constexpr std::array<Field, 6> checkpoint_fields = {
+    text("progress", R, 1000), text("next_action", R, 2100), text("decision_status", O, 1600),
+    list("refs", Value::id, O, 32), text("detail", O, 8000), of("for_lane", Value::lane, Carried::by_import)};
 inline constexpr std::array<Field, 3> measure_fields = {text("measure", R, 500), text("success", O, 300),
                                                         texts("results", O, 8, 300)};
 inline constexpr std::array<Field, 6> map_fields = {
@@ -336,7 +339,7 @@ static_assert(OWN.size() <= UINT8_MAX);
 enum class Group : std::uint8_t { core, work, change, usage };
 
 // What a record's identity holds, or none.
-enum class Holds : std::uint8_t { none, object, item_id, clause_id, lane };
+enum class Holds : std::uint8_t { none, object, item_id, clause_id, lane, question_id };
 
 // A kind; its own fields are count rows of the joined table from first,
 // read by fields(kind).
@@ -394,7 +397,7 @@ inline constexpr std::array<Kind, 22> KINDS = detail::placed({{
     {"observation", detail::OB, detail::core, true, true, Holds::none, detail::count_of(detail::observation_fields)},
     {"claim", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::claim_fields)},
     {"decision", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::decision_fields)},
-    {"question", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::question_fields)},
+    {"question", detail::CL, detail::core, true, true, Holds::question_id, detail::count_of(detail::question_fields)},
     {"lesson", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::lesson_fields)},
     {"episode", detail::OB | detail::CL, detail::core, false, true, Holds::none, detail::count_of(detail::episode_fields)},
     {"relation", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::relation_fields)},
@@ -463,8 +466,8 @@ constexpr Carried common_carried(const Kind& k, Common c) noexcept {
             }
             return k.name == "relation" ? Carried::optional : Carried::required;
         case Common::applies_to:
-        case Common::expires:
-        case Common::when: return on_served ? Carried::optional : Carried::refused;
+        case Common::expires: return on_served ? Carried::optional : Carried::refused;
+        case Common::when: return on_served || k.name == "retire" ? Carried::optional : Carried::refused;
         case Common::source: return k.group == Group::usage ? Carried::refused : Carried::optional;
         case Common::evidence:
             if (k.group == Group::usage) {
@@ -479,15 +482,21 @@ constexpr Carried common_carried(const Kind& k, Common c) noexcept {
                 return Carried::required;
             }
             return k.name == "entity" || k.name == "observation" ? Carried::optional : Carried::refused;
+        case Common::item:
+            return on_served && k.name != "item" && k.name != "map" ? Carried::by_scope : Carried::refused;
     }
     return Carried::refused;
 }
 
 // A rule read for one entry: its writer's role (a slot's, loop or
-// import), its basis and, on a pin, its type.
-constexpr Carried resolve(Carried c, std::string_view writer, Basis basis, std::string_view pin_type = {}) noexcept {
+// import), its basis, on a pin its type, and its scope; a scope not given
+// is no project scope.
+constexpr Carried resolve(Carried c, std::string_view writer, Basis basis, std::string_view pin_type = {},
+                          std::string_view scope = {}) noexcept {
     const std::string_view role = header::role(writer);
     switch (c) {
+        case Carried::by_import: return role == "import" ? Carried::optional : Carried::refused;
+        case Carried::by_scope: return scope.starts_with("project:") ? Carried::optional : Carried::refused;
         case Carried::by_basis:
             return basis == Basis::claimed || basis == Basis::observed ? Carried::required : Carried::optional;
         case Carried::by_writer: return role == "import" ? Carried::optional : Carried::required;
@@ -496,17 +505,6 @@ constexpr Carried resolve(Carried c, std::string_view writer, Basis basis, std::
         default: return c;
     }
 }
-
-// A record's identity in its scope: its kind's place and up to four parts,
-// views of the header's and the content's text.
-struct IdentityView {
-    std::uint8_t kind = 0;
-    std::array<std::string_view, 4> parts{};
-    constexpr bool operator==(const IdentityView&) const = default;
-};
-#if INTPTR_MAX == INT64_MAX
-static_assert(sizeof(IdentityView) == 72, "IdentityView's size is pinned: its kind, padded, and four views");
-#endif
 
 namespace detail {
 
@@ -521,41 +519,6 @@ constexpr std::string_view member(const canon::Basic<B>& v, json::Index i, std::
 }
 
 }  // namespace detail
-
-template <typename A, typename B>
-constexpr std::optional<IdentityView> identity(const header::Header<A>& h, const canon::Basic<B>& content) {
-    const std::optional<std::size_t> k = index_of(h.value(header::Slot::kind));
-    if (!k || KINDS[*k].identity == Holds::none) {
-        return std::nullopt;
-    }
-    IdentityView id;
-    id.kind = static_cast<std::uint8_t>(*k);
-    switch (KINDS[*k].identity) {
-        case Holds::lane: id.parts[0] = h.value(header::Slot::lane); break;
-        case Holds::item_id: id.parts[0] = detail::member(content, 0, "item_id"); break;
-        case Holds::clause_id: id.parts[0] = detail::member(content, 0, "clause_id"); break;
-        case Holds::object: {
-            if (content.empty() || content.kind(0) != json::Kind::object) {
-                break;
-            }
-            const std::optional<json::Index> o = content.find(0, "object");
-            if (!o) {
-                break;
-            }
-            id.parts[0] = detail::member(content, *o, "type");
-            if (id.parts[0] == "entry") {
-                id.parts[1] = detail::member(content, *o, "id");
-            } else {
-                id.parts[1] = detail::member(content, *o, "repository");
-                id.parts[2] = detail::member(content, *o, "path");
-                id.parts[3] = detail::member(content, *o, "name");
-            }
-            break;
-        }
-        case Holds::none: break;
-    }
-    return id;
-}
 
 // The tables agree with header's closed sets.
 static_assert([] {

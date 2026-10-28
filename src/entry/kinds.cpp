@@ -3,7 +3,9 @@
 
 #include "entry/kinds.hpp"
 
+#include "entry/kinds_identity.hpp"
 #include "memory/memory.hpp"
+#include "qiven3/canon.hpp"
 
 namespace qiven3::entry::kinds {
 

@@ -1,7 +1,9 @@
 // validator's cases: part 2's codes against a view in memory, each on its
 // own entry and the first deciding in the order parent, seq, target,
 // at_order, reference, forgotten_target, identity, map_evidence, entry by
-// entry; the call's earlier entries held beside the view; evaluated by
+// entry; the call's earlier entries held beside the view; identity by a
+// checkpoint's for_lane, which a live lane's first checkpoint keeps, and by
+// a question's question_id, a second root held; evaluated by
 // the compiler on std::allocator over entries built here. At run time:
 // the fixtures' lanes appended in turn, valid, E's forget of B among them;
 // then a revision of B forgotten_target, a second forget of B, a map's
@@ -89,6 +91,7 @@ struct Spec {
     std::string_view field = "evidence";
     std::string_view scope = S;
     std::string_view lane = L;
+    std::string_view writer = "implementer/s39";
 };
 
 constexpr Item<> item(const Spec& s) {
@@ -100,7 +103,7 @@ constexpr Item<> item(const Spec& s) {
         f.parent = I(s.parent);
     }
     f.kind = s.kind;
-    f.writer = "implementer/s39";
+    f.writer = s.writer;
     f.basis = "claimed";
     f.at = AT.at(s.minute);
     if (s.target != NONE) {
@@ -154,9 +157,8 @@ struct Got {
     constexpr bool operator==(const Got&) const = default;
 };
 template <std::size_t N>
-constexpr Got run(const std::array<Spec, N>& call, std::optional<std::size_t> expected = 5,
-                  std::string_view lane = L) {
-    MemoryView v = base();
+constexpr Got run_in(MemoryView v, const std::array<Spec, N>& call, std::optional<std::size_t> expected = 5,
+                     std::string_view lane = L) {
     std::vector<Item<>> items;
     for (const Spec& s : call) {
         items.push_back(item(s));
@@ -171,6 +173,11 @@ constexpr Got run(const std::array<Spec, N>& call, std::optional<std::size_t> ex
         return Got{-2, e->index};
     }
     return Got{static_cast<int>(e->code), e->index};
+}
+template <std::size_t N>
+constexpr Got run(const std::array<Spec, N>& call, std::optional<std::size_t> expected = 5,
+                  std::string_view lane = L) {
+    return run_in(base(), call, expected, lane);
 }
 constexpr Got got(Code c, std::size_t index = 0) { return Got{static_cast<int>(c), index}; }
 constexpr Got NO_FAULT{};
@@ -275,6 +282,42 @@ static_assert(run(std::array{next(10, "item", NONE, ITEM_A), after(next(11, "ite
               got(Code::identity, 1));
 static_assert(run(std::array{cite(next(10, "map"), 2, "object"), after(cite(next(11, "map", 10), 4, "object"), 10)}) ==
               got(Code::identity, 1));
+
+// identity by for_lane and question_id: lane import of S holds 7, an
+// imported checkpoint for lane implementer, 8, the import's own, 9, a
+// question q1, and 13, a question with none.
+constexpr std::string_view CP = R"({"next_action":"n","progress":"p"})";
+constexpr std::string_view CP_FOR = R"({"for_lane":"implementer","next_action":"n","progress":"p"})";
+constexpr std::string_view Q = R"({"question":"x"})";
+constexpr std::string_view Q1 = R"({"question":"x","question_id":"q1"})";
+constexpr std::string_view Q2 = R"({"question":"x","question_id":"q2"})";
+constexpr MemoryView imported() {
+    MemoryView v = base();
+    const Spec root{.n = 7, .kind = "checkpoint", .content = CP_FOR, .lane = "import", .writer = "import"};
+    put(v, root);
+    put(v, Spec{.n = 8, .kind = "checkpoint", .seq = 2, .parent = 7, .minute = 1, .content = CP, .lane = "import",
+                .writer = "import"});
+    put(v, Spec{.n = 9, .kind = "question", .seq = 3, .parent = 8, .minute = 2, .content = Q1, .lane = "import",
+                .writer = "import"});
+    put(v, Spec{.n = 13, .kind = "question", .seq = 4, .parent = 9, .minute = 3, .content = Q, .lane = "import",
+                .writer = "import"});
+    return v;
+}
+// The first checkpoint lane implementer writes revises the imported
+// record; the import's own checkpoint is another lane's.
+static_assert(run_in(imported(), std::array{next(10, "checkpoint", 7, CP)}) == NO_FAULT);
+static_assert(run_in(imported(), std::array{next(10, "checkpoint", 8, CP)}) == got(Code::identity));
+static_assert(run_in(imported(), std::array{next(10, "checkpoint", NONE, CP), after(next(11, "checkpoint", 10, CP), 10)}) ==
+              NO_FAULT);
+// A question by its question_id: revised under it, refused under another
+// or none; a second root held; a question with none revised as today, and
+// refused when its revision takes one.
+static_assert(run_in(imported(), std::array{next(10, "question", 9, Q1)}) == NO_FAULT);
+static_assert(run_in(imported(), std::array{next(10, "question", 9, Q2)}) == got(Code::identity));
+static_assert(run_in(imported(), std::array{next(10, "question", 9, Q)}) == got(Code::identity));
+static_assert(run_in(imported(), std::array{next(10, "question", NONE, Q1)}) == NO_FAULT);
+static_assert(run_in(imported(), std::array{next(10, "question", 13, Q)}) == NO_FAULT);
+static_assert(run_in(imported(), std::array{next(10, "question", 13, Q1)}) == got(Code::identity));
 
 // map_evidence: a decision or check whose evidence names a map, the
 // view's or the call's.

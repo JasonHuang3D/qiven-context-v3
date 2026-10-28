@@ -10,7 +10,10 @@
 // the text 1; each header the view gives 1 (a first entry's parent, a
 // target, an entry referenced): reviewer's 1 + 20 + 4 + 2 (A and D) = 27;
 // learner's 1 + 8 = 9; M2's 1 + 4 + 2 (M1 as parent and target) + 1 + 4
-// = 12.
+// = 12. Two calls of entries made here: lane implementer's first
+// checkpoint revising the import's checkpoint for that lane (its
+// for_lane), and a slot's question revising the import's of one
+// question_id, each 1 + 4 + 1 (the target) + 1 + 4 = 11.
 // The runner's count after each case holds too.
 
 #include <cstddef>
@@ -58,7 +61,59 @@ std::vector<Case> cases() {
         {"reviewer", {"A", "B", "D", "ACC"}, {"C", "M1", "M2", "ACC2", "MX"}, {}, 27},
         {"learner", {}, {"L1", "L2"}, {}, 9},
         {"M2 alone", {"A", "B", "D", "ACC", "C", "M1"}, {"M2"}, "M1", 12},
+        {"for_lane", {"IC"}, {"LC"}, "IC", 11},
+        {"question_id", {"IQ"}, {"LQ"}, "IQ", 11},
     };
+}
+
+// The format's identities, entries of no fixture: IC, the import's
+// checkpoint for lane implementer, and LC, that lane's first checkpoint
+// revising it; IQ, the import's question q1, and LQ, a slot's revising
+// it. Their header lines and contents, made once.
+struct Made {
+    std::string_view name;
+    std::string header;
+    std::string_view content;
+};
+const std::vector<Made>& made() {
+    static const std::vector<Made> all = [] {
+        constexpr std::string_view a = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        constexpr std::string_view b = "sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        const auto line = [](std::string_view kind, std::string_view writer, std::string_view id,
+                             std::optional<std::string_view> target) {
+            header::FieldsView f;
+            f.scope = "project:qiven";
+            f.lane = header::role(writer);
+            f.seq = 1;
+            f.kind = kind;
+            f.writer = writer;
+            f.basis = "claimed";
+            f.at = target ? "2026-10-17T09:31:00.000Z" : "2026-10-17T09:30:00.000Z";
+            f.target = target;
+            f.id = id;
+            std::string out;
+            header::make(f).line(out);
+            return out;
+        };
+        return std::vector<Made>{
+            {"IC", line("checkpoint", "import", a, std::nullopt),
+             R"({"for_lane":"implementer","next_action":"n","progress":"p"})"},
+            {"LC", line("checkpoint", "implementer/s39", b, a), R"({"next_action":"m","progress":"q"})"},
+            {"IQ", line("question", "import", a, std::nullopt), R"({"question":"x","question_id":"q1"})"},
+            {"LQ", line("question", "implementer/s39", b, a), R"({"question":"y","question_id":"q1"})"},
+        };
+    }();
+    return all;
+}
+
+// A fixture entry by its name, or one made here.
+fixtures::EntryView find(const canon::Basic<>& v, std::string_view name) {
+    for (const Made& m : made()) {
+        if (m.name == name) {
+            return fixtures::EntryView{m.name, std::nullopt, m.content, m.header};
+        }
+    }
+    return *fixtures::find_entry(v, name);
 }
 
 constexpr std::size_t budget_base = 262144;
@@ -76,11 +131,11 @@ struct Setup {
 Setup setup(const canon::Basic<>& v, const Case& c, Arena& arena) {
     Setup s;
     for (const std::string_view n : c.held) {
-        const fixtures::EntryView e = *fixtures::find_entry(v, n);
+        const fixtures::EntryView e = find(v, n);
         s.view.put(header::parse_line(e.header), e.content);
     }
     for (const std::string_view n : c.call) {
-        const fixtures::EntryView e = *fixtures::find_entry(v, n);
+        const fixtures::EntryView e = find(v, n);
         Item it{header::parse_line(e.header, Allocator<char>(arena)), std::nullopt};
         if (e.content) {
             it.text.emplace(*e.content, Allocator<char>(arena));
@@ -89,7 +144,7 @@ Setup setup(const canon::Basic<>& v, const Case& c, Arena& arena) {
         s.items.push_back(std::move(it));
     }
     if (!c.target.empty()) {
-        s.bytes += fixtures::find_entry(v, c.target)->content->size();
+        s.bytes += find(v, c.target).content->size();
     }
     const header::Header<Allocator<char>>& first = s.items.at(0).header();
     s.scope = first.value(Slot::scope);

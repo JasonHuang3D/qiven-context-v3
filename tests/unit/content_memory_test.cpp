@@ -6,8 +6,10 @@
 // MemoryError with nothing held once the check ends; the run completes
 // past the last, which counts them exactly: a direction by import none;
 // a usage's two ids one compile, 6 with its episode; A, a claim, 6; L1, a
-// lesson, 8; M1, a map, 8; C, a check, 6. The runner's count after each
-// case holds too.
+// lesson, 8; M1, a map, 8; C, a check, 6; a checkpoint by import with
+// for_lane, item and detail 6; a question with its question_id 4; a
+// decision closing two ids 4. The runner's count after each case holds
+// too.
 
 #include <array>
 #include <cstddef>
@@ -40,6 +42,10 @@ using qiven3::memory::MemoryError;
 
 #define ID "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 #define ID2 "sha256:1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+#define ADMIT R"("admit":{"mistake":"m","underivable":"u"})"
+#define OUTPUT                                                                                                   \
+    R"([{"command":"c","digest":"hmac-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",)" \
+    R"("type":"output"}])"
 
 // A case: its header line's fields, or a fixture's name, its content and
 // the allocations its check takes.
@@ -72,6 +78,21 @@ std::vector<Case> cases() {
                        0});
     out.push_back(Case{"a usage of two ids", line("usage", "loop", "observed"),
                        R"({"episode":{"client":"claude-code","session":"s-1"},"served":[")" ID R"(",")" ID2 R"("]})", 6});
+    // The format's changes: for_lane, item and detail, the digest, slug and
+    // lane compiled; question_id, the digest and slug; closes, the digest
+    // and id.
+    out.push_back(Case{"a checkpoint by import", line("checkpoint", "import", "claimed"),
+                       "{" ADMIT R"(,"band":"normal","detail":"d","evidence":)" OUTPUT
+                       R"(,"for_lane":"reviewer","item":"p3","next_action":"n","progress":"p","subject":"entity:x"})",
+                       6});
+    out.push_back(Case{"a question with its id", line("question", "import", "claimed"),
+                       "{" ADMIT R"(,"band":"normal","evidence":)" OUTPUT
+                       R"(,"question":"q","question_id":"q1","subject":"entity:x"})",
+                       4});
+    out.push_back(Case{"a decision closing two", line("decision", "import", "claimed"),
+                       "{" ADMIT R"(,"band":"normal","closes":[")" ID R"(",")" ID2 R"("],"decides":"d","evidence":)" OUTPUT
+                       R"(,"subject":"entity:x"})",
+                       4});
     canon::Basic<> v;
     fixtures::load_entries(v);
     for (const auto& [name, want] : {std::pair<std::string_view, std::size_t>{"A", 6}, {"L1", 8}, {"M1", 8}, {"C", 6}}) {
@@ -91,7 +112,7 @@ constexpr std::size_t budget = 262144;
 
 QIVEN3_CASE(content, budget) {
     const std::vector<Case> all = cases();
-    CHECK_EQ(all.size(), 6U);
+    CHECK_EQ(all.size(), 9U);
     for (const Case& c : all) {
         const header::Header<> h = header::parse_line(c.header);
         Arena& arena = qiven3_ctx.counted.arena(budget);

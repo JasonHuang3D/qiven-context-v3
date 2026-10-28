@@ -84,6 +84,7 @@
 
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
+#include "entry/kinds_identity.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"

@@ -26,6 +26,7 @@ add_library(qiven3_entry STATIC
   header.hpp
   kinds.cpp
   kinds.hpp
+  kinds_identity.hpp
   labels.cpp
   labels.hpp
   projectmap.cpp

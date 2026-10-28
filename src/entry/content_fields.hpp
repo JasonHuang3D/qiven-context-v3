@@ -17,11 +17,13 @@
 // is empty, and the two equal repeated, at admit; a test id past 200
 // characters is syntax, its limit being its syntax's; the lists of ids
 // that repeat none are those of entry ids (usage's served and cited, a
-// checkpoint's refs).
+// checkpoint's refs, a decision's closes); a lane past 32 characters is
+// syntax, and a reserved lane (owner, loop, import) syntax, compiling
+// nothing.
 //
 // Allocations: two for each syntax the walk compiles, once in a check and
 // held until it ends (slug, id, digest, revision, clause id, test id,
-// client, session, repository, message, anchor's line reading), a
+// client, session, repository, message, anchor's line reading, lane), a
 // subject's and each reference's syntaxes among them, so that a check's
 // count does not grow with its references. A compile's MemoryError leaves
 // nothing held once the walk is dropped. Each function is constexpr and a
@@ -94,6 +96,9 @@ inline constexpr std::string_view slug_syntax = "^[a-z0-9][a-z0-9-]*$";
 inline constexpr std::string_view clause_id_syntax = "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$";
 inline constexpr std::string_view test_id_syntax = "^[A-Za-z_][A-Za-z0-9_]*((\\.|::|/)[A-Za-z_][A-Za-z0-9_]*)*$";
 inline constexpr std::size_t test_id_limit = 200;
+// The lanes a checkpoint's for_lane may not name: the owner's, the loop's
+// and the import's.
+inline constexpr std::array<std::string_view, 3> reserved_lanes = {header::owner_role, "loop", "import"};
 
 // The secret check's twelve patterns' names, which a direction's clears
 // names; the secret module's table holds the same, in its order.
@@ -117,11 +122,12 @@ enum class Syntax : std::uint8_t {
     repository,
     message,
     anchor_line,
+    lane,
 };
-inline constexpr std::array<std::string_view, 11> SYNTAXES = {
+inline constexpr std::array<std::string_view, 12> SYNTAXES = {
     slug_syntax,          header::id_syntax,       header::content_syntax, refs::revision_syntax,
     clause_id_syntax,     test_id_syntax,          refs::client_syntax,    refs::session_syntax,
-    refs::repository_syntax, refs::message_syntax, refs::anchor_line_syntax,
+    refs::repository_syntax, refs::message_syntax, refs::anchor_line_syntax, header::lane_syntax,
 };
 
 // Whether text is all whitespace: at least one code point, each of the 29.
@@ -178,13 +184,13 @@ static_assert(sizeof(PathText) == 104, "PathText's size is pinned: its bytes and
 
 // One check's walk over a content value: the best fault so far, the path
 // at hand and the syntaxes compiled. It views the content and the header's
-// writer and at within the check's call.
+// writer, scope and at within the check's call.
 template <typename B>
 class WalkView {
 public:
     constexpr WalkView(const canon::Basic<B>& content, std::string_view writer, kinds::Basis basis,
-                       std::string_view at) noexcept
-        : v_(&content), writer_(writer), at_(at), basis_(basis),
+                       std::string_view scope, std::string_view at) noexcept
+        : v_(&content), writer_(writer), scope_(scope), at_(at), basis_(basis),
           automata_(fresh(content.allocator(), std::make_index_sequence<SYNTAXES.size()>{})) {}
     WalkView(const WalkView&) = delete;
     WalkView& operator=(const WalkView&) = delete;
@@ -196,6 +202,11 @@ public:
     [[nodiscard]] constexpr const canon::Basic<B>& value() const noexcept { return *v_; }
     [[nodiscard]] constexpr PathText& path() noexcept { return path_; }
     [[nodiscard]] constexpr std::string_view writer() const noexcept { return writer_; }
+    [[nodiscard]] constexpr std::string_view scope() const noexcept { return scope_; }
+    // A rule read for this entry: its writer, its basis and its scope.
+    [[nodiscard]] constexpr kinds::Carried resolve(kinds::Carried c) const noexcept {
+        return kinds::resolve(c, writer_, basis_, {}, scope_);
+    }
     [[nodiscard]] constexpr kinds::Basis basis() const noexcept { return basis_; }
     [[nodiscard]] constexpr bool can_improve(Code c) const noexcept { return !best_ || c < best_->code; }
 
@@ -332,7 +343,7 @@ private:
             path_.cut(mark);
         }
         for (const kinds::Field& f : keys) {
-            if (kinds::resolve(f.carried, writer_, basis_, pin_type) == kinds::Carried::required &&
+            if (kinds::resolve(f.carried, writer_, basis_, pin_type, scope_) == kinds::Carried::required &&
                 !v_->find(k, f.name.view())) {
                 fault_at(f.name.view(), Code::missing);
             }
@@ -414,6 +425,7 @@ private:
             case Value::qualified_name: return refs::check_name(s);
             case Value::client: return match(Syntax::client, s);
             case Value::session: return match(Syntax::session, s);
+            case Value::lane: return !header::among(reserved_lanes, s) && match(Syntax::lane, s);
             case Value::pattern_name: return header::among(pattern_names, s);
             case Value::pin_name: {
                 const refs::detail::Scan scan = refs::detail::scan(s);
@@ -533,6 +545,7 @@ private:
 
     const canon::Basic<B>* v_;
     std::string_view writer_;
+    std::string_view scope_;
     std::string_view at_;
     kinds::Basis basis_;
     PathText path_;
