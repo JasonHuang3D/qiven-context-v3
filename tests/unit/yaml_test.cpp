@@ -3,10 +3,12 @@
 // items, comments and empty lines between, a whole-line comment, the empty
 // line); each refusal, naming its line: a byte not UTF-8, a tab or a CR, an
 // indented line, a line of no form, a key twice, an item with no list
-// open, a quoted scalar unclosed or holding its quote or a backslash, a
-// plain scalar the source system types, a file past its bound; the first
-// faulty line deciding; the fields kept past their bytes; an arena too
-// small, MemoryError budget.
+// open, a value or item beginning or ending with whitespace or a control,
+// a quoted scalar unclosed or holding its quote or a backslash, a plain
+// scalar the source system types (digits of any script too), a file past
+// its bound; the first faulty line deciding; the fields kept past their
+// bytes; thirty-one probes, each read as the source system reads it or
+// refused by name; an arena too small, MemoryError budget.
 
 #include <cstddef>
 #include <optional>
@@ -46,6 +48,32 @@ std::optional<std::string> text_of(std::string_view line) {
         return std::string(fields.text(0));
     } catch (const yaml::YamlError&) {
         return std::nullopt;
+    }
+}
+
+// What reading text gives: its fields, as key='text' or key=['item',...],
+// a space between; or the refusal's code and line.
+std::string reading(std::string_view text) {
+    std::vector<std::byte> pages(4096);
+    Arena arena(pages);
+    try {
+        const yaml::Fields fields = yaml::read_flat(text, arena);
+        std::string out;
+        for (std::size_t i = 0; i < fields.size(); ++i) {
+            out += (i == 0 ? "" : " ") + std::string(fields.key(i)) + "=";
+            if (!fields.list(i)) {
+                out += "'" + std::string(fields.text(i)) + "'";
+                continue;
+            }
+            out += "[";
+            for (std::size_t k = 0; k < fields.count(i); ++k) {
+                out += (k == 0 ? "'" : ",'") + std::string(fields.item(i, k)) + "'";
+            }
+            out += "]";
+        }
+        return out;
+    } catch (const yaml::YamlError& e) {
+        return std::string(yaml::name(e.code)) + "@" + std::to_string(e.line);
     }
 }
 
@@ -123,6 +151,20 @@ QIVEN3_CASE(yaml, scalars) {
                                          "in", "1.2.3", "1._5", "yes", "TRUEly"}) {
         CHECK_EQ(text_of(plain), std::optional<std::string>(plain));
     }
+    // Nor these: a superscript two, full-width letters "inf", an Arabic
+    // percent sign, the code point before a run of digits, underscores not
+    // between two digits.
+    for (const std::string_view plain : {"\xc2\xb2", "1\xc2\xb2", "\xef\xbd\x89\xef\xbd\x8e\xef\xbd\x86", "\xd9\xaa",
+                                         "\xf0\x9e\x97\xb0", "1_\xd9\xa3_", "\xd9\xa3__\xd9\xa3"}) {
+        CHECK_EQ(text_of(plain), std::optional<std::string>(plain));
+    }
+    // Controls and other characters inside a value, or inside its quotes,
+    // are kept: the source system reads them so.
+    for (const std::string_view kept : {"x\x0cy", "x\xe2\x80\x8b", "x\xef\xbb\xbf"}) {
+        CHECK_EQ(text_of(kept), std::optional<std::string>(kept));
+    }
+    CHECK_EQ(text_of("\"\x0cx\x0c\""), std::optional<std::string>("\x0cx\x0c"));
+    CHECK_EQ(text_of("'\xc2\xa0x'"), std::optional<std::string>("\xc2\xa0x"));
 }
 
 QIVEN3_CASE(yaml, empty_and_unended) {
@@ -202,6 +244,39 @@ QIVEN3_CASE(yaml, refused_typed) {
         // Quoted, it is text.
         CHECK_EQ(text_of("\"" + std::string(value) + "\""), std::optional<std::string>(value));
     }
+    // Decimal digits of any script, as Python's int and float read them:
+    // Arabic-Indic, full-width, mixed with ASCII, signed with a point, with
+    // an underscore, in an exponent, mathematical bold (four bytes), the
+    // last run's last, a run's last, the Ol Onal run's first, Devanagari.
+    for (const std::string_view value :
+         {"\xd9\xa3", "\xef\xbc\x91", "1\xd9\xa3", "-\xef\xbc\x91.5", "\xd9\xa3_\xd9\xa3", "1e\xd9\xa3",
+          "\xf0\x9d\x9f\x8e", "\xf0\x9f\xaf\xb9", "\xd9\xa9", "\xf0\x9e\x97\xb1", "+\xe0\xa5\xac."}) {
+        CHECK_EQ(outcome("b: " + std::string(value) + "\n"), std::string("typed@1"));
+        CHECK_EQ(outcome("a:\n- " + std::string(value) + "\n"), std::string("typed@2"));
+        CHECK_EQ(text_of("'" + std::string(value) + "'"), std::optional<std::string>(value));
+    }
+}
+
+QIVEN3_CASE(yaml, refused_edge) {
+    // Whitespace by Python's str.isspace, which the source system's strip
+    // trims, and the controls (C0, DEL, C1), at either end of a value or
+    // an item, its spaces trimmed; quoted, outside the quotes.
+    for (const std::string_view value :
+         {"x\x0c", "\x0cx", "x\x0b", "x\x1f", "\x01x", "\x7fx", "x\xc2\x80", "x\xc2\x9f", "x\xc2\x85", "\xc2\xa0x",
+          "x\xe1\x9a\x80", "x\xe2\x80\x80", "x\xe2\x80\x8a", "x\xe2\x80\xa9", "x\xe2\x80\xaf", "x\xe2\x81\x9f",
+          "x\xe3\x80\x80", "\"x\"\x0c", "\x0c\"x\"", "\xc2\xa0", "  \x0c  "}) {
+        CHECK_EQ(outcome("a: x\nb: " + std::string(value) + "\n"), std::string("edge@2"));
+        CHECK_EQ(outcome("a:\n- y\n- " + std::string(value) + "  \n"), std::string("edge@3"));
+    }
+    CHECK_EQ(outcome(std::string_view("a: x\x00\n", 6)), std::string("edge@1"));
+    CHECK_EQ(outcome(std::string_view("a:\n- \x00x\n", 8)), std::string("edge@2"));
+    // A key whose value is only such is refused, never read as a list.
+    CHECK_EQ(outcome("a: \x0c\n- x\n"), std::string("edge@1"));
+    CHECK_EQ(outcome("a: \xe2\x80\xa8\n- x\n"), std::string("edge@1"));
+    // Read before the quote and the type: the source system reads both.
+    CHECK_EQ(outcome("a: \"x\x0c"), std::string("edge@1"));
+    CHECK_EQ(outcome("a: 1\xc2\xa0\n"), std::string("edge@1"));
+    CHECK_EQ(outcome("a:\n- true\x0b\n"), std::string("edge@2"));
 }
 
 QIVEN3_CASE(yaml, refused_too_large) {
@@ -218,6 +293,53 @@ QIVEN3_CASE(yaml, first_fault_decides) {
     // Within a line: utf8 before control, control before indented.
     CHECK_EQ(outcome(" \t\xff\n"), std::string("utf8@1"));
     CHECK_EQ(outcome(" \t\n"), std::string("control@1"));
+}
+
+// Thirty-one probes of where the reader and the source system's reader
+// could part: each read as the source system reads it, or refused by name.
+// After each refusal, what the source system reads instead.
+QIVEN3_CASE(yaml, probes) {
+    struct Probe {
+        std::string_view bytes;
+        std::string_view want;
+    };
+    const std::vector<Probe> probes = {
+        {"a: \xd9\xa3\n", "typed@1"},            // 3, an int
+        {"\xef\xbb\xbf" "a: x\n", "form@1"},     // nothing: a line skipped
+        {"a:\n- x\n# c\n\n- y\nb: z\n", "a=['x','y'] b='z'"},
+        {"a:\n-\n", "form@2"},                   // a=[]
+        {"a:\n- \n", "form@2"},                  // a=[]
+        {"a: \"\"\n", "a=''"},
+        {"a: 5e-0_1\n", "typed@1"},              // 0.5
+        {"a: \x0c\n- x\n", "edge@1"},            // a=['x']
+        {"a: value\x0c\n", "edge@1"},            // a='value'
+        {"a: \xef\xbf\xbe\n", "a='\xef\xbf\xbe'"},
+        {"a: value\x1f\n", "edge@1"},            // a='value'
+        {"a: \xef\xbc\x91\n", "typed@1"},        // 1
+        {"a: PR #36\n", "a='PR #36'"},
+        {"a: value\xe3\x80\x80\n", "edge@1"},    // a='value'
+        {"a: inf\n", "typed@1"},                 // inf
+        {"a:\n- x\x0c\n", "edge@2"},             // a=['x']
+        {"a:\n- \xc2\xa0x\n", "edge@2"},         // a=['x']
+        {"a:x\n", "form@1"},                     // a='x'
+        {"a: x", "a='x'"},
+        {"a: value\xe2\x80\xa8\n", "edge@1"},    // a='value'
+        {"a: \xc2\xa0value\n", "edge@1"},        // a='value'
+        {"a: \xc2\xa0\n- x\n", "edge@1"},        // a=['x']
+        {"a: value\xc2\xa0\n", "edge@1"},        // a='value'
+        {"a: -NaN\n", "typed@1"},                // nan
+        {"a: value\xc2\x85\n", "edge@1"},        // a='value'
+        {"a: \xef\xb7\x90\n", "a='\xef\xb7\x90'"},
+        {std::string_view("a: x\x00y\n", 7), std::string_view("a='x\x00y'", 7)},
+        {"a: \"x\"\x0c\n", "edge@1"},            // a='x'
+        {"a: tRuE\n", "typed@1"},                // True
+        {"a: 1_000\n", "typed@1"},               // 1000
+        {"a: value\x0b\n", "edge@1"},            // a='value'
+    };
+    CHECK_EQ(probes.size(), std::size_t{31});
+    for (const Probe& probe : probes) {
+        CHECK_EQ(reading(probe.bytes), std::string(probe.want));
+    }
 }
 
 QIVEN3_CASE(yaml, arena_too_small) {

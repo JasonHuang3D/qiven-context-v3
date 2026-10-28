@@ -4,8 +4,9 @@
 // and MX's stub raise the use by their text alone, with no peak past it;
 // an arena a byte short of it is MemoryError, the caller's string as it
 // was. With the arena's countdown armed, each fault run counts one
-// allocation and completes at the second. The runner's count after each
-// case holds too.
+// allocation and completes at the second, M1's and an owner's words'
+// whose label's path is 200 U+FEFF, each escaped. The runner's count after
+// each case holds too.
 
 #include <array>
 #include <cstddef>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -138,6 +140,68 @@ QIVEN3_CASE(served, faults) {
         CHECK_EQ(runs.completed_at, 2U);
         CHECK_EQ(runs.untyped, 0U);
         CHECK(size > 0);
+        arena.reset();
+    }
+#else
+    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+#endif
+}
+
+QIVEN3_CASE(served, escaped_label_faults) {
+#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+    // The owner's words as quoted in a document of record whose path is
+    // 200 U+FEFF, refuted by transcript: the label's 741 bytes served as
+    // 1,341, each U+FEFF escaped as a field's text is.
+    std::string path;
+    std::string escaped;
+    for (std::size_t i = 0; i < 200; ++i) {
+        path += "\xEF\xBB\xBF";
+        escaped += "\\";
+        escaped += "ufeff";
+    }
+    Held x{header::parse_line(R"({"basis":"owner-words","id":"sha256:)"
+                              R"(0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",)"
+                              R"("kind":"direction","writer":"implementer/s39"})"),
+           canon::Basic<>(), labels::Label(), std::nullopt};
+    canon::parse(R"({"band":"core","source":[{"digest":"d1","path":")" + path +
+                     R"(","repository":"r","revision":"0123456789abcdef0123456789abcdef01234567",)"
+                     R"("type":"repo"}],"subject":"activity:x","words":"Keep it."})",
+                 x.v);
+    labels::CheckView refuting;
+    refuting.writer = "reviewer/s70";
+    refuting.method = fold::Method::transcript;
+    refuting.result = fold::Result::refuted;
+    refuting.transcript = fold::Transcript::reverified;
+    const std::array<labels::CheckView, 1> checks = {refuting};
+    x.label = labels::label(*labels::version_of(x.h, x.v), checks);
+    CHECK_EQ(x.label.text().size(), 741U);
+    const std::string line = "by: the owner's words as quoted in " + escaped +
+                             " (0123456789abcdef0123456789abcdef01234567), recorded by implementer/s39; refuted by "
+                             "reviewer/s70 (transcript)\n";
+    std::vector<std::byte> pages(4096);
+    for (const bool stub : {false, true}) {
+        qiven3::memory::Countdown countdown;
+        std::optional<Arena> arena;
+        std::string text;
+        const auto op = [&] {
+            arena.emplace(pages);
+            arena->attach(&countdown);
+            String out{Allocator<char>(*arena)};
+            write(x, stub, out);
+            text.assign(out.data(), out.size());
+            arena->attach(nullptr);
+        };
+        const auto empty = [&](std::size_t) { return arena->used() == 0; };
+        const qiven3::test::FaultRuns runs =
+            stub ? qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.escaped_stub", countdown, op, empty)
+                 : qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.escaped_block", countdown, op, empty);
+        std::cout << "served.escaped_label_faults: " << (stub ? "stub" : "block") << "'s allocations " << runs.typed
+                  << ", completed at " << runs.completed_at << ", " << text.size() << " bytes\n";
+        CHECK_EQ(runs.typed, 1U);
+        CHECK_EQ(runs.completed_at, 2U);
+        CHECK_EQ(runs.untyped, 0U);
+        CHECK(text.starts_with("direction activity:x [core] 0123456789abcdef\n" + line + "state: none\n"));
+        CHECK(text.find("\xEF\xBB\xBF") == std::string::npos);
         arena.reset();
     }
 #else

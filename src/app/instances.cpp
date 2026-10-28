@@ -6,10 +6,13 @@
 //
 // The command line reaches main as UTF-8. On Windows the binary's entry is
 // wmain, which takes the arguments as UTF-16, as the system holds them,
-// and the Windows adapter converts each strictly (run_utf8): an argument
-// that is not valid UTF-16 is a request the wire cannot read, and exits 2
-// with no line (wire::failed). Elsewhere main takes them as the system
-// gives them, and the wire reads them.
+// and the Windows adapter converts each after the program's name, which it
+// does not read, strictly (run_utf8): an argument that is not valid UTF-16,
+// or a command line past its bounds, is a request the wire cannot read,
+// and exits 2 with no line (wire::failed); an allocation refused while it
+// is read is a fault, and exits 1 with no line (app::refused): no platform
+// is made yet to write the fault's answer. Elsewhere main takes them as
+// the system gives them, and the wire reads them.
 
 #include <optional>
 #include <span>
@@ -35,7 +38,7 @@ int run(int argc, const char* const* argv) noexcept { return app::main(argc, arg
 
 #if defined(_WIN32)
 int run_wide(int argc, const wchar_t* const* argv) noexcept {
-    return platform::win::run_utf8(argc, argv, &run, wire::failed);
+    return platform::win::run_utf8(argc, argv, &run, {wire::failed, app::refused});
 }
 #endif
 

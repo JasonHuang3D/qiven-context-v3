@@ -23,34 +23,28 @@
 namespace qiven3::location {
 namespace detail {
 
-// A line to standard output through the wire, whose failure a caller
-// decides.
+// The status a line written gives on: no status of main's, which a line
+// through the wire's answer gives back where it is written.
+inline constexpr int going = -1;
+
+// A line the wire's answer could not write: main ends with wire::failed
+// and writes nothing more. A plain value, as v3's typed errors are.
+struct Unwritten {};
+
+// A line to standard output through the wire's answer; Unwritten where it
+// is not written.
 template <platform::Platform P>
 void say(P& platform, std::string_view line) {
-    wire::write(platform, line);
-}
-
-// A line printed where the exit status carries the outcome: false where
-// printing failed.
-template <platform::Platform P>
-bool said(P& platform, std::string_view line) noexcept {
-    bool ok = false;
-    try {
-        say(platform, line);
-        ok = true;
-    } catch (const platform::PlatformError&) {
-        ok = false;
-    } catch (const memory::MemoryError&) {
-        ok = false;
+    if (wire::answer(platform, line, going) != going) {
+        throw Unwritten{};
     }
-    return ok;
 }
 
-// An error's line, best effort: the exit status carries the error.
+// An error's line, then status; wire::failed where it is not written.
 template <platform::Platform P, typename E>
-void report(P& platform, const E& error) noexcept {
+int report(P& platform, const E& error, int status) noexcept {
     std::array<char, line_bytes> buffer{};
-    static_cast<void>(said(platform, error_line(error, buffer)));
+    return wire::answer(platform, error_line(error, buffer), status);
 }
 
 // The command arena's peak to hooks.peak at the run's end.
@@ -138,20 +132,20 @@ void open_or_create(P& platform, std::string_view dir, memory::Arena& arena) {
 }
 
 // The record printed, then `recorded` naming dir: after the record is
-// written, a failure to print leaves it recorded.
+// written, a line not composed leaves it recorded, and a line not written
+// ends with wire::failed, the record standing.
 template <platform::Platform P>
 int print_recorded(P& platform, std::string_view record, std::string_view dir, memory::Arena& arena) noexcept {
-    if (!said(platform, record)) {
-        return recorded;
+    if (wire::answer(platform, record, recorded) != recorded) {
+        return wire::failed;
     }
     try {
         String line{memory::Allocator<char>(arena)};
         line.append(recorded_prefix()).append(dir).push_back('\n');
-        static_cast<void>(said(platform, line));
+        return wire::answer(platform, line, recorded);
     } catch (const memory::MemoryError&) {
         return recorded;  // the line not composed; the record stands
     }
-    return recorded;
 }
 
 // One command, under the lock; its errors to main.
@@ -189,8 +183,7 @@ int run(P& platform, const ArgumentsView& args, const Hooks& hooks) {
     platform.resolve(args.directory, chosen);
     store::SQLiteStore<P>::guard(chosen, platform);
     if (check_drive(platform, chosen, arena) && !args.accept) {
-        say(platform, not_accepted_line());
-        return not_accepted;
+        return wire::answer(platform, not_accepted_line(), not_accepted);
     }
     if (args.command == Command::change) {
         if (same(platform, chosen, old, arena)) {
@@ -213,21 +206,21 @@ template <platform::Platform P>
 int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks) noexcept {
     const std::optional<ArgumentsView> args = arguments(argv);
     if (!args) {
-        static_cast<void>(detail::said(platform, detail::usage_line()));
-        return usage;
+        return wire::answer(platform, detail::usage_line(), usage);
     }
     try {
         return detail::run(platform, *args, hooks);
+    } catch (const detail::Unwritten&) {
+        return wire::failed;  // no further line
     } catch (const store::StoreError& e) {
-        detail::report(platform, e);
+        return detail::report(platform, e, refused);
     } catch (const platform::PlatformError& e) {
-        detail::report(platform, e);
+        return detail::report(platform, e, refused);
     } catch (const memory::MemoryError& e) {
-        detail::report(platform, e);
+        return detail::report(platform, e, refused);
     } catch (const std::exception& e) {
-        detail::report(platform, e);
+        return detail::report(platform, e, refused);
     }
-    return refused;
 }
 
 template <platform::Platform P>

@@ -17,18 +17,23 @@
 // A value is "..." or '...' holding neither its own quote nor a backslash,
 // or a plain scalar that does not open with a quote and that the source
 // system would not read as a boolean, a null or a number (true, false,
-// null, none in any case, ~, or a decimal number as a float's text reads:
-// a sign, digits with single underscores between, a point, an exponent;
-// inf, infinity and nan in any case).
+// null, none in any case, ~, or what Python's int or float reads: a sign,
+// decimal digits of any script with single underscores between, a point,
+// an exponent; inf, infinity and nan in any case). Its text, spaces
+// trimmed, neither begins nor ends with whitespace as Python's str.isspace
+// reads it, which the source system's strip trims, nor with a control.
 //
 // Refused, by code: utf8, a byte that is not strict UTF-8; control, a tab
 // or a CR; indented, a line opening with a space, a line of spaces too;
 // form, a line none of the forms; duplicate_key, a key a second time;
-// outside_list, an item with no list open; quote, a quoted scalar unclosed
-// or holding its own quote or a backslash; typed, a plain scalar the source
-// system would type; too_large, a file over max_bytes, line 0. A file's
-// first faulty line names the error, and within a line the codes are read
-// in the order above; a key's second line is its fault's line.
+// outside_list, an item with no list open; edge, a value or item beginning
+// or ending with whitespace or a control, the space apart, so a key whose
+// value is only such is refused, never read as a list; quote, a quoted
+// scalar unclosed or holding its own quote or a backslash; typed, a plain
+// scalar the source system would type; too_large, a file over max_bytes,
+// line 0. A file's first faulty line names the error, and within a line
+// the codes are read in the order above; a key's second line is its
+// fault's line.
 //
 // Fields holds its keys and texts in a text of its own, each field and
 // item a place in it, so it outlives the bytes it was read from; its text
@@ -53,7 +58,18 @@ namespace qiven3::import::yaml {
 // A file's bound in bytes.
 inline constexpr std::size_t max_bytes = 65536;
 
-enum class Code : std::uint8_t { utf8, control, indented, form, duplicate_key, outside_list, quote, typed, too_large };
+enum class Code : std::uint8_t {
+    utf8,
+    control,
+    indented,
+    form,
+    duplicate_key,
+    outside_list,
+    edge,
+    quote,
+    typed,
+    too_large
+};
 std::string_view name(Code code) noexcept;
 
 // The refusal: its code and the line, from 1, or 0 for the whole file. A

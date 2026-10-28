@@ -8,8 +8,9 @@
 // most 8 ids, repeating none; the common item, a slug of 64, on served
 // kinds but item and map, in a project scope alone (not_allowed in person
 // and life, and on item, map, usage and retire); when on retire admitted,
-// on check not_allowed. Each refusal by its code and path, and a length's
-// by its limit and measured value.
+// on check not_allowed; detail and closes not_allowed on each kind but the
+// checkpoint's and the decision's. Each refusal by its code and path, and a
+// length's by its limit and measured value.
 
 #include <cstddef>
 #include <iostream>
@@ -17,10 +18,12 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
 #include "entry/content.hpp"
 #include "entry/header.hpp"
+#include "entry/kinds.hpp"
 #include "qiven3/canon.hpp"
 #include "runner/runner.hpp"
 
@@ -28,6 +31,7 @@ namespace {
 
 namespace content = qiven3::entry::content;
 namespace header = qiven3::entry::header;
+namespace kinds = qiven3::entry::kinds;
 namespace canon = qiven3::canon;
 using content::Code;
 using content::ContentError;
@@ -210,4 +214,36 @@ QIVEN3_CASE(content, format_item_when) {
                              {"when", WHEN}}),
              Code::not_allowed, "when"));
     std::cout << "content.format: item in a project scope alone, when on retire\n";
+}
+
+QIVEN3_CASE(content, format_detail_closes_elsewhere) {
+    // detail a checkpoint's alone and closes a decision's alone: on each
+    // other kind of the 22, not_allowed at the field, in a project scope by
+    // writer import, the kind's basis claimed where it allows that.
+    std::size_t refused = 0;
+    for (const kinds::Kind& k : kinds::KINDS) {
+        const kinds::Bases claimed = kinds::bit(kinds::Basis::claimed);
+        std::string_view basis = "claimed";
+        if ((k.bases & claimed) == 0) {
+            for (std::size_t b = 0; b < header::basis_names.size(); ++b) {
+                if ((k.bases & kinds::bit(static_cast<kinds::Basis>(b))) != 0) {
+                    basis = header::basis_names[b];
+                    break;
+                }
+            }
+        }
+        const Members base = k.name == "check" ? Members{{"method", R"("review")"}} : Members{};
+        for (const auto& [key, value, owner] :
+             {std::tuple<std::string, std::string, std::string_view>{"detail", R"("d")", "checkpoint"},
+              {"closes", R"([")" ID R"("])", "decision"}}) {
+            if (k.name == owner) {
+                continue;
+            }
+            CHECK(is(verdict(k.name.view(), "import", S, with(base, key, value), basis), Code::not_allowed, key));
+            ++refused;
+        }
+    }
+    CHECK(refused == 2 * (kinds::KINDS.size() - 1));
+    std::cout << "content.format: detail and closes not_allowed on the other " << kinds::KINDS.size() - 1
+              << " kinds\n";
 }

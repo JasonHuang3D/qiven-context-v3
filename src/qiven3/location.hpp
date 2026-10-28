@@ -17,10 +17,14 @@
 // unreadable (old_unreadable, naming the error); then, as at init, a
 // store.db in the directory opened as it is, or a store created there,
 // then the record written, last, by replace. A change moves, copies and
-// deletes no file. Output goes through standard_output(): the check's
-// lines, then the record, then `recorded`, naming the directory; a failure
-// to print after the record leaves it recorded and exits 0. Exit status: 0
-// recorded or shown, 1 refused, 2 a usage error, 4 warnings not accepted.
+// deletes no file. Output goes through the wire's answer (wire/wire.hpp)
+// to standard_output(): the check's lines, then the record, then
+// `recorded`, naming the directory. A line the wire cannot write ends the
+// command at once with status 2 and no further line, what the system took
+// before it and a record already written standing; after the record, a
+// line not composed leaves it recorded and exits 0. Exit status: 0
+// recorded or shown, 1 refused, 2 a usage error or a line not written, 4
+// warnings not accepted.
 //
 // The record, location.json in the configuration directory: one canonical
 // JSON line and its LF, of exactly `at`, the time of the choice, and
@@ -51,7 +55,8 @@
 // processes, each waiting up to 5 s. Exception guarantee: a refusal
 // changes no record; a store created before a failed record stays, and
 // the next init or change opens it. main throws nothing it can catch: a
-// typed error is exit 1 and one line naming it.
+// typed error is exit 1 and one line naming it, or 2 where that line is
+// not written.
 
 #include <array>
 #include <cstddef>

@@ -6,7 +6,9 @@
 // check's at; a reflection writer's lesson served as a claim until lifted;
 // an object's and a list's forms and a deeper value's canonical JSON; a
 // checkpoint's detail not shown; an item's state last on line 3 and not
-// among its fields; the longest label served whole on line 2; a
+// among its fields; the longest label served whole on line 2; a path's
+// U+FEFF escaped alike in a map's object on line 1 and in an owner's
+// words' label on line 2, 200 of them served whole; a
 // stub, its cost the block's units, not its bytes; cost in UTF-16 units;
 // map_mark's syntax; BUDGETS. At run time,
 // over tests/fixtures/: M1 stale and M2 fresh with their map checks' at,
@@ -32,6 +34,7 @@
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "entry/labels.hpp"
+#include "entry/refs.hpp"
 #include "entry/served.hpp"
 #include "qiven3/canon.hpp"
 #include "runner/runner.hpp"
@@ -252,6 +255,57 @@ static_assert(quoted_block() == "direction activity:x [core] 0123456789abcdef\n"
                                     "state: none\n"
                                     "words: Keep it.\n"
                                     "\n");
+
+// A path's U+FEFF reads the same on line 1 and in a label, escaped as a
+// field's text is: in a map's object, and in the owner's words' document
+// of record (its label's path); at refs' limit, 200 of them, the label
+// refuted by transcript, served whole, six bytes for each three.
+constexpr std::string_view BOM = "\xEF\xBB\xBF";
+constexpr std::string_view BOM_ESCAPED = "\\" "ufeff";
+constexpr std::string_view BOM_PATH = "docs/\xEF\xBB\xBF" "a.md";
+constexpr std::string bom_path_escaped() { return "docs/" + std::string(BOM_ESCAPED) + "a.md"; }
+constexpr std::string repeated(std::string_view unit, std::size_t n) {
+    std::string out;
+    for (std::size_t i = 0; i < n; ++i) {
+        out += unit;
+    }
+    return out;
+}
+static_assert(qiven3::entry::refs::check_path(BOM_PATH) && qiven3::entry::refs::check_path(repeated(BOM, 200)) &&
+              qiven3::entry::refs::path_limit == 200);
+constexpr std::string direction_at(std::string_view path, std::span<const labels::CheckView> checks = {}) {
+    return render(head("direction", "owner-words", W1),
+                  R"({"band":"core","source":[{"digest":"d1","path":")" + std::string(path) +
+                      R"(","repository":"r","revision":")" + std::string(REV) +
+                      R"(","type":"repo"}],"subject":"activity:x","words":"Keep it."})",
+                  SERVED, std::nullopt, checks);
+}
+constexpr std::string map_at(std::string_view path) {
+    return render(head("map", "derived", "reviewer/s70"),
+                  R"({"band":"core","contract":"Parses.","does":"Reads.","object":{"digest":"hmac-sha256:)" ID_HEX
+                  R"(","path":")" + std::string(path) + R"(","repository":"r","type":"repo"},"object_type":"file"})");
+}
+static_assert(direction_at(BOM_PATH) == "direction activity:x [core] 0123456789abcdef\n"
+                                        "by: the owner's words as quoted in " +
+                                            bom_path_escaped() + " ("+ std::string(REV) + "), recorded by " +
+                                            std::string(W1) +
+                                            "\n"
+                                            "state: none\n"
+                                            "words: Keep it.\n"
+                                            "\n");
+static_assert(map_at(BOM_PATH).starts_with("map repo:r/" + bom_path_escaped() +" [core] 0123456789abcdef\n"
+                                                                              "by: derived by reviewer/s70, "
+                                                                              "non-authoritative\n"));
+constexpr std::string bom_label_line() {
+    return "by: the owner's words as quoted in " + repeated(BOM_ESCAPED, 200) + " (" + std::string(REV) +
+           "), recorded by " + std::string(W1) + "; refuted by " + std::string(W2) + " (transcript)\n";
+}
+static_assert(direction_at(repeated(BOM, 200), REFUTING) == "direction activity:x [core] 0123456789abcdef\n" +
+                                                                bom_label_line() +
+                                                                "state: none\n"
+                                                                "words: Keep it.\n"
+                                                                "\n");
+static_assert(bom_label_line().size() == 4 + labels::capacity - 200 * 4 + 200 * 6 + 1);
 
 // A stub: lines 1 to 3, the block's cost and full id, the empty line.
 static_assert(render(head("claim", "claimed", "implementer/s39"), R"({"band":"core","claim":"x","subject":"entity:x"})",

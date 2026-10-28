@@ -229,7 +229,8 @@ static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "sc
 
 // The binary's command line (win/arguments.cpp): its arguments as the
 // system gives them to wmain, UTF-16, each converted strictly to UTF-8 and
-// ended by a null, argv[argc] null, on the caller's arena. A command line
+// ended by a null, argv[argc] null, on the caller's arena. The program's
+// name, argv[0], is not read: it is empty, its null alone. A command line
 // is at most command_line_units units, so at most most_arguments
 // arguments, and a unit at most 3 bytes of UTF-8 (a surrogate pair's two,
 // 4): the conversion takes at most arguments_bound bytes.
@@ -269,9 +270,24 @@ private:
 // A main that reads its arguments as UTF-8.
 using Utf8Main = int (*)(int argc, const char* const* argv) noexcept;
 
+// The statuses run_utf8 ends with where entry does not run: refused for a
+// command line it cannot read (not valid UTF-16) or past its bounds,
+// faulted for an allocation refused while it reads one.
+struct Utf8Statuses {
+    int refused = 0;
+    int faulted = 0;
+};
+
 // wmain's body: wide converted on pages taken for exactly its bytes, then
-// entry on them, entry's status; `refused` where the conversion or the
-// pages fail, with no line (no adapter is made to print one).
-int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, int refused) noexcept;
+// entry on them, entry's status; statuses.refused where the measure
+// refuses wide, statuses.faulted where the pages or the arena refuse an
+// allocation, each with no line (no adapter is made to print one).
+int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses) noexcept;
+#if defined(QIVEN3_FAULTS)
+// As run_utf8, the pages' call and the arena's two allocations each asking
+// faults first.
+int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses,
+             memory::Countdown* faults) noexcept;
+#endif
 
 }  // namespace qiven3::platform::win

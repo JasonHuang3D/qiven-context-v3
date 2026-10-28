@@ -8,7 +8,8 @@
 //    object (repo:<repository>/<path>, #<name> after it when it has one,
 //    or entry:<id>), or a relation's from when it has no subject; the
 //    first 16 hex digits of the id;
-// 2. by: <label>, the label as labels gives it;
+// 2. by: <label>, the label as labels gives it, escaped as a field's text
+//    is (a path's U+FEFF in a label reads as it does on line 1);
 // 3. state: <mark>, then ; map check <at> when a map's mark is given, and
 //    each that applies: ; as of <date>, ; when <time> (<quality>),
 //    ; expires <time>, ; forked +<n>, ; duplicate +<n>; and last, on an
@@ -289,7 +290,7 @@ constexpr void put_lines(K& k, const LinesView& l) {
     k.append("] ");
     k.append(l.id.substr(7, short_id));
     k.append("\nby: ");
-    k.append(l.label);
+    put_text(k, l.label);
     k.append("\nstate: ");
     k.append(name(l.mark));
     if (l.map) {

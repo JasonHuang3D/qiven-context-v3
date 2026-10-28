@@ -4,7 +4,8 @@
 // unknown or missing subcommand prints the usage lines on standard error
 // and ends with child::usage_status. On Windows its entry is wmain, as the
 // product's: each argument converted from UTF-16 by the Windows adapter
-// (run_utf8), one that is not valid UTF-16 ending it with usage_status.
+// (run_utf8), one that is not valid UTF-16 ending it with usage_status and
+// an allocation refused there with exception_status, with no line.
 // run is noexcept, as run_utf8's entry is: an exception ends the child
 // there, by one line on standard error and child::exception_status; a
 // MemoryError's line names it.
@@ -86,7 +87,8 @@ int run(int argc, const char* const* argv) noexcept {
 
 #if defined(_WIN32)
 int wmain(int argc, wchar_t** argv) {
-    return qiven3::platform::win::run_utf8(argc, argv, &run, qiven3::child::usage_status);
+    return qiven3::platform::win::run_utf8(argc, argv, &run,
+                                           {qiven3::child::usage_status, qiven3::child::exception_status});
 }
 #else
 int main(int argc, char** argv) { return run(argc, argv); }

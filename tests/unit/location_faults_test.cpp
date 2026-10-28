@@ -4,10 +4,14 @@
 // calls failed in turn, and the engine heap's allocations with an engine installed; faults_init,
 // faults_change and faults_heap_create in parts, _part1 on (support/faults/parts.hpp), each within 30 s on
 // every job: each run exit 1, or the step's own status where the
-// failure came after the record or was absorbed; after each run every page given back, nothing but the record
-// in the configuration directory, the record as before or, at exit 0, whole; after a refused run the next
-// run, failing nothing, the step's own status.
+// failure came after the record or was absorbed, or, for a line's write failed, 2 with that write the run's last
+// platform call; after each run every page given back, nothing but the record in the configuration directory,
+// the record as before or, at exit 0 or after replace, whole; after a refused run the next run, failing nothing,
+// the step's own status.
+// unwritten: each step with each of its lines' writes failed in turn: exit 2, that write the run's last call,
+// the lines before it written as an unfailed run writes them, the record as before or, after replace, whole.
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -26,6 +30,7 @@
 #include "support/faults/faults.hpp"
 #include "support/faults/parts.hpp"
 #include "support/fixtures/location_bed.hpp"
+#include "wire/wire.hpp"
 
 namespace {
 using namespace qiven3::test::location_bed;
@@ -33,6 +38,8 @@ using namespace qiven3::test::location_bed;
 
 #if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
+
+namespace wire = qiven3::wire;
 
 struct Typed {};
 struct Untyped {};
@@ -44,9 +51,25 @@ constexpr std::array<std::string_view, 5> kind_names = {"platform call", "comman
 
 struct Tally {
     std::size_t refused = 0;
-    std::size_t kept = 0;  // the step's own status: after the record, or absorbed
-    std::size_t next = 0;  // after a refused run, the next run's own status
+    std::size_t kept = 0;       // the step's own status: after the record, or absorbed
+    std::size_t next = 0;       // after a refused run, the next run's own status
+    std::size_t unwritten = 0;  // a line's write failed: the wire's status
 };
+
+// After a run that ended with a line's write failed, from the fake's call
+// `from` on: that write its last platform call, and the record as before
+// or, where replace ran, the step's own.
+bool unwritten_held(const Bed& b, Step s, std::size_t from) {
+    const std::vector<std::string>& calls = b.fake->calls();
+    if (calls.size() <= from || calls.back() != "standard_output") {
+        return false;
+    }
+    bool replaced = false;
+    for (std::size_t i = from; i < calls.size(); ++i) {
+        replaced = replaced || calls[i] == "replace";
+    }
+    return b.record_held(s, replaced ? location::recorded : location::refused);
+}
 
 // One step, each call of kind failed in turn, the runs of the part's range
 // r executing (support/faults/parts.hpp's PartRuns).
@@ -57,6 +80,7 @@ void pass(qiven3::test::Context& qiven3_ctx, Bed& b, Step s, Kind kind, qiven3::
     Tally t;
     int code = 0;
     bool fired = false;
+    std::size_t from = 0;  // the run's first call on the fake
     const auto attach = [&](Countdown* on) {
         if (kind == Kind::platform) {
             b.fake->attach(on);
@@ -71,6 +95,7 @@ void pass(qiven3::test::Context& qiven3_ctx, Bed& b, Step s, Kind kind, qiven3::
     const auto op = [&] {
         part.enter<Typed>(c);
         b.prepare(s);
+        from = b.fake->calls().size();
         attach(&c);
         code = b.run(s, kind == Kind::arena ? &c : nullptr);
         attach(nullptr);
@@ -81,7 +106,8 @@ void pass(qiven3::test::Context& qiven3_ctx, Bed& b, Step s, Kind kind, qiven3::
             }
             return;
         }
-        if (code == location::refused || code == Bed::expected(s)) {
+        if (code == location::refused || code == Bed::expected(s) ||
+            (code == wire::failed && kind == Kind::platform)) {
             throw Typed{};
         }
         throw Untyped{};
@@ -90,8 +116,13 @@ void pass(qiven3::test::Context& qiven3_ctx, Bed& b, Step s, Kind kind, qiven3::
         if (part.skipped()) {
             return true;
         }
-        bool held = b.fake->lent() == lent && b.config_clean() && b.record_held(s, code);
-        if (fired && code == location::refused && Bed::expected(s) != location::refused) {
+        // No step's own status is the wire's.
+        const bool unwritten = fired && code == wire::failed;
+        bool held = b.fake->lent() == lent && b.config_clean() &&
+                    (unwritten ? unwritten_held(b, s, from) : b.record_held(s, code));
+        if (unwritten) {
+            ++t.unwritten;  // no next run: the record stands as the run left it
+        } else if (fired && code == location::refused && Bed::expected(s) != location::refused) {
             ++t.refused;
             const int again = b.run(s);
             t.next += again == Bed::expected(s) ? 1U : 0U;
@@ -110,7 +141,8 @@ void pass(qiven3::test::Context& qiven3_ctx, Bed& b, Step s, Kind kind, qiven3::
     std::cout << "location.faults: " << name_of(s) << ", " << kind_names.at(static_cast<std::size_t>(kind)) << ": "
               << runs.typed << " runs, completed at " << runs.completed_at << " (executing " << r.from << " to "
               << part.last(runs) << "); refused " << t.refused
-              << ", its own status " << t.kept << ", the next run its own " << t.next << "; untyped " << runs.untyped
+              << ", its own status " << t.kept << ", the next run its own " << t.next << ", a line unwritten "
+              << t.unwritten << "; untyped " << runs.untyped
               << ", unchecked " << runs.unchecked << "\n";
     CHECK_EQ(runs.untyped, 0U);
     CHECK_EQ(runs.unchecked, 0U);
@@ -245,7 +277,66 @@ void heap_create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
     passes(qiven3_ctx, heap_create, heap_kind, heap_create_parts, i);
 }
 
+// One step's runs, each of its lines' writes failed in turn by the fake's
+// countdown (as the wire's answer_faults): the lines failed. The countdown
+// asked at the i-th call is at least the calls before it that ask it (all
+// but wipe), and more where the fake's files ask it within a call: from
+// there, the first armed run whose fault ends it 2 at its i-th call, a
+// standard_output, is that line's.
+std::size_t unwritten_runs(qiven3::test::Context& qiven3_ctx, Bed& b, Step s) {
+    b.prepare(s);
+    const std::size_t from = b.fake->calls().size();
+    const std::size_t mark = b.fake->written().size();
+    CHECK_EQ(b.run(s), Bed::expected(s));
+    const std::vector<std::string> calls(b.fake->calls().begin() + static_cast<std::ptrdiff_t>(from),
+                                         b.fake->calls().end());
+    const std::string whole = b.fake->written().substr(mark);
+    std::size_t lines = 0;
+    std::size_t asked = 0;
+    std::size_t k = 1;
+    for (std::size_t i = 0; i < calls.size(); ++i) {
+        asked += calls[i] == "wipe" ? 0U : 1U;
+        if (calls[i] != "standard_output") {
+            continue;
+        }
+        ++lines;
+        Countdown c;
+        bool hit = false;
+        std::size_t at = 0;
+        std::size_t written = 0;
+        for (k = std::max(k, asked); !hit && k < asked + 1000; ++k) {
+            b.prepare(s);
+            at = b.fake->calls().size();
+            written = b.fake->written().size();
+            b.fake->attach(&c);
+            c.arm(k);
+            const int code = b.run(s);
+            b.fake->attach(nullptr);
+            hit = c.fired() && code == wire::failed && b.fake->calls().size() == at + i + 1 &&
+                  b.fake->calls().back() == "standard_output";
+            c.disarm();
+        }
+        // The wire's status at that write, the run's last call; the lines
+        // before it as an unfailed run writes them, and no more.
+        CHECK(hit);
+        const std::string before = b.fake->written().substr(written);
+        CHECK(before.size() < whole.size() && whole.starts_with(before));
+        CHECK(unwritten_held(b, s, at));
+    }
+    CHECK(lines > 0);
+    return lines;
+}
+
 }  // namespace
+
+QIVEN3_CASE(location, unwritten) {
+    const auto b = std::make_unique<Bed>(Scratch{});
+    std::size_t lines = 0;
+    for (std::size_t s = 0; s < step_names.size(); ++s) {
+        lines += unwritten_runs(qiven3_ctx, *b, static_cast<Step>(s));
+    }
+    std::cout << "location.unwritten: " << step_names.size() << " steps, " << lines << " lines' writes failed\n";
+}
 
 QIVEN3_CASE(location, faults_heap_open) { passes(qiven3_ctx, heap_open, heap_kind, qiven3::test::FaultParts<1>{}, 0); }
 #else
@@ -255,6 +346,7 @@ void init_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN
 void change_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN3_SKIP(unfaulted); }
 void heap_create_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN3_SKIP(unfaulted); }
 }  // namespace
+QIVEN3_CASE(location, unwritten) { QIVEN3_SKIP(unfaulted); }
 QIVEN3_CASE(location, faults_heap_open) { QIVEN3_SKIP(unfaulted); }
 #endif
 

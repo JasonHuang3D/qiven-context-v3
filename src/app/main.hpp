@@ -16,9 +16,12 @@
 // with no line, or 2 for a command line that is a usage error.
 //
 // The command line's text is UTF-8: on Windows the binary's wmain converts
-// the system's UTF-16 arguments to it (app/instances.cpp), an argument it
-// cannot convert exiting 2 with no line; elsewhere the wire refuses an
-// argument that is not.
+// the system's UTF-16 arguments after the program's name to it
+// (app/instances.cpp), an argument it cannot convert exiting 2 with no
+// line and an allocation refused while it converts them 1 with no line;
+// elsewhere the wire refuses an argument that is not. Every line goes
+// through the wire's answer: one it cannot write ends the process with 2
+// and no further line, a record already written standing.
 //
 // main is a template on the maker; app/main_impl.hpp defines it, and the
 // binary's instantiation file, app/instances.cpp, alone includes it.
@@ -50,8 +53,10 @@ inline constexpr int usage = 2;
 inline constexpr std::size_t max_arguments = 16;
 
 // The most bytes of one argument and of all: a Windows command line's
-// 32,767 UTF-16 units at 3 bytes each, so that no command line the system
-// gives is past them by its bytes.
+// 32,767 UTF-16 units at 3 bytes each, so that no command line Windows
+// gives is past them by its bytes. Other systems give more (Linux one
+// argument of up to 131,072 bytes): such a request is past the wire's
+// bound, which it refuses.
 inline constexpr std::size_t max_argument_bytes = std::size_t{3} * 32767;
 
 // The wire's bounds on the binary's request.

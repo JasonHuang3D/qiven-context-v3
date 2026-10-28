@@ -6,17 +6,22 @@
 // the bytes of one and the bytes of all. The program's name is the
 // system's and is not read. On Windows the binary's wmain gives them as
 // UTF-8 converted from the system's UTF-16 by the Windows adapter
-// (platform::win::run_utf8), whose refusal, an unpaired surrogate, the
-// binary ends with `failed` as well. The answer is bytes written whole to
-// standard output and an exit status.
+// (platform::win::run_utf8), which does not read the program's name
+// either; its refusal, an unpaired surrogate or a command line past its
+// bounds, the binary ends with `failed` as well, and an allocation it
+// cannot have, a fault and no failure of the wire's, with the status its
+// caller gives for it (the binary's 1). Here nothing is allocated. The
+// answer is bytes written whole to standard output and an exit status.
 //
 // The wire's own failures, a request it cannot read or past a bound and an
 // answer it cannot write, end the process with exit status `failed` and no
-// answer: read_request gives no request, from which main returns `failed`
-// with nothing written; answer gives `failed` where its write fails, after
-// which nothing more is written (bytes the system took before the failure
-// are the system's). It reads no argument's sense and names no command:
-// the commands, their dispatch and their statuses are its callers'.
+// further answer: read_request gives no request, from which main returns
+// `failed` with nothing written; answer gives `failed` where its write
+// fails, after which its caller writes nothing more (bytes the system took
+// before the failure are the system's, and what its caller stored before
+// stands). Every answer of the binary is written through answer. It reads
+// no argument's sense and names no command: the commands, their dispatch
+// and their statuses are its callers'.
 //
 // Budget: nothing allocated; write's and answer's memory is the platform's
 // write's. Platform calls: read_request none; write standard_output() and

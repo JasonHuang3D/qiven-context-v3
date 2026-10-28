@@ -269,6 +269,16 @@ if(WIN32)
     LINK qiven3_faults qiven3_platform_win)
 endif()
 
+# win/arguments' run_utf8, wmain's body, on Windows alone: the program's
+# name not read; what it cannot read or past a bound refused; under
+# QIVEN3_FAULTS the pages' call and each allocation failed in turn, a
+# fault's status apart. fast and fake, as win_files'.
+if(WIN32)
+  qiven3_add_cases(qiven3_unit_win_arguments LABELS fast fake
+    SOURCES win_arguments_test.cpp
+    LINK qiven3_platform_win)
+endif()
+
 # win/facts' cases on the Windows adapter, on Windows alone, that read no
 # machine fact: the rules the compiler evaluates, the names, each member's
 # refusals and first failed call. fast and fake, as win_files'.
