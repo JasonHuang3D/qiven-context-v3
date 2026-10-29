@@ -10,7 +10,7 @@
 # tools/fuzz_seeds.py and grown by libFuzzer, its findings under
 # fuzz/<target>/artifacts/; the listing step (runner/ctest_tests.cmake)
 # makes each a CTest test labelled fuzz from fuzz_targets.txt.
-set(qiven3_fuzz_targets digest entry gitoutput wire yaml)
+set(qiven3_fuzz_targets digest entry gitoutput manifest wire yaml)
 
 # The kept inputs: an array of bytes each, and the tables the case reads.
 set(arrays "")
@@ -68,7 +68,7 @@ std::span<const std::uint8_t> kept_bytes(std::size_t i) noexcept { return spans[
 
 qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
   SOURCES regress_test.cpp "${regress_source}" digest/target.cpp entry/target.cpp gitoutput/target.cpp
-    wire/target.cpp yaml/target.cpp
+    manifest/target.cpp wire/target.cpp yaml/target.cpp
   LINK qiven3_platform_fake qiven3_entry qiven3_wire qiven3_import)
 
 if(QIVEN3_SANITIZE MATCHES "fuzzer")

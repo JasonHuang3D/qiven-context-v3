@@ -19,6 +19,7 @@ tests/vectors/ids.json -text
 tests/fuzz/digest/regress/** -text
 tests/fuzz/entry/regress/** -text
 tests/fuzz/gitoutput/regress/** -text
+tests/fuzz/manifest/regress/** -text
 tests/fuzz/wire/regress/** -text
 tests/fuzz/yaml/regress/** -text
 # The vendored SQLite amalgamation, as its upstream ships it: each file's

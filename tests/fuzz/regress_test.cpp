@@ -17,6 +17,7 @@ namespace qiven3::fuzz {
 int digest_input(const std::uint8_t* data, std::size_t size);
 int entry_input(const std::uint8_t* data, std::size_t size);
 int gitoutput_input(const std::uint8_t* data, std::size_t size);
+int manifest_input(const std::uint8_t* data, std::size_t size);
 int wire_input(const std::uint8_t* data, std::size_t size);
 int yaml_input(const std::uint8_t* data, std::size_t size);
 
@@ -57,6 +58,8 @@ QIVEN3_CASE(fuzz_regress, entry) { CHECK(kept(qiven3_ctx, "entry", qiven3::fuzz:
 QIVEN3_CASE(fuzz_regress, gitoutput) {
     CHECK(kept(qiven3_ctx, "gitoutput", qiven3::fuzz::gitoutput_input) > 0);
 }
+
+QIVEN3_CASE(fuzz_regress, manifest) { CHECK(kept(qiven3_ctx, "manifest", qiven3::fuzz::manifest_input) > 0); }
 
 QIVEN3_CASE(fuzz_regress, wire) { CHECK(kept(qiven3_ctx, "wire", qiven3::fuzz::wire_input) > 0); }
 

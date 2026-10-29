@@ -247,6 +247,13 @@ qiven3_add_cases(qiven3_unit_yaml LABELS fast fake
   SOURCES yaml_test.cpp
   LINK qiven3_import qiven3_platform_fake)
 
+# import/manifest over synthetic manifests: each part read, each refusal
+# naming its path and entry, the present form lacking rulings or records,
+# a quote found verbatim across a line break and not, an arena too small.
+qiven3_add_cases(qiven3_unit_manifest LABELS fast fake
+  SOURCES manifest_test.cpp
+  LINK qiven3_import qiven3_platform_fake)
+
 # import/git through the fake, whose run gives git's output: each call's
 # command, each call read, each refusal naming what it names, the
 # platform's refusals unchanged, each parser's malformed input, the quote's

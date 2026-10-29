@@ -56,7 +56,7 @@ PLANTS = (
 # CMakeLists.txt. No other file is.
 KEPT = ("tests/fixtures/entries.json", "tests/vectors/ids.json", "tests/fuzz/digest/regress/",
         "tests/fuzz/entry/regress/", "tests/fuzz/gitoutput/regress/", "tests/fuzz/wire/regress/",
-        "tests/fuzz/yaml/regress/",
+        "tests/fuzz/manifest/regress/", "tests/fuzz/yaml/regress/",
         "third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h")
 # The directories that hold code beside kept data: their code stays text, LF.
 BESIDE = ("tests/fixtures/", "tests/vectors/", "tests/support/fixtures/", "tests/drive/fixtures/", "third_party/")

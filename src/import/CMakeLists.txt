@@ -1,10 +1,17 @@
 # qiven3_import: the import's readers of the files of the system v3
 # imports from, product: yaml, its flat YAML read strictly; git, the git
-# route through the platform's run, its output's parsers pure. utf, which
-# checks each line's bytes and each name git gives, is qiven3_base's.
+# route through the platform's run, its output's parsers pure; manifest,
+# the quote manifest read into its parts, each field checked, and a quote's
+# words found verbatim in its document. utf, which checks each line's
+# bytes and each name git gives, is qiven3_base's, as are the manifest's
+# canon and json.
 add_library(qiven3_import STATIC
   git.cpp
   git.hpp
+  manifest.cpp
+  manifest.hpp
+  manifest_reader.cpp
+  manifest_reader.hpp
   yaml.cpp
   yaml.hpp
 )
