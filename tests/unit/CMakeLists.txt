@@ -205,6 +205,17 @@ qiven3_add_cases(qiven3_unit_write_entries LABELS fast fake
   SOURCES write_entries_test.cpp write_entries_memory_test.cpp
   LINK qiven3_faults qiven3_write)
 
+# write/build over synthetic files and a fake fold: a write file's chain,
+# keys, holes, piece digests and records, revisions of the fold's current
+# versions and at raised past them, an import file's chain per scope, a
+# path piece read and its bound, and each hole or target refused by path;
+# a forget, a clause's, a map's and a lane's checkpoint's revisions, a
+# question root, expires against the real at; out empty on every error,
+# each allocation and each platform call failed in turn.
+qiven3_add_cases(qiven3_unit_write_build LABELS fast fake
+  SOURCES write_build_test.cpp write_build_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_write)
+
 # projectmap's cases: the map files' syntaxes, os.path.isabs on each
 # system, the registry and the marks file read with each code, the marks
 # file written back the same, Marks built and refused, the map's rule

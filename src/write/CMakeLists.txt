@@ -1,7 +1,10 @@
 # qiven3_write: the write route's modules, product: entries, the entries
 # file's reader, its form, members, bounds, placeholders and pieces, each
-# content checked by the entry's own content check.
+# content checked by the entry's own content check; build, its entries built
+# for the store against the fold: keys, holes, digests, targets and headers.
 add_library(qiven3_write STATIC
+  build.cpp
+  build.hpp
   entries.cpp
   entries.hpp
   entries_reader.cpp
