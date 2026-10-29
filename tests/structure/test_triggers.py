@@ -317,16 +317,16 @@ class Triggers(unittest.TestCase):
         self.assertEqual(text.count(conc), 1)
         group = "  group: ${{ github.workflow }}-${{ github.sha }}\n"
         self.assertEqual(text.count(group), 1)
-        macos = "    name: macos-clang\n"
+        linux = "    name: ${{ matrix.preset }}\n"
         draft = "if: ${{ !github.event.pull_request.draft }}\n"
         msan = (WORKFLOWS / "msan.yml").read_bytes().decode("utf-8")
-        own = "    concurrency:\n      group: ${{ github.workflow }}-${{ github.sha }}-macos\n"
+        own = "    concurrency:\n      group: ${{ github.workflow }}-${{ github.sha }}-linux\n"
         controls = {  # the same property in other words: each must pass
             "cancel-in-progress left to its default": text.replace(conc, ""),
             "the ref beside the commit": text.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}-"
                                                              "${{ github.sha }}\n"),
             "one expression": text.replace(group, "  group: ${{ format('{0}-{1}', github.workflow, github.sha) }}\n"),
-            "a job's own group of the commit": text.replace(macos, macos + own + "      cancel-in-progress: false\n"),
+            "a job's own group of the commit": text.replace(linux, linux +own + "      cancel-in-progress: false\n"),
         }
         for name, planted in controls.items():
             with self.subTest(control=name):
@@ -346,14 +346,14 @@ class Triggers(unittest.TestCase):
             "the commit's group shared by both workflows": (text.replace(group, "  group: ${{ github.sha }}\n"),
                                                             "does not name github.workflow"),
             "the commit's name as text": (text.replace(group, "  group: ci-github.sha\n"), "does not name github.sha"),
-            "a job's own group cancelling": (text.replace(macos, macos + own + "      cancel-in-progress: true\n"),
-                                             "job macos's concurrency: cancel-in-progress"),
+            "a job's own group cancelling": (text.replace(linux, linux +own + "      cancel-in-progress: true\n"),
+                                             "job linux's concurrency: cancel-in-progress"),
             "a job's own group of the branch": (
-                text.replace(macos, macos + "    concurrency: ${{ github.ref }}\n"), "job macos's concurrency: group"),
+                text.replace(linux, linux +"    concurrency: ${{ github.ref }}\n"), "job linux's concurrency: group"),
             "no concurrency": (text.replace("concurrency:\n" + group + conc, ""), "concurrency: group None"),
-            "job kept off an event": (text.replace(macos, macos + "    if: github.event_name == 'pull_request'\n"),
-                                      "job macos kept off an event"),
-            "draft guard on a job": (text.replace(macos, macos + "    " + draft), "a draft guard"),
+            "job kept off an event": (text.replace(linux, linux +"    if: github.event_name == 'pull_request'\n"),
+                                      "job linux kept off an event"),
+            "draft guard on a job": (text.replace(linux, linux +"    " + draft), "a draft guard"),
             "draft guard on msan's job": (msan.replace("    name: linux-msan\n", "    name: linux-msan\n    " + draft),
                                           "a draft guard"),
             "draft guard on a step": (
@@ -379,7 +379,7 @@ class Unpinned(unittest.TestCase):
             with self.subTest(workflow=path.name):
                 self.assertEqual(unpinned_findings(path.read_bytes().decode("utf-8")), [])
         self.assertEqual(preset_findings(self.presets), [])
-        self.assertEqual(sorted(job_blocks(self.ci)), ["linux", "macos", "windows"])
+        self.assertEqual(sorted(job_blocks(self.ci)), ["linux", "windows"])
         self.assertEqual(sorted(job_blocks(self.msan)), ["linux-msan"])
 
     def planted(self, text, old, new):
@@ -389,8 +389,8 @@ class Unpinned(unittest.TestCase):
     def test_planted_workflows(self):
         ci, msan = self.ci, self.msan
         tools = "      - name: The image and the tools this job runs\n"
-        mac = ci[ci.index("  macos:\n"):]
-        mac_tools = mac[mac.index(tools):mac.index("      - name: Configure (macos-clang)")]
+        linux = ci[ci.index("\n  linux:\n"):]
+        linux_tools = linux[linux.index(tools):linux.index("      - name: Configure (${{ matrix.preset }})")]
         plants = {
             "a digest": (ci, "env:\n  CTEST_PARALLEL_LEVEL",
                          "env:\n  PYTHON_SHA256: " + "67d9a63e" * 8 + "\n  CTEST_PARALLEL_LEVEL"),
@@ -405,7 +405,6 @@ class Unpinned(unittest.TestCase):
                                  "      - name: Randomisation\n        run: sudo sysctl -w vm.mmap_rnd_bits=28\n\n"
                                  "      # libc++ with libc++abi"),
             "Windows on a fixed image": (ci, "runs-on: windows-latest", "runs-on: windows-2025"),
-            "macOS on a fixed image": (ci, "runs-on: macos-latest", "runs-on: macos-15"),
             "Linux on the latest image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
             "msan on the latest image": (msan, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
             "Linux on an older release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-22.04"),
@@ -413,16 +412,15 @@ class Unpinned(unittest.TestCase):
             "Linux on a later release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-26.04"),
             "Linux on an arm image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-24.04-arm"),
             "Linux on Windows' label": (ci, "runs-on: ubuntu-24.04", "runs-on: windows-latest"),
-            "macOS on Linux's label": (ci, "runs-on: macos-latest", "runs-on: ubuntu-24.04"),
             "Linux by a matrix": (ci, "runs-on: ubuntu-24.04", "runs-on: ${{ matrix.os }}"),
             "a second label": (ci, "runs-on: ubuntu-24.04", "runs-on: [ubuntu-24.04, self-hosted]"),
             "the debugger preset": (ci, "run: ctest --preset fake\n\n      - name: Each fuzz",
                                     "run: ctest --preset debugger\n\n      - name: Each fuzz"),
             "the debugger label": (msan, "-L '^cxx$'", "-L '^(cxx|debugger)$'"),
-            "the full suite": (ci, "run: ctest --preset fake\n\n      - name: Clean",
-                               "run: ctest --preset full\n\n      - name: Clean"),
+            "the full suite": (ci, "ctest --preset fake\n\n      - name: The analysis",
+                               "ctest --preset full\n\n      - name: The analysis"),
             "no selection": (ci, "-R '^tests[.]structure[.]' -LE '^analysis$'", "-LE '^analysis$'"),
-            "no versions printed": (ci, mac_tools, ""),
+            "no versions printed": (ci, linux_tools, ""),
             "no Ninja version": (msan, "ninja --version\n", "\n"),
             "no glibc on Linux": (ci, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),
             "no glibc under msan": (msan, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),

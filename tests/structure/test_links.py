@@ -1,9 +1,9 @@
 """964: each library on a link line once. Apple's linker warns that it
-ignores a library named twice on one link line, and the macOS job's links
+ignores a library named twice on one link line, and the macOS build's links
 make their warnings errors, so such a line fails there. The build's own
 link lines, read from its build.ninja by tests/structure/links.py, hold no
-library twice, on every system the build runs on: macOS's job runs this
-test too, and Windows' and Linux's builds stand for it locally. Every link
+library twice, on every system the build runs on: no job builds macOS
+now, and Windows' and Linux's builds stand for it. Every link
 the build has is read; the five that failed on macOS must be among them.
 CMake repeats a library only for a cycle among static libraries, which
 GNU ld needs, and for a list out of order; v3's libraries have no cycle,

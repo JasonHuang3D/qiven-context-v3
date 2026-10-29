@@ -26,11 +26,13 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 - CI's presets, which share `build/ci`: `ci-windows`, `ci-asan`, `ci-stack`
   and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
   (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),
-  `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux; and
-  `macos-clang`. `.github/workflows/ci.yml` runs them by manual dispatch
+  `linux-tsan` (ThreadSanitizer) and `linux-fuzz` (libFuzzer) on Linux. The
+  `macos-clang` preset and its floor are kept with no job to run them;
+  restoring the one job block brings it back. `.github/workflows/ci.yml`
+  runs them by manual dispatch
   alone, never on a pull request, a tag or a push to a branch, and a later
   dispatch never cancels a run in progress. CI is a runtime evaluation, unpinned:
-  Linux on the `ubuntu-24.04` image, Windows and macOS on the runners'
+  Linux on the `ubuntu-24.04` image, Windows on the runners'
   latest images, each with its own tools, CPython's current release by
   `actions/setup-python`, each job printing its image and its tools'
   versions; the pins stay in the local loop (`tools/loop.py`).

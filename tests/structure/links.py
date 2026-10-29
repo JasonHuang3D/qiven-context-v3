@@ -10,7 +10,7 @@ not. Paths compare with "/" for "\\" and, for a .lib, without regard to
 case, as Windows names files.
 
 A library twice on one line is a finding (964): Apple's linker warns that
-it ignores the second, and CI's macOS link makes its warnings errors.
+it ignores the second, and the macOS build's link makes its warnings errors.
 """
 
 import re

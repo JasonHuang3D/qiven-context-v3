@@ -9,7 +9,7 @@
   defines or undefines one of them.
 - Linux: K11 (test_binaries.py) reads each binary's glibc needs.
 - macOS: the macos-clang preset's CMAKE_OSX_DEPLOYMENT_TARGET is 15.0.
-  macOS does not run here: CI's macos-clang job alone builds under it.
+  No job builds under it, here or in CI: CI's macos-clang job is gone.
 Each over the tree, and over planted copies that break it."""
 
 import json

@@ -1,18 +1,20 @@
-# The CI matrix: Windows with MSVC, Linux with gcc and with clang, macOS with
-# Apple clang, and the safety jobs. Each job checks out, takes CPython by
+# The CI matrix: Windows with MSVC, Linux with gcc and with clang, and the
+# safety jobs. Each job checks out, takes CPython by
 # actions/setup-python, prints the image and each tool's version, configures
 # with its preset, builds every target its system builds and runs the cases
 # on the fakes (ctest --preset fake); the safety jobs add their sanitizer or
 # analysis, and every finding fails the run. A sanitizer enlarges frames, so
 # the frame bound and the clean-binaries check run on the builds with none:
-# linux-plain, macos-clang, windows-stack's /analyze and windows-msvc.
+# linux-plain, windows-stack's /analyze and windows-msvc.
 # linux-msan is a trial of MemorySanitizer (msan.yml). The full suite, the
 # machine cases and the debugger cases among them, runs on a developer's
-# machine, never here.
+# machine, never here. No job runs macOS: its job is gone, the macos-clang
+# preset and the macOS floor kept, so that restoring it is restoring its one
+# job block.
 #
 # CI is a runtime evaluation, unpinned: Linux on the ubuntu-24.04 image, the
-# release the local loop's Linux runs, Windows and macOS on the runners'
-# latest images, each with its own tools, a tool an image lacks at its
+# release the local loop's Linux runs, Windows on the runner's latest
+# image, each with its own tools, a tool an image lacks at its
 # current release. No step
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
@@ -269,58 +271,6 @@ jobs:
       # under the frame bound.
       - name: Clean binaries
         if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-plain' }}
-        run: |
-          printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
-          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
-
-  macos:
-    name: macos-clang
-    runs-on: macos-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: CPython, its current release
-        id: python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: "3.x"
-          check-latest: true
-
-      - name: Ninja, by the image's package manager where the image lacks it
-        env:
-          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
-        run: |
-          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
-          command -v ninja || brew install ninja
-
-      - name: The image and the tools this job runs
-        run: |
-          echo "image $ImageOS $ImageVersion; macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion)), $(uname -m)"
-          xcode-select -p; command -v clang++ cmake ninja
-          clang++ --version | sed -n 1p
-          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
-          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
-
-      - name: Configure (macos-clang)
-        run: cmake --preset macos-clang
-
-      - name: Build every target
-        id: build
-        run: cmake --build --preset macos-clang -- -k 0
-
-      - name: The cases on the fakes
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: ctest --preset fake
-
-      - name: Clean binaries
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
           "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"

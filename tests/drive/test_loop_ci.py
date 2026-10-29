@@ -1,6 +1,6 @@
 """The loop's jobs against CI's: tools/loop_jobs.py's JOBS, ENV, JOB_ENV and
 LINUX_SHELL, read against .github/workflows/ci.yml and msan.yml, so that the
-loop and CI cannot drift. Each job of the workflows but macOS's is the
+loop and CI cannot drift. Each job of the workflows is the
 loop's, by the same preset; each step of a job that runs a preset's build or
 reads its tree is the loop's step, in CI's order, with CI's command; the
 sanitizers' options, CTest's parallel level and the Linux shell are CI's,
@@ -36,7 +36,6 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
-CI_ONLY = {"macos-clang"}  # no machine for it (the loop's text)
 PIN = "-DQIVEN3_PIN_TOOLS=ON"
 FAMILY = {"g++": "GCC", "clang++": "CLANG"}  # a CI preset's compiler: its pin's name in CMakeLists.txt
 
@@ -209,7 +208,7 @@ class LoopAgainstCI(unittest.TestCase):
                 for k, (system, preset, steps) in self.loop.JOBS.items() if k not in self.loop.LOCAL}
 
     def test_jobs(self):
-        self.assertEqual(set(self.ci) - CI_ONLY, set(self.ci_jobs()))
+        self.assertEqual(set(self.ci), set(self.ci_jobs()))
         self.assertFalse(set(self.ci) & set(self.loop.LOCAL))
         for name, (system, preset, _) in self.ci_jobs().items():
             with self.subTest(job=name):

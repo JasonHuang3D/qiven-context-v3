@@ -1,7 +1,7 @@
 """The local loop's jobs (tools/loop.py): CI's jobs, presets and steps, with
 the local pins.
 
-Each job is a job of .github/workflows/ci.yml or msan.yml but macOS's, by
+Each job is a job of .github/workflows/ci.yml or msan.yml, by
 the same preset, and each of its steps runs CI's command, in CI's order. CI
 is unpinned and runs on the images' own tools; the pins are the loop's
 alone, as each step's local additions, apart from CI's command, so that a

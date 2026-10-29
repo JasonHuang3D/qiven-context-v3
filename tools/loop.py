@@ -50,7 +50,7 @@ the workflows. CI runs unpinned on its images' own tools; the loop runs each
 job on this machine's pinned tools. Beyond CI's, the loop's own jobs and
 steps, local alone: windows-symbols, the release preset keeping its PDBs,
 running the fake and the debugger cases, and linux-plain's debugger step,
-the debugger cases under gdb. macOS stays with CI alone.
+the debugger cases under gdb. No job runs macOS, here or in CI.
 
 - windows: a shell set up by vcvars64.bat -vcvars_ver=14.44.35207 (found by
   vswhere, or QIVEN3_VCVARS), the tools of WINDOWS_PINS checked by SHA-256

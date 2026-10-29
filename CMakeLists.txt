@@ -56,8 +56,8 @@ endif()
 # so that a compiler built with its own defaults, which turns on none of it,
 # builds as CI's image compilers do: the stack protector, stack-clash
 # probes, CET's branch and return checks, relro and now, and a build id.
-# These are ELF and x86-64 options; macos-clang, Mach-O on arm64, built on
-# CI alone, takes its platform's defaults.
+# These are ELF and x86-64 options; macos-clang, Mach-O on arm64, a preset
+# no job builds now, takes its platform's defaults.
 # _FORTIFY_SOURCE=3 where the build optimizes and no sanitizer runs; always
 # undefined first, so that a compiler defining it by default builds the same
 # and meets no redefinition. The presets under a sanitizer, linux-gcc,
