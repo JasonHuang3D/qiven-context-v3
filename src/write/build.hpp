@@ -102,6 +102,7 @@ struct Built {
     memory::String line;    // the stored header line
     memory::String record;  // the body record; empty on a forget
     memory::Inline<72> id{};
+    memory::Inline<72> target{};  // its target's id; empty for a root
     memory::Inline<32> at{};
     memory::Inline<64> scope{};
     memory::Inline<64> lane{};
@@ -312,6 +313,9 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
         h.line(line);
         b.line.assign(line.data(), line.size());  // by its bytes: the allocator stays the arena's
         b.id = memory::Inline<72>(h.value(Slot::id));
+        if (target) {
+            b.target = target->id;
+        }
         b.at = memory::Inline<detail::at_room>(at_text);
         b.scope = memory::Inline<64>(scope);
         b.lane = memory::Inline<64>(lane);

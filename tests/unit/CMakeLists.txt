@@ -216,6 +216,14 @@ qiven3_add_cases(qiven3_unit_write_build LABELS fast fake
   SOURCES write_build_test.cpp write_build_memory_test.cpp write_build_span_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_write)
 
+# write/refuse over synthetic files read, built and refused against a fake
+# fold: each refusal code of the write command with its cases and its
+# nearest pass, the path each names, the order of the codes, a session
+# revising the review's claimed entries, and the fold's queries counted.
+qiven3_add_cases(qiven3_unit_write_refuse LABELS fast fake
+  SOURCES write_refuse_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_write)
+
 # projectmap's cases: the map files' syntaxes, os.path.isabs on each
 # system, the registry and the marks file read with each code, the marks
 # file written back the same, Marks built and refused, the map's rule

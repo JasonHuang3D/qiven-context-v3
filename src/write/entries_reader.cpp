@@ -429,7 +429,7 @@ void Reader::check_contents(memory::Arena& arena, [[maybe_unused]] Hooks hooks) 
             path.pop(0);
             path.member("entries");
             path.index(i);
-            path.member("content");
+            const std::size_t in_entry = path.member("content");
             entry = static_cast<std::uint32_t>(i);
             entry_name = memory::Inline<64>(m->text(e.name));
             if (const std::size_t size = standing_size(e); size > kinds::content_limit) {
@@ -451,6 +451,10 @@ void Reader::check_contents(memory::Arena& arena, [[maybe_unused]] Hooks hooks) 
                                        .at = stand_at, .target = {}, .content = {}, .id = stand_id};
             const auto h = header::make(f, memory::Allocator<char>(work));
             if (const std::optional<entry::content::ContentError> c = entry::content::try_check(h, stand)) {
+                if (c->code == entry::content::Code::basis) {  // the entry's basis member, not its content
+                    path.pop(in_entry);
+                    path.member("basis");
+                }
                 fault(c->code, c->limit, c->value, c->path.view());
             }
         }

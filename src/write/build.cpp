@@ -127,7 +127,7 @@ void refuse_content(const File& file, std::size_t e, const entry::content::Conte
     entries::detail::Path path;
     path.member("entries");
     path.index(e);
-    path.member("content");
+    path.member(fault.code == entry::content::Code::basis ? "basis" : "content");  // basis: the entry's member
     path.member(fault.path.view());
     r.path = memory::Inline<128>(path.view());
     throw r;

@@ -337,7 +337,16 @@ QIVEN3_CASE(write_entries, refuses_an_invalid_content) {
     CHECK(outcome(with("\"state\": \"active\"", "\"state\": \"busy\"")) ==
           "invalid/content@entries[0].content.state#0:moved syntax 0 0");
     CHECK(outcome(with("\"kind\": \"item\", \"basis\": \"claimed\"", "\"kind\": \"item\", \"basis\": \"observed\"")) ==
-          "invalid/content@entries[0].content#0:moved basis 0 0");
+          "invalid/content@entries[0].basis#0:moved basis 0 0");
+    // A kind's basis not its own, by the kind and by a check's method: the
+    // entry's basis member named, not its content.
+    const std::string retire = "\"kind\": \"retire\", \"basis\": \"claimed\"";
+    CHECK(outcome(with(retire, "\"kind\": \"retire\", \"basis\": \"owner-words\"")) ==
+          "invalid/content@entries[2].basis#2 basis 0 0");
+    const std::string tested = swap(with(retire, "\"kind\": \"check\", \"basis\": \"claimed\""),
+                                    "\"reason\": \"Settled: the reviewer chose the shape in review.\"",
+                                    "\"result\": \"verified\", \"method\": \"test\"");
+    CHECK(outcome(tested) == "invalid/content@entries[2].basis#2 basis 0 0");
     CHECK(outcome(with("project:example", "person")) == "invalid/content@entries[0].content#0:moved scope 0 0");
     CHECK(outcome(with("\"band\": \"normal\",", "")) == "invalid/content@entries[0].content.band#0:moved missing 0 0");
     const std::string reason = "Settled: the reviewer chose the shape in review.";
