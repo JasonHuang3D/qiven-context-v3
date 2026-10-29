@@ -210,9 +210,10 @@ qiven3_add_cases(qiven3_unit_write_entries LABELS fast fake
 # path piece read and its bound, and each hole or target refused by path;
 # a forget, a clause's, a map's and a lane's checkpoint's revisions, a
 # question root, expires against the real at; out empty on every error,
-# each allocation and each platform call failed in turn.
+# each allocation and each platform call failed in turn; 512 entries in a
+# fixed arena, a path piece read once, an @name: of another scope refused.
 qiven3_add_cases(qiven3_unit_write_build LABELS fast fake
-  SOURCES write_build_test.cpp write_build_memory_test.cpp
+  SOURCES write_build_test.cpp write_build_memory_test.cpp write_build_span_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_write)
 
 # projectmap's cases: the map files' syntaxes, os.path.isabs on each

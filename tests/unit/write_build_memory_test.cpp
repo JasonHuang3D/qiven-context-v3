@@ -1,17 +1,19 @@
 // write/build's budgets and fault runs over synthetic files (every name,
 // slot, scope, id and text invented). A build holds on the arena the out
-// vector and each entry's two lines and identity key alone, giving back
-// the rest at each entry's end; on any error out is left empty and the
-// arena holds the file alone, as before the build. Each allocation failed
-// in turn is a MemoryError with out empty and nothing more held, never a
-// refusal; the run completes past the last, which counts them exactly, by
-// MSVC's library, libstdc++ and libc++: a write file of three entries with
-// a piece referenced twice and three placeholders 122, 108 and 105, an
-// import file of two 67, 57 and 57, the write file with a content that
-// expires at its at 72, 61 and 60, with its refusal. Each platform call
-// failed in turn, three keys' draws, two path pieces' reads and three
-// clocks', is the platform's error, a read's the refusal form/piece, with
-// out empty, nothing more held and the last key wiped.
+// vector and each entry's two lines and identity key alone, each entry's
+// work in a work span given back at the build's end; on any error out is
+// left empty and the arena holds the file alone, as before the build. Each
+// allocation failed in turn, the arena's and each work arena's, is a
+// MemoryError with out empty and nothing more held, never a refusal; the
+// run completes past the last, which counts them exactly, by MSVC's
+// library, libstdc++ and libc++: a write file of three entries with a
+// piece referenced twice and three placeholders 126, 112 and 109, an
+// import file of two 70, 60 and 60, the write file with a content that
+// expires at its at 74, 63 and 62, with its refusal, the write file with
+// its piece a path 128, 114 and 111. Each platform call failed in turn, three keys' draws, the path
+// piece's one read and three clocks', is the platform's error, the read's
+// the refusal form/piece, with out empty, nothing more held and the last
+// key wiped.
 
 #include <array>
 #include <chrono>
@@ -44,7 +46,8 @@ using qiven3::memory::Arena;
 using qiven3::memory::MemoryError;
 using qiven3::platform::fake::FakePlatform;
 
-constexpr std::size_t budget = std::size_t{8} << 20U;
+// The reader's work span, the builder's, and the file's room.
+constexpr std::size_t budget = std::size_t{16} << 20U;
 
 #define ADMIT R"("admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."})"
 
@@ -140,7 +143,8 @@ struct Left {
 // and detached by detach, into left; the arena's and the platform's errors
 // rethrown once left is set.
 template <class Attach, class Detach>
-void build(std::string_view bytes, Arena& arena, FakePlatform& platform, Attach attach, Detach detach, Left& left) {
+void build(std::string_view bytes, Arena& arena, FakePlatform& platform, Attach attach, Detach detach, Left& left,
+           we::Hooks hooks = {}) {
     left = Left{};
     const we::File file = we::read(bytes, arena);
     const std::size_t file_held = arena.used();
@@ -148,7 +152,7 @@ void build(std::string_view bytes, Arena& arena, FakePlatform& platform, Attach 
     OneQuestion fold;
     attach();
     try {
-        wb::build(file, fold, platform, arena, out);
+        wb::build(file, fold, platform, arena, out, hooks);
     } catch (...) {
         detach();
         left.clean = out.empty() && out.capacity() == 0 && arena.used() == file_held;
@@ -191,6 +195,14 @@ struct Scratch {
     fs::path root;
 };
 
+// The write file, its piece a file under scratch of the same bytes.
+std::string path_file_of(const Scratch& scratch) {
+    const fs::path piece = scratch.root / "record.txt";
+    std::ofstream(piece, std::ios::binary) << "progress: unit one built\n";
+    return swap(write_file, R"({"text": "progress: unit one built\n"})",
+                R"({"path": ")" + piece.generic_string() + "\"}");
+}
+
 }  // namespace
 
 QIVEN3_CASE(write_build, budget) {
@@ -230,18 +242,22 @@ QIVEN3_CASE(write_build, faults) {
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
     std::optional<Arena> arena;
-    FakePlatform platform(config());
+    const Scratch scratch;
+    const std::string path_file = path_file_of(scratch);
+    FakePlatform platform(config(scratch.root.generic_string()));
     Left left;
-    const std::array<Case, 3> all = {
-        Case{"a write file", &write_file, grown(122, 108, 105), false},
-        Case{"an import file", &import_file, grown(67, 57, 57), false},
-        Case{"a content invalid once built", &invalid_file, grown(72, 61, 60), true},
+    const std::array<Case, 4> all = {
+        Case{"a write file", &write_file, grown(126, 112, 109), false},
+        Case{"an import file", &import_file, grown(70, 60, 60), false},
+        Case{"a content invalid once built", &invalid_file, grown(74, 63, 62), true},
+        Case{"a write file of a path piece", &path_file, grown(128, 114, 111), false},
     };
     for (const Case& c : all) {
+        // The countdown on the arena and on each entry's work arena.
         const auto op = [&] {
             arena.emplace(pages);
             build(*c.bytes, *arena, platform, [&] { arena->attach(&countdown); }, [&] { arena->attach(nullptr); },
-                  left);
+                  left, we::Hooks{&countdown});
         };
         const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
             qiven3_ctx.log, "write_build.build", countdown, op, [&](std::size_t) { return left.clean; });
@@ -263,10 +279,7 @@ QIVEN3_CASE(write_build, faults) {
 QIVEN3_CASE(write_build, platform_faults) {
 #if defined(QIVEN3_FAULTS)
     const Scratch scratch;
-    const fs::path piece = scratch.root / "record.txt";
-    std::ofstream(piece, std::ios::binary) << "progress: unit one built\n";
-    const std::string bytes =
-        swap(write_file, R"({"text": "progress: unit one built\n"})", R"({"path": ")" + piece.generic_string() + "\"}");
+    const std::string bytes = path_file_of(scratch);
     FakePlatform platform(config(scratch.root.generic_string()));
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -298,11 +311,11 @@ QIVEN3_CASE(write_build, platform_faults) {
         [&](std::size_t) { return left.clean && platform.calls().back() == "wipe"; });
     std::cout << "write_build.faults: the platform's calls failed " << runs.typed << ", completed at "
               << runs.completed_at << ", reads refused " << refusals << "\n";
-    CHECK_EQ(runs.typed, 8U);
-    CHECK_EQ(runs.completed_at, 9U);
+    CHECK_EQ(runs.typed, 7U);
+    CHECK_EQ(runs.completed_at, 8U);
     CHECK_EQ(runs.untyped, 0U);
     CHECK_EQ(runs.unchecked, 0U);
-    CHECK_EQ(refusals, 2U);
+    CHECK_EQ(refusals, 1U);
     CHECK_EQ(errors, 6U);
     CHECK_EQ(left.built, 3U);
     arena.reset();

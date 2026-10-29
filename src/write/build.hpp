@@ -6,12 +6,14 @@
 // import takes it: its header line and body record, its id, at and seq.
 // Per entry, in this order:
 // - its key, 256 random bits from the platform, one per entry;
-// - each hole filled: @name: the id of that earlier entry; @item:, @lane:
-//   and @question: the current version of that item, lane's checkpoint or
-//   question record in the entry's scope, the file's earlier entries first,
-//   then the fold; a piece reference's digest, the HMAC under the entry's
-//   key over the piece's bytes (a text piece its string's UTF-8 bytes, a
-//   path piece the file read by the platform, at most 4 MiB);
+// - each hole filled: @name: the id of that earlier entry, of the entry's
+//   scope; @item:, @lane: and @question: the current version of that item,
+//   lane's checkpoint or question record in the entry's scope, the file's
+//   earlier entries first, then the fold; a piece reference's digest, the
+//   HMAC under the entry's key over the piece's bytes (a text piece its
+//   string's UTF-8 bytes, a path piece the file read by the platform once,
+//   at its first reference, at most 4 MiB, every reference taking those
+//   bytes);
 // - its content, canonical, a slot's episode in it (entries'
 //   build_content);
 // - its target: the file's, an id or a placeholder, held by the file's
@@ -24,7 +26,8 @@
 //   target's at), its content's digest under its key (none on a forget,
 //   which has no body), its id;
 // - its content checked again under its real header (expires against at).
-// A hole or target that resolves to nothing, a path piece unread or past
+// A hole or target that resolves to nothing (an @name: naming an entry of
+// another scope among them, as a literal target), a path piece unread or past
 // 4 MiB is EntriesError form (placeholder or piece), naming the entry and
 // the field; the content check's fault is invalid under the content's path.
 // On any error, a refusal, the arena's or the platform's, no entry is
@@ -38,11 +41,16 @@
 // id), an entry held in that scope. Each gives its views for the call
 // alone; build copies them at once.
 //
-// Allocations: all the arena's: the out vector's, each entry's two lines,
-// its content's value and canonical bytes, a path piece's bytes, each but
-// the out's and the lines given back at its entry's end. Platform calls: random_bytes once
-// an entry, now once an entry, read once a path piece reference, wipe at
-// each key's end. It logs nothing.
+// Allocations: all the arena's. The out vector's, each entry's two lines
+// and identity key, held; each path piece's bytes and their list, held to
+// the build's end; one work span of work_bytes, taken once and given back
+// at the build's end, over which each entry's work runs in an arena made
+// afresh (its holes, content value and canonical bytes, headers, digest
+// and body), so that the arena a file needs grows with its entries' lines
+// and its pieces' bytes, not with its entry count; past either MemoryError
+// budget. Under QIVEN3_FAULTS each entry's work arena asks hooks.work
+// first. Platform calls: random_bytes once an entry, now once an entry,
+// read once a path piece, wipe at each key's end. It logs nothing.
 //
 // thread: one (the File's, the fold's and the platform's)
 
@@ -108,6 +116,18 @@ namespace detail {
 // The id or at's room, as Inline holds it.
 inline constexpr std::size_t at_room = 32;
 
+// Each entry's work span, the reader's size [proposal]: a content of at
+// most 65,536 canonical bytes, its value, holes, two headers and body.
+inline constexpr std::size_t work_bytes = entries::detail::work_bytes;
+
+// A path piece's bytes, read at its first reference and held to the
+// build's end, every reference taking them.
+struct PieceBytes {
+    explicit PieceBytes(memory::Arena& arena) : bytes(memory::Allocator<char>(arena)) {}
+    memory::String bytes;
+    bool read = false;
+};
+
 // identity's key: the kind, then each part's length and bytes.
 void identity_key(const entry::kinds::IdentityView& identity, memory::String& out);
 // The identity a placeholder names: an item, a lane's checkpoint, a question.
@@ -147,29 +167,37 @@ std::optional<Held> current(std::span<const Built> built, F& fold, std::string_v
     return held(fold.current(scope, identity));
 }
 
-// Each entry built into out, empty, as build says.
+// Each entry built into out, empty, as build says, its work over pages.
 template <platform::Platform P, Fold F>
-void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, memory::Vector<Built>& out) {
+void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, std::span<std::byte> pages,
+                [[maybe_unused]] entries::Hooks hooks, memory::Vector<Built>& out) {
     namespace header = entry::header;
     using header::Slot;
     out.reserve(file.entries().size());
-    const memory::Allocator<char> alloc(arena);
     const std::string_view lane = file.import() ? std::string_view("import") : header::role(file.writer());
+    memory::Vector<PieceBytes> paths{memory::Allocator<PieceBytes>(arena)};
     for (std::size_t i = 0; i < file.entries().size(); ++i) {
         const entries::Entry& e = file.entries()[i];
         const std::string_view scope = file.text(e.scope);
         const std::string_view kind = file.text(e.kind);
         const std::span<const Built> before(out.data(), out.size());
+        memory::Arena work_arena(pages);  // given back whole at the entry's end
+#if defined(QIVEN3_FAULTS)
+        work_arena.attach(hooks.work);
+#endif
+        const memory::Allocator<char> alloc(work_arena);
         digest::Key<P> key = digest::new_key(platform);
         memory::String work(alloc);
 
-        // A placeholder's version: @name:'s entry, else the current version
-        // it names, the file's first.
+        // A placeholder's version: @name:'s entry if of this scope, else
+        // the current version it names, the file's first.
         const auto resolve = [&](const entries::Site& s) {
-            std::optional<detail::Held> to = s.hole == entries::Hole::name
-                                                 ? detail::held(&out[s.named])
-                                                 : detail::current(before, fold, scope,
-                                                                   detail::placeholder_identity(s.hole, file.key(s)), work);
+            std::optional<detail::Held> to;
+            if (s.hole != entries::Hole::name) {
+                to = detail::current(before, fold, scope, detail::placeholder_identity(s.hole, file.key(s)), work);
+            } else if (out[s.named].scope.view() == scope) {
+                to = detail::held(&out[s.named]);
+            }
             if (!to) {
                 detail::refuse_site(file, i, s);
             }
@@ -178,7 +206,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
 
         // The holes, in document order; fills view texts that outlive them.
         const std::span<const entries::Site> sites = file.sites(e);
-        memory::Vector<memory::String> filled{memory::Allocator<memory::String>(arena)};
+        memory::Vector<memory::String> filled{memory::Allocator<memory::String>(work_arena)};
         filled.reserve(sites.size());
         for (const entries::Site& s : sites) {
             filled.emplace_back(alloc);
@@ -186,16 +214,25 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
             if (s.hole == entries::Hole::piece) {
                 const entries::Piece& p = file.pieces()[s.named];
                 if (p.path) {
-                    memory::String bytes(alloc);
-                    try {
-                        platform.read(file.text(p.value), bytes);
-                    } catch (const platform::PlatformError&) {
-                        detail::refuse_site(file, i, s);
+                    if (paths.empty()) {
+                        paths.reserve(file.pieces().size());
+                        for (std::size_t k = 0; k < file.pieces().size(); ++k) {
+                            paths.emplace_back(arena);
+                        }
                     }
-                    if (bytes.size() > entries::max_piece_bytes) {
-                        detail::refuse_site(file, i, s);
+                    PieceBytes& got = paths[s.named];
+                    if (!got.read) {
+                        try {
+                            platform.read(file.text(p.value), got.bytes);
+                        } catch (const platform::PlatformError&) {
+                            detail::refuse_site(file, i, s);
+                        }
+                        if (got.bytes.size() > entries::max_piece_bytes) {
+                            detail::refuse_site(file, i, s);
+                        }
+                        got.read = true;
                     }
-                    digest::keyed(key, bytes, fill);
+                    digest::keyed(key, got.bytes, fill);
                 } else {
                     digest::keyed(key, file.text(p.value), fill);
                 }
@@ -203,7 +240,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
             }
             fill.assign(resolve(s).id.view());
         }
-        memory::Vector<std::string_view> fills{memory::Allocator<std::string_view>(arena)};
+        memory::Vector<std::string_view> fills{memory::Allocator<std::string_view>(work_arena)};
         fills.reserve(filled.size());
         for (const memory::String& f : filled) {
             fills.push_back(f);
@@ -214,7 +251,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
         canon::canonical(value, content);
 
         // The target: the file's, held; or the current version of the
-        // entry's record identity, if any.
+        // entry's record identity, if any. b's texts are the arena's.
         Built b(arena);
         std::optional<detail::Held> target;
         if (e.target_site != entries::none) {
@@ -269,7 +306,11 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
                 detail::identity_key(*id, b.identity);
             }
         }
-        h.line(b.line);
+        // The line written in the work span, whose encoder's order is given
+        // back with it, then copied out in one allocation.
+        memory::String line(alloc);
+        h.line(line);
+        b.line.assign(line.data(), line.size());  // by its bytes: the allocator stays the arena's
         b.id = memory::Inline<72>(h.value(Slot::id));
         b.at = memory::Inline<detail::at_room>(at_text);
         b.scope = memory::Inline<64>(scope);
@@ -286,17 +327,26 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, me
 
 // The file's entries built into out in the file's order, or EntriesError as
 // above; MemoryError budget past the arena, the platform's errors but
-// read's as they come. On any error out is left empty, its memory given
-// back: no entry of a file refused is built.
+// read's as they come. On any error out is left empty, its memory and the
+// work span given back: no entry of a file refused is built.
 template <platform::Platform P, Fold F>
-void build(const File& file, F& fold, P& platform, memory::Arena& arena, memory::Vector<Built>& out) {
+void build(const File& file, F& fold, P& platform, memory::Arena& arena, memory::Vector<Built>& out,
+           entries::Hooks hooks = {}) {
     out.clear();
+    std::span<std::byte> pages;
     try {
-        detail::build_each(file, fold, platform, arena, out);
+        pages = std::span<std::byte>(
+            static_cast<std::byte*>(arena.allocate(detail::work_bytes, alignof(std::max_align_t))),
+            detail::work_bytes);
+        detail::build_each(file, fold, platform, arena, pages, hooks, out);
     } catch (...) {
         out = memory::Vector<Built>(out.get_allocator());
+        if (!pages.empty()) {
+            arena.deallocate(pages.data(), pages.size());
+        }
         throw;
     }
+    arena.deallocate(pages.data(), pages.size());
 }
 
 }  // namespace qiven3::write::build
