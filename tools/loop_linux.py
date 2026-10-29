@@ -52,14 +52,14 @@ def snapshot(root):
     are not touched. HEAD itself when nothing differs. git runs under its
     own environment (tools/loop_run.py's git_env), never the host's
     config."""
-    git = shutil.which("git")
+    git = git_which()
     if not git:
         raise CannotRun("git is missing from PATH")
     with tempfile.TemporaryDirectory(prefix="qiven3-loop-") as tmp:
         own = git_env(tmp, *LOOP_WHO)
 
         def ask(*argv, env=own):
-            status, text = capture([git, *argv], cwd=root, env=env)
+            status, text = git_capture(git, argv, cwd=root, env=env)
             if status != 0:
                 raise CannotRun(f"git {argv[0]}: {text.strip()[-200:]}")
             return text.strip()
@@ -155,7 +155,7 @@ def inside(args, report):
     the pinned llvm-symbolizer, by its pin's source, so that every runtime
     takes the pinned file rather than one it looks for itself (GCC's take
     their own symbolizer and ignore it)."""
-    git = shutil.which("git")
+    git = git_which()
     if not git:
         raise CannotRun("git is missing from WSL's PATH")
     pins = Path(args.pins or ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8")  # checked: its form holds
@@ -255,6 +255,6 @@ def sync(git, clone, source, commit):
     with tempfile.TemporaryDirectory(prefix="qiven3-loop-") as tmp:
         own = git_env(tmp, *LOOP_WHO)
         for argv in steps:
-            status, text = capture([git, *argv], cwd=clone, env=own)
+            status, text = git_capture(git, argv, cwd=clone, env=own)
             if status != 0:
                 raise CannotRun(f"git {argv[0] if argv[0] != '-c' else 'fetch'} in {clone}: {text.strip()[-200:]}")

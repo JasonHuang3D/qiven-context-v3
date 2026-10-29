@@ -77,6 +77,7 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parent
 ROOT = TOOLS.parent
 LSP = runpy.run_path(str(TOOLS / "nav_lsp.py"))  # under -I this directory is off sys.path
+DOOR = runpy.run_path(str(TOOLS / "loop_git.py"))  # git's one door
 QUERY = runpy.run_path(str(TOOLS / "nav_query.py"), init_globals={"LSP": LSP})
 Refusal, Clangd = LSP["Refusal"], LSP["Clangd"]
 DATABASE = "build/windows-analysis/tidy/compile_commands.json"
@@ -97,7 +98,11 @@ def utc_now():
 
 
 def git(root, *argv, data=None):
-    done = subprocess.run(["git", *argv], cwd=str(root), input=data, capture_output=True, timeout=300)
+    """git's answer in root, started by its door (tools/loop_git.py)."""
+    git = DOOR["which"]()
+    if not git:
+        raise OSError("git is missing from PATH")
+    done = DOOR["run"](git, argv, cwd=root, data=data)
     if done.returncode != 0:
         raise OSError(done.stderr.decode("utf-8", "replace").strip()[-200:])
     return done.stdout.decode("utf-8", "replace")

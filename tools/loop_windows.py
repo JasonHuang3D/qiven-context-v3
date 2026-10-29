@@ -160,7 +160,7 @@ def windows(args, report):
     extra = ("-DQIVEN3_CLANG_TIDY=" + check_clang_tidy(env),) if any(u.name == "windows-analysis" for u in units) \
         else ()
     if phase == "test":  # the affected tests, and each passing step's record (tools/loop_select.py)
-        select = Selection(ROOT, tools["ctest"], env, shutil.which("git"))
+        select = Selection(ROOT, tools["ctest"], env, git_which())
         for unit in units:
             unit.select = select
     counts = drive(report, units, ROOT, logs, windows_command(ROOT, logs, python, tools, extra, presets), env, phase,

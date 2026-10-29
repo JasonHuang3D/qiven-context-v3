@@ -24,8 +24,8 @@ here, so that no product test's edit moves the count. Skipped where
 clangd or the database is absent; labelled drive alone, so that it runs in
 the full suite.
 
-Each case's git, and the tool's, run under the case's own git environment
-(tests/drive/own_git.py), which reads no host config (992)."""
+Each case's git, and the tool's, is the fake (tests/drive/own_git.py): the
+properties are the tool's, from the commit and blob ids git gives."""
 
 import json
 import os
@@ -37,7 +37,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.drive.own_git import own_git
+from tests.drive.own_git import git, own_git
 from tools import nav_lsp
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -129,15 +129,11 @@ def line_of(text, needle, start=0):
     return next(n for n, line in enumerate(text.split("\n"), 1) if n > start and needle in line)
 
 
-def git(root, *argv):
-    subprocess.run(["git", *argv], cwd=str(root), check=True, capture_output=True, timeout=120)
-
-
 def scratch(case):
     """The scratch checkout: the project, its database, one commit."""
     top = Path(tempfile.mkdtemp(prefix="qiven3-nav-")).resolve()
     case.addCleanup(shutil.rmtree, top, ignore_errors=True)
-    own_git(case)
+    own_git(case, fake=True)
     for rel, text in FILES.items():
         (top / rel).parent.mkdir(parents=True, exist_ok=True)
         (top / rel).write_bytes(text.encode("utf-8"))
@@ -148,7 +144,7 @@ def scratch(case):
     (top / DATABASE).write_text(json.dumps(commands, indent=1), encoding="utf-8")
     git(top, "init", "-q")
     git(top, "add", "-A")
-    git(top, "-c", "user.name=nav", "-c", "user.email=nav@example.invalid", "commit", "-q", "-m", "scratch")
+    git(top, "commit", "-q", "-m", "scratch")
     return top
 
 
@@ -242,8 +238,7 @@ class Nav(unittest.TestCase):
         it once: the whole passed 30 s on CI's Windows jobs."""
         status, envelope, _ = nav("index", root=self.top)
         self.assertEqual(status, 0, envelope)
-        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(self.top), capture_output=True, text=True,
-                                check=True).stdout.strip()
+        commit = git(self.top, "rev-parse", "HEAD")
         self.assertEqual(envelope["data"]["index"]["commit"], commit)
         self.assertGreaterEqual(envelope["data"]["shards"], 2, envelope)
         version = nav_lsp.clangd_version(nav_lsp.find_clangd())
@@ -306,7 +301,7 @@ class Checkout(unittest.TestCase):
         clangd_or_skip(self)
         if not (ROOT / DATABASE).is_file():
             self.skipTest(f"no stripped database: {DATABASE}, the analysis preset's, is not built")
-        own_git(self)
+        own_git(self, fake=True)
 
     def test_publish(self):
         header = (ROOT / "src/platform/files.hpp").read_text(encoding="utf-8")

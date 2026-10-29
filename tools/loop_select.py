@@ -92,7 +92,7 @@ def blobs(root, git):
 def listed(root, git, env):
     """blobs() under git's own environment env."""
     def run(*argv, data=None):
-        done = subprocess.run([git, *argv], cwd=root, input=data, capture_output=True, env=env, timeout=300)
+        done = git_run(git, argv, cwd=root, env=env, data=data)  # tools/loop_git.py's door
         if done.returncode != 0:
             raise OSError(done.stderr.decode("utf-8", "replace").strip()[-200:])
         return done.stdout

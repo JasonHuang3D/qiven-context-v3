@@ -30,6 +30,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
+GIT = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's one door, its count (tools/loop_git.py)
+git_which, git_run, git_verdict, GIT_COUNT = GIT["which"], GIT["run"], GIT["verdict"], GIT["COUNT"]
 LINES = 100
 TAIL = 30
 FIRST = 10  # a failing step's first error lines before its tail, at most
@@ -211,6 +213,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
             continue
         log = logs / f"{index:02d}-{slug(step.name)}.log"
         limit = STEP_TIMEOUT if step.timeout is None else step.timeout or None
+        step_env, count_dir = git_counted(env, logs / f"{index:02d}-{slug(step.name)}.git")
         start = now()
         try:
             argv = command(step)
@@ -222,14 +225,18 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
             with open(log, "wb") as out:
                 out.write(("$ " + " ".join(argv) + "\n").encode("utf-8"))
                 out.flush()
-                status = subprocess.run(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=out,
+                status = subprocess.run(argv, cwd=cwd, env=step_env, stdin=subprocess.DEVNULL, stdout=out,
                                         stderr=subprocess.STDOUT, timeout=limit).returncode
         except subprocess.TimeoutExpired:
             status = f"timed out after {limit} s"
         except OSError as e:
             raise CannotRun(f"{job} {step.name}: cannot start: {e}") from e
-        outcome[step.name] = status == 0
         note = f"; {notes[step.name]}" if step.name in notes else ""
+        if count_dir is not None and step.ci[:1] == ("ctest",):  # a test step's git, named on its line
+            starts, fault = git_verdict(count_dir)
+            note += f"; git {starts}"
+            status = fault if status == 0 and fault else status
+        outcome[step.name] = status == 0
         if status == 0:
             counts[0] += 1
             report.line(f"{job} {step.name}: pass in {seconds(start)}{note}", True)
@@ -315,6 +322,16 @@ def own_tree(report, root, tree, job, fresh, pins=None):
     pins = had if pins is None else pins
     marker.write_bytes("".join([job + "\n", *(f"{k}\t{v}\n" for k, v in sorted(pins.items()))]).encode("utf-8"))
     return why
+
+
+def git_counted(env, directory):
+    """(a step's environment, its git count's directory, emptied, or None):
+    the count's directory a step's own unless env, an enclosing run's
+    (a loop a test runs), names one already, which then counts its git."""
+    if env is not None and env.get(GIT_COUNT):
+        return env, None
+    shutil.rmtree(directory, ignore_errors=True)
+    return {**(os.environ if env is None else env), GIT_COUNT: str(directory)}, directory
 
 
 def drive(report, units, root, logs, command, env, phase="test", pins=None):
@@ -420,4 +437,13 @@ def capture(argv, **kw):
         done = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, timeout=300, **kw)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise CannotRun(f"{Path(argv[0]).name}: {e}") from e
+    return done.returncode, done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")
+
+
+def git_capture(git, argv, **kw):
+    """capture() of git with argv, started by its door (tools/loop_git.py)."""
+    try:
+        done = git_run(git, argv, **kw)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise CannotRun(f"git: {e}") from e
     return done.returncode, done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")

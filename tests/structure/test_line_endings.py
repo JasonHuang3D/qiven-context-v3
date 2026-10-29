@@ -12,13 +12,13 @@ where git and the checkout's git directory are there, git under an
 environment of the case's own (tests/drive/own_git.py)."""
 
 import shutil
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 from tests.drive.own_git import git_env
 from tests.structure import rules
+from tools import loop_git
 
 # The plants by their bytes: (name, bytes, the finding or None).
 PLANTS = (
@@ -92,15 +92,14 @@ class LineEndings(unittest.TestCase):
         checkout's .gitattributes, is git's own: unset under -text alone;
         the files git keeps byte for byte are KEPT's, each of them tracked;
         and every other file beside them is text with eol=lf."""
-        git = shutil.which("git")
+        git = loop_git.which()  # git's own reading: the real git, 2 processes
         if not git or not (rules.ROOT / ".git").exists():
             self.skipTest("git or the checkout's git directory is missing")
         with tempfile.TemporaryDirectory() as scratch:
             env = git_env(scratch)
-            listed = subprocess.run([git, "ls-files", "-z"], cwd=rules.ROOT, env=env, capture_output=True,
-                                    timeout=120, check=True).stdout
-            done = subprocess.run([git, "check-attr", "-z", "--stdin", "text", "eol"], cwd=rules.ROOT, env=env,
-                                  input=listed, capture_output=True, timeout=120, check=True)
+            listed = loop_git.run(git, ["ls-files", "-z"], cwd=rules.ROOT, env=env, timeout=120, check=True).stdout
+            done = loop_git.run(git, ["check-attr", "-z", "--stdin", "text", "eol"], cwd=rules.ROOT, env=env,
+                                data=listed, timeout=120, check=True)
         fields = done.stdout.decode("utf-8").split("\0")
         read = {}
         for i in range(0, len(fields) - 2, 3):

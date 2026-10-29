@@ -24,6 +24,7 @@ from pathlib import Path
 
 from tests.drive.test_loop_ci import ROOT, load_loop
 from tests.drive.test_loop_select import BINARIES, TREE, built, checkout, listing
+from tools import loop_git
 
 LOOP = load_loop()
 RUN = LOOP.RUN
@@ -52,7 +53,7 @@ class KeptTree(unittest.TestCase):
         """The unit run under pins: its fake step's argv, or None when it
         did not run; its tree's line and its fake step's line."""
         unit = LOOP.plan("1", "windows", [JOB])[0]
-        select = LOOP.SELECT["Selection"](self.root, "ctest", dict(os.environ), shutil.which("git"))
+        select = LOOP.SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
         select.listing = lambda words: listing(self.tree.resolve())
         unit.select = select
         presets = LOOP.binary_dirs()

@@ -28,9 +28,10 @@ import unittest
 from pathlib import Path
 
 from tests.drive import pinned
-from tests.drive.own_git import own_git
+from tests.drive.own_git import git, own_git
 from tests.drive.pinned import prefix, wsl_ready
 from tests.drive.test_loop_ci import ROOT, load_loop
+from tools import loop_git
 
 LOOP = load_loop()
 WINDOWS = sys.platform == "win32"
@@ -331,54 +332,56 @@ class OneClone(Loop):
     scratch directory, synced into the clone root's clone/; each job's build
     tree within it; tier 3 emptying the build trees alone."""
 
+    REAL = ("test_sync",)  # git's own property: its fetch, checkout and clean; the rest on the fake
+
     def setUp(self):
-        self.git = shutil.which("git")
-        if not self.git:
-            self.skipTest("git is missing from PATH")
         top = Path(tempfile.mkdtemp(prefix="qiven3-loop-clone-"))
         self.addCleanup(shutil.rmtree, top, ignore_errors=True)
-        own_git(self, top)  # the case's git and the loop's under it read no host config (969)
+        own_git(self, top, fake=self._testMethodName not in self.REAL)  # no host config read (969)
+        self.git = loop_git.which()
+        if not self.git:
+            self.skipTest("git is missing from PATH")
         self.source, self.base = top / "source", top / "root"
         self.source.mkdir()
         self.fixture_git("init", "-q")
         (self.source / "a.txt").write_bytes(b"one\n")
-        self.first = self.commit()
+        for argv in (("add", "-A"), ("commit", "-q", "-m", "a commit")):
+            self.fixture_git(*argv)
+        self.first = self.fixture_git("rev-parse", "HEAD")
         self.old = self.base / "linux-gcc"  # a clone an earlier loop kept for a job
         (self.old / ".git").mkdir(parents=True)
         (self.old / "kept.txt").write_bytes(b"old")
         self.linux = LOOP.LINUX["inside"].__globals__
 
     def fixture_git(self, *argv):
-        done = subprocess.run([self.git, *argv], cwd=self.source, stdin=subprocess.DEVNULL,
-                              capture_output=True, timeout=120, check=True)
-        return done.stdout.decode("utf-8").strip()
-
-    def commit(self):
-        self.fixture_git("add", "-A")
-        self.fixture_git("commit", "-q", "--allow-empty", "-m", "a commit")
-        return self.fixture_git("rev-parse", "HEAD")
+        return git(self.source, *argv)
 
     def test_sync(self):
         """A sync that changes nothing rewrites no file and keeps build/; the
         clone's untracked files go; the snapshot's new file arrives, the
-        source's index untouched; the earlier clones are named, untouched."""
+        source's index untouched, under the checkout's .gitattributes a text
+        file's CRLF stored and checked out as LF, a -text one's kept; the
+        earlier clones are named, untouched."""
         clone = self.base / self.linux["CLONE"]
         self.linux["sync"](self.git, clone, str(self.source), self.first)
         (clone / "build" / "linux-gcc").mkdir(parents=True)
         (clone / "build" / "linux-gcc" / "object.o").write_bytes(b"built")
         (clone / "stray.txt").write_bytes(b"x")
         before = os.stat(clone / "a.txt")
-        self.linux["sync"](self.git, clone, str(self.source), self.commit())  # the same tree, a new commit
+        again = self.fixture_git("commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "a commit")  # the same tree
+        self.linux["sync"](self.git, clone, str(self.source), again)
         after = os.stat(clone / "a.txt")
         self.assertEqual((after.st_mtime_ns, after.st_ino), (before.st_mtime_ns, before.st_ino))
         self.assertEqual((clone / "build" / "linux-gcc" / "object.o").read_bytes(), b"built")
         self.assertFalse((clone / "stray.txt").exists())
-        (self.source / "a.txt").write_bytes(b"two\n")
-        (self.source / "new.txt").write_bytes(b"new\n")
-        status = self.fixture_git("status", "--porcelain")
+        changed = {"a.txt": b"two\r\n", "new.txt": b"new\n", "tests/fixtures/entries.json": b"[1]\r\n"}
+        for rel, data in {".gitattributes": (ROOT / ".gitattributes").read_bytes(), **changed}.items():
+            (self.source / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / rel).write_bytes(data)
+        index = (self.source / ".git" / "index").read_bytes()
         self.linux["sync"](self.git, clone, str(self.source), self.linux["snapshot"](self.source))
-        self.assertEqual(((clone / "a.txt").read_bytes(), (clone / "new.txt").read_bytes()), (b"two\n", b"new\n"))
-        self.assertEqual(self.fixture_git("status", "--porcelain"), status)
+        self.assertEqual({rel: (clone / rel).read_bytes() for rel in changed}, {**changed, "a.txt": b"two\n"})
+        self.assertEqual((self.source / ".git" / "index").read_bytes(), index)
         self.assertEqual(self.linux["earlier_clones"](self.base), ["linux-gcc"])
         self.assertEqual((self.old / "kept.txt").read_bytes(), b"old")
 
@@ -430,7 +433,7 @@ class OneClone(Loop):
         directory and the earlier clones untouched; the suites read the
         jobs' trees and own none."""
         clone = self.base / self.linux["CLONE"]
-        self.linux["sync"](self.git, clone, str(self.source), self.first)
+        shutil.copytree(self.source, clone)  # a synced clone, its git directory too (the sync: test_sync)
         presets = LOOP.binary_dirs()
         code = "import json, sys; open(sys.argv[1], 'a').write(json.dumps(sys.argv[2:]) + '\\n')"
 

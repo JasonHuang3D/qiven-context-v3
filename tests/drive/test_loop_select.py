@@ -18,14 +18,14 @@ import io
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from tests.drive.own_git import own_git
+from tests.drive.own_git import git, own_git
 from tests.drive.test_loop_ci import load_loop
+from tools import loop_git
 
 LOOP = load_loop()
 SELECT = LOOP.SELECT
@@ -60,17 +60,13 @@ PYTHON = ("tests.drive.test_utc.Utc.test_zones", "tests.drive.test_reach.Reach.t
           "tests.drive.test_plain.Plain.test_value", "tests.drive.test_plant.Field.test_plant")
 
 
-def git(root, *argv):
-    subprocess.run(["git", *argv], cwd=root, check=True, capture_output=True, timeout=120)
-
-
 def checkout(case):
     """A scratch checkout, its files in git's index, and its tree; the
-    case's git and the selection's under the case's own environment
-    (tests/drive/own_git.py), which reads no host config (992)."""
+    case's git and the selection's the fake (tests/drive/own_git.py): the
+    property is the selection's, from the blob ids git gives."""
     top = Path(tempfile.mkdtemp(prefix="qiven3-loop-select-"))
     case.addCleanup(shutil.rmtree, top, ignore_errors=True)
-    own_git(case)
+    own_git(case, fake=True)
     for rel, text in FILES.items():
         (top / rel).parent.mkdir(parents=True, exist_ok=True)
         (top / rel).write_bytes(text.encode("utf-8"))
@@ -191,7 +187,7 @@ class Record(unittest.TestCase):
         """The way's windows-msvc unit on fakes; its fake step's argv, if it
         ran, and its line."""
         unit = LOOP.plan(way, "windows", ["windows-msvc"])[0]
-        select = LOOP.SELECT["Selection"](self.root, "ctest", dict(os.environ), shutil.which("git"))
+        select = LOOP.SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
         select.listing = lambda words: listing(self.tree.resolve())
         unit.select = select
         presets = LOOP.binary_dirs()
@@ -259,5 +255,5 @@ class Record(unittest.TestCase):
         self.relink("qiven3_unit_utc")
         argv, line = self.run_tier("3")
         self.assertNotIn("--tests-from-file", argv)
-        self.assertRegex(line, r"^windows-msvc fake: pass in [0-9.]+ s$")
+        self.assertRegex(line, r"^windows-msvc fake: pass in [0-9.]+ s(; git 0)?$")  # its git: where none counts it
         self.assertIsNone(self.run_tier()[0])
