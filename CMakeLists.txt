@@ -466,7 +466,6 @@ add_subdirectory(src/entry)
 add_subdirectory(src/log)
 add_subdirectory(src/platform)
 add_subdirectory(src/wire)
-add_subdirectory(src/import)
 add_subdirectory(src/store)
 add_subdirectory(src/app)
 # QIVEN3_HAL off leaves the HAL, its fake and its cases out of the build (H6).

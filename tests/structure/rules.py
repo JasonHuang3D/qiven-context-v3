@@ -109,20 +109,14 @@ PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
     "B1": ("src/store/engine/", "third_party/sqlite/", "qiven3_store"),
-    "B2": ("src/platform/win/process.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.",
-           "tests/machine/test_mapcheck", "tests/machine/mapcheck",
-           # The slice's git route, its unit test through the fake, its machine
-           # test and the synthetic v2 repository's fixture, each through run.
-           "src/import/git.", "tests/unit/git_test.", "tests/unit/git_machine_test.",
-           "tests/support/fixtures/v2_repository.cpp"),
+    "B2": ("src/platform/win/process.",),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
     "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
            "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
     "B11": ("tests/compat/r",),
     "B14": ("tests/support/goldens",),
-    "B16": ("src/app/main.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.", "tests/machine/mapcheck",
-            "qiven3"),
+    "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
 # The allowances the text states beyond the rows' cells, (rule, file, what),

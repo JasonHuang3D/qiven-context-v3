@@ -15,7 +15,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-TARGETS = ("digest", "entry", "gitoutput", "manifest", "wire", "yaml")
+TARGETS = ("digest", "entry", "wire")
 
 
 def files(root):

@@ -210,7 +210,7 @@ PLANTED = [
     ("B1", "qiven3_entry", ""), ("B1", "src/store/sqlite_open.cpp", ""),
     ("B17", "src/store/sqlite_open.cpp", "include"),
     ("B2", "src/entry/git.cpp", ""), ("B2", "src/store/rev_parse.cpp", ""),
-    ("B2", "src/store/create_process.cpp", ""),
+    ("B2", "src/store/create_process.cpp", ""), ("B2", "src/qiven3/mapcheck.cpp", ""),
     ("B5", "src/entry/windows_include.cpp", ""), ("B5", "qiven3_location", ""),
     ("B6", "src/entry/io_include.cpp", ""), ("B6", "src/entry/locking.cpp", ""),
     ("B6", "tests/driver/io_other.cpp", ""), ("B9", "tests/driver/io_other.cpp", ""),
@@ -228,7 +228,8 @@ PLANTED = [
     ("B13", "qiven3_reader", ""),
     ("B14", "src/entry/goldens.cpp", ""), ("B14", "tests/support/goldens/write.cpp", ""),
     ("B15", "tests/unit/long_test.cpp", ""), ("B15", "tests/unit/unended_test.cpp", ""),
-    ("B16", "src/entry/mapcheck_include.cpp", ""), ("B16", "qiven3_location", ""),
+    ("B16", "src/entry/mapcheck_include.cpp", ""), ("B16", "src/qiven3/mapcheck.cpp", ""),
+    ("B16", "qiven3_location", ""),
     ("B17", "src/store/hal_include.cpp", "include"), ("B17", "src/entry/cstdio_include.cpp", "include"),
     ("B17", "src/entry/cstdio_again.cpp", "include"),
     ("B17", "src/entry/windows_include.cpp", "os"), ("B17", "src/entry/rename.cpp", "name"),
@@ -245,7 +246,7 @@ PLANTED = [
 # Files and targets with no finding: the clean file, the allowances, the exemptions.
 CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
-    "src/platform/win/process.cpp", "src/platform/win/windows.cpp", "src/qiven3/mapcheck.cpp",
+    "src/platform/win/process.cpp", "src/platform/win/windows.cpp",
     "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp", "tests/support/goldens/goldens.cpp",
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",

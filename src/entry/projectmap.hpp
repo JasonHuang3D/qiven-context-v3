@@ -17,8 +17,8 @@
 // check gives them: the HMAC under the version's key over the bytes, equal
 // to the object's digest fresh, else stale; MISSING (no blob or tree at the
 // commit, or a record not active) stale; none (std::nullopt: a repository
-// the registry does not name, a checkout or ref git cannot read, a git
-// that fails) unchecked. An entry not a map is MapError kind, and a map
+// the registry does not name, a checkout or ref that cannot be read, a
+// reader that fails) unchecked. An entry not a map is MapError kind, and a map
 // content with no object digest MapError object; MapError at is
 // marks_bytes' (projectmap_files.hpp).
 //

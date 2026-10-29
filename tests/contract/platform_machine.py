@@ -110,19 +110,19 @@ class PlatformMachine:
                 self.assertTrue(all(row[key] for key in ("kept", "how_long", "owner_can")), row)
 
     def test_P21_program(self):
-        """program("git") with a git.exe in the working directory, then with
-        "." leading PATH: the absolute path on PATH twice; a name on no
-        entry: start."""
+        """program("qiven3-planted") with a qiven3-planted.exe in the working
+        directory, then with "." leading PATH: the absolute path on PATH
+        twice; a name on no entry: start."""
         self.needs("machine")
-        self.waiting(self.PROGRAM, "program: win/process", "program", name="git")
+        self.waiting(self.PROGRAM, "program: win/process", "program", name="qiven3-planted")
         here, on_path = self.scratch / "here", self.scratch / "on-path"
         for directory in (here, on_path):
             directory.mkdir()
-            (directory / "git.exe").write_bytes(b"")
+            (directory / "qiven3-planted.exe").write_bytes(b"")
         rest = os.environ.get("PATH", "")
         for path in (f"{on_path};{rest}", f".;{on_path};{rest}"):
             with self.subTest(PATH=path.split(";", 1)[0]), self.drive(env=environment(PATH=path), cwd=here) as d:
-                self.assertEqual(d.call("program", name="git"), str(on_path / "git.exe"))
+                self.assertEqual(d.call("program", name="qiven3-planted"), str(on_path / "qiven3-planted.exe"))
         with self.drive() as d:
             self.assert_platform_error(self.failure(d.call, "program", name="qiven3-on-no-entry"), "start")
 
