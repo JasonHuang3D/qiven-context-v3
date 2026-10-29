@@ -196,6 +196,15 @@ qiven3_add_cases(qiven3_unit_served LABELS fast fake
   SOURCES served_test.cpp served_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
+# write/entries over synthetic entries files: a write file and an import
+# file read whole, each kept past the bytes, the holes and pieces found and
+# filled; each form refusal naming its path and entry, and the content
+# check's faults as invalid, under the content's path; the work span given
+# back on every end, and each allocation failed in turn.
+qiven3_add_cases(qiven3_unit_write_entries LABELS fast fake
+  SOURCES write_entries_test.cpp write_entries_memory_test.cpp
+  LINK qiven3_faults qiven3_write)
+
 # projectmap's cases: the map files' syntaxes, os.path.isabs on each
 # system, the registry and the marks file read with each code, the marks
 # file written back the same, Marks built and refused, the map's rule

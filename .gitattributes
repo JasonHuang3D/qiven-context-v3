@@ -17,6 +17,7 @@ tests/vectors/ids.json -text
 # these directories hold such inputs alone. A pattern ends in /** because
 # an attributes pattern does not reach into a directory.
 tests/fuzz/digest/regress/** -text
+tests/fuzz/entries/regress/** -text
 tests/fuzz/entry/regress/** -text
 tests/fuzz/wire/regress/** -text
 # The vendored SQLite amalgamation, as its upstream ships it: each file's

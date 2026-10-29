@@ -1,0 +1,11 @@
+# qiven3_write: the write route's modules, product: entries, the entries
+# file's reader, its form, members, bounds, placeholders and pieces, each
+# content checked by the entry's own content check.
+add_library(qiven3_write STATIC
+  entries.cpp
+  entries.hpp
+  entries_reader.cpp
+  entries_reader.hpp
+)
+target_include_directories(qiven3_write PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(qiven3_write PUBLIC qiven3_entry qiven3_matcher qiven3_base qiven3_memory PRIVATE qiven3_flags)
