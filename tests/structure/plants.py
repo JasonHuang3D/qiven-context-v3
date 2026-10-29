@@ -102,6 +102,7 @@ PLANTS = {
     "src/entry/shell_execute.cpp": DLLIMPORT + "int __stdcall ShellExecuteExW(void*);\n"
         "int entry_shell() { return ShellExecuteExW(nullptr); }\n",
     "src/entry/git.cpp": "const char* entry_git() { return \"git\"; }\n",
+    "src/entry/git_case.cpp": "const char* entry_git_case() { return \"GIT.EXE\"; }\n",  # B2 in any case
     "src/entry/windows_include.cpp": "#include <windows.h>\nunsigned entry_acp() { return GetACP(); }\n",
     "src/entry/get_acp.cpp": "extern \"C\" unsigned __stdcall GetACP();\nunsigned entry_acp_by_hand() "
         "{ return GetACP(); }\n",
@@ -151,7 +152,7 @@ PLANTS = {
         "    std::string s = \"<windows.h> GetACP std::rename std::system std::ios::out LoadLibraryW\";\n"
         "    s += \"CreateProcessW _locking <io.h> <winsock2.h> ../x.hpp hal/hal.hpp qiven3/mapcheck.hpp\";\n"
         "    s += R\"(std::filesystem::remove std::ofstream p.replace(a, b) .git digit gitx)\";\n"
-        "    std::string_view parts[] = {\".git\", \"digit\", \"tests/x/goldens\", \"Git\", \"refs\"};\n"
+        "    std::string_view parts[] = {\".git\", \"digit\", \"tests/x/goldens\", \"GitHub\", \"refs\"};\n"
         "    for (std::string_view part : parts) { s += part; }\n"
         "    return s + std::to_string(qiven3::platform::contract());\n}\n",
     "src/app/instances.cpp": "#include <cstdio>\nvoid* app_open() { return std::fopen(\"x\", \"w\"); }\n",
@@ -209,7 +210,7 @@ PLANTED = [
     ("B1", "src/entry/sqlite_include.cpp", ""), ("B1", "tests/unit/sqlite_text_test.cpp", ""),
     ("B1", "qiven3_entry", ""), ("B1", "src/store/sqlite_open.cpp", ""),
     ("B17", "src/store/sqlite_open.cpp", "include"),
-    ("B2", "src/entry/git.cpp", ""), ("B2", "src/store/rev_parse.cpp", ""),
+    ("B2", "src/entry/git.cpp", ""), ("B2", "src/entry/git_case.cpp", ""), ("B2", "src/store/rev_parse.cpp", ""),
     ("B2", "src/store/create_process.cpp", ""), ("B2", "src/qiven3/mapcheck.cpp", ""),
     ("B5", "src/entry/windows_include.cpp", ""), ("B5", "qiven3_location", ""),
     ("B6", "src/entry/io_include.cpp", ""), ("B6", "src/entry/locking.cpp", ""),

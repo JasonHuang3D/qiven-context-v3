@@ -32,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 GIT = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's one door, its count (tools/loop_git.py)
 git_which, git_run, git_verdict, GIT_COUNT = GIT["which"], GIT["run"], GIT["verdict"], GIT["COUNT"]
+git_run_verdict = GIT["run_verdict"]
 LINES = 100
 TAIL = 30
 FIRST = 10  # a failing step's first error lines before its tail, at most
@@ -83,6 +84,7 @@ class Report:
         self.dropped = 0
         self.failed = []  # (the step's name, its log) of each failing step, in order
         self.unshown = 0  # failing steps the bound left with no line
+        self.git = 0  # the git processes the run's test steps started, summed (run_steps)
 
     def plan(self, count):
         self.planned += count
@@ -234,6 +236,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
         note = f"; {notes[step.name]}" if step.name in notes else ""
         if count_dir is not None and step.ci[:1] == ("ctest",):  # a test step's git, named on its line
             starts, fault = git_verdict(count_dir)
+            report.git += starts
             note += f"; git {starts}"
             status = fault if status == 0 and fault else status
         outcome[step.name] = status == 0
@@ -249,6 +252,19 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
             report.fail(f"{job} {step.name}", log)
     return counts
+
+
+def ending(report, counts, start):
+    """The run's last line, its steps' outcomes, its seconds and the git
+    processes its test steps started in all; the run fails, exit 1, on a
+    failing step or when that total passes the run's limit
+    (tools/loop_git.py's RUN_LIMIT). Returns the exit status."""
+    fault = git_run_verdict(report.git)
+    code = 1 if counts[1] or fault else 0
+    over = f", {fault}" if fault else ""
+    report.last(f"loop: {counts[0]} passed, {counts[1]} failed, {counts[2]} skipped in {seconds(start)}; "
+                f"git {report.git}{over}; exit {code}")
+    return code
 
 
 def empty(root, tree):

@@ -14,7 +14,11 @@ and a run's git processes are counted where they start.
   pass LIMIT. The loop gives each step a directory of its own and names
   the count on the step's line (tools/loop_run.py's run_steps); a step
   whose tests start more than LIMIT fails. The product's tests start none:
-  no test outside this door starts git (tests/drive/test_git_count.py).
+  no test outside this door starts git (tests/drive/test_git_count.py),
+  and a counting shim checks the count (tests/drive/test_git_shim.py).
+- run_verdict(total): the fault when a run's starts, its steps' summed,
+  pass RUN_LIMIT; the loop names the total on its last line
+  (tools/loop_run.py's ending).
 
 Loaded by runpy.run_path (tools/loop_run.py, nav.py) or imported as
 tools.loop_git (the loop's tests); it imports no other tool.
@@ -29,7 +33,8 @@ from pathlib import Path
 
 FAKE = "QIVEN3_GIT_FAKE"
 COUNT = "QIVEN3_GIT_COUNT"
-LIMIT = 50  # a run of the loop's tests starts at most this many git processes (ruling 43.3 item 3)
+LIMIT = 50  # a step of the loop's tests starts at most this many git processes
+RUN_LIMIT = 100  # and a run of the loop, its steps' starts summed, at most this many
 
 
 def which():
@@ -70,3 +75,9 @@ def verdict(directory):
         count = 0
     fault = f"{count} git processes started, over {LIMIT}" if count > LIMIT else None
     return count, fault
+
+
+def run_verdict(total):
+    """The fault when a run's steps started more than RUN_LIMIT git
+    processes in all, or None."""
+    return f"{total} git processes started in the run, over {RUN_LIMIT}" if total > RUN_LIMIT else None

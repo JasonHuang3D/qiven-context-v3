@@ -542,7 +542,7 @@ class Windows(Loop):
         tail = [line for line in lines if line.startswith("  | ")]
         self.assertTrue(0 < len(tail) <= LOOP.TAIL, lines)
         self.assertTrue(any(PLANT in line for line in tail), lines)
-        self.assertRegex(lines[-1], r"^loop: 1 passed, 1 failed, 0 skipped in \d+\.\d s; exit 1$")
+        self.assertRegex(lines[-1], r"^loop: 1 passed, 1 failed, 0 skipped in \d+\.\d s; git 0; exit 1$")
 
 
 class Linux(Loop):
@@ -594,5 +594,5 @@ class Linux(Loop):
                         lines)
         self.assertTrue(any(x.startswith("  | ") and PLANT in x for x in lines), lines)
         self.assertEqual(sum(1 for x in lines if re.match(r"linux-gcc \S+: skipped", x)), 2, lines)
-        self.assertRegex(lines[-1], r"^loop: 0 passed, 1 failed, 2 skipped in .*; exit 1;")
+        self.assertRegex(lines[-1], r"^loop: 0 passed, 1 failed, 2 skipped in .*; git 0; exit 1;")
 

@@ -101,9 +101,12 @@ the failing steps sharing the room by turns, each one's first error line
 before any one's second, the error lines before the tails. The seconds
 keep the host's pace on both systems (in WSL by CLOCK_MONOTONIC_RAW: the
 guest's monotonic clock is slewed); linux's last line adds its seconds in
-all, from Windows, the pin check and the snapshot included. Exit 0
-when every step passed, 1 when a step failed, 2 when the loop could not
-run (a tool missing, a pin off, WSL absent, a bad argument).
+all, from Windows, the pin check and the snapshot included. The last line
+names the git processes the run's test steps started in all, each step's
+own named on its line (tools/loop_git.py: at most 50 a step, 100 a run). Exit 0
+when every step passed, 1 when a step failed or the run started more than
+100 git processes, 2 when the loop could not run (a tool missing, a pin
+off, WSL absent, a bad argument).
 
 The modules: tools/loop_run.py (the steps, the trees, the answer),
 loop_jobs.py (the table), loop_tiers.py (the ways and the commands),
@@ -227,10 +230,7 @@ def main(argv=None):
     except Exception as e:  # an error of the loop's own is not a failing step
         report.last(f"loop: internal error: {type(e).__name__}: {e}; exit 2")
         return 2
-    code = 1 if counts[1] else 0
-    report.last(f"loop: {counts[0]} passed, {counts[1]} failed, {counts[2]} skipped in {RUN['seconds'](start)}; "
-                f"exit {code}")
-    return code
+    return RUN["ending"](report, counts, start)
 
 
 if __name__ == "__main__":

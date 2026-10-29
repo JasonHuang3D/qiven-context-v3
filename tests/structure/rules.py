@@ -92,6 +92,7 @@ WRITE_NAMES = frozenset(n for n in B17_NAMES if "env" not in n and "system" not 
 # B2, B6, B7, B8, B10.
 GIT_LITERALS = frozenset(("git", "git.exe"))
 GIT_PREFIXES = ("git ", "refs/", "GIT_", "GCM_")
+GIT_LOWER_PREFIXES = tuple(p.lower() for p in GIT_PREFIXES)  # is_git's, read in any case
 GIT_COMMANDS = frozenset(("cat-file", "rev-parse", "hash-object", "ls-tree", "commit-tree", "ls-remote",
                           "update-ref", "fast-import"))
 # B32: in a text file, the bytes git cannot fix: a CR before no LF, and each control byte but tab and LF.
@@ -152,6 +153,8 @@ STATED = {
     ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
                                                          "that reaches the diagnostic entry's report hook",
     ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
+    ("B5", "tools/git_shim.c", "windows.h"): "the loop's counting shim on Windows, which its test builds by cl and "
+                                            "CMake never: its log, its environment and the real program's start",
 }
 ALLOWANCES = (*subset.CELLS, *STATED)
 EXEMPT = {
@@ -258,7 +261,10 @@ def is_goldens(value):
 
 
 def is_git(value):
-    return value in GIT_LITERALS or value.startswith(GIT_PREFIXES) or value in GIT_COMMANDS
+    """B2's string: git's program, a git command or an environment name, in
+    any case, as Windows finds a program ("Git", "GIT.EXE")."""
+    value = value.lower()
+    return value in GIT_LITERALS or value.startswith(GIT_LOWER_PREFIXES) or value in GIT_COMMANDS
 
 
 def app_namespace(tokens, i):

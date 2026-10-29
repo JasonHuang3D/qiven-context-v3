@@ -1,8 +1,10 @@
 """The content rule: no file of the checkout but those .gitignore (and the
 checkout's own exclude file) names holds a path of this machine, a hit of
 the secret check's twelve patterns, or a name of the specification's own
-repository: its name, its directories' and its files'; nor a name of this
-machine, its user's or its own, where it stands as a component of a path.
+repository: its name, its directories' and its files', or a reference into
+its text by a ruling's or a section's number (REFERENCE); nor a name of
+this machine, its user's or its own, where it stands as a component of a
+path.
 
 The paths are read when the test runs, so that it holds none: the
 checkout's own and its parent, the user profile, the interpreter's and the
@@ -76,6 +78,15 @@ RULINGS = (("cognition", "format"), ("cold", "start", "gaps"), ("consent", "roun
 # document, which the public tree holds as well, are not refused.
 WORDS = ("arch", "cont", "eng", "work")
 BEFORE, AFTER = r"(?<![A-Za-z0-9_-])", r"(?![A-Za-z0-9_])"
+# A reference into the specification's text by its numbers: the word ruling
+# or rulings before a number, a section sign or not between; the word section
+# before a dotted number; and any section sign before a number. A ruling as a
+# word ("a ruling", an object type) and a step's or a part's number are none.
+# The vendored files, not v3's text, are not read for it (sqlite3.c cites a
+# standard's numbered section). The plants are written in pieces.
+REFERENCE = re.compile(r"(?i)(?<![A-Za-z0-9_])(?:rulings?\s*(?:\xa7\s*)?\d|sections?\s+\d+\.\d|\xa7\s*\d)")
+REFERENCE_FINDING = "a ruling's or section's number"
+VENDORED_TREE = "third_party/"
 
 
 def private_names():
@@ -195,6 +206,8 @@ def content_findings(root, files, paths, names=()):
         for pattern in PRIVATE:
             if pattern.search(text):
                 found.append((rel, "a name of the specification's repository"))
+        if not rel.startswith(VENDORED_TREE) and REFERENCE.search(text):
+            found.append((rel, REFERENCE_FINDING))
     return sorted(set(found))
 
 
@@ -226,7 +239,11 @@ class Content(unittest.TestCase):
             "format.md": "see " + "FORMAT-" + "CODE.md\n",
             "reading.txt": "CORE-" + "READING-3 F183\n",
             "reading.cpp": "// CORE-" + "READING\n",
-            "capitals.md": "COGNI" + "TION §12\n",
+            "capitals.md": "COGNI" + "TION \xa712\n",
+            "ruling.md": "by the rul" + "ing 43.3 item 3\n",
+            "ruling-sign.py": "# rul" + "ings \xa7" + "43\n",
+            "section.txt": "see sec" + "tion 43.3 item 3\n",
+            "sign.cpp": "// \xa7" + " 44.4\n",
             "law.md": "the " + "Q" + "LAW.md text\n",
             "ruling.py": "x = '" + "Cognition" + "-Format.md'\n",
             "directory.txt": "rulings" + "/a.md\n",
@@ -244,7 +261,9 @@ class Content(unittest.TestCase):
                          + "README.md cognition, a challenge, ARCH, QTest, a law firm, work-line, the "
                          + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n"
                          + "Authorization: Bearer <token>, --password-stdin, --token $GH_TOKEN, "
-                         + "AKID" + "a" * 31 + "\n",
+                         + "AKID" + "a" * 31 + "\n"
+                         + "a ruling, rulings, the ruling: a type, steps 1 to 5, part 1, Sections 1 through 9\n",
+            "third_party/x/vendored.c": "** sec" + "tion 6.5.2.2 of a standard\n",
             "build/machine.txt": str(rules.ROOT),
         }
         with tempfile.TemporaryDirectory() as scratch:
@@ -257,10 +276,12 @@ class Content(unittest.TestCase):
         files = {rel for rel, _ in found}
         names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
                  "directory.txt", "context.cmake", "word.md"}
+        references = {"ruling.md", "ruling-sign.py", "section.txt", "sign.cpp"}
         self.assertEqual(files, {"checkout.txt", "slash.py", "parent.md", "drive.cpp", "posix.md", "settings.txt",
                                  "profile.txt", "interpreter.json", "key.txt", "token.py", "password.ini",
-                                 "header.txt", "command.sh", "tencent.ini"} | names)
+                                 "header.txt", "command.sh", "tencent.ini"} | names | references)
         self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
+        self.assertEqual({rel for rel, why in found if why == REFERENCE_FINDING}, references | {"capitals.md"})
         self.assertEqual({rel for rel, why in found if why == DRIVE_FINDING} - {"profile.txt"},
                          {"drive.cpp", "posix.md", "settings.txt"})
         self.assertIn(("parent.md", "a path of this machine"), found)
