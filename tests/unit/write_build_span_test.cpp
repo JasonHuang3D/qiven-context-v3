@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <random>
 #include <string>
@@ -206,12 +207,13 @@ QIVEN3_CASE(write_build, reads_a_path_piece_once) {
     file.insert(file.rfind(output) + output.size(), ", " + output);
     for (const bool changes : {false, true}) {
         static_cast<void>(scratch.put("record.txt", piece));  // as before the change
-        FakePlatform plain(config(scratch.root.generic_string()));
-        Changing changing(config(scratch.root.generic_string()));
-        const Result r = changes ? build(file, changing) : build(file, plain);
+        // The fakes on the heap, the frame within its bound.
+        const auto plain = std::make_unique<FakePlatform>(config(scratch.root.generic_string()));
+        const auto changing = std::make_unique<Changing>(config(scratch.root.generic_string()));
+        const Result r = changes ? build(file, *changing) : build(file, *plain);
         REQUIRE(r.refused.empty());
         REQUIRE(r.records.size() == 2U);
-        CHECK_EQ(reads(changes ? static_cast<const FakePlatform&>(changing) : plain), 1U);
+        CHECK_EQ(reads(changes ? static_cast<const FakePlatform&>(*changing) : *plain), 1U);
         // Every reference's digest over the bytes of the one read.
         CHECK_EQ(times(r.records[0], keyed(r.records[0], piece)), 1U);
         CHECK_EQ(times(r.records[1], keyed(r.records[1], piece)), 2U);
