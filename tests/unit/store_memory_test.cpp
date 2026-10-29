@@ -7,7 +7,7 @@
 // verify's counts; after close, StoreError closed. exchange: forget_kind,
 // the guard's two conflicts, a forget of B by E, its erased id, size and
 // count; whole_record, then the record forgotten whole; an export opened
-// before the forget yields B's body, not forgotten (F104); an export
+// before the forget yields B's body, not forgotten; an export
 // imported into an empty state, equal; StoreNotEmpty; an import refused
 // forgotten_body writing nothing; an export closed by its store's close.
 // cleared: a content hit refused with no direction record clearing it,
@@ -391,7 +391,7 @@ QIVEN3_CASE(store_memory, exchange) {
     forgets(qiven3_ctx, store, book, rig->chars);
     records(qiven3_ctx, store, book, rig->chars);
 
-    // The export opened before the forget: B's body, not forgotten (F104).
+    // The export opened before the forget: B's body, not forgotten.
     Vector<LaneHead> rows(rig->chars);
     CHECK_EQ(early.heads(rows).forgets, 0U);
     CHECK_EQ(rows.size(), 1U);
@@ -464,7 +464,7 @@ Stored clearing(const Book& book, const std::string& content, std::string_view p
 
 }  // namespace
 
-// F138's clearing on held direction records, on the fake.
+// A false secret hit's clearing on held direction records, on the fake.
 QIVEN3_CASE(store_memory, cleared) {
     const auto rig = std::make_unique<Rig>();
     const Book& book = rig->book;
@@ -497,7 +497,7 @@ QIVEN3_CASE(store_memory, cleared) {
         x.close();
     }
 
-    // The clearing forgotten: the hit refused again (F138).
+    // The clearing forgotten: the hit refused again.
     const std::vector<Stored> gone = {
         forget_of(book.stored("E"), clear[0], clear[0], reviewer_lane, 3, "2026-10-17T11:00:00.000Z")};
     const std::vector<EntryView> gone_lines = views(gone);
@@ -525,7 +525,7 @@ QIVEN3_CASE(store_memory, cleared) {
     CHECK_EQ(admit(into, id_of(hit[0])), std::string("EntryInvalid secret"));
 }
 
-// F138's clearing over many direction records: each root's work given back
+// A false secret hit's clearing over many direction records: each root's work given back
 // before the next, the append's counted peak the same for 4 records held
 // as for 16, within its budget.
 QIVEN3_CASE(store_memory, cleared_many) {

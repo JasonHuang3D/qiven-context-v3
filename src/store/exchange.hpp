@@ -317,7 +317,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     } catch (...) {
         c.rollback();
         // A refusal at the begin (StoreNotEmpty, busy) spilled no page: a
-        // checkpoint there would move committed frames into the file (F74).
+        // checkpoint there would move committed frames into the file.
         if (begun) {
             truncate_wal(c);
         }

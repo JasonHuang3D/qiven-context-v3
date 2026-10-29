@@ -108,10 +108,11 @@ class Door(unittest.TestCase):
         self.assertEqual(loop_git.verdict(top / "count"),
                          (loop_git.LIMIT + 1, f"{loop_git.LIMIT + 1} git processes started, over {loop_git.LIMIT}"))
 
-    def steps(self, *starts):
+    def steps(self, *starts, inherited=None):
         """A loop's ctest steps, each of whose test starts git as many times
         as starts gives, as the door counts them, then the run's last line;
-        (counts, the steps' lines, the last line, the exit status)."""
+        (counts, the steps' lines, the last line, the exit status). With
+        inherited, the run's environment names that count already."""
         logs = Path(tempfile.mkdtemp(prefix="qiven3-git-count-"))
         self.addCleanup(shutil.rmtree, logs, ignore_errors=True)
         steps = [LOOP.Step(f"fake{i}", ("ctest", "--preset", "fake"), after=None) for i in range(len(starts))]
@@ -122,6 +123,8 @@ class Door(unittest.TestCase):
                     f"from tools import loop_git; [loop_git.counted('git', None) for _ in range({by_name[step.name]})]"]
 
         env = {k: v for k, v in os.environ.items() if k != loop_git.COUNT}  # each step's count its own
+        if inherited is not None:
+            env[loop_git.COUNT] = str(inherited)
         report = LOOP.Report(LOOP.LINES)
         report.plan(len(steps))
         out = io.StringIO()
@@ -156,6 +159,20 @@ class Door(unittest.TestCase):
         self.assertRegex(last, rf"^loop: 3 passed, 0 failed, 0 skipped in \S+ s; git {loop_git.RUN_LIMIT + 1}, "
                                rf"{loop_git.RUN_LIMIT + 1} git processes started in the run, over "
                                rf"{loop_git.RUN_LIMIT}; exit 1$")
+
+    def test_inherited(self):
+        """A count the environment names already is replaced for each step,
+        never trusted: both bounds hold and the totals are the real starts,
+        each step's added to that count as well (an enclosing run's)."""
+        top = Path(tempfile.mkdtemp(prefix="qiven3-git-count-"))
+        self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        over = loop_git.LIMIT + 10
+        counts, lines, last, code = self.steps(over, over, inherited=top / "outer")
+        self.assertEqual((counts, code), ([0, 2, 0], 1), lines)
+        self.assertTrue(all(f"; git {over}; log " in line for line in lines[:2]), lines)
+        self.assertRegex(last, rf"; git {2 * over}, {2 * over} git processes started in the run, over "
+                               rf"{loop_git.RUN_LIMIT}; exit 1$")
+        self.assertEqual(loop_git.verdict(top / "outer")[0], 2 * over)
 
 
 if __name__ == "__main__":

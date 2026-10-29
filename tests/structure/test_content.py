@@ -78,13 +78,31 @@ RULINGS = (("cognition", "format"), ("cold", "start", "gaps"), ("consent", "roun
 # document, which the public tree holds as well, are not refused.
 WORDS = ("arch", "cont", "eng", "work")
 BEFORE, AFTER = r"(?<![A-Za-z0-9_-])", r"(?![A-Za-z0-9_])"
-# A reference into the specification's text by its numbers: the word ruling
-# or rulings before a number, a section sign or not between; the word section
-# before a dotted number; and any section sign before a number. A ruling as a
-# word ("a ruling", an object type) and a step's or a part's number are none.
-# The vendored files, not v3's text, are not read for it (sqlite3.c cites a
-# standard's numbered section). The plants are written in pieces.
-REFERENCE = re.compile(r"(?i)(?<![A-Za-z0-9_])(?:rulings?\s*(?:\xa7\s*)?\d|sections?\s+\d+\.\d|\xa7\s*\d)")
+# A reference into the specification's text by its numbers, in any case but
+# the finding's and the review's forms: the word ruling or rulings before a
+# number, space, #, -, _, : or a section sign between; a number of two digits
+# or a dotted one before the word ruling; the word section before a number of
+# two digits, a dotted one or one and its item; sec. before a number; an item
+# of a dotted number, or a dotted number and its item; a section sign, its
+# entity too, before a number, after any character; the words challenge,
+# anomaly and brief before a number; a review's finding (two digits, a
+# capital A to D and a number) and a finding's number (a capital F and a
+# number of one to three digits), each a token of its own, but the linter's
+# code a noqa: names first. A ruling as a word ("a ruling", an object type),
+# a step's, a part's or an undotted section's single number, a version and a
+# hex token are none. The vendored files, not v3's text, are not read for it
+# (sqlite3.c cites a standard's numbered section). The plants are written in
+# pieces.
+_TOKEN, _END = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"
+REFERENCE = re.compile(
+    _TOKEN + r"(?i:rulings?[\s#_:\xa7-]*\d"
+    r"|(?:\d{2,}|\d+\.\d+)[\s-]+rulings?" + _END
+    + r"|sections?\s+#?(?:\d{2}|\d+\.\d|\d+,?\s+items?\s+\d)"
+    r"|secs?\.\s*\d"
+    r"|items?\s+\d+\s+(?:of|in)\s+\d+\.\d|\d+\.\d+,?\s+items?\s+\d"
+    r"|(?:challenges?|anomal(?:y|ies)|briefs?)\s+#?\d)"
+    r"|(?i:\xa7|&sect;)\s*\d"
+    r"|" + _TOKEN + r"(?:\d{2}[A-D]\d{1,2}|(?<!noqa: )F\d{1,3})" + _END)
 REFERENCE_FINDING = "a ruling's or section's number"
 VENDORED_TREE = "third_party/"
 
@@ -237,12 +255,12 @@ class Content(unittest.TestCase):
             "interpreter.json": '{"python": "' + sys.base_prefix.replace("\\", "\\\\") + '"}\n',
             "repository.md": "the " + "qiven" + "-DOCS repository\n",
             "format.md": "see " + "FORMAT-" + "CODE.md\n",
-            "reading.txt": "CORE-" + "READING-3 F183\n",
+            "reading.txt": "CORE-" + "READING-3 F" + "183\n",
             "reading.cpp": "// CORE-" + "READING\n",
             "capitals.md": "COGNI" + "TION \xa712\n",
-            "ruling.md": "by the rul" + "ing 43.3 item 3\n",
+            "ruling.md": "by the rul" + "ing 43." + "3 item 3\n",
             "ruling-sign.py": "# rul" + "ings \xa7" + "43\n",
-            "section.txt": "see sec" + "tion 43.3 item 3\n",
+            "section.txt": "see sec" + "tion 43." + "3 item 3\n",
             "sign.cpp": "// \xa7" + " 44.4\n",
             "law.md": "the " + "Q" + "LAW.md text\n",
             "ruling.py": "x = '" + "Cognition" + "-Format.md'\n",
@@ -281,7 +299,8 @@ class Content(unittest.TestCase):
                                  "profile.txt", "interpreter.json", "key.txt", "token.py", "password.ini",
                                  "header.txt", "command.sh", "tencent.ini"} | names | references)
         self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
-        self.assertEqual({rel for rel, why in found if why == REFERENCE_FINDING}, references | {"capitals.md"})
+        self.assertEqual({rel for rel, why in found if why == REFERENCE_FINDING},
+                         references | {"capitals.md", "reading.txt"})
         self.assertEqual({rel for rel, why in found if why == DRIVE_FINDING} - {"profile.txt"},
                          {"drive.cpp", "posix.md", "settings.txt"})
         self.assertIn(("parent.md", "a path of this machine"), found)
@@ -344,3 +363,36 @@ class Content(unittest.TestCase):
                     (root / "plant.txt").write_bytes(text.encode("utf-8"))
                     got = content_findings(root, rules.source_files(root), [], names)
                     self.assertEqual([f for f in got if f[1] == "a name of this machine"], expected)
+
+
+class References(unittest.TestCase):
+    """The reference rule from the text alone, on every system: each form a
+    file of its own in a scratch tree, refused for a reference and for
+    nothing else; each near miss a file of its own, clean."""
+
+    # Each form holds a bar the case takes out, so that this file holds none.
+    FORMS = ("by rul|ing 43.|3 item 3", "see sec|tion 44, item 7", "rul|ing #44", "the 44.3 rul|ing",
+             "se|c. 44.3", "it|em 7 of 44.3", "rul|ing-44.3", "rul|ings_44", "&se|ct;44", "chall|enge 28's B1",
+             "28|B1", "anom|aly 1242", "F|138", "per bri|ef 25", "S\xa7|44", "\xa7\xa7|44", "Rul|ing\xa044",
+             "rul|ing\n44.3", "x\xa7|44", "as F|5's swap", "sec|tion 12", "44.|3 item 7")
+    NEAR = ("# noqa: F821, given by a tool\n",
+            "Python 3.15, CMake 4.4.3, version 1.2.3\n",
+            "Sections 1 through 9 of the license, section 3\n",
+            "steps 1 to 5, part 1, item 3 of 5, items 2 and 4\n",
+            "a digest 28b1e0f5, 0x28B1, ff28B1, 0xF5, 1.5F, F1000, AF138, F5x, %F\n",
+            "30 sec, 2 secs later, a brief note, in brief, 3 cases; a challenge, 2 challenges\n",
+            "3 rulings, the ruling's word, a ruling: a type\n",
+            "an anomaly, the anomalies seen\n",
+            "{value:5F} and %-8F\n",
+            "the sign \xa7 alone, \xa7 and a word\n")
+
+    def test_forms(self):
+        self.assertEqual((len(self.FORMS), len(self.NEAR)), (22, 10))
+        forms = {f"form{i:02}.txt": form.replace("|", "") for i, form in enumerate(self.FORMS)}
+        near = {f"near{i:02}.txt": text for i, text in enumerate(self.NEAR)}
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            for name, text in (forms | near).items():
+                (root / name).write_bytes(text.encode("utf-8"))
+            found = content_findings(root, rules.source_files(root), [], ())
+        self.assertEqual(found, [(name, REFERENCE_FINDING) for name in sorted(forms)])

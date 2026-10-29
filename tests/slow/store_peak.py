@@ -20,7 +20,7 @@ class StorePeak:
         """S12: an export of 20,000 entries of 1 KiB bodies (at most; made
         and appended in the drive by its fill) read whole in the drive: its
         20,000 lines; the reads' arenas, the caller's and the export's own,
-        under 2 MiB [proposal] (F80); on SQLite the engine heap's growth
+        under 2 MiB [proposal]; on SQLite the engine heap's growth
         over the reads, its page cache's slots included, within the
         engine's budget a connection: the slots alone pass 2 MiB once the
         export's cache fills (notes). Needs: none."""

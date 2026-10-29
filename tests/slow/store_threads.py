@@ -89,7 +89,7 @@ class StoreThreads:
         chain once, each body naming its thread and number; every failure
         HeadConflict or StoreBusy; verify passes; the conflicts above zero,
         the chain's writer changing at least 34 times [proposal]. Needs:
-        none; full suite (F127)."""
+        none; full suite."""
         with self.drive() as drive:
             self.needs(drive)
             m, store = Maker(drive), drive.store_make()
@@ -123,18 +123,17 @@ class StoreThreads:
     def test_S21_m6a_threads(self):
         """S21 (M6 with threads), its first part: m6_part at 167 claims a
         thread, 1,002 entries, each lane a chain of 334. Needs: none; full
-        suite (F127)."""
+        suite."""
         self.m6_part(M6_PARTS[0])
 
     def test_S21_m6b_threads(self):
         """S21 (M6 with threads), its second part: m6_part at 167, as the
-        first. Needs: none; full suite (F127)."""
+        first. Needs: none; full suite."""
         self.m6_part(M6_PARTS[1])
 
     def test_S21_m6c_threads(self):
         """S21 (M6 with threads), its third part: m6_part at 166, 996
-        entries, each lane a chain of 332. Needs: none; full suite
-        (F127)."""
+        entries, each lane a chain of 332. Needs: none; full suite."""
         self.m6_part(M6_PARTS[2])
 
     def test_S21_other_thread(self):

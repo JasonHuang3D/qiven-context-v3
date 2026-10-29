@@ -1,9 +1,9 @@
 // labels' cases: the base by basis and an owner-words version's bindings
-// (F29: the own writer's accept binds nothing; a re-verified binding before
-// an unverified one; F120: a binding adds no suffix too); the strength rows
+// (the own writer's accept binds nothing; a re-verified binding before an
+// unverified one; a binding adds no suffix too); the strength rows
 // alone and by their precedence, the earliest among equals named; the own
 // writer's, a dead and an unequal check changing nothing; a reflection
-// writer's lesson lifted only by verified or accepted (F156, A10); the
+// writer's lesson lifted only by verified or accepted; the
 // longest labels at the capacity; the owner's words as quoted in a
 // document of record, below the binding rows, and version_of reading it
 // from source; the longest label by the bounds: that row in a path of
@@ -115,14 +115,14 @@ static_assert(reads(CLAIM, CL));
 static_assert(reads("derived by implementer/s39, non-authoritative", Basis::derived));
 static_assert(reads(UNBOUND, OW) && of(OW, OWN).binding == Binding::none);
 
-// owner-words: the own writer's accept, or its session's, binds nothing
-// (F29); another's binds, unverified with no reader, re-verified with it.
+// owner-words: the own writer's accept, or its session's, binds nothing;
+// another's binds, unverified with no reader, re-verified with it.
 static_assert(reads(UNBOUND, OW, accept(OWN)) && reads(UNBOUND, OW, accept(OWN, RE)));
 static_assert(reads(UNBOUND, OW, accept("reflect/s39", RE)));
 static_assert(reads(BOUND, OW, accept(OTHER)) && of(OW, OWN, accept(OTHER)).binding == Binding::unverified);
 static_assert(reads(BOUND, OW, accept(OWN), accept(OTHER)));
 static_assert(reads(WORD, OW, accept(OTHER, RE)) && of(OW, OWN, accept(OTHER, RE)).binding == Binding::reverified);
-// A transcript check of result verified binds, and adds no suffix (F120).
+// A transcript check of result verified binds, and adds no suffix.
 static_assert(reads(BOUND, OW, check(OTHER, Method::transcript, V)));
 static_assert(of(OW, OWN, check(OTHER, Method::transcript, V)).strength == Strength::none);
 static_assert(reads(WORD, OW, check(OTHER, Method::transcript, V, RE)));
@@ -209,7 +209,7 @@ static_assert(reads(CLAIM, CL, check(OTHER, Method::none, V), check(OTHER, Metho
 static_assert(of(CL, OWN, check(OWN, Method::rerun, R)).strength == Strength::none);
 
 // A reflection writer's lesson, named by the session that runs it, is
-// lifted only by verified or accepted, by another session (F156, A10).
+// lifted only by verified or accepted, by another session.
 template <typename... C>
 constexpr bool lifted(C... checks) {
     return of(CL, "reflect/s39", checks...).lifted();
@@ -450,7 +450,7 @@ QIVEN3_CASE(labels, fa2_model_entry) {
                               "by reviewer/s70 (transcript 00000000-0000-4000-8000-0000000000a2)";
     const std::string word = "by: the owner's word (transcript 00000000-0000-4000-8000-0000000000a2, bound by "
                              "reviewer/s70)";
-    // D alone, and after ACC, an accept by D's own writer (F29).
+    // D alone, and after ACC, an accept by D's own writer.
     const CheckView own = labels::check_of(acc.h, acc.v, true).value();
     CHECK_EQ(own.act == Act::accept, true);
     CHECK_EQ(std::string(own.message), "00000000-0000-4000-8000-0000000000a2");
@@ -468,7 +468,7 @@ QIVEN3_CASE(labels, fa2_model_entry) {
     CHECK_EQ(by(d, std::array{own, other}), unbound);
     CHECK(reverify(fake, acc, own, "Yes, keep that.") == Transcript::reverified);
     // Instead of ACC2, its check of D, method transcript, result verified:
-    // bound, adding no suffix (F120).
+    // bound, adding no suffix.
     CheckView transcript_check = check(OTHER, Method::transcript, Result::verified);
     CHECK_EQ(by(d, std::array{own, transcript_check}), bound);
     transcript_check.transcript = Transcript::reverified;

@@ -19,7 +19,7 @@
 //
 // Each operation runs Gate first. append and forget: stage's check outside
 // the transaction; BEGIN IMMEDIATE (hook begun); the head; at forget the
-// guard; part 2 against WriteView, F138's clearing one direction record at
+// guard; part 2 against WriteView, a false secret hit's clearing one direction record at
 // a time on check's scratch; at forget whole records and each target's
 // body erased; the rows, the head, meta (hook written); COMMIT (hook
 // committed); then a purge's one attempt. A failure in between rolls back.

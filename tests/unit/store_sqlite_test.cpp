@@ -13,7 +13,7 @@
 // forget's kind, guard, erasure and whole records; each purge done, meta's
 // vacuumed and purged at forgets; a read-only object's purge refused, its
 // close attempting none; close, then closed. store_sqlite.cleared_many:
-// F138's clearing over 4 and over 16 direction records, append's counted
+// a false secret hit's clearing over 4 and over 16 direction records, append's counted
 // peak equal, within its budget. store_sqlite.reads: head, heads by scope
 // set, header, body and forgotten, NotFound, scans by range; a body
 // record, a column and a line altered, each StoreCorrupt; a scan left open

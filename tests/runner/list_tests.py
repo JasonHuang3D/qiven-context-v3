@@ -1,7 +1,12 @@
 """Print each Python test of tests/ for CTest: its id, its labels, serial,
 its own limit, and what it reads at run time.
 
-Run from the checkout's root as python -I tests/runner/list_tests.py. Each
+Run from the checkout's root as python -I tests/runner/list_tests.py
+[--loop]. The loop's own tests, the modules of the counting shim's groups
+(tests/drive/test_git_shim.py's GROUPS), are never listed: they run only
+under the shim, whose tests are listed with --loop alone, which one build a
+system gives (QIVEN3_LOOP_TESTS), so that the git they start is started in
+one step a run. Each
 line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>\t<reads by
 commas>". A test's labels are its package's, or its module's where
 MODULE_LABELS names it, below, and those its class names in ctest_labels; a
@@ -52,9 +57,14 @@ def walk(suite):
             yield test
 
 
-def main():
+def main(argv):
+    if argv not in ([], ["--loop"]):
+        print(f"usage: list_tests.py [--loop], not {argv}", file=sys.stderr)
+        return 2
     loader = unittest.TestLoader()
     suite = loader.discover("tests", top_level_dir=".")
+    from tests.drive import test_git_shim  # importable once discover has put the root on sys.path
+    unlisted = test_git_shim.modules() | (set() if argv else {test_git_shim.__name__})
     failed = False
     for test in walk(suite):
         test_id = test.id()
@@ -62,6 +72,8 @@ def main():
         if error is not None or not test_id.startswith("tests."):
             print(f"{test_id}: {error}", file=sys.stderr)
             failed = True
+            continue
+        if ".".join(test_id.split(".")[:3]) in unlisted:
             continue
         package = test_id.split(".")[1]
         if package not in PACKAGE_LABELS:
@@ -90,4 +102,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

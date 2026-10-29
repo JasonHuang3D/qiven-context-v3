@@ -168,17 +168,16 @@ qiven3_add_cases(qiven3_unit_validator LABELS fast fake
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
 # fold's cases: the order, one writer, each step of the fold ending it in
-# turn (F50, F51, F118) and "active", evaluated by the compiler; the
+# turn and "active", evaluated by the compiler; the
 # fold's faults; FA2's status change and the scope's order over the
 # fixtures; its one allocation counted, under the budget and the fault run.
 qiven3_add_cases(qiven3_unit_fold LABELS fast fake
   SOURCES fold_test.cpp fold_memory_test.cpp
   LINK qiven3_faults qiven3_fixtures qiven3_entry)
 
-# labels' cases: the base by basis and an owner-words version's bindings
-# (F29, F120), the strength rows and their precedence, the own writer's,
-# a dead and an unequal check, a reflection writer's lesson lifted (F156,
-# A10) and the longest labels, evaluated by the compiler; a label past its
+# labels' cases: the base by basis and an owner-words version's bindings,
+# the strength rows and their precedence, the own writer's, a dead and an
+# unequal check, a reflection writer's lesson lifted and the longest labels, evaluated by the compiler; a label past its
 # capacity; FA2's model entry over the fixtures, with a stub transcript
 # reader; no allocation, under the budget and the fault run.
 qiven3_add_cases(qiven3_unit_labels LABELS fast fake

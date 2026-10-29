@@ -4,7 +4,8 @@
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # ADDR2LINE where the build found one, PYTHON when the Python tests are
-# registered, and FUZZ when the build has fuzz targets (lines
+# registered, LOOP when the counting shim's run of the loop's own tests is
+# too (list_tests.py --loop), and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
 # other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
@@ -119,7 +120,11 @@ if(DEFINED FUZZ)
 endif()
 
 if(DEFINED PYTHON)
-  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/tests/runner/list_tests.py"
+  set(list_args "")
+  if(LOOP)
+    set(list_args --loop)
+  endif()
+  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/tests/runner/list_tests.py" ${list_args}
     WORKING_DIRECTORY "${SOURCE}"
     OUTPUT_VARIABLE listed ERROR_VARIABLE listed_err RESULT_VARIABLE status)
   if(NOT status EQUAL 0)

@@ -20,8 +20,8 @@
 //                       store's file (the two-wave store)
 //   NaiveStore          M5's and M6's negative control: each lane a JSON
 //                       Lines file appended to, its head a file read,
-//                       compared and rewritten, with no lock, as F5's
-//                       compare-and-swap; a line is the header line, a
+//                       compared and rewritten, with no lock, as the
+//                       replica's compare-and-swap; a line is the header line, a
 //                       tab and the body record, or the header line alone
 //
 // Not here: secure_delete OFF with a purge that skips VACUUM, and a purge

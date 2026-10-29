@@ -210,7 +210,7 @@ QIVEN3_CASE(secret, languages) {
 }
 
 QIVEN3_CASE(secret, pinned) {
-    // F154: no pinned id or digest, header or content, hits.
+    // No pinned id or digest, header or content, hits.
     canon::Basic<> all;
     fixtures::load_entries(all);
     std::size_t entries = 0;

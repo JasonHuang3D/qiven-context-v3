@@ -18,7 +18,7 @@
 // number. Each next copies one entry's line and body record into the
 // caller's Line, under the lock: an entry is forgotten in the snapshot when
 // its first forget was held then; its body is yielded unless so, a body a
-// later forget dropped staying in place while any export is open (F104).
+// later forget dropped staying in place while any export is open.
 // It ends at its close, at its store object's close, or at its end.
 //
 // Import: into an empty state alone (StoreNotEmpty), under the lock for the

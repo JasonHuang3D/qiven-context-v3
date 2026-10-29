@@ -1,7 +1,7 @@
 // fold's cases: the order by (at, lane, seq); one writer; the fold's steps
 // each ending it in turn, the first deciding: versions, withdrawn, leaves
-// (F51, F118's fork as meant), current, forgotten, expired and the refuted
-// row (F50 as F119 narrows it: a review's refutation, the own writer's and
+// (a retired version's fork as meant), current, forgotten, expired and the
+// refuted row (narrowed: a review's refutation, the own writer's and
 // a transcript unverified leave it served); "active" through them; entries
 // that take no part. Each is evaluated by the compiler on std::allocator.
 // At run time: the fold's faults; FA2's status change over
@@ -120,7 +120,7 @@ static_assert(run(std::array{V1, V2}) == state(Status::served, 1));
 static_assert(run(std::array{V1, V2, V3}) == state(Status::served, 2));
 static_assert(run(std::array{V1}).active() && run(std::array{V1}).served());
 
-// F51: retiring the current version serves the one it revised, not none.
+// Retiring the current version serves the one it revised, not none.
 static_assert(run(std::array{V1, V2, e("R", "retire", "V2", 3)}) == state(Status::served, 0));
 // Retiring the root alone leaves its revision current.
 static_assert(run(std::array{V1, V2, e("R", "retire", "V1", 3)}) == state(Status::served, 1));
@@ -135,7 +135,7 @@ constexpr ItemView unheld(ItemView x) {
 }
 static_assert(run(std::array{V1, V2, unheld(e("R", "retire", "V2", 3))}) == state(Status::served, 0));
 
-// F118: retiring only V2 of V1<-V2<-V3 serves V3 forked +1, V1 a leaf again.
+// Retiring only V2 of V1<-V2<-V3 serves V3 forked +1, V1 a leaf again.
 static_assert(run(std::array{V1, V2, V3, e("R", "retire", "V2", 3)}) == state(Status::served, 2, 1));
 // A fork: the last leaf in the order is current; retiring a leaf resolves it.
 constexpr ItemView V3b = e("V3", "claim", "V1", 2);
@@ -164,7 +164,7 @@ static_assert(run(std::array{expiring(V1, NOW)}).active());
 // The revision's expires decides, not the root's.
 static_assert(run(std::array{expiring(V1, AT[5]), V2}) == state(Status::served, 1));
 
-// Step 7, F50 as F119 narrows it: a refutation by another writer, method
+// Step 7, the refuted row narrowed: a refutation by another writer, method
 // test or rerun, or a transcript re-verified, ends the fold; active still.
 static_assert(run(std::array{V1, check("C", "V1", 1, OTHER, Method::rerun, Result::refuted)}) ==
               state(Status::refuted, 0, 0, 1));

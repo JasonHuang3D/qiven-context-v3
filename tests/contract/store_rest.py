@@ -200,7 +200,7 @@ class StoreRest:
         """S24: S13's source imported through the seam that does not defer
         foreign keys: StoreError guard, detail 787, nothing written; the
         same source without its cross-lane changes, imported (S13 a near
-        miss that only the deferral passes, F28). Needs: own: sqlite."""
+        miss that only the deferral passes). Needs: own: sqlite."""
         with self.drive() as drive:
             self.needs(drive, "own: sqlite")
             m, store = Maker(drive), drive.store_make()
@@ -242,7 +242,7 @@ class StoreRest:
         return out
 
     def test_S25_whole_records(self):
-        """S25 (F174): (a) v1 and its revision v2 in one lane: forget v2,
+        """S25: (a) v1 and its revision v2 in one lane: forget v2,
         then v1, each admitted; (b) a revision in another lane: forget v1,
         whole_record; (c) v3 in another lane revising v2: {v1, v2}
         whole_record, then v3, then {v1, v2} admitted; (d) a fork, v2a in
@@ -297,7 +297,7 @@ class StoreRest:
         return m.on("D", scope, "reviewer", seq, parent, minute, content, **fields)
 
     def test_S26_clearing_conditions(self):
-        """S26 (F173, F174), on the first clearing fixture: a direction of
+        """S26, on the first clearing fixture: a direction of
         another scope, a revised one whose current version has no clears, a
         retired one, a forgotten one, and one expiring at or before the
         retry's at each leave the retry secret; a revision keeping clears,

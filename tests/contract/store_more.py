@@ -47,7 +47,7 @@ class StoreMore:
 
     def test_S10_purge_held(self):
         """S10: a second store object holds an export open; a forget's
-        purge is pending, with a reason (reader on SQLite, F130), in its
+        purge is pending, with a reason (reader on SQLite), in its
         result and in heads; the export closes; the next append completes
         the purge, and heads gives it done. Needs: files."""
         with self.drive() as drive:
@@ -162,7 +162,7 @@ class StoreMore:
         sqlite, the export's statements' plans; an export read to its first
         line, then a forget through again of a body later in it, and again
         with the export's heads alone read: the body yielded, forgotten
-        false, the snapshot's forget count the old one (F104). Needs: none."""
+        false, the snapshot's forget count the old one. Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
             own = drive.store_capabilities()["own"] == "sqlite"
@@ -200,7 +200,7 @@ class StoreMore:
         self.assertEqual(by_lane, {})
 
     def f104(self, m, store, writer, held):
-        """F104 twice: a forget through again of a body later in an export,
+        """An open export's body kept, twice: a forget through again of a body later in an export,
         once the export has read its first line, then once it has read its
         heads alone (its snapshot fixed from its first read): the body
         yielded, forgotten false, the snapshot's forget count the old one."""
@@ -223,7 +223,7 @@ class StoreMore:
         """S13's source: 2 scopes of 3 lanes; a check, a retire and a
         forget whose targets are in lanes that sort later; forgotten
         bodies, their purge done, one a record of two versions forgotten
-        whole (Q18, F90)."""
+        whole."""
         for lane in LANES:
             store.append(PERSON, lane, None, m.chain(PERSON, lane, 2))
         r1, r2 = m.chain(SCOPE, "reviewer", 2)
@@ -285,8 +285,8 @@ class StoreMore:
         """S13's last four, the source of code (S13_REFUSED), a case each:
         a source holding a body its own forget targets; a revision, not
         forgotten, of a forgotten version; a line lacking its body record;
-        a forgotten check of basis derived (F157); each after 3,000 entries
-        of 1 KiB, which spill pages into the -wal (F158): EntryInvalid
+        a forgotten check of basis derived; each after 3,000 entries
+        of 1 KiB, which spill pages into the -wal: EntryInvalid
         forgotten_body, forgotten_target, body_missing, basis, nothing
         written, the -wal included. The class holds a case for each source
         of S13_REFUSED and no other, and the sources are those four."""
@@ -374,7 +374,7 @@ class StoreMore:
         """S15: limits of 64, 96 and 128 KiB, then of 10, 15 and 20
         entries: over_target, then over_warning, by size and by count
         apart; past the maximum StoreFull store_full, nothing written; a
-        forget accepted past either maximum (F57); an import past it
+        forget accepted past either maximum; an import past it
         accepted, with its flags; the default limits C15's. Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
@@ -471,7 +471,7 @@ class StoreMore:
         mode, and one with no table; a 0-byte file: at open StoreCorrupt
         not_a_store, foreign, foreign, version, foreign, foreign, corrupt;
         create over each and over a store, StoreError exists; each file
-        byte-equal after, no -wal or -shm left (F70, F103). Needs: own:
+        byte-equal after, no -wal or -shm left. Needs: own:
         sqlite."""
         with self.drive() as drive:
             self.needs(drive, "own: sqlite")
@@ -503,7 +503,7 @@ class StoreMore:
     def test_S18_incoherent(self):
         """S18: through the seam, on a store holding a forget: a head row
         set to an older entry; a body row put back for a forgotten id;
-        purged above vacuumed; a body row deleted (F157's count): at open
+        purged above vacuumed; a body row deleted: at open
         StoreCorrupt incoherent, forgotten_body, incoherent, incoherent,
         the last two body rows also at verify; and meta's size off by one,
         incoherent at verify. The count rule's cost at 555,000 entries is

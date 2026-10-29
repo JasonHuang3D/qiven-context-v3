@@ -139,7 +139,7 @@ def scanned(store, **range_):
 
 
 def snapshot(store):
-    """What a refusal must leave as it was (F74): the heads, the scan, the
+    """What a refusal must leave as it was: the heads, the scan, the
     size and count; on a store with a file, the database's SHA-256 and the
     -wal's size and SHA-256 (-shm, an index the engine rewrites at open,
     left out)."""
@@ -266,7 +266,7 @@ def body_rows(a, b):
     )
 
 
-# F138's clearing fixtures, each with the pattern it trips.
+# A false secret hit's clearing fixtures, each with the pattern it trips.
 CLEARING = (
     ("PWD" + "=/path/to/repo.git", "pair-password"),
     ("git clone https://x-access-token:" + "${GH_TOKEN}@github.com/o/r", "url-password"),

@@ -89,32 +89,33 @@
       "inherits": "ci",
       "displayName": "CI on windows-latest, the image's MSVC",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}
+      "cacheVariables": {"QIVEN3_LOOP_TESTS": "ON", "CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}
     },
     {
       "name": "ci-asan",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as asan",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON",
+                         "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "ci-stack",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as stack",
-      "cacheVariables": {"QIVEN3_ANALYZE": "stack"}
+      "cacheVariables": {"QIVEN3_ANALYZE": "stack", "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "ci-analysis",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as analysis",
-      "cacheVariables": {"QIVEN3_ANALYZE": "analysis"}
+      "cacheVariables": {"QIVEN3_ANALYZE": "analysis", "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "linux-gcc",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON", "QIVEN3_LOOP_TESTS": "ON"}
     },
     {
       "name": "linux-clang",

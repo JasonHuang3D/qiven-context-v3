@@ -131,7 +131,7 @@ class StoreCases:
                 self.assertIs(type(value), bool)
 
     def nothing_written(self, store, before, what):
-        """A refusal left the store as the snapshot before it (F74)."""
+        """A refusal left the store as the snapshot before it."""
         differs = same_snapshot(before, snapshot(store))
         self.assertIsNone(differs, f"{what} wrote: {differs}")
 
@@ -187,7 +187,7 @@ class StoreCases:
         """S5: two store objects read head h; one appends; the other's
         append expecting h, and one expecting none, are HeadConflict; a
         forget whose guard another lane of its scope, a lane of another
-        scope or a new lane has moved past (F106, F133) is HeadConflict
+        scope or a new lane has moved past is HeadConflict
         naming that lane; nothing written. Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
@@ -321,8 +321,8 @@ class StoreCases:
         id kept; D's parent resolves; the head moved; the size less B's
         record plus E's line, the count plus 1; the purge done. A second
         forget of B: EntryInvalid target; a claim and a check given to
-        forget: StoreError forget_kind (F139); a forget of a version whose
-        revision is neither forgotten nor in the set: whole_record (F131);
+        forget: StoreError forget_kind; a forget of a version whose
+        revision is neither forgotten nor in the set: whole_record;
         each writing nothing, the store then opening coherent. Needs: none."""
         with self.drive() as drive:
             self.needs(drive)
@@ -410,8 +410,8 @@ class StoreCases:
         the head, a seq gap, a target missing or of another scope, an at
         out of order, an entry reference not held, a revision of a
         forgotten version, a revision changing its record's identity, a
-        decision citing a map); a forget, with content and without
-        (F93); a secret in the header and in the content, named by its
+        decision citing a map); a forget, with content and without;
+        a secret in the header and in the content, named by its
         pattern and path, never by its value or the id. Each EntryInvalid,
         nothing written. Needs: none."""
         with self.drive() as drive:
@@ -467,9 +467,9 @@ class StoreCases:
                     self.assertNotIn(id_of(entry), text)
 
     def test_S4_clearing(self):
-        """S4, F138's four clearing fixtures: each appended, refused
+        """S4, the four fixtures of a false secret hit's clearing: each appended, refused
         secret; cleared by a direction, admitted; the same body under the
-        same key again, secret (F172); again after an export imported into
+        same key again, secret; again after an export imported into
         an empty store, and after a forget of the admitted entry, secret;
         cleared for another pattern or another digest, secret. Needs: none."""
         with self.drive() as drive:
@@ -502,7 +502,7 @@ class StoreCases:
                     self.refuse(other, SCOPE, "implementer", None, [hit], "EntryInvalid", "secret", pattern=pattern)
 
     def test_S4_plans(self):
-        """S4's own SQLite part: the view's two reads, F138's clearings (the
+        """S4's own SQLite part: the view's two reads, the clearings (the
         scope's direction roots, a record's members, each member's row) and
         the scan of entry.line for a content, and beside them the export's
         statements, planned with no structure built in memory as large as

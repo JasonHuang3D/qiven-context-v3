@@ -87,10 +87,17 @@ endforeach()
 set(qiven3_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
 file(GENERATE OUTPUT "${qiven3_inputs_file}" CONTENT "${qiven3_inputs}")
 
+# The loop's own tests, the counting shim's run of them, registered on one
+# build a system (CMakePresets.json: ci-windows and linux-gcc), so that the
+# git they start is started in one step a run (tests/drive/test_git_shim.py).
+option(QIVEN3_LOOP_TESTS "Register the counting shim's run of the loop's own tests" OFF)
 set(qiven3_python_args "")
 set(qiven3_python_files "")
 if(Python3_EXECUTABLE)
   set(qiven3_python_args -D "PYTHON=${Python3_EXECUTABLE}")
+  if(QIVEN3_LOOP_TESTS)
+    list(APPEND qiven3_python_args -D "LOOP=ON")
+  endif()
   file(GLOB_RECURSE qiven3_python_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
 else()
   message(STATUS "qiven3: no interpreter named; the Python tests are not registered")

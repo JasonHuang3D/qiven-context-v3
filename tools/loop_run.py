@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 GIT = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's one door, its count (tools/loop_git.py)
 git_which, git_run, git_verdict, GIT_COUNT = GIT["which"], GIT["run"], GIT["verdict"], GIT["COUNT"]
-git_run_verdict = GIT["run_verdict"]
+git_run_verdict, git_carried = GIT["run_verdict"], GIT["carried"]
 LINES = 100
 TAIL = 30
 FIRST = 10  # a failing step's first error lines before its tail, at most
@@ -234,8 +234,9 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
         except OSError as e:
             raise CannotRun(f"{job} {step.name}: cannot start: {e}") from e
         note = f"; {notes[step.name]}" if step.name in notes else ""
-        if count_dir is not None and step.ci[:1] == ("ctest",):  # a test step's git, named on its line
+        if step.ci[:1] == ("ctest",):  # a test step's git, named on its line, and the enclosing count's too
             starts, fault = git_verdict(count_dir)
+            git_carried(starts, env)
             report.git += starts
             note += f"; git {starts}"
             status = fault if status == 0 and fault else status
@@ -341,11 +342,11 @@ def own_tree(report, root, tree, job, fresh, pins=None):
 
 
 def git_counted(env, directory):
-    """(a step's environment, its git count's directory, emptied, or None):
-    the count's directory a step's own unless env, an enclosing run's
-    (a loop a test runs), names one already, which then counts its git."""
-    if env is not None and env.get(GIT_COUNT):
-        return env, None
+    """(a step's environment, its git count's directory, emptied): the
+    step's own, in place of one env (os.environ when None) names already,
+    never trusted, so that the step's bound and the run's hold; run_steps
+    adds the step's starts to that one (an enclosing run's, a loop a test
+    runs) as well."""
     shutil.rmtree(directory, ignore_errors=True)
     return {**(os.environ if env is None else env), GIT_COUNT: str(directory)}, directory
 
