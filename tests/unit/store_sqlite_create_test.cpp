@@ -1,11 +1,11 @@
 // store/sqlite's refused create, on the fake over a scratch directory of
-// the case's own. create_refused, in parts (create_refused_part1 to _part36,
-// support/faults/parts.hpp), each within 30 s on every job: four passes,
+// the case's own. create_refused, in parts (store_sqlite_create_parts_test.cpp
+// registers them, support/faults/parts.hpp), each a few runs: four passes,
 // each refusing in turn every call of one kind a create makes: the fake's
 // platform calls, the store's arena allocations, the engine calls the
 // wrapper maps (open_v2, the settings, the schema, its TRUNCATE checkpoint,
 // the probe, coherence), and the engine heap's allocations, the parts by
-// their first points (parts below). After each refused run nothing is
+// their first points (that file's table). After each refused run nothing is
 // left, the directory create made removed too, and a second create makes
 // the store. create_unremoved: a removal itself refused, by the countdowns (the
 // engine heap's first allocation refused, then one of the four files'
@@ -42,6 +42,10 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/faults/parts.hpp"
+
+namespace qiven3::test {
+void store_sqlite_create_refused(Context& qiven3_ctx, const std::array<FaultRange, 4>& ranges);
+}  // namespace qiven3::test
 
 #if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
@@ -319,41 +323,20 @@ void pass(qiven3::test::Context& qiven3_ctx, Rig& rig, Kind kind, qiven3::test::
     }
 }
 
-// The passes in order: the platform's calls, the arena's allocations, the
-// engine calls, the engine heap's allocations. The parts' first points, a
-// row a stretch: the first two passes and the engine calls to k 47; the
-// engine calls from k 48; the engine heap's 50 k a stretch, the last to its
-// completing run (650 on Windows, 640 on Linux). Each stretch is cut in
-// even parts by the slowest seconds a CI Windows job ran it in (beside it),
-// so that each part takes 20 s or under there, within 30 s on every job.
-constexpr std::array<Kind, 4> kinds = {Kind::platform, Kind::arena, Kind::call, Kind::heap};
-constexpr qiven3::test::FaultParts<36> parts{{{
-    {0, 1}, {2, 13}, {2, 31},                                    // 42.0 s
-    {2, 48}, {2, 71},                                            // 27.3 s
-    {3, 1},                                                      // 16.8 s
-    {3, 51},                                                     // 19.8 s
-    {3, 101}, {3, 126}, {3, 151}, {3, 176},                      // 23.7, 25.6 s
-    {3, 201}, {3, 226}, {3, 251}, {3, 276},                      // 26.7, 25.6 s
-    {3, 301}, {3, 310}, {3, 319}, {3, 327}, {3, 335}, {3, 343},  // 82.9 s
-    {3, 351}, {3, 368}, {3, 385},                                // 42.2 s
-    {3, 401}, {3, 418}, {3, 435},                                // 40.9 s
-    {3, 451}, {3, 468}, {3, 485},                                // 39.9 s
-    {3, 501}, {3, 526}, {3, 551}, {3, 576},                      // 22.9, 22.5 s
-    {3, 601}, {3, 626},                                          // 23.3 s
-}}};
-static_assert(parts.whole());
+}  // namespace
 
-void create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("store_sqlite.create_refused", parts.from.size()));
+// One part of create_refused: the passes in order, the platform's calls,
+// the arena's allocations, the engine calls, the engine heap's allocations,
+// each over the part's range of it.
+void qiven3::test::store_sqlite_create_refused(Context& qiven3_ctx, const std::array<FaultRange, 4>& ranges) {
+    constexpr std::array<Kind, 4> kinds = {Kind::platform, Kind::arena, Kind::call, Kind::heap};
     const auto rig = std::make_unique<Rig>();
     for (std::size_t p = 0; p < kinds.size(); ++p) {
-        if (!parts.range(i, p).none()) {
-            pass(qiven3_ctx, *rig, kinds.at(p), parts.range(i, p));
+        if (!ranges.at(p).none()) {
+            pass(qiven3_ctx, *rig, kinds.at(p), ranges.at(p));
         }
     }
 }
-
-}  // namespace
 
 QIVEN3_CASE(store_sqlite, create_unremoved) {
     const auto rig = std::make_unique<Rig>();
@@ -452,49 +435,11 @@ QIVEN3_CASE(store_sqlite, create_unremoved) {
     CHECK_EQ(rig->create(), std::string("made"));
 }
 #else
-namespace {
-void create_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) {
+void qiven3::test::store_sqlite_create_refused(Context& /*qiven3_ctx*/,
+                                               const std::array<FaultRange, 4>& /*ranges*/) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 }
-}  // namespace
 QIVEN3_CASE(store_sqlite, create_unremoved) {
     QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
 }
 #endif
-
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 1, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 2, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 3, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 4, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 5, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 6, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 7, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 8, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 9, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 10, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 11, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 12, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 13, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 14, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 15, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 16, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 17, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 18, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 19, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 20, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 21, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 22, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 23, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 24, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 25, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 26, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 27, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 28, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 29, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 30, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 31, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 32, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 33, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 34, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 35, create_part)
-QIVEN3_FAULT_PART(store_sqlite, create_refused, 36, create_part)

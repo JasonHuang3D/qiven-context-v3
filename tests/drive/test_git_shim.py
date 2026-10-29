@@ -15,7 +15,9 @@ shim's log and the door's count beside it, not in the enclosing step's: a
 step's count is its own tests' starts. The real git is the door's, found
 before the shim is placed; the shim's log is a file this test makes,
 never under HOME, which test_loop_git changes. Each group stays under
-about 30 seconds: test_loop runs by its classes."""
+about 15 seconds on a CI Windows job: test_loop runs by its classes,
+test_nav by its cases' cost, a case of clangd's index alone or with a
+short one."""
 
 import os
 import shutil
@@ -32,10 +34,12 @@ from tools import loop_git
 GROUPS = {
     "loop_git": ("tests.drive.test_loop_git",),
     "fake": ("tests.drive.test_loop_pins", "tests.drive.test_loop_select"),
-    "nav": tuple(f"tests.drive.test_nav.Nav.test_{t}" for t in ("references", "unresolved", "truncated",
-                                                                "type_and_refusals")),
-    "nav_index": (*(f"tests.drive.test_nav.Nav.test_index_{t}" for t in ("used", "stale_file", "stale_clangd")),
-                  "tests.drive.test_nav.Checkout"),
+    "nav_lookups": ("tests.drive.test_nav.Nav.test_references", "tests.drive.test_nav.Nav.test_unresolved"),
+    "nav_truncated": ("tests.drive.test_nav.Nav.test_truncated",),
+    "nav_types": ("tests.drive.test_nav.Nav.test_type_and_refusals",),
+    "nav_index_used": ("tests.drive.test_nav.Nav.test_index_used",),
+    "nav_index_stale_file": ("tests.drive.test_nav.Nav.test_index_stale_file", "tests.drive.test_nav.Checkout"),
+    "nav_index_stale_clangd": ("tests.drive.test_nav.Nav.test_index_stale_clangd",),
     "loop": tuple(f"tests.drive.test_loop.{c}" for c in ("Answer", "Arguments", "Tiers", "OneClone")),
     "loop_windows": ("tests.drive.test_loop.Windows",),
     "loop_linux": ("tests.drive.test_loop.Linux",),
@@ -132,11 +136,23 @@ class Shim(Groups):
     def test_fake(self):
         self.group("fake")
 
-    def test_nav(self):
-        self.group("nav")
+    def test_nav_lookups(self):
+        self.group("nav_lookups")
 
-    def test_nav_index(self):
-        self.group("nav_index")
+    def test_nav_truncated(self):
+        self.group("nav_truncated")
+
+    def test_nav_types(self):
+        self.group("nav_types")
+
+    def test_nav_index_used(self):
+        self.group("nav_index_used")
+
+    def test_nav_index_stale_file(self):
+        self.group("nav_index_stale_file")
+
+    def test_nav_index_stale_clangd(self):
+        self.group("nav_index_stale_clangd")
 
     def test_loop(self):
         self.group("loop")
