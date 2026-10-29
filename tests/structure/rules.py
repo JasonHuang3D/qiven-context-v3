@@ -4,7 +4,8 @@ which also runs the safe subset's token rules, B18 to B31 (subset.py).
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
 identifiers and #include directives from the sources by the rules' lexer
-(lexer.py); no rule reads C++ by a regular expression. The text rules are
+(lexer.py), and the tree's files by tree.py; no rule reads C++ by a
+regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
 file's bytes for those git cannot fix. check() applies every rule to one
 tree, v3's or the planted one, and gives its findings. STATED holds the
@@ -15,12 +16,13 @@ an allowance the text lacks has no place here.
 import os
 import re
 from collections import namedtuple
-from fnmatch import fnmatchcase
 from pathlib import Path
 
 from tests.structure import subset
 from tests.structure.lexer import lex
 from tests.structure.records import Records, command_include_dirs
+# The tree's files (tree.py), which the size, line-end, content and import tests read here too.
+from tests.structure.tree import is_text, line_count, source_files, text_attributes
 
 ROOT = Path(__file__).resolve().parents[2]
 VENDORED = "third_party/sqlite/sqlite3.c"
@@ -108,7 +110,11 @@ PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "
 ALLOWED = {
     "B1": ("src/store/engine/", "third_party/sqlite/", "qiven3_store"),
     "B2": ("src/platform/win/process.", "src/qiven3/mapcheck.", "tests/unit/mapcheck_test.",
-           "tests/machine/test_mapcheck", "tests/machine/mapcheck"),
+           "tests/machine/test_mapcheck", "tests/machine/mapcheck",
+           # The slice's git route, its unit test through the fake, its machine
+           # test and the synthetic v2 repository's fixture, each through run.
+           "src/import/git.", "tests/unit/git_test.", "tests/unit/git_machine_test.",
+           "tests/support/fixtures/v2_repository.cpp"),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
     "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
@@ -252,37 +258,6 @@ class Findings:
             self.found.add(Finding(rule, where, kind, detail))
 
 
-def ignored(rel, name, is_dir, patterns):
-    for pattern in patterns:
-        if pattern.endswith("/") and not is_dir:
-            continue
-        pattern = pattern.rstrip("/")
-        if fnmatchcase(rel, pattern.lstrip("/")) if "/" in pattern else fnmatchcase(name, pattern):
-            return True
-    return False
-
-
-def source_files(root):
-    """Every file of the tree but .git and what .gitignore and the checkout's
-    own exclude file name."""
-    patterns = []
-    for name in (".gitignore", ".git/info/exclude"):
-        if (root / name).is_file():
-            patterns += [line.strip() for line in (root / name).read_text(encoding="utf-8").splitlines()
-                         if line.strip() and not line.startswith(("#", "!"))]
-    found = []
-    for directory, dirs, files in os.walk(root):
-        base = Path(directory).relative_to(root).as_posix()
-        prefix = "" if base == "." else base + "/"
-        dirs[:] = sorted(d for d in dirs if d != ".git" and not ignored(prefix + d, d, True, patterns))
-        found += [prefix + f for f in files if not ignored(prefix + f, f, False, patterns)]
-    return sorted(found)
-
-
-def line_count(data):
-    return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
-
-
 def is_goldens(value):
     parts = value.replace("\\", "/").split("/")
     return any(a == "tests" and b == "goldens" for a, b in zip(parts, parts[1:]))
@@ -298,25 +273,6 @@ def app_namespace(tokens, i):
     one qualified name (namespace qiven3::app, qiven3::app::main); nested,
     `app` follows no `::`."""
     return tokens[i][1] == "app" and i >= 2 and tokens[i - 2][0:2] == ("id", "qiven3")
-
-
-def text_attributes(root):
-    """The lines of the root's .gitattributes that set the text attribute,
-    in order: [(pattern, text)]. -text and binary unset it; text, text=...
-    and !text leave the file text to B32, git's own content check aside."""
-    path = root / ".gitattributes"
-    lines = [x.split() for x in path.read_text(encoding="utf-8").splitlines()] if path.is_file() else []
-    return [(f[0], a not in ("-text", "binary")) for f in lines if f and not f[0].startswith("#") for a in f[1:]
-            if a in ("-text", "binary", "text", "!text") or a.startswith("text=")]
-
-
-def is_text(rel, attributes):
-    """Whether .gitattributes treats rel as text: the last line matching it
-    decides, a pattern with a slash matched against the path from the root,
-    one without against the name; fnmatch's * crosses a slash, as ** does."""
-    matched = [text for pattern, text in attributes
-               if fnmatchcase(rel if "/" in pattern else rel.rsplit("/", 1)[-1], pattern.lstrip("/"))]
-    return matched[-1] if matched else True
 
 
 def source_rules(root, files, out):

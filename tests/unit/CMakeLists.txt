@@ -247,6 +247,28 @@ qiven3_add_cases(qiven3_unit_yaml LABELS fast fake
   SOURCES yaml_test.cpp
   LINK qiven3_import qiven3_platform_fake)
 
+# import/git through the fake, whose run gives git's output: each call's
+# command, each call read, each refusal naming what it names, the
+# platform's refusals unchanged, each parser's malformed input, the quote's
+# search text, an arena too small.
+qiven3_add_cases(qiven3_unit_git LABELS fast fake
+  SOURCES git_test.cpp
+  LINK qiven3_import qiven3_platform_fake)
+
+# import/git on this machine's git through the Windows adapter's run: a
+# synthetic repository with set commit times built in each case's scratch
+# directory, each call checked against it. machine: they start git, so the
+# full and asan presets run them. Off Windows, where no adapter has run,
+# each case skips, naming why.
+if(WIN32)
+  set(git_machine_links qiven3_import qiven3_platform_win)
+else()
+  set(git_machine_links qiven3_import)
+endif()
+qiven3_add_cases(qiven3_unit_git_machine LABELS machine
+  SOURCES git_machine_test.cpp
+  LINK ${git_machine_links})
+
 # win/files' cases on the Windows adapter, on Windows alone: create, read,
 # remove_directory, replace and lock on real files in each case's scratch
 # directory under the job's temporary directory; read's allocation counted;

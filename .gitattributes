@@ -18,6 +18,7 @@ tests/vectors/ids.json -text
 # an attributes pattern does not reach into a directory.
 tests/fuzz/digest/regress/** -text
 tests/fuzz/entry/regress/** -text
+tests/fuzz/gitoutput/regress/** -text
 tests/fuzz/wire/regress/** -text
 tests/fuzz/yaml/regress/** -text
 # The vendored SQLite amalgamation, as its upstream ships it: each file's
