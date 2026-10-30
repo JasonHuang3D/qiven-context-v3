@@ -238,7 +238,7 @@ public:
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
-        state::StateView view(d, chars, op, {}, &scratch);
+        state::StateView view(d, chars, &scratch);
         admit.admit(view, scope, lane, expected, std::span<const stage::KeptView>(checked.kept), at, chars);
         const stage::Staged staged = stage::guarded(view, checked, state_->limits(), at, scope, lane, now);
         state::Batch batch(d);
@@ -351,7 +351,7 @@ public:
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::guard(d, guard);
-        state::StateView view(d, chars, op, {}, &scratch);
+        state::StateView view(d, chars, &scratch);
         admit.admit(view, scope, lane, expected, std::span<const stage::KeptView>(checked.kept), at, chars);
         const stage::Staged staged = stage::guarded(view, checked, state_->limits(), at, scope, lane, now);
         Vector<std::uint32_t> targets(chars);

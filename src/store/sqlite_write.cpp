@@ -11,11 +11,8 @@
 #include <span>
 #include <string_view>
 
-#include "entry/body.hpp"
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -24,9 +21,6 @@
 namespace qiven3::store::sqlite {
 
 namespace {
-
-namespace header = entry::header;
-using header::Slot;
 
 constexpr int done_code = 101;
 
@@ -93,22 +87,17 @@ std::optional<Head> WriteView::head(std::string_view scope, std::string_view lan
     return head_of(*c_, scope, lane, at_);
 }
 
-bool WriteView::header(std::string_view id, Header& out) {
-    memory::String line(out.get_allocator());
-    if (find(*c_, id, &line, nullptr, at_) == Found::absent) {
-        return false;
-    }
-    out = read_header(id, line, out.get_allocator(), at_);
-    return true;
+bool WriteView::header(std::string_view id, String& out) {
+    return find(*c_, id, &out, nullptr, at_) != Found::absent;
 }
 
-bool WriteView::body(std::string_view id, entry::validator::Text<Chars>& out) {
+bool WriteView::body(std::string_view id, String& out) {
     Statement s = c_->prepare("SELECT record FROM body WHERE id = ?1", at_);
     s.bind_text(1, id, at_);
     if (!s.step(at_)) {
         return false;
     }
-    out.assign(entry::body::detail::parts(s.blob(0)).content);
+    out.assign(s.blob(0));
     return true;
 }
 

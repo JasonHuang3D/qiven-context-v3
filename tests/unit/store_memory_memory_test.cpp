@@ -157,7 +157,7 @@ std::vector<Step> steps() {
                        (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
-    out.push_back({"append_acc", 0, true, {103, 6, 0, 1},[](Bed& b, const Chars&) {
+    out.push_back({"append_acc", 0, true, {105, 6, 0, 1},[](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -195,7 +195,7 @@ std::vector<Step> steps() {
                        (void)b.store.size();
                        return Peaks{};
                    }});
-    out.push_back({"forget", 0, true, {56, 5, 1, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"forget", 0, true, {58, 5, 1, 1}, [](Bed& b, const Chars& c) {
                        Vector<Id> erased(c);
                        (void)b.store.forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Peaks{b.store.peak(), b.call->peak()};
@@ -214,7 +214,7 @@ std::vector<Step> steps() {
                        x.close();
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"import", base, true, {395, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"import", base, true, {401, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> wrote(c);
                        (void)b.other.import_(x, wrote);
@@ -348,7 +348,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 329}, {3, 13, 248}, {13, 14, 396 + import_heap}, {14, step_count, 294}}};
+    {{0, 3, 331}, {3, 13, 250}, {13, 14, 402 + import_heap}, {14, step_count, 294}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

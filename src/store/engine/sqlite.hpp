@@ -380,11 +380,12 @@ inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id =
 inline constexpr std::string_view held_scope = "SELECT EXISTS (SELECT 1 FROM entry WHERE id = ?1 AND scope = ?2)";
 inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
 
-// Part 2's view of the transaction (stage::View): the head, a header and
-// a body by id, the forgotten set, the generic calls by the keys held (a
-// line, targets, keyed ids, each walked on its cursor by each_keyed, a
-// byte search), a work allocator (the scratch's next arena, else the
-// view's allocator), the size and the count the transaction began with.
+// Part 2's view of the transaction (stage::View): the head, a header line's
+// and a body record's bytes by id, the forgotten set, the generic calls by
+// the keys held (a line, targets, keyed ids, each walked on its cursor by
+// each_keyed, a byte search), a work allocator (the scratch's next arena,
+// else the view's allocator), the size and the count the transaction began
+// with.
 class WriteView {
 public:
     WriteView(Connection& c, const Chars& allocator, ScratchView* scratch, const WhereView& at,
@@ -392,8 +393,8 @@ public:
         : c_(&c), allocator_(allocator), scratch_(scratch), at_(at), held_(held) {}
 
     [[nodiscard]] std::optional<Head> head(std::string_view scope, std::string_view lane);
-    bool header(std::string_view id, Header& out);
-    bool body(std::string_view id, entry::validator::Text<Chars>& out);
+    bool header(std::string_view id, String& out);
+    bool body(std::string_view id, String& out);
     [[nodiscard]] bool forgotten(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
     // id, false where none is held; the ids whose target is id, in scope
@@ -472,12 +473,8 @@ void add_meta(Connection& c, std::int64_t size, std::int64_t count, std::int64_t
 // size's figures: page_size, page_count, freelist_count, the files'.
 void figures(Connection& c, Sizes& out, const WhereView& at);
 
-// The reads (sqlite_read.cpp), through the wrapper. A view's header line
-// is parsed and checked, its id recomputed and compared with the row's (a
-// mismatch StoreCorrupt id_mismatch); find, a scan and an export give the
-// bytes and keys held, parsing none.
-[[nodiscard]] Header read_header(std::string_view id, std::string_view line, const Chars& allocator,
-                                 const WhereView& at);
+// The reads (sqlite_read.cpp), through the wrapper. find, a view, a scan and
+// an export give the bytes and keys held, parsing none.
 [[nodiscard]] std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane,
                                           const WhereView& at);
 // heads' read, in one read transaction: the head rows of scopes (none:

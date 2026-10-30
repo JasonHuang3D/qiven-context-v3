@@ -1,8 +1,8 @@
-// sqlite: the reads, through the connection wrapper (sqlite.hpp): a header
-// line parsed and checked (the views'), a lane's head, heads in one
-// read transaction, an entry's line and body record by id, forgotten, and
-// the scan's cursor over the keys' columns and the line, ending at each
-// lane's length at its start. This file names nothing of the engine's own.
+// sqlite: the reads, through the connection wrapper (sqlite.hpp): a lane's
+// head, heads in one read transaction, an entry's line and body record by
+// id, forgotten, and the scan's cursor over the keys' columns and the line,
+// ending at each lane's length at its start. This file names nothing of the
+// engine's own.
 
 #include <algorithm>
 #include <cstddef>
@@ -11,10 +11,8 @@
 #include <span>
 #include <string_view>
 
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -23,9 +21,6 @@
 namespace qiven3::store::sqlite {
 
 namespace {
-
-namespace header = entry::header;
-using header::Slot;
 
 [[noreturn]] void incoherent(const WhereView& at, std::string_view detail) {
     throw StoreError::corrupt(at.operation, at.path, Corrupt::incoherent, detail);
@@ -37,27 +32,6 @@ constexpr int body_column = 8;
 constexpr int denied_column = 9;
 
 }  // namespace
-
-Header read_header(std::string_view id, std::string_view line, const Chars& allocator, const WhereView& at) {
-    Header h(allocator);
-    try {
-        h = header::parse_line(line, allocator);
-    } catch (const ParseError&) {
-        incoherent(at, "a header line the parser refuses");
-    } catch (const header::HeaderError&) {
-        incoherent(at, "a header line that is no object");
-    }
-    if (const std::optional<header::Code> fault = header::try_check(h)) {
-        if (*fault != header::Code::id_mismatch) {
-            incoherent(at, header::name(*fault));
-        }
-        throw StoreError::corrupt(at.operation, at.path, Corrupt::id_mismatch, id);
-    }
-    if (h.value(Slot::id) != id) {
-        throw StoreError::corrupt(at.operation, at.path, Corrupt::id_mismatch, id);
-    }
-    return h;
-}
 
 std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane, const WhereView& at) {
     Statement s = c.prepare("SELECT id, seq FROM head WHERE scope = ?1 AND lane = ?2", at);

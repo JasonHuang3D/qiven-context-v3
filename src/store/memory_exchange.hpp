@@ -209,7 +209,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             KeysView keys;
             admit.read(platform, at, i, in, keys, Chars(work));
             const EntryView v{in.line, in.body, keys};
-            StateView view(d, Chars(work), op, {});
+            StateView view(d, Chars(work));
             stage::arrives(view, keys, v, i, at);
             admit.arrived(view, v, i, at);
             import_one(d, v, links);
@@ -232,7 +232,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             const Held& e = d.held[i];
             const EntryView v{std::string_view(e.line),
                               e.has_body ? std::optional<std::string_view>(e.body) : std::nullopt, keys};
-            StateView view(d, Chars(work), op, {});
+            StateView view(d, Chars(work));
             admit.settled(view, v, i, at, Chars(work));
             stage::settles(keys, standing(d, i), i, at);
             note(peak.work, work);

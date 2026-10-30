@@ -1,8 +1,9 @@
 // store's view cases, the generic calls in both stores: the in-memory
 // store's view over its state and the SQLite store's over its connection,
 // on the fake, after one chain of fixtures on two lanes (A, B, D and ACC
-// on implementer, C, M1, M2 and ACC2 on reviewer). line(id) gives a held
-// record's line byte-equal, false for an id not held; held_in(id, scope)
+// on implementer, C, M1, M2 and ACC2 on reviewer). line(id) and header(id)
+// give a held record's line byte-equal, body(id) its body record, each false
+// for an id not held; held_in(id, scope)
 // whether a record of id is held in that scope, by its bytes (no prefix,
 // no `*`), false in another or for an id not held; targets(id, scope)
 // the ids whose target is it, in the order written, none in another scope
@@ -138,6 +139,8 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(view.line(id_of(a), line) && std::string_view(line) == a.line);
     CHECK(view.line(id_of(acc2), line) && std::string_view(line) == acc2.line);
     CHECK(!view.line(none, line));
+    CHECK(view.header(id_of(m1), line) && std::string_view(line) == m1.line && !view.header(none, line));
+    CHECK(view.body(id_of(a), line) && std::string_view(line) == *a.record && !view.body(none, line));
 
     CHECK(view.held_in(id_of(a), qiven_scope) && view.held_in(id_of(acc2), qiven_scope));
     CHECK(!view.held_in(id_of(a), "person") && !view.held_in(none, qiven_scope));
@@ -308,11 +311,11 @@ QIVEN3_CASE(store_view, memory) {
     Arena arena(pages);
     const Chars chars(arena);
     const state::Locked lock(*st, Operation::append, {});
-    state::StateView view(lock.data(), chars, Operation::append, {});
+    state::StateView view(lock.data(), chars);
     calls(qiven3_ctx, view, chain, chars);
     std::vector<std::byte> scratch_pages(buffer_bytes);
     state::ScratchView scratch(scratch_pages, nullptr);
-    state::StateView over(lock.data(), chars, Operation::append, {}, &scratch);
+    state::StateView over(lock.data(), chars, &scratch);
     work(qiven3_ctx, over, scratch, chars);
 }
 

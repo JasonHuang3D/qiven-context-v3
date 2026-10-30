@@ -58,7 +58,6 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/body.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
@@ -235,8 +234,8 @@ public:
     [[nodiscard]] std::optional<Head> head(std::string_view scope, std::string_view lane) {
         return view_.head(scope, lane);
     }
-    bool header(std::string_view id, Header& out) { return view_.header(id, out); }
-    bool body(std::string_view id, entry::validator::Text<Chars>& out) { return view_.body(id, out); }
+    bool header(std::string_view id, String& out) { return view_.header(id, out); }
+    bool body(std::string_view id, String& out) { return view_.body(id, out); }
     [[nodiscard]] bool forgotten(std::string_view id) { return view_.forgotten(id); }
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
     [[nodiscard]] bool held(std::string_view id) { return view_.held(id); }

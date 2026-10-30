@@ -41,11 +41,15 @@
 // compares the source's heads with those its entries give, in order:
 // head_mismatch.
 //
+// A store's view gives bytes; the hook's readers take it through
+// checked/reads' ParsedView, which parses each line and body record it
+// gives, a line refused as header_of refuses it.
+//
 // check(platform, lines, at, allocator, scratch) and admit(view, scope,
 // lane, expected, checked, limits, at, allocator) are the same steps with
 // the rules, called apart: check is the store's read with Rules, its
-// entries and hits returned; admit the hits settled, part 2, then the
-// store's staged with
+// entries and hits returned; admit, over a view that gives them parsed,
+// the hits settled, part 2, then the store's staged with
 // its order, against the view's head of the call's lane.
 //
 // Refusals are EntryInvalid with the entry's index and its id once part 1
@@ -63,7 +67,8 @@
 // header, one, and body, one; the call's hits' room, one where it is
 // short; all given back by release. admit: part 2's (validator's) and the
 // view's, on its allocator, and at forget the members' room and a held
-// header, one each where short. At import, read's part 1 on the line's
+// header, one each where short, and that header's line, one. At import,
+// read's part 1 on the line's
 // work arena, held until release; settled's header parse and import_entry's
 // (validator's try_final's and the view's) on its allocator. Platform calls:
 // part 1's wipes and each kept body's key's, each noexcept. The rules log
@@ -352,11 +357,12 @@ public:
         }
     }
     template <class V>
-    void admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
+    void admit(V& bytes, std::string_view scope, std::string_view lane, Expected expected,
                std::span<const stage::KeptView> /*kept*/, const AtView& at, const Chars& allocator) {
         if (at.op != Operation::append && at.op != Operation::forget) {
             memory::fail_fast("stage::admit: an operation but append and forget");
         }
+        reads::ParsedView<V> view(bytes, reads::WhereView{at.op, at.path});
         const std::span<const Entry<P>> entries = entries_ ? std::span<const Entry<P>>(*entries_)
                                                            : std::span<const Entry<P>>();
         if (hits_) {
@@ -380,11 +386,13 @@ public:
     // The entry's line parsed again (its id the key's) and its content
     // from its record, then import_entry.
     template <class V>
-    static void settled(V& view, const EntryView& line, std::size_t index, const AtView& at, const Chars& allocator) {
-        const Header h = reads::header_of(line.keys.id, line.line, allocator, reads::WhereView{at.op, at.path});
+    static void settled(V& bytes, const EntryView& line, std::size_t index, const AtView& at, const Chars& allocator) {
+        const reads::WhereView where{at.op, at.path};
+        const Header h = reads::header_of(line.keys.id, line.line, allocator, where);
         const std::optional<std::string_view> content =
             line.body ? std::optional<std::string_view>(entry::body::detail::parts(*line.body).content)
                       : std::nullopt;
+        reads::ParsedView<V> view(bytes, where);
         import_entry(view, h, content, index, at, allocator);
     }
     static void heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at) {
@@ -423,8 +431,10 @@ Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at
 }
 
 // The hits settled, part 2 and the maximum, inside the store's lock: the
-// rules' admit, then the store's staged; a refusal thrown.
+// rules' admit, then the store's staged; a refusal thrown. view gives
+// headers and contents parsed.
 template <stage::View V, platform::Platform P>
+    requires validator::View<V, Chars>
 stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
                     const Checked<P>& checked, const Limits& limits, const AtView& at, const Chars& allocator) {
     if (at.op != Operation::append && at.op != Operation::forget) {

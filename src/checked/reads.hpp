@@ -18,15 +18,22 @@
 //       header's body_mismatch
 //   copy_header(h, out), copy_record(r, out)   made again on out's
 //       allocator
+//   ParsedView<V>   a store's view (BytesView), which gives bytes, as
+//       cognition's readers read it: header(id, out) the line through
+//       header_of, body(id, out) the record's content; false where V's is
 //
 // Allocations: the header's parse and check (canon's four and one, the
 // header's check's), the body's parse and part 1's on the allocator given;
-// a copy's on out's. Platform calls: the body's parse, its key's, part 1's
-// wipes (noexcept). thread: none.
+// a copy's on out's; ParsedView's on out's: a header's line and the rest of
+// header_of, a body's record in out. Platform calls: the body's parse, its
+// key's, part 1's wipes (noexcept). thread: none.
 
+#include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string_view>
+#include <utility>
 
 #include "entry/body.hpp"
 #include "entry/header.hpp"
@@ -150,5 +157,60 @@ inline void copy_record(const store::Record& r, store::Record& out) {
     out.target = r.target;
     out.body = r.body;
 }
+
+// A store's view: a line's and a record's bytes by id.
+template <class V>
+concept BytesView = requires(V& v, std::string_view s, store::String& bytes) {
+    { v.header(s, bytes) } -> std::same_as<bool>;
+    { v.body(s, bytes) } -> std::same_as<bool>;
+};
+
+// A store's view for cognition's readers, part 2, the clearing and the whole
+// records: the rest V's own.
+template <BytesView V>
+class ParsedView {
+public:
+    ParsedView(V& view, const WhereView& at) noexcept : view_(&view), at_(at) {}
+
+    bool header(std::string_view id, Header& out) {
+        store::String line(out.get_allocator());
+        if (!view_->header(id, line)) {
+            return false;
+        }
+        out = header_of(id, line, out.get_allocator(), at_);
+        return true;
+    }
+    // out, the record's room, cut down to its content.
+    bool body(std::string_view id, store::String& out) {
+        if (!view_->body(id, out)) {
+            return false;
+        }
+        const std::string_view content = entry::body::detail::parts(out).content;
+        const auto from = static_cast<std::size_t>(content.data() - out.data());
+        out.erase(from + content.size());
+        out.erase(0, from);
+        return true;
+    }
+    [[nodiscard]] std::optional<store::Head> head(std::string_view scope, std::string_view lane) {
+        return view_->head(scope, lane);
+    }
+    [[nodiscard]] bool forgotten(std::string_view id) { return view_->forgotten(id); }
+    [[nodiscard]] std::optional<store::Id> forget_of(std::string_view id) { return view_->forget_of(id); }
+    void targets(std::string_view id, std::string_view scope, store::Vector<store::Id>& out) {
+        view_->targets(id, scope, out);
+    }
+    void targets(std::string_view id, store::Vector<store::Id>& out) { view_->targets(id, out); }
+    [[nodiscard]] bool contains(std::string_view bytes) { return view_->contains(bytes); }
+    template <class F>
+    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        return view_->each_keyed(scope, kind, std::forward<F>(f));
+    }
+    [[nodiscard]] std::uint64_t count() const { return view_->count(); }
+    [[nodiscard]] Chars work() { return view_->work(); }
+
+private:
+    V* view_;
+    WhereView at_;
+};
 
 }  // namespace qiven3::checked::reads

@@ -8,10 +8,7 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/body.hpp"
-#include "entry/header.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
@@ -19,12 +16,6 @@
 namespace qiven3::store::state {
 
 namespace {
-
-using header::Slot;
-
-[[noreturn]] void incoherent(Operation op, std::string_view path, std::string_view detail) {
-    throw StoreError::corrupt(name(op), path, Corrupt::incoherent, detail);
-}
 
 // The entries a call adds to lane l, from the batch's row `from` on.
 std::size_t run_of(std::span<const Held> rows, std::size_t from, std::uint32_t l) noexcept {
@@ -110,27 +101,6 @@ std::optional<Head> expect(const Data& d, Operation op, std::string_view path, s
         throw StoreError::head_conflict(name(op), path, scope, lane, expected.value_or(std::string_view()), actual);
     }
     return now;
-}
-
-Header read_header(const Held& e, Operation op, std::string_view path, const Chars& allocator) {
-    Header h(allocator);
-    try {
-        h = header::parse_line(std::string_view(e.line), allocator);
-    } catch (const ParseError&) {
-        incoherent(op, path, "a header line the parser refuses");
-    } catch (const header::HeaderError&) {
-        incoherent(op, path, "a header line that is no object");
-    }
-    if (const std::optional<header::Code> fault = header::try_check(h)) {
-        if (*fault == header::Code::id_mismatch) {
-            throw StoreError::corrupt(name(op), path, Corrupt::id_mismatch, e.id.view());
-        }
-        incoherent(op, path, header::name(*fault));
-    }
-    if (h.value(Slot::id) != e.id.view()) {
-        throw StoreError::corrupt(name(op), path, Corrupt::id_mismatch, e.id.view());
-    }
-    return h;
 }
 
 void record_of(const Data& d, std::uint32_t i, Record& out) {
@@ -255,21 +225,14 @@ std::optional<Head> StateView::head(std::string_view scope, std::string_view lan
     return l == none ? std::nullopt : std::optional<Head>(data_->lanes[l].head);
 }
 
-bool StateView::header(std::string_view id, Header& out) {
-    const std::uint32_t i = find(*data_, id);
-    if (i == none) {
-        return false;
-    }
-    out = read_header(data_->held[i], op_, path_, out.get_allocator());
-    return true;
-}
+bool StateView::header(std::string_view id, String& out) { return line(id, out); }
 
-bool StateView::body(std::string_view id, validator::Text<Chars>& out) {
+bool StateView::body(std::string_view id, String& out) {
     const std::uint32_t i = find(*data_, id);
     if (i == none || !data_->held[i].has_body) {
         return false;
     }
-    out.assign(entry::body::detail::parts(std::string_view(data_->held[i].body)).content);
+    out.assign(std::string_view(data_->held[i].body));
     return true;
 }
 

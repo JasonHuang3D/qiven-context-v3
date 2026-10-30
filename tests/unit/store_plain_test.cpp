@@ -288,6 +288,11 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
     Arena arena(pages);
     CHECK(again->verify() == counts);
     CHECK(given(*again, p, arena) == gave);
+    sqlite::WriteView view(again->connection(), Chars(arena), nullptr, test_at, sqlite::Totals{});
+    String held{Chars(arena)};
+    for (const Given& g : p.refused.empty() ? p.lines : std::vector<Given>{}) {
+        CHECK(view.header(g.keys.id, held) && std::string_view(held) == g.line);  // parsed by none
+    }
     (void)again->close();
     return gave;
 }

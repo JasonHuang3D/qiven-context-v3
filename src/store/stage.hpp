@@ -140,9 +140,9 @@ struct Staged {
 };
 static_assert(sizeof(Staged) == 96, "Staged's size is pinned: a head and two counts");
 
-// The view admit reads: part 2's, and the size and count held.
+// The view staged reads: the size and count held.
 template <class V>
-concept View = validator::View<V, Chars> && requires(const V& v) {
+concept View = requires(const V& v) {
     { v.size() } -> std::same_as<std::uint64_t>;
     { v.count() } -> std::same_as<std::uint64_t>;
 };

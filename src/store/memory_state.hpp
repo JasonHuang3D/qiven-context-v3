@@ -23,8 +23,8 @@
 // with none, until the last export closes.
 //
 // StateView is part 2's view over the data, its reads on the operation's
-// allocator: the head, a header (parsed again from its line), a body's
-// content, the forgotten set and forget_of, the size and count; the
+// allocator: the head, a header line's and a body record's bytes as held,
+// parsing none, the forgotten set and forget_of, the size and count; the
 // generic calls by the keys held (a line, targets, keyed ids, each walked
 // in place by each_keyed, a byte search) and a work allocator.
 //
@@ -51,8 +51,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "entry/header.hpp"
-#include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
@@ -61,8 +59,6 @@
 
 namespace qiven3::store::state {
 
-namespace header = entry::header;
-namespace validator = entry::validator;
 using Chars = memory::Allocator<char>;
 
 // No index: an entry with no target, or no forget of it.
@@ -249,10 +245,6 @@ void heads_of(const Data& d, const Scopes& scopes, Vector<LaneHead>& rows);
 // The lane's head, which must be the expected one: else HeadConflict.
 std::optional<Head> expect(const Data& d, Operation op, std::string_view path, std::string_view scope,
                            std::string_view lane, Expected expected);
-// A held entry's header, parsed again from its line and its id recomputed:
-// a line the parser or the header's rules refuse StoreCorrupt incoherent,
-// an id not the line's or not the one held StoreCorrupt id_mismatch.
-[[nodiscard]] Header read_header(const Held& e, Operation op, std::string_view path, const Chars& allocator);
 // The held entry i's keys and line into out, on out's allocator: its
 // parent the lane's entry before it, its target the one its index names.
 void record_of(const Data& d, std::uint32_t i, Record& out);
@@ -327,13 +319,12 @@ private:
 class StateView {
 public:
     // scratch: where given, work's arenas, afresh at each call.
-    StateView(Data& data, const Chars& allocator, Operation op, std::string_view path,
-              ScratchView* scratch = nullptr) noexcept
-        : data_(&data), allocator_(allocator), path_(path), op_(op), scratch_(scratch) {}
+    explicit StateView(Data& data, const Chars& allocator, ScratchView* scratch = nullptr) noexcept
+        : data_(&data), allocator_(allocator), scratch_(scratch) {}
 
     [[nodiscard]] std::optional<Head> head(std::string_view scope, std::string_view lane);
-    bool header(std::string_view id, Header& out);
-    bool body(std::string_view id, validator::Text<Chars>& out);
+    bool header(std::string_view id, String& out);
+    bool body(std::string_view id, String& out);
     [[nodiscard]] bool forgotten(std::string_view id);
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
@@ -388,8 +379,6 @@ private:
 
     Data* data_;
     Chars allocator_;
-    std::string_view path_;
-    Operation op_;
     ScratchView* scratch_;
 };
 

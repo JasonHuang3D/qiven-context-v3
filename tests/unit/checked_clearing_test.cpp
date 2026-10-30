@@ -7,7 +7,8 @@
 // clearing is forgotten, and under a revision for another pattern.
 // checked_clearing.memory_many and checked_clearing.sqlite_many: the
 // clearing over 4 and over 16 direction records, append's counted peak
-// equal, within its budget.
+// equal, within its budget. checked_clearing.parsed_view: a view's bytes
+// parsed, a record's content, a line refused, none held.
 
 #include <cstddef>
 #include <cstdint>
@@ -140,6 +141,40 @@ std::size_t cleared_peak(qiven3::test::Context& qiven3_ctx, qiven3::test::stores
 }  // namespace
 
 // A false secret hit's clearing on held direction records, on the fake.
+// A store's view, its bytes as given.
+struct Bytes {
+    std::string line;
+    std::string record;
+    bool header(std::string_view /*id*/, qiven3::memory::String& out) const { return !out.assign(line).empty(); }
+    bool body(std::string_view /*id*/, qiven3::memory::String& out) const { return !out.assign(record).empty(); }
+};
+
+QIVEN3_CASE(checked_clearing, parsed_view) {
+    const auto site = qiven3::test::stores::site();
+    const Stored a = site->book().stored("A");
+    Bytes bytes{a.line, *a.record};
+    qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven3::store::Operation::append, "here"});
+    std::vector<std::byte> pages(1U << 20U);
+    qiven3::memory::Arena arena(pages);
+    qiven3::store::Header h{Chars(arena)};
+    qiven3::memory::String content{Chars(arena)};
+    const auto refused_as = [&](std::string_view id) {
+        try {
+            view.header(id, h);
+        } catch (const qiven3::store::StoreError& e) {
+            return std::string(qiven3::store::name(e.corrupt().value()));
+        }
+        return std::string("none");
+    };
+    CHECK(view.header(id_of(a), h) && h.value(Slot::id) == id_of(a));
+    CHECK(view.body(id_of(a), content) && std::string_view(content) == *a.content);
+    CHECK_EQ(refused_as("sha256:" + std::string(64, '0')), std::string("id_mismatch"));
+    bytes.line = "{a line no parser takes";
+    CHECK_EQ(refused_as(id_of(a)), std::string("incoherent"));
+    bytes = Bytes{};
+    CHECK(!view.header(id_of(a), h) && !view.body(id_of(a), content));
+}
+
 QIVEN3_CASE(checked_clearing, memory) {
     const auto site = qiven3::test::stores::site();
     const Book& book = site->book();

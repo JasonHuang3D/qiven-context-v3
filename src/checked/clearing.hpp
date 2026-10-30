@@ -20,9 +20,9 @@
 //
 // Allocations: each record's work on its own work allocator (the view's
 // work: the scratch's next arena, the last one's given back; else the
-// allocator given): its members' ids, a member's targets, headers, values,
-// items, a body and the fold's. held: the field's bytes on the allocator
-// given. No platform call.
+// allocator given): its members' ids, a member's targets, headers and their
+// lines, values, items, a body and the fold's. held: the field's bytes on
+// the allocator given. No platform call.
 //
 // thread: the view's.
 
@@ -59,7 +59,7 @@ struct Stop {
 
 }  // namespace detail
 
-// The view's calls the clearing reads.
+// The view's calls the clearing reads, a store's through reads' ParsedView.
 template <class V>
 concept ClearView = requires(V& v, std::string_view s, Vector<Id>& ids, Header& h,
                              entry::validator::Text<Chars>& t) {
