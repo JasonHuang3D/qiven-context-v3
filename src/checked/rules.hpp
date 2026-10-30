@@ -85,6 +85,7 @@
 #include <utility>
 
 #include "checked/clearing.hpp"
+#include "checked/part1.hpp"
 #include "checked/reads.hpp"
 #include "entry/body.hpp"
 #include "entry/check.hpp"
@@ -109,10 +110,8 @@ namespace validator = entry::validator;
 using Slot = header::Slot;
 using Chars = memory::Allocator<char>;
 using stage::AtView;
-using stage::Entry;
 using store::EntryView;
 using store::Expected;
-using store::Header;
 using store::LaneHead;
 using store::Limits;
 using store::Operation;
@@ -148,7 +147,7 @@ namespace detail {
 inline void forget_kind(const AtView& at, std::size_t index, std::string_view line, const Chars& allocator) {
     canon::Basic<Chars> value(allocator);
     if (const std::optional<ParseCode> code = canon::try_parse(line, value)) {
-        stage::refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
+        refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
     }
     if (entry::kinds::detail::member(value, 0, "kind") != "forget") {
         stage::refuse_kind(at, index);
@@ -344,7 +343,7 @@ public:
     void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
               const Chars& kept, S& scratch) {
         {
-            const Entry<P> e = stage::detail::part1(platform, at, index, line, Chars(scratch()));
+            const Entry<P> e = part1(platform, at, index, line, Chars(scratch()));
             entries_->push_back(detail::keep(platform, e, line, kept));
         }
         out = detail::keys_of(entries_->back().header());
@@ -377,7 +376,7 @@ public:
     // entry held until release and the store's keys given from its header.
     void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
               const Chars& work) {
-        line_.emplace(stage::detail::part1(platform, at, index, line, work));
+        line_.emplace(part1(platform, at, index, line, work));
         out = detail::keys_of(line_->header());
     }
     template <class V>

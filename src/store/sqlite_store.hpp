@@ -42,7 +42,7 @@
 // pages.
 // The engine's heap apart (Engine). Platform calls: at open pages,
 // resolve, synced, at create one or two creates; at append and forget
-// pages past 1 MiB, and part 1's wipes.
+// pages past 1 MiB, and the hook's (each hook says).
 //
 // thread: one, each object (Gate); Engine's heap shared.
 
@@ -58,7 +58,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "entry/body.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
@@ -116,8 +115,6 @@ private:
 
 template <platform::Platform P, Hooks H = NoHooks, class Rule = NoAdmit>
 class SQLiteStore {
-    using Slot = entry::header::Slot;
-
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
     static constexpr Capabilities capabilities{true, true, true};

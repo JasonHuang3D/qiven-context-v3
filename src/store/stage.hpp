@@ -7,9 +7,9 @@
 // the store runs none of them and reads no line. Its own guards run
 // whatever hook it is given, so that it never commits a state its verify
 // or open refuses. At import too the store reads no line: it takes each
-// line's keys from the hook's read. Until verify takes keys, part1 here
-// reads a verified line through the shared validator's part 1, and the
-// ruled hook's read calls it.
+// line's keys from the hook's read. With NoAdmit the store runs no rule of
+// cognition's: it reads no line and no body, its guards over the keys
+// alone.
 //
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
 // entry by entry: the hook's given before the first line; then each line's
@@ -55,15 +55,12 @@
 // the memory store once its ids sort, every line in.
 //
 // Refusals are EntryInvalid with the entry's index and its id key (none
-// where the id is past its bound); part1's with its id once it has read
-// the header through (a body or content fault), the field's path for a
-// content fault.
+// where the id is past its bound).
 //
 // Allocations. read: on the caller's allocator, the kept entries' room,
-// one; the hook's are its own (each hook says). part1 on the arena it is
-// given. staged, in_order, arrives, erasable, settles, fresh and targets
-// none but the view's. Platform calls: part1's wipes and its body's key's,
-// each noexcept; none at append and forget. stage logs nothing.
+// one; the hook's are its own (each hook says). staged, in_order, arrives,
+// erasable, settles, fresh and targets none but the view's. Platform
+// calls: none but the hook's (each hook says). stage logs nothing.
 //
 // thread: none; the kept entries, one.
 
@@ -75,28 +72,17 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/body.hpp"
-#include "entry/check.hpp"
-#include "entry/header.hpp"
-#include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
 
 namespace qiven3::store::stage {
 
-namespace header = entry::header;
-namespace validator = entry::validator;
-using Slot = header::Slot;
 using Chars = memory::Allocator<char>;
-
-template <platform::Platform P>
-using Entry = entry::check::Entry<P, Chars>;
 
 // The call a refusal names: its operation and the store's path.
 using store::AtView;
@@ -169,8 +155,6 @@ struct Standing {
 // The refusals, each written by stage.cpp.
 [[noreturn]] void refuse(const AtView& at, std::size_t index, std::string_view id, std::string_view code,
                          std::string_view field = {}, std::string_view pattern = {});
-[[noreturn]] void refuse_part1(const AtView& at, std::size_t index, std::string_view id,
-                               const entry::check::Fault& fault);
 [[noreturn]] void refuse_full(const AtView& at, std::uint64_t size, std::uint64_t count, const Limits& limits);
 // forget_kind's refusal, its detail naming the entry.
 [[noreturn]] void refuse_kind(const AtView& at, std::size_t index);
@@ -259,35 +243,6 @@ inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index
 // A kept entry's optional id as a view.
 [[nodiscard]] inline std::optional<std::string_view> text(const std::optional<Id>& id) noexcept {
     return id ? std::optional<std::string_view>(id->view()) : std::nullopt;
-}
-
-// A parsed header's keys, views of it, for the import until it takes keys.
-[[nodiscard]] inline KeysView keys_of(const header::Header<Chars>& h) {
-    return KeysView{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
-                    h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
-                    h.text(Slot::target), h.text(Slot::content).has_value()};
-}
-
-// Part 1 of one entry, as check_entry reads it, a fault refused.
-template <platform::Platform P>
-Entry<P> part1(P& platform, const AtView& at, std::size_t index, const EntryView& line, const Chars& allocator) {
-    header::Header<Chars> h(allocator);
-    std::optional<entry::body::Body<P, Chars>> b;
-    const auto bind = [&](const entry::body::detail::RecordView& parts, const header::Header<Chars>& with) {
-        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
-        try {
-            entry::body::check(*b, with);
-        } catch (const entry::body::BodyError&) {
-            return false;
-        }
-        return true;
-    };
-    if (const std::optional<entry::check::Fault> f =
-            entry::check::try_check(line.line, line.body, h, bind, allocator)) {
-        const bool read = f->part == entry::check::Part::body || f->part == entry::check::Part::content;
-        refuse_part1(at, index, read ? h.value(Slot::id) : std::string_view(), *f);
-    }
-    return Entry<P>(std::move(h), std::move(b));
 }
 
 }  // namespace detail

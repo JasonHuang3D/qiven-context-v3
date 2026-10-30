@@ -13,8 +13,8 @@
 // durable, files and processes, as a constant. Views in, the caller's
 // buffers out: ids, scopes, lanes and lines enter as std::string_view, an
 // entry as EntryView (its header line and its body record or none), and a
-// result is a value type here or is written into the String, Header or
-// Vector the caller gives, on the caller's arena. A header line, a body
+// result is a value type here or is written into the String or Vector
+// the caller gives, on the caller's arena. A header line, a body
 // record, a scan's records and an export's lines are given as their bytes
 // and keys; the store parses none of them.
 //
@@ -52,15 +52,12 @@
 #include <thread>
 #include <type_traits>
 
-#include "entry/header.hpp"
-#include "entry/validator.hpp"
 #include "memory/memory.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
 
 namespace qiven3::store {
 
-using Header = entry::header::Header<memory::Allocator<char>>;
 using memory::String;
 using memory::Vector;
 

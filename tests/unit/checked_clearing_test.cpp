@@ -156,7 +156,7 @@ QIVEN3_CASE(checked_clearing, parsed_view) {
     qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven3::store::Operation::append, "here"});
     std::vector<std::byte> pages(1U << 20U);
     qiven3::memory::Arena arena(pages);
-    qiven3::store::Header h{Chars(arena)};
+    qiven3::checked::Header h{Chars(arena)};
     qiven3::memory::String content{Chars(arena)};
     const auto refused_as = [&](std::string_view id) {
         try {

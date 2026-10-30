@@ -45,9 +45,9 @@ public:
     Scan(H scan, std::string_view path) noexcept : scan_(std::move(scan)), at_{store::Operation::scan, path} {}
 
     // The next record's header, parsed and checked, into out; false at the end.
-    bool next(store::Header& out) {
+    bool next(Header& out) {
         return scan_.next([&](const store::Record& r, const reads::Chars& chars) {
-            const store::Header h = reads::header_of(r.id.view(), r.line, chars, at_);
+            const Header h = reads::header_of(r.id.view(), r.line, chars, at_);
             reads::keys_match(r.keys(), h, at_);
             reads::copy_header(h, out);
         });
@@ -55,7 +55,7 @@ public:
     // The next record, its line checked so, into out; false at the end.
     bool next(store::Record& out) {
         return scan_.next([&](const store::Record& r, const reads::Chars& chars) {
-            const store::Header h = reads::header_of(r.id.view(), r.line, chars, at_);
+            const Header h = reads::header_of(r.id.view(), r.line, chars, at_);
             reads::keys_match(r.keys(), h, at_);
             reads::copy_record(r, out);
         });
@@ -82,7 +82,7 @@ public:
         }
         const reads::WhereView at{store::Operation::export_, path_.view()};
         const store::KeysView keys = line.keys.view();
-        const store::Header h = reads::header_of(keys.id, line.header, line.header.get_allocator(), at);
+        const Header h = reads::header_of(keys.id, line.header, line.header.get_allocator(), at);
         reads::keys_match(keys, h, at);
         reads::body_key(keys, h, at);
         return true;
@@ -125,7 +125,7 @@ public:
         return Ruled(S::open(path, create, read_only, platform, limits, std::forward<Hooks>(hooks)...));
     }
 
-    void header(std::string_view id, store::Header& out) {
+    void header(std::string_view id, Header& out) {
         S::header(id, [&](std::string_view line, const reads::Chars& chars) {
             reads::copy_header(reads::header_of(id, line, chars, where(store::Operation::header)), out);
         });
@@ -140,7 +140,7 @@ public:
     bool body(std::string_view id, store::String& record) {
         const reads::WhereView at = where(store::Operation::body);
         return S::body(id, [&](std::string_view line, const std::string_view* held, const reads::Chars& chars) {
-            const store::Header h = reads::header_of(id, line, chars, at);
+            const Header h = reads::header_of(id, line, chars, at);
             if (held != nullptr) {
                 reads::check_body(S::platform(), id, *held, h, chars, at);
                 record.assign(*held);
@@ -166,7 +166,7 @@ public:
             store::Id id;
             bool body = false;
             if (!scan.next([&](const store::Record& r, const reads::Chars& chars) {
-                    const store::Header h = reads::header_of(r.id.view(), r.line, chars, at);
+                    const Header h = reads::header_of(r.id.view(), r.line, chars, at);
                     reads::keys_match(r.keys(), h, at);
                     reads::body_key(r.keys(), h, at);
                     id = r.id;
@@ -180,7 +180,7 @@ public:
             if (body) {
                 (void)S::body(id.view(), [&](std::string_view line, const std::string_view* held,
                                              const reads::Chars& chars) {
-                    const store::Header h = reads::header_of(id.view(), line, chars, at);
+                    const Header h = reads::header_of(id.view(), line, chars, at);
                     if (held != nullptr) {
                         reads::check_body(S::platform(), id.view(), *held, h, chars, at);
                     }

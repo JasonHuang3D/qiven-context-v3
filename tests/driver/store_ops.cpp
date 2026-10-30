@@ -236,7 +236,7 @@ Result heads(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 
 template <class F>
 Result header(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    store::Header h{memory::Allocator<char>(arena)};
+    checked::Header h{memory::Allocator<char>(arena)};
     object(d, request).header(text(request, "id"), h);
     return scalar(wire::header_line(h, arena));
 }
@@ -365,7 +365,7 @@ Result store_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 
 template <class F>
 Result scan_next(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    store::Header h{memory::Allocator<char>(arena)};
+    checked::Header h{memory::Allocator<char>(arena)};
     if (!named(d.scans(), request, "scan").object->next(h)) {
         return std::nullopt;
     }

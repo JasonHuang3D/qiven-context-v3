@@ -427,7 +427,7 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 // same of lines given.
 std::string scanned(Store& store, const Chars& chars, const qiven3::store::RangeView& range) {
     std::string ids;
-    qiven3::store::Header h(chars);
+    qiven3::checked::Header h(chars);
     for (auto scan = store.scan(range); scan.next(h);) {
         ids += std::string(h.value(Slot::id).substr(7, 4)) + " ";
     }
@@ -472,7 +472,7 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
-    const auto out = std::make_unique<qiven3::store::Header>(chars);  // past a frame's share
+    const auto out = std::make_unique<qiven3::checked::Header>(chars);  // past a frame's share
     store->header(a, *out);
     std::string line;
     out->line(line);

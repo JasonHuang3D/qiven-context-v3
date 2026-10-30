@@ -115,7 +115,7 @@ Value sizes(const store::Sizes& s) {
     return out;
 }
 
-std::string header_line(const store::Header& header, memory::Arena& arena) {
+std::string header_line(const checked::Header& header, memory::Arena& arena) {
     memory::String out{memory::Allocator<char>(arena)};
     header.line(out);
     return to_hex(std::string_view(out.data(), out.size()));

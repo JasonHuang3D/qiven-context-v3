@@ -35,6 +35,7 @@
 #include <string_view>
 #include <utility>
 
+#include "checked/part1.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "memory/memory.hpp"
@@ -43,12 +44,10 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
-#include "store/stage.hpp"
 
 namespace qiven3::checked::reads {
 
 using Chars = memory::Allocator<char>;
-using store::Header;
 
 // The read a refusal names: its operation and the store's path.
 struct WhereView {
@@ -101,8 +100,8 @@ template <platform::Platform P>
 void part1_again(P& platform, std::size_t index, std::string_view line, std::optional<std::string_view> record,
                  const Chars& allocator, const WhereView& at) {
     try {
-        (void)store::stage::detail::part1(platform, store::stage::AtView{at.operation, at.path}, index,
-                                          store::EntryView{line, record}, allocator);
+        (void)checked::part1(platform, store::AtView{at.operation, at.path}, index, store::EntryView{line, record},
+                             allocator);
     } catch (const store::StoreError& f) {
         if (f.kind() != store::Kind::entry_invalid) {
             throw;

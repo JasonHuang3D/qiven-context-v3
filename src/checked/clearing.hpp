@@ -33,6 +33,7 @@
 #include <span>
 #include <string_view>
 
+#include "checked/part1.hpp"
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
@@ -46,7 +47,6 @@
 namespace qiven3::checked::clearing {
 
 using Chars = memory::Allocator<char>;
-using store::Header;
 using store::Id;
 using store::Vector;
 

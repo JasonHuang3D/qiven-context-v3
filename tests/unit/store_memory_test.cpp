@@ -38,7 +38,7 @@ namespace {
 using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
 using qiven3::store::Counts;
 using qiven3::store::GuardView;
-using qiven3::store::Header;
+using qiven3::checked::Header;
 using qiven3::store::Heads;
 using qiven3::store::Id;
 using qiven3::store::Imported;

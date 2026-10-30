@@ -41,7 +41,7 @@
 // append, and the targets' room and forgetting's on the kept arena.
 // export, import, verify: memory_exchange.hpp's. close and purge: none.
 // Platform calls: pages, once at the object's making, once per scan and
-// once per call given lines; part 1's and body's wipes, each noexcept.
+// once per call given lines; the hook's (each hook says).
 //
 // thread: one, each object; the state, shared (its lock).
 
@@ -56,8 +56,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "entry/body.hpp"
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"

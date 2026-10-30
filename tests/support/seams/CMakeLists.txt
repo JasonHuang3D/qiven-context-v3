@@ -5,4 +5,4 @@ add_library(qiven3_seams STATIC
   seams.hpp
 )
 target_include_directories(qiven3_seams PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(qiven3_seams PUBLIC qiven3_store PRIVATE qiven3_flags)
+target_link_libraries(qiven3_seams PUBLIC qiven3_store qiven3_entry PRIVATE qiven3_flags)

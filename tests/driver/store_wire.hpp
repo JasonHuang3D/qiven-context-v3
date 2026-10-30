@@ -28,6 +28,7 @@
 #include <string_view>
 #include <vector>
 
+#include "checked/part1.hpp"
 #include "driver/drive.hpp"
 #include "memory/arena.hpp"
 #include "store/contract.hpp"
@@ -51,7 +52,7 @@ Value counts(const store::Counts& c);
 Value limits(const store::Limits& l);
 Value sizes(const store::Sizes& s);
 // A header's stored line, as hexadecimal, written on the arena.
-std::string header_line(const store::Header& header, memory::Arena& arena);
+std::string header_line(const checked::Header& header, memory::Arena& arena);
 // An export's or an import's line.
 Value line(const store::Line& l);
 

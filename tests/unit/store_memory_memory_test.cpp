@@ -53,7 +53,7 @@ using qiven3::memory::Vector;
 using qiven3::platform::PlatformError;
 using qiven3::store::Counts;
 using qiven3::store::GuardView;
-using qiven3::store::Header;
+using qiven3::checked::Header;
 using qiven3::store::Heads;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;

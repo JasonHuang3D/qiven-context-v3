@@ -298,7 +298,7 @@ QIVEN3_CASE(store_stage, import) {
     const std::vector<EntryView> lines = views(all);
     const checked::Checked<Fake> checked = checked::check(fake, std::span<const EntryView>(lines), at(Operation::import_), chars, scratch);
     CHECK_EQ(checked.entries.size(), all.size());
-    const auto header_of = [&](std::size_t i) -> const qiven3::store::Header& { return checked.entries[i].header(); };
+    const auto header_of = [&](std::size_t i) -> const qiven3::checked::Header& { return checked.entries[i].header(); };
     const auto content_at = [&](std::size_t i) {
         return all[i].content ? std::optional<std::string_view>(*all[i].content) : std::nullopt;
     };

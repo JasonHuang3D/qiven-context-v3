@@ -27,6 +27,11 @@ void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> give
     }
 }
 
+void refuse_part1(const AtView& at, std::size_t index, std::string_view id, const entry::check::Fault& fault) {
+    const bool content = fault.part == entry::check::Part::content;
+    stage::refuse(at, index, id, entry::check::name(fault), content ? fault.error.path.view() : std::string_view());
+}
+
 void refuse_whole(const AtView& at, std::size_t index) {
     std::array<char, 32> detail{'e', 'n', 't', 'r', 'y', ' '};
     const std::to_chars_result r = std::to_chars(detail.data() + 6, detail.data() + detail.size(), index);
