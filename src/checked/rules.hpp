@@ -28,10 +28,13 @@
 // StoreError whole_record, "entry <j>" naming the first forget of that
 // target. The store's own step follows (store/stage).
 //
-// At import, each line after part 1 passes the store's chain as it
-// arrives (arrived: nothing of the hook's). Once every header
-// is in, import_entry(view, header, content, index, at, allocator) reads
-// each entry in the final view (settled): part 2's other rules, target to
+// At import, read runs part 1 of each line on the store's work arena for
+// it, a fault refused, the entry held until release, and gives the store
+// its keys from the header; they pass the store's bounds and chain as it
+// arrives (arrived: nothing of the hook's). Once every line is in, settled
+// parses each entry's line again (checked/reads' header_of) and takes its
+// content from its body record; import_entry(view, header, content, index,
+// at, allocator) reads it in the final view: part 2's other rules, target to
 // map_evidence, where a revision whose target is forgotten, itself not, is
 // forgotten_target; then a body held for a forgotten id forgotten_body; a
 // content with no body, not forgotten, body_missing. same_heads (heads)
@@ -60,8 +63,9 @@
 // header, one, and body, one; the call's hits' room, one where it is
 // short; all given back by release. admit: part 2's (validator's) and the
 // view's, on its allocator, and at forget the members' room and a held
-// header, one each where short; import_entry
-// validator's try_final's and the view's, on its allocator. Platform calls:
+// header, one each where short. At import, read's part 1 on the line's
+// work arena, held until release; settled's header parse and import_entry's
+// (validator's try_final's and the view's) on its allocator. Platform calls:
 // part 1's wipes and each kept body's key's, each noexcept. The rules log
 // nothing.
 //
@@ -76,6 +80,7 @@
 #include <utility>
 
 #include "checked/clearing.hpp"
+#include "checked/reads.hpp"
 #include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
@@ -312,8 +317,10 @@ void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> give
 // fault refused, the entry kept on the call's allocator and its keys
 // given from its header; kept, at append the secret check, its hits kept
 // on the call's allocator; admit, the hits settled, part 2 and at forget
-// the whole records, over the entries read; arrived, nothing (the store's
-// chain runs first); settled, import_entry; heads, same_heads.
+// the whole records, over the entries read; at import read, part 1 of the
+// line on its work arena, the entry held until release and its keys given;
+// arrived, nothing (the store's bounds and chain run first); settled, the
+// line parsed again, then import_entry; heads, same_heads.
 template <platform::Platform P>
 class Rules {
 public:
@@ -360,11 +367,24 @@ public:
             detail::whole_record(view, entries, at, allocator);
         }
     }
+    // At import: part 1 of the line on its work arena, a fault refused, the
+    // entry held until release and the store's keys given from its header.
+    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
+              const Chars& work) {
+        line_.emplace(stage::detail::part1(platform, at, index, line, work));
+        out = detail::keys_of(line_->header());
+    }
     template <class V>
-    static void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/, const AtView& /*at*/) noexcept {}
+    static void arrived(V& /*view*/, const EntryView& /*line*/, std::size_t /*index*/,
+                        const AtView& /*at*/) noexcept {}
+    // The entry's line parsed again (its id the key's) and its content
+    // from its record, then import_entry.
     template <class V>
-    static void settled(V& view, const Header& h, std::optional<std::string_view> content, std::size_t index,
-                        const AtView& at, const Chars& allocator) {
+    static void settled(V& view, const EntryView& line, std::size_t index, const AtView& at, const Chars& allocator) {
+        const Header h = reads::header_of(line.keys.id, line.line, allocator, reads::WhereView{at.op, at.path});
+        const std::optional<std::string_view> content =
+            line.body ? std::optional<std::string_view>(entry::body::detail::parts(*line.body).content)
+                      : std::nullopt;
         import_entry(view, h, content, index, at, allocator);
     }
     static void heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at) {
@@ -382,11 +402,13 @@ public:
     void release() noexcept {
         hits_.reset();
         entries_.reset();
+        line_.reset();
     }
 
 private:
     std::optional<Vector<Hit>> hits_;
     std::optional<Vector<Entry<P>>> entries_;
+    std::optional<Entry<P>> line_;  // an import's line in hand
 };
 
 // Part 1 of each line with the rules: the store's read, its entries and

@@ -255,7 +255,9 @@ struct ListSource {
         line.has_body = s.record.has_value();
         line.body.assign(s.record.value_or(std::string()));
         line.forgotten = false;
-        return true;
+        const std::optional<std::string_view> record =
+            s.record ? std::optional<std::string_view>(*s.record) : std::nullopt;
+        return line.keys.assign(keyed(s.line, record).keys);
     }
 };
 

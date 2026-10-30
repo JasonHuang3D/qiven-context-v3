@@ -13,19 +13,21 @@
 // (scope, lane) order, each with its length then and its first position
 // after its seq, the set's forget count, the size, the count and the
 // entries held; it is registered in the state, under its store object's
-// number. Each next copies one entry's line and body record into the
-// caller's Line, under the lock: an entry is forgotten in the snapshot when
+// number. Each next copies one entry's line, body record and keys as held
+// into the caller's Line, under the lock: an entry is forgotten in the snapshot when
 // its first forget was held then; its body is yielded unless so, a body a
 // later forget dropped staying in place while any export is open.
 // It ends at its close, at its store object's close, or at its end.
 //
 // Import: into an empty state alone (StoreNotEmpty), under the lock for the
-// whole call; the source's heads first, then each line through part 1 and
-// the chain rules as it arrives and in at once, no body dropped; once every
-// line is in, the ids sorted, the targets and forgets linked, then each
-// entry through the final view's rules (forgotten_body and body_missing
-// among them) and the heads compared. A refusal empties the state again:
-// it was empty, so all or nothing.
+// whole call; the source's heads first, then each line's keys from the
+// admit hook's read, the store's bounds and chain over them as it arrives,
+// and in at once by its keys, no body dropped; once every line is in, the
+// ids sorted, the targets and forgets linked by the target keys, then each
+// entry, its keys as held, through the hook's settled and the store's
+// settles (forgotten_body and body_missing among them) and the heads
+// compared. A refusal empties the state again: it was empty, so all or
+// nothing.
 //
 // Verify: under the lock, each lane's entries in seq order: the header
 // parsed and its id recomputed, its body checked, both as the reads do;
@@ -36,12 +38,13 @@
 //
 // Allocations. forget: erased's room, one, on the call's allocator. export: its lanes' room on
 // the state's heap, one; the registration's room as it grows; heads, the
-// caller's rows' room, one; next, the line's and record's room on the
-// caller's arena, one each where short. import:
+// caller's rows' room, one; next, the line's, record's and kind key's room
+// on the caller's arena, one each where short. import:
 // the source's heads (the source's own); per line its text (the source's)
-// and part 1's on a fresh arena; the state's as append's (make_held's
-// three, a new lane's two, the room each container grows to); per entry
-// read_header's and the final rules' on a fresh arena. verify: per entry
+// and the hook's read's on a fresh arena; the state's as append's
+// (make_held's three, a new lane's two, the room each container grows to),
+// and the target keys' room as it grows on the state's heap, given back at
+// the call's end; per entry the hook's settled's on a fresh arena. verify: per entry
 // read_header's, check_body's and part 1's on a fresh arena. Platform calls:
 // part 1's and body's wipes and keys, each noexcept.
 //
@@ -119,13 +122,21 @@ std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, 
 // the bodies forgets dropped while they were open freed.
 void close_exports(Data& d, std::uint64_t owner) noexcept;
 
-// import's pieces: one line in, its lane made where new, its target and
-// forget none; the ids sorted; an entry's target and forget linked; the
-// state emptied again.
-void import_one(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h);
+// An imported entry's target key, by the entry's index, until linked.
+struct Link {
+    std::uint32_t at = 0;
+    Id target;
+};
+// import's pieces: one line in by its keys, its lane made where new, its
+// target and forget none, its target key into links; the ids sorted; an
+// entry's target and forget linked; the state emptied again.
+void import_one(Data& d, const EntryView& line, Rows<Link>& links);
 void sort_ids(Data& d) noexcept;
-void link(Data& d, std::uint32_t i, const Header& h) noexcept;
+void link(Data& d, std::uint32_t i, std::string_view target) noexcept;
 void reset(Data& d) noexcept;
+// Entry i's keys as the state holds them, views of it: its parent the one
+// before it on its lane, its target the one given.
+[[nodiscard]] KeysView held_keys(const Data& d, std::uint32_t i, std::optional<std::string_view> target) noexcept;
 // verify's pieces: one entry, the k-th of lane l, against its header; then
 // the heads, the ids' order and the counters, giving the counts.
 void verify_entry(const Data& d, std::uint32_t l, std::size_t k, const Header& h);
@@ -195,6 +206,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
         throw StoreError::not_empty(name(op), {}, d.count);
     }
     Counts counts;
+    Rows<Link> links{Allocator<Link>(d.heap)};
     try {
         for (std::size_t i = 0;; ++i) {
             memory::Arena text(pages.subspan(quarter, quarter));
@@ -207,34 +219,36 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             }
             memory::Arena work(pages.subspan(2 * quarter));
             hook(work, countdown);
-            const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
-            const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
+            const Released<A> done(admit);
+            const EntryView in{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt,
+                               line.keys.view()};
+            KeysView keys;
+            admit.read(platform, at, i, in, keys, Chars(work));
+            const EntryView v{in.line, in.body, keys};
             StateView view(d, Chars(work), op, {});
-            stage::arrives(view, e.header(), i, at);
-            admit.arrived(view, e.header(), i, at);
-            import_one(d, v.line, v.body, e.header());
+            stage::arrives(view, keys, v, i, at);
+            admit.arrived(view, v, i, at);
+            import_one(d, v, links);
             note(peak.work, work);
         }
         sort_ids(d);
-        for (std::size_t pass = 0; pass < 2; ++pass) {
-            for (std::uint32_t i = 0; i < d.held.size(); ++i) {
-                memory::Arena work(pages.subspan(2 * quarter));
-                hook(work, countdown);
-                const Header h = read_header(d.held[i], op, {}, Chars(work));
-                if (pass == 0) {
-                    link(d, i, h);
-                    note(peak.work, work);
-                    continue;
-                }
-                const Held& e = d.held[i];
-                const std::optional<std::string_view> content =
-                    e.has_body ? std::optional<std::string_view>(entry::body::detail::parts(e.body).content)
-                               : std::nullopt;
-                StateView view(d, Chars(work), op, {});
-                admit.settled(view, h, content, i, at, Chars(work));
-                stage::settles(h, e.target != none, e.forget != none, e.has_body, i, at);
-                note(peak.work, work);
-            }
+        for (const Link& l : links) {
+            link(d, l.at, l.target.view());
+        }
+        std::size_t linked = 0;
+        for (std::uint32_t i = 0; i < d.held.size(); ++i) {
+            memory::Arena work(pages.subspan(2 * quarter));
+            hook(work, countdown);
+            const bool targets = linked < links.size() && links[linked].at == i;
+            const KeysView keys = held_keys(
+                d, i, targets ? std::optional<std::string_view>(links[linked++].target.view()) : std::nullopt);
+            const Held& e = d.held[i];
+            const EntryView v{std::string_view(e.line),
+                              e.has_body ? std::optional<std::string_view>(e.body) : std::nullopt, keys};
+            StateView view(d, Chars(work), op, {});
+            admit.settled(view, v, i, at, Chars(work));
+            stage::settles(keys, e.target != none, e.forget != none, e.has_body, i, at);
+            note(peak.work, work);
         }
         heads_of(d, std::nullopt, heads);
         admit.heads(std::span<const LaneHead>(given), std::span<const LaneHead>(heads), at);

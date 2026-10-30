@@ -225,6 +225,16 @@ bool Reader::next(std::span<std::byte> pages, Line& line) {
             if (!body && !forgotten && h.text(Slot::content)) {
                 incoherent(at, h.value(Slot::id));
             }
+            const auto text = [this](int column) {
+                return rows_.null(column) ? std::nullopt : std::optional<std::string_view>(rows_.text(column));
+            };
+            // Its body key: a body row, or a forget of it, as a scan's.
+            const bool keyed = forgotten || !rows_.null(record_column);
+            const KeysView keys{rows_.text(0), rows_.text(1), rows_.text(2), rows_.text(5),
+                                rows_.integer(3), text(4), text(6), keyed};
+            if (!line.keys.assign(keys)) {
+                incoherent(at, keys.id);
+            }
             line.header.assign(rows_.blob(line_column));
             line.body.assign(body ? rows_.blob(record_column) : std::string_view());
             line.has_body = body;
@@ -372,15 +382,24 @@ ImportRows::ImportRows(Connection& c, const WhereView& at)
                       "ON CONFLICT (scope, lane) DO UPDATE SET id = excluded.id, seq = excluded.seq",
                       at)) {}
 
-void ImportRows::put(const Header& h, const EntryView& line, const WhereView& at) {
-    const std::string_view id = h.value(Slot::id);
+KeysView final_keys(const Statement& s, std::size_t i, std::span<const std::uint64_t> bare) {
+    const auto text = [&s](int column) {
+        return s.null(column) ? std::nullopt : std::optional<std::string_view>(s.text(column));
+    };
+    const bool body = !s.null(2) || std::ranges::binary_search(bare, static_cast<std::uint64_t>(i));
+    return KeysView{s.text(0), s.text(5), s.text(6), s.text(9), s.integer(7), text(8), text(10), body};
+}
+
+void ImportRows::put(const EntryView& line, const WhereView& at) {
+    const KeysView& k = line.keys;
+    const std::string_view id = k.id;
     entry_.bind_text(1, id, at);
-    entry_.bind_text(2, h.value(Slot::scope), at);
-    entry_.bind_text(3, h.value(Slot::lane), at);
-    entry_.bind(4, h.seq(), at);
-    bind_optional(entry_, 5, h.text(Slot::parent), at);
-    entry_.bind_text(6, h.value(Slot::kind), at);
-    bind_optional(entry_, 7, h.text(Slot::target), at);
+    entry_.bind_text(2, k.scope, at);
+    entry_.bind_text(3, k.lane, at);
+    entry_.bind(4, k.seq, at);
+    bind_optional(entry_, 5, k.parent, at);
+    entry_.bind_text(6, k.kind, at);
+    bind_optional(entry_, 7, k.target, at);
     entry_.bind_blob(8, line.line, at);
     run(entry_, at);
     if (line.body) {
@@ -388,10 +407,10 @@ void ImportRows::put(const Header& h, const EntryView& line, const WhereView& at
         body_.bind_blob(2, *line.body, at);
         run(body_, at);
     }
-    head_.bind_text(1, h.value(Slot::scope), at);
-    head_.bind_text(2, h.value(Slot::lane), at);
+    head_.bind_text(1, k.scope, at);
+    head_.bind_text(2, k.lane, at);
     head_.bind_text(3, id, at);
-    head_.bind(4, h.seq(), at);
+    head_.bind(4, k.seq, at);
     run(head_, at);
 }
 

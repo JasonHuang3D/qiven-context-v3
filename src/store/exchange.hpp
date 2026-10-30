@@ -19,11 +19,13 @@
 // maker's thread alone: else StoreError thread.
 //
 // Import: the source's heads first; BEGIN IMMEDIATE, foreign keys
-// deferred, StoreNotEmpty unless meta counts no entry; each line through
-// part 1, the store's chain (stage's arrives) and the admit hook's arrived
-// as it arrives, then its entry, body
-// and head rows; once every line is in, each entry in the order inserted
-// through the final view (the hook's settled), the heads given to the
+// deferred, StoreNotEmpty unless meta counts no entry; each line's keys
+// from the admit hook's read, the store's bounds and chain over them
+// (stage's arrives) and the hook's arrived as it arrives, then its entry,
+// body and head rows by its keys; once every line is in, each entry in the
+// order inserted, its keys from its columns (its body key a record held,
+// or a body key that came with none), through the final view (the hook's
+// settled, then stage's settles), the heads given to the
 // hook's heads with the source's, meta written from the rows,
 // vacuumed and purged equal to forgets; COMMIT; a TRUNCATE checkpoint. A
 // refusal rolls back, then the checkpoint; the caller's heads cleared.
@@ -43,7 +45,9 @@
 // fresh arena for each entry. The engine's heap apart. Allocations: export,
 // the path's copy at its making, each next the header's parse and the
 // caller's Line, heads the caller's rows; import, the source's own into its
-// Line, part 1's and the view's on the work arena, the caller's heads';
+// Line, the hook's and the view's on the work arena, the indices of the
+// lines whose body key came with no record as they grow on the heads'
+// quarter, the caller's heads';
 // verify, each entry's header, body and part 1. Platform calls: an
 // export's pages; part 1's and a body's keys and wipes.
 //
@@ -249,7 +253,7 @@ private:
 class ImportRows {
 public:
     ImportRows(Connection& c, const WhereView& at);
-    void put(const Header& h, const EntryView& line, const WhereView& at);
+    void put(const EntryView& line, const WhereView& at);  // by its keys
 
 private:
     Statement entry_;
@@ -262,13 +266,17 @@ private:
 // final view over pages, the heads compared, meta written, the counts.
 void begin_import(Connection& c, bool defer, const WhereView& at);
 // The final view's rows, in the order inserted, each with whether its
-// target is held and whether a forget names it; the heads the rows give
-// into heads; meta written from the rows, the counts.
+// target is held and whether a forget names it, then its keys; the heads
+// the rows give into heads; meta written from the rows, the counts.
 inline constexpr std::string_view final_rows =
     "SELECT e.id, e.line, b.record, "
     "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target), "
-    "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget') "
+    "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget'), "
+    "e.scope, e.lane, e.seq, e.parent, e.kind, e.target "
     "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
+// A final row's keys, views of it: its body key a record held or one of
+// bare, the lines whose body key came with no record (by index, ascending).
+[[nodiscard]] KeysView final_keys(const Statement& s, std::size_t i, std::span<const std::uint64_t> bare);
 // Both on one statement, the heads' kept open until meta's takes its place.
 void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 [[nodiscard]] Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits);
@@ -277,9 +285,9 @@ void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 // the final view over pages, afresh, then the store's settles, then the
 // heads through its heads.
 template <class A>
-Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
-                    std::span<std::byte> pages, Countdown* countdown, const WhereView& at, const Limits& limits,
-                    std::size_t& peak, A& admit) {
+Imported end_import(Connection& c, std::span<const LaneHead> given, std::span<const std::uint64_t> bare,
+                    Vector<LaneHead>& heads, std::span<std::byte> pages, Countdown* countdown, const WhereView& at,
+                    const Limits& limits, std::size_t& peak, A& admit) {
     const AtView site{Operation::import_, at.path};
     {
         Statement s = c.prepare(final_rows, at);
@@ -287,12 +295,11 @@ Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneH
             memory::Arena work(pages);
             attach_to(work, countdown);
             const Chars chars(work);
-            const Header h = read_header(s.text(0), s.blob(1), chars, at);
-            const std::optional<std::string_view> content =
-                s.null(2) ? std::nullopt : std::optional<std::string_view>(entry::body::detail::parts(s.blob(2)).content);
+            const KeysView keys = final_keys(s, i, bare);
+            const EntryView v{s.blob(1), s.null(2) ? std::nullopt : std::optional<std::string_view>(s.blob(2)), keys};
             ImportView view(c, chars, at);
-            admit.settled(view, h, content, i, site, chars);
-            stage::settles(h, s.integer(3) != 0, s.integer(4) != 0, !s.null(2), i, site);
+            admit.settled(view, v, i, site, chars);
+            stage::settles(keys, s.integer(3) != 0, s.integer(4) != 0, !s.null(2), i, site);
             peak = std::max(peak, work.peak());
         }
     }
@@ -318,6 +325,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     attach_to(kept, countdown);
     Vector<LaneHead> given{Chars(kept)};
     source.heads(given);
+    Vector<std::uint64_t> bare{Chars(kept)};  // the lines whose body key came with no record
     std::size_t line_peak = 0;
     std::size_t work_peak = 0;
     Imported done;
@@ -338,15 +346,23 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             }
             memory::Arena work(pages.subspan(2 * quarter));
             attach_to(work, countdown);
-            const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
-            const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
+            const Released<A> held(admit);
+            const EntryView in{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt,
+                               line.keys.view()};
+            KeysView keys;
+            admit.read(platform, at, i, in, keys, Chars(work));
+            const EntryView v{in.line, in.body, keys};
             ImportView view(c, Chars(work), where);
-            stage::arrives(view, e.header(), i, at);
-            admit.arrived(view, e.header(), i, at);
-            rows.put(e.header(), v, where);
+            stage::arrives(view, keys, v, i, at);
+            admit.arrived(view, v, i, at);
+            rows.put(v, where);
+            if (keys.body && !v.body) {
+                bare.push_back(i);
+            }
             work_peak = std::max(work_peak, work.peak());
         }
-        done = end_import(c, given, heads, pages.subspan(2 * quarter), countdown, where, limits, work_peak, admit);
+        done = end_import(c, given, std::span<const std::uint64_t>(bare), heads, pages.subspan(2 * quarter), countdown,
+                          where, limits, work_peak, admit);
         hooks.written();
         c.exec("COMMIT", where);
     } catch (...) {

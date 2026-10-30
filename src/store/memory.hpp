@@ -386,12 +386,12 @@ public:
     }
 
     // Into an empty state, all or nothing; the heads it wrote into heads.
-    // The admit hook's arrived, settled and heads inside the lock.
+    // The admit hook's read, arrived, settled and heads inside the lock.
     template <Source R, class A = Rule>
-        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, state::StateView>
+        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, P, state::StateView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
-        static_assert(AdmitImport<NoAdmit, state::StateView>);
+        static_assert(AdmitImport<NoAdmit, P, state::StateView>);
         gate_.enter(op, {});
         if constexpr (std::same_as<R, state::MemoryExport>) {
             // An export of this state: the state was empty at its making,

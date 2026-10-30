@@ -83,22 +83,26 @@ void close_exports(Data& d, std::uint64_t owner) noexcept {
     }
 }
 
-void import_one(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
+void import_one(Data& d, const EntryView& line, Rows<Link>& links) {
     const std::size_t at = d.held.size();
     if (at >= max_entries) {
         throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, at);
     }
     const auto i = static_cast<std::uint32_t>(at);
-    std::uint64_t bytes = stage::detail::sum(line.size(), 1);
-    if (record) {
-        bytes = stage::detail::sum(bytes, stage::detail::sum(record->size(), 1));
+    std::uint64_t bytes = stage::detail::sum(line.line.size(), 1);
+    if (line.body) {
+        bytes = stage::detail::sum(bytes, stage::detail::sum(line.body->size(), 1));
     }
-    Held e = make_held(d, line, record, stage::detail::keys_of(h));
-    e.lane = lane_of(d, h.value(Slot::scope), h.value(Slot::lane));
+    const KeysView& k = line.keys;
+    if (k.target) {
+        links.push_back(Link{i, Id::of(*k.target)});
+    }
+    Held e = make_held(d, line.line, line.body, k);
+    e.lane = lane_of(d, k.scope, k.lane);
     if (e.lane == none) {
         Lane l(d.heap);
-        l.scope.assign(h.value(Slot::scope));
-        l.name.assign(h.value(Slot::lane));
+        l.scope.assign(k.scope);
+        l.name.assign(k.lane);
         d.lanes.push_back(std::move(l));
         e.lane = static_cast<std::uint32_t>(d.lanes.size() - 1U);
     }
@@ -117,14 +121,23 @@ void sort_ids(Data& d) noexcept {
               [&d](std::uint32_t a, std::uint32_t b) { return d.held[a].id.view() < d.held[b].id.view(); });
 }
 
-void link(Data& d, std::uint32_t i, const Header& h) noexcept {
-    if (const std::optional<std::string_view> t = h.text(Slot::target)) {
-        const std::uint32_t target = find(d, *t);
-        d.held[i].target = target;
-        if (d.held[i].is_forget && target != none && d.held[target].forget == none) {
-            d.held[target].forget = i;
-        }
+void link(Data& d, std::uint32_t i, std::string_view target) noexcept {
+    const std::uint32_t t = find(d, target);
+    d.held[i].target = t;
+    if (d.held[i].is_forget && t != none && d.held[t].forget == none) {
+        d.held[t].forget = i;
     }
+}
+
+KeysView held_keys(const Data& d, std::uint32_t i, std::optional<std::string_view> target) noexcept {
+    const Held& e = d.held[i];
+    const Lane& l = d.lanes[e.lane];
+    const auto k = static_cast<std::size_t>(e.seq - 1);
+    const bool first = e.seq <= 1 || k >= l.ids.size();
+    const std::optional<std::string_view> parent =
+        first ? std::nullopt : std::optional<std::string_view>(d.held[l.ids[k - 1]].id.view());
+    return KeysView{e.id.view(), std::string_view(l.scope), std::string_view(l.name), std::string_view(e.kind),
+                    e.seq,       parent,                    target,                   e.content};
 }
 
 void reset(Data& d) noexcept {
@@ -281,11 +294,17 @@ bool MemoryExport::next(Line& line) {
     while (lane_ < lanes_.size()) {
         const Pos& p = lanes_[lane_];
         if (at_ < p.end) {
-            const Held& e = d.held[d.lanes[p.lane].ids[at_]];
+            const std::uint32_t i = d.lanes[p.lane].ids[at_];
+            const Held& e = d.held[i];
             const bool forgotten = e.forget != none && e.forget < held_;
             const bool body = !forgotten && !e.body.empty();
             if (!body && !forgotten && e.content) {
                 throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, e.id.view());
+            }
+            const KeysView keys = held_keys(
+                d, i, e.target != none ? std::optional<std::string_view>(d.held[e.target].id.view()) : std::nullopt);
+            if (!line.keys.assign(keys)) {
+                incoherent(op, e.id.view());
             }
             line.header.assign(std::string_view(e.line));
             line.body.assign(body ? std::string_view(e.body) : std::string_view());

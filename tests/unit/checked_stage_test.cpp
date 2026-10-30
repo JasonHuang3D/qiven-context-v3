@@ -307,7 +307,8 @@ QIVEN3_CASE(store_stage, import) {
     std::optional<Refusal> r;
     fixtures::MemoryView view;
     const auto arrive = [&](std::size_t i) {
-        return refused([&] { qiven3::store::stage::arrives(view, header_of(i), i, at(Operation::import_)); });
+        return refused(
+            [&] { qiven3::store::stage::arrives(view, lines[i].keys, lines[i], i, at(Operation::import_)); });
     };
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(!arrive(i).has_value());
@@ -320,7 +321,7 @@ QIVEN3_CASE(store_stage, import) {
     CHECK_EQ(r->id, id_of(all[7]));
     const auto gap = std::make_unique<fixtures::MemoryView>();
     gap->put(header_of(5), content_at(5));
-    r = refused([&] { qiven3::store::stage::arrives(*gap, header_of(7), 7, at(Operation::import_)); });
+    r = refused([&] { qiven3::store::stage::arrives(*gap, lines[7].keys, lines[7], 7, at(Operation::import_)); });
     REQUIRE(r.has_value());
     CHECK_EQ(r->code, std::string("parent"));
     // Once every header is in, the final view: E's forget of B applied.

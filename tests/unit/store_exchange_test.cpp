@@ -130,8 +130,10 @@ struct Held {
         line.header.assign(lines[at].first);
         line.has_body = lines[at].second.has_value();
         line.body.assign(lines[at].second.value_or(std::string()));
+        const std::optional<std::string_view> record =
+            lines[at].second ? std::optional<std::string_view>(*lines[at].second) : std::nullopt;
         ++at;
-        return true;
+        return line.keys.assign(qiven3::test::stage_book::keyed(lines[at - 1].first, record).keys);
     }
 };
 

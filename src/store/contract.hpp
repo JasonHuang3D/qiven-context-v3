@@ -38,7 +38,7 @@
 // 1 MiB plus 4 times the lines given, the engine's heap apart (2,000 KiB
 // of cache plus 1 MiB a connection); an export's iteration 2 MiB.
 //
-// Allocations: none; Line's two strings and Record's are empty until
+// Allocations: none; Line's three strings and Record's are empty until
 // written. Platform
 // calls: none. thread: Gate reads the calling thread's id; the rest none.
 
@@ -226,15 +226,60 @@ struct Sizes {
     [[nodiscard]] constexpr std::span<const Figure> view() const noexcept { return {detail.data(), figures}; }
 };
 
+// A record's keys owned: its ids by value, its scope and lane in place,
+// its kind on the caller's allocator.
+struct Keys {
+    explicit Keys(const memory::Allocator<char>& allocator) noexcept : kind(allocator) {}
+    Id id;
+    memory::Inline<scope_bytes> scope;
+    memory::Inline<lane_bytes> lane;
+    String kind;
+    std::int64_t seq = 0;
+    std::optional<Id> parent, target;
+    bool body = false;  // a body, held or forgotten
+
+    // Its keys, views of it.
+    [[nodiscard]] KeysView view() const noexcept {
+        const auto text = [](const std::optional<Id>& i) {
+            return i ? std::optional<std::string_view>(i->view()) : std::nullopt;
+        };
+        return KeysView{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
+    }
+    // k made its own; false, and nothing changed, where a key is past its
+    // bound (Id's capacity, the scope's or the lane's bytes).
+    [[nodiscard]] bool assign(const KeysView& k) {
+        const auto fits = [](const std::optional<std::string_view>& i) { return !i || Id::fits(*i); };
+        if (!Id::fits(k.id) || k.scope.size() > scope_bytes || k.lane.size() > lane_bytes || !fits(k.parent) ||
+            !fits(k.target)) {
+            return false;
+        }
+        const auto of = [](const std::optional<std::string_view>& i) {
+            return i ? std::optional<Id>(Id::of(*i)) : std::nullopt;
+        };
+        kind.assign(k.kind);
+        id = Id::of(k.id);
+        scope = memory::Inline<scope_bytes>(k.scope);
+        lane = memory::Inline<lane_bytes>(k.lane);
+        seq = k.seq;
+        parent = of(k.parent);
+        target = of(k.target);
+        body = k.body;
+        return true;
+    }
+};
+
 // An export's or an import's line: a header line, its body record or none,
-// and whether a forget targets it; its text on the caller's arena.
+// whether a forget targets it, and its keys (an export's the store's, an
+// import's NoAdmit's to give); its text on the caller's arena.
 struct Line {
     explicit Line(memory::Arena& arena) noexcept
-        : header(memory::Allocator<char>(arena)), body(memory::Allocator<char>(arena)) {}
+        : header(memory::Allocator<char>(arena)), body(memory::Allocator<char>(arena)),
+          keys(memory::Allocator<char>(arena)) {}
     String header;
     String body;
     bool has_body = false;
     bool forgotten = false;
+    Keys keys;
 };
 
 // The views a call is given, valid for the call alone.
@@ -400,16 +445,22 @@ private:
     A* a_;
 };
 
-// The admit hook of import, inside its transaction or lock: arrived with
-// each line's header before its insert, settled with each entry in the
-// final view, heads with the source's heads and those the entries give.
-template <class A, class V>
-concept AdmitImport = requires(A& a, V& view, const AtView& at, std::size_t i, const Header& h,
-                               std::optional<std::string_view> content, const memory::Allocator<char>& work,
-                               std::span<const LaneHead> heads) {
-    a.arrived(view, h, i, at);
-    a.settled(view, h, content, i, at, work);
+// The admit hook of import, inside its transaction or lock, each line's
+// and entry's work on a fresh arena (work): read first with each line, its
+// keys into out (views valid until release); arrived with the line and
+// those keys before its insert; settled with each entry in the final view,
+// its line, body record and keys as the store holds them; heads with the
+// source's heads and those the entries give. release, however each line's
+// step ends, before its arena goes, gives back what the hook holds on it.
+// P is the store's platform, V its view.
+template <class A, class P, class V>
+concept AdmitImport = requires(A& a, P& platform, V& view, const AtView& at, std::size_t i, const EntryView& line,
+                               KeysView& out, const memory::Allocator<char>& work, std::span<const LaneHead> heads) {
+    a.read(platform, at, i, line, out, work);
+    a.arrived(view, line, i, at);
+    a.settled(view, line, i, at, work);
     a.heads(heads, heads, at);
+    { a.release() } noexcept;
 };
 
 // The hook that admits what the store's own rules admit: each line's keys
@@ -430,12 +481,16 @@ struct NoAdmit {
     constexpr void admit(V& /*view*/, std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
                          std::span<const E> /*entries*/, const AtView& /*at*/,
                          const memory::Allocator<char>& /*kept*/) const noexcept {}
+    template <class P>
+    constexpr void read(P& /*platform*/, const AtView& /*at*/, std::size_t /*index*/, const EntryView& line,
+                        KeysView& out, const memory::Allocator<char>& /*work*/) const noexcept {
+        out = line.keys;
+    }
     template <class V>
-    constexpr void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/,
+    constexpr void arrived(V& /*view*/, const EntryView& /*line*/, std::size_t /*index*/,
                            const AtView& /*at*/) const noexcept {}
     template <class V>
-    constexpr void settled(V& /*view*/, const Header& /*h*/, std::optional<std::string_view> /*content*/,
-                           std::size_t /*index*/, const AtView& /*at*/,
+    constexpr void settled(V& /*view*/, const EntryView& /*line*/, std::size_t /*index*/, const AtView& /*at*/,
                            const memory::Allocator<char>& /*work*/) const noexcept {}
     constexpr void heads(std::span<const LaneHead> /*source*/, std::span<const LaneHead> /*given*/,
                          const AtView& /*at*/) const noexcept {}
@@ -527,7 +582,8 @@ static_assert(sizeof(Sizes) == 352, "Sizes' size is pinned: a Volume and eight f
 static_assert(sizeof(Limits) == 48, "Limits' size is pinned: six thresholds");
 #endif
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(Line) == 88, "Line's size is pinned: two strings and two flags");
+static_assert(sizeof(Keys) == 376, "Keys' size is pinned: three Ids, a scope and a lane in place, a kind and seq");
+static_assert(sizeof(Line) == 464, "Line's size is pinned: two strings, two flags and Keys");
 static_assert(sizeof(Gate) == 8, "Gate's size is pinned: a thread's id and two flags");
 #endif
 

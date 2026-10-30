@@ -285,12 +285,12 @@ public:
         return {*platform_, exports_, connection_.filename(), path_.view(), limits_, scopes, after, countdown_};
     }
     // Into an empty store, all or nothing, on the object's own pages.
-    // The admit hook's arrived, settled and heads inside the transaction.
+    // The admit hook's read, arrived, settled and heads inside the transaction.
     template <Source R, class A = Rule>
-        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, sqlite::ImportView>
+        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, P, sqlite::ImportView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
-        static_assert(AdmitImport<NoAdmit, sqlite::ImportView>);
+        static_assert(AdmitImport<NoAdmit, P, sqlite::ImportView>);
         const std::span<std::byte> pages = own(op);
         WhereView where = site_of(op);
         where.place = Place::import_;

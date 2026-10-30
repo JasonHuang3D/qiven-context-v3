@@ -17,7 +17,8 @@
 // append whose key is past its bound (Id's capacity, the scope's or the
 // lane's bytes), too_long with the key's name as its field (long_id with
 // no id); body_unrecorded: a body key with no record, body_missing;
-// record_unkeyed: a record with no body key, body_mismatch.
+// record_unkeyed: a record with no body key, body_mismatch. import_plain:
+// an import with no admit hook over plain keys, the store reading no line.
 
 #include <cstddef>
 #include <filesystem>
@@ -125,7 +126,9 @@ struct ListSource {
         line.has_body = s.record.has_value();
         line.body.assign(s.record.value_or(std::string()));
         line.forgotten = false;
-        return true;
+        const std::optional<std::string_view> record =
+            s.record ? std::optional<std::string_view>(*s.record) : std::nullopt;
+        return line.keys.assign(qiven3::test::stage_book::keyed(s.line, record).keys);
     }
 };
 
@@ -315,7 +318,82 @@ bool as_wanted(std::size_t k, const std::optional<Refusal>& r) {
            (!bound || r->field == name.substr(5)) && (name != "long_id" || r->id.empty());
 }
 
+// An import's source of lines with their keys as given.
+struct PlainSource {
+    struct Given {
+        std::string line;
+        std::optional<std::string> record;
+        qiven3::store::KeysView keys;
+    };
+    std::vector<LaneHead> given;
+    std::vector<Given> lines;
+    std::size_t at = 0;
+    void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
+    bool next(Line& line) {
+        if (at == lines.size()) {
+            return false;
+        }
+        const Given& g = lines[at++];
+        line.header.assign(g.line);
+        line.has_body = g.record.has_value();
+        line.body.assign(g.record.value_or(std::string()));
+        line.forgotten = false;
+        return line.keys.assign(g.keys);
+    }
+};
+
+// import_plain on s: lines with no admit hook, taken by their keys alone, the
+// store reading nothing of a line or a record: A's line under keys not its
+// header's with a record no body parser takes, a body key whose body a
+// forget on another lane forgets, and that forget; the counts, the heads,
+// then a scan's keys and lines as given.
+template <class S>
+bool imports_plain(S& s, const Book& book, Arena& arena) {
+    using qiven3::store::KeysView;
+    PlainSource src;
+    src.lines = {{book.stored("A").line, "a record", KeysView{"p1", "plain", "one", "note", 1, {}, {}, true}},
+                 {"line two", std::nullopt, KeysView{"p2", "plain", "one", "note", 2, "p1", {}, true}},
+                 {"line three", std::nullopt, KeysView{"p3", "plain", "two", "forget", 1, {}, "p2", false}}};
+    src.given = {lane_head("plain", "one", "p2", 2), lane_head("plain", "two", "p3", 1)};
+    Vector<LaneHead> wrote{Chars(arena)};
+    const qiven3::store::Imported in = s.import_(src, wrote, NoAdmit{});
+    const std::optional<qiven3::store::Head> one = s.head("plain", "one");
+    const std::optional<qiven3::store::Head> two = s.head("plain", "two");
+    bool ok = in.counts == qiven3::store::Counts{3, 1, 1, 2} && wrote.size() == 2 && one && one->id.view() == "p2" &&
+              two && two->seq == 1;
+    auto scan = s.scan({});
+    qiven3::store::Record r{Chars(arena)};
+    for (const PlainSource::Given& g : src.lines) {
+        ok = ok && scan.next(r);
+        const KeysView k = r.keys();
+        ok = ok && std::string_view(r.line) == g.line && k.id == g.keys.id && k.scope == g.keys.scope &&
+             k.lane == g.keys.lane && k.kind == g.keys.kind && k.seq == g.keys.seq && k.parent == g.keys.parent &&
+             k.target == g.keys.target && k.body == g.keys.body;
+    }
+    return ok && !scan.next(r);
+}
+
 }  // namespace
+
+QIVEN3_CASE(store_guard, import_plain) {
+    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto book = std::make_unique<const Book>(*fake);
+    std::vector<std::byte> pages(std::size_t{1} << 20U);
+    Arena arena(pages);
+    {
+        auto heap = fake->pages(state_bytes);
+        const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+        qiven3::store::MemoryStore<Fake> s(*st, *fake);
+        CHECK(imports_plain(s, *book, arena));
+    }
+    const auto scratch = std::make_unique<Scratch>();
+    const auto disk = std::make_unique<Fake>(scratch->config());
+    const Engine<Fake> engine(*disk);
+    using Store = qiven3::store::SQLiteStore<Fake>;
+    const auto s = std::make_unique<Store>(Store::open(text(scratch->root / "plain" / "store.db"), true, false, *disk));
+    CHECK(imports_plain(*s, *book, arena));
+    (void)s->close();
+}
 
 QIVEN3_CASE(store_guard, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});

@@ -6,8 +6,10 @@
 // contract's Admit and AdmitImport), the product's; at append and forget
 // the store runs none of them and reads no line. Its own guards run
 // whatever hook it is given, so that it never commits a state its verify
-// or open refuses. Until the import takes keys, part1 here reads an
-// imported or verified line through the shared validator's part 1.
+// or open refuses. At import too the store reads no line: it takes each
+// line's keys from the hook's read. Until verify takes keys, part1 here
+// reads a verified line through the shared validator's part 1, and the
+// ruled hook's read calls it.
 //
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
 // entry by entry: the hook's given before the first line; then each line's
@@ -21,14 +23,17 @@
 // kept. It returns the kept entries and the bytes the lines add: each
 // header line and body record with its LF.
 //
-// arrives(view, header, index, at), at import as each line arrives, before
-// the hook's arrived: its parent the view's head of its lane and its seq
-// one past it, refused parent or seq. erasable(entries, erased, at), at
+// arrives(view, keys, line, index, at), at import as each line arrives,
+// after the hook's read and before its arrived: the keys' bounds as read's
+// and a record with no body key body_mismatch (a body key with no record
+// waits for settles: the body may be forgotten), then its parent the
+// view's head of its lane and its seq one past it, refused parent or seq.
+// erasable(entries, erased, at), at
 // forget once the store has found what it erases: each forget's target
 // held in the call's scope with its body, none twice, the first not
-// refused EntryInvalid target. settles(header, ...), at import once every
-// line is in, after the hook's settled: a target not held, target; a body
-// of a forgotten entry, forgotten_body; a content with no body, not
+// refused EntryInvalid target. settles(keys, ...), at import once every
+// line is in, after the hook's settled: a target key not held, target; a
+// body of a forgotten entry, forgotten_body; a body key with no body, not
 // forgotten, body_missing.
 //
 // staged(view, checked, limits, at), inside the store's transaction or
@@ -174,14 +179,9 @@ inline void next(std::string_view id, std::optional<std::string_view> parent, st
         refuse(at, index, id, "seq");
     }
 }
-inline void next(const header::Header<Chars>& h, const std::optional<Head>& now, std::size_t index,
-                 const AtView& at) {
-    next(h.value(Slot::id), h.text(Slot::parent), h.seq(), now, index, at);
-}
-
-// The store's bounds over one entry's keys and its record, then its kind
-// at its operation; the entry kept.
-inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
+// The store's bounds over one entry's keys, and a record with no body key
+// refused body_mismatch; the id key, or none where it is past its bound.
+inline std::string_view bounds(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
     const std::string_view id = Id::fits(k.id) ? k.id : std::string_view();
     const auto bound = [&](bool fits, std::string_view field) {
         if (!fits) {
@@ -193,11 +193,18 @@ inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index
     bound(k.lane.size() <= lane_bytes, "lane");
     bound(!k.parent || Id::fits(*k.parent), "parent");
     bound(!k.target || Id::fits(*k.target), "target");
-    if (k.body && !line.body) {
-        refuse(at, index, id, "body_missing");
-    }
     if (!k.body && line.body) {
         refuse(at, index, id, "body_mismatch");
+    }
+    return id;
+}
+
+// The store's bounds over one entry's keys and its record, then its kind
+// at its operation; the entry kept.
+inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
+    const std::string_view id = bounds(k, line, index, at);
+    if (k.body && !line.body) {
+        refuse(at, index, id, "body_missing");
     }
     if (at.op == Operation::forget && k.kind != "forget") {
         refuse_kind(at, index);
@@ -324,11 +331,13 @@ inline void in_order(std::string_view scope, std::string_view lane, std::optiona
     }
 }
 
-// At import, one line as it arrives, before its insert: its parent the
-// view's head of its lane and its seq one past it; a refusal thrown.
+// At import, one line as it arrives, before its insert, by its keys: their
+// bounds and a record with no body key (detail::bounds), then its parent
+// the view's head of its lane and its seq one past it; a refusal thrown.
 template <class V>
-void arrives(V& view, const header::Header<Chars>& h, std::size_t index, const AtView& at) {
-    detail::next(h, view.head(h.value(Slot::scope), h.value(Slot::lane)), index, at);
+void arrives(V& view, const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
+    (void)detail::bounds(k, line, index, at);
+    detail::next(k.id, k.parent, k.seq, view.head(k.scope, k.lane), index, at);
 }
 
 // At forget, each target erased: erased the targets whose body the store
@@ -344,19 +353,19 @@ inline void erasable(std::span<const KeptView> entries, std::span<const Id> eras
 }
 
 // At import, one entry once every line is in, after the hook's settled,
-// by what the store holds of it: its target held, else target; its body
-// held while forgotten, forgotten_body; a content with no body, not
-// forgotten, body_missing.
-inline void settles(const header::Header<Chars>& h, bool target_held, bool forgotten, bool body, std::size_t index,
+// by its keys and what the store holds of it: a target key not held,
+// target; its body held while forgotten, forgotten_body; a body key with
+// no body, not forgotten, body_missing.
+inline void settles(const KeysView& k, bool target_held, bool forgotten, bool body, std::size_t index,
                     const AtView& at) {
-    const std::string_view id = h.value(Slot::id);
-    if (h.text(Slot::target) && !target_held) {
+    const std::string_view id = k.id;
+    if (k.target && !target_held) {
         refuse(at, index, id, "target");
     }
     if (body && forgotten) {
         refuse(at, index, id, "forgotten_body");
     }
-    if (!body && !forgotten && h.text(Slot::content)) {
+    if (!body && !forgotten && k.body) {
         refuse(at, index, id, "body_missing");
     }
 }

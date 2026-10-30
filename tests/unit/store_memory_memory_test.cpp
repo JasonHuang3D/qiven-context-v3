@@ -67,12 +67,13 @@ constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t call_bytes = std::size_t{2} << 20U;
-// An import grows the state's rows as its lines arrive, unreserved, so its
-// heap's count follows the library's growth: by half (MSVC's) or double.
+// An import grows the state's rows and its target keys' room as its lines
+// arrive, unreserved, so its heap's count follows the library's growth: by
+// half (MSVC's) or double.
 #if defined(_MSVC_STL_VERSION)
-constexpr std::size_t import_heap = 25;
+constexpr std::size_t import_heap = 27;
 #else
-constexpr std::size_t import_heap = 22;
+constexpr std::size_t import_heap = 24;
 #endif
 
 // The fake, the fixtures, two states with their objects, and the caller's
@@ -213,7 +214,7 @@ std::vector<Step> steps() {
                        x.close();
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"import", base, true, {395, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"import", base, true, {322, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> wrote(c);
                        (void)b.other.import_(x, wrote);
@@ -347,7 +348,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 329}, {3, 13, 175}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 329}, {3, 13, 175}, {13, 14, 323 + import_heap}, {14, step_count, 227}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {
