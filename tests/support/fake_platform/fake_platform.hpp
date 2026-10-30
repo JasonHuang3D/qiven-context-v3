@@ -11,9 +11,10 @@
 // Each operation called is kept in its record, in order; under
 // QIVEN3_FAULTS each is a fault point (attach).
 //
-// replace, stage and lock are files' (platform/files.hpp) over the fake's
-// system calls (fake_files.hpp), on real files under its scratch root but
-// lock, held per path in the fake; the busy counts drive their refusals.
+// replace, stage, lock, list, remove and rename are files'
+// (platform/files.hpp) over the fake's system calls (fake_files.hpp), on
+// real files under its scratch root but lock, held per path in the fake;
+// the busy counts drive their refusals.
 //
 // thread: one
 
@@ -189,6 +190,11 @@ public:
     // The empty directory at path removed (true, also when none is there);
     // one holding anything kept (false); a file there io.
     bool remove_directory(std::string_view path);
+    // files' list, remove and rename (fake_files.cpp), under its scratch
+    // root alone.
+    void list(std::string_view directory, Vector<String>& names);
+    void remove(std::string_view path);
+    void rename(std::string_view path, std::string_view name, Seconds deadline);
     void read(std::string_view path, String& out);
     FakeLock lock(std::string_view path, Seconds deadline);
     void program(std::string_view name, String& out);

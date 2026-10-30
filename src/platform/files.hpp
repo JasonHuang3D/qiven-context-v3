@@ -3,17 +3,21 @@
 // files: durable writes and the lock, for the Windows adapter and the fake.
 // replace writes a file whole beside its target and renames it over it;
 // stage makes a staging directory whose files are written as streams and
-// published under a name by one rename; lock holds a file's first byte.
+// published under a name by one rename; lock holds a file's first byte;
+// list gives a directory's names sorted, remove deletes a file, and rename
+// gives a file a new name in its directory, never replacing one there
+// (platform/names.hpp, over the System's calls here).
 //
-// The retries are here: a rename refused with error 5 or 32 (replace's and
-// publish's) and a lock refused with 33 are tried again every 50 ms until
+// The retries are here: a rename refused with error 5 or 32 (replace's,
+// publish's and rename's) and a lock refused with 33 are tried again every 50 ms until
 // the deadline, then the operation's own file is deleted and PlatformError
 // busy thrown, its detail naming what could not be deleted. The system's
 // calls are a System's (below): the Windows adapter's or the fake's, each
 // giving the system's error by its Win32 number, 0 for none. They are the
 // hooks through which the fake fails a rename or holds a lock.
 //
-// files takes no memory: its names and details are composed in place, and
+// files takes no memory but list's names, on the caller's arena: its other
+// names and its details are composed in place, and
 // its handles hold the system's handles, never a heap object. A handle
 // refers to its System, which outlives it.
 //
@@ -43,6 +47,8 @@ inline constexpr Error sharing_violation = 32;
 inline constexpr Error lock_violation = 33;
 inline constexpr Error file_exists = 80;
 inline constexpr Error already_exists = 183;
+inline constexpr Error not_a_directory = 267;
+inline constexpr Error no_unicode_translation = 1113;
 
 // The retries' interval, and the random bytes of a temporary name.
 inline constexpr std::chrono::milliseconds interval{50};
@@ -91,6 +97,10 @@ constexpr std::string_view error_name(Error error) noexcept {
         return "ERROR_FILE_EXISTS";
     case already_exists:
         return "ERROR_ALREADY_EXISTS";
+    case not_a_directory:
+        return "ERROR_DIRECTORY";
+    case no_unicode_translation:
+        return "ERROR_NO_UNICODE_TRANSLATION";
     default:
         return "";
     }
@@ -187,13 +197,19 @@ constexpr std::string_view last_component(std::string_view path) noexcept {
 //   record of a published or discarded one.
 // - lock's: open_lock(path, held) opens path, made if missing; try_lock
 //   locks its first byte, or gives 33; unlock unlocks if locked and closes.
+// - list's, remove's and rename's: list_names(directory, names) appends
+//   each name directly in directory in the system's order, . and .. too
+//   if the system gives them, 1113 for one it cannot give as UTF-8, each a
+//   String on names' arena, whose MemoryError it lets through with
+//   nothing left open; remove_file(path) deletes a file; rename_file(path,
+//   name) renames it to name in its directory, never replacing one there.
 template <class S>
 concept System =
     std::movable<typename S::File> && std::movable<typename S::Dir> && std::movable<typename S::Held> &&
     std::default_initializable<typename S::File> && std::default_initializable<typename S::Dir> &&
     std::default_initializable<typename S::Held> &&
     requires(S& s, std::string_view p, std::string_view b, const Digits& h, std::span<std::byte> into,
-             typename S::File& f, typename S::Dir& d, typename S::Held& l, Detail& left) {
+             typename S::File& f, typename S::Dir& d, typename S::Held& l, Detail& left, Vector<String>& names) {
         s.random_bytes(into);
         { s.elapsed() } -> std::same_as<std::chrono::milliseconds>;
         s.pause(interval);
@@ -213,6 +229,9 @@ concept System =
         { s.open_lock(p, l) } -> std::same_as<Error>;
         { s.try_lock(l) } -> std::same_as<Error>;
         { s.unlock(l) } noexcept;
+        { s.list_names(p, names) } -> std::same_as<Error>;
+        { s.remove_file(p) } -> std::same_as<Error>;
+        { s.rename_file(p, b) } -> std::same_as<Error>;
     };
 
 // "<step>: error <n> (<name>)" appended to detail.

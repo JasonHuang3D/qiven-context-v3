@@ -37,6 +37,8 @@ struct Busy {
     std::uint64_t temporary = 0;  // replace's rename and deletion, 32: a handle on its file
     std::uint64_t publish = 0;    // publish's rename, 5, and discard's deletion, 32: a file inside held
     std::uint64_t lock = 0;       // lock, 33: another holder
+    std::uint64_t remove = 0;     // remove, 32: a handle without sharing delete
+    std::uint64_t rename = 0;     // rename, 5 for an odd count, 32 an even: a handle on either file
 };
 
 class FakeFiles {
@@ -82,6 +84,17 @@ public:
     files::Error open_lock(std::string_view path, Held& out);
     files::Error try_lock(const Held& held);
     void unlock(const Held& held) noexcept;
+
+    // list's: . and .. first, then the names by std::filesystem in the
+    // reverse of their UTF-8 bytes' order, as no system lists, so files'
+    // sort is proved; 1113 for a name not UTF-8. remove's: 5 for a
+    // directory, 2 for none. rename's: 183 for a file or directory under
+    // name but the file's own, checked first, then std::filesystem's
+    // rename (to its own name, the file kept, as on Windows), which holds
+    // within one process, the only user the fake's cases have.
+    files::Error list_names(std::string_view directory, Vector<String>& names);
+    files::Error remove_file(std::string_view path);
+    files::Error rename_file(std::string_view path, std::string_view name);
 
     void set_busy(const Busy& busy) noexcept { busy_ = busy; }
     [[nodiscard]] const Busy& busy() const noexcept { return busy_; }

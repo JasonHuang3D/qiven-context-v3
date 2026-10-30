@@ -39,6 +39,16 @@ def operations(case):
         made.mkdir()
         return {"path": str(made)}
 
+    listed = root / "listed"
+    listed.mkdir(exist_ok=True)
+    for name in ("a-name-past-a-short-string's-buffer.pending", "b.tmp"):
+        (listed / name).write_bytes(b"x")
+
+    def renamed():
+        made = root / f"renamed-{next(fresh)}.tmp"
+        made.write_bytes(b"x")
+        return {"path": str(made), "name": made.stem + ".pending"}
+
     return (
         ("name", lambda: {}),
         ("config_dir", lambda: {"create": False}),
@@ -49,6 +59,9 @@ def operations(case):
         ("replace", lambda: {"path": str(root / "replaced.txt"), "data": "00"}),
         ("create", lambda: {"path": str(root / f"made-{next(fresh)}.txt")}),
         ("remove_directory", emptied),
+        ("list", lambda: {"path": str(listed)}),
+        ("remove", lambda: {"path": str(root / "none-there")}),
+        ("rename", renamed),
         ("read", lambda: {"path": str(data), "size": len(DATA)}),
         ("program", lambda: {"name": "a-program-on-no-path-entry"}),
         ("run", lambda: {"argv": argv, "caps": {"out": KIB, "err": KIB}}),

@@ -20,6 +20,7 @@
 #include <array>
 #include <cstddef>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -444,7 +445,9 @@ QIVEN3_CASE(labels, fa2_model_entry) {
     const Held d = held(all, "D");
     const Held acc = held(all, "ACC");
     const Held acc2 = held(all, "ACC2");
-    Fake fake(seeded());
+    // The fake on the heap, the frame within its bound.
+    const auto heap = std::make_unique<Fake>(seeded());
+    Fake& fake = *heap;
     const std::string unbound = "by: the model's record of the owner's words, by implementer/s39, unbound";
     const std::string bound = "by: the model's record of the owner's words, by implementer/s39, bound (unverified) "
                               "by reviewer/s70 (transcript 00000000-0000-4000-8000-0000000000a2)";

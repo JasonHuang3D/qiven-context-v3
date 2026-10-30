@@ -477,9 +477,10 @@ test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
-constexpr std::array<log::Name, 124> operation_names{
+constexpr std::array<log::Name, 127> operation_names{
     "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
-    "replace", "create", "remove_directory", "read", "program", "run", "code_page", "stdout", "residual",
+    "replace", "create", "remove_directory", "list", "remove", "rename", "read", "program", "run", "code_page",
+    "stdout", "residual",
     "random_bytes", "wipe", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
     // The files' handles' requests, and the operation their errors name.
     "stage", "staged_open", "sink_write", "sink_close", "publish", "discard", "lock", "lock_release", "write",

@@ -13,6 +13,7 @@
 #include <string_view>
 #include <utility>
 
+#include "platform/names.hpp"
 #include "platform/win/paths.hpp"
 
 namespace qiven3::platform::win {
@@ -343,6 +344,16 @@ WindowsStaged WindowsPlatform::stage(std::string_view directory) { return files:
 void WindowsPlatform::create(std::string_view path, bool directory) { files_.create(path, directory); }
 
 bool WindowsPlatform::remove_directory(std::string_view path) { return files_.remove_directory(path); }
+
+void WindowsPlatform::list(std::string_view directory, Vector<String>& names) {
+    files::list(files_, directory, names);
+}
+
+void WindowsPlatform::remove(std::string_view path) { files::remove(files_, path); }
+
+void WindowsPlatform::rename(std::string_view path, std::string_view name, Seconds deadline) {
+    files::rename(files_, path, name, deadline);
+}
 
 void WindowsPlatform::read(std::string_view path, String& out) { files_.read(path, out); }
 

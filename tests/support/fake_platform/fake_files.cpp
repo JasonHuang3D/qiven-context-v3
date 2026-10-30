@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <new>
@@ -12,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "platform/names.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
 // The Guidelines' mark of an owning pointer, as fake_platform.cpp's.
@@ -415,6 +417,76 @@ Error FakeFiles::try_lock(const Held& held) {
 
 void FakeFiles::unlock(const Held& held) noexcept { state_->locks.erase(held.id); }
 
+Error FakeFiles::list_names(std::string_view directory, Vector<String>& names) {
+    if (faulted()) {
+        return files::general;
+    }
+    const fs::path at = to_path(directory);
+    std::error_code error;
+    if (fs::is_regular_file(fs::symlink_status(at, error))) {
+        return files::not_a_directory;
+    }
+    std::vector<std::string> found;
+    try {
+        for (fs::directory_iterator it(at, error), end; !error && it != end; it.increment(error)) {
+            found.push_back(to_text(it->path().filename().u8string()));
+        }
+    } catch (const std::system_error&) {
+        return files::no_unicode_translation;  // MSVC's: a name holding a lone surrogate
+    }
+    if (error) {
+        return win32(error, files::general);
+    }
+    std::sort(found.begin(), found.end(), std::greater<>());
+    names.emplace_back(std::string_view("."), names.get_allocator());
+    names.emplace_back(std::string_view(".."), names.get_allocator());
+    for (const std::string& name : found) {
+        if (files::text_fault(name) == "not UTF-8") {
+            return files::no_unicode_translation;
+        }
+        names.emplace_back(std::string_view(name), names.get_allocator());
+    }
+    return files::none;
+}
+
+Error FakeFiles::remove_file(std::string_view path) {
+    if (faulted()) {
+        return files::general;
+    }
+    if (refused(busy_.remove)) {
+        return files::sharing_violation;
+    }
+    const fs::path at = to_path(path);
+    std::error_code error;
+    if (fs::is_directory(fs::symlink_status(at, error))) {
+        return files::access_denied;
+    }
+    const bool removed = fs::remove(at, error);
+    return error ? win32(error, files::file_exists) : removed ? files::none : files::file_not_found;
+}
+
+Error FakeFiles::rename_file(std::string_view path, std::string_view name) {
+    if (faulted()) {
+        return files::general;
+    }
+    const fs::path from = to_path(path);
+    const fs::path to = from.parent_path() / to_path(name);
+    std::error_code error;
+    // The file's own name is no other file: as on Windows, renamed to itself.
+    if (to != from && fs::exists(fs::symlink_status(to, error))) {
+        return files::already_exists;
+    }
+    const bool odd = busy_.rename % 2 == 1;
+    if (refused(busy_.rename)) {
+        return odd ? files::access_denied : files::sharing_violation;
+    }
+    if (!fs::exists(fs::symlink_status(from, error))) {
+        return files::file_not_found;
+    }
+    fs::rename(from, to, error);
+    return win32(error, files::already_exists);
+}
+
 // The contract's operations: recorded, then files' over these calls, the
 // paths of replace and stage under the fake's root.
 namespace {
@@ -448,6 +520,28 @@ FakeStaged FakePlatform::stage(std::string_view directory) {
 FakeLock FakePlatform::lock(std::string_view path, Seconds deadline) {
     record("lock");
     return files::lock(files_, path, deadline);
+}
+
+void FakePlatform::list(std::string_view directory, Vector<String>& names) {
+    names.clear();
+    record("list");
+    files::refuse("list", files::text_fault(directory));
+    inside("list", directory, config_.root);
+    files::list(files_, directory, names);
+}
+
+void FakePlatform::remove(std::string_view path) {
+    record("remove");
+    files::refuse("remove", files::text_fault(path));
+    inside("remove", path, config_.root);
+    files::remove(files_, path);
+}
+
+void FakePlatform::rename(std::string_view path, std::string_view name, Seconds deadline) {
+    record("rename");
+    files::refuse("rename", files::text_fault(path));
+    inside("rename", path, config_.root);
+    files::rename(files_, path, name, deadline);
 }
 
 }  // namespace qiven3::platform::fake

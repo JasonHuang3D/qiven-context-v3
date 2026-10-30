@@ -1,8 +1,10 @@
 # qiven3_platform: the contract, which core targets link, and files, the
-# retries of replace, stage and lock over an adapter's system calls. Its
+# retries of replace, stage and lock over an adapter's system calls, and
+# names, list, remove and rename over them. Its
 # value types hold their text on v3's arenas.
 add_library(qiven3_platform STATIC
   files.hpp
+  names.hpp
   platform.cpp
   platform.hpp
 )
@@ -22,6 +24,7 @@ if(WIN32)
     win/files.cpp
     win/files.hpp
     win/handles.cpp
+    win/names.cpp
     win/paths.cpp
     win/paths.hpp
     win/process.cpp

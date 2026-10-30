@@ -1,15 +1,16 @@
 #pragma once
 
 // win/files: the Windows adapter's file calls. WindowsFiles is the System
-// that platform/files.hpp's retries call for replace, stage and lock, each
-// giving its Win32 error by number, 0 for none, never throwing but
-// make_staged's pages; beside them create, read and remove_directory,
-// which throw PlatformError as the contract states. Its stage members are
-// in stage.cpp.
+// that platform/files.hpp's retries call for replace, stage, lock, list,
+// remove and rename, each giving its Win32 error by number, 0 for none,
+// never throwing but make_staged's pages and list_names' allocations;
+// beside them create, read and remove_directory, which throw
+// PlatformError as the contract states. Its stage members are in
+// stage.cpp, list's, remove's and rename's in names.cpp.
 //
 // It lives in its adapter, whose scratch it borrows for a path's UTF-16
-// forms, and takes no memory but read's out on the caller's arena and a
-// staging directory's pages. Under QIVEN3_FAULTS each Win32 call asks the
+// forms, and takes no memory but read's out and list's names on the
+// caller's arena and a staging directory's pages. Under QIVEN3_FAULTS each Win32 call asks the
 // countdown first and, when it fires, fails as the call would with error
 // 31 (ERROR_GEN_FAILURE), a handle it opened closed first, and the
 // retries' clock and pauses record into a trace, if one is attached.
@@ -139,6 +140,18 @@ public:
     files::Error open_lock(std::string_view path, Held& out);
     files::Error try_lock(const Held& held);
     void unlock(Held& held) noexcept;
+
+    // list's, remove's and rename's (names.cpp). list_names:
+    // FindFirstFileExW (FindExInfoBasic) and FindNextFileW until 18, each
+    // name by WideCharToMultiByte (WC_ERR_INVALID_CHARS) into a String on
+    // names' arena, its 1113 given back, the find handle closed by
+    // FindClose on every way out, a MemoryError's among them. remove_file:
+    // DeleteFileW. rename_file: name after path's last separator in the
+    // second buffer, then MoveFileExW with no flag, never replacing and
+    // never copying.
+    files::Error list_names(std::string_view directory, Vector<String>& names);
+    files::Error remove_file(std::string_view path);
+    files::Error rename_file(std::string_view path, std::string_view name);
 
     // create: an empty file (CreateFileW, CREATE_NEW) or a directory
     // (CreateDirectoryW), only if absent: path, exists, io.

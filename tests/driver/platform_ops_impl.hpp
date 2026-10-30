@@ -146,6 +146,29 @@ Result remove_directory(Drive<P>& d, memory::Arena&, ArgView request) {
 }
 
 template <class P>
+Result list(Drive<P>& d, memory::Arena& arena, ArgView request) {
+    memory::Vector<platform::String> names{memory::Allocator<platform::String>(arena)};
+    d.platform().list(text(request, "path"), names);
+    Value out = array();
+    for (const platform::String& name : names) {
+        out.push(scalar(std::string_view(name)));
+    }
+    return out;
+}
+
+template <class P>
+Result remove(Drive<P>& d, memory::Arena&, ArgView request) {
+    d.platform().remove(text(request, "path"));
+    return std::nullopt;
+}
+
+template <class P>
+Result rename(Drive<P>& d, memory::Arena&, ArgView request) {
+    d.platform().rename(text(request, "path"), text(request, "name"), deadline(request, "deadline"));
+    return std::nullopt;
+}
+
+template <class P>
 Result read(Drive<P>& d, memory::Arena& arena, ArgView request) {
     memory::String out = string(arena);
     d.platform().read(text(request, "path"), out);
@@ -309,6 +332,9 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"lock_release", {ops::lock_release<P>, ops::member}},
         {"create", {ops::create<P>, ops::member}},
         {"remove_directory", {ops::remove_directory<P>, ops::member}},
+        {"list", {ops::list<P>, ops::member}},
+        {"remove", {ops::remove<P>, ops::member}},
+        {"rename", {ops::rename<P>, ops::member}},
         {"read", {ops::read<P>, ops::read_budget}},
         {"program", {ops::program<P>, ops::member}},
         {"run", {ops::run<P>, ops::run_budget}},

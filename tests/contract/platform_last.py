@@ -2,7 +2,8 @@
 (contract/platform_cases.py names the binding's part).
 
 Here: P27 (create and read, and two drives' creates racing, and
-remove_directory, create's counterpart for a directory), P28 (pages),
+remove_directory, create's counterpart for a directory, and list, remove
+and rename, the kept files' members), P28 (pages),
 P29 (normcase) and P30 (wipe, which digest.Key's ends and moves call;
 its unit cases count those calls on the fake). The Windows adapter's
 create and read are its module win/files', in package 5; until then a
@@ -133,6 +134,48 @@ class PlatformLast:
                 self.assertEqual((error["kind"], error["code"], error["operation"]),
                                  ("platform", "io", "remove_directory"), reply)
                 self.assertTrue(empty.is_dir())
+
+    def test_P27_names(self):
+        """list of a directory's names sorted by their UTF-8 bytes, never
+        . or ..; remove with none there no fault; rename never replacing,
+        exists with both kept; each one's path refused; on the fake,
+        refused by its fault point."""
+        self.needs("files")
+        root = Path(self.files_root())
+        kept = root / "kept"
+        kept.mkdir()
+        for name in ("b.tmp", "Z.pending", "a", "\xe4"):
+            (kept / name).write_bytes(name.encode())
+        (kept / "dir").mkdir()
+        with self.drive() as d:
+            self.assertEqual(d.call("list", path=str(kept)), ["Z.pending", "a", "b.tmp", "dir", "\xe4"])
+            self.assertIsNone(d.call("remove", path=str(kept / "a")))
+            self.assertIsNone(d.call("remove", path=str(kept / "a")))
+            self.assertIsNone(d.call("rename", path=str(kept / "b.tmp"), name="b.pending"))
+            self.assertEqual(d.call("list", path=str(kept)), ["Z.pending", "b.pending", "dir", "\xe4"])
+            (kept / "c.tmp").write_bytes(b"c")
+            for there in ("b.pending", "dir"):
+                error = self.failure(d.call, "rename", path=str(kept / "c.tmp"), name=there)
+                self.assert_platform_error(error, "exists")
+            self.assertEqual((kept / "c.tmp").read_bytes(), b"c")
+            self.assertEqual((kept / "b.pending").read_bytes(), b"b.tmp")
+            # Its own name: renamed to itself, kept.
+            self.assertIsNone(d.call("rename", path=str(kept / "c.tmp"), name="c.tmp"))
+            self.assertEqual((kept / "c.tmp").read_bytes(), b"c")
+            self.assert_platform_error(self.failure(d.call, "list", path=str(kept / "missing")), "io")
+            self.assert_platform_error(self.failure(d.call, "remove", path=str(kept / "dir")), "io")
+            self.assert_platform_error(self.failure(d.call, "rename", path=str(kept / "c.tmp"), name="x/y"), "path")
+            for op in ("list", "remove"):
+                self.assert_platform_error(self.failure(d.call, op, path="relative"), "path")
+            if self.ADAPTER == "fake" and has_faults():
+                for op, args in (("list", {"path": str(kept)}), ("remove", {"path": str(kept / "c.tmp")}),
+                                 ("rename", {"path": str(kept / "c.tmp"), "name": "c.pending"})):
+                    # The drive's pages first, then the member.
+                    reply = d.reply(op, fault={"k": 2, "of": "platform"}, **args)
+                    error = reply["error"]
+                    self.assertEqual((error["kind"], error["code"], error["operation"]),
+                                     ("platform", "io", op), reply)
+                self.assertEqual((kept / "c.tmp").read_bytes(), b"c")
 
     def test_P27_create_race(self):
         """Two drives on one root create the same absent files, each pair of

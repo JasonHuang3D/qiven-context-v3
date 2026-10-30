@@ -247,9 +247,10 @@ qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
 # replace, stage and lock on real files in each case's scratch directory,
 # the fake's busy counts driving the retries (P9, P19, P20's lock, P25's
 # replace and open); stage's bound at its edge, each end freeing a slot;
-# each system and platform call failed in turn.
+# list, remove and rename (files_names_test.cpp), list's names counted on
+# their arena; each system and platform call failed in turn.
 qiven3_add_cases(qiven3_unit_files LABELS fast fake
-  SOURCES files_test.cpp
+  SOURCES files_test.cpp files_names_test.cpp
   LINK qiven3_faults qiven3_platform_fake)
 
 # The fake's processes held to their contract: start and run refusing a
@@ -271,13 +272,14 @@ qiven3_add_cases(qiven3_unit_wire LABELS fast fake
 
 # win/files' cases on the Windows adapter, on Windows alone: create, read,
 # remove_directory, replace and lock on real files in each case's scratch
-# directory under the job's temporary directory; read's allocation counted;
-# each Win32 call failed in turn. fast and fake: they need no processes,
-# machine fact or debugger, so every Windows job's fake step and CI's run
-# them, as tier 1's fast step does.
+# directory under the job's temporary directory, and list, remove and
+# rename with each system error they meet measured (win_names_test.cpp);
+# read's allocation counted; each Win32 call failed in turn. fast and fake:
+# they need no processes, machine fact or debugger, so every Windows job's
+# fake step and CI's run them, as tier 1's fast step does.
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_files LABELS fast fake
-    SOURCES win_files_test.cpp
+    SOURCES win_files_test.cpp win_names_test.cpp
     LINK qiven3_faults qiven3_platform_win)
 endif()
 

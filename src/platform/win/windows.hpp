@@ -12,8 +12,8 @@
 //
 // Its first operations are the configuration location, resolve, normcase,
 // the console, random bytes, the clock, pages and wipe; win/files' are
-// replace, stage, create, remove_directory, read and lock
-// (platform/win/files.hpp); win/facts' are facts, synced and residual
+// replace, stage, create, remove_directory, list, remove, rename, read
+// and lock (platform/win/files.hpp); win/facts' are facts, synced and residual
 // (platform/win/facts.hpp); win/process' are program, start (process.cpp),
 // the Child and run (child.cpp). A Lock, Staged and Sink
 // are files' over the adapter's WindowsFiles, which lives in the adapter:
@@ -153,6 +153,11 @@ public:
     void create(std::string_view path, bool directory);
     // RemoveDirectoryW, win/files': error 145 false, 2 and 3 true.
     bool remove_directory(std::string_view path);
+    // files' list, remove and rename over win/files' calls: FindFirstFileExW
+    // and FindNextFileW, DeleteFileW, MoveFileExW with no flag.
+    void list(std::string_view directory, Vector<String>& names);
+    void remove(std::string_view path);
+    void rename(std::string_view path, std::string_view name, Seconds deadline);
     void read(std::string_view path, String& out);
     WindowsLock lock(std::string_view path, Seconds deadline);
     // <name>.exe in the first absolute entry of v3's own PATH that holds it

@@ -199,6 +199,9 @@ PLANTS = {
         "#include <sanitizer/asan_interface.h>\n#endif\n",
     "src/memory/unpoison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
         "#include <sanitizer/asan_interface.h>\n#endif\n",
+    "src/platform/files.hpp": "#pragma once\n",
+    "src/platform/names.hpp": "#pragma once\n#include \"platform/files.hpp\"\n",
+    "src/platform/names_other.hpp": "#pragma once\n#include \"platform/files.hpp\"\n",
 }
 # B17's names the C runtime adds to fopen's, each declared by hand.
 B17_ADDED = ("freopen_s", "_fdopen", "tmpfile", "_sopen", "_chsize")
@@ -218,6 +221,7 @@ PLANTED = [
     ("B9", "tests/driver/fcntl_other.cpp", ""), ("B9", "tests/faults/assert_other.cpp", ""),
     ("B9", "src/diag/fcntl_other.cpp", ""),
     ("B9", "src/memory/unpoison.hpp", ""), ("B17", "src/memory/unpoison.hpp", "include"),
+    ("B17", "src/platform/names_other.hpp", "include"),
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
     ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
     ("B9", "src/entry/outside.cpp", ""), ("B9", "tests/unit/own_test.cpp", ""), ("B9", "tests/unit/dbg_test.cpp", ""),
@@ -253,6 +257,7 @@ CLEAN = [
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
     "src/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp", "src/app/main.cpp",
+    "src/platform/names.hpp", "src/platform/files.hpp",
 ]
 
 # The safe subset's plants (subset.py), headers no target compiles: each of

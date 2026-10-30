@@ -105,7 +105,7 @@ NET_LIBS = frozenset(("ws2_32", "winhttp", "wininet"))
 LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_extension"))
 LOAD_PREFIX = "LoadLibrary"
 # B13: the platform's calls that write.
-PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "lock"))
+PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "remove", "rename", "lock"))
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
@@ -145,6 +145,10 @@ STATED = {
                                                          "sanitizer/asan_interface.h, included under the "
                                                          "sanitizer alone",
     ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
+    ("B17", "src/platform/names.hpp", "src/platform/files.hpp"): "files.hpp's list, remove and rename, moved "
+                                                                 "out of it for the 600-line bound; included "
+                                                                 "only by the adapter, the fakes and their "
+                                                                 "tests",
     ("B6", "tests/driver/common.cpp", "io.h"): "_setmode, the drives' binary standard streams: the C "
                                                "runtime opens them in text mode, and freopen with no "
                                                "path fails",
