@@ -204,7 +204,7 @@ std::vector<Step> steps() {
                        (void)b.store.purge();
                        return Peaks{};
                    }});
-    out.push_back({"export", qiven3::store::export_budget, false, {0, 2, 4, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"export", qiven3::store::export_budget, false, {0, 2, 77, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> rows(c);
                        (void)x.heads(rows);
@@ -214,7 +214,7 @@ std::vector<Step> steps() {
                        x.close();
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"import", base, true, {322, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"import", base, true, {395, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> wrote(c);
                        (void)b.other.import_(x, wrote);
@@ -348,7 +348,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 329}, {3, 13, 175}, {13, 14, 323 + import_heap}, {14, step_count, 294}}};
+    {{0, 3, 329}, {3, 13, 248}, {13, 14, 396 + import_heap}, {14, step_count, 294}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

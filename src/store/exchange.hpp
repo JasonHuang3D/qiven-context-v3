@@ -10,9 +10,9 @@
 // forget count. heads() reads the set's head rows in it. next() walks the
 // head rows in (scope, lane) order, a lane of the set at a time, each a
 // cursor over its entry rows after its seq to start after, left-joined to
-// body, in seq order; each row checked as a scan's and copied into the
-// caller's Line, forgotten a lookup on entry_target in the snapshot; a
-// header with content, no body and no forget StoreCorrupt incoherent. Its
+// body, in seq order; each row's bytes and keys copied into the caller's
+// Line, parsing none, forgotten a lookup on entry_target in the snapshot,
+// a key past its bound StoreCorrupt incoherent. Its
 // scope set and seqs, views of the call, are packed into its own pages. It
 // ends at its close, its store object's close, move or end (Exports), or
 // its own end; then StoreError closed. Its close, as its reads, from its
@@ -37,12 +37,11 @@
 // entry; then the entry rows, the body rows and meta against what the walk
 // counted.
 //
-// Budgets: export, pages of its own, its packed records then 1 MiB, a fresh
-// arena over it for each next's checks; import, the object's own 1 MiB, a
+// Budgets: export, pages of its own, its packed records then 1 MiB, an
+// arena over it for its making; import, the object's own 1 MiB, a
 // quarter for the source's heads, a quarter for the line in hand, the half
 // for each line's or entry's work, afresh; verify, none. The engine's heap
-// apart. Allocations: export,
-// the path's copy at its making, each next the header's parse and the
+// apart. Allocations: export, the path's copy at its making, each next the
 // caller's Line, heads the caller's rows; import, the source's own into its
 // Line, the hook's and the view's on the work arena, the indices of the
 // lines whose body key came with no record as they grow on the heads'
@@ -96,7 +95,7 @@ constexpr bool defers() noexcept {
 // The export's statements beside meta's (totals), each planned with no
 // structure built in memory as large as its rows (S12's plan check): the
 // forget entries by scope, by entry_forget; the head rows; a lane's entry
-// rows after a seq, in seq order, row_header's columns, then the body
+// rows after a seq, in seq order, a scan's key columns and line, then the body
 // record, whether a forget targets the entry (entry_target) and whether
 // its target is held. verify walks by the last two too.
 inline constexpr std::string_view forget_counts =
@@ -133,7 +132,7 @@ public:
     void close() noexcept;
     // The thread check alone (Gate::own), before the handle's close.
     void own(Operation op) const { gate_.own(op, path_.view()); }
-    // The counted peak of its making's or its greatest next's arena.
+    // The counted peak of its making's arena.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
     // The pages for a scope set and seqs: their packed records, then 1 MiB.

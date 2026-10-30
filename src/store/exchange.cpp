@@ -14,8 +14,6 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/body.hpp"
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "store/codes.hpp"
@@ -28,8 +26,6 @@
 namespace qiven3::store::sqlite {
 
 namespace {
-
-using entry::header::Slot;
 
 [[noreturn]] void incoherent(const WhereView& at, std::string_view detail) {
     throw StoreError::corrupt(at.operation, at.path, Corrupt::incoherent, detail);
@@ -217,14 +213,8 @@ bool Reader::next(std::span<std::byte> pages, Line& line) {
     const WhereView at = site();
     while (!done_) {
         if (in_lane_ && rows_.step(at)) {
-            memory::Arena arena(work_of(pages, scopes_, afters_));
-            attach_to(arena, countdown_);
-            const Header h = row_header(rows_, Chars(arena), at);
             const bool forgotten = rows_.integer(forgotten_column) != 0;
             const bool body = !forgotten && !rows_.null(record_column);
-            if (!body && !forgotten && h.text(Slot::content)) {
-                incoherent(at, h.value(Slot::id));
-            }
             const auto text = [this](int column) {
                 return rows_.null(column) ? std::nullopt : std::optional<std::string_view>(rows_.text(column));
             };
@@ -239,7 +229,6 @@ bool Reader::next(std::span<std::byte> pages, Line& line) {
             line.body.assign(body ? rows_.blob(record_column) : std::string_view());
             line.has_body = body;
             line.forgotten = forgotten;
-            peak_ = std::max(peak_, arena.peak());
             return true;
         }
         in_lane_ = lane(pages, at);

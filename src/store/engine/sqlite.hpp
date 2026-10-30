@@ -470,16 +470,12 @@ void add_meta(Connection& c, std::int64_t size, std::int64_t count, std::int64_t
 // size's figures: page_size, page_count, freelist_count, the files'.
 void figures(Connection& c, Sizes& out, const WhereView& at);
 
-// The reads (sqlite_read.cpp), through the wrapper. An export's header
-// line is parsed and checked, its id recomputed and compared with the
-// row's (a mismatch StoreCorrupt id_mismatch), and each column beside the
-// line compared with its field (StoreCorrupt incoherent); find and a scan
-// give the bytes and keys held, parsing none.
+// The reads (sqlite_read.cpp), through the wrapper. A view's header line
+// is parsed and checked, its id recomputed and compared with the row's (a
+// mismatch StoreCorrupt id_mismatch); find, a scan and an export give the
+// bytes and keys held, parsing none.
 [[nodiscard]] Header read_header(std::string_view id, std::string_view line, const Chars& allocator,
                                  const WhereView& at);
-// A row of id, scope, lane, seq, parent, kind, target and line, in this
-// order (find's, a scan's, an export's): its line read so, then each column.
-[[nodiscard]] Header row_header(const Statement& s, const Chars& allocator, const WhereView& at);
 [[nodiscard]] std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane,
                                           const WhereView& at);
 // heads' read, in one read transaction: the head rows of scopes (none:

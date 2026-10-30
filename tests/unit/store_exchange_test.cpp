@@ -37,7 +37,7 @@ namespace {
 namespace fs = std::filesystem;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = qiven3::store::sqlite::SQLiteExport<Fake>;
+using Export = qiven3::checked::Export<qiven3::store::sqlite::SQLiteExport<Fake>>;
 using qiven3::store::AfterView;
 using qiven3::store::Counts;
 using qiven3::store::LaneHead;

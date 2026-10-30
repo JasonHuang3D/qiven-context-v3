@@ -50,7 +50,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
 using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = sqlite::SQLiteExport<Fake>;
+using Export = qiven3::checked::Export<sqlite::SQLiteExport<Fake>>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";

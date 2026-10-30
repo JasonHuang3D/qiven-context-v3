@@ -1,5 +1,5 @@
 // sqlite: the reads, through the connection wrapper (sqlite.hpp): a header
-// line parsed and checked (the exchange's), a lane's head, heads in one
+// line parsed and checked (the views'), a lane's head, heads in one
 // read transaction, an entry's line and body record by id, forgotten, and
 // the scan's cursor over the keys' columns and the line, ending at each
 // lane's length at its start. This file names nothing of the engine's own.
@@ -36,19 +36,6 @@ constexpr int line_column = 7;
 constexpr int body_column = 8;
 
 }  // namespace
-
-Header row_header(const Statement& s, const Chars& allocator, const WhereView& at) {
-    Header h = read_header(s.text(0), s.blob(line_column), allocator, at);
-    const auto optional = [&s](int column) {
-        return s.null(column) ? std::nullopt : std::optional<std::string_view>(s.text(column));
-    };
-    if (h.value(Slot::scope) != s.text(1) || h.value(Slot::lane) != s.text(2) || h.seq() != s.integer(3) ||
-        h.text(Slot::parent) != optional(4) || h.value(Slot::kind) != s.text(5) ||
-        h.text(Slot::target) != optional(6)) {
-        incoherent(at, "an entry's column differs from its line");
-    }
-    return h;
-}
 
 Header read_header(std::string_view id, std::string_view line, const Chars& allocator, const WhereView& at) {
     Header h(allocator);

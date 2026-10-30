@@ -333,10 +333,17 @@ struct Read {
     bool b_body = false;
     bool b_forgotten = false;
 };
-Read read_all(qiven3::store::state::MemoryExport& x, const Stored& b, Arena& arena) {
+// Each line on a fresh arena: a ruled export parses its header on the line's.
+using Exported = qiven3::checked::Export<qiven3::store::state::MemoryExport>;
+Read read_all(Exported& x, const Stored& b) {
     Read out;
-    Line line(arena);
-    while (x.next(line)) {
+    std::vector<std::byte> pages(std::size_t{1} << 18U);
+    for (;;) {
+        Arena arena(pages);
+        Line line(arena);
+        if (!x.next(line)) {
+            return out;
+        }
         const std::string id(header::parse_line(std::string_view(line.header)).value(Slot::id));
         if (id == id_of(b)) {
             out.b_body = line.has_body && std::string_view(line.body) == *b.record;
@@ -344,7 +351,6 @@ Read read_all(qiven3::store::state::MemoryExport& x, const Stored& b, Arena& are
         }
         out.ids.push_back(id);
     }
-    return out;
 }
 
 // The bodies a state keeps for an open export: forgotten, not yet freed.
@@ -356,13 +362,15 @@ std::size_t kept(qiven3::store::state::State& s) {
 }
 
 // An export's lines, counted.
-std::size_t lines_of(qiven3::store::state::MemoryExport& x, Arena& arena) {
-    Line line(arena);
-    std::size_t n = 0;
-    while (x.next(line)) {
-        ++n;
+std::size_t lines_of(Exported& x) {
+    std::vector<std::byte> pages(std::size_t{1} << 18U);
+    for (std::size_t n = 0;; ++n) {
+        Arena arena(pages);
+        Line line(arena);
+        if (!x.next(line)) {
+            return n;
+        }
     }
-    return n;
 }
 
 }  // namespace
@@ -393,7 +401,7 @@ QIVEN3_CASE(store_memory, exchange) {
     Vector<LaneHead> rows(rig->chars);
     CHECK_EQ(early.heads(rows).forgets, 0U);
     CHECK_EQ(rows.size(), 1U);
-    const Read before = read_all(early, book.stored("B"), rig->arena);
+    const Read before = read_all(early, book.stored("B"));
     CHECK_EQ(before.ids.size(), 4U);
     CHECK(before.b_body && !before.b_forgotten);
     CHECK_EQ(kept(rig->state), 3U);
@@ -428,7 +436,7 @@ QIVEN3_CASE(store_memory, exchange) {
     CHECK(other.forgotten(id_of(book.stored("B"))));
     const std::array<qiven3::store::AfterView, 1> from = {qiven3::store::AfterView{qiven_scope, implementer_lane, 2}};
     auto tail = store.export_(std::nullopt, from);
-    CHECK_EQ(lines_of(tail, rig->arena), counts.entries - 2U);
+    CHECK_EQ(lines_of(tail), counts.entries - 2U);
     tail.close();
     auto again = store.export_(std::nullopt, {});
     CHECK(raised([&] { (void)other.import_(again, wrote); }).starts_with("StoreNotEmpty"));

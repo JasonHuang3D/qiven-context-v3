@@ -61,7 +61,7 @@ using qiven3::store::Line;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;
 using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = sqlite::SQLiteExport<Fake>;
+using Export = qiven3::checked::Export<sqlite::SQLiteExport<Fake>>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -363,7 +363,7 @@ constexpr bool heap_pinned = false;
 constexpr std::array<Pinned, 5> pinned = {{
     {"export", {1, 208, 50, 0, 1}, {1, 201, 50, 0, 1}},
     {"heads", {0, 0, 4, 2, 0}, {0, 0, 4, 2, 0}},
-    {"next", {73, 0, 16, 9, 0}, {73, 0, 16, 9, 0}},
+    {"next", {0, 0, 16, 82, 0}, {0, 0, 16, 82, 0}},
     {"import", {473, 74, 223, 2, 0}, {473, 74, 223, 2, 0}},
     {"verify", {444, 33, 120, 0, 0}, {444, 33, 120, 0, 0}},
 }};

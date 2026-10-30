@@ -6,9 +6,10 @@
 //
 //   Ruled<S>   S with its constructors and every call S gives; open, where
 //              S opens, gives a Ruled; header, body and scan the store's
-//              bytes and keys checked (checked/reads.hpp); verify S's,
-//              then each record checked so
+//              bytes and keys checked (checked/reads.hpp); export_ each
+//              line so; verify S's, then each record checked so
 //   Scan<H>    a ruled store's scan over the store's scan H
+//   Export<E>  a ruled store's export over the store's export E
 //
 // Ruled derives from S and adds no member and no virtual call: a call it
 // does not name is S's own, and a call it names hides S's of that name.
@@ -16,20 +17,24 @@
 // line) its bytes, checked so; body(id, record) the entry's line checked
 // and its record against its header, record unchanged on a refusal; a
 // scan's next each record's line checked and its keys against its header,
-// into a Header or as the record. Each refusal is StoreCorrupt, in the
-// words the store raised. Each check runs inside the store's read, on the
-// pages the store lends it (its header, body and scan next given a step),
-// and its result is copied out. Allocations: S's lent reads', the checks'
-// on S's lent pages, the copy's on the caller's allocator (the header's,
-// the line's, the record's or the scan's out). Platform calls and threads:
+// into a Header or as the record; an export's next each line's header
+// checked so and its body key against its content. Each refusal is
+// StoreCorrupt, in the words the store raised. Each check runs inside the
+// store's read, on the pages the store lends it (its header, body and scan
+// next given a step), and its result is copied out; an export's after the
+// store's next, on the Line's arena. Allocations: S's lent reads', the
+// checks' on S's lent pages or the Line's, the copy's on the caller's
+// allocator (the header's, the line's, the record's or the scan's out). Platform calls and threads:
 // S's, and the body's parse's.
 
 #include <cstddef>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 
 #include "checked/reads.hpp"
+#include "memory/memory.hpp"
 #include "store/contract.hpp"
 
 namespace qiven3::checked {
@@ -61,6 +66,38 @@ public:
 private:
     H scan_;
     reads::WhereView at_;
+};
+
+template <class E>
+class Export {
+public:
+    Export(E exported, std::string_view path) noexcept : e_(std::move(exported)), path_(path) {}
+
+    store::Snapshot heads(store::Vector<store::LaneHead>& rows) { return e_.heads(rows); }
+    // The next line, its line checked and its keys against its header,
+    // parsed on line's arena; false at the end.
+    bool next(store::Line& line) {
+        if (!e_.next(line)) {
+            return false;
+        }
+        const reads::WhereView at{store::Operation::export_, path_.view()};
+        const store::KeysView keys = line.keys.view();
+        const store::Header h = reads::header_of(keys.id, line.header, line.header.get_allocator(), at);
+        reads::keys_match(keys, h, at);
+        reads::body_key(keys, h, at);
+        return true;
+    }
+    void close() { e_.close(); }
+    // The store's export's counted peak.
+    [[nodiscard]] std::size_t peak() const noexcept
+        requires requires(const E& e) { e.peak(); }
+    {
+        return e_.peak();
+    }
+
+private:
+    E e_;
+    memory::Inline<store::path_bytes> path_;  // the store's, copied: an export outlives its store's moves
 };
 
 template <class S>
@@ -106,6 +143,10 @@ public:
     auto scan(const store::RangeView& range) {
         using H = decltype(S::scan(range));
         return Scan<H>(S::scan(range), where(store::Operation::scan).path);
+    }
+    auto export_(store::Scopes scopes, std::span<const store::AfterView> after) {
+        using E = decltype(S::export_(scopes, after));
+        return Export<E>(S::export_(scopes, after), where(store::Operation::export_).path);
     }
     // S's verify, then each record by a scan: its line, its keys against
     // it, part 1 again, and its body record, read after the scan's step,
