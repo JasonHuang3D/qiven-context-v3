@@ -441,9 +441,11 @@ void guard(Connection& c, std::span<const GuardView> guard, const WhereView& at)
 // the change kinds) of a target, not itself a target, StoreError
 // whole_record naming the first forget of that target, "entry <j>".
 void whole_record(Connection& c, std::span<const Id> targets, const WhereView& at);
-// forget's erasure: each target's body row deleted, once, in order, its id
-// into erased; the bytes dropped, each record with its LF.
-std::uint64_t erase(Connection& c, std::span<const Id> targets, Vector<Id>& erased, const WhereView& at);
+// forget's erasure: each target's body row deleted, once, in order, where
+// its entry is of scope, its id into erased; the bytes dropped, each
+// record with its LF.
+std::uint64_t erase(Connection& c, std::span<const Id> targets, std::string_view scope, Vector<Id>& erased,
+                    const WhereView& at);
 // Step 5: the entry rows in order, then the body rows; an insert's
 // constraint on (scope, lane, seq) or id HeadConflict, the head read again.
 void insert(Connection& c, std::span<const RowView> rows, Expected expected, const WhereView& at);

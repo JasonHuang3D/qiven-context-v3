@@ -413,6 +413,11 @@ struct NoAdmit {
     constexpr void release() const noexcept {}
 };
 
+// The hook a store of Rule takes at a write: any where Rule is NoAdmit,
+// Rule's alone otherwise, so that no call swaps a ruled store's rules.
+template <class A, class Rule>
+concept HookOf = std::same_as<Rule, NoAdmit> || std::same_as<std::remove_cvref_t<A>, Rule>;
+
 // A scan's headers in (scope, lane, seq) order; false at the end. Every
 // entry committed before the scan began comes once, and none after: each
 // lane ends at its length at the scan's start.

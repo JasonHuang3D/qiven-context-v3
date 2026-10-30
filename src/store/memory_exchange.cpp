@@ -71,8 +71,8 @@ void guard(const Data& d, std::span<const GuardView> guard) {
     }
 }
 
-std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, Vector<Id>& erased,
-                         const Chars& allocator) {
+std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, std::string_view scope,
+                         Vector<Id>& erased, const Chars& allocator) {
     Vector<std::uint32_t> set(targets.begin(), targets.end(), allocator);
     std::sort(set.begin(), set.end());
     const auto in_set = [&set](std::uint32_t i) { return std::binary_search(set.begin(), set.end(), i); };
@@ -91,7 +91,8 @@ std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, 
     for (std::size_t j = 0; j < targets.size(); ++j) {
         const std::uint32_t t = targets[j];
         const std::span<const std::uint32_t> before = targets.first(j);
-        if (t == none || !d.held[t].has_body || std::find(before.begin(), before.end(), t) != before.end()) {
+        if (t == none || !d.held[t].has_body || std::string_view(d.lanes[d.held[t].lane].scope) != scope ||
+            std::find(before.begin(), before.end(), t) != before.end()) {
             continue;
         }
         erased.push_back(d.held[t].id);

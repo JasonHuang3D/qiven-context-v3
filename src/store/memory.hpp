@@ -7,11 +7,11 @@
 // object keeps the thread that made it (Gate); a read-only object serves
 // reads alone. It meets the contract within one process by the simplest
 // means: under the state's lock, the head compared, then the admit hook's
-// admit (Rule's, NoAdmit by default, where a call gives none) against the
-// state's view, the store's own order, then the new rows staged on the
-// state's heap and applied by moves that cannot fail, so a refusal leaves
-// the state as it was; a forget so too, its guard and whole records
-// checked. Reads run
+// admit (Rule's, NoAdmit by default, where a call gives none; a store of
+// another Rule takes its own alone) against the state's view, the store's
+// own order, then the new rows staged on the state's heap and applied by
+// moves that cannot fail, so a refusal leaves the state as it was; a
+// forget so too, its guard, whole records and targets checked. Reads run
 // under the lock, each header parsed again from its line and its id
 // recomputed, each body record parsed and checked against its header, a
 // mismatch StoreCorrupt. A scan fixes, at its start, each lane's entries
@@ -197,7 +197,7 @@ public:
     // The admit hook's given, read and kept on the call's pages before the
     // lock, its admit inside it with the state's view.
     template <class A = Rule>
-        requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
+        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
         constexpr Operation op = Operation::append;
@@ -292,7 +292,7 @@ public:
     // it and whole records; the targets' bodies dropped, their ids into
     // erased; never refused for size or count.
     template <class A = Rule>
-        requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
+        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
                    A&& admit = A{}) {
@@ -320,7 +320,8 @@ public:
         for (const stage::Entry<P>& e : checked.entries) {
             targets.push_back(state::find(d, e.header().text(state::header::Slot::target).value_or("")));
         }
-        const std::uint64_t dropped = state::forgetting(d, targets, erased, chars);
+        const std::uint64_t dropped = state::forgetting(d, targets, scope, erased, chars);
+        stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(erased), at);
         state::Batch batch(d);
         for (std::size_t i = 0; i < entries.size(); ++i) {
             batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
@@ -348,7 +349,7 @@ public:
     // Into an empty state, all or nothing; the heads it wrote into heads.
     // The admit hook's arrived, settled and heads inside the lock.
     template <Source R, class A = Rule>
-        requires AdmitImport<std::remove_cvref_t<A>, state::StateView>
+        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, state::StateView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
         static_assert(AdmitImport<NoAdmit, state::StateView>);

@@ -19,9 +19,10 @@
 //
 // Each operation runs Gate first. append and forget: stage's read outside
 // the transaction; BEGIN IMMEDIATE (hook begun); the head; at forget the
-// guard; the admit hook's admit on WriteView (Rule's by default), the
-// store's own order; at forget whole records and each target's body
-// erased; the rows, the head, meta (hook written); COMMIT (hook committed);
+// guard; the admit hook's admit on WriteView (Rule's, the one a ruled
+// store takes), the store's own order; at forget whole records and each
+// target's body erased, each held in the call's scope with its body, once
+// (stage's erasable); the rows, the head, meta (hook written); COMMIT (hook committed);
 // then a purge's one attempt. A failure in between rolls back.
 // purge and close: the attempt (steps a to c), which raises no engine
 // result; a read-only object attempts none. size: meta, then the figures.
@@ -211,7 +212,8 @@ public:
     // The admit hook's given, read and kept before BEGIN IMMEDIATE, its
     // admit after the head and the guard, with the transaction's view.
     template <class A = Rule>
-        requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
+        requires HookOf<A, Rule> &&
+                 Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
         static_assert(Admit<NoAdmit, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>);
@@ -264,7 +266,8 @@ public:
     // As append, with the guard, whole records and each target's body
     // erased, its id into erased; never refused for size or count.
     template <class A = Rule>
-        requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
+        requires HookOf<A, Rule> &&
+                 Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
                    A&& admit = A{}) {
@@ -282,7 +285,7 @@ public:
     // Into an empty store, all or nothing, on the object's own pages.
     // The admit hook's arrived, settled and heads inside the transaction.
     template <Source R, class A = Rule>
-        requires AdmitImport<std::remove_cvref_t<A>, sqlite::ImportView>
+        requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, sqlite::ImportView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
         static_assert(AdmitImport<NoAdmit, sqlite::ImportView>);
@@ -413,7 +416,8 @@ private:
             std::uint64_t dropped = 0;
             if (erased != nullptr) {
                 sqlite::whole_record(connection_, targets, where);
-                dropped = sqlite::erase(connection_, targets, *erased, where);
+                dropped = sqlite::erase(connection_, targets, scope, *erased, where);
+                stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(*erased), at);
             }
             const std::uint64_t size = stage::detail::sum(static_cast<std::uint64_t>(held.size), staged.size);
             const std::uint64_t count = stage::detail::sum(static_cast<std::uint64_t>(held.count), staged.count);

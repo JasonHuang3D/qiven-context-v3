@@ -4,13 +4,11 @@
 // (the store's contract: Admit, AdmitImport) the stores call at their
 // places, and the ruled stores' default (checked/stores.hpp).
 //
-// The hook, Rules: given, before the first line, at forget each line read
-// through the strict parser, a line it refuses EntryInvalid with the
-// parser's code, and an entry whose kind is not forget StoreError
-// forget_kind, its detail naming the entry. read, once part 1 has read an
-// entry's header, at append a forget refused EntryInvalid forget_path.
-// kept, once the entry is kept, at append the secret check: a header hit
-// refused EntryInvalid secret, the content's hits kept with their entry's
+// The store runs its own guards first, whatever its hook (store/stage):
+// forget_kind, forget_path, the chain at import, the order, the targets a
+// forget erases. The hook, Rules: given, before the first line, the call's
+// hits' room; read nothing. kept, once the entry is kept, at append the
+// secret check: a header hit refused EntryInvalid secret, the content's hits kept with their entry's
 // index. admit, inside the store's transaction or lock, against its view:
 // at append the hits settled first, in order, the first not cleared
 // EntryInvalid secret: a hit passes when a live clearing of the entry's
@@ -19,9 +17,8 @@
 // included, having that content. Then part 2 (validator), its first fault
 // EntryInvalid with its code. The store's own step follows (store/stage).
 //
-// At import, each line after part 1 passes import_line(view, header,
-// index, at) as it arrives, before its insert (arrived): the chain rules,
-// parent and seq, against the view's head of its lane. Once every header
+// At import, each line after part 1 passes the store's chain as it
+// arrives (arrived: nothing of the hook's). Once every header
 // is in, import_entry(view, header, content, index, at, allocator) reads
 // each entry in the final view (settled): part 2's other rules, target to
 // map_evidence, where a revision whose target is forgotten, itself not, is
@@ -33,20 +30,20 @@
 // check(platform, lines, at, allocator, scratch) and admit(view, scope,
 // lane, expected, checked, limits, at, allocator) are the same steps with
 // the rules, called apart: check is the store's read with Rules, its hits
-// returned; admit the hits settled, part 2, then the store's staged.
+// returned; admit the hits settled, part 2, then the store's staged with
+// its order, against the view's head of the call's lane.
 //
 // Refusals are EntryInvalid with the entry's index and its id once part 1
 // has read the header through (part 2), never for secret; the field's path
-// for a secret and forget_path (header.kind).
+// for a secret.
 //
-// Allocations. At forget the line's value, four, on a scratch arena of its
-// own; at append, once the entry is kept, the secret check on one of its
+// Allocations. At append, once the entry is kept, the secret check on one of its
 // own: the content's value, four with a body, the secret check's 24 and its
 // hits' room for a first hit. Each is given back before the next, so the
 // scratch peaks at the greater of one entry's part 1 and its secret check.
 // On the call's kept allocator, the call's hits' room, one where it is
 // short, given back by release. admit: part 2's (validator's) and the
-// view's, on its allocator; import_line none but the view's; import_entry
+// view's, on its allocator; import_entry
 // validator's try_final's and the view's, on its allocator. No platform
 // call. The rules log nothing.
 //
@@ -61,7 +58,6 @@
 
 #include "entry/check.hpp"
 #include "entry/header.hpp"
-#include "entry/kinds.hpp"
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
 #include "memory/memory.hpp"
@@ -105,21 +101,7 @@ struct Checked : stage::Checked<P> {
     Vector<Hit> hits;
 };
 
-// forget_kind's refusal, its detail naming the entry (rules.cpp).
-[[noreturn]] void refuse_kind(const AtView& at, std::size_t index);
-
 namespace detail {
-
-// forget_kind: the line through the strict parser, then its kind.
-inline void forget_kind(const AtView& at, std::size_t index, std::string_view line, const Chars& allocator) {
-    canon::Basic<Chars> value(allocator);
-    if (const std::optional<ParseCode> code = canon::try_parse(line, value)) {
-        stage::refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
-    }
-    if (entry::kinds::detail::member(value, 0, "kind") != "forget") {
-        refuse_kind(at, index);
-    }
-}
 
 // The secret check of one admitted entry: a header hit refused, the
 // content's hits added to out.
@@ -187,16 +169,6 @@ void part2(V& view, std::string_view scope, std::string_view lane, Expected expe
 
 }  // namespace detail
 
-// One line of an import as it arrives, part 1 passed, before its insert:
-// the chain rules (validator's), a fault refused.
-template <class V>
-    requires validator::View<V, Chars>
-void import_line(V& view, const Header& h, std::size_t index, const AtView& at) {
-    if (const std::optional<validator::Code> c = validator::try_chain(view, h)) {
-        stage::refuse(at, index, h.value(Slot::id), validator::name(*c));
-    }
-}
-
 // One entry of an import in its final view, held there with its content
 // or none: part 2's other rules (validator's), forgotten_target among
 // them, then forgotten_body, then body_missing; a fault refused.
@@ -222,27 +194,18 @@ void import_entry(V& view, const Header& h, std::optional<std::string_view> cont
 // head_mismatch, its index the source's and its id the source head's.
 void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at);
 
-// The rules as an admit hook (Admit, AdmitImport): given, at forget each
-// line's kind (forget_kind); read, at append forget_path; kept, at append
-// the secret check, its hits kept on the call's allocator; admit, the hits
-// settled and part 2; arrived, import_line; settled, import_entry; heads,
-// same_heads.
+// The rules as an admit hook (Admit, AdmitImport): given, the hits' room;
+// read, nothing (the store's guards run there); kept, at append the secret
+// check, its hits kept on the call's allocator; admit, the hits settled and
+// part 2; arrived, nothing (the store's chain runs first); settled,
+// import_entry; heads, same_heads.
 class Rules {
 public:
     template <class S>
-    void given(const AtView& at, std::span<const EntryView> lines, const Chars& kept, S& scratch) {
-        if (at.op == Operation::forget) {
-            for (std::size_t i = 0; i < lines.size(); ++i) {
-                detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
-            }
-        }
+    void given(const AtView& /*at*/, std::span<const EntryView> /*lines*/, const Chars& kept, S& /*scratch*/) {
         hits_.emplace(kept);
     }
-    static void read(const AtView& at, std::size_t index, const header::Header<Chars>& h) {
-        if (at.op == Operation::append && h.value(Slot::kind) == "forget") {
-            stage::refuse(at, index, h.value(Slot::id), "forget_path", "header.kind");
-        }
-    }
+    static void read(const AtView& /*at*/, std::size_t /*index*/, const header::Header<Chars>& /*h*/) noexcept {}
     // The secret check on a scratch of its own, part 1's given back.
     template <platform::Platform P, class S>
     void kept(const AtView& at, std::size_t index, const Entry<P>& e, const Chars& /*kept*/, S& scratch) {
@@ -262,9 +225,7 @@ public:
         detail::part2(view, scope, lane, expected, entries, at, allocator);
     }
     template <class V>
-    static void arrived(V& view, const Header& h, std::size_t index, const AtView& at) {
-        import_line(view, h, index, at);
-    }
+    static void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/, const AtView& /*at*/) noexcept {}
     template <class V>
     static void settled(V& view, const Header& h, std::optional<std::string_view> content, std::size_t index,
                         const AtView& at, const Chars& allocator) {
@@ -304,7 +265,8 @@ stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expe
     const std::span<const Entry<P>> entries(checked.entries);
     detail::settle(view, entries, std::span<const Hit>(checked.hits), at);
     detail::part2(view, scope, lane, expected, entries, at, allocator);
-    return stage::staged(view, static_cast<const stage::Checked<P>&>(checked), limits, at);
+    return stage::staged(view, static_cast<const stage::Checked<P>&>(checked), limits, at, scope, lane,
+                         view.head(scope, lane));
 }
 
 }  // namespace qiven3::checked

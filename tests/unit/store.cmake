@@ -30,6 +30,15 @@ qiven3_add_cases(qiven3_unit_store_view LABELS fast fake
   SOURCES store_view_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
 
+# store's own guards in both stores with no admit hook, on the fake: a
+# forget appended, a forget given an accept, a forget's target not
+# erasable, an import's seq gap and wrong parent, the order on a lane with
+# a head and an entry of another scope or lane; each refusal followed by
+# verify and, on SQLite, a reopen, the state as before.
+qiven3_add_cases(qiven3_unit_store_guard LABELS fast fake
+  SOURCES store_guard_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
 # lock, thread gate, read-only object and checked reads; a scan's end at

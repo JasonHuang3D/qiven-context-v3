@@ -11,7 +11,8 @@
 // alone, the chain rules as each line arrives (a line again, a gap), the
 // final view's codes (forgotten_body, body_missing, validator's target,
 // identity and forgotten_target, part 2's before forgotten_body, a whole
-// record standing); head_mismatch apart.
+// record standing); head_mismatch apart. The ruled stores' append takes
+// their rules alone, evaluated by the compiler.
 
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +26,7 @@
 #include <vector>
 
 #include "checked/rules.hpp"
+#include "checked/stores.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "memory/arena.hpp"
@@ -46,6 +48,18 @@ using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespac
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
+
+// Whether store S's append takes hook A: a ruled store its rules alone, a
+// plain one any.
+template <class S, class A>
+concept Appends = requires(S& s, std::span<const EntryView> lines, A a) {
+    s.append(qiven_scope, implementer_lane, std::nullopt, lines, a);
+};
+static_assert(Appends<qiven3::store::MemoryStore<Fake>, qiven3::store::NoAdmit>);
+static_assert(Appends<qiven3::checked::MemoryStore<Fake>, checked::Rules>);
+static_assert(!Appends<qiven3::checked::MemoryStore<Fake>, qiven3::store::NoAdmit>);
+static_assert(Appends<qiven3::checked::SQLiteStore<Fake>, checked::Rules>);
+static_assert(!Appends<qiven3::checked::SQLiteStore<Fake>, qiven3::store::NoAdmit>);
 
 }  // namespace
 
@@ -290,12 +304,12 @@ QIVEN3_CASE(store_stage, import) {
     const auto content_at = [&](std::size_t i) {
         return all[i].content ? std::optional<std::string_view>(*all[i].content) : std::nullopt;
     };
-    // As each line arrives, before its insert: the chain rules.
+    // As each line arrives, before its insert: the store's chain.
     // One refusal at a time, so that the case's frame stays within the bound.
     std::optional<Refusal> r;
     fixtures::MemoryView view;
     const auto arrive = [&](std::size_t i) {
-        return refused([&] { checked::import_line(view, header_of(i), i, at(Operation::import_)); });
+        return refused([&] { qiven3::store::stage::arrives(view, header_of(i), i, at(Operation::import_)); });
     };
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(!arrive(i).has_value());
@@ -308,7 +322,7 @@ QIVEN3_CASE(store_stage, import) {
     CHECK_EQ(r->id, id_of(all[7]));
     const auto gap = std::make_unique<fixtures::MemoryView>();
     gap->put(header_of(5), content_at(5));
-    r = refused([&] { checked::import_line(*gap, header_of(7), 7, at(Operation::import_)); });
+    r = refused([&] { qiven3::store::stage::arrives(*gap, header_of(7), 7, at(Operation::import_)); });
     REQUIRE(r.has_value());
     CHECK_EQ(r->code, std::string("parent"));
     // Once every header is in, the final view: E's forget of B applied.

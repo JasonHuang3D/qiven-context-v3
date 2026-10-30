@@ -20,7 +20,8 @@
 //
 // Import: the source's heads first; BEGIN IMMEDIATE, foreign keys
 // deferred, StoreNotEmpty unless meta counts no entry; each line through
-// part 1 and the admit hook's arrived as it arrives, then its entry, body
+// part 1, the store's chain (stage's arrives) and the admit hook's arrived
+// as it arrives, then its entry, body
 // and head rows; once every line is in, each entry in the order inserted
 // through the final view (the hook's settled), the heads given to the
 // hook's heads with the source's, meta written from the rows,
@@ -339,6 +340,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
             const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
             ImportView view(c, Chars(work), where);
+            stage::arrives(view, e.header(), i, at);
             admit.arrived(view, e.header(), i, at);
             rows.put(e.header(), v, where);
             work_peak = std::max(work_peak, work.peak());

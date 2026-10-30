@@ -2,7 +2,8 @@
 
 // checked/stores: the ruled stores, each store of the contract with the
 // rules (checked/rules.hpp) as the admit hook its append, forget and
-// import take by default. A hook given to a call still takes their place.
+// import take, and no other: a call given another hook does not compile
+// (the store's HookOf).
 //
 //   MemoryStore<P>         the in-memory store on platform P
 //   SQLiteStore<P, H>      the SQLite store on P, its hooks H

@@ -113,10 +113,11 @@ void check_body(P& platform, const Held& e, const Header& h, Operation op, const
 // forget's guard: every lane held as the guard expects it.
 void guard(const Data& d, std::span<const GuardView> guard);
 // forget's whole_record, then the ids whose body the call drops into
-// erased; the dropped records' bytes, each with its LF. targets: each
-// entry's target's index, in the call's order.
-std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, Vector<Id>& erased,
-                         const Chars& allocator);
+// erased (each held in scope with its body, once); the dropped records'
+// bytes, each with its LF. targets: each entry's target's index, in the
+// call's order.
+std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, std::string_view scope,
+                         Vector<Id>& erased, const Chars& allocator);
 // The exports of the store object numbered owner closed; at the last one,
 // the bodies forgets dropped while they were open freed.
 void close_exports(Data& d, std::uint64_t owner) noexcept;
@@ -212,6 +213,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
             const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
             StateView view(d, Chars(work), op, {});
+            stage::arrives(view, e.header(), i, at);
             admit.arrived(view, e.header(), i, at);
             import_one(d, v.line, v.body, e.header());
             note(peak.work, work);

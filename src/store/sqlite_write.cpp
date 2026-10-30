@@ -310,17 +310,22 @@ void whole_record(Connection& c, std::span<const Id> targets, const WhereView& a
     }
 }
 
-std::uint64_t erase(Connection& c, std::span<const Id> targets, Vector<Id>& erased, const WhereView& at) {
+std::uint64_t erase(Connection& c, std::span<const Id> targets, std::string_view scope, Vector<Id>& erased,
+                    const WhereView& at) {
     erased.clear();
     erased.reserve(targets.size());
     std::uint64_t bytes = 0;
-    Statement s = c.prepare("DELETE FROM body WHERE id = ?1 RETURNING length(record)", at);
+    Statement s = c.prepare(
+        "DELETE FROM body WHERE id = ?1 AND EXISTS (SELECT 1 FROM entry e WHERE e.id = ?1 AND e.scope = ?2) "
+        "RETURNING length(record)",
+        at);
     for (std::size_t j = 0; j < targets.size(); ++j) {
         const std::span<const Id> before = targets.first(j);
         if (std::find(before.begin(), before.end(), targets[j]) != before.end()) {
             continue;
         }
         s.bind_text(1, targets[j].view(), at);
+        s.bind_text(2, scope, at);
         if (s.step(at)) {
             bytes += static_cast<std::uint64_t>(s.integer(0)) + 1U;
             erased.push_back(targets[j]);

@@ -1,7 +1,7 @@
 # qiven3_checked: cognition's rules over a store's write, above the store:
-# the rules as the store's admit hook (forget's kinds, forget_path, the
-# secret check and its clearing, part 2, an import's rules) and the ruled
-# stores, each store with the rules as its default hook.
+# the rules as the store's admit hook (the secret check and its clearing,
+# part 2, an import's rules) and the ruled stores, each store with the
+# rules as its one hook.
 add_library(qiven3_checked STATIC
   rules.cpp
   rules.hpp

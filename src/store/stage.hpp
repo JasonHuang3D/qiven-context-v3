@@ -1,16 +1,28 @@
 #pragma once
 
 // stage: the store's steps of an append, a forget or an import: part 1 of
-// the shared validator, each entry kept; the store's own order; the
-// maximum. The rules of cognition are an admit hook's (the contract's
-// Admit and AdmitImport), the product's; the store runs none of them.
+// the shared validator, each entry kept; the store's own guards and order;
+// the maximum. The rules of cognition are an admit hook's (the contract's
+// Admit and AdmitImport), the product's; the store runs none of them. Its
+// own guards run whatever hook it is given, so that it never commits a
+// state its verify or open refuses.
 //
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
-// entry by entry: the hook's given before the first line; part 1, a fault
-// refused; the hook's read once part 1 has read the header; the entry kept
-// on the caller's allocator, then the hook's kept. It returns the entries
-// and the bytes the lines add: each header line and body record with its
-// LF.
+// entry by entry: at forget, first each line read through the strict
+// parser, a line it refuses EntryInvalid with the parser's code, and an
+// entry whose kind is not the store's word forget StoreError forget_kind,
+// its detail naming the entry; the hook's given before the first line;
+// part 1, a fault refused; at append a forget refused EntryInvalid
+// forget_path (header.kind); the hook's read; the entry kept on the
+// caller's allocator, then the hook's kept. It returns the entries and the
+// bytes the lines add: each header line and body record with its LF.
+//
+// arrives(view, header, index, at), at import as each line arrives, before
+// the hook's arrived: its parent the view's head of its lane and its seq
+// one past it, refused parent or seq. erasable(entries, erased, at), at
+// forget once the store has found what it erases: each forget's target
+// held in the call's scope with its body, none twice, the first not
+// refused EntryInvalid target.
 //
 // staged(view, checked, limits, at), inside the store's transaction or
 // lock, after the hook's admit: at append alone, the maximum: the view's
@@ -27,9 +39,11 @@
 //
 // Allocations. An entry's part 1 is done on a scratch arena, which the
 // caller's scratch() gives afresh over the same pages, given back before
-// the next; the hook's are its own (each hook says). On the caller's
+// the next; at forget the line's value, four, on one of its own; the
+// hook's are its own (each hook says). On the caller's
 // allocator, what read keeps: the entries' room, one; each entry's header,
-// one, and body, one. staged and in_order none but the view's. Platform
+// one, and body, one. staged, in_order, arrives and erasable none but the
+// view's. Platform
 // calls: part 1's wipes and each kept body's key's, each noexcept. stage
 // logs nothing.
 //
@@ -46,11 +60,13 @@
 #include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
+#include "entry/kinds.hpp"
 #include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -105,6 +121,8 @@ concept Scratch = requires(S& s) {
 [[noreturn]] void refuse_part1(const AtView& at, std::size_t index, std::string_view id,
                                const entry::check::Fault& fault);
 [[noreturn]] void refuse_full(const AtView& at, std::uint64_t size, std::uint64_t count, const Limits& limits);
+// forget_kind's refusal, its detail naming the entry.
+[[noreturn]] void refuse_kind(const AtView& at, std::size_t index);
 // A call past validator's entries, or a sum past its type: MemoryError budget.
 [[noreturn]] void too_large(std::size_t request);
 
@@ -116,6 +134,30 @@ inline std::uint64_t sum(std::uint64_t a, std::uint64_t b) {
         too_large(SIZE_MAX);
     }
     return a + b;
+}
+
+// forget_kind: the line through the strict parser, then its kind.
+inline void forget_kind(const AtView& at, std::size_t index, std::string_view line, const Chars& allocator) {
+    canon::Basic<Chars> value(allocator);
+    if (const std::optional<ParseCode> code = canon::try_parse(line, value)) {
+        refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
+    }
+    if (entry::kinds::detail::member(value, 0, "kind") != "forget") {
+        refuse_kind(at, index);
+    }
+}
+
+// One entry after now on its lane: its parent the head, refused parent,
+// and its seq one past it, refused seq.
+inline void next(const header::Header<Chars>& h, const std::optional<Head>& now, std::size_t index,
+                 const AtView& at) {
+    const std::string_view id = h.value(Slot::id);
+    if (h.text(Slot::parent) != (now ? std::optional<std::string_view>(now->id.view()) : std::nullopt)) {
+        refuse(at, index, id, "parent");
+    }
+    if (h.seq() < 1 || h.seq() - 1 != (now ? now->seq : 0)) {
+        refuse(at, index, id, "seq");
+    }
 }
 
 // Part 1 of one entry, as check_entry reads it, a fault refused.
@@ -180,6 +222,11 @@ Checked<P> read(P& platform, std::span<const EntryView> lines, const AtView& at,
     if (lines.size() > validator::max_entries) {
         too_large(lines.size());
     }
+    if (at.op == Operation::forget) {
+        for (std::size_t i = 0; i < lines.size(); ++i) {
+            detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
+        }
+    }
     admit.given(at, lines, allocator, scratch);
     Checked<P> out(allocator);
     out.entries.reserve(lines.size());
@@ -189,6 +236,9 @@ Checked<P> read(P& platform, std::span<const EntryView> lines, const AtView& at,
             out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
             if (const std::optional<std::string_view> body = lines[i].body) {
                 out.size = detail::sum(out.size, detail::sum(body->size(), 1));
+            }
+            if (at.op == Operation::append && e.header().value(Slot::kind) == "forget") {
+                refuse(at, i, e.header().value(Slot::id), "forget_path", "header.kind");
             }
             admit.read(at, i, e.header());
             out.entries.push_back(detail::keep(platform, e, lines[i], allocator));
@@ -229,16 +279,31 @@ void in_order(std::string_view scope, std::string_view lane, std::optional<Head>
               std::span<const Entry<P>> entries, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
         const header::Header<Chars>& h = entries[i].header();
-        const std::string_view id = h.value(Slot::id);
-        const std::optional<std::string_view> head =
-            now ? std::optional<std::string_view>(now->id.view()) : std::nullopt;
-        if (h.value(Slot::scope) != scope || h.value(Slot::lane) != lane || h.text(Slot::parent) != head) {
-            refuse(at, i, id, "parent");
+        if (h.value(Slot::scope) != scope || h.value(Slot::lane) != lane) {
+            refuse(at, i, h.value(Slot::id), "parent");
         }
-        if (h.seq() < 1 || h.seq() - 1 != (now ? now->seq : 0)) {
-            refuse(at, i, id, "seq");
+        detail::next(h, now, i, at);
+        now = Head{Id::of(h.value(Slot::id)), h.seq()};
+    }
+}
+
+// At import, one line as it arrives, before its insert: its parent the
+// view's head of its lane and its seq one past it; a refusal thrown.
+template <class V>
+void arrives(V& view, const header::Header<Chars>& h, std::size_t index, const AtView& at) {
+    detail::next(h, view.head(h.value(Slot::scope), h.value(Slot::lane)), index, at);
+}
+
+// At forget, each target erased: erased the targets whose body the store
+// drops, in the call's order, each once, each held in the call's scope with
+// its body; the first entry whose target is not there refused target.
+template <platform::Platform P>
+void erasable(std::span<const Entry<P>> entries, std::span<const Id> erased, const AtView& at) {
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const header::Header<Chars>& h = entries[i].header();
+        if (i >= erased.size() || erased[i].view() != h.text(Slot::target).value_or(std::string_view())) {
+            refuse(at, i, h.value(Slot::id), "target");
         }
-        now = Head{Id::of(id), h.seq()};
     }
 }
 
