@@ -156,6 +156,15 @@ class Choose(unittest.TestCase):
         self.assertEqual(len(tests), 6)
         self.assertIsNone(self.choose(["tools/modules.json"], TABLE, {})[0])  # no rows recorded: the support's too
 
+    def test_every_module_named(self):
+        """More than three modules chosen for one reason: the line names each."""
+        changed = ["src/base/a.cpp", "src/utc/utc.cpp", "src/entry/header.hpp", "src/write/w.cpp", "tools/loop.py"]
+        why, _ = SELECT["choose"](TABLE, {m["name"]: m for m in TABLE["modules"]}, changed)
+        reasons = SELECT["picked"](listing(), why, {m["name"] for m in TABLE["modules"]})[1]
+        self.assertEqual(reasons, ["base, entry, tooling, utc, write changed"])
+        self.assertEqual(SELECT["shown"](["utc", "entry", "base", "tooling"]), "base, entry, tooling, utc")
+        self.assertEqual(SELECT["shown"](["d", "c", "b", "a"], SELECT["SHOWN"]), "a, b, c and 1 more")  # files
+
     def test_unlabelled(self):
         """A test with no module's label runs, the line counting it."""
         tests, reasons = SELECT["picked"]([("loose", ["fake"]), ("utc.one", ["utc"])], {}, {"utc"})

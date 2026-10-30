@@ -46,13 +46,14 @@ TABLE = "tools/modules.json"
 CHECK = Path(__file__).resolve().parent / "loop_modules.py"
 MODULES = runpy.run_path(str(CHECK))  # the table's one reading: owners(), reach()
 EVERY = ("whole-build", "support")  # the layers whose change runs every test
-SHOWN = 3  # the names a reason shows at most
+SHOWN = 3  # the files a reason shows at most; a module chosen is always named
 
 
-def shown(names):
+def shown(names, most=None):
+    """names sorted, joined; given most, the first most and how many more."""
     names = sorted(names)
-    more = f" and {len(names) - SHOWN} more" if len(names) > SHOWN else ""
-    return ", ".join(names[:SHOWN]) + more
+    more = f" and {len(names) - most} more" if most and len(names) > most else ""
+    return ", ".join(names[:most]) + more
 
 
 def blobs(root, git):
@@ -110,10 +111,10 @@ def choose(table, rows, changed):
         why.update({name: "changed in the table" for name in now if rows.get(name) != now[name] and name not in why})
     every = sorted(name for name in why if now[name]["layer"] in EVERY)
     if lost:
-        return None, f"{shown(lost)} in no module"
+        return None, f"{shown(lost, SHOWN)} in no module"
     if every:
         return None, "the whole build or the support: " + ", ".join(
-            f"{name} {why[name]}" + (f" ({shown(files[name])})" if name in files else "") for name in every)
+            f"{name} {why[name]}" + (f" ({shown(files[name], SHOWN)})" if name in files else "") for name in every)
     seeds = {name for name in why if now[name]["layer"] != "no-test"}
     reach = MODULES["reach"](table)
     why = {name: why[name] if name in seeds else "depending on " + shown(reach[name] & seeds)

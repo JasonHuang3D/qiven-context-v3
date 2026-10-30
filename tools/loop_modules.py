@@ -1,19 +1,23 @@
 """The modules' check: tools/modules.json kept true of the checkout.
 
     py -3.15 -I tools/loop_modules.py SOURCE [BUILD]
+    py -3.15 -I tools/loop_modules.py --help
 
 Each tracked file in one module; each module's dependencies, followed
 transitively, covering its includes (each #include "..." resolved to the
-tracked file it names) and, given a configured build tree, its links (read
-from CMake's file API, the codemodel the root CMakeLists.txt asks for); a
-foundation module depending on a product module refused, but the table's
-listed exceptions; a module or a dependency the table does not name, or a
-layer it does not know, refused. One line an error, naming the file or the
-edge; exit 0 when none, 1 when any, 2 when the check could not run.
+tracked file it names, one resolving to none refused but in third_party/,
+where they are counted on one line) and, given a configured build tree,
+its links (read from CMake's file API, the codemodel the root CMakeLists.txt
+asks for); a foundation module depending on a product module refused, but
+the table's listed exceptions; a module or a dependency the table does not
+name, or a layer it does not know, refused. One line an error, naming the
+file or the edge, then the count of vendored includes left unresolved; exit
+0 when none, 1 when any, 2 when the check could not run.
 """
 
 import fnmatch
 import json
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -27,6 +31,7 @@ LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test
 SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*"([^"]+)"', re.M)
 ROOTS = ("src", "tests", "third_party/sqlite")  # the include directories the build gives
+VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
 
 
 def load(path=TABLE):
@@ -79,18 +84,20 @@ def check_table(table):
 
 
 def resolve(including, name, tracked):
-    """The tracked file an #include "name" of the file including names, or None."""
-    for base in (str(Path(including).parent.as_posix()), *ROOTS):
-        candidate = Path(base, name).as_posix()
+    """The tracked file an #include "name" of the file including names, its
+    .. steps taken, or None."""
+    for base in (posixpath.dirname(including), *ROOTS):
+        candidate = posixpath.normpath(posixpath.join(base, name))
         if candidate in tracked:
             return candidate
     return None
 
 
-def check(table, files, read, targets=None):
-    """Every error: the table's, each file's ownership, each include edge and,
-    with targets [(name, [tracked sources], [linked target names])], each
-    link edge. read(path) gives a tracked file's bytes."""
+def check(table, files, read, targets=None, left=None):
+    """Every error: the table's, each file's ownership, each include edge and
+    unresolved include and, with targets [(name, [tracked sources], [linked
+    target names])], each link edge. read(path) gives a tracked file's bytes;
+    a vendored file's unresolved include goes to the list left, if given."""
     errors = check_table(table)
     owner = owners(table, files)
     for f, names in sorted(owner.items()):
@@ -114,9 +121,17 @@ def check(table, files, read, targets=None):
     for f in sorted(files):
         if not f.endswith(SOURCES) or f not in module:
             continue
-        for name in INCLUDE.findall(read(f)):
-            found = resolve(f, name.decode("utf-8", "replace"), tracked)
-            if found in module and not covered(module[f], module[found]):
+        data = read(f)
+        for match in INCLUDE.finditer(data):
+            name = match.group(1).decode("utf-8", "replace")
+            found = resolve(f, name, tracked)
+            if found is None:
+                line = data.count(b"\n", 0, match.start()) + 1
+                if not f.startswith(VENDORED):
+                    errors.append(f'include {f}:{line} "{name}": resolves to no tracked file')
+                elif left is not None:
+                    left.append(f'{f}:{line} "{name}"')
+            elif found in module and not covered(module[f], module[found]):
                 errors.append(f"include {f} -> {found}: module {module[f]} does not depend on {module[found]}")
     of_target = {}
     for name, sources, _ in targets or ():
@@ -168,25 +183,31 @@ def tracked(source):
 
 
 def run(source, build=None, table_path=None):
-    """The check's errors on a checkout and, given one, its build tree."""
+    """The check's errors on a checkout and, given one, its build tree, and
+    the vendored includes left unresolved."""
     source = Path(source)
     table = load(table_path or source / "tools" / "modules.json")
     files = tracked(source)
     targets = codemodel(build, source) if build else None
-    return check(table, files, lambda f: (source / f).read_bytes(), targets)
+    left = []
+    return check(table, files, lambda f: (source / f).read_bytes(), targets, left), left
 
 
 def main(argv):
+    if argv in (["--help"], ["-h"]):
+        print(__doc__.strip())
+        return 0
     if len(argv) not in (1, 2):
         print("usage: loop_modules.py SOURCE [BUILD]", file=sys.stderr)
         return 2
     try:
-        errors = run(*argv)
+        errors, left = run(*argv)
     except (OSError, ValueError, KeyError) as error:
         print(f"modules: the check could not run: {error}", file=sys.stderr)
         return 2
     for line in errors:
         print(f"modules: {line}")
+    print(f"vendored: {len(left)} includes in {VENDORED} left unresolved")
     print(f"modules: {len(errors)} errors")
     return 1 if errors else 0
 
