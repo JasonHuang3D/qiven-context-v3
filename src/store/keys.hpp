@@ -54,6 +54,9 @@ struct Head {
 };
 static_assert(sizeof(Head) == 80, "Head's size is pinned: an Id and seq");
 
+// The most entries one call takes.
+inline constexpr std::size_t max_call_entries = UINT32_MAX - 1U;
+
 // A record's keys: its id, scope, lane, kind and seq, its parent and its
 // target if it has them, and whether it has a body, held or forgotten.
 struct Keys {

@@ -2,7 +2,9 @@
 // store's view over its state and the SQLite store's over its connection,
 // on the fake, after one chain of fixtures on two lanes (A, B, D and ACC
 // on implementer, C, M1, M2 and ACC2 on reviewer). line(id) gives a held
-// record's line byte-equal, false for an id not held; targets(id, scope)
+// record's line byte-equal, false for an id not held; held_in(id, scope)
+// whether a record of id is held in that scope, by its bytes (no prefix,
+// no `*`), false in another or for an id not held; targets(id, scope)
 // the ids whose target is it, in the order written, none in another scope
 // or for an id no record targets, and targets(id) the same in every
 // scope; keyed(scope, kind) a scope's ids of a
@@ -136,6 +138,11 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(view.line(id_of(a), line) && std::string_view(line) == a.line);
     CHECK(view.line(id_of(acc2), line) && std::string_view(line) == acc2.line);
     CHECK(!view.line(none, line));
+
+    CHECK(view.held_in(id_of(a), qiven_scope) && view.held_in(id_of(acc2), qiven_scope));
+    CHECK(!view.held_in(id_of(a), "person") && !view.held_in(none, qiven_scope));
+    CHECK(!view.held_in(id_of(a), qiven_scope.substr(0, qiven_scope.size() - 1)));
+    CHECK(!view.held_in(id_of(a), std::string(qiven_scope) + "*"));
 
     Vector<Id> out(chars);
     out.push_back(Id::of(none));

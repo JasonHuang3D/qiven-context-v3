@@ -197,11 +197,11 @@ public:
     // The admit hook's given, read and kept on the call's pages before the
     // lock, its admit inside it with the state's view.
     template <class A = Rule>
-        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
+        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, P, state::StateView, stage::Kept, state::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
         constexpr Operation op = Operation::append;
-        static_assert(Admit<NoAdmit, state::StateView, stage::Entry<P>, state::ScratchView>);
+        static_assert(Admit<NoAdmit, P, state::StateView, stage::Kept, state::ScratchView>);
         gate_.enter(op, {});
         std::optional<Pages> extra;
         const std::span<std::byte> span = room(state::budget_of(entries), extra);
@@ -212,16 +212,16 @@ public:
         const Released<std::remove_cvref_t<A>> released(admit);
         const state::Chars chars(kept);
         const stage::AtView at{op, {}};
-        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
+        const stage::Checked checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::StateView view(d, chars, op, {}, &scratch);
-        admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
-        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at, scope, lane, now, scratch);
+        admit.admit(view, scope, lane, expected, std::span<const stage::Kept>(checked.kept), at, chars);
+        const stage::Staged staged = stage::guarded(view, checked, state_->limits(), at, scope, lane, now);
         state::Batch batch(d);
-        for (std::size_t i = 0; i < entries.size(); ++i) {
-            batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
+        for (const stage::Kept& k : checked.kept) {
+            batch.add(d, k.line, k.record, k.keys());
         }
         batch.apply(d, staged.size);
         peak_ = kept.peak() + scratch.peak();
@@ -292,7 +292,7 @@ public:
     // it and whole records; the targets' bodies dropped, their ids into
     // erased; never refused for size or count.
     template <class A = Rule>
-        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
+        requires HookOf<A, Rule> && Admit<std::remove_cvref_t<A>, P, state::StateView, stage::Kept, state::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
                    A&& admit = A{}) {
@@ -307,24 +307,24 @@ public:
         const Released<std::remove_cvref_t<A>> released(admit);
         const state::Chars chars(kept);
         const stage::AtView at{op, {}};
-        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
+        const stage::Checked checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::guard(d, guard);
         state::StateView view(d, chars, op, {}, &scratch);
-        admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
+        admit.admit(view, scope, lane, expected, std::span<const stage::Kept>(checked.kept), at, chars);
         const stage::Staged staged = stage::staged(view, checked, state_->limits(), at, scope, lane, now);
         Vector<std::uint32_t> targets(chars);
         targets.reserve(entries.size());
-        for (const stage::Entry<P>& e : checked.entries) {
-            targets.push_back(state::find(d, e.header().text(state::header::Slot::target).value_or("")));
+        for (const stage::Kept& k : checked.kept) {
+            targets.push_back(state::find(d, k.target ? k.target->view() : std::string_view()));
         }
         const std::uint64_t dropped = state::forgetting(d, targets, scope, erased);
-        stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(erased), at);
+        stage::erasable(std::span<const stage::Kept>(checked.kept), std::span<const Id>(erased), at);
         state::Batch batch(d);
-        for (std::size_t i = 0; i < entries.size(); ++i) {
-            batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
+        for (const stage::Kept& k : checked.kept) {
+            batch.add(d, k.line, k.record, k.keys());
         }
         batch.apply(d, staged.size);
         d.size -= dropped;

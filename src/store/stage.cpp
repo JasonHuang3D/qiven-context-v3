@@ -35,7 +35,7 @@ void refuse_kind(const AtView& at, std::size_t index) {
 }
 
 void too_large(std::size_t entries) {
-    throw memory::MemoryError::budget("stage", validator::max_entries, entries, 0);
+    throw memory::MemoryError::budget("stage", max_call_entries, entries, 0);
 }
 
 }  // namespace qiven3::store::stage

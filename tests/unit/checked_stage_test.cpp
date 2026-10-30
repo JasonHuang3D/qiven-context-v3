@@ -56,9 +56,9 @@ concept Appends = requires(S& s, std::span<const EntryView> lines, A a) {
     s.append(qiven_scope, implementer_lane, std::nullopt, lines, a);
 };
 static_assert(Appends<qiven3::store::MemoryStore<Fake>, qiven3::store::NoAdmit>);
-static_assert(Appends<qiven3::checked::MemoryStore<Fake>, checked::Rules>);
+static_assert(Appends<qiven3::checked::MemoryStore<Fake>, checked::Rules<Fake>>);
 static_assert(!Appends<qiven3::checked::MemoryStore<Fake>, qiven3::store::NoAdmit>);
-static_assert(Appends<qiven3::checked::SQLiteStore<Fake>, checked::Rules>);
+static_assert(Appends<qiven3::checked::SQLiteStore<Fake>, checked::Rules<Fake>>);
 static_assert(!Appends<qiven3::checked::SQLiteStore<Fake>, qiven3::store::NoAdmit>);
 
 }  // namespace

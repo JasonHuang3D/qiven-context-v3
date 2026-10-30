@@ -121,6 +121,13 @@ bool WriteView::line(std::string_view id, String& out) {
     return true;
 }
 
+bool WriteView::held_in(std::string_view id, std::string_view scope) {
+    Statement s = c_->prepare(held_scope, at_);
+    s.bind_text(1, id, at_);
+    s.bind_text(2, scope, at_);
+    return s.step(at_) && s.integer(0) != 0;
+}
+
 void WriteView::targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
     out.clear();
     Statement s = c_->prepare(record_members, at_);

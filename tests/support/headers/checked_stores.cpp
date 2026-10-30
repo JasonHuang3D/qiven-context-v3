@@ -10,9 +10,9 @@ namespace qiven3::store {
 
 using Fake = platform::fake::FakePlatform;
 
-template class MemoryStore<Fake, checked::Rules>;
-template class SQLiteStore<Fake, NoHooks, checked::Rules>;
-template Imported SQLiteStore<Fake, NoHooks, checked::Rules>::import_(detail::SourceArchetype&, Vector<LaneHead>&);
+template class MemoryStore<Fake, checked::Rules<Fake>>;
+template class SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>;
+template Imported SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>::import_(detail::SourceArchetype&, Vector<LaneHead>&);
 
 static_assert(Store<checked::MemoryStore<Fake>>);
 static_assert(Store<checked::SQLiteStore<Fake>>);

@@ -93,7 +93,7 @@ void import_one(Data& d, std::string_view line, std::optional<std::string_view> 
     if (record) {
         bytes = stage::detail::sum(bytes, stage::detail::sum(record->size(), 1));
     }
-    Held e = make_held(d, line, record, h);
+    Held e = make_held(d, line, record, stage::detail::keys_of(h));
     e.lane = lane_of(d, h.value(Slot::scope), h.value(Slot::lane));
     if (e.lane == none) {
         Lane l(d.heap);
@@ -161,7 +161,7 @@ void verify_entry(const Data& d, std::uint32_t l, std::size_t k, const Header& h
         throw StoreError::corrupt(name(op), {}, Corrupt::forgotten_body, id);
     }
     const std::optional<std::string_view> content = h.text(Slot::content);
-    if (content.value_or(std::string_view()) != std::string_view(e.content) || (!content && e.has_body) ||
+    if (content.has_value() != e.content || (!content && e.has_body) ||
         (content && !e.has_body && e.forget == none)) {
         incoherent(op, id);
     }
@@ -284,7 +284,7 @@ bool MemoryExport::next(Line& line) {
             const Held& e = d.held[d.lanes[p.lane].ids[at_]];
             const bool forgotten = e.forget != none && e.forget < held_;
             const bool body = !forgotten && !e.body.empty();
-            if (!body && !forgotten && !e.content.empty()) {
+            if (!body && !forgotten && e.content) {
                 throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, e.id.view());
             }
             line.header.assign(std::string_view(e.line));

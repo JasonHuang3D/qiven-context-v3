@@ -239,6 +239,7 @@ struct Line {
 struct EntryView {
     std::string_view line;                 // the stored header line
     std::optional<std::string_view> body;  // its body record, or none
+    Keys keys;                             // its keys, NoAdmit's to give
 };
 struct GuardView {  // a head the store holds, as the caller expects it
     std::string_view scope, lane, id;
@@ -341,18 +342,19 @@ struct At {
 // The admit hook of append and forget: a product's checks of the entries a
 // call is given, on the store's work pages (kept, the call's; scratch, a
 // fresh arena over the same pages each step), each refusal thrown. given
-// before any entry is read; read with each entry's header as the store
-// reads it, and kept once the store keeps it, both before the store's
-// transaction or lock; admit inside it, after the head and the guard,
-// with the store's read view, before any write; release, however the call
-// ends, before the store's pages go, gives back what the hook holds on
-// them. V is the store's view, E its kept entry, S its scratch.
-template <class A, class V, class E, class S>
-concept Admit = requires(A& a, V& view, const At& at, std::span<const EntryView> lines, std::size_t i,
-                         const Header& h, const E& e, std::span<const E> entries, std::string_view v,
-                         Expected expected, const memory::Allocator<char>& kept, S& scratch) {
+// before any entry is read; read first with each line, its keys into out
+// (views valid until release), and kept once the store keeps it, both
+// before the store's transaction or lock; admit inside it, after the head
+// and the guard, with the store's read view, before any write; release,
+// however the call ends, before the store's pages go, gives back what the
+// hook holds on them. P is the store's platform, V its view, E its kept
+// entry, S its scratch.
+template <class A, class P, class V, class E, class S>
+concept Admit = requires(A& a, P& platform, V& view, const At& at, std::span<const EntryView> lines, std::size_t i,
+                         const EntryView& line, Keys& out, const E& e, std::span<const E> entries,
+                         std::string_view v, Expected expected, const memory::Allocator<char>& kept, S& scratch) {
     a.given(at, lines, kept, scratch);
-    a.read(at, i, h);
+    a.read(platform, at, i, line, out, kept, scratch);
     a.kept(at, i, e, kept, scratch);
     a.admit(view, v, v, expected, entries, at, kept);
     { a.release() } noexcept;
@@ -386,12 +388,17 @@ concept AdmitImport = requires(A& a, V& view, const At& at, std::size_t i, const
     a.heads(heads, heads, at);
 };
 
-// The hook that admits what the store's own rules admit.
+// The hook that admits what the store's own rules admit: each line's keys
+// as its caller gives them.
 struct NoAdmit {
     template <class S>
     constexpr void given(const At& /*at*/, std::span<const EntryView> /*lines*/,
                          const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}
-    constexpr void read(const At& /*at*/, std::size_t /*index*/, const Header& /*h*/) const noexcept {}
+    template <class P, class S>
+    constexpr void read(P& /*platform*/, const At& /*at*/, std::size_t /*index*/, const EntryView& line, Keys& out,
+                        const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {
+        out = line.keys;
+    }
     template <class E, class S>
     constexpr void kept(const At& /*at*/, std::size_t /*index*/, const E& /*e*/,
                         const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}

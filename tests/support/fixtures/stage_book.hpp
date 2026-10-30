@@ -111,13 +111,43 @@ static_assert(stage::Scratch<ScratchPages>);
 // One entry's scratch, 1 MiB.
 inline constexpr std::size_t scratch_bytes = std::size_t{1} << 20U;
 
-// Views of held entries: a temporary list is refused, as its views would
-// dangle.
+// An entry's view with its keys, as a caller with no admit hook gives them:
+// its header line parsed, each key a view of the same bytes in the line (a
+// canonical line holds each value as it is, no escapes), the body key its
+// content's presence; a line the header parser refuses no keys. A value
+// the line does not hold as it is fails.
+inline EntryView keyed(std::string_view line, std::optional<std::string_view> record) {
+    std::optional<header::Header<>> parsed;
+    try {
+        parsed.emplace(header::parse_line(line));
+    } catch (...) {  // NOLINT(bugprone-empty-catch): a refused line keeps no keys
+        return EntryView{line, record, {}};
+    }
+    const header::Header<>& h = *parsed;
+    const auto in_line = [line](std::string_view v) {
+        const std::size_t at = line.find(v);
+        if (at == std::string_view::npos) {
+            qiven3::memory::fail_fast("stage_book::keyed: a value the line does not hold as it is");
+        }
+        return line.substr(at, v.size());
+    };
+    const auto text = [&](Slot s) {
+        const std::optional<std::string_view> v = h.text(s);
+        return v ? std::optional<std::string_view>(in_line(*v)) : std::nullopt;
+    };
+    qiven3::store::Keys k{in_line(h.value(Slot::id)),   in_line(h.value(Slot::scope)), in_line(h.value(Slot::lane)),
+                          in_line(h.value(Slot::kind)), h.seq(),                       text(Slot::parent),
+                          text(Slot::target),           h.text(Slot::content).has_value()};
+    return EntryView{line, record, k};
+}
+
+// Views of held entries with their keys: a temporary list is refused, as
+// its views would dangle.
 std::vector<EntryView> views(std::vector<Stored>&& list) = delete;
 inline std::vector<EntryView> views(const std::vector<Stored>& list) {
     std::vector<EntryView> out;
     for (const Stored& s : list) {
-        out.push_back(EntryView{s.line, s.record ? std::optional<std::string_view>(*s.record) : std::nullopt});
+        out.push_back(keyed(s.line, s.record ? std::optional<std::string_view>(*s.record) : std::nullopt));
     }
     return out;
 }

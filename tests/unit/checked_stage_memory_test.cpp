@@ -8,22 +8,23 @@
 // within 16 KiB plus 8 times the lines, and no scratch arena ending with a
 // block held. Each allocation, failed in turn, is a
 // MemoryError with nothing held; the run completes past the last, which
-// counts them exactly: the entries' room 1; each entry's part 1 (check's:
+// counts them exactly: the rules' entries' room 1 and the store's kept
+// entries' 1; each entry's part 1 (check's:
 // A 34, B 34, D 32, E 17); at append its content's value 4 and the secret
 // check's 24; a first hit's room 1 in the scratch and 1 in the call's
 // hits; each entry kept, its header 1 and body 1; at forget the line's
 // value first, 4. Then admit: part 2's (validator's), its index 1 and each
 // body's value 4, and a header the view gives 1 (a first entry's parent, a
-// target). Append: 1 + 64 + 64 + 62 = 191 and 1 + 12 = 13, 204; the
-// secret's 1 + 34 + 4 + 24 + 1 + 1 + 2 = 67 and 1 + 4 = 5, then its hit's
+// target). Append: 2 + 64 + 64 + 62 = 192 and 1 + 12 = 13, 205; the
+// secret's 2 + 34 + 4 + 24 + 1 + 1 + 2 = 68 and 1 + 4 = 5, then its hit's
 // clearing, D's record held, on the call's allocator (the view gives no
 // work): the members' room 1, the headers', values' and items' 3, D's
 // header 1, its body 1 and value 4, the fold's 1 and the content field's
-// bytes 1, 12; 84. E's 4 + 1 +
-// 17 + 1 = 23 and 1 + 2 = 3, 26. Then a map citing A, A held, by four
+// bytes 1, 12; 85. E's 4 + 2 +
+// 17 + 1 = 24 and 1 + 2 = 3, 27. Then a map citing A, A held, by four
 // references and by 24, the most its lists hold, with a relation: every
-// syntax of its content compiled, nine, once each: 83 both, check's 74
-// (the room 1, part 1 43, the secret check's 28, the entry kept 2) and
+// syntax of its content compiled, nine, once each: 84 both, check's 75
+// (the rooms 2, part 1 43, the secret check's 28, the entry kept 2) and
 // admit's 9. Each line's scratch within the store's, its pages' half.
 // The runner's count after each case holds too.
 
@@ -66,17 +67,17 @@ struct Case {
 std::vector<Case> cases(const Book& book) {
     std::vector<Case> out;
     out.push_back({"append", {book.stored("A"), book.stored("B"), book.stored("D")}, {}, Operation::append,
-                   std::nullopt, false, 204});
-    out.push_back({"secret", {book.with_secret("A", std::nullopt)}, {}, Operation::append, std::nullopt, true, 84});
+                   std::nullopt, false, 205});
+    out.push_back({"secret", {book.with_secret("A", std::nullopt)}, {}, Operation::append, std::nullopt, true, 85});
     const std::vector<Stored> lane = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
-    out.push_back({"forget", {book.stored("E")}, lane, Operation::forget, id_of(lane.back()), false, 26});
+    out.push_back({"forget", {book.stored("E")}, lane, Operation::forget, id_of(lane.back()), false, 27});
     // A map citing A, every syntax of its content compiled: by four
     // references and by twenty-four, the most its lists hold; one count.
     const std::vector<Stored> a = {book.stored("A")};
     out.push_back({"four references", {book.with_references(4, id_of(a.back()))}, a, Operation::append, std::nullopt,
-                   false, 83});
+                   false, 84});
     out.push_back({"24 references", {book.with_references(24, id_of(a.back()))}, a, Operation::append, std::nullopt,
-                   false, 83});
+                   false, 84});
     return out;
 }
 

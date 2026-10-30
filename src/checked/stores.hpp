@@ -19,9 +19,9 @@
 namespace qiven3::checked {
 
 template <platform::Platform P>
-using MemoryStore = store::MemoryStore<P, Rules>;
+using MemoryStore = store::MemoryStore<P, Rules<P>>;
 
 template <platform::Platform P, store::Hooks H = store::NoHooks>
-using SQLiteStore = store::SQLiteStore<P, H, Rules>;
+using SQLiteStore = store::SQLiteStore<P, H, Rules<P>>;
 
 }  // namespace qiven3::checked

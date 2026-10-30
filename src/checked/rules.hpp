@@ -4,11 +4,17 @@
 // (the store's contract: Admit, AdmitImport) the stores call at their
 // places, and the ruled stores' default (checked/stores.hpp).
 //
-// The store runs its own guards first, whatever its hook (store/stage):
-// forget_kind, forget_path, the chain at import, the order, the targets a
-// forget erases. The hook, Rules: given, before the first line, the call's
-// hits' room; read nothing. kept, once the entry is kept, at append the
-// secret check: a header hit refused EntryInvalid secret, the content's hits kept with their entry's
+// The store runs its own guards over the keys the hook gives, whatever its
+// hook (store/stage): the keys' bounds, forget_kind, forget_path, the
+// chain at import, the order, the targets a forget erases. The hook,
+// Rules: given, before the first line, at forget each line through the
+// strict parser, a line it refuses EntryInvalid with the parser's code, a
+// kind but forget the store's StoreError forget_kind, its detail naming
+// the entry; then the call's hits' and entries' room. read, part 1
+// (entry/check), a fault refused, the entry kept and the store's keys from
+// its header (a content is a body). kept, once the store keeps the entry,
+// at append the secret check: a header hit refused EntryInvalid secret,
+// the content's hits kept with their entry's
 // index. admit, inside the store's transaction or lock, against its view:
 // at append the hits settled first, in order, the first not cleared
 // EntryInvalid secret: a hit passes when a live clearing of the entry's
@@ -34,24 +40,30 @@
 //
 // check(platform, lines, at, allocator, scratch) and admit(view, scope,
 // lane, expected, checked, limits, at, allocator) are the same steps with
-// the rules, called apart: check is the store's read with Rules, its hits
-// returned; admit the hits settled, part 2, then the store's staged with
+// the rules, called apart: check is the store's read with Rules, its
+// entries and hits returned; admit the hits settled, part 2, then the
+// store's staged with
 // its order, against the view's head of the call's lane.
 //
 // Refusals are EntryInvalid with the entry's index and its id once part 1
 // has read the header through (part 2), never for secret; the field's path
 // for a secret.
 //
-// Allocations. At append, once the entry is kept, the secret check on one of its
+// Allocations. At forget, the line's value, four, on a scratch arena of
+// its own. An entry's part 1 on a scratch arena, which the store's
+// scratch() gives afresh over the same pages, given back before the next.
+// At append, once the entry is kept, the secret check on one of its
 // own: the content's value, four with a body, the secret check's 24 and its
 // hits' room for a first hit. Each is given back before the next, so the
 // scratch peaks at the greater of one entry's part 1 and its secret check.
-// On the call's kept allocator, the call's hits' room, one where it is
-// short, given back by release. admit: part 2's (validator's) and the
+// On the call's kept allocator, the entries' room, one, each entry's
+// header, one, and body, one; the call's hits' room, one where it is
+// short; all given back by release. admit: part 2's (validator's) and the
 // view's, on its allocator, and at forget the members' room and a held
 // header, one each where short; import_entry
-// validator's try_final's and the view's, on its allocator. No platform
-// call. The rules log nothing.
+// validator's try_final's and the view's, on its allocator. Platform calls:
+// part 1's wipes and each kept body's key's, each noexcept. The rules log
+// nothing.
 //
 // thread: none; the entries, one (their keys' platform's).
 
@@ -64,6 +76,7 @@
 #include <utility>
 
 #include "checked/clearing.hpp"
+#include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
@@ -72,7 +85,9 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "store/contract.hpp"
+#include "store/keys.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::checked {
@@ -102,11 +117,13 @@ struct Hit {
 static_assert(sizeof(Hit) == 120, "Hit's size is pinned: an index and secret's hit");
 #endif
 
-// What check admits: the store's read, and the content hits in order.
+// What check admits: the store's read, the entries part 1 read, and the
+// content hits in order.
 template <platform::Platform P>
-struct Checked : stage::Checked<P> {
-    Checked(stage::Checked<P>&& read, Vector<Hit>&& found) noexcept
-        : stage::Checked<P>(std::move(read)), hits(std::move(found)) {}
+struct Checked : stage::Checked {
+    Checked(stage::Checked&& read, Vector<Entry<P>>&& parsed, Vector<Hit>&& found) noexcept
+        : stage::Checked(std::move(read)), entries(std::move(parsed)), hits(std::move(found)) {}
+    Vector<Entry<P>> entries;
     Vector<Hit> hits;
 };
 
@@ -114,6 +131,53 @@ struct Checked : stage::Checked<P> {
 [[noreturn]] void refuse_whole(const AtView& at, std::size_t index);
 
 namespace detail {
+
+// forget_kind: the line through the strict parser, a line it refuses
+// EntryInvalid with the parser's code, then its kind, a kind but forget
+// the store's StoreError forget_kind.
+inline void forget_kind(const AtView& at, std::size_t index, std::string_view line, const Chars& allocator) {
+    canon::Basic<Chars> value(allocator);
+    if (const std::optional<ParseCode> code = canon::try_parse(line, value)) {
+        stage::refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
+    }
+    if (entry::kinds::detail::member(value, 0, "kind") != "forget") {
+        stage::refuse_kind(at, index);
+    }
+}
+
+// An entry part 1 read, kept on the call's allocator: its header made again
+// from its fields, its id given, and its body from the record's parts.
+template <platform::Platform P>
+Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars& allocator) {
+    const header::Header<Chars>& h = e.header();
+    header::FieldsView f;
+    f.tag = h.value(Slot::tag);
+    f.scope = h.value(Slot::scope);
+    f.lane = h.value(Slot::lane);
+    f.seq = h.seq();
+    f.parent = h.text(Slot::parent);
+    f.kind = h.value(Slot::kind);
+    f.writer = h.value(Slot::writer);
+    f.basis = h.value(Slot::basis);
+    f.at = h.value(Slot::at);
+    f.target = h.text(Slot::target);
+    f.content = h.text(Slot::content);
+    f.id = h.text(Slot::id);
+    header::Header<Chars> kept = header::make(f, allocator);
+    std::optional<entry::body::Body<P, Chars>> b;
+    if (e.has_body() && line.body) {
+        const entry::body::detail::RecordView parts = entry::body::detail::parts(*line.body);
+        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
+    }
+    return Entry<P>(std::move(kept), std::move(b));
+}
+
+// A header's keys for the store, views of it: a content is a body.
+[[nodiscard]] inline store::Keys keys_of(const header::Header<Chars>& h) {
+    return store::Keys{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
+                       h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
+                       h.text(Slot::target), h.text(Slot::content).has_value()};
+}
 
 // The secret check of one admitted entry: a header hit refused, the
 // content's hits added to out.
@@ -242,31 +306,52 @@ void import_entry(V& view, const Header& h, std::optional<std::string_view> cont
 // head_mismatch, its index the source's and its id the source head's.
 void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at);
 
-// The rules as an admit hook (Admit, AdmitImport): given, the hits' room;
-// read, nothing (the store's guards run there); kept, at append the secret
-// check, its hits kept on the call's allocator; admit, the hits settled,
-// part 2 and at forget the whole records; arrived, nothing (the store's chain runs first); settled,
-// import_entry; heads, same_heads.
+// The rules as an admit hook (Admit, AdmitImport) of a store on P: given,
+// at forget each line's parse and kind first (forget_kind), then the hits'
+// and the entries' room; read, part 1 of the line on a scratch arena, a
+// fault refused, the entry kept on the call's allocator and its keys
+// given from its header; kept, at append the secret check, its hits kept
+// on the call's allocator; admit, the hits settled, part 2 and at forget
+// the whole records, over the entries read; arrived, nothing (the store's
+// chain runs first); settled, import_entry; heads, same_heads.
+template <platform::Platform P>
 class Rules {
 public:
     template <class S>
-    void given(const AtView& /*at*/, std::span<const EntryView> /*lines*/, const Chars& kept, S& /*scratch*/) {
+    void given(const AtView& at, std::span<const EntryView> lines, const Chars& kept, S& scratch) {
+        if (at.op == Operation::forget) {
+            for (std::size_t i = 0; i < lines.size(); ++i) {
+                detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
+            }
+        }
         hits_.emplace(kept);
+        entries_.emplace(kept);
+        entries_->reserve(lines.size());
     }
-    static void read(const AtView& /*at*/, std::size_t /*index*/, const header::Header<Chars>& /*h*/) noexcept {}
+    template <stage::Scratch S>
+    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::Keys& out,
+              const Chars& kept, S& scratch) {
+        {
+            const Entry<P> e = stage::detail::part1(platform, at, index, line, Chars(scratch()));
+            entries_->push_back(detail::keep(platform, e, line, kept));
+        }
+        out = detail::keys_of(entries_->back().header());
+    }
     // The secret check on a scratch of its own, part 1's given back.
-    template <platform::Platform P, class S>
-    void kept(const AtView& at, std::size_t index, const Entry<P>& e, const Chars& /*kept*/, S& scratch) {
+    template <class S>
+    void kept(const AtView& at, std::size_t index, const stage::Kept& /*e*/, const Chars& /*kept*/, S& scratch) {
         if (at.op == Operation::append) {
-            detail::secrets(at, index, e, *hits_, Chars(scratch()));
+            detail::secrets(at, index, (*entries_)[index], *hits_, Chars(scratch()));
         }
     }
-    template <class V, platform::Platform P>
+    template <class V>
     void admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
-               std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
+               std::span<const stage::Kept> /*kept*/, const AtView& at, const Chars& allocator) {
         if (at.op != Operation::append && at.op != Operation::forget) {
             memory::fail_fast("stage::admit: an operation but append and forget");
         }
+        const std::span<const Entry<P>> entries = entries_ ? std::span<const Entry<P>>(*entries_)
+                                                           : std::span<const Entry<P>>();
         if (hits_) {
             detail::settle(view, entries, std::span<const Hit>(*hits_), at, allocator);
         }
@@ -289,20 +374,30 @@ public:
     [[nodiscard]] Vector<Hit> take(const Chars& allocator) {
         return hits_ ? std::move(*hits_) : Vector<Hit>(allocator);
     }
-    // The hits given back to the call's pages.
-    void release() noexcept { hits_.reset(); }
+    // The entries read, given up.
+    [[nodiscard]] Vector<Entry<P>> take_entries(const Chars& allocator) {
+        return entries_ ? std::move(*entries_) : Vector<Entry<P>>(allocator);
+    }
+    // The hits and the entries given back to the call's pages.
+    void release() noexcept {
+        hits_.reset();
+        entries_.reset();
+    }
 
 private:
     std::optional<Vector<Hit>> hits_;
+    std::optional<Vector<Entry<P>>> entries_;
 };
 
-// Part 1 of each line with the rules: the store's read, its hits returned.
+// Part 1 of each line with the rules: the store's read, its entries and
+// hits returned.
 template <platform::Platform P, stage::Scratch S>
 Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator,
                  S& scratch) {
-    Rules rules;
-    stage::Checked<P> read = stage::read(platform, lines, at, allocator, scratch, rules);
-    return Checked<P>(std::move(read), rules.take(allocator));
+    Rules<P> rules;
+    stage::Checked read = stage::read(platform, lines, at, allocator, scratch, rules);
+    Vector<Entry<P>> entries = rules.take_entries(allocator);
+    return Checked<P>(std::move(read), std::move(entries), rules.take(allocator));
 }
 
 // The hits settled, part 2 and the maximum, inside the store's lock: the
@@ -316,7 +411,7 @@ stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expe
     const std::span<const Entry<P>> entries(checked.entries);
     detail::settle(view, entries, std::span<const Hit>(checked.hits), at, allocator);
     detail::part2(view, scope, lane, expected, entries, at, allocator);
-    return stage::staged(view, static_cast<const stage::Checked<P>&>(checked), limits, at, scope, lane,
+    return stage::staged(view, static_cast<const stage::Checked&>(checked), limits, at, scope, lane,
                          view.head(scope, lane));
 }
 

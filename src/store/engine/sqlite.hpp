@@ -366,13 +366,15 @@ struct Totals {
 // The view's generic reads under the write lock, each planned with no
 // structure built in memory as large as its rows (S4's plan check): a
 // scope's ids of a kind with no target, the ids targeting an id in a
-// scope, a held line, and the scan of entry.line for bytes.
+// scope, a held line, an id held in a scope, and the scan of entry.line
+// for bytes.
 inline constexpr std::string_view keyed_roots =
     "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 AND target IS NULL ORDER BY lane, seq";
 inline constexpr std::string_view record_members =
     "SELECT id FROM entry WHERE target = ?1 AND scope = ?2 ORDER BY rowid";
 inline constexpr std::string_view target_members = "SELECT id FROM entry WHERE target = ?1 ORDER BY rowid";
 inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id = ?1";
+inline constexpr std::string_view held_scope = "SELECT EXISTS (SELECT 1 FROM entry WHERE id = ?1 AND scope = ?2)";
 inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
 
 // Part 2's view of the transaction (stage::View): the head, a header and
@@ -394,8 +396,10 @@ public:
     // id, false where none is held; the ids whose target is id, in scope
     // or in every scope; a scope's ids of kind with no target, in (lane,
     // seq) order; each list into out, cleared first, the targets' in the
-    // order written (rowid); whether a held line holds bytes.
+    // order written (rowid); whether a held line holds bytes; whether a
+    // record of id is held in scope.
     bool line(std::string_view id, String& out);
+    [[nodiscard]] bool held_in(std::string_view id, std::string_view scope);
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
     void targets(std::string_view id, Vector<Id>& out);
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);

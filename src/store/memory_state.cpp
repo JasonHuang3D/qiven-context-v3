@@ -152,31 +152,28 @@ void copy_header(const Header& h, Header& out) {
 
 Batch::Batch(Data& d) noexcept : rows_(Allocator<Held>(d.heap)), lanes_(Allocator<Lane>(d.heap)) {}
 
-Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
+Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record, const Keys& k) {
     Held e(d.heap);
     e.line.assign(line);
     if (record) {
         e.body.assign(*record);
         e.has_body = true;
     }
-    if (const std::optional<std::string_view> c = h.text(Slot::content)) {
-        e.content.assign(*c);
-    }
-    const std::string_view kind = h.value(Slot::kind);
-    e.kind.assign(kind);
-    e.id = Id::of(h.value(Slot::id));
-    e.seq = h.seq();
-    e.is_forget = kind == "forget";
+    e.content = k.body;
+    e.kind.assign(k.kind);
+    e.id = Id::of(k.id);
+    e.seq = k.seq;
+    e.is_forget = k.kind == "forget";
     return e;
 }
 
-void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const Header& h) {
+void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const Keys& k) {
     const std::size_t at = d.held.size() + rows_.size();
     if (at >= max_entries) {
         throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
     }
-    Held e = make_held(d, line, record, h);
-    if (const std::optional<std::string_view> t = h.text(Slot::target)) {
+    Held e = make_held(d, line, record, k);
+    if (const std::optional<std::string_view> t = k.target) {
         e.target = find(d, *t);
         for (std::size_t j = rows_.size(); e.target == none && j > 0; --j) {
             if (rows_[j - 1].id.view() == *t) {
@@ -184,8 +181,8 @@ void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> 
             }
         }
     }
-    const std::string_view scope = h.value(Slot::scope);
-    const std::string_view name = h.value(Slot::lane);
+    const std::string_view scope = k.scope;
+    const std::string_view name = k.lane;
     e.lane = lane_of(d, scope, name);
     for (std::size_t j = 0; e.lane == none && j < lanes_.size(); ++j) {
         if (std::string_view(lanes_[j].scope) == scope && std::string_view(lanes_[j].name) == name) {
@@ -299,6 +296,11 @@ bool StateView::line(std::string_view id, String& out) {
     }
     out.assign(data_->held[i].line);
     return true;
+}
+
+bool StateView::held_in(std::string_view id, std::string_view scope) {
+    const std::uint32_t i = find(*data_, id);
+    return i != none && std::string_view(data_->lanes[data_->held[i].lane].scope) == scope;
 }
 
 Vector<std::uint32_t> StateView::lanes_of(std::string_view scope) {

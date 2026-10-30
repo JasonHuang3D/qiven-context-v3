@@ -70,9 +70,9 @@ constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 // An import grows the state's rows as its lines arrive, unreserved, so its
 // heap's count follows the library's growth: by half (MSVC's) or double.
 #if defined(_MSVC_STL_VERSION)
-constexpr std::size_t import_heap = 29;
+constexpr std::size_t import_heap = 25;
 #else
-constexpr std::size_t import_heap = 26;
+constexpr std::size_t import_heap = 22;
 #endif
 
 // The fake, the fixtures, two states with their objects, and the caller's
@@ -152,11 +152,11 @@ std::vector<Step> steps() {
                        Store s(b.state, b.fake);
                        return Peaks{};
                    }});
-    out.push_back({"append", 0, true, {204, 17, 0, 1}, [](Bed& b, const Chars&) {
+    out.push_back({"append", 0, true, {205, 14, 0, 1}, [](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
-    out.push_back({"append_acc", 0, true, {117, 7, 0, 1},[](Bed& b, const Chars&) {
+    out.push_back({"append_acc", 0, true, {103, 6, 0, 1},[](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -194,7 +194,7 @@ std::vector<Step> steps() {
                        (void)b.store.size();
                        return Peaks{};
                    }});
-    out.push_back({"forget", 0, true, {55, 5, 1, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"forget", 0, true, {56, 5, 1, 1}, [](Bed& b, const Chars& c) {
                        Vector<Id> erased(c);
                        (void)b.store.forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Peaks{b.store.peak(), b.call->peak()};
@@ -347,7 +347,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 346}, {3, 13, 170}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 329}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

@@ -13,7 +13,11 @@
 // whose target is not held, target; import_unheld: an import's forget whose
 // target is not held, target; import_forgotten, import_bare: an import
 // giving a forgotten entry's body, forgotten_body, or a held entry's body
-// missing, body_missing.
+// missing, body_missing. long_id, _scope, _lane, _parent, _target: an
+// append whose key is past its bound (Id's capacity, the scope's or the
+// lane's bytes), too_long with the key's name as its field (long_id with
+// no id); body_unrecorded: a body key with no record, body_missing;
+// record_unkeyed: a record with no body key, body_mismatch.
 
 #include <cstddef>
 #include <filesystem>
@@ -32,6 +36,8 @@
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
+#include "store/errors.hpp"
+#include "store/keys.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
@@ -45,6 +51,7 @@ namespace fs = std::filesystem;
 namespace header = qiven3::entry::header;
 namespace state = qiven3::store::state;
 using qiven3::store::Engine;
+using qiven3::store::EntryView;
 using qiven3::store::Expected;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
@@ -148,14 +155,16 @@ struct Want {
     std::string_view code;
     std::size_t index;
 };
-constexpr std::size_t cases = 16;
+constexpr std::size_t cases = 23;
 constexpr Want wants[cases] = {
     {"append_forget", "forget_path", 0}, {"forget_accept", "forget_kind", 0}, {"forget_unheld", "target", 0},
     {"forget_twice", "target", 1},       {"forget_forgotten", "target", 0},   {"forget_scope", "target", 0},
     {"import_gap", "seq", 1},            {"import_parent", "parent", 1},      {"head_parent", "parent", 0},
     {"head_seq", "seq", 0},              {"other_scope", "parent", 0},        {"other_lane", "parent", 0},
     {"append_unheld", "target", 0},      {"import_unheld", "target", 4},      {"import_forgotten", "forgotten_body", 1},
-    {"import_bare", "body_missing", 1}};
+    {"import_bare", "body_missing", 1},  {"long_id", "too_long", 0},          {"long_scope", "too_long", 0},
+    {"long_lane", "too_long", 0},        {"long_parent", "too_long", 0},      {"long_target", "too_long", 0},
+    {"body_unrecorded", "body_missing", 0}, {"record_unkeyed", "body_mismatch", 0}};
 
 // Case k's held state, written on s.
 template <class S>
@@ -210,7 +219,37 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     const auto again = [&](std::string_view target, std::string_view parent, std::int64_t seq) {
         return forget_of(book, target, parent, seq);
     };
+    // A's view, its keys or record changed by f, appended on an empty lane.
+    const std::string past_id(Id::capacity + 1, 'x');
+    const std::string past_scope(qiven3::store::scope_bytes + 1, 's');
+    const std::string past_lane(qiven3::store::lane_bytes + 1, 'l');
+    const auto keyed = [&](auto&& f) {
+        lines = {a};
+        std::vector<EntryView> given = views(lines);
+        f(given[0]);
+        return refused([&] { (void)s.append(qs, mine, std::nullopt, given, NoAdmit{}); });
+    };
     switch (k) {
+    case 15: {
+        Stored bare = book.stored("B");
+        bare.record.reset();
+        lines = {a, bare};
+        return import();
+    }
+    case 16:
+        return keyed([&](EntryView& v) { v.keys.id = past_id; });
+    case 17:
+        return keyed([&](EntryView& v) { v.keys.scope = past_scope; });
+    case 18:
+        return keyed([&](EntryView& v) { v.keys.lane = past_lane; });
+    case 19:
+        return keyed([&](EntryView& v) { v.keys.parent = past_id; });
+    case 20:
+        return keyed([&](EntryView& v) { v.keys.target = past_id; });
+    case 21:
+        return keyed([&](EntryView& v) { v.body.reset(); });
+    case 22:
+        return keyed([&](EntryView& v) { v.keys.body = false; });
     case 0:
         lines = {e};
         return append(qs, mine, Expected(acc));
@@ -261,19 +300,19 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     case 14:
         lines = {a, book.stored("B"), book.stored("D"), book.stored("ACC"), e};
         return import();
-    default: {
-        Stored bare = book.stored("B");
-        bare.record.reset();
-        lines = {a, bare};
-        return import();
-    }
+    default:
+        return std::nullopt;
     }
 }
 
-// The refusal as case k wants it.
+// The refusal as case k wants it: a key past its bound naming the key as
+// its field, and no id where the id is the one past it.
 bool as_wanted(std::size_t k, const std::optional<Refusal>& r) {
+    const std::string_view name = wants[k].name;
+    const bool bound = name.starts_with("long_");
     return r.has_value() && r->code == wants[k].code &&
-           (wants[k].code == "forget_kind" ? r->detail == "entry 0" : r->index == wants[k].index);
+           (wants[k].code == "forget_kind" ? r->detail == "entry 0" : r->index == wants[k].index) &&
+           (!bound || r->field == name.substr(5)) && (name != "long_id" || r->id.empty());
 }
 
 }  // namespace

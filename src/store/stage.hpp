@@ -1,21 +1,25 @@
 #pragma once
 
-// stage: the store's steps of an append, a forget or an import: part 1 of
-// the shared validator, each entry kept; the store's own guards and order;
-// the maximum. The rules of cognition are an admit hook's (the contract's
-// Admit and AdmitImport), the product's; the store runs none of them. Its
-// own guards run whatever hook it is given, so that it never commits a
-// state its verify or open refuses.
+// stage: the store's steps of an append, a forget or an import: each
+// entry's keys from the admit hook, kept; the store's own guards and order
+// over them; the maximum. The rules of cognition are an admit hook's (the
+// contract's Admit and AdmitImport), the product's; at append and forget
+// the store runs none of them and reads no line. Its own guards run
+// whatever hook it is given, so that it never commits a state its verify
+// or open refuses. Until the import takes keys, part1 here reads an
+// imported or verified line through the shared validator's part 1.
 //
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
-// entry by entry: at forget, first each line read through the strict
-// parser, a line it refuses EntryInvalid with the parser's code, and an
-// entry whose kind is not the store's word forget StoreError forget_kind,
-// its detail naming the entry; the hook's given before the first line;
-// part 1, a fault refused; at append a forget refused EntryInvalid
-// forget_path (header.kind); the hook's read; the entry kept on the
-// caller's allocator, then the hook's kept. It returns the entries and the
-// bytes the lines add: each header line and body record with its LF.
+// entry by entry: the hook's given before the first line; then each line's
+// keys from the hook's read; the store's bounds over them: id, parent and
+// target at most Id's capacity, scope and lane at most their bytes, else
+// EntryInvalid too_long, the key's name as its field (a seq below 1 is
+// next's: seq); a body key with no record body_missing, a record with no
+// body key body_mismatch; at forget a kind but forget StoreError
+// forget_kind, its detail naming the entry, at append a forget
+// EntryInvalid forget_path (header.kind); the keys kept, then the hook's
+// kept. It returns the kept entries and the bytes the lines add: each
+// header line and body record with its LF.
 //
 // arrives(view, header, index, at), at import as each line arrives, before
 // the hook's arrived: its parent the view's head of its lane and its seq
@@ -33,26 +37,23 @@
 // StoreFull store_full, with the size and count the call would reach. It
 // returns the new head and what the call adds. With the call's scope, lane
 // and the head the store read, staged first runs in_order, the store's own
-// order over its keys; given a scratch, at append then targets, each
-// entry's target held in the call's scope, the store's or an earlier one
-// of the call's, refused target. A HeadConflict and a guard are the
-// store's.
+// order over its keys; guarded the same, at append then targets, each
+// entry's target held in the call's scope (the view's held_in), the
+// store's or an earlier one of the call's, refused target. A HeadConflict
+// and a guard are the store's.
 //
-// Refusals are EntryInvalid with the entry's index and its id once part 1
-// has read the header through (a body or content fault, the order); the
-// field's path for a content fault.
+// Refusals are EntryInvalid with the entry's index and its id key (none
+// where the id is past its bound); part1's with its id once it has read
+// the header through (a body or content fault), the field's path for a
+// content fault.
 //
-// Allocations. An entry's part 1 is done on a scratch arena, which the
-// caller's scratch() gives afresh over the same pages, given back before
-// the next; at forget the line's value, four, on one of its own; the
-// hook's are its own (each hook says). On the caller's
-// allocator, what read keeps: the entries' room, one; each entry's header,
-// one, and body, one. staged, in_order, arrives, erasable and settles none
-// but the view's; targets each held header on a fresh scratch arena. Platform
-// calls: part 1's wipes and each kept body's key's, each noexcept. stage
-// logs nothing.
+// Allocations. read: on the caller's allocator, the kept entries' room,
+// one; the hook's are its own (each hook says). part1 on the arena it is
+// given. staged, in_order, arrives, erasable, settles and targets none but
+// the view's. Platform calls: part1's wipes and its body's key's, each
+// noexcept; none at append and forget. stage logs nothing.
 //
-// thread: none; the entries, one (their keys' platform's).
+// thread: none; the kept entries, one.
 
 #include <concepts>
 #include <cstddef>
@@ -65,16 +66,15 @@
 #include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
-#include "entry/kinds.hpp"
 #include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 
 namespace qiven3::store::stage {
 
@@ -89,12 +89,34 @@ using Entry = entry::check::Entry<P, Chars>;
 // The call a refusal names: its operation and the store's path.
 using AtView = At;
 
-// What read admits: the entries, and the bytes the lines add, each with
-// its LF.
-template <platform::Platform P>
+// What the store keeps of an entry: its keys owned, its kind, line and
+// body record as views of the call's (valid for the call, the kind the
+// hook's until its release).
+struct Kept {
+    Id id;
+    memory::Inline<scope_bytes> scope;
+    memory::Inline<lane_bytes> lane;
+    std::string_view kind;
+    std::int64_t seq = 0;
+    std::optional<Id> parent, target;
+    bool body = false;
+    std::string_view line;
+    std::optional<std::string_view> record;
+
+    // Its keys, views of it.
+    [[nodiscard]] Keys keys() const noexcept {
+        const auto text = [](const std::optional<Id>& i) {
+            return i ? std::optional<std::string_view>(i->view()) : std::nullopt;
+        };
+        return Keys{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
+    }
+};
+
+// What read admits: the kept entries, and the bytes the lines add, each
+// with its LF.
 struct Checked {
-    explicit Checked(const Chars& allocator) noexcept : entries(allocator) {}
-    Vector<Entry<P>> entries;
+    explicit Checked(const Chars& allocator) noexcept : kept(allocator) {}
+    Vector<Kept> kept;
     std::uint64_t size = 0;
 };
 
@@ -128,7 +150,7 @@ concept Scratch = requires(S& s) {
 [[noreturn]] void refuse_full(const AtView& at, std::uint64_t size, std::uint64_t count, const Limits& limits);
 // forget_kind's refusal, its detail naming the entry.
 [[noreturn]] void refuse_kind(const AtView& at, std::size_t index);
-// A call past validator's entries, or a sum past its type: MemoryError budget.
+// A call past max_call_entries, or a sum past its type: MemoryError budget.
 [[noreturn]] void too_large(std::size_t request);
 
 namespace detail {
@@ -141,28 +163,76 @@ inline std::uint64_t sum(std::uint64_t a, std::uint64_t b) {
     return a + b;
 }
 
-// forget_kind: the line through the strict parser, then its kind.
-inline void forget_kind(const AtView& at, std::size_t index, std::string_view line, const Chars& allocator) {
-    canon::Basic<Chars> value(allocator);
-    if (const std::optional<ParseCode> code = canon::try_parse(line, value)) {
-        refuse_part1(at, index, {}, entry::check::detail::fault(entry::check::Part::parse, *code));
-    }
-    if (entry::kinds::detail::member(value, 0, "kind") != "forget") {
-        refuse_kind(at, index);
-    }
-}
-
 // One entry after now on its lane: its parent the head, refused parent,
 // and its seq one past it, refused seq.
-inline void next(const header::Header<Chars>& h, const std::optional<Head>& now, std::size_t index,
-                 const AtView& at) {
-    const std::string_view id = h.value(Slot::id);
-    if (h.text(Slot::parent) != (now ? std::optional<std::string_view>(now->id.view()) : std::nullopt)) {
+inline void next(std::string_view id, std::optional<std::string_view> parent, std::int64_t seq,
+                 const std::optional<Head>& now, std::size_t index, const AtView& at) {
+    if (parent != (now ? std::optional<std::string_view>(now->id.view()) : std::nullopt)) {
         refuse(at, index, id, "parent");
     }
-    if (h.seq() < 1 || h.seq() - 1 != (now ? now->seq : 0)) {
+    if (seq < 1 || seq - 1 != (now ? now->seq : 0)) {
         refuse(at, index, id, "seq");
     }
+}
+inline void next(const header::Header<Chars>& h, const std::optional<Head>& now, std::size_t index,
+                 const AtView& at) {
+    next(h.value(Slot::id), h.text(Slot::parent), h.seq(), now, index, at);
+}
+
+// The store's bounds over one entry's keys and its record, then its kind
+// at its operation; the entry kept.
+inline Kept keep(const Keys& k, const EntryView& line, std::size_t index, const AtView& at) {
+    const std::string_view id = Id::fits(k.id) ? k.id : std::string_view();
+    const auto bound = [&](bool fits, std::string_view field) {
+        if (!fits) {
+            refuse(at, index, id, "too_long", field);
+        }
+    };
+    bound(Id::fits(k.id), "id");
+    bound(k.scope.size() <= scope_bytes, "scope");
+    bound(k.lane.size() <= lane_bytes, "lane");
+    bound(!k.parent || Id::fits(*k.parent), "parent");
+    bound(!k.target || Id::fits(*k.target), "target");
+    if (k.body && !line.body) {
+        refuse(at, index, id, "body_missing");
+    }
+    if (!k.body && line.body) {
+        refuse(at, index, id, "body_mismatch");
+    }
+    if (at.op == Operation::forget && k.kind != "forget") {
+        refuse_kind(at, index);
+    }
+    if (at.op == Operation::append && k.kind == "forget") {
+        refuse(at, index, id, "forget_path", "header.kind");
+    }
+    Kept out;
+    out.id = Id::of(k.id);
+    out.scope = memory::Inline<scope_bytes>(k.scope);
+    out.lane = memory::Inline<lane_bytes>(k.lane);
+    out.kind = k.kind;
+    out.seq = k.seq;
+    if (k.parent) {
+        out.parent = Id::of(*k.parent);
+    }
+    if (k.target) {
+        out.target = Id::of(*k.target);
+    }
+    out.body = k.body;
+    out.line = line.line;
+    out.record = line.body;
+    return out;
+}
+
+// A kept entry's optional id as a view.
+[[nodiscard]] inline std::optional<std::string_view> text(const std::optional<Id>& id) noexcept {
+    return id ? std::optional<std::string_view>(id->view()) : std::nullopt;
+}
+
+// A parsed header's keys, views of it, for the import until it takes keys.
+[[nodiscard]] inline Keys keys_of(const header::Header<Chars>& h) {
+    return Keys{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
+                h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
+                h.text(Slot::target), h.text(Slot::content).has_value()};
 }
 
 // Part 1 of one entry, as check_entry reads it, a fault refused.
@@ -187,83 +257,46 @@ Entry<P> part1(P& platform, const AtView& at, std::size_t index, const EntryView
     return Entry<P>(std::move(h), std::move(b));
 }
 
-// An admitted entry kept on the caller's allocator: its header made again
-// from its fields, its id given, and its body from the record's parts.
-template <platform::Platform P>
-Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars& allocator) {
-    const header::Header<Chars>& h = e.header();
-    header::FieldsView f;
-    f.tag = h.value(Slot::tag);
-    f.scope = h.value(Slot::scope);
-    f.lane = h.value(Slot::lane);
-    f.seq = h.seq();
-    f.parent = h.text(Slot::parent);
-    f.kind = h.value(Slot::kind);
-    f.writer = h.value(Slot::writer);
-    f.basis = h.value(Slot::basis);
-    f.at = h.value(Slot::at);
-    f.target = h.text(Slot::target);
-    f.content = h.text(Slot::content);
-    f.id = h.text(Slot::id);
-    header::Header<Chars> kept = header::make(f, allocator);
-    std::optional<entry::body::Body<P, Chars>> b;
-    if (e.has_body() && line.body) {
-        const entry::body::detail::RecordView parts = entry::body::detail::parts(*line.body);
-        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
-    }
-    return Entry<P>(std::move(kept), std::move(b));
-}
-
 }  // namespace detail
 
-// Part 1 of each line, before any lock, with the admit hook's given, read
-// and kept at their places; a refusal thrown.
+// Each line's keys from the admit hook, before any lock, the hook's given,
+// read and kept at their places, the store's bounds and kinds over the
+// keys; a refusal thrown.
 template <platform::Platform P, Scratch S, class A>
-Checked<P> read(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator, S& scratch,
-                A& admit) {
+Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator, S& scratch,
+             A& admit) {
     if (at.op != Operation::append && at.op != Operation::forget && at.op != Operation::import_) {
         memory::fail_fast("stage::check: an operation that takes no entries");
     }
-    if (lines.size() > validator::max_entries) {
+    if (lines.size() > max_call_entries) {
         too_large(lines.size());
     }
-    if (at.op == Operation::forget) {
-        for (std::size_t i = 0; i < lines.size(); ++i) {
-            detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
-        }
-    }
     admit.given(at, lines, allocator, scratch);
-    Checked<P> out(allocator);
-    out.entries.reserve(lines.size());
+    Checked out(allocator);
+    out.kept.reserve(lines.size());
     for (std::size_t i = 0; i < lines.size(); ++i) {
-        {
-            const Entry<P> e = detail::part1(platform, at, i, lines[i], Chars(scratch()));
-            out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
-            if (const std::optional<std::string_view> body = lines[i].body) {
-                out.size = detail::sum(out.size, detail::sum(body->size(), 1));
-            }
-            if (at.op == Operation::append && e.header().value(Slot::kind) == "forget") {
-                refuse(at, i, e.header().value(Slot::id), "forget_path", "header.kind");
-            }
-            admit.read(at, i, e.header());
-            out.entries.push_back(detail::keep(platform, e, lines[i], allocator));
+        Keys keys;
+        admit.read(platform, at, i, lines[i], keys, allocator, scratch);
+        out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
+        if (const std::optional<std::string_view> body = lines[i].body) {
+            out.size = detail::sum(out.size, detail::sum(body->size(), 1));
         }
-        admit.kept(at, i, out.entries.back(), allocator, scratch);
+        out.kept.push_back(detail::keep(keys, lines[i], i, at));
+        admit.kept(at, i, out.kept.back(), allocator, scratch);
     }
     return out;
 }
 
 // What the call stages, and at append the maximum: the store's, after the
 // admit hook; a refusal thrown.
-template <View V, platform::Platform P>
-Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at) {
-    const std::span<const Entry<P>> entries(checked.entries);
+template <View V>
+Staged staged(V& view, const Checked& checked, const Limits& limits, const AtView& at) {
+    const std::span<const Kept> entries(checked.kept);
     Staged out;
     out.size = checked.size;
     out.count = entries.size();
     if (!entries.empty()) {
-        const header::Header<Chars>& last = entries.back().header();
-        out.head = Head{Id::of(last.value(Slot::id)), last.seq()};
+        out.head = Head{entries.back().id, entries.back().seq};
     }
     if (at.op == Operation::append) {
         const std::uint64_t size = detail::sum(view.size(), out.size);
@@ -279,16 +312,15 @@ Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const At
 // entry on the call's scope and lane, its parent the lane's head and its
 // seq one past it, the one before it in the call then the head; the first
 // out of order refused parent or seq. An admit hook's rules run first.
-template <platform::Platform P>
-void in_order(std::string_view scope, std::string_view lane, std::optional<Head> now,
-              std::span<const Entry<P>> entries, const AtView& at) {
+inline void in_order(std::string_view scope, std::string_view lane, std::optional<Head> now,
+                     std::span<const Kept> entries, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        const header::Header<Chars>& h = entries[i].header();
-        if (h.value(Slot::scope) != scope || h.value(Slot::lane) != lane) {
-            refuse(at, i, h.value(Slot::id), "parent");
+        const Kept& k = entries[i];
+        if (k.scope.view() != scope || k.lane.view() != lane) {
+            refuse(at, i, k.id.view(), "parent");
         }
-        detail::next(h, now, i, at);
-        now = Head{Id::of(h.value(Slot::id)), h.seq()};
+        detail::next(k.id.view(), detail::text(k.parent), k.seq, now, i, at);
+        now = Head{k.id, k.seq};
     }
 }
 
@@ -302,12 +334,11 @@ void arrives(V& view, const header::Header<Chars>& h, std::size_t index, const A
 // At forget, each target erased: erased the targets whose body the store
 // drops, in the call's order, each once, each held in the call's scope with
 // its body; the first entry whose target is not there refused target.
-template <platform::Platform P>
-void erasable(std::span<const Entry<P>> entries, std::span<const Id> erased, const AtView& at) {
+inline void erasable(std::span<const Kept> entries, std::span<const Id> erased, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        const header::Header<Chars>& h = entries[i].header();
-        if (i >= erased.size() || erased[i].view() != h.text(Slot::target).value_or(std::string_view())) {
-            refuse(at, i, h.value(Slot::id), "target");
+        const Kept& k = entries[i];
+        if (i >= erased.size() || erased[i].view() != detail::text(k.target).value_or(std::string_view())) {
+            refuse(at, i, k.id.view(), "target");
         }
     }
 }
@@ -331,42 +362,41 @@ inline void settles(const header::Header<Chars>& h, bool target_held, bool forgo
 }
 
 // At append, each entry's target held in the call's scope, an earlier one
-// of the call's or the store's, each held header read on a fresh scratch
-// arena; the first not held refused target.
-template <View V, platform::Platform P, Scratch S>
-void targets(V& view, std::span<const Entry<P>> entries, std::string_view scope, const AtView& at, S& scratch) {
+// of the call's or the store's (the view's held_in, by its keys); the
+// first not held refused target.
+template <class V>
+void targets(V& view, std::span<const Kept> entries, std::string_view scope, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        const header::Header<Chars>& h = entries[i].header();
-        const std::optional<std::string_view> t = h.text(Slot::target);
+        const std::optional<Id>& t = entries[i].target;
         bool held = !t;
         for (std::size_t j = 0; j < i && !held; ++j) {
-            held = entries[j].header().value(Slot::id) == *t;
+            held = entries[j].id == *t;
         }
         if (!held) {
-            header::Header<Chars> found{Chars(scratch())};
-            held = view.header(*t, found) && found.value(Slot::scope) == scope;
+            held = view.held_in(t->view(), scope);
         }
         if (!held) {
-            refuse(at, i, h.value(Slot::id), "target");
+            refuse(at, i, entries[i].id.view(), "target");
         }
     }
 }
 
 // The store's step after the admit hook: its own order, then staged.
-template <View V, platform::Platform P>
-Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at, std::string_view scope,
+template <View V>
+Staged staged(V& view, const Checked& checked, const Limits& limits, const AtView& at, std::string_view scope,
               std::string_view lane, const std::optional<Head>& now) {
-    in_order(scope, lane, now, std::span<const Entry<P>>(checked.entries), at);
+    in_order(scope, lane, now, std::span<const Kept>(checked.kept), at);
     return staged(view, checked, limits, at);
 }
 
-// The same, the store's own: its order, at append its targets, then staged.
-template <View V, platform::Platform P, Scratch S>
-Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at, std::string_view scope,
-              std::string_view lane, const std::optional<Head>& now, S& scratch) {
-    in_order(scope, lane, now, std::span<const Entry<P>>(checked.entries), at);
+// The same, the store's own guards: its order, at append its targets, then
+// staged.
+template <View V>
+Staged guarded(V& view, const Checked& checked, const Limits& limits, const AtView& at, std::string_view scope,
+               std::string_view lane, const std::optional<Head>& now) {
+    in_order(scope, lane, now, std::span<const Kept>(checked.kept), at);
     if (at.op == Operation::append) {
-        targets(view, std::span<const Entry<P>>(checked.entries), scope, at, scratch);
+        targets(view, std::span<const Kept>(checked.kept), scope, at);
     }
     return staged(view, checked, limits, at);
 }

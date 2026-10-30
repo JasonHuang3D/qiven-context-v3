@@ -139,7 +139,7 @@ concept Appended = requires(const E& e) {
 };
 
 // The most entries one call takes.
-inline constexpr std::size_t max_entries = UINT32_MAX - 1U;
+inline constexpr std::size_t max_entries = store::max_call_entries;
 
 namespace detail {
 

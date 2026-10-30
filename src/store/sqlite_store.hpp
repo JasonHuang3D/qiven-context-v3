@@ -213,10 +213,10 @@ public:
     // admit after the head and the guard, with the transaction's view.
     template <class A = Rule>
         requires HookOf<A, Rule> &&
-                 Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
+                 Admit<std::remove_cvref_t<A>, P, sqlite::WriteView, stage::Kept, sqlite::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
-        static_assert(Admit<NoAdmit, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>);
+        static_assert(Admit<NoAdmit, P, sqlite::WriteView, stage::Kept, sqlite::ScratchView>);
         return write(Operation::append, scope, lane, expected, entries, {}, nullptr, admit);
     }
     std::optional<Head> head(std::string_view scope, std::string_view lane) {
@@ -267,7 +267,7 @@ public:
     // erased, its id into erased; never refused for size or count.
     template <class A = Rule>
         requires HookOf<A, Rule> &&
-                 Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
+                 Admit<std::remove_cvref_t<A>, P, sqlite::WriteView, stage::Kept, sqlite::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
                    A&& admit = A{}) {
@@ -386,18 +386,17 @@ private:
         const Released<A> released(admit);
         const sqlite::Chars chars(kept);
         const stage::AtView at{op, path_.view()};
-        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
+        const stage::Checked checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         Vector<sqlite::RowView> rows(chars);
         Vector<Id> targets(chars);
         rows.reserve(entries.size());
         targets.reserve(erased != nullptr ? entries.size() : 0);
-        for (std::size_t i = 0; i < entries.size(); ++i) {
-            const Header& h = checked.entries[i].header();
-            rows.push_back(sqlite::RowView{h.value(Slot::id), h.value(Slot::scope), h.value(Slot::lane),
-                                           h.value(Slot::kind), h.text(Slot::parent), h.text(Slot::target), h.seq(),
-                                           entries[i].line, entries[i].body});
+        for (const stage::Kept& k : checked.kept) {
+            const Keys keys = k.keys();
+            rows.push_back(sqlite::RowView{keys.id, keys.scope, keys.lane, keys.kind, keys.parent, keys.target,
+                                           keys.seq, k.line, k.record});
             if (erased != nullptr) {
-                targets.push_back(Id::of(h.value(Slot::target)));
+                targets.push_back(k.target.value_or(Id{}));
             }
         }
         WhereView where = sqlite::site(name(op), path_.view());
@@ -411,12 +410,12 @@ private:
             }
             const sqlite::Totals held = sqlite::totals(connection_, where);
             sqlite::WriteView view(connection_, chars, &scratch, where, held);
-            admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
-            const stage::Staged staged = stage::staged(view, checked, limits_, at, scope, lane, now, scratch);
+            admit.admit(view, scope, lane, expected, std::span<const stage::Kept>(checked.kept), at, chars);
+            const stage::Staged staged = stage::guarded(view, checked, limits_, at, scope, lane, now);
             std::uint64_t dropped = 0;
             if (erased != nullptr) {
                 dropped = sqlite::erase(connection_, targets, scope, *erased, where);
-                stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(*erased), at);
+                stage::erasable(std::span<const stage::Kept>(checked.kept), std::span<const Id>(*erased), at);
             }
             const std::uint64_t size = stage::detail::sum(static_cast<std::uint64_t>(held.size), staged.size);
             const std::uint64_t count = stage::detail::sum(static_cast<std::uint64_t>(held.count), staged.count);
