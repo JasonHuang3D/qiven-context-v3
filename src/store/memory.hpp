@@ -393,9 +393,10 @@ public:
         constexpr Operation op = Operation::import_;
         static_assert(AdmitImport<NoAdmit, P, state::StateView>);
         gate_.enter(op, {});
-        if constexpr (std::same_as<R, state::MemoryExport>) {
-            // An export of this state: the state was empty at its making,
-            // or is not now; its next would wait on this call's lock.
+        if constexpr (requires(const R& r) { r.over(*state_); }) {
+            // An export of this state, by any source that can tell: the state
+            // was empty at its making, or is not now; its next would wait on
+            // this call's lock.
             if (source.over(*state_)) {
                 const state::Locked lock(*state_, op, {});
                 if (lock.data().count != 0) {

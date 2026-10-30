@@ -44,7 +44,7 @@ qiven3_add_cases(qiven3_unit_store_guard LABELS fast fake
 # reopen and verify again; a body row lost or stray refused.
 qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
   SOURCES store_plain_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
 
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its

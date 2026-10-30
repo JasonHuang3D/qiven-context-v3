@@ -11,6 +11,9 @@
 // import's pages could keep. lost_body: a body row lost or stray, the count
 // equal or not, refused by a scan, an export and verify on the open store,
 // then by open.
+// sweep: a body (a record, of no bytes, none, a key or a record alone) by x1 (a
+// note, of t1; a forget of none, of t1; a bare forget of t1, the body t1's), by
+// append or forget, and by import. own_export: ruled and plain, empty or not.
 
 #include <array>
 #include <cstddef>
@@ -23,9 +26,11 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>  // pair
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -143,10 +148,18 @@ struct Plan {
     std::optional<Given> forget;
     std::vector<Given> together;
     std::string_view refused;
+    bool own = false;  // last, its own export imported
 };
 
 std::array<EntryView, 1> one(const Given& g) {
     return {EntryView{g.line, g.record ? std::optional<std::string_view>(*g.record) : std::nullopt, g.keys}};
+}
+
+template <class S>
+void own_import(S& s, Arena& arena) {
+    auto source = s.export_(std::nullopt, {});
+    Vector<LaneHead> rows{Chars(arena)};
+    (void)s.import_(source, rows);
 }
 
 template <class S>
@@ -173,6 +186,9 @@ void write(S& s, const Plan& p, Arena& arena) {
         const std::array<qiven3::store::GuardView, 1> guard = {{{last.scope, last.lane, last.id}}};
         Vector<qiven3::store::Id> erased{Chars(arena)};
         (void)s.forget(k.scope, k.lane, k.parent, one(*p.forget), guard, erased, NoAdmit{});
+    }
+    if (p.own) {
+        own_import(s, arena);
     }
 }
 
@@ -262,6 +278,12 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
         gave = given(*s, p, arena);
         (void)s->close();
     }
+    if (p.own) {  // a ruled store's own export; the unit's length links checked
+        using Ruled = qiven3::checked::SQLiteStore<Fake>;
+        const auto ruled = std::make_unique<Ruled>(Ruled::open(path, false, false, site->fake));
+        Arena arena(pages);
+        CHECK_EQ(said([&] { own_import(*ruled, arena); }), std::string(p.refused));
+    }
     const auto again = std::make_unique<Store>(Store::open(path, false, false, site->fake));
     Arena arena(pages);
     CHECK(again->verify() == counts);
@@ -279,6 +301,10 @@ void on_both(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& cou
     std::vector<std::byte> pages(page_bytes);
     Arena arena(pages);
     attempt(qiven3_ctx, s, p, arena);
+    if (p.own) {  // as on_sqlite's
+        qiven3::checked::MemoryStore<Fake> ruled(*st, *fake);
+        CHECK_EQ(said([&] { own_import(ruled, arena); }), std::string(p.refused));
+    }
     CHECK(s.verify() == counts);
     CHECK_EQ(given(s, p, arena), on_sqlite(qiven3_ctx, p, counts));
 }
@@ -398,4 +424,34 @@ QIVEN3_CASE(store_plain, lost_body) {
                  std::string("StoreCorrupt incoherent [body: the rows not the entries with a body key no forget "
                              "targets]"));
     }
+}
+
+QIVEN3_CASE(store_plain, sweep) {
+    const std::array<std::pair<bool, std::optional<std::string>>, 5> bodies = {
+        {{true, "record"}, {true, ""}, {false, {}}, {true, {}}, {false, "record"}}};
+    const std::array<std::string_view, 2> ways = {"..TC. ..TC. ..T.T LLTCl MMMMm", "..TCf ..TCf ..TfT LLTC. MMMMm"};
+    constexpr std::array codes = {"target", "content", "body_missing", "body_mismatch", "forgotten_body"};
+    for (std::size_t n = 0; n < 50; ++n) {
+        const bool import = n % 2 == 1;
+        const std::size_t k = (n / 2) % 5;
+        const std::size_t at = std::string_view("TCLMFtclmf").find(ways.at(n % 2).at(((n / 10) * 6) + k));
+        const std::string where = at >= 5 ? " 0 t1" : import ? " 1 x1" : " 0 x1";  // a lower case letter on t1
+        const std::string refused = at > 9 ? std::string() : codes.at(at % 5) + where;  // a dot committed
+        Given t = note("t1", "one", 1, {}, true, true);
+        Given x = k < 2 ? note("x1", "two", 1, {}, true, true) : gone("x1", "two", 1, {}, "t1");
+        std::tie(k == 4 ? t.keys.body : x.keys.body, k == 4 ? t.record : x.record) = bodies.at(n / 10);
+        x.keys.target = k == 1 ? Parent("t1") : k == 2 ? Parent() : x.keys.target;
+        const Plan p{import, import || k < 2 ? std::vector<Given>{t, x} : std::vector<Given>{t},
+                     {lane_head("plain", "one", "t1", 1), lane_head("plain", "two", "x1", 1)},
+                     !import && k >= 2 ? std::optional<Given>(x) : std::nullopt, {}, refused};
+        const Counts committed = k >= 2 ? Counts{2, 0, 1, 2} : Counts{2, x.record ? 2U : 1U, 0, 2};
+        const std::uint64_t held = import || at >= 5 ? 0 : 1;
+        on_both(qiven3_ctx, p, refused.empty() ? committed : Counts{held, t.record ? held : 0, 0, held});
+    }
+}
+
+QIVEN3_CASE(store_plain, own_export) {
+    const Given a1 = note("a1", "one", 1, {}, true, true);
+    on_both(qiven3_ctx, Plan{false, {}, {}, {}, {}, {}, true}, Counts{});
+    on_both(qiven3_ctx, Plan{false, {a1}, {}, {}, {}, "StoreNotEmpty  []", true}, Counts{1, 1, 0, 1});
 }

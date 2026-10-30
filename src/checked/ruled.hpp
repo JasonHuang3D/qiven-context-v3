@@ -88,6 +88,13 @@ public:
         return true;
     }
     void close() { e_.close(); }
+    // Whether it exports the state given, where E can tell: an import asks.
+    template <class T>
+    [[nodiscard]] bool over(const T& state) const noexcept
+        requires requires(const E& e) { e.over(state); }
+    {
+        return e_.over(state);
+    }
     // The store's export's counted peak.
     [[nodiscard]] std::size_t peak() const noexcept
         requires requires(const E& e) { e.peak(); }

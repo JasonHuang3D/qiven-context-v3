@@ -15,8 +15,9 @@
 // entries held; it is registered in the state, under its store object's
 // number. Each next copies one entry's line, body record and keys as held
 // into the caller's Line, under the lock: an entry is forgotten in the snapshot when
-// its first forget was held then; its body is yielded unless so, a body a
-// later forget dropped staying in place while any export is open.
+// its first forget was held then; its body key says its body is yielded,
+// unless so, a body a later forget dropped staying in place while any export
+// is open; a record and a body key differing as verify's are incoherent.
 // It ends at its close, at its store object's close, or at its end.
 //
 // Import: into an empty state alone (StoreNotEmpty), under the lock for the

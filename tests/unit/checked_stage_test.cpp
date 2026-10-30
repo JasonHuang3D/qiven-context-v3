@@ -403,3 +403,28 @@ QIVEN3_CASE(store_stage, import_heads) {
     REQUIRE(r.has_value());
     CHECK_EQ(r->index, 1U);
 }
+
+// A ruled memory export's next: a forged line, key and body key, the store's two.
+QIVEN3_CASE(store_stage, memory_export) {
+    using qiven3::store::state::Held;
+    const auto bench = std::make_unique<Bench>(1U << 20U);
+    const std::vector<Stored> list = {bench->book.stored("A")};
+    const std::vector<EntryView> lines = views(list);
+    const std::string id(lines.at(0).keys.id);
+    const std::vector<std::pair<void (*)(Held&), std::string>> rows = {
+        {[](Held& e) { e.line.assign("not a line"); }, "a header line the parser refuses"},
+        {[](Held& e) { e.kind.assign("other"); }, "an entry's column differs from its line"},
+        {[](Held& e) { e.content = e.has_body = false; }, id},
+        {[](Held& e) { e.has_body = false; }, id},  // a body key with no record
+        {[](Held& e) { e.content = false; }, id}};  // a record with no body key
+    for (const auto& [forge, detail] : rows) {
+        auto heap = bench->fake.pages(std::size_t{1} << 23U);
+        const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), Limits{});
+        qiven3::checked::MemoryStore<Fake> ruled(*st, bench->fake);
+        (void)ruled.append(lines.at(0).keys.scope, lines.at(0).keys.lane, std::nullopt, lines);
+        forge(qiven3::store::state::Locked(*st, qiven3::store::state::Unbounded{}).data().held[0]);
+        auto exported = ruled.export_(std::nullopt, {});
+        qiven3::store::Line line(bench->arena);
+        CHECK_EQ(refused([&] { (void)exported.next(line); }).value_or(Refusal{}).detail, detail);
+    }
+}

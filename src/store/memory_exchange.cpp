@@ -307,8 +307,9 @@ bool MemoryExport::next(Line& line) {
             const std::uint32_t i = d.lanes[p.lane].ids[at_];
             const Held& e = d.held[i];
             const bool forgotten = e.forget != none && e.forget < held_;
-            const bool body = !forgotten && !e.body.empty();
-            if (!body && !forgotten && e.content) {
+            // Its body key says so, a record of no bytes too; verify's rule.
+            const bool body = !forgotten && e.content;
+            if (e.has_body ? !e.content : e.content && e.forget == none) {
                 throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, e.id.view());
             }
             const KeysView keys = held_keys(
