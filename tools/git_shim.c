@@ -1,5 +1,5 @@
-/* The counting shim on Windows (tests/drive/test_git_shim.py builds it with
-   the toolset's cl and places it first on PATH under git's program name):
+/* The counting shim on Windows (tools/loop_shim.py builds it with the
+   toolset's cl and places it first on PATH under git's program name):
    each start appends one line, its command line, to the file
    QIVEN3_SHIM_LOG names, then runs the program QIVEN3_SHIM_REAL names with
    the same arguments and the same standard handles, and exits with its

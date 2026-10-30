@@ -6,12 +6,16 @@
 // to its completing run (750 on Windows, 740 on Linux); the forget's 100 k
 // a stretch to k 200, 50 to k 300, 100 to k 700, then 60 and 45, the last
 // to its completing run (850 on Windows, 853 on Linux). Beside each row,
-// the seconds the slowest CI Windows job yet ran it in, its files' steps
-// there at about a fifth of their usual pace: a stretch past 30 s there is
-// cut in three parts, one past 60 s in four, so that each part takes about
-// a third of that or less, 30 s or under; even in k, but for the forget's
-// k 101 to 200, whose runs cost the most past k 166, cut at even measured
-// seconds.
+// the seconds the slowest CI Windows job yet ran it in (windows-msvc at
+// 486b505, its files' steps there at about a fifth of their usual pace): a
+// stretch past 30 s there is cut in three parts, one past 60 s in four, so
+// that each part takes about a third of that or less, 30 s or under; even
+// in k, but for the forget's k 101 to 200, whose runs cost the most past
+// k 166, cut at even measured seconds. Where its seconds are named, the
+// 30 s is so measured on that job; the forget's rows from k 301 to 700 hit
+// the watcher there, timed out at 90 s or killed past 60 s, so that their
+// seconds are a lower bound and their parts' 30 s an estimate, not a
+// measure.
 
 #include <array>
 #include <cstddef>

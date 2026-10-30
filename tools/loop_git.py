@@ -16,14 +16,15 @@ and a run's git processes are counted where they start.
   count on the step's line (tools/loop_run.py's run_steps); a step
   whose tests start more than LIMIT fails. The product's tests start none:
   no test outside this door starts git (tests/drive/test_git_count.py),
-  and a counting shim checks the count (tests/drive/test_git_shim.py).
+  and a counting shim before every Python test of the loop's build checks
+  the count (tools/loop_shim.py, tests/drive/test_git_shim.py).
 - carried(starts, env): an inner count's starts added to the enclosing
   count's directory, so that a step's starts count where it runs too.
 - run_verdict(total): the fault when a run's starts, its steps' summed,
   pass RUN_LIMIT; the loop names the total on its last line
   (tools/loop_run.py's ending).
 
-Loaded by runpy.run_path (tools/loop_run.py, nav.py) or imported as
+Loaded by runpy.run_path (tools/loop_run.py, nav.py, loop_shim.py) or imported as
 tools.loop_git (the loop's tests); it imports no other tool.
 """
 

@@ -153,7 +153,7 @@ STATED = {
     ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
                                                          "that reaches the diagnostic entry's report hook",
     ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
-    ("B5", "tools/git_shim.c", "windows.h"): "the loop's counting shim on Windows, which its test builds by cl and "
+    ("B5", "tools/git_shim.c", "windows.h"): "the loop's counting shim on Windows, which its runner builds by cl and "
                                             "CMake never: its log, its environment and the real program's start",
 }
 ALLOWANCES = (*subset.CELLS, *STATED)

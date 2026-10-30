@@ -14,7 +14,8 @@ from tests import SKIP_CODE
 from tests.drive import binaries
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
-          "fuzz", "bench", "drill", "gpu", "analysis"}
+          "fuzz", "bench", "drill", "gpu", "analysis", "loop"}
+SHIM = binaries.ROOT / "tools" / "loop_shim.py"
 # The structure tests start no process and read no machine fact: fast, and
 # not drive; but the analysis tools' controls, which run the tools on the
 # analysis build: analysis alone. Every other Python test drives a binary.
@@ -148,6 +149,7 @@ class Registered(unittest.TestCase):
         self.assertFalse([name for name in tests if name.startswith(("demo.", SAMPLE))])
         watch = binaries.ROOT / "tools" / "watch.py"
         cases = case_limits()
+        shims = set()  # every Python test behind the shim, or none
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
                 labels = set(props["LABELS"])
@@ -163,12 +165,23 @@ class Registered(unittest.TestCase):
                 self.assertEqual(int(watched[6]), limit)
                 self.assertEqual(float(props["TIMEOUT"]), limit + AFTER_LIMIT)
                 if "py" in labels:
+                    # On the loop's build, behind the counting shim, the loop's own with --git.
+                    behind = len(command) > 2 and Path(command[2]) == SHIM
+                    shims.add(behind)
+                    if behind:
+                        flags = ["--git", "--"] if "loop" in labels else ["--"]
+                        self.assertEqual(command[1], "-I")
+                        self.assertEqual(command[3:3 + len(flags)], flags)
+                        command = command[3 + len(flags):]
                     self.assertEqual(
                         command[1:],
                         ["-I", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-k", "*" + name],
                     )
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
-                    if name.startswith(ANALYSIS):
+                    if "loop" in labels:
+                        self.assertTrue(behind)
+                        self.assertEqual(labels, {"py", "loop", "fake"})
+                    elif name.startswith(ANALYSIS):
                         self.assertEqual(labels, {"py", "analysis"})
                     elif name.startswith(STRUCTURE):
                         self.assertIn("fast", labels)
@@ -188,6 +201,7 @@ class Registered(unittest.TestCase):
                 else:
                     self.assertEqual(command[1:], ["--run", name])
                 self.assertEqual(props.get("RUN_SERIAL", False), serial(name))
+        self.assertLessEqual(len(shims), 1, "some Python tests behind the shim and some not")
 
     def test_presets(self):
         tests = ctest_tests()

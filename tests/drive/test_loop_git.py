@@ -216,6 +216,7 @@ class Git(unittest.TestCase):
     repository."""
 
     ctest_labels = ("fake",)
+    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
 
     def setUp(self):
         self.top = Path(tempfile.mkdtemp(prefix="qiven3-loop-git-"))

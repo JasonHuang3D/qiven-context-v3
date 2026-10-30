@@ -1,5 +1,5 @@
 #!/bin/sh
-# The counting shim on Linux (tests/drive/test_git_shim.py places a copy
+# The counting shim on Linux (tools/loop_shim.py places a copy
 # first on PATH under git's program name): each start appends one line, its
 # arguments, to the file QIVEN3_SHIM_LOG names, then runs the program
 # QIVEN3_SHIM_REAL names in its place. A start with either variable unset,

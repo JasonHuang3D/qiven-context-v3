@@ -3,8 +3,8 @@
 loop's tools or of any test names git's program another way, in any case,
 by a path, as a plain, prefixed or f-string literal; the product's tests,
 which never import the door, start none. A program held in a variable no
-reading of the source sees: the counting shim catches that start
-(tests/drive/test_git_shim.py). The door counts a real git's start and
+reading of the source sees: the counting shim, before every Python test
+of the loop's build, counts that start (tools/loop_shim.py). The door counts a real git's start and
 not a fake's; a test step of the loop whose tests start more than the
 limit fails, its line naming the count, one at the limit passing with it
 named; and a run whose steps start more than the run's limit in all fails,
@@ -27,9 +27,8 @@ from tools import loop_git
 
 LOOP = load_loop()
 # The door, this file's counts, which start nothing, B2's rule naming git's literals, and the shim's
-# test, which names the shim's file by git's program and starts git only by its children, through the door.
-OWN = ("tools/loop_git.py", "tests/drive/test_git_count.py", "tests/structure/rules.py",
-       "tests/drive/test_git_shim.py")
+# runner, which names the shim's file by git's program and finds the real git before the shim.
+OWN = ("tools/loop_git.py", "tests/drive/test_git_count.py", "tests/structure/rules.py", "tools/loop_shim.py")
 # git's program in any case, alone, by an absolute path, or as git.exe by any
 # path; a relative directory (".config/git") is none. A shell's command line
 # ("git status"), as messages read, is left to the shim.

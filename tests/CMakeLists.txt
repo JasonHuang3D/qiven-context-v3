@@ -87,15 +87,18 @@ endforeach()
 set(qiven3_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
 file(GENERATE OUTPUT "${qiven3_inputs_file}" CONTENT "${qiven3_inputs}")
 
-# The loop's own tests, the counting shim's run of them, registered on one
-# build a system (CMakePresets.json: ci-windows and linux-gcc), so that the
-# git they start is started in one step a run (tests/drive/test_git_shim.py).
-option(QIVEN3_LOOP_TESTS "Register the counting shim's run of the loop's own tests" OFF)
+# The loop's own tests, those that start git, registered on one build a
+# system (CMakePresets.json: ci-windows and linux-gcc), every Python test
+# there behind the counting shim, so that the git they start is started in
+# one step a run (tests/drive/test_git_shim.py); never on a tree of the
+# structure records, a second tree of a job whose structure step would
+# run the loop's structure test again.
+option(QIVEN3_LOOP_TESTS "Register the loop's own tests, every Python test behind the counting shim" OFF)
 set(qiven3_python_args "")
 set(qiven3_python_files "")
 if(Python3_EXECUTABLE)
   set(qiven3_python_args -D "PYTHON=${Python3_EXECUTABLE}")
-  if(QIVEN3_LOOP_TESTS)
+  if(QIVEN3_LOOP_TESTS AND NOT QIVEN3_STRUCTURE)
     list(APPEND qiven3_python_args -D "LOOP=ON")
   endif()
   file(GLOB_RECURSE qiven3_python_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.py")

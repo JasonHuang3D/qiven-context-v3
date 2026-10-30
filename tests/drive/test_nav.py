@@ -160,6 +160,7 @@ def unresolved_at(envelope):
 
 class Nav(unittest.TestCase):
     ctest_labels = ("fake",)
+    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
     ctest_reads = ("tools/nav.py", "tools/nav_query.py")
 
     def setUp(self):
@@ -235,7 +236,10 @@ class Nav(unittest.TestCase):
     def indexed(self):
         """The scratch checkout indexed, the index's record checked; its
         commit and the clangd that built it. Each case of the index builds
-        it once: the whole passed 30 s on CI's Windows jobs."""
+        it once: the whole passed 30 s on CI's Windows jobs. Alone, each in
+        a child of its own on CI's windows-msvc job, the stale clangd's case
+        ran in 25.8, 19.5 and 24.0 s (f8caa31, 5c2a1cc, e3e6fea), 36.5 s on
+        a slow runner (486b505), the index used's in 22.1 s (f8caa31)."""
         status, envelope, _ = nav("index", root=self.top)
         self.assertEqual(status, 0, envelope)
         commit = git(self.top, "rev-parse", "HEAD")
@@ -295,6 +299,7 @@ class Nav(unittest.TestCase):
 
 class Checkout(unittest.TestCase):
     ctest_labels = ("fake",)
+    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
     ctest_reads = ("tools/nav.py", "tools/nav_query.py", "src/platform/files.hpp", FIXTURE)
 
     def setUp(self):

@@ -4,8 +4,8 @@
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # ADDR2LINE where the build found one, PYTHON when the Python tests are
-# registered, LOOP when the counting shim's run of the loop's own tests is
-# too (list_tests.py --loop), and FUZZ when the build has fuzz targets (lines
+# registered, LOOP when the loop's own tests are too (list_tests.py --loop)
+# and every Python test runs behind the counting shim, and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
 # other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
@@ -150,9 +150,18 @@ if(DEFINED PYTHON)
     endif()
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
-    # matched whole, so '*<id>' selects that one test.
-    qiven3_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}"
-      "${PYTHON}" -I -m unittest discover -s tests -t . -k "*${id}")
+    # matched whole, so '*<id>' selects that one test. With LOOP each runs
+    # behind the counting shim (tools/loop_shim.py), the loop's own, which
+    # start git, with --git.
+    set(test_command "${PYTHON}" -I -m unittest discover -s tests -t . -k "*${id}")
+    if(LOOP)
+      set(shim_words "${PYTHON}" -I "${SOURCE}/tools/loop_shim.py")
+      if("loop" IN_LIST labels)
+        list(APPEND shim_words --git)
+      endif()
+      set(test_command ${shim_words} -- ${test_command})
+    endif()
+    qiven3_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()
 endif()

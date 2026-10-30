@@ -73,6 +73,7 @@ def scratch_copy(case):
 
 class Loop(unittest.TestCase):
     ctest_labels = ("fake",)
+    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
 
 
 class Answer(Loop):
