@@ -409,7 +409,7 @@ private:
             const sqlite::Totals held = sqlite::totals(connection_, where);
             sqlite::WriteView view(connection_, chars, &scratch, where, held);
             admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
-            const stage::Staged staged = stage::staged(view, checked, limits_, at);
+            const stage::Staged staged = stage::staged(view, checked, limits_, at, scope, lane, now);
             std::uint64_t dropped = 0;
             if (erased != nullptr) {
                 sqlite::whole_record(connection_, targets, where);

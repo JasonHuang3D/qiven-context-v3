@@ -342,6 +342,36 @@ Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const At
     return out;
 }
 
+// The store's own order over its keys, under the head now it read: each
+// entry on the call's scope and lane, its parent the lane's head and its
+// seq one past it, the one before it in the call then the head; the first
+// out of order refused parent or seq. An admit hook's rules run first.
+template <platform::Platform P>
+void in_order(std::string_view scope, std::string_view lane, std::optional<Head> now,
+              std::span<const Entry<P>> entries, const AtView& at) {
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const header::Header<Chars>& h = entries[i].header();
+        const std::string_view id = h.value(Slot::id);
+        const std::optional<std::string_view> head =
+            now ? std::optional<std::string_view>(now->id.view()) : std::nullopt;
+        if (h.value(Slot::scope) != scope || h.value(Slot::lane) != lane || h.text(Slot::parent) != head) {
+            refuse(at, i, id, "parent");
+        }
+        if (h.seq() < 1 || h.seq() - 1 != (now ? now->seq : 0)) {
+            refuse(at, i, id, "seq");
+        }
+        now = Head{Id::of(id), h.seq()};
+    }
+}
+
+// The store's step after the admit hook: its own order, then staged.
+template <View V, platform::Platform P>
+Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at, std::string_view scope,
+              std::string_view lane, const std::optional<Head>& now) {
+    in_order(scope, lane, now, std::span<const Entry<P>>(checked.entries), at);
+    return staged(view, checked, limits, at);
+}
+
 // One line of an import as it arrives, part 1 passed, before its insert:
 // the chain rules (validator's), a fault refused.
 template <class V>

@@ -7,7 +7,10 @@
 // or for an id no record targets; keyed(scope, kind) a scope's ids of a
 // kind with no target, in (lane, seq) order, a revision of the kind left
 // out, none in another scope; contains(bytes) whether a held line holds
-// them. Each list is cleared first.
+// them. Each list is cleared first. order_memory, order_sqlite: the
+// store's own order with no admit hook, a parent not the lane's head
+// refused parent and a seq not one past it seq, the chain in order
+// appended.
 
 #include <cstddef>
 #include <filesystem>
@@ -167,7 +170,60 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(!view.contains(R"("kind":"forget")"));
 }
 
+// The store's own order with no admit hook, on an empty store: a call
+// whose first parent is not the lane's head refused parent at 0; one whose
+// second parent is not the first refused parent at 1; one whose seq is
+// not one past the head refused seq at 0; each refusal leaving the lane
+// empty; then the chain in order appended, its head the last.
+template <class S>
+void order(qiven3::test::Context& qiven3_ctx, S& store, const Book& book) {
+    using qiven3::store::NoAdmit;
+    using qiven3::test::stage_book::refused;
+    const Stored a = book.stored("A");
+    const std::vector<Stored> skip_first = {book.stored("B")};
+    const std::vector<Stored> skip_second = {a, book.stored("D")};
+    const std::vector<Stored> late = {
+        book.made("A", "A", *a.content, [](qiven3::entry::header::FieldsView& f) { f.seq = 2; })};
+    const std::vector<Stored> chain = {a, book.stored("B"), book.stored("D")};
+    const auto one = [&](const std::vector<Stored>& list) {
+        const auto lines = views(list);
+        return refused([&] { (void)store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{}); });
+    };
+    const auto first = one(skip_first);
+    CHECK(first.has_value() && first->code == "parent" && first->index == 0U);
+    const auto second = one(skip_second);
+    CHECK(second.has_value() && second->code == "parent" && second->index == 1U &&
+          second->id == id_of(book.stored("D")));
+    const auto seq = one(late);
+    CHECK(seq.has_value() && seq->code == "seq" && seq->index == 0U);
+    const auto lines = views(chain);
+    const qiven3::store::Written w = store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{});
+    CHECK_EQ(w.head.id.view(), id_of(chain.back()));
+    CHECK(w.head.seq == 3);
+}
+
 }  // namespace
+
+QIVEN3_CASE(store_view, order_memory) {
+    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto book = std::make_unique<const Book>(*fake);
+    auto heap = fake->pages(state_bytes);
+    const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+    qiven3::store::MemoryStore<Fake> store(*st, *fake);
+    order(qiven3_ctx, store, *book);
+}
+
+QIVEN3_CASE(store_view, order_sqlite) {
+    const auto scratch = std::make_unique<Scratch>();
+    const auto fake = std::make_unique<Fake>(scratch->config());
+    const Engine<Fake> engine(*fake);
+    const auto book = std::make_unique<const Book>(*fake);
+    const std::string path = text(scratch->root / "o" / "store.db");
+    const auto store = std::make_unique<qiven3::store::SQLiteStore<Fake>>(
+        qiven3::store::SQLiteStore<Fake>::open(path, true, false, *fake));
+    order(qiven3_ctx, *store, *book);
+    (void)store->close();
+}
 
 QIVEN3_CASE(store_view, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
