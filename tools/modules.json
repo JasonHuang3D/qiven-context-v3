@@ -49,7 +49,6 @@
     {"name": "store", "layer": "foundation", "depends": ["entry", "secret", "checked", "memory", "sqlite", "platform", "faults"],
      "paths": ["src/store/", "tests/support/stores/", "tests/support/seams/", "tests/unit/store.cmake", "tests/unit/store_*",
                "tests/unit/stores_test.cpp", "tests/unit/scan_test.cpp", "tests/support/fixtures/stage_book.hpp",
-               "tests/support/fixtures/store_scan_case.hpp",
                "tests/unit/seams_test.cpp"]},
     {"name": "entry", "layer": "product", "depends": ["store", "matcher", "base", "memory", "platform", "faults"],
      "paths": ["src/entry/CMakeLists.txt", "src/entry/body.*", "src/entry/check.*", "src/entry/content*",

@@ -2,7 +2,7 @@
 // a template on a factory and bound to each store as the S cases are:
 // make, again and read_only over one state, a read-only object's write
 // refused, close, then reopen where durable; the case template of a
-// scan's end (store_scan_case.hpp) taken over the factory's objects; and
+// scan's end (scan_case.hpp) taken over the factory's objects; and
 // references: a map citing A, its 24 references the most its lists hold,
 // every syntax of its content among them, appended on each store, its
 // counted peak within its budget, 1 MiB plus 4 times the lines given; and
@@ -29,11 +29,13 @@
 #include "store/keys.hpp"
 #include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
-#include "support/fixtures/store_scan_case.hpp"
+#include "support/stores/scan_case.hpp"
+#include "support/stores/stores.hpp"
 
 namespace {
 
 namespace stores = qiven3::test::ruled;
+namespace plain = qiven3::test::stores;
 namespace stage_book = qiven3::test::stage_book;
 using qiven3::store::Code;
 using qiven3::store::StoreError;
@@ -80,7 +82,7 @@ template <class F>
 void scan_case(qiven3::test::Context& qiven3_ctx, F& f) {
     auto store = f.make();
     auto other = f.again();
-    qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, f.site().book(), f.site().chars());
+    qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, f.site().chars());
 }
 
 template <class F>
@@ -306,15 +308,16 @@ QIVEN3_CASE(stores, sqlite_lend) {
     lend_case(qiven3_ctx, f);
 }
 
+// The scan's case over plain records, on the plain factory.
 QIVEN3_CASE(stores, memory_scan_case) {
-    const auto site = stores::site();
-    stores::Memory f(*site);
+    const auto site = plain::site();
+    plain::Memory f(*site);
     scan_case(qiven3_ctx, f);
 }
 
 QIVEN3_CASE(stores, sqlite_scan_case) {
-    const auto site = stores::site();
-    stores::Sqlite<> f(*site);
+    const auto site = plain::site();
+    plain::Sqlite<> f(*site);
     scan_case(qiven3_ctx, f);
 }
 

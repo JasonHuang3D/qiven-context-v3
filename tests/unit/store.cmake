@@ -49,12 +49,12 @@ qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
 # lock, thread gate, read-only object and forged states; a scan's end at
-# each lane's length at its start (store_scan_case.hpp, whose ruled records
-# keep the fixtures and checked linked here).
+# each lane's length at its start (scan_case.hpp); all over plain records
+# with no admit hook.
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
   SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
           store_memory_scan_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
+  LINK qiven3_faults qiven3_platform_fake qiven3_store)
 
 # store/sqlite's cases: the SQLite store on the fake over a scratch
 # directory; its smoke case: create, identify, the settings read back, the
@@ -62,7 +62,7 @@ qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
 # forget, purge, size and close; its reads; its budgets, counts and fault
 # runs, the create's and the forget's in parts; the engine heap's page
 # cache, a purge held pending, forged files; a scan's end at each lane's
-# length at its start (store_scan_case.hpp), and entry's rowids kept by a
+# length at its start (scan_case.hpp), and entry's rowids kept by a
 # purge's VACUUM between two steps of a scan, read through the seams; a
 # create refused at each call, in parts, and its removals refused.
 qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
