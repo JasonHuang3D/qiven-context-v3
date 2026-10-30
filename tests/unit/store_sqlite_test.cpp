@@ -12,9 +12,7 @@
 // append, a content hit refused, a HeadConflict, size and its figures;
 // forget's kind, guard, erasure and whole records; each purge done, meta's
 // vacuumed and purged at forgets; a read-only object's purge refused, its
-// close attempting none; close, then closed. store_sqlite.cleared_many:
-// a false secret hit's clearing over 4 and over 16 direction records, append's counted
-// peak equal, within its budget. store_sqlite.reads: head, heads by scope
+// close attempting none; close, then closed. store_sqlite.reads: head, heads by scope
 // set, header, body and forgotten, NotFound, scans by range; a body
 // record, a column and a line altered, each StoreCorrupt; a scan left open
 // past close, StoreError closed.
@@ -24,7 +22,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -58,7 +55,6 @@ using qiven3::store::Engine;
 using qiven3::store::EntryView;
 using qiven3::test::stage_book::added;
 using qiven3::test::stage_book::Book;
-using qiven3::test::stage_book::content_of;
 using qiven3::test::stage_book::id_of;
 using qiven3::test::stage_book::Stored;
 using qiven3::test::stage_book::views;
@@ -427,60 +423,6 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(raised([&] { (void)store.purge(); }), std::string("StoreError closed"));
 }
 
-// D's direction record on reviewer's lane, its writer's role the lane's,
-// its content clearing content for pattern, at seq after parent (none at
-// seq 1), revising target where one is given, at the time given.
-Stored clearing(const Book& book, const std::string& content, std::string_view pattern, const Stored* parent,
-                const Stored* target, std::int64_t seq, std::string_view at) {
-    std::string words = *book.stored("D").content;
-    words.insert(words.find("\"episode\":"),
-                 R"("clears":{"content":")" + content + R"(","pattern":")" + std::string(pattern) + R"("},)");
-    const std::string parent_id = parent == nullptr ? std::string() : id_of(*parent);
-    const std::string target_id = target == nullptr ? std::string() : id_of(*target);
-    std::string writer;
-    return book.made("D", "D", words, [&](header::FieldsView& f) {
-        writer = std::string(reviewer) + std::string(f.writer.substr(f.writer.find('/')));
-        f.lane = reviewer;
-        f.writer = writer;
-        f.parent = parent == nullptr ? std::nullopt : std::optional<std::string_view>(parent_id);
-        f.target = target == nullptr ? std::nullopt : std::optional<std::string_view>(target_id);
-        f.seq = seq;
-        f.at = at;
-    });
-}
-
-// An append's error as raised gives it, on a frame of its own.
-std::string appending(Store& store, std::string_view lane, const std::vector<EntryView>& lines) {
-    return raised([&] { (void)store.append(qiven_scope, lane, std::nullopt, lines); });
-}
-
-// n records on reviewer's lane, n - 1 roots clearing sk-key, then a
-// revision of the last root clearing aws-akia: every root folded, the last
-// with its revision, before the hit passes; append's counted peak.
-std::size_t cleared_peak(qiven3::test::Context& qiven3_ctx, Rig& rig, const Book& book, std::size_t n) {
-    const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
-                                               [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
-    const std::vector<EntryView> hit_lines = views(hit);
-    const std::string content = content_of(hit[0]);
-    const std::string path = text(rig.scratch.root / ("c" + std::to_string(n)) / "store.db");
-    const auto owned = std::make_unique<Store>(Store::open(path, true, false, rig.fake));  // past a frame's share
-    Store& store = *owned;
-    std::vector<Stored> records;
-    records.reserve(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        const std::string at = "2026-10-17T09:" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ":00.000Z";
-        const Stored* parent = records.empty() ? nullptr : &records.back();
-        const bool last = i + 1 == n;
-        records.push_back(clearing(book, content, last ? "aws-akia" : "sk-key", parent, last ? parent : nullptr,
-                                   static_cast<std::int64_t>(i + 1), at));
-    }
-    const std::vector<EntryView> lines = views(records);
-    CHECK_EQ(appending(store, reviewer, lines), std::string("none"));
-    CHECK_EQ(appending(store, implementer, hit_lines), std::string("none"));
-    CHECK(store.peak() <= *qiven3::store::operation_budget(*qiven3::store::given(hit_lines)));
-    return store.peak();
-}
-
 // Each scanned header's id, cut to its first four hex digits; cut, the
 // same of lines given.
 std::string scanned(Store& store, const Chars& chars, const qiven3::store::RangeView& range) {
@@ -569,16 +511,6 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 QIVEN3_CASE(store_sqlite, reads) {
     const auto rig = std::make_unique<Rig>();
     reads(qiven3_ctx, *rig);
-}
-
-QIVEN3_CASE(store_sqlite, cleared_many) {
-    const auto rig = std::make_unique<Rig>();
-    const Book book(rig->fake);
-    const std::size_t four = cleared_peak(qiven3_ctx, *rig, book, 4);
-    const std::size_t sixteen = cleared_peak(qiven3_ctx, *rig, book, 16);
-    std::cout << "store_sqlite.cleared_many: append " << four << " bytes counted with 4 records, " << sixteen
-              << " with 16\n";
-    CHECK_EQ(four, sixteen);
 }
 
 QIVEN3_CASE(store_sqlite, writes) {

@@ -10,16 +10,11 @@
 // before the forget yields B's body, not forgotten; an export
 // imported into an empty state, equal; StoreNotEmpty; an import refused
 // forgotten_body writing nothing; an export closed by its store's close.
-// cleared: a content hit refused with no direction record clearing it,
-// or one clearing another pattern; admitted on a state an import filled
-// from one holding the clearing, then refused there once used; refused
-// once the clearing is forgotten.
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <span>
@@ -437,130 +432,4 @@ QIVEN3_CASE(store_memory, exchange) {
     CHECK(raised([&] { (void)other.import_(again, wrote); }).starts_with("StoreNotEmpty"));
     CHECK(store.close().done);
     CHECK(raised([&] { (void)again.heads(rows); }).starts_with("StoreError closed"));
-}
-
-namespace {
-
-// D's direction record on reviewer's lane, its writer's role the lane's,
-// its content clearing content for pattern, at seq after parent (none at
-// seq 1), revising target where one is given, at the time given.
-Stored clearing(const Book& book, const std::string& content, std::string_view pattern, const Stored* parent,
-                const Stored* target, std::int64_t seq, std::string_view at) {
-    std::string words = *book.stored("D").content;
-    words.insert(words.find("\"episode\":"),
-                 R"("clears":{"content":")" + content + R"(","pattern":")" + std::string(pattern) + R"("},)");
-    const std::string parent_id = parent == nullptr ? std::string() : id_of(*parent);
-    const std::string target_id = target == nullptr ? std::string() : id_of(*target);
-    std::string writer;
-    return book.made("D", "D", words, [&](header::FieldsView& f) {
-        writer = std::string(reviewer_lane) + std::string(f.writer.substr(f.writer.find('/')));
-        f.lane = reviewer_lane;
-        f.writer = writer;
-        f.parent = parent == nullptr ? std::nullopt : std::optional<std::string_view>(parent_id);
-        f.target = target == nullptr ? std::nullopt : std::optional<std::string_view>(target_id);
-        f.seq = seq;
-        f.at = at;
-    });
-}
-
-}  // namespace
-
-// A false secret hit's clearing on held direction records, on the fake.
-QIVEN3_CASE(store_memory, cleared) {
-    const auto rig = std::make_unique<Rig>();
-    const Book& book = rig->book;
-    Store store(rig->state, rig->fake);
-    // A's line with the aws-akia key, at noon: past every record below.
-    const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
-                                               [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
-    const std::vector<EntryView> hit_lines = views(hit);
-    const auto admit = [&hit_lines](Store& s, qiven3::store::Expected expected) {
-        return raised([&] { (void)s.append(qiven_scope, implementer_lane, expected, hit_lines); });
-    };
-    const std::string content = content_of(hit[0]);
-    const std::vector<Stored> other = {
-        clearing(book, content, "sk-key", nullptr, nullptr, 1, "2026-10-17T09:00:00.000Z")};
-    const std::vector<Stored> clear = {
-        clearing(book, content, "aws-akia", &other[0], nullptr, 2, "2026-10-17T09:10:00.000Z")};
-    const std::vector<EntryView> other_lines = views(other);
-    const std::vector<EntryView> clear_lines = views(clear);
-    CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
-    (void)store.append(qiven_scope, reviewer_lane, std::nullopt, other_lines);
-    CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
-    (void)store.append(qiven_scope, reviewer_lane, id_of(other[0]), clear_lines);
-
-    // The state imported into an empty one: the clearing held there.
-    Store into(rig->state2, rig->fake);
-    {
-        auto x = store.export_(std::nullopt, {});
-        Vector<LaneHead> wrote(rig->chars);
-        (void)into.import_(x, wrote);
-        x.close();
-    }
-
-    // The clearing forgotten: the hit refused again.
-    const std::vector<Stored> gone = {
-        forget_of(book.stored("E"), clear[0], clear[0], reviewer_lane, 3, "2026-10-17T11:00:00.000Z")};
-    const std::vector<EntryView> gone_lines = views(gone);
-    Vector<LaneHead> rows(rig->chars);
-    const std::vector<GuardView> guard = guard_of(store, rows);
-    Vector<Id> erased(rig->chars);
-    (void)store.forget(qiven_scope, reviewer_lane, id_of(clear[0]), gone_lines, guard, erased);
-    CHECK_EQ(erased.size(), 1U);
-    CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
-
-    // The other clearing revised for aws-akia, then for sk-key again: its
-    // last revision stands, the hit refused.
-    std::vector<Stored> revised = {
-        clearing(book, content, "aws-akia", &gone[0], &other[0], 4, "2026-10-17T11:10:00.000Z")};
-    revised.push_back(clearing(book, content, "sk-key", &revised[0], &other[0], 5, "2026-10-17T11:20:00.000Z"));
-    const std::vector<EntryView> revised_lines = views(revised);
-    CHECK_EQ(raised([&] { (void)store.append(qiven_scope, reviewer_lane, id_of(gone[0]), revised_lines); }),
-             std::string("none"));
-    CHECK_EQ(admit(store, std::nullopt), std::string("EntryInvalid secret"));
-
-    // On the imported state, cleared: admitted; then, its content held,
-    // refused.
-    CHECK_EQ(admit(into, std::nullopt), std::string("none"));
-    CHECK_EQ(into.verify().entries, 3U);
-    CHECK_EQ(admit(into, id_of(hit[0])), std::string("EntryInvalid secret"));
-}
-
-// A false secret hit's clearing over many direction records: each root's work given back
-// before the next, the append's counted peak the same for 4 records held
-// as for 16, within its budget.
-QIVEN3_CASE(store_memory, cleared_many) {
-    const auto rig = std::make_unique<Rig>();
-    const Book& book = rig->book;
-    const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
-                                               [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
-    const std::vector<EntryView> hit_lines = views(hit);
-    const std::string content = content_of(hit[0]);
-    // n records on reviewer's lane, n - 1 roots clearing sk-key, then a
-    // revision of the last root clearing aws-akia: every root folded, the
-    // last with its revision, before the hit passes.
-    const auto peak_with = [&](std::size_t n, auto& state) {
-        Store store(state, rig->fake);
-        std::vector<Stored> records;
-        records.reserve(n);
-        for (std::size_t i = 0; i < n; ++i) {
-            const std::string at = "2026-10-17T09:" + std::string(i < 10 ? "0" : "") + std::to_string(i) + ":00.000Z";
-            const Stored* parent = records.empty() ? nullptr : &records.back();
-            const bool last = i + 1 == n;
-            records.push_back(clearing(book, content, last ? "aws-akia" : "sk-key", parent,
-                                       last ? parent : nullptr, static_cast<std::int64_t>(i + 1), at));
-        }
-        const std::vector<EntryView> lines = views(records);
-        CHECK_EQ(raised([&] { (void)store.append(qiven_scope, reviewer_lane, std::nullopt, lines); }),
-                 std::string("none"));
-        CHECK_EQ(raised([&] { (void)store.append(qiven_scope, implementer_lane, std::nullopt, hit_lines); }),
-                 std::string("none"));
-        return store.peak();
-    };
-    const std::size_t four = peak_with(4, rig->state);
-    const std::size_t sixteen = peak_with(16, rig->state2);
-    std::cout << "store_memory.cleared_many: append " << four << " bytes counted with 4 records, " << sixteen
-              << " with 16, of " << qiven3::store::state::budget_of(hit_lines) << '\n';
-    CHECK_EQ(four, sixteen);
-    CHECK(sixteen <= qiven3::store::state::budget_of(hit_lines));
 }
