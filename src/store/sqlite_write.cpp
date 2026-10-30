@@ -139,8 +139,42 @@ bool WriteView::forgotten(std::string_view id) {
 bool WriteView::holds_content(std::string_view content) {
     String needle(allocator_);
     needle.append("\"content\":\"").append(content).append("\"");
+    return contains(needle);
+}
+
+bool WriteView::line(std::string_view id, String& out) {
+    Statement s = c_->prepare(held_line, at_);
+    s.bind_text(1, id, at_);
+    if (!s.step(at_)) {
+        return false;
+    }
+    out.assign(s.blob(0));
+    return true;
+}
+
+void WriteView::targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
+    out.clear();
+    Statement s = c_->prepare(record_members, at_);
+    s.bind_text(1, id, at_);
+    s.bind_text(2, scope, at_);
+    while (s.step(at_)) {
+        out.push_back(Id::of(s.text(0)));
+    }
+}
+
+void WriteView::keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
+    out.clear();
+    Statement s = c_->prepare(keyed_roots, at_);
+    s.bind_text(1, scope, at_);
+    s.bind_text(2, kind, at_);
+    while (s.step(at_)) {
+        out.push_back(Id::of(s.text(0)));
+    }
+}
+
+bool WriteView::contains(std::string_view bytes) {
     Statement s = c_->prepare(content_scan, at_);
-    s.bind_blob(1, needle, at_);
+    s.bind_blob(1, bytes, at_);
     return s.step(at_) && s.integer(0) != 0;
 }
 
@@ -148,8 +182,9 @@ bool WriteView::holds_content(std::string_view content) {
 // own fresh arena; the first that clears ends the walk.
 bool WriteView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,
                         std::string_view at) {
-    Statement roots = c_->prepare(direction_roots, at_);
+    Statement roots = c_->prepare(keyed_roots, at_);
     roots.bind_text(1, scope, at_);
+    roots.bind_text(2, "direction", at_);
     while (roots.step(at_)) {
         const Id root = Id::of(roots.text(0));
         if (clears(root, scope, content, pattern, at)) {

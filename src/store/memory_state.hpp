@@ -122,10 +122,12 @@ using Rows = std::vector<T, Allocator<T>>;
 // An entry held.
 struct Held {
     explicit Held(memory::Heap& heap) noexcept
-        : line(Allocator<char>(heap)), body(Allocator<char>(heap)), content(Allocator<char>(heap)) {}
+        : line(Allocator<char>(heap)), body(Allocator<char>(heap)), content(Allocator<char>(heap)),
+          kind(Allocator<char>(heap)) {}
     Bytes line;     // the header line, without its LF
     Bytes body;     // the body record, empty with none or once dropped
     Bytes content;  // the header's content digest, empty with none
+    Bytes kind;     // its kind, a key the store finds by
     Id id;
     std::int64_t seq = 0;
     std::uint32_t lane = 0;      // its lane's index
@@ -344,6 +346,15 @@ public:
     [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
                                std::string_view at);
     [[nodiscard]] bool holds_content(std::string_view content);
+    // The generic calls, by the keys the store holds: a record's line by
+    // id, false where none is held; the ids whose target is id, in scope,
+    // in the order written; a scope's ids of kind with no target, in
+    // (lane, seq) order; each list into out, cleared first, on its
+    // allocator; whether a held line holds bytes.
+    bool line(std::string_view id, String& out);
+    void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
+    void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
+    [[nodiscard]] bool contains(std::string_view bytes);
     [[nodiscard]] std::uint64_t size() const noexcept { return data_->size; }
     [[nodiscard]] std::uint64_t count() const noexcept { return data_->count; }
 
@@ -352,6 +363,8 @@ private:
     // its work on a fresh scratch arena, else on the view's allocator.
     bool clears(std::uint32_t root, std::string_view scope, std::string_view content, std::string_view pattern,
                 std::string_view at);
+    // The scope's lanes, by name: the order of the lists above.
+    Vector<std::uint32_t> lanes_of(std::string_view scope);
 
     Data* data_;
     Chars allocator_;
@@ -364,7 +377,7 @@ private:
 static_assert(sizeof(Allocator<char>) == 8, "the state's allocator is pinned: one Heap*");
 static_assert(sizeof(Open) == 16, "Open's size is pinned: two numbers");
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(Held) == 216, "Held's size is pinned: three texts, an Id, seq, three indices and three flags");
+static_assert(sizeof(Held) == 256, "Held's size is pinned: four texts, an Id, seq, three indices and four flags");
 static_assert(sizeof(Lane) == 192, "Lane's size is pinned: two texts, the ids and a Head");
 #endif
 

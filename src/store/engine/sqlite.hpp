@@ -368,9 +368,11 @@ struct Totals {
 // clearings of a false secret hit, the scope's direction roots, a record's members by
 // entry_target, and each member's line, body record and whether a forget
 // targets it; and the scan of entry.line for a "content": field.
-inline constexpr std::string_view direction_roots =
-    "SELECT id FROM entry WHERE scope = ?1 AND kind = 'direction' AND target IS NULL";
-inline constexpr std::string_view record_members = "SELECT id FROM entry WHERE target = ?1 AND scope = ?2";
+inline constexpr std::string_view keyed_roots =
+    "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 AND target IS NULL ORDER BY lane, seq";
+inline constexpr std::string_view record_members =
+    "SELECT id FROM entry WHERE target = ?1 AND scope = ?2 ORDER BY rowid";
+inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id = ?1";
 inline constexpr std::string_view member_rows =
     "SELECT e.line, b.record, EXISTS (SELECT 1 FROM entry f WHERE f.target = e.id AND "
     "f.kind = 'forget') FROM entry e LEFT JOIN body b ON b.id = e.id WHERE e.id = ?1";
@@ -378,7 +380,9 @@ inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM e
 
 // Part 2's view of the transaction (stage::View): the head, a header and
 // a body by id, the forgotten set, the clearings and held contents, the
-// size and the count the transaction began with. A clearing works on the
+// generic calls by the keys held (a line, targets, keyed ids, a byte
+// search), the size and the count the transaction began with. A clearing
+// works on the
 // scratch's fresh arena, one direction record at a time, else on the
 // view's allocator.
 class WriteView {
@@ -394,6 +398,15 @@ public:
     [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
                                std::string_view at);
     [[nodiscard]] bool holds_content(std::string_view content);
+    // The generic calls, by the keys the store holds: a record's line by
+    // id, false where none is held; the ids whose target is id, in scope;
+    // a scope's ids of kind with no target, in (lane, seq) order; each list
+    // into out, cleared first, the first in the order written (rowid);
+    // whether a held line holds bytes.
+    bool line(std::string_view id, String& out);
+    void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
+    void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
+    [[nodiscard]] bool contains(std::string_view bytes);
     [[nodiscard]] std::uint64_t size() const noexcept { return static_cast<std::uint64_t>(held_.size); }
     [[nodiscard]] std::uint64_t count() const noexcept { return static_cast<std::uint64_t>(held_.count); }
 

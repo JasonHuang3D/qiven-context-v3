@@ -183,6 +183,7 @@ Held make_held(Data& d, std::string_view line, std::optional<std::string_view> r
         e.content.assign(*c);
     }
     const std::string_view kind = h.value(Slot::kind);
+    e.kind.assign(kind);
     e.id = Id::of(h.value(Slot::id));
     e.seq = h.seq();
     e.is_forget = kind == "forget";
@@ -318,6 +319,61 @@ std::optional<Id> StateView::forget_of(std::string_view id) {
 bool StateView::holds_content(std::string_view content) {
     return std::any_of(data_->held.begin(), data_->held.end(),
                        [content](const Held& e) { return std::string_view(e.content) == content; });
+}
+
+bool StateView::line(std::string_view id, String& out) {
+    const std::uint32_t i = find(*data_, id);
+    if (i == none) {
+        return false;
+    }
+    out.assign(data_->held[i].line);
+    return true;
+}
+
+Vector<std::uint32_t> StateView::lanes_of(std::string_view scope) {
+    const Data& d = *data_;
+    Vector<std::uint32_t> out(allocator_);
+    for (std::uint32_t l = 0; l < d.lanes.size(); ++l) {
+        if (std::string_view(d.lanes[l].scope) == scope) {
+            out.push_back(l);
+        }
+    }
+    std::sort(out.begin(), out.end(), [&d](std::uint32_t a, std::uint32_t b) {
+        return std::string_view(d.lanes[a].name) < std::string_view(d.lanes[b].name);
+    });
+    return out;
+}
+
+void StateView::targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
+    out.clear();
+    const Data& d = *data_;
+    const std::uint32_t t = find(d, id);
+    if (t == none) {
+        return;
+    }
+    for (const Held& e : d.held) {
+        if (e.target == t && std::string_view(d.lanes[e.lane].scope) == scope) {
+            out.push_back(e.id);
+        }
+    }
+}
+
+void StateView::keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
+    out.clear();
+    const Data& d = *data_;
+    for (const std::uint32_t l : lanes_of(scope)) {
+        for (const std::uint32_t r : d.lanes[l].ids) {
+            if (d.held[r].target == none && std::string_view(d.held[r].kind) == kind) {
+                out.push_back(d.held[r].id);
+            }
+        }
+    }
+}
+
+bool StateView::contains(std::string_view bytes) {
+    return std::any_of(data_->held.begin(), data_->held.end(), [bytes](const Held& e) {
+        return std::string_view(e.line).find(bytes) != std::string_view::npos;
+    });
 }
 
 bool StateView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,

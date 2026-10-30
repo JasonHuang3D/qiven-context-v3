@@ -38,8 +38,8 @@ from tests.drive.session import FAKE, Drive, DriveError
 TAGS = ("durable", "files", "processes", "own: sqlite")
 # The statements the SQLite store plans: the view's reads, then the
 # export's.
-PLANNED = ("direction_roots", "record_members", "member_rows", "content_scan", "forget_counts", "head_rows",
-           "lane_rows")
+PLANNED = ("keyed_roots", "record_members", "held_line", "member_rows", "content_scan", "forget_counts",
+           "head_rows", "lane_rows")
 
 
 class StoreBinding:
@@ -502,9 +502,10 @@ class StoreCases:
                     self.refuse(other, SCOPE, "implementer", None, [hit], "EntryInvalid", "secret", pattern=pattern)
 
     def test_S4_plans(self):
-        """S4's own SQLite part: the view's two reads, the clearings (the
-        scope's direction roots, a record's members, each member's row) and
-        the scan of entry.line for a content, and beside them the export's
+        """S4's own SQLite part: the view's two reads, the clearings (a
+        scope's roots of a kind, a record's members, a line by id, each
+        member's row) and the scan of entry.line for bytes, and beside them
+        the export's
         statements, planned with no structure built in memory as large as
         its rows: no plan line holds TEMP B-TREE, AUTOMATIC, MATERIALIZE or
         BLOOM FILTER, on a store whose append ran both reads. The store runs

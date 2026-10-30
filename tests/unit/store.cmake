@@ -34,6 +34,13 @@ qiven3_add_cases(qiven3_unit_store_stage LABELS fast fake
   SOURCES store_stage_test.cpp store_stage_memory_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
 
+# store's view cases: the generic calls, a line by id, a record's targets,
+# a scope's ids of a kind with no target and a byte search over the lines
+# held, on the in-memory store's view and the SQLite store's, on the fake.
+qiven3_add_cases(qiven3_unit_store_view LABELS fast fake
+  SOURCES store_view_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
 # lock, thread gate, read-only object and checked reads; a scan's end at
