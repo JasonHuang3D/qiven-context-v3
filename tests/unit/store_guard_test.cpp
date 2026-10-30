@@ -18,8 +18,11 @@
 // lane's bytes), too_long with the key's name as its field (long_id with
 // no id); body_unrecorded: a body key with no record, body_missing;
 // record_unkeyed: a record with no body key, body_mismatch. import_plain:
-// an import with no admit hook over plain keys, the store reading no line.
+// an import, then an append, with no admit hook over plain keys of lines no
+// parser takes, the store reading no line, each verified clean, and on
+// SQLite reopened and verified clean again.
 
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
@@ -361,16 +364,30 @@ bool imports_plain(S& s, const Book& book, Arena& arena) {
     const std::optional<qiven3::store::Head> two = s.head("plain", "two");
     bool ok = in.counts == qiven3::store::Counts{3, 1, 1, 2} && wrote.size() == 2 && one && one->id.view() == "p2" &&
               two && two->seq == 1;
-    auto scan = s.scan({});
-    qiven3::store::Record r{Chars(arena)};
-    for (const PlainSource::Given& g : src.lines) {
-        ok = ok && scan.next(r);
-        const KeysView k = r.keys();
-        ok = ok && std::string_view(r.line) == g.line && k.id == g.keys.id && k.scope == g.keys.scope &&
-             k.lane == g.keys.lane && k.kind == g.keys.kind && k.seq == g.keys.seq && k.parent == g.keys.parent &&
-             k.target == g.keys.target && k.body == g.keys.body;
+    {
+        auto scan = s.scan({});
+        qiven3::store::Record r{Chars(arena)};
+        for (const PlainSource::Given& g : src.lines) {
+            ok = ok && scan.next(r);
+            const KeysView k = r.keys();
+            ok = ok && std::string_view(r.line) == g.line && k.id == g.keys.id && k.scope == g.keys.scope &&
+                 k.lane == g.keys.lane && k.kind == g.keys.kind && k.seq == g.keys.seq &&
+                 k.parent == g.keys.parent && k.target == g.keys.target && k.body == g.keys.body;
+        }
+        ok = ok && !scan.next(r);
     }
-    return ok && !scan.next(r);
+    return ok && s.verify() == in.counts;
+}
+
+// appends_plain on s, after imports_plain: an append with no admit hook of
+// a line and a record no parser takes on a lane of its own; the store's
+// verify reading neither, clean.
+template <class S>
+bool appends_plain(S& s) {
+    const std::array<EntryView, 1> lines = {
+        EntryView{"line four", "record four", qiven3::store::KeysView{"p4", "plain", "three", "note", 1, {}, {}, true}}};
+    (void)s.append("plain", "three", std::nullopt, lines, NoAdmit{});
+    return s.verify() == qiven3::store::Counts{4, 2, 1, 3};
 }
 
 }  // namespace
@@ -385,14 +402,22 @@ QIVEN3_CASE(store_guard, import_plain) {
         const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
         qiven3::store::MemoryStore<Fake> s(*st, *fake);
         CHECK(imports_plain(s, *book, arena));
+        CHECK(appends_plain(s));
     }
     const auto scratch = std::make_unique<Scratch>();
     const auto disk = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*disk);
     using Store = qiven3::store::SQLiteStore<Fake>;
-    const auto s = std::make_unique<Store>(Store::open(text(scratch->root / "plain" / "store.db"), true, false, *disk));
-    CHECK(imports_plain(*s, *book, arena));
-    (void)s->close();
+    const std::string path = text(scratch->root / "plain" / "store.db");
+    {
+        const auto s = std::make_unique<Store>(Store::open(path, true, false, *disk));
+        CHECK(imports_plain(*s, *book, arena));
+        CHECK(appends_plain(*s));
+        (void)s->close();
+    }
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *disk));
+    CHECK(again->verify() == (qiven3::store::Counts{4, 2, 1, 3}));
+    (void)again->close();
 }
 
 QIVEN3_CASE(store_guard, memory) {

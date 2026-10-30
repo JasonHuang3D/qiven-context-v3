@@ -31,25 +31,23 @@
 // refusal rolls back, then the checkpoint; the caller's heads cleared.
 //
 // Verify: in one read transaction, the engine's integrity_check; each head
-// row's lane in (scope, lane) order, its entries in seq order, each checked
-// as a scan's, its body record against its header, part 1 again (a fault
-// StoreCorrupt incoherent naming its code), its chain, its target held, no
-// body for a forgotten id or a forget (forgotten_body), a body for every
-// other entry with content, the head row its last entry; then the entry
-// rows, the body rows and meta against what the walk counted.
+// row's lane in (scope, lane) order, its entries in seq order by their
+// columns, no line or record read: its chain, its target held, no body for
+// a forgotten id or a forget (forgotten_body), the head row its last
+// entry; then the entry rows, the body rows and meta against what the walk
+// counted.
 //
 // Budgets: export, pages of its own, its packed records then 1 MiB, a fresh
 // arena over it for each next's checks; import, the object's own 1 MiB, a
 // quarter for the source's heads, a quarter for the line in hand, the half
-// for each line's or entry's work, afresh; verify, the object's own, a
-// fresh arena for each entry. The engine's heap apart. Allocations: export,
+// for each line's or entry's work, afresh; verify, none. The engine's heap
+// apart. Allocations: export,
 // the path's copy at its making, each next the header's parse and the
 // caller's Line, heads the caller's rows; import, the source's own into its
 // Line, the hook's and the view's on the work arena, the indices of the
 // lines whose body key came with no record as they grow on the heads'
-// quarter, the caller's heads';
-// verify, each entry's header, body and part 1. Platform calls: an
-// export's pages; part 1's and a body's keys and wipes.
+// quarter, the caller's heads'; verify, none. Platform calls: an export's
+// pages; the hooks' own.
 //
 // thread: one, each object and each export (its own gate).
 
@@ -387,12 +385,8 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
 class WalkView {
 public:
     WalkView(Connection& c, const WhereView& at);
-    // The next entry's header into out, on out's allocator, checked; false
-    // past the last. No optional of a Header: its allocator has no default.
-    [[nodiscard]] bool next(Header& out);
-    // The entry in hand: its line and its body record or none.
-    [[nodiscard]] EntryView entry() const noexcept;
-    [[nodiscard]] std::size_t index() const noexcept { return index_; }
+    // The next entry's row checked by its columns; false past the last.
+    [[nodiscard]] bool next();
     // The entry rows, the body rows and meta against the walk: the counts.
     [[nodiscard]] Counts totals();
 
@@ -412,58 +406,20 @@ private:
     bool in_lane_ = false;
 };
 
-// A held body record against its header: one the parser refuses
-// StoreCorrupt incoherent, one not its header's body_mismatch.
-template <platform::Platform P>
-void check_record(P& platform, std::string_view record, const Header& h, const WhereView& at, const Chars& chars) {
-    namespace body = entry::body;
-    const std::string_view id = h.value(entry::header::Slot::id);
-    try {
-        body::check(body::parse(platform, record, chars), h);
-    } catch (const body::BodyError& f) {
-        const bool mismatch = f.code == body::Code::body_mismatch;
-        throw StoreError::corrupt(at.operation, at.path, mismatch ? Corrupt::body_mismatch : Corrupt::incoherent, id);
-    } catch (const ParseError&) {
-        throw StoreError::corrupt(at.operation, at.path, Corrupt::incoherent, id);
-    }
-}
-
 // The engine's own full check: a first row other than "ok" StoreCorrupt
 // corrupt, naming it.
 void integrity(Connection& c, const WhereView& at);
 
-// verify, in one read transaction, each entry's work on a fresh arena over
-// pages.
-template <platform::Platform P>
-Counts verify_store(P& platform, Connection& c, std::span<std::byte> pages, Countdown* countdown,
-                    const WhereView& at, std::size_t& peak) {
+// verify, in one read transaction, by the rows' columns alone; its counted
+// peak none.
+inline Counts verify_store(Connection& c, const WhereView& at, std::size_t& peak) {
+    peak = 0;
     Counts counts;
-    std::size_t mark = 0;
     c.exec("BEGIN", at);
     try {
         integrity(c, at);
         WalkView walk(c, at);
-        for (;;) {
-            memory::Arena arena(pages);
-            attach_to(arena, countdown);
-            const Chars chars(arena);
-            Header h(chars);
-            if (!walk.next(h)) {
-                break;
-            }
-            const EntryView e = walk.entry();
-            if (e.body) {
-                check_record(platform, *e.body, h, at, chars);
-            }
-            try {
-                (void)stage::detail::part1(platform, stage::AtView{Operation::verify, at.path}, walk.index(), e, chars);
-            } catch (const StoreError& f) {
-                if (f.kind() != Kind::entry_invalid) {
-                    throw;
-                }
-                throw StoreError::corrupt(at.operation, at.path, Corrupt::incoherent, f.entry_code());
-            }
-            mark = std::max(mark, arena.peak());
+        while (walk.next()) {
         }
         counts = walk.totals();
         c.exec("COMMIT", at);
@@ -471,7 +427,6 @@ Counts verify_store(P& platform, Connection& c, std::span<std::byte> pages, Coun
         c.rollback();
         throw;
     }
-    peak = mark;
     return counts;
 }
 

@@ -9,7 +9,6 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/header.hpp"
 #include "memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -20,8 +19,6 @@
 namespace qiven3::store::state {
 
 namespace {
-
-using header::Slot;
 
 [[noreturn]] void incoherent(Operation op, std::string_view detail) {
     throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, detail);
@@ -149,33 +146,25 @@ void reset(Data& d) noexcept {
     d.forgets = 0;
 }
 
-void verify_entry(const Data& d, std::uint32_t l, std::size_t k, const Header& h) {
+void verify_entry(const Data& d, std::uint32_t l, std::size_t k) {
     constexpr Operation op = Operation::verify;
     const Lane& lane = d.lanes[l];
     const std::uint32_t i = lane.ids[k];
     const Held& e = d.held[i];
     const std::string_view id = e.id.view();
-    const std::optional<std::string_view> parent = h.text(Slot::parent);
-    const bool chained = k == 0 ? !parent : parent == d.held[lane.ids[k - 1]].id.view();
-    if (!chained || h.seq() != static_cast<std::int64_t>(k) + 1 || e.seq != h.seq() || e.lane != l ||
-        h.value(Slot::scope) != std::string_view(lane.scope) || h.value(Slot::lane) != std::string_view(lane.name)) {
+    const auto out = [&d](std::uint32_t t) { return t != none && t >= d.held.size(); };
+    if (e.seq != static_cast<std::int64_t>(k) + 1 || e.lane != l || out(e.target) || out(e.forget)) {
         incoherent(op, id);
     }
-    const std::optional<std::string_view> target = h.text(Slot::target);
-    if (target ? e.target == none || d.held[e.target].id.view() != *target : e.target != none) {
-        incoherent(op, id);
-    }
-    if (e.is_forget != (h.value(Slot::kind) == "forget") ||
+    if (e.is_forget != (std::string_view(e.kind) == "forget") ||
         (e.is_forget && (e.target == none || d.held[e.target].forget > i)) ||
         (e.forget != none && (!d.held[e.forget].is_forget || d.held[e.forget].target != i))) {
         incoherent(op, id);
     }
-    if (e.forget != none && e.has_body) {
+    if ((e.forget != none || e.is_forget) && e.has_body) {
         throw StoreError::corrupt(name(op), {}, Corrupt::forgotten_body, id);
     }
-    const std::optional<std::string_view> content = h.text(Slot::content);
-    if (content.has_value() != e.content || (!content && e.has_body) ||
-        (content && !e.has_body && e.forget == none)) {
+    if (e.has_body ? !e.content : e.content && e.forget == none) {
         incoherent(op, id);
     }
 }

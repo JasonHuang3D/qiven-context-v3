@@ -25,7 +25,7 @@
 // given none, else pages the call takes. At append and forget the pages
 // split in two halves, the arena read keeps its entries on, and read's
 // scratch, afresh for each line, then the hook's, as the hook says.
-// Import and verify run on the object's own;
+// Import runs on the object's own, verify on none;
 // an export's lines go to the caller's arena. Each operation's peak is its
 // arenas' high-water marks summed, peak() the last one's; the state's heap
 // is the store's, as SQLite's files are.
@@ -422,10 +422,8 @@ public:
     Counts verify() {
         gate_.enter(Operation::verify, {});
         const state::Locked lock(*state_, Operation::verify, {});
-        state::Peak peak;
-        const Counts counts = state::verify_state(*platform_, lock.data(), own(), countdown_, peak);
-        peak_ = peak.sum();
-        return counts;
+        peak_ = 0;
+        return state::verify_state(lock.data());
     }
 
     // Its exports closed with it.

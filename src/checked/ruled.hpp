@@ -6,7 +6,8 @@
 //
 //   Ruled<S>   S with its constructors and every call S gives; open, where
 //              S opens, gives a Ruled; header, body and scan the store's
-//              bytes and keys checked (checked/reads.hpp)
+//              bytes and keys checked (checked/reads.hpp); verify S's,
+//              then each record checked so
 //   Scan<H>    a ruled store's scan over the store's scan H
 //
 // Ruled derives from S and adds no member and no virtual call: a call it
@@ -23,6 +24,8 @@
 // the line's, the record's or the scan's out). Platform calls and threads:
 // S's, and the body's parse's.
 
+#include <cstddef>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -103,6 +106,42 @@ public:
     auto scan(const store::RangeView& range) {
         using H = decltype(S::scan(range));
         return Scan<H>(S::scan(range), where(store::Operation::scan).path);
+    }
+    // S's verify, then each record by a scan: its line, its keys against
+    // it, part 1 again, and its body record, read after the scan's step,
+    // against its header.
+    store::Counts verify() {
+        const store::Counts counts = S::verify();
+        const reads::WhereView at = where(store::Operation::verify);
+        auto scan = S::scan(store::RangeView{});
+        for (std::size_t i = 0;; ++i) {
+            store::Id id;
+            bool body = false;
+            if (!scan.next([&](const store::Record& r, const reads::Chars& chars) {
+                    const store::Header h = reads::header_of(r.id.view(), r.line, chars, at);
+                    reads::keys_match(r.keys(), h, at);
+                    reads::body_key(r.keys(), h, at);
+                    id = r.id;
+                    body = r.body;
+                    if (!body) {
+                        reads::part1_again(S::platform(), i, r.line, std::nullopt, chars, at);
+                    }
+                })) {
+                return counts;
+            }
+            if (body) {
+                (void)S::body(id.view(), [&](std::string_view line, const std::string_view* held,
+                                             const reads::Chars& chars) {
+                    const store::Header h = reads::header_of(id.view(), line, chars, at);
+                    if (held != nullptr) {
+                        reads::check_body(S::platform(), id.view(), *held, h, chars, at);
+                    }
+                    reads::part1_again(S::platform(), i, line,
+                                       held != nullptr ? std::optional<std::string_view>(*held) : std::nullopt,
+                                       chars, at);
+                });
+            }
+        }
     }
 
 private:

@@ -29,12 +29,12 @@
 // compared. A refusal empties the state again: it was empty, so all or
 // nothing.
 //
-// Verify: under the lock, each lane's entries in seq order: the header
-// parsed and its id recomputed, its body checked, both as the reads do;
-// part 1 again, a fault StoreCorrupt incoherent; seq, parent, scope, lane
-// and target; no body for a forgotten id (forgotten_body); every entry but
-// a forget, with content and not forgotten, with its body. Then each head,
-// the ids' order and the counters, which give its counts.
+// Verify: under the lock, each lane's entries in seq order by their keys,
+// no line or record read: its seq and lane its place's; its target and
+// forget links each other's, a forget's target held and forgotten first
+// by it; no body for a forgotten id or a forget (forgotten_body); a body
+// with no body key, or a body key with no body and no forget, incoherent.
+// Then each head, the ids' order and the counters, which give its counts.
 //
 // Allocations. forget: erased's room, one, on the call's allocator. export: its lanes' room on
 // the state's heap, one; the registration's room as it grows; heads, the
@@ -44,9 +44,8 @@
 // and the hook's read's on a fresh arena; the state's as append's
 // (make_held's three, a new lane's two, the room each container grows to),
 // and the target keys' room as it grows on the state's heap, given back at
-// the call's end; per entry the hook's settled's on a fresh arena. verify: per entry
-// read_header's, check_body's and part 1's on a fresh arena. Platform calls:
-// part 1's and body's wipes and keys, each noexcept.
+// the call's end; per entry the hook's settled's on a fresh arena. verify:
+// none. Platform calls: the hooks' own.
 //
 // thread: one, each object; the state, shared (its lock).
 
@@ -58,13 +57,10 @@
 #include <span>
 #include <string_view>
 
-#include "entry/body.hpp"
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory_state.hpp"
@@ -90,24 +86,6 @@ inline std::size_t budget_of(std::span<const EntryView> entries) {
         throw memory::MemoryError::budget("store/memory", std::numeric_limits<std::size_t>::max(), entries.size(), 0);
     }
     return *b;
-}
-
-// A held entry's body record, checked against its header: a record the
-// parser refuses StoreCorrupt incoherent, one not its header's
-// StoreCorrupt body_mismatch.
-template <platform::Platform P>
-void check_body(P& platform, const Held& e, const Header& h, Operation op, const Chars& allocator) {
-    namespace body = entry::body;
-    try {
-        const body::Body<P, Chars> b = body::parse(platform, std::string_view(e.body), allocator);
-        body::check(b, h);
-    } catch (const body::BodyError& f) {
-        throw StoreError::corrupt(name(op), {}, f.code == body::Code::body_mismatch ? Corrupt::body_mismatch
-                                                                                   : Corrupt::incoherent,
-                                  e.id.view());
-    } catch (const ParseError&) {
-        throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, e.id.view());
-    }
 }
 
 // forget's guard: every lane held as the guard expects it.
@@ -137,9 +115,9 @@ void reset(Data& d) noexcept;
 // Entry i's keys as the state holds them, views of it: its parent the one
 // before it on its lane, its target the one given.
 [[nodiscard]] KeysView held_keys(const Data& d, std::uint32_t i, std::optional<std::string_view> target) noexcept;
-// verify's pieces: one entry, the k-th of lane l, against its header; then
-// the heads, the ids' order and the counters, giving the counts.
-void verify_entry(const Data& d, std::uint32_t l, std::size_t k, const Header& h);
+// verify's pieces: one entry, the k-th of lane l, by its keys; then the
+// heads, the ids' order and the counters, giving the counts.
+void verify_entry(const Data& d, std::uint32_t l, std::size_t k);
 [[nodiscard]] Counts verify_totals(const Data& d);
 
 // The export's handle: a move-only value, ended by its close, its store
@@ -262,33 +240,11 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
     return Imported{counts, measure(d.size, d.count, s.limits())};
 }
 
-// verify, each entry's work on a fresh arena over pages.
-template <platform::Platform P>
-Counts verify_state(P& platform, const Data& d, std::span<std::byte> pages, Countdown* countdown, Peak& peak) {
-    constexpr Operation op = Operation::verify;
+// verify: each lane's entries in seq order by their keys, then the totals.
+inline Counts verify_state(const Data& d) {
     for (std::uint32_t l = 0; l < d.lanes.size(); ++l) {
-        const Lane& lane = d.lanes[l];
-        for (std::size_t k = 0; k < lane.ids.size(); ++k) {
-            memory::Arena arena(pages);
-            hook(arena, countdown);
-            const Chars chars(arena);
-            const Held& e = d.held[lane.ids[k]];
-            const Header h = read_header(e, op, {}, chars);
-            const std::optional<std::string_view> record =
-                e.has_body ? std::optional<std::string_view>(e.body) : std::nullopt;
-            if (record) {
-                check_body(platform, e, h, op, chars);
-            }
-            try {
-                (void)stage::detail::part1(platform, stage::AtView{op, {}}, k, EntryView{e.line, record}, chars);
-            } catch (const StoreError& f) {
-                if (f.kind() != Kind::entry_invalid) {
-                    throw;
-                }
-                throw StoreError::corrupt(name(op), {}, Corrupt::incoherent, f.entry_code());
-            }
-            verify_entry(d, l, k, h);
-            note(peak.work, arena);
+        for (std::size_t k = 0; k < d.lanes[l].ids.size(); ++k) {
+            verify_entry(d, l, k);
         }
     }
     return verify_totals(d);

@@ -220,7 +220,7 @@ std::vector<Step> steps() {
                        (void)b.other.import_(x, wrote);
                        return Peaks{b.other.peak(), b.call->peak()};
                    }});
-    out.push_back({"verify", base, false, {226, 0, 0, 0}, [](Bed& b, const Chars&) {
+    out.push_back({"verify", base, false, {291, 1, 0, 1}, [](Bed& b, const Chars&) {
                        (void)b.store.verify();
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -348,7 +348,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 329}, {3, 13, 175}, {13, 14, 323 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 329}, {3, 13, 175}, {13, 14, 323 + import_heap}, {14, step_count, 294}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

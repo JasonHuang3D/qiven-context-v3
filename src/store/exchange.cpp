@@ -495,7 +495,7 @@ void WalkView::lane_end() {
     }
 }
 
-bool WalkView::next(Header& out) {
+bool WalkView::next() {
     for (;;) {
         if (in_lane_ && rows_.step(at_)) {
             break;
@@ -508,37 +508,27 @@ bool WalkView::next(Header& out) {
             return false;
         }
     }
-    Header h = row_header(rows_, out.get_allocator(), at_);
-    const std::string_view id = h.value(Slot::id);
-    const std::optional<std::string_view> parent = h.text(Slot::parent);
+    const std::string_view id = rows_.text(0);
+    const std::optional<std::string_view> parent =
+        rows_.null(4) ? std::nullopt : std::optional<std::string_view>(rows_.text(4));
     const bool chained = index_ == 0 ? !parent : parent == last_.view();
-    if (!chained || h.seq() != seq_ + 1 || rows_.integer(held_column) == 0) {
+    if (!Id::fits(id) || !chained || rows_.integer(3) != seq_ + 1 || rows_.integer(held_column) == 0) {
         incoherent(at_, id);
     }
-    const bool forget = h.value(Slot::kind) == "forget";
+    const bool forget = rows_.text(5) == "forget";
     const bool forgotten = rows_.integer(forgotten_column) != 0;
     const bool record = !rows_.null(record_column);
     if (record && (forgotten || forget)) {
         throw StoreError::corrupt(at_.operation, at_.path, Corrupt::forgotten_body, id);
-    }
-    if (record != (h.text(Slot::content).has_value() && !forgotten)) {
-        incoherent(at_, id);
     }
     ++counts_.entries;
     counts_.bodies += record ? 1U : 0U;
     counts_.forgets += forget ? 1U : 0U;
     size_ += rows_.blob(line_column).size() + 1U + (record ? rows_.blob(record_column).size() + 1U : 0U);
     last_ = Id::of(id);
-    seq_ = h.seq();
+    seq_ = rows_.integer(3);
     ++index_;
-    out = std::move(h);
     return true;
-}
-
-EntryView WalkView::entry() const noexcept {
-    return EntryView{rows_.blob(line_column), rows_.null(record_column)
-                                                  ? std::nullopt
-                                                  : std::optional<std::string_view>(rows_.blob(record_column))};
 }
 
 Counts WalkView::totals() {

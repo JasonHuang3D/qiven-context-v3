@@ -14,8 +14,11 @@
 // whose parent, or seq, is not its place's; a target index not its
 // header's; a forgotten entry's body kept (forgotten_body); a content's
 // body dropped; a lane's head not its last; the size one off; the ids out
-// of order.
+// of order; the store's own verify, which reads no line, refusing each of
+// the keys' forgeries with the same code and finding the target index
+// coherent.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -268,8 +271,9 @@ QIVEN3_CASE(store_memory, corrupt) {
 namespace {
 
 // A fresh bed's state, E's forget of B first where asked, forged under its
-// lock by change; then verify's refusal code, or "none".
-template <class F>
+// lock by change; then the verify's refusal code, or "none": the ruled
+// store's, or, by Plain, the store's own, which reads no line.
+template <class S = Store, class F>
 std::string forged(bool forget, const F& change) {
     const auto b = std::make_unique<Bed>();
     Store store(b->state, b->fake);
@@ -281,7 +285,8 @@ std::string forged(bool forget, const F& change) {
         const state::Locked lock(b->state, Operation::size, {});
         change(*b, lock.data());
     }
-    return corrupt_code([&] { (void)store.verify(); });
+    S verifier(b->state, b->fake);
+    return corrupt_code([&] { (void)verifier.verify(); });
 }
 
 // Entry i made s: its line, body record and id; the ids sorted again.
@@ -315,27 +320,34 @@ QIVEN3_CASE(store_memory, forged) {
                         d.lanes[0].head = Head{d.held[3].id, 5};
                     }),
              std::string("incoherent"));
-    // ACC's target index A's, its header naming D.
-    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.held[3].target = 0; }), std::string("incoherent"));
+    // ACC's target index A's, its header naming D: the store's own verify
+    // reads no line, so finds its keys coherent.
+    const auto aimed = [](Bed&, state::Data& d) { d.held[3].target = 0; };
+    CHECK_EQ(forged(false, aimed), std::string("incoherent"));
+    CHECK_EQ(forged<Store::Plain>(false, aimed), std::string("none"));
     // B forgotten, its body kept, the size counting it.
-    CHECK_EQ(forged(true,
-                    [](Bed& b, state::Data& d) {
-                        d.held[1].body.assign(*b.lane[1].record);
-                        d.held[1].has_body = true;
-                        d.size += b.lane[1].record->size() + 1U;
-                    }),
-             std::string("forgotten_body"));
-    // A's body dropped, the size without it.
-    CHECK_EQ(forged(false,
-                    [](Bed&, state::Data& d) {
-                        d.size -= d.held[0].body.size() + 1U;
-                        d.held[0].body.clear();
-                        d.held[0].has_body = false;
-                    }),
-             std::string("incoherent"));
-    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.lanes[0].head = Head{d.held[0].id, 1}; }),
-             std::string("incoherent"));
-    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { d.size += 1U; }), std::string("incoherent"));
-    CHECK_EQ(forged(false, [](Bed&, state::Data& d) { std::swap(d.by_id[0], d.by_id[1]); }),
-             std::string("incoherent"));
+    const auto kept = [](Bed& b, state::Data& d) {
+        d.held[1].body.assign(*b.lane[1].record);
+        d.held[1].has_body = true;
+        d.size += b.lane[1].record->size() + 1U;
+    };
+    CHECK_EQ(forged(true, kept), std::string("forgotten_body"));
+    CHECK_EQ(forged<Store::Plain>(true, kept), std::string("forgotten_body"));
+    // A's body dropped, the size without it; ACC's seq 5; a head not its
+    // lane's last; the size one off; the ids out of order: the store's
+    // own verify refusing each, as the ruled one does.
+    const std::array<std::function<void(Bed&, state::Data&)>, 5> own = {
+        [](Bed&, state::Data& d) {
+            d.size -= d.held[0].body.size() + 1U;
+            d.held[0].body.clear();
+            d.held[0].has_body = false;
+        },
+        [](Bed&, state::Data& d) { d.held[3].seq = 5; },
+        [](Bed&, state::Data& d) { d.lanes[0].head = Head{d.held[0].id, 1}; },
+        [](Bed&, state::Data& d) { d.size += 1U; },
+        [](Bed&, state::Data& d) { std::swap(d.by_id[0], d.by_id[1]); }};
+    for (const auto& change : own) {
+        CHECK_EQ(forged(false, change), std::string("incoherent"));
+        CHECK_EQ(forged<Store::Plain>(false, change), std::string("incoherent"));
+    }
 }

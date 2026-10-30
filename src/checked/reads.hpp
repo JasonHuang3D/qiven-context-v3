@@ -9,6 +9,10 @@
 //       id_mismatch
 //   keys_match(keys, h, at)              a record's keys against its
 //       header's fields: one differing incoherent
+//   body_key(keys, h, at)                a record's body key against its
+//       header's content: one differing incoherent
+//   part1_again(platform, index, line, record, allocator, at)   part 1
+//       over a held line and record: a refusal incoherent naming its code
 //   check_body(platform, id, record, h, allocator, at)   a body record
 //       against its header: one the parser refuses incoherent, one not its
 //       header's body_mismatch
@@ -16,10 +20,11 @@
 //       allocator
 //
 // Allocations: the header's parse and check (canon's four and one, the
-// header's check's) and the body's parse on the allocator given; a copy's
-// on out's. Platform
-// calls: the body's parse, its key's (noexcept). thread: none.
+// header's check's), the body's parse and part 1's on the allocator given;
+// a copy's on out's. Platform calls: the body's parse, its key's, part 1's
+// wipes (noexcept). thread: none.
 
+#include <cstddef>
 #include <optional>
 #include <string_view>
 
@@ -31,6 +36,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
+#include "store/stage.hpp"
 
 namespace qiven3::checked::reads {
 
@@ -75,6 +81,26 @@ inline void keys_match(const store::KeysView& k, const Header& h, const WhereVie
     if (h.value(Slot::scope) != k.scope || h.value(Slot::lane) != k.lane || h.seq() != k.seq ||
         h.text(Slot::parent) != k.parent || h.value(Slot::kind) != k.kind || h.text(Slot::target) != k.target) {
         corrupt(at, store::Corrupt::incoherent, "an entry's column differs from its line");
+    }
+}
+
+inline void body_key(const store::KeysView& k, const Header& h, const WhereView& at) {
+    if (h.text(entry::header::Slot::content).has_value() != k.body) {
+        corrupt(at, store::Corrupt::incoherent, k.id);
+    }
+}
+
+template <platform::Platform P>
+void part1_again(P& platform, std::size_t index, std::string_view line, std::optional<std::string_view> record,
+                 const Chars& allocator, const WhereView& at) {
+    try {
+        (void)store::stage::detail::part1(platform, store::stage::AtView{at.operation, at.path}, index,
+                                          store::EntryView{line, record}, allocator);
+    } catch (const store::StoreError& f) {
+        if (f.kind() != store::Kind::entry_invalid) {
+            throw;
+        }
+        corrupt(at, store::Corrupt::incoherent, f.entry_code());
     }
 }
 

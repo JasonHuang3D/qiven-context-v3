@@ -309,8 +309,8 @@ public:
         return s;
     }
     Counts verify() {
-        const std::span<std::byte> pages = own(Operation::verify);
-        return sqlite::verify_store(*platform_, connection_, pages, countdown_, site_of(Operation::verify), peak_);
+        gate_.enter(Operation::verify, path_.view());
+        return sqlite::verify_store(connection_, site_of(Operation::verify), peak_);
     }
 
     // The gate, its exports closed, a purge's attempt on a read-write
