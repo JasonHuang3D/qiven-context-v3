@@ -25,6 +25,13 @@
 // count the call would reach. It returns the new head and what the call
 // adds. A HeadConflict, a guard and whole_record are the store's.
 //
+// The stores call the same steps through the contract's admit hook: read,
+// part 1 with the hook's given, read and kept at their places (forget's
+// kinds, forget_path, the secret check), before the lock; the hook's admit
+// (the hits settled, part 2) inside it; then staged, the head, the counts
+// and the maximum. Rules is the hook of these rules, each store's default;
+// check and admit are the same steps with the rules, called together.
+//
 // At import, each line after check passes import_line(view, header,
 // index, at) as it arrives, before its insert: the chain rules, parent and
 // seq, against the view's head of its lane. Once every header is in,
@@ -91,10 +98,7 @@ template <platform::Platform P>
 using Entry = entry::check::Entry<P, Chars>;
 
 // The call a refusal names: its operation and the store's path.
-struct AtView {
-    Operation op = Operation::append;
-    std::string_view path;
-};
+using AtView = At;
 
 // A content hit: its entry's index in the call, its pattern and path.
 struct Hit {
@@ -262,21 +266,43 @@ bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::str
 
 }  // namespace detail
 
-// Part 1 of each line, before any lock; a refusal thrown.
-template <platform::Platform P, Scratch S>
-Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator,
-                 S& scratch) {
+namespace detail {
+
+// The hits settled, in order, the first not cleared refused.
+template <class V, platform::Platform P>
+void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hits, const AtView& at) {
+    for (const Hit& hit : hits) {
+        const std::string_view pattern = secret::name(hit.hit.pattern);
+        if (!cleared(view, entries, hit.index, pattern)) {
+            refuse(at, hit.index, {}, "secret", hit.hit.path.view(), pattern);
+        }
+    }
+}
+
+// Part 2 (validator's), its first fault refused.
+template <class V, platform::Platform P>
+void part2(V& view, std::string_view scope, std::string_view lane, Expected expected,
+           std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
+    if (const std::optional<validator::RuleError> e =
+            validator::try_validate(view, scope, lane, expected, entries, allocator)) {
+        refuse(at, e->index, e->id.view(), validator::name(e->code));
+    }
+}
+
+}  // namespace detail
+
+// Part 1 of each line, before any lock, with the admit hook's given, read
+// and kept at their places; a refusal thrown.
+template <platform::Platform P, Scratch S, class A>
+Checked<P> read(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator, S& scratch,
+                A& admit) {
     if (at.op != Operation::append && at.op != Operation::forget && at.op != Operation::import_) {
         memory::fail_fast("stage::check: an operation that takes no entries");
     }
     if (lines.size() > validator::max_entries) {
         too_large(lines.size());
     }
-    if (at.op == Operation::forget) {
-        for (std::size_t i = 0; i < lines.size(); ++i) {
-            detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
-        }
-    }
+    admit.given(at, lines, allocator, scratch);
     Checked<P> out(allocator);
     out.entries.reserve(lines.size());
     for (std::size_t i = 0; i < lines.size(); ++i) {
@@ -286,38 +312,19 @@ Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at
             if (const std::optional<std::string_view> body = lines[i].body) {
                 out.size = detail::sum(out.size, detail::sum(body->size(), 1));
             }
-            if (at.op == Operation::append && e.header().value(Slot::kind) == "forget") {
-                refuse(at, i, e.header().value(Slot::id), "forget_path", "header.kind");
-            }
+            admit.read(at, i, e.header());
             out.entries.push_back(detail::keep(platform, e, lines[i], allocator));
         }
-        // The secret check on a scratch of its own, part 1's given back.
-        if (at.op == Operation::append) {
-            detail::secrets(at, i, out.entries.back(), out.hits, Chars(scratch()));
-        }
+        admit.kept(at, i, out.entries.back(), allocator, scratch);
     }
     return out;
 }
 
-// The hits settled, part 2 and the maximum, inside the store's lock; a
-// refusal thrown.
+// What the call stages, and at append the maximum: the store's, after the
+// admit hook; a refusal thrown.
 template <View V, platform::Platform P>
-Staged admit(V& view, std::string_view scope, std::string_view lane, Expected expected, const Checked<P>& checked,
-             const Limits& limits, const AtView& at, const Chars& allocator) {
-    if (at.op != Operation::append && at.op != Operation::forget) {
-        memory::fail_fast("stage::admit: an operation but append and forget");
-    }
+Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at) {
     const std::span<const Entry<P>> entries(checked.entries);
-    for (const Hit& hit : checked.hits) {
-        const std::string_view pattern = secret::name(hit.hit.pattern);
-        if (!detail::cleared(view, entries, hit.index, pattern)) {
-            refuse(at, hit.index, {}, "secret", hit.hit.path.view(), pattern);
-        }
-    }
-    if (const std::optional<validator::RuleError> e =
-            validator::try_validate(view, scope, lane, expected, entries, allocator)) {
-        refuse(at, e->index, e->id.view(), validator::name(e->code));
-    }
     Staged out;
     out.size = checked.size;
     out.count = entries.size();
@@ -369,5 +376,91 @@ void import_entry(V& view, const Header& h, std::optional<std::string_view> cont
 // lane) order: the first that differs, or a count that does, refused
 // head_mismatch, its index the source's and its id the source head's.
 void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at);
+
+// The rules as an admit hook (Admit, AdmitImport): given, at forget each
+// line's kind (forget_kind); read, at append forget_path; kept, at append
+// the secret check, its hits kept on the call's allocator; admit, the hits
+// settled and part 2; arrived, import_line; settled, import_entry; heads,
+// same_heads.
+class Rules {
+public:
+    template <class S>
+    void given(const AtView& at, std::span<const EntryView> lines, const Chars& kept, S& scratch) {
+        if (at.op == Operation::forget) {
+            for (std::size_t i = 0; i < lines.size(); ++i) {
+                detail::forget_kind(at, i, lines[i].line, Chars(scratch()));
+            }
+        }
+        hits_.emplace(kept);
+    }
+    static void read(const AtView& at, std::size_t index, const header::Header<Chars>& h) {
+        if (at.op == Operation::append && h.value(Slot::kind) == "forget") {
+            refuse(at, index, h.value(Slot::id), "forget_path", "header.kind");
+        }
+    }
+    // The secret check on a scratch of its own, part 1's given back.
+    template <platform::Platform P, class S>
+    void kept(const AtView& at, std::size_t index, const Entry<P>& e, const Chars& /*kept*/, S& scratch) {
+        if (at.op == Operation::append) {
+            detail::secrets(at, index, e, *hits_, Chars(scratch()));
+        }
+    }
+    template <class V, platform::Platform P>
+    void admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
+               std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
+        if (at.op != Operation::append && at.op != Operation::forget) {
+            memory::fail_fast("stage::admit: an operation but append and forget");
+        }
+        if (hits_) {
+            detail::settle(view, entries, std::span<const Hit>(*hits_), at);
+        }
+        detail::part2(view, scope, lane, expected, entries, at, allocator);
+    }
+    template <class V>
+    static void arrived(V& view, const Header& h, std::size_t index, const AtView& at) {
+        import_line(view, h, index, at);
+    }
+    template <class V>
+    static void settled(V& view, const Header& h, std::optional<std::string_view> content, std::size_t index,
+                        const AtView& at, const Chars& allocator) {
+        import_entry(view, h, content, index, at, allocator);
+    }
+    static void heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at) {
+        same_heads(source, given, at);
+    }
+    // The hits kept, given up.
+    [[nodiscard]] Vector<Hit> take(const Chars& allocator) {
+        return hits_ ? std::move(*hits_) : Vector<Hit>(allocator);
+    }
+    // The hits given back to the call's pages.
+    void release() noexcept { hits_.reset(); }
+
+private:
+    std::optional<Vector<Hit>> hits_;
+};
+
+// Part 1 of each line with the rules: check's form, its hits returned.
+template <platform::Platform P, Scratch S>
+Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator,
+                 S& scratch) {
+    Rules rules;
+    Checked<P> out = read(platform, lines, at, allocator, scratch, rules);
+    out.hits = rules.take(allocator);
+    return out;
+}
+
+// The hits settled, part 2 and the maximum, inside the store's lock: the
+// rules' admit, then the store's staged; a refusal thrown.
+template <View V, platform::Platform P>
+Staged admit(V& view, std::string_view scope, std::string_view lane, Expected expected, const Checked<P>& checked,
+             const Limits& limits, const AtView& at, const Chars& allocator) {
+    if (at.op != Operation::append && at.op != Operation::forget) {
+        memory::fail_fast("stage::admit: an operation but append and forget");
+    }
+    const std::span<const Entry<P>> entries(checked.entries);
+    detail::settle(view, entries, std::span<const Hit>(checked.hits), at);
+    detail::part2(view, scope, lane, expected, entries, at, allocator);
+    return staged(view, checked, limits, at);
+}
 
 }  // namespace qiven3::store::stage

@@ -51,6 +51,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "entry/body.hpp"
@@ -207,9 +208,14 @@ public:
 
     // The text's steps 1 to 7: check outside the transaction, then BEGIN
     // IMMEDIATE, the head, part 2, the rows, COMMIT, a purge's attempt.
+    // The admit hook's given, read and kept before BEGIN IMMEDIATE, its
+    // admit after the head and the guard, with the transaction's view.
+    template <class A = stage::Rules>
+        requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries) {
-        return write(Operation::append, scope, lane, expected, entries, {}, nullptr);
+                   std::span<const EntryView> entries, A&& admit = A{}) {
+        static_assert(Admit<NoAdmit, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>);
+        return write(Operation::append, scope, lane, expected, entries, {}, nullptr, admit);
     }
     std::optional<Head> head(std::string_view scope, std::string_view lane) {
         gate_.enter(Operation::head, path_.view());
@@ -257,9 +263,12 @@ public:
     }
     // As append, with the guard, whole records and each target's body
     // erased, its id into erased; never refused for size or count.
+    template <class A = stage::Rules>
+        requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
-        return write(Operation::forget, scope, lane, expected, entries, guard, &erased);
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
+                   A&& admit = A{}) {
+        return write(Operation::forget, scope, lane, expected, entries, guard, &erased, admit);
     }
     Purge purge() {
         gate_.enter(Operation::purge, path_.view());
@@ -271,14 +280,17 @@ public:
         return {*platform_, exports_, connection_.filename(), path_.view(), limits_, scopes, after, countdown_};
     }
     // Into an empty store, all or nothing, on the object's own pages.
-    template <Source R>
-    Imported import_(R& source, Vector<LaneHead>& heads) {
+    // The admit hook's arrived, settled and heads inside the transaction.
+    template <Source R, class A = stage::Rules>
+        requires AdmitImport<std::remove_cvref_t<A>, sqlite::ImportView>
+    Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
+        static_assert(AdmitImport<NoAdmit, sqlite::ImportView>);
         const std::span<std::byte> pages = own(op);
         WhereView where = site_of(op);
         where.place = Place::import_;
         return sqlite::import_source(*platform_, connection_, source, heads, pages, countdown_, where, limits_,
-                                     hooks_, peak_);
+                                     hooks_, peak_, admit);
     }
     // meta's size and count against the limits; the engine's figures and
     // the files' sizes.
@@ -357,8 +369,10 @@ private:
     }
 
     // append's and forget's steps; erased given at forget alone.
+    template <class A>
     Written write(Operation op, std::string_view scope, std::string_view lane, Expected expected,
-                  std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>* erased) {
+                  std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>* erased,
+                  A& admit) {
         gate_.enter(op, path_.view());
         std::optional<Pages> extra;
         const std::span<std::byte> span = room(entries, extra);
@@ -366,9 +380,10 @@ private:
         memory::Arena kept(span.first(span.size() - half));
         hook(kept);
         sqlite::ScratchView scratch(span.subspan(span.size() - half), countdown_);
+        const Released<A> released(admit);
         const sqlite::Chars chars(kept);
         const stage::AtView at{op, path_.view()};
-        const stage::Checked<P> checked = stage::check(*platform_, entries, at, chars, scratch);
+        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         Vector<sqlite::RowView> rows(chars);
         Vector<Id> targets(chars);
         rows.reserve(entries.size());
@@ -393,7 +408,8 @@ private:
             }
             const sqlite::Totals held = sqlite::totals(connection_, where);
             sqlite::WriteView view(connection_, chars, &scratch, where, held);
-            const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, limits_, at, chars);
+            admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
+            const stage::Staged staged = stage::staged(view, checked, limits_, at);
             std::uint64_t dropped = 0;
             if (erased != nullptr) {
                 sqlite::whole_record(connection_, targets, where);

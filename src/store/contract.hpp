@@ -335,6 +335,84 @@ struct NoHooks {
     constexpr void rebuilt() const noexcept {}
 };
 
+// The call a refusal names: its operation and the store's path.
+struct At {
+    Operation op = Operation::append;
+    std::string_view path;
+};
+
+// The admit hook of append and forget: a product's checks of the entries a
+// call is given, on the store's work pages (kept, the call's; scratch, a
+// fresh arena over the same pages each step), each refusal thrown. given
+// before any entry is read; read with each entry's header as the store
+// reads it, and kept once the store keeps it, both before the store's
+// transaction or lock; admit inside it, after the head and the guard,
+// with the store's read view, before any write; release, however the call
+// ends, before the store's pages go, gives back what the hook holds on
+// them. V is the store's view, E its kept entry, S its scratch.
+template <class A, class V, class E, class S>
+concept Admit = requires(A& a, V& view, const At& at, std::span<const EntryView> lines, std::size_t i,
+                         const Header& h, const E& e, std::span<const E> entries, std::string_view v,
+                         Expected expected, const memory::Allocator<char>& kept, S& scratch) {
+    a.given(at, lines, kept, scratch);
+    a.read(at, i, h);
+    a.kept(at, i, e, kept, scratch);
+    a.admit(view, v, v, expected, entries, at, kept);
+    { a.release() } noexcept;
+};
+
+// The hook's release at the end of the scope it is made in, after the
+// store's pages are made and before they go.
+template <class A>
+class Released {
+public:
+    explicit Released(A& a) noexcept : a_(&a) {}
+    Released(const Released&) = delete;
+    Released& operator=(const Released&) = delete;
+    Released(Released&&) = delete;
+    Released& operator=(Released&&) = delete;
+    ~Released() { a_->release(); }
+
+private:
+    A* a_;
+};
+
+// The admit hook of import, inside its transaction or lock: arrived with
+// each line's header before its insert, settled with each entry in the
+// final view, heads with the source's heads and those the entries give.
+template <class A, class V>
+concept AdmitImport = requires(A& a, V& view, const At& at, std::size_t i, const Header& h,
+                               std::optional<std::string_view> content, const memory::Allocator<char>& work,
+                               std::span<const LaneHead> heads) {
+    a.arrived(view, h, i, at);
+    a.settled(view, h, content, i, at, work);
+    a.heads(heads, heads, at);
+};
+
+// The hook that admits what the store's own rules admit.
+struct NoAdmit {
+    template <class S>
+    constexpr void given(const At& /*at*/, std::span<const EntryView> /*lines*/,
+                         const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}
+    constexpr void read(const At& /*at*/, std::size_t /*index*/, const Header& /*h*/) const noexcept {}
+    template <class E, class S>
+    constexpr void kept(const At& /*at*/, std::size_t /*index*/, const E& /*e*/,
+                        const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}
+    template <class V, class E>
+    constexpr void admit(V& /*view*/, std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
+                         std::span<const E> /*entries*/, const At& /*at*/,
+                         const memory::Allocator<char>& /*kept*/) const noexcept {}
+    template <class V>
+    constexpr void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/, const At& /*at*/) const noexcept {}
+    template <class V>
+    constexpr void settled(V& /*view*/, const Header& /*h*/, std::optional<std::string_view> /*content*/,
+                           std::size_t /*index*/, const At& /*at*/,
+                           const memory::Allocator<char>& /*work*/) const noexcept {}
+    constexpr void heads(std::span<const LaneHead> /*source*/, std::span<const LaneHead> /*given*/,
+                         const At& /*at*/) const noexcept {}
+    constexpr void release() const noexcept {}
+};
+
 // A scan's headers in (scope, lane, seq) order; false at the end. Every
 // entry committed before the scan began comes once, and none after: each
 // lane ends at its length at the scan's start.
@@ -401,6 +479,7 @@ concept Store = Handle<S> && detail::Declares<S> &&
 // The pinned sizes. The values on 64-bit targets; Line's on x64 with
 // MSVC's library in its release layout.
 static_assert(std::is_empty_v<NoHooks>, "the default hooks take no space");
+static_assert(std::is_empty_v<NoAdmit>, "the store's own admit takes no space");
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(Volume) == 24, "Volume's size is pinned: two counts and two flags");
 static_assert(sizeof(Purge) == 48, "Purge's size is pinned: its reason in place and done");

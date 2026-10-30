@@ -180,9 +180,9 @@ private:
 
 // import, on pages of the object's own: a quarter for the source's heads,
 // a quarter for the line in hand, the half left for each line's work.
-template <platform::Platform P, Source R>
+template <platform::Platform P, Source R, class A>
 Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads, std::span<std::byte> pages,
-                       Countdown* countdown, Peak& peak) {
+                       Countdown* countdown, Peak& peak, A& admit) {
     constexpr Operation op = Operation::import_;
     const stage::AtView at{op, {}};
     const std::size_t quarter = pages.size() / 4;
@@ -212,7 +212,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
             const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
             StateView view(d, Chars(work), op, {});
-            stage::import_line(view, e.header(), i, at);
+            admit.arrived(view, e.header(), i, at);
             import_one(d, v.line, v.body, e.header());
             note(peak.work, work);
         }
@@ -232,12 +232,12 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
                     e.has_body ? std::optional<std::string_view>(entry::body::detail::parts(e.body).content)
                                : std::nullopt;
                 StateView view(d, Chars(work), op, {});
-                stage::import_entry(view, h, content, i, at, Chars(work));
+                admit.settled(view, h, content, i, at, Chars(work));
                 note(peak.work, work);
             }
         }
         heads_of(d, std::nullopt, heads);
-        stage::same_heads(std::span<const LaneHead>(given), std::span<const LaneHead>(heads), at);
+        admit.heads(std::span<const LaneHead>(given), std::span<const LaneHead>(heads), at);
         counts = verify_totals(d);
         note(peak.kept, kept);
     } catch (...) {

@@ -52,6 +52,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "entry/body.hpp"
@@ -191,9 +192,14 @@ public:
     // Closes without the gate: a memory store has nothing to give back.
     ~MemoryStore() = default;
 
+    // The admit hook's given, read and kept on the call's pages before the
+    // lock, its admit inside it with the state's view.
+    template <class A = stage::Rules>
+        requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries) {
+                   std::span<const EntryView> entries, A&& admit = A{}) {
         constexpr Operation op = Operation::append;
+        static_assert(Admit<NoAdmit, state::StateView, stage::Entry<P>, state::ScratchView>);
         gate_.enter(op, {});
         std::optional<Pages> extra;
         const std::span<std::byte> span = room(state::budget_of(entries), extra);
@@ -201,14 +207,16 @@ public:
         memory::Arena kept(span.first(span.size() - half));
         hook(kept);
         state::ScratchView scratch(span.subspan(span.size() - half), countdown_);
+        const Released<std::remove_cvref_t<A>> released(admit);
         const state::Chars chars(kept);
         const stage::AtView at{op, {}};
-        const stage::Checked<P> checked = stage::check(*platform_, entries, at, chars, scratch);
+        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::StateView view(d, chars, op, {}, &scratch);
-        const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, state_->limits(), at, chars);
+        admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
+        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at);
         state::Batch batch(d);
         for (std::size_t i = 0; i < entries.size(); ++i) {
             batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
@@ -281,8 +289,11 @@ public:
     // As append, but forget entries alone, every lane as the guard expects
     // it and whole records; the targets' bodies dropped, their ids into
     // erased; never refused for size or count.
+    template <class A = stage::Rules>
+        requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
+                   A&& admit = A{}) {
         constexpr Operation op = Operation::forget;
         gate_.enter(op, {});
         std::optional<Pages> extra;
@@ -291,15 +302,17 @@ public:
         memory::Arena kept(span.first(span.size() - half));
         hook(kept);
         state::ScratchView scratch(span.subspan(span.size() - half), countdown_);
+        const Released<std::remove_cvref_t<A>> released(admit);
         const state::Chars chars(kept);
         const stage::AtView at{op, {}};
-        const stage::Checked<P> checked = stage::check(*platform_, entries, at, chars, scratch);
+        const stage::Checked<P> checked = stage::read(*platform_, entries, at, chars, scratch, admit);
         const state::Locked lock(*state_, op, {});
         state::Data& d = lock.data();
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::guard(d, guard);
         state::StateView view(d, chars, op, {}, &scratch);
-        const stage::Staged staged = stage::admit(view, scope, lane, expected, checked, state_->limits(), at, chars);
+        admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
+        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at);
         Vector<std::uint32_t> targets(chars);
         targets.reserve(entries.size());
         for (const stage::Entry<P>& e : checked.entries) {
@@ -331,9 +344,12 @@ public:
     }
 
     // Into an empty state, all or nothing; the heads it wrote into heads.
-    template <Source R>
-    Imported import_(R& source, Vector<LaneHead>& heads) {
+    // The admit hook's arrived, settled and heads inside the lock.
+    template <Source R, class A = stage::Rules>
+        requires AdmitImport<std::remove_cvref_t<A>, state::StateView>
+    Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;
+        static_assert(AdmitImport<NoAdmit, state::StateView>);
         gate_.enter(op, {});
         if constexpr (std::same_as<R, state::MemoryExport>) {
             // An export of this state: the state was empty at its making,
@@ -348,7 +364,7 @@ public:
             }
         }
         state::Peak peak;
-        const Imported in = state::import_source(*platform_, *state_, source, heads, own(), countdown_, peak);
+        const Imported in = state::import_source(*platform_, *state_, source, heads, own(), countdown_, peak, admit);
         peak_ = peak.sum();
         return in;
     }

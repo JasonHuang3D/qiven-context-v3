@@ -265,19 +265,51 @@ private:
 // asked and the count (StoreNotEmpty); then, once every line is in, the
 // final view over pages, the heads compared, meta written, the counts.
 void begin_import(Connection& c, bool defer, const WhereView& at);
-[[nodiscard]] Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
-                                  std::span<std::byte> pages, Countdown* countdown, const WhereView& at,
-                                  const Limits& limits, std::size_t& peak);
+// The final view's rows, in the order inserted; the heads the rows give
+// into heads; meta written from the rows, the counts.
+inline constexpr std::string_view final_rows =
+    "SELECT e.id, e.line, b.record FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
+// Both on one statement, the heads' kept open until meta's takes its place.
+void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
+[[nodiscard]] Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits);
+
+// Once every line is in: each entry through the admit hook's settled in
+// the final view over pages, afresh, then the heads through its heads.
+template <class A>
+Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
+                    std::span<std::byte> pages, Countdown* countdown, const WhereView& at, const Limits& limits,
+                    std::size_t& peak, A& admit) {
+    const At site{Operation::import_, at.path};
+    {
+        Statement s = c.prepare(final_rows, at);
+        for (std::size_t i = 0; s.step(at); ++i) {
+            memory::Arena work(pages);
+            attach_to(work, countdown);
+            const Chars chars(work);
+            const Header h = read_header(s.text(0), s.blob(1), chars, at);
+            const std::optional<std::string_view> content =
+                s.null(2) ? std::nullopt : std::optional<std::string_view>(entry::body::detail::parts(s.blob(2)).content);
+            ImportView view(c, chars, at);
+            admit.settled(view, h, content, i, site, chars);
+            peak = std::max(peak, work.peak());
+        }
+    }
+    heads.clear();
+    Statement s = c.prepare(head_rows, at);
+    read_heads(s, heads, at);
+    admit.heads(given, std::span<const LaneHead>(heads), site);
+    return write_meta(c, s, at, limits);
+}
 // The checkpoint that empties the -wal after an import, refused or not;
 // its result ignored.
 void truncate_wal(Connection& c) noexcept;
 
 // import: the source's heads on the first quarter of pages, then each
 // line, on the second, and its work, on the half left, each afresh.
-template <platform::Platform P, Source R, class H>
+template <platform::Platform P, Source R, class H, class A>
 Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& heads, std::span<std::byte> pages,
                        Countdown* countdown, const WhereView& where, const Limits& limits, H& hooks,
-                       std::size_t& peak) {
+                       std::size_t& peak, A& admit) {
     const stage::AtView at{Operation::import_, where.path};
     const std::size_t quarter = pages.size() / 4;
     memory::Arena kept(pages.first(quarter));
@@ -307,11 +339,11 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             const EntryView v{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt};
             const stage::Entry<P> e = stage::detail::part1(platform, at, i, v, Chars(work));
             ImportView view(c, Chars(work), where);
-            stage::import_line(view, e.header(), i, at);
+            admit.arrived(view, e.header(), i, at);
             rows.put(e.header(), v, where);
             work_peak = std::max(work_peak, work.peak());
         }
-        done = end_import(c, given, heads, pages.subspan(2 * quarter), countdown, where, limits, work_peak);
+        done = end_import(c, given, heads, pages.subspan(2 * quarter), countdown, where, limits, work_peak, admit);
         hooks.written();
         c.exec("COMMIT", where);
     } catch (...) {

@@ -374,32 +374,13 @@ void begin_import(Connection& c, bool defer, const WhereView& at) {
     }
 }
 
-Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
-                    std::span<std::byte> pages, Countdown* countdown, const WhereView& at, const Limits& limits,
-                    std::size_t& peak) {
-    const stage::AtView site{Operation::import_, at.path};
-    {
-        Statement s = c.prepare("SELECT e.id, e.line, b.record FROM entry AS e LEFT JOIN body AS b ON b.id = e.id "
-                                "ORDER BY e.rowid",
-                                at);
-        for (std::size_t i = 0; s.step(at); ++i) {
-            memory::Arena work(pages);
-            attach_to(work, countdown);
-            const Chars chars(work);
-            const Header h = read_header(s.text(0), s.blob(1), chars, at);
-            const std::optional<std::string_view> content =
-                s.null(2) ? std::nullopt : std::optional<std::string_view>(entry::body::detail::parts(s.blob(2)).content);
-            ImportView view(c, chars, at);
-            stage::import_entry(view, h, content, i, site, chars);
-            peak = std::max(peak, work.peak());
-        }
-    }
-    heads.clear();
-    Statement s = c.prepare(head_rows, at);
+void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at) {
     while (s.step(at)) {
         heads.push_back(lane_head(s));
     }
-    stage::same_heads(given, std::span<const LaneHead>(heads), site);
+}
+
+Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits) {
     s = c.prepare("SELECT (SELECT count(*) FROM entry), (SELECT count(*) FROM body), "
                   "(SELECT count(*) FROM entry WHERE kind = 'forget'), (SELECT count(*) FROM head), "
                   "(SELECT coalesce(sum(length(line)), 0) FROM entry), (SELECT coalesce(sum(length(record)), 0) FROM body)",
