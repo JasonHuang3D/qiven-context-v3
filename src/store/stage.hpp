@@ -17,7 +17,8 @@
 // target at most Id's capacity, scope and lane at most their bytes, else
 // EntryInvalid too_long, the key's name as its field (a seq below 1 is
 // next's: seq); a body key with no record body_missing, a record with no
-// body key body_mismatch; at forget a kind but forget StoreError
+// body key body_mismatch; a forget with no target key target, with a body
+// key content (part 1's codes); at forget a kind but forget StoreError
 // forget_kind, its detail naming the entry, at append a forget
 // EntryInvalid forget_path (header.kind); the keys kept, then the hook's
 // kept. It returns the kept entries and the bytes the lines add: each
@@ -25,8 +26,9 @@
 //
 // arrives(view, keys, line, index, at), at import as each line arrives,
 // after the hook's read and before its arrived: the keys' bounds as read's
-// and a record with no body key body_mismatch (a body key with no record
-// waits for settles: the body may be forgotten), then its parent the
+// and a record with no body key body_mismatch, a forget's target and body
+// keys as read's (a body key with no record waits for settles: the body
+// may be forgotten), then its parent the
 // view's head of its lane and its seq one past it, refused parent or seq.
 // erasable(entries, erased, at), at
 // forget once the store has found what it erases: each forget's target
@@ -180,7 +182,8 @@ inline void next(std::string_view id, std::optional<std::string_view> parent, st
     }
 }
 // The store's bounds over one entry's keys, and a record with no body key
-// refused body_mismatch; the id key, or none where it is past its bound.
+// refused body_mismatch, then a forget with no target key target, with a
+// body key content; the id key, or none where it is past its bound.
 inline std::string_view bounds(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
     const std::string_view id = Id::fits(k.id) ? k.id : std::string_view();
     const auto bound = [&](bool fits, std::string_view field) {
@@ -195,6 +198,12 @@ inline std::string_view bounds(const KeysView& k, const EntryView& line, std::si
     bound(!k.target || Id::fits(*k.target), "target");
     if (!k.body && line.body) {
         refuse(at, index, id, "body_mismatch");
+    }
+    if (k.kind == "forget" && !k.target) {
+        refuse(at, index, id, "target");
+    }
+    if (k.kind == "forget" && k.body) {
+        refuse(at, index, id, "content");
     }
     return id;
 }
@@ -332,7 +341,8 @@ inline void in_order(std::string_view scope, std::string_view lane, std::optiona
 }
 
 // At import, one line as it arrives, before its insert, by its keys: their
-// bounds and a record with no body key (detail::bounds), then its parent
+// bounds, a record with no body key and a forget's target and body keys
+// (detail::bounds), then its parent
 // the view's head of its lane and its seq one past it; a refusal thrown.
 template <class V>
 void arrives(V& view, const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {

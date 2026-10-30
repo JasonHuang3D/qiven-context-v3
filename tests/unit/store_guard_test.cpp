@@ -17,7 +17,11 @@
 // append whose key is past its bound (Id's capacity, the scope's or the
 // lane's bytes), too_long with the key's name as its field (long_id with
 // no id); body_unrecorded: a body key with no record, body_missing;
-// record_unkeyed: a record with no body key, body_mismatch. import_plain:
+// record_unkeyed: a record with no body key, body_mismatch.
+// append_forget_body, forget_body, import_forget_body: a forget with a body
+// key and a record appended, given to forget or imported, content;
+// append_forget_bare, forget_bare, import_forget_bare: a forget with no
+// target key, target. A verify or a reopen refusing is printed. import_plain:
 // an import, then an append, with no admit hook over plain keys of lines no
 // parser takes, the store reading no line, each verified clean, and on
 // SQLite reopened and verified clean again.
@@ -114,10 +118,12 @@ struct Scratch {
     fs::path root;
 };
 
-// An import's source: the lines given, in order, and the heads.
+// An import's source: the lines given, in order, the heads, and a change to the last line's keys.
 struct ListSource {
+    using Change = void (*)(qiven3::store::KeysView&);
     std::vector<LaneHead> given;
     std::vector<Stored> lines;
+    Change last = nullptr;
     std::size_t at = 0;
     void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
     bool next(Line& line) {
@@ -131,7 +137,11 @@ struct ListSource {
         line.forgotten = false;
         const std::optional<std::string_view> record =
             s.record ? std::optional<std::string_view>(*s.record) : std::nullopt;
-        return line.keys.assign(qiven3::test::stage_book::keyed(s.line, record).keys);
+        qiven3::store::KeysView k = qiven3::test::stage_book::keyed(s.line, record).keys;
+        if (at == lines.size() && last != nullptr) {
+            last(k);
+        }
+        return line.keys.assign(k);
     }
 };
 
@@ -161,7 +171,7 @@ struct Want {
     std::string_view code;
     std::size_t index;
 };
-constexpr std::size_t cases = 23;
+constexpr std::size_t cases = 29;
 constexpr Want wants[cases] = {
     {"append_forget", "forget_path", 0}, {"forget_accept", "forget_kind", 0}, {"forget_unheld", "target", 0},
     {"forget_twice", "target", 1},       {"forget_forgotten", "target", 0},   {"forget_scope", "target", 0},
@@ -170,7 +180,10 @@ constexpr Want wants[cases] = {
     {"append_unheld", "target", 0},      {"import_unheld", "target", 4},      {"import_forgotten", "forgotten_body", 1},
     {"import_bare", "body_missing", 1},  {"long_id", "too_long", 0},          {"long_scope", "too_long", 0},
     {"long_lane", "too_long", 0},        {"long_parent", "too_long", 0},      {"long_target", "too_long", 0},
-    {"body_unrecorded", "body_missing", 0}, {"record_unkeyed", "body_mismatch", 0}};
+    {"body_unrecorded", "body_missing", 0}, {"record_unkeyed", "body_mismatch", 0},
+    {"append_forget_body", "content", 0},   {"forget_body", "content", 0},
+    {"append_forget_bare", "target", 0},    {"forget_bare", "target", 0},
+    {"import_forget_body", "content", 4},   {"import_forget_bare", "target", 4}};
 
 // Case k's held state, written on s.
 template <class S>
@@ -180,7 +193,7 @@ void before(std::size_t k, S& s, const Book& book, Arena& arena) {
     if (k == 1) {
         const std::vector<Stored> three = {a, book.stored("B"), book.stored("D")};
         (void)s.append(qs, mine, std::nullopt, views(three), NoAdmit{});
-    } else if (k <= 5) {
+    } else if (k <= 5 || (k >= 23 && k <= 26)) {
         (void)s.append(qs, mine, std::nullopt, views(chain), NoAdmit{});
     } else if (k == 8 || k == 9 || k == 12) {
         const std::vector<Stored> first = {a};
@@ -215,9 +228,10 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         Vector<Id> erased{Chars(arena)};
         return refused([&] { (void)s.forget(qs, mine, expected, views(lines), guard, erased, NoAdmit{}); });
     };
-    const auto import = [&] {
+    const auto import = [&](ListSource::Change last = nullptr) {
         ListSource src;
         src.lines = lines;
+        src.last = last;
         src.given.push_back(lane_head(qs, mine, id_of(lines.back()), seq_of(lines.back())));
         Vector<LaneHead> wrote{Chars(arena)};
         return refused([&] { (void)s.import_(src, wrote, NoAdmit{}); });
@@ -235,6 +249,38 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         f(given[0]);
         return refused([&] { (void)s.append(qs, mine, std::nullopt, given, NoAdmit{}); });
     };
+    // E, its keys changed by f, with A's record where bodied: appended (op
+    // 'a') or given to forget ('f') on A, B, D and ACC, or imported after
+    // them ('i'), B's body not given where E forgets it.
+    const ListSource::Change bodied = [](qiven3::store::KeysView& v) { v.body = true; };
+    const ListSource::Change untargeted = [](qiven3::store::KeysView& v) { v.target.reset(); };
+    const auto changed = [&](ListSource::Change f, char op) {
+        Stored given = e;
+        Stored b = book.stored("B");
+        if (f == bodied) {
+            given.record = a.record;
+            b.record.reset();
+        }
+        if (op == 'i') {
+            lines = {a, b, book.stored("D"), book.stored("ACC"), given};
+            return import(f);
+        }
+        lines = {given};
+        std::vector<EntryView> v = views(lines);
+        f(v[0].keys);
+        const std::vector<GuardView> guard = {GuardView{qs, mine, acc}};
+        Vector<Id> erased{Chars(arena)};
+        return refused([&] {
+            if (op == 'a') {
+                (void)s.append(qs, mine, Expected(acc), v, NoAdmit{});
+            } else {
+                (void)s.forget(qs, mine, Expected(acc), v, guard, erased, NoAdmit{});
+            }
+        });
+    };
+    if (k >= 23) {
+        return changed(k == 23 || k == 24 || k == 27 ? bodied : untargeted, "afafii"[k - 23]);
+    }
     switch (k) {
     case 15: {
         Stored bare = book.stored("B");
@@ -319,6 +365,31 @@ bool as_wanted(std::size_t k, const std::optional<Refusal>& r) {
     return r.has_value() && r->code == wants[k].code &&
            (wants[k].code == "forget_kind" ? r->detail == "entry 0" : r->index == wants[k].index) &&
            (!bound || r->field == name.substr(5)) && (name != "long_id" || r->id.empty());
+}
+
+// What a StoreError f raised says: its kind, its corrupt code where it has
+// one, and its detail; empty where f raised none.
+template <class F>
+std::string said(const F& f) {
+    try {
+        f();
+    } catch (const qiven3::store::StoreError& e) {
+        const std::optional<qiven3::store::Corrupt> c = e.corrupt();
+        return std::string(qiven3::store::name(e.kind())) + " " +
+               std::string(c ? qiven3::store::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
+    }
+    return {};
+}
+
+// s's verify the counts held; a refusal printed, the case's name at.
+template <class S>
+bool verifies(S& s, const qiven3::store::Counts& held, std::string_view at) {
+    qiven3::store::Counts got;
+    if (const std::string r = said([&] { got = s.verify(); }); !r.empty()) {
+        std::cout << at << ": verify " << r << "\n";
+        return false;
+    }
+    return got == held;
 }
 
 // An import's source of lines with their keys as given.
@@ -435,7 +506,7 @@ QIVEN3_CASE(store_guard, memory) {
         const std::optional<Refusal> r = write(k, s, *book, arena);
         std::cout << "store_guard.memory: " << wants[k].name << ": " << (r ? r->code : "none") << "\n";
         CHECK(as_wanted(k, r));
-        CHECK(s.verify() == held);
+        CHECK(verifies(s, held, wants[k].name));
         CHECK(s.head(qs, mine).has_value() == head.has_value());
         CHECK(!head || s.head(qs, mine)->id == head->id);
     }
@@ -461,11 +532,19 @@ QIVEN3_CASE(store_guard, sqlite) {
             const std::optional<Refusal> r = write(k, *s, *book, arena);
             std::cout << "store_guard.sqlite: " << wants[k].name << ": " << (r ? r->code : "none") << "\n";
             CHECK(as_wanted(k, r));
-            CHECK(s->verify() == held);
+            CHECK(verifies(*s, held, wants[k].name));
             (void)s->close();
         }
-        const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
-        CHECK(again->verify() == held);
+        std::unique_ptr<Store> again;
+        if (const std::string o = said([&] { again = std::make_unique<Store>(Store::open(path, false, false, *fake)); });
+            !o.empty()) {
+            std::cout << wants[k].name << ": reopen " << o << "\n";
+        }
+        CHECK(again != nullptr);
+        if (!again) {
+            continue;
+        }
+        CHECK(verifies(*again, held, wants[k].name));
         CHECK(again->head(qs, mine).has_value() == head.has_value());
         CHECK(!head || again->head(qs, mine)->id == head->id);
         (void)again->close();
