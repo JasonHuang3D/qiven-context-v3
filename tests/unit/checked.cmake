@@ -24,7 +24,8 @@ qiven3_add_cases(qiven3_unit_checked_clearing LABELS fast fake
 # rule of the entry's, on the fake: the store's widths against the entry's;
 # a content hit refused secret at append; a forget of part of a record
 # refused whole_record, then the whole forgotten; a ruled store's own
-# export imported, empty and not, in memory and in SQLite.
+# export imported, empty and not, in memory and in SQLite; a held line or
+# body record changed, and a state forged, under the lock.
 qiven3_add_cases(qiven3_unit_checked_reads LABELS fast fake
   SOURCES checked_reads_test.cpp
   LINK qiven3_checked_stores)

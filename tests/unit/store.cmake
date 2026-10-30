@@ -48,8 +48,9 @@ qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
 
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
-# lock, thread gate, read-only object and checked reads; a scan's end at
-# each lane's length at its start (store_scan_case.hpp).
+# lock, thread gate, read-only object and forged states; a scan's end at
+# each lane's length at its start (store_scan_case.hpp, whose ruled records
+# keep the fixtures and checked linked here).
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
   SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
           store_memory_scan_test.cpp

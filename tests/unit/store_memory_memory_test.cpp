@@ -18,8 +18,9 @@
 // The run completes past the last failure. The runner's count after each
 // case holds too. faults runs in four parts of the course, each its runs
 // counted, the parts together every fault point.
-// maximum: a module of 64 KiB content appended, imported into the second
-// state and verified, each peak within its operation's budget.
+// maximum: a record of a 64 KiB body appended, imported into the second
+// state and verified, each peak within its operation's budget. Over plain
+// records (records.hpp) with no admit hook.
 
 #include <array>
 #include <cstddef>
@@ -32,7 +33,6 @@
 #include <string_view>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -41,27 +41,33 @@
 #include "store/memory.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::records;  // NOLINT(google-build-using-namespace)
 namespace state = qiven3::store::state;
+using Fake = qiven3::platform::fake::FakePlatform;
+using Chars = qiven3::memory::Allocator<char>;
+using qiven3::memory::Arena;
 using qiven3::memory::MemoryError;
 using qiven3::memory::String;
 using qiven3::memory::Vector;
 using qiven3::platform::PlatformError;
 using qiven3::store::Counts;
+using qiven3::store::EntryView;
 using qiven3::store::GuardView;
-using qiven3::checked::Header;
 using qiven3::store::Heads;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
+using qiven3::store::Limits;
 using qiven3::store::Line;
 using qiven3::store::MemoryStore;
+using qiven3::store::Operation;
 using qiven3::store::RangeView;
+using qiven3::store::Record;
 using qiven3::store::Sizes;
-using Store = qiven3::checked::MemoryStore<Fake>;
+using Store = MemoryStore<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
@@ -69,21 +75,22 @@ constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 // An import grows the state's rows and its target keys' room as its lines
 // arrive, unreserved, so its heap's count follows the library's growth: by
-// half (MSVC's) or double.
+// half (MSVC's) or double (the second figure reasoned, not measured).
 #if defined(_MSVC_STL_VERSION)
-constexpr std::size_t import_heap = 27;
+constexpr std::size_t import_heap = 26;
 #else
-constexpr std::size_t import_heap = 24;
+constexpr std::size_t import_heap = 23;
 #endif
 
-// The fake, the fixtures, two states with their objects, and the caller's
-// arena, fresh for each run.
+// The fake, two states with their objects, the records (E a forget of B
+// after ACC), and the caller's arena, fresh for each run.
 struct Bed {
     Bed()
-        : fake(qiven3::platform::fake::Config{}), book(fake), heap(fake.pages(state_bytes)),
-          state(heap.bytes(), Limits{}), heap2(fake.pages(state_bytes)), state2(heap2.bytes(), Limits{}),
-          store(state, fake), other(state2, fake), first{book.stored("A"), book.stored("B"), book.stored("D")},
-          acc{book.stored("ACC")}, e{book.stored("E")}, first_lines(views(first)), acc_lines(views(acc)),
+        : fake(qiven3::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
+          heap2(fake.pages(state_bytes)), state2(heap2.bytes(), Limits{}), store(state, fake), other(state2, fake),
+          first(chain(qiven_scope, implementer_lane, {"A", "B", "D"})),
+          acc{rec("ACC", qiven_scope, implementer_lane, 4, "D")},
+          e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, first_lines(views(first)), acc_lines(views(acc)),
           e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
           guard{GuardView{qiven_scope, implementer_lane, acc_id}}, call_pages(call_bytes) {}
 
@@ -97,16 +104,15 @@ struct Bed {
     }
 
     Fake fake;
-    Book book;
     qiven3::platform::fake::FakePages heap;
     state::State state;
     qiven3::platform::fake::FakePages heap2;
     state::State state2;  // the import's
     Store store;
     Store other;
-    std::vector<Stored> first;
-    std::vector<Stored> acc;
-    std::vector<Stored> e;
+    std::vector<Rec> first;
+    std::vector<Rec> acc;
+    std::vector<Rec> e;
     std::vector<EntryView> first_lines;
     std::vector<EntryView> acc_lines;
     std::vector<EntryView> e_lines;
@@ -153,11 +159,11 @@ std::vector<Step> steps() {
                        Store s(b.state, b.fake);
                        return Peaks{};
                    }});
-    out.push_back({"append", 0, true, {205, 14, 0, 1}, [](Bed& b, const Chars&) {
+    out.push_back({"append", 0, true, {1, 14, 0, 1}, [](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
-    out.push_back({"append_acc", 0, true, {105, 6, 0, 1},[](Bed& b, const Chars&) {
+    out.push_back({"append_acc", 0, true, {1, 6, 0, 1},[](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -170,12 +176,12 @@ std::vector<Step> steps() {
                        (void)b.store.heads(std::nullopt, rows);
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"header", base, false, {15, 0, 1, 0}, [](Bed& b, const Chars& c) {
-                       Header h(c);
+    out.push_back({"header", base, false, {0, 0, 1, 0}, [](Bed& b, const Chars& c) {
+                       String h(c);
                        b.store.header(b.a_id, h);
                        return Peaks{b.store.peak(), b.call->peak()};
                    }});
-    out.push_back({"body", base, false, {20, 0, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"body", base, false, {0, 0, 1, 0}, [](Bed& b, const Chars& c) {
                        String record(c);
                        (void)b.store.body(b.a_id, record);
                        return Peaks{b.store.peak(), b.call->peak()};
@@ -184,9 +190,9 @@ std::vector<Step> steps() {
                        (void)b.store.forgotten(b.a_id);
                        return Peaks{};
                    }});
-    out.push_back({"scan", base, false, {64, 1, 4, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"scan", base, false, {0, 1, 2, 1}, [](Bed& b, const Chars& c) {
                        auto scan = b.store.scan(RangeView{});
-                       Header h(c);
+                       Record h(c);
                        while (scan.next(h)) {
                        }
                        return Peaks{scan.peak(), b.call->peak()};
@@ -195,7 +201,7 @@ std::vector<Step> steps() {
                        (void)b.store.size();
                        return Peaks{};
                    }});
-    out.push_back({"forget", 0, true, {58, 5, 1, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"forget", 0, true, {2, 5, 1, 1}, [](Bed& b, const Chars& c) {
                        Vector<Id> erased(c);
                        (void)b.store.forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Peaks{b.store.peak(), b.call->peak()};
@@ -204,7 +210,7 @@ std::vector<Step> steps() {
                        (void)b.store.purge();
                        return Peaks{};
                    }});
-    out.push_back({"export", qiven3::store::export_budget, false, {0, 2, 77, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"export", qiven3::store::export_budget, false, {0, 2, 4, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> rows(c);
                        (void)x.heads(rows);
@@ -214,13 +220,13 @@ std::vector<Step> steps() {
                        x.close();
                        return Peaks{0, b.call->peak()};
                    }});
-    out.push_back({"import", base, true, {401, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"import", base, true, {9, import_heap, 1, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> wrote(c);
                        (void)b.other.import_(x, wrote);
                        return Peaks{b.other.peak(), b.call->peak()};
                    }});
-    out.push_back({"verify", base, false, {291, 1, 0, 1}, [](Bed& b, const Chars&) {
+    out.push_back({"verify", base, false, {}, [](Bed& b, const Chars&) {
                        (void)b.store.verify();
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -267,9 +273,9 @@ std::string fingerprint(Store& store) {
         out.append(" size ").append(std::to_string(sizes->volume.size));
         out.append(" count ").append(std::to_string(sizes->volume.count)).append(" ids");
         auto scan = store.scan(RangeView{});
-        Header h(chars);
+        Record h(chars);
         while (scan.next(h)) {
-            out.append(" ").append(h.value(Slot::id));
+            out.append(" ").append(h.id.view());
         }
         const Counts c = store.verify();
         out.append(" verify ").append(std::to_string(c.entries)).append(",").append(std::to_string(c.bodies));
@@ -348,7 +354,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 331}, {3, 13, 250}, {13, 14, 402 + import_heap}, {14, step_count, 294}}};
+    {{0, 3, 23}, {3, 13, 20}, {13, 14, 10 + import_heap}, {14, step_count, 1}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {
@@ -471,57 +477,20 @@ QIVEN3_CASE(store_memory, faults_reads) { faults_part(qiven3_ctx, 1); }
 QIVEN3_CASE(store_memory, faults_import) { faults_part(qiven3_ctx, 2); }
 QIVEN3_CASE(store_memory, faults_rest) { faults_part(qiven3_ctx, 3); }
 
-namespace {
+// The body's bytes, 64 KiB.
+constexpr std::size_t max_body = std::size_t{64} << 10U;
 
-// The content's maximum, 64 KiB.
-constexpr std::size_t max_content = std::size_t{64} << 10U;
-
-// MX's content grown to the maximum: letters of its paths and interface
-// names made four-byte characters, three bytes more each, the last one or
-// two bytes more by a two- or three-byte one; its characters' count kept.
-std::string maximum_content(const Book& book) {
-    const std::string mx = *book.stored("MX").content;
-    const std::size_t paths = mx.find('[', mx.find("\"paths\":["));
-    const std::size_t paths_end = mx.find(']', paths);
-    const std::size_t names = mx.find('[', mx.find("\"interface\":["));
-    const std::size_t names_end = mx.find(']', names);
-    std::size_t grow = max_content - mx.size();
-    std::string out;
-    out.reserve(max_content);
-    for (std::size_t i = 0; i < mx.size(); ++i) {
-        const bool letter =
-            (i > paths && i < paths_end && mx[i] == 'a') || (i > names && i < names_end && mx[i] == 'b');
-        if (!letter || grow == 0) {
-            out.push_back(mx[i]);
-        } else if (grow >= 3) {
-            out.append("\xF0\x9F\x98\x80");
-            grow -= 3;
-        } else {
-            out.append(grow == 2 ? "\xE2\x82\xAC" : "\xC3\xA9");
-            grow = 0;
-        }
-    }
-    return out;
-}
-
-}  // namespace
-
-// A maximum entry, a module of 64 KiB content on reviewer's lane: its
-// append within 1 MiB plus 4 times its lines, its import into the second
-// state and verify within 1 MiB.
+// A record of a 64 KiB body on reviewer's lane: its append within 1 MiB
+// plus 4 times its lines, its import into the second state and verify
+// within 1 MiB.
 QIVEN3_CASE(store_memory, maximum) {
     const auto b = std::make_unique<Bed>();
-    const std::string content = maximum_content(b->book);
-    REQUIRE(content.size() == max_content);
-    const std::vector<Stored> mx = {b->book.made("MX", "MX", content, [](header::FieldsView& f) {
-        f.seq = 1;
-        f.parent = std::nullopt;
-    })};
+    const std::vector<Rec> mx = {big("MX", qiven_scope, "reviewer", 1, std::nullopt, max_body)};
     const std::vector<EntryView> lines = views(mx);
     const std::optional<Refusal> r =
         refused([&] { (void)b->store.append(qiven_scope, "reviewer", std::nullopt, lines); });
     if (r) {
-        std::cout << "store_memory.maximum: refused " << r->code << " " << r->field << " " << r->detail << "\n";
+        std::cout << "store_memory.maximum: refused " << r->code << " " << r->detail << "\n";
     }
     REQUIRE(!r.has_value());
     const std::size_t append = b->store.peak();
@@ -541,7 +510,7 @@ QIVEN3_CASE(store_memory, maximum) {
     CHECK_EQ(counts.entries, 1U);
     CHECK_EQ(counts.bodies, 1U);
     CHECK(b->other.verify() == counts);
-    std::cout << "store_memory.maximum: content " << content.size() << " bytes, lines " << mx[0].line.size() << " and "
+    std::cout << "store_memory.maximum: lines " << mx[0].line.size() << " and "
               << mx[0].record->size() << "; append " << append << " of " << lines_budget(lines) << ", import "
               << imported << " and verify " << verified << " of " << qiven3::store::operation_base << "\n";
 }
