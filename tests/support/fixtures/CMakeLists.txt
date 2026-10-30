@@ -67,11 +67,11 @@ std::string_view vector_data(std::size_t i) noexcept { return vector_views[i]; }
 }  // namespace qiven3::test::fixtures::generated
 ")
 
+# Its sources are the entry's; the headers beside them each stand for the
+# module that owns it (tools/modules.json) and are no source of it.
 add_library(qiven3_fixtures STATIC
   fixtures.cpp
   fixtures.hpp
-  patterns.hpp
-  stage_book.hpp
   vectors.hpp
   view.hpp
   "${fixtures_source}"

@@ -201,7 +201,7 @@ def git_tests():
     if errors:
         raise AssertionError("\n".join(errors))
     ids = sorted(row[0] for row in rows if "loop" in row[1])
-    labels = {("py", *row[1]) for row in rows if "loop" in row[1]}
+    labels = {("py", *row[1][:-1]) for row in rows if "loop" in row[1]}  # the last its module's, which no step filters by
     if len(labels) != 1:
         raise AssertionError(f"the loop's own tests' labels are not one set: {labels}")
     return ids, set(labels.pop())
@@ -303,6 +303,37 @@ class Shim(unittest.TestCase):
         status, err, gained = self.shimmed("test_planted_none.py", NONE,
                                            "tests.drive.test_planted_none.PlantedNone.test_none", False)
         self.assertEqual((status, gained), (0, 0), err)
+
+
+class Recursing(unittest.TestCase):
+    """A shim first on PATH, another build's or run's, no enclosing shim's
+    variables set: refused as the real git under each build's cache, before
+    any start. The file there is no shim and never runs, nor does the
+    command."""
+    ctest_labels = ("fake",)
+
+    def test_shim_on_path(self):
+        top = Path(tempfile.mkdtemp(prefix="qiven3-recursing-"))
+        self.addCleanup(shutil.rmtree, top, ignore_errors=True)
+        program = runpy.run_path(str(SHIM))["PROGRAM"]
+        for name in ("A", "B"):
+            place = top / name / "git-shim" / "0123456789abcdef"
+            place.mkdir(parents=True)
+            (place / program).write_bytes(b"not a program\n")
+            (place / program).chmod(0o755)
+        ran = top / "ran"
+        env = {k: v for k, v in os.environ.items() if not k.startswith("QIVEN3_")}
+        env["PATH"] = str(top / "A" / "git-shim" / "0123456789abcdef") + os.pathsep + env.get("PATH", "")
+        for build in ("A", "B"):
+            with self.subTest(build=build):
+                env["QIVEN3_BUILD"] = str(top / build)
+                done = subprocess.run([sys.executable, "-I", str(SHIM), "--", sys.executable, "-I", "-c",
+                                       f"open({str(ran)!r}, 'w').close()"], env=env, stdin=subprocess.DEVNULL,
+                                      capture_output=True, timeout=120)
+                err = done.stderr.decode("utf-8", "replace")
+                self.assertNotEqual(done.returncode, 0, err)
+                self.assertIn("the real git is a shim, under a git-shim directory", err)
+                self.assertFalse(ran.exists())
 
 
 class Plan(unittest.TestCase):

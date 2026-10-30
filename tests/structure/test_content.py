@@ -235,7 +235,6 @@ def absent_drive():
 
 @unittest.skipUnless(sys.platform == "win32", "the content rule reads this machine's paths, on Windows")
 class Content(unittest.TestCase):
-    ctest_reads = (".",)
 
     def test_tree(self):
         self.assertEqual(content_findings(rules.ROOT, rules.source_files(rules.ROOT), machine_paths(),

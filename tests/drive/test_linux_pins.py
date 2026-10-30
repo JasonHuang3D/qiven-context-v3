@@ -138,8 +138,6 @@ class Check(unittest.TestCase):
     """Each rule of the check, a plant caught."""
     ctest_labels = ("fake",)
 
-    ctest_reads = ("tools/linux-pins.txt",)
-
     def caught(self, plant, pattern):
         """The plant caught: the pins taken from the world as it stood
         before it, then the plant, exit 2 and its mismatch."""
@@ -263,8 +261,6 @@ class PinFile(unittest.TestCase):
     their development files', and its compilers the archive's, on PATH."""
     ctest_labels = ("fake",)
 
-    ctest_reads = ("tools/linux-pins.txt",)
-
     def test_parses(self):
         pins, findings = linux_pins.parse(PIN_FILE.read_text(encoding="utf-8"))
         self.assertEqual(findings, [])
@@ -316,8 +312,6 @@ class PinFile(unittest.TestCase):
 class Process(unittest.TestCase):
     """The check's own process over fakes on PATH."""
     ctest_labels = ("fake",)
-
-    ctest_reads = ("tools/linux-pins.txt",)
 
     def test_process(self):
         world = World(self)

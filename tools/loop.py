@@ -30,13 +30,16 @@ jobs as below, or build or test of the jobs named:
   (windows-msvc or ci-windows), none naming every job of the system, in
   their kept trees without --fresh; build stops after the build, test runs
   every step of the job.
-Tiers 1 and 2 narrow each ctest step to its affected tests, from the build
-graph (tools/loop_select.py): the case binaries the build relinked, the
-Python tests by the files they import and those their classes declare they
-read, every test on a build file's, tools/', a fixture's or a vector's
-change, or in a tree new or emptied; changed against the step's last
-passing run in its tree, which the tree records. Each step's line names its selection: how
-many of its tests, and why; a step with none affected does not run.
+Tiers 1 and 2 run the modules' check (tools/loop_modules.py) before each
+ctest step's selection, an error failing the step with no test run, then
+narrow the step to its affected tests by the modules' table,
+tools/modules.json (tools/loop_select.py): the modules of the files
+changed against the step's last passing run in its tree, which the tree
+records, and every module depending on one, by their tests' labels; the
+tooling's alone on a tools/ change; every test on a change of the whole
+build or the support, or in a tree new or emptied. Each step's line names
+its selection: how many of its tests, and the modules, each changed or
+depending on which; a step with none affected does not run.
 The toolchain is an input too: each kept tree records the pins it was
 configured under (on Windows WINDOWS_PINS, the toolset, the SDK, CPython,
 clang-tidy and tools/windows-pins.txt; on Linux tools/linux-pins.txt and

@@ -457,6 +457,10 @@ function(qiven3_executable name)
   set_property(GLOBAL APPEND PROPERTY QIVEN3_BINARIES ${name})
 endfunction()
 
+# The build's targets and their links, for the modules' check
+# (tools/loop_modules.py, against tools/modules.json).
+cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
+
 enable_testing()
 add_subdirectory(third_party/sqlite)
 add_subdirectory(src/memory)

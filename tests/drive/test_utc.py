@@ -28,7 +28,6 @@ def run(args, zone):
 
 class UtcZones(unittest.TestCase):
     ctest_labels = ("fake",)
-    ctest_reads = ("qiven3_unit_utc",)
 
     def test_cases_under_each_zone(self):
         listed = run(["--list"], "UTC0")

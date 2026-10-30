@@ -167,8 +167,8 @@ def local_argv(unit, step, presets):
         local.insert(0, "--fresh")
     if words[0] == "ctest":
         narrowed = affected(unit, step, mine, words)
-        if narrowed is None:
-            return None
+        if narrowed is None or isinstance(narrowed, tuple):  # none to run, or the failing check's own argv
+            return None if narrowed is None else list(narrowed)
         local += narrowed
     return [*words, *local]
 
@@ -176,7 +176,8 @@ def local_argv(unit, step, presets):
 def affected(unit, step, tree, words=("ctest",)):
     """The seam for the affected tests: the arguments that narrow this
     ctest step, in the tree, to the tests the change affects, in tiers 1
-    and 2 (unit.narrow); [] for every test, None for none. The unit's
+    and 2 (unit.narrow); [] for every test, None for none, a tuple for
+    the step's argv instead, the modules' check failing. The unit's
     Selection notes the step's tree, for its record when it passes, in
     every way that runs tests; with none, every test runs."""
     if unit.select is None:

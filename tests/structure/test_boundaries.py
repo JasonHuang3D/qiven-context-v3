@@ -36,7 +36,6 @@ def caught(self, rule):
 @WINDOWS
 class Tree(unittest.TestCase):
     """No finding over v3's tree."""
-    ctest_reads = (".",)
 
 
 @WINDOWS

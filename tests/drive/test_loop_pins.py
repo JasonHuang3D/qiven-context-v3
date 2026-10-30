@@ -23,8 +23,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive.test_loop_ci import ROOT, load_loop
-from tests.drive.test_loop_select import BINARIES, TREE, built, checkout, listing
-from tools import loop_git
+from tests.drive.test_loop_select import TREE, built, change, checkout, selection
 
 LOOP = load_loop()
 RUN = LOOP.RUN
@@ -47,22 +46,19 @@ class KeptTree(unittest.TestCase):
     def setUp(self):
         self.root = checkout(self)
         self.tree = self.root / TREE
-        self.stamps = {name: 100 for name in BINARIES}
 
     def run_tier(self, pins):
         """The unit run under pins: its fake step's argv, or None when it
         did not run; its tree's line and its fake step's line."""
         unit = LOOP.plan("1", "windows", [JOB])[0]
-        select = LOOP.SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
-        select.listing = lambda words: listing(self.tree.resolve())
-        unit.select = select
+        unit.select = selection(self.root)
         presets = LOOP.binary_dirs()
         ran = {}
 
         def command(unit, step):
             argv = LOOP.local_argv(unit, step, presets)
             if step.name == "build":
-                built(self.tree, self.stamps)
+                built(self.tree)
             if argv is None:
                 return None
             ran[step.name] = argv
@@ -84,7 +80,7 @@ class KeptTree(unittest.TestCase):
     def test_pin_change(self):
         """The plant: one pin changed empties the tree and runs every test,
         both lines naming the pin; the same pins after keep the tree, and a
-        relink narrows the step again."""
+        change narrows the step again."""
         self.run_tier(PINS)
         argv, tree, fake = self.run_tier(PINS)
         self.assertIsNone(argv)
@@ -94,18 +90,18 @@ class KeptTree(unittest.TestCase):
         planted = self.tree / "CMakeCache.txt"
         planted.write_text("made by another compiler\n", encoding="utf-8")
         repinned = dict(PINS, **{"command g++-13": "13.4.0 three path/g++-13"})
-        self.stamps["qiven3_unit_utc"] += 1
+        change(self.root, "src/utc/utc.cpp", "// utc, changed\n")
         argv, tree, fake = self.run_tier(repinned)
         self.assertEqual(tree, f"{JOB} tree: {self.tree} emptied, the toolchain's pins changed: command g++-13")
         self.assertFalse(planted.exists())
         self.assertNotIn("--tests-from-file", argv)
         self.assertIn("every test, 10 of 10: its tree emptied, the toolchain's pins changed: command g++-13", fake)
         self.assertEqual(self.mark(), (JOB, repinned))
-        self.stamps["qiven3_unit_utc"] += 1
+        change(self.root, "src/utc/utc.cpp", "// utc, changed again\n")
         argv, tree, fake = self.run_tier(repinned)
         self.assertEqual(tree, f"{JOB} tree: {self.tree} kept, its own")
         self.assertIn("--tests-from-file", argv)
-        self.assertIn("4 of 10 tests", fake)
+        self.assertIn("2 of 10 tests: utc changed", fake)
 
     def test_no_pins_recorded(self):
         """A mark of the job's with no pins, an earlier loop's: the tree is

@@ -59,6 +59,7 @@
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
+#include "support/stores/named.hpp"
 
 namespace qiven3::test::stores {
 

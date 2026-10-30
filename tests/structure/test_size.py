@@ -17,7 +17,6 @@ def size_findings(root):
 
 
 class Size(unittest.TestCase):
-    ctest_reads = (".",)
 
     def test_tree(self):
         self.assertEqual(size_findings(rules.ROOT), [])

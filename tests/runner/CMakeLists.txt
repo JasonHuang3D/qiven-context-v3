@@ -1,20 +1,11 @@
-# qiven3_runner: the test runner and the main of every case binary, which
-# counts the allocators of v3's memory a case takes after it.
+# qiven3_runner: the test runner, on v3's memory alone, which counts the
+# allocators of v3's memory a case takes after it. The main of every case
+# binary, which holds the process's log, is the log's (qiven3_case_main,
+# support/log); an error of another module escaping a case is named by the
+# namer that module's cases register.
 add_library(qiven3_runner STATIC
+  core.hpp
   runner.cpp
-  runner.hpp
 )
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-# Its main holds the process's log (support/log/journal.hpp), kept for the
-# entry's report; a PlatformError escaping a case is named by its code
-# (qiven3_platform), a StoreError by its kind and code, store/errors.hpp's
-# names, constant in the header, so that nothing of qiven3_store is linked.
-target_link_libraries(qiven3_runner PUBLIC qiven3_memory qiven3_log PRIVATE qiven3_flags qiven3_diag
-                      qiven3_platform)
-
-# The runner's own cases, each a CTest test.
-qiven3_add_cases(qiven3_runner_test LABELS fast SOURCES runner_test.cpp LINK qiven3_platform)
-
-# One case per route, run as processes by tests/drive/test_runner.py; never
-# a CTest test itself.
-qiven3_executable(qiven3_runner_demo SOURCES runner_demo.cpp LINK qiven3_runner)
+target_link_libraries(qiven3_runner PUBLIC qiven3_memory PRIVATE qiven3_flags)

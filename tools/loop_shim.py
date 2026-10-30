@@ -21,6 +21,8 @@ status is the test's. A start by an absolute path passes the shim: the
 guard's, by the source (tests/drive/test_git_count.py), the stated limit.
 A run within another's (tests/drive/test_git_shim.py's) runs the enclosing
 shim's real git, never a shim, and adds its log's lines to that shim's.
+A real git in any git-shim directory, whichever run's or build's, is a
+shim, which would run itself: the run is refused before it starts any.
 
 On Windows the shim is built once a build, under QIVEN3_BUILD's git-shim
 directory by its source's digest, else in the run's own directory; a
@@ -41,6 +43,7 @@ DOOR = runpy.run_path(str(HERE / "loop_git.py"))
 PROGRAM = "git.exe" if sys.platform == "win32" else "git"
 SHIM_LOG, SHIM_REAL = "QIVEN3_SHIM_LOG", "QIVEN3_SHIM_REAL"
 SHOWN = 40  # the shim's log lines a fault shows at most
+PLACE = "git-shim"  # the name of each directory a shim stands in, every run's
 
 
 def built(top):
@@ -49,7 +52,7 @@ def built(top):
     source = HERE / "git_shim.c"
     digest = hashlib.sha256(source.read_bytes()).hexdigest()[:16]
     build = os.environ.get("QIVEN3_BUILD")
-    home = Path(build) / "git-shim" if build else top / "git-shim"
+    home = Path(build) / PLACE if build else top / PLACE
     final = home / digest
     if (final / PROGRAM).is_file():
         return final
@@ -79,7 +82,7 @@ def placed(top):
     """The shim's directory, its program there under git's name."""
     if sys.platform == "win32":
         return built(top)
-    shim = top / "bin"
+    shim = top / PLACE
     shim.mkdir()
     shutil.copyfile(HERE / "git_shim.sh", shim / PROGRAM)
     (shim / PROGRAM).chmod(0o755)
@@ -99,11 +102,11 @@ def main(argv):
     real = os.environ.get(SHIM_REAL) if outer else shutil.which(PROGRAM)
     if real is None:
         return subprocess.run(command).returncode  # no git a name resolves: none to count
+    if any(part.lower() == PLACE for part in Path(real).resolve().parent.parts):
+        raise SystemExit(f"loop_shim: the real git is a shim, under a {PLACE} directory: {real}")
     top = Path(tempfile.mkdtemp(prefix="qiven3-shim-"))
     try:
         shim = placed(top)
-        if Path(real).resolve().parent == shim.resolve():
-            raise SystemExit(f"loop_shim: the real git is the shim itself: {real}")
         log, count = top / "shim.log", top / "count"
         log.write_bytes(b"")
         env = dict(os.environ)

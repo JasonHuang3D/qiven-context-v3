@@ -1,73 +1,52 @@
 """The local loop's affected tests (tools/loop.py): the tests of a ctest
 step, in tiers 1 and 2, that the change since the step last passed in its
-tree affects, from the build graph, never from a list kept by hand.
+tree reaches by the modules' table, tools/modules.json, never by a list
+kept by hand or a reading of the build.
 
+- The check first: each such step runs the modules' check,
+  tools/loop_modules.py, on the checkout and the step's tree. An error
+  fails the step, which then runs the check as its command, so that its
+  log names each file or edge, and no test.
 - The record. Each tree keeps RECORD: for each ctest step that passed in
   it, each file of the checkout by its blob id as the job's run began (git's
-  index, and git hash-object for a file changed or new), and each output of
-  Ninja's log, .ninja_log, by its line as the step found it. A step that
-  fails leaves its record as it was, so that its changes stay selected. A
-  tree new or emptied, or a step with no record in it, runs every test;
-  the step's line names why a tree was emptied, the toolchain's pins
-  changed among them (tools/loop_run.py's own_tree): the record goes with
-  the tree it describes.
-- Every test, when a changed file is a build file (CMakeLists.txt, any
-  *.cmake, CMakePresets.json), under tools/, a fixture or a vector
-  (tests/fixtures/, tests/vectors/) or a workflow (.github/workflows/); and
-  when a changed data file, neither C or C++, which the build graph
-  reaches, nor a module a test imports, is named by no test's declaration
-  but one of the whole checkout.
-- A C++ case or a fuzz target, when the binary its command runs (ctest's
-  own listing, --show-only=json-v1) was relinked: its line in .ninja_log
-  differs from the record's.
-- A Python test, when a file of the checkout it imports, transitively and
-  its own module included (read by ast), changed; when a file or directory
-  its class declares (ctest_reads, tests/runner/list_tests.py; the build
-  writes them into tests/python_reads.txt) holds a changed file, or a
-  binary it declares was relinked; and when it reaches the build (a module
-  it imports names QIVEN3_BIN, QIVEN3_BUILD or QIVEN3_CTEST, as
-  tests/drive/binaries.py does), declares no binary, and any binary of
-  bin/ was relinked: a binary it runs is a file it reads at run time.
-- Any other test runs.
+  index, and git hash-object for a file changed or new), and the table's
+  rows. A step that fails leaves its record as it was, so that its changes
+  stay selected. A tree new or emptied, or a step with no record in it,
+  runs every test; the step's line names why a tree was emptied, the
+  toolchain's pins changed among them (tools/loop_run.py's own_tree): the
+  record goes with the tree it describes.
+- Each changed file selects its module, by the table's paths; a change to
+  the table selects the tooling, whose file it is, and each module whose
+  row changed; then every module depending on one selected, transitively.
+  A file of the no-test row selects nothing. The step runs the tests that
+  carry a selected module's label in ctest's own listing
+  (--show-only=json-v1), and any test that carries no module's.
+- Every test, when a module selected is the whole build's or the shared
+  support's, or a changed file is in no module.
 
 The step runs the tests chosen by ctest's --tests-from-file, a file kept in
 the tree beside the record; with none chosen it does not run. Its line
-names the selection: how many of the step's tests, and why.
+names the selection: how many of the step's tests, and the modules chosen,
+each changed or depending on which.
 
 Loaded by runpy.run_path, given tools/loop_run.py's names.
 """
 
-import ast
 import json
 import os
+import runpy
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 RECORD = ".qiven3-loop-passed.json"
 CHOSEN = ".qiven3-loop-tests-{}.txt"  # the step's slug
-READS = "tests/python_reads.txt"
-EVERY_NAMES = ("CMakeLists.txt", "CMakePresets.json")
-EVERY_DIRS = ("tools/", "tests/fixtures/", "tests/vectors/", ".github/workflows/")
-CODE = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp")
-REACH = ("QIVEN3_BIN", "QIVEN3_BUILD", "QIVEN3_CTEST")
+TABLE = "tools/modules.json"
+CHECK = Path(__file__).resolve().parent / "loop_modules.py"
+MODULES = runpy.run_path(str(CHECK))  # the table's one reading: owners(), reach()
+EVERY = ("whole-build", "support")  # the layers whose change runs every test
 SHOWN = 3  # the names a reason shows at most
-
-
-def every_test(path):
-    """Whether a change of this file runs every test."""
-    name = path.rsplit("/", 1)[-1]
-    return name in EVERY_NAMES or name.endswith(".cmake") or path.startswith(EVERY_DIRS)
-
-
-def is_path(read):
-    """A declared read names a path of the checkout, not a binary's target."""
-    return "/" in read or "." in read
-
-
-def covers(read, path):
-    return read == "." or (path.startswith(read) if read.endswith("/") else path == read or
-                           path.startswith(read + "/"))
 
 
 def shown(names):
@@ -116,163 +95,46 @@ def listed(root, git, env):
         return None
 
 
-def ninja_log(tree):
-    """{output, relative to the tree: its last line's mtime and command
-    hash} of the tree's .ninja_log; empty when there is none."""
-    try:
-        lines = (Path(tree) / ".ninja_log").read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return {}
-    base = norm(Path(tree).resolve()) + "/"
-    out = {}
-    for line in lines:
-        fields = line.split("\t")
-        if len(fields) == 5 and not line.startswith("#"):
-            output = norm(fields[3])
-            out[output.removeprefix(base)] = f"{fields[2]} {fields[4]}"
-    return out
+def choose(table, rows, changed):
+    """The modules a change selects, ({module: why}, None); or (None, why)
+    for every test. table: the table as the run began; rows: the record's
+    {module: row}; changed: the checkout's files changed."""
+    now = {m["name"]: m for m in table["modules"]}
+    why, files, lost = {}, {}, []
+    for path, names in MODULES["owners"](table, changed).items():
+        lost += [] if names else [path]
+        for name in names:
+            why[name] = "changed"
+            files.setdefault(name, []).append(path)
+    if TABLE in changed:
+        why.update({name: "changed in the table" for name in now if rows.get(name) != now[name] and name not in why})
+    every = sorted(name for name in why if now[name]["layer"] in EVERY)
+    if lost:
+        return None, f"{shown(lost)} in no module"
+    if every:
+        return None, "the whole build or the support: " + ", ".join(
+            f"{name} {why[name]}" + (f" ({shown(files[name])})" if name in files else "") for name in every)
+    seeds = {name for name in why if now[name]["layer"] != "no-test"}
+    reach = MODULES["reach"](table)
+    why = {name: why[name] if name in seeds else "depending on " + shown(reach[name] & seeds)
+           for name in now if name in seeds or reach[name] & seeds}
+    return why, None
 
 
-def norm(path):
-    return os.path.normcase(str(path)).replace("\\", "/")
-
-
-class Imports:
-    """The checkout's Python modules by ast: what each imports of the
-    checkout, transitively, and whether that reaches the build."""
-
-    def __init__(self, root):
-        self.root = Path(root)
-        self.direct, self.texts, self.closures = {}, {}, {}
-
-    def text(self, rel):
-        if rel not in self.texts:
-            try:
-                self.texts[rel] = (self.root / rel).read_bytes().decode("utf-8", "replace")
-            except OSError:
-                self.texts[rel] = ""
-        return self.texts[rel]
-
-    def files(self, parts):
-        """The checkout's files importing the dotted name runs: each
-        package's __init__.py, then the module."""
-        out = []
-        for i in range(1, len(parts) + 1):
-            base = "/".join(parts[:i])
-            out += [c for c in (base + "/__init__.py", base + ".py") if (self.root / c).is_file()]
-        return out
-
-    def imports(self, rel):
-        if rel not in self.direct:
-            found = []
-            try:
-                tree = ast.parse(self.text(rel))
-            except (SyntaxError, ValueError):
-                tree = ast.Module(body=[], type_ignores=[])
-            package = rel.split("/")[:-1]
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        found += self.files(alias.name.split("."))
-                elif isinstance(node, ast.ImportFrom):
-                    base = package[:len(package) - node.level + 1] if node.level else []
-                    parts = base + (node.module.split(".") if node.module else [])
-                    found += self.files(parts)
-                    for alias in node.names:
-                        found += self.files(parts + [alias.name])
-            self.direct[rel] = list(dict.fromkeys(found))
-        return self.direct[rel]
-
-    def closure(self, rel):
-        """The module, its packages' __init__.py, and every file of the
-        checkout they import, transitively."""
-        if rel not in self.closures:
-            seen = set()
-            todo = self.files(rel.removesuffix(".py").split("/"))
-            while todo:
-                path = todo.pop()
-                if path not in seen:
-                    seen.add(path)
-                    todo += self.imports(path)
-            self.closures[rel] = frozenset(seen)
-        return self.closures[rel]
-
-    def module_of(self, test_id):
-        parts = test_id.split(".")
-        for k in range(len(parts), 0, -1):
-            rel = "/".join(parts[:k]) + ".py"
-            if (self.root / rel).is_file():
-                return rel
-        return None
-
-    def reaches(self, closure):
-        return any(name in self.text(rel) for rel in closure for name in REACH)
-
-    def every_imported(self):
-        """Every file a test module of tests/ imports."""
-        out = set()
-        for path in sorted((self.root / "tests").rglob("test_*.py")):
-            out |= self.closure(path.relative_to(self.root).as_posix())
-        return out
-
-
-def binary_of(command):
-    """The file a test's command runs: after the watcher's --, or itself."""
-    return command[command.index("--") + 1] if "--" in command else command[0] if command else None
-
-
-def choose(tests, changed, relinked, outputs, reads, imports, tree):
-    """The tests to run of the step's listing, tests [(name, command)]:
-    (names, {reason: names of tests}), or (None, why) for every test.
-    changed: the checkout's files changed; relinked: the outputs whose
-    line changed; outputs: every output the log holds; reads: {test:
-    declared reads}; tree: the tree's absolute path."""
-    changed = set(changed)
-    trigger = sorted(p for p in changed if every_test(p))
-    if trigger:
-        return None, f"{shown(trigger)} changed"
-    narrow = [r for declared in reads.values() for r in declared if is_path(r) and r != "."]
-    data = sorted(p for p in changed if not p.endswith(CODE) and not any(covers(r, p) for r in narrow))
-    if data:
-        imported = imports.every_imported()
-        data = [p for p in data if not (p.endswith(".py") and p in imported)]
-        if data:
-            return None, f"{shown(data)} changed, which no test imports or declares"
-    base = norm(tree) + "/"
-    names = {o.rsplit("/", 1)[-1] for o in relinked if o.startswith("bin/")}
-    stems = {n.split(".", 1)[0] for n in names}
-    chosen, why = [], {}
-
-    def pick(name, reason):
-        chosen.append(name)
-        why.setdefault(reason, []).append(name)
-
-    for name, command in tests:
-        if name.startswith("tests."):
-            module = imports.module_of(name)
-            if module is None:
-                pick(name, "no module found")
-                continue
-            closure = imports.closure(module)
-            declared = reads.get(name, ())
-            binaries = [r for r in declared if not is_path(r)]
-            if closure & changed:
-                pick(name, "importing " + shown(closure & changed))
-            elif any(covers(r, p) for r in declared if is_path(r) for p in changed):
-                pick(name, "declaring " + shown(r for r in declared if is_path(r) and
-                                                 any(covers(r, p) for p in changed)))
-            elif set(binaries) & stems:
-                pick(name, "declaring " + shown(set(binaries) & stems))
-            elif not binaries and stems and imports.reaches(closure):
-                pick(name, "reaching the build")
-            continue
-        binary = binary_of(command)
-        output = norm(binary).removeprefix(base) if binary else None
-        if output is None or output not in outputs:
-            pick(name, "a command of no output of the build")
-        elif output in relinked:
-            pick(name, "relinked " + output.rsplit("/", 1)[-1].split(".", 1)[0])
-    return chosen, why
+def picked(tests, why, names):
+    """The step's tests [(name, labels)] that carry a module's label why
+    selects, or no module's; and the line's reasons."""
+    chosen, unlabelled = [], 0
+    for test, labels in tests:
+        mine = [label for label in labels if label in names]
+        unlabelled += not mine
+        if not mine or any(label in why for label in mine):
+            chosen.append(test)
+    groups = {}
+    for name, reason in why.items():
+        groups.setdefault(reason, []).append(name)
+    reasons = [f"{shown(mods)} {reason}" for reason, mods in groups.items()]
+    return chosen, reasons + ([f"{unlabelled} labelled with no module"] if unlabelled else [])
 
 
 class Selection:
@@ -281,37 +143,58 @@ class Selection:
 
     def __init__(self, root, ctest, env, git):
         self.root, self.ctest, self.env, self.git = Path(root), ctest, env, git
-        self.sources, self.logs, self.steps = None, {}, {}
-        self.imports, self.emptied = None, {}
+        self.sources, self.table, self.steps, self.emptied = None, None, {}, {}
 
     def start(self, unit, emptied=None):
-        """The checkout's files as the unit's run begins; emptied, {tree:
-        why}, the trees emptied for it (tools/loop_run.py's own_tree)."""
+        """The checkout's files and the table as the unit's run begins;
+        emptied, {tree: why}, the trees emptied for it (tools/loop_run.py's
+        own_tree)."""
         self.sources = blobs(self.root, self.git)
-        self.logs, self.imports = {}, Imports(self.root)
+        try:
+            self.table = json.loads((self.root / TABLE).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            self.table = None
         self.emptied = dict(emptied or {})
         unit.notes.clear()
 
+    def check(self, tree):
+        """The modules' check of the checkout and the tree: (its argv, its
+        error lines, none when it passes)."""
+        argv = [sys.executable, "-I", str(CHECK), str(self.root), str((self.root / tree).resolve())]
+        try:
+            done = subprocess.run(argv, cwd=self.root, env=self.env, stdin=subprocess.DEVNULL, capture_output=True,
+                                  timeout=300)
+        except (OSError, subprocess.SubprocessError) as error:
+            return argv, [f"it could not run: {error}"]
+        lines = (done.stdout + done.stderr).decode("utf-8", "replace").splitlines()
+        errors = [x.removeprefix("modules: ") for x in lines if x.startswith("modules: ") and not x.endswith(" errors")]
+        return argv, (errors or [f"its status {done.returncode}"]) if done.returncode else []
+
     def listing(self, words):
-        """[(name, command)] of the step's tests by ctest's listing; None
+        """[(name, labels)] of the step's tests by ctest's listing; None
         when it fails."""
         try:
             done = subprocess.run([self.ctest, *words[1:], "--show-only=json-v1"], cwd=self.root, env=self.env,
                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=300)
             data = json.loads(done.stdout)
-            return [(t["name"], t.get("command") or []) for t in data.get("tests", [])]
+            return [(t["name"], next((p["value"] for p in t.get("properties", ()) if p["name"] == "LABELS"), []))
+                    for t in data.get("tests", [])]
         except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
             return None
 
     def affected(self, unit, step, tree, words, narrow):
         """The arguments that narrow the step to its affected tests: [] for
-        every test, None for none; the step's note in unit.notes."""
+        every test, None for none, a tuple for the step's own argv, the
+        failing check's; the step's note in unit.notes."""
         key = "\t".join((step.name, *step.ci))
         self.steps[(unit.name, step.name)] = (tree, key)
-        if tree not in self.logs:
-            self.logs[tree] = ninja_log(self.root / tree)
         if not narrow:
             return []
+        argv, errors = self.check(tree)
+        if errors:
+            more = f", and {len(errors) - 1} more errors in its log" if len(errors) > 1 else ""
+            unit.notes[step.name] = f"the modules' check failed, no test run: {errors[0]}{more}"
+            return tuple(argv)
         tests = self.listing(words)
         record = load(self.root / tree).get(key)
         if tests is None:
@@ -319,23 +202,22 @@ class Selection:
             return []
         total = len(tests)
         if self.sources is None:
-            chosen, why = None, "git cannot list the checkout"
+            why, every = None, "git cannot list the checkout"
+        elif self.table is None:
+            why, every = None, f"{TABLE} cannot be read"
         elif record is None and tree in self.emptied:
-            chosen, why = None, f"its tree emptied, {self.emptied[tree]}"
+            why, every = None, f"its tree emptied, {self.emptied[tree]}"
         elif record is None:
-            chosen, why = None, "no passing run of the step in this tree"
+            why, every = None, "no passing run of the step in this tree"
         else:
-            old, outputs = record.get("sources", {}), self.logs[tree]
+            old = record.get("sources", {})
             changed = [p for p in set(old) | set(self.sources) if old.get(p) != self.sources.get(p)]
-            relinked = {o for o, line in outputs.items() if record.get("outputs", {}).get(o) != line}
-            chosen, why = choose(tests, changed, relinked, outputs, declared(self.root / tree), self.imports,
-                                 (self.root / tree).resolve())
-        if chosen is None:
-            unit.notes[step.name] = f"every test, {total} of {total}: {why}"
+            why, every = choose(self.table, record.get("table", {}), changed)
+        if why is None:
+            unit.notes[step.name] = f"every test, {total} of {total}: {every}"
             return []
-        reasons = "; ".join(f"{len(names)} {reason}" for reason, names in why.items())
-        unit.notes[step.name] = f"{len(chosen)} of {total} tests" + (f": {reasons}" if reasons else
-                                                                      ": nothing it runs changed")
+        chosen, reasons = picked(tests, why, {m["name"] for m in self.table["modules"]})
+        unit.notes[step.name] = f"{len(chosen)} of {total} tests: " + ("; ".join(reasons) or "nothing it runs changed")
         if not chosen:
             return None
         if len(chosen) == total:
@@ -347,12 +229,10 @@ class Selection:
     def passed(self, unit, step):
         """The step passed: its record in its tree, when the unit owns it."""
         tree, key = self.steps.get((unit.name, step.name), (None, None))
-        if tree is None or tree not in unit.trees or self.sources is None:
+        if tree is None or tree not in unit.trees or self.sources is None or self.table is None:
             return
-        if tree not in self.logs:
-            self.logs[tree] = ninja_log(self.root / tree)
         records = load(self.root / tree)
-        records[key] = {"sources": self.sources, "outputs": self.logs[tree]}
+        records[key] = {"sources": self.sources, "table": {m["name"]: m for m in self.table["modules"]}}
         path = self.root / tree / RECORD
         part = path.with_name(path.name + ".part")
         part.write_text(json.dumps(records, sort_keys=True), encoding="utf-8")
@@ -366,13 +246,3 @@ def load(tree):
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
-
-
-def declared(tree):
-    """{Python test: its declared reads} the build listed in the tree."""
-    try:
-        lines = (Path(tree) / READS).read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return {}
-    return {name: tuple(r for r in reads.split(",") if r)
-            for name, _, reads in (line.partition("\t") for line in lines) if name}

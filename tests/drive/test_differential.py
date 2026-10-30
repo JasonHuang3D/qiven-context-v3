@@ -153,7 +153,6 @@ def report(what, count, disagreements, began):
 
 
 class Matcher(unittest.TestCase):
-    ctest_reads = ("qiven3-child",)
     ctest_labels = ("fake",)
 
     def compare(self, patterns, oracles, strings):
@@ -405,7 +404,6 @@ def long_input(rng):
 
 
 class Parser(unittest.TestCase):
-    ctest_reads = ("qiven3-child",)
     ctest_labels = ("fake",)
 
     def test_codes(self):

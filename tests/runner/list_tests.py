@@ -1,5 +1,5 @@
 """Print each Python test of tests/ for CTest: its id, its labels, serial,
-its own limit, and what it reads at run time.
+and its own limit.
 
 Run from the checkout's root as python -I tests/runner/list_tests.py
 [--loop]. The loop's own tests, of a class whose ctest_git is true, those
@@ -8,31 +8,25 @@ gives (QIVEN3_LOOP_TESTS), labelled loop and fake alone, so that the git
 they start is started in one step a run, that build's fake step; there
 every Python test runs behind the counting shim (tools/loop_shim.py),
 which fails a test of no such class that starts git. Each
-line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>\t<reads by
-commas>". A test's labels are its package's, or its module's where
-MODULE_LABELS names it, below, and those its class names in ctest_labels; a
-class whose ctest_serial is true runs alone; a class whose ctest_limit is a
-whole number of seconds states the watcher's limit for its tests, which
-otherwise their labels give (runner/ctest_tests.cmake).
+line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
+test's labels are its package's, or its module's where MODULE_LABELS names
+it, below, and those its class names in ctest_labels, then the name of the
+module of tools/modules.json its file is in, by which the loop selects it
+(tools/loop_select.py); a class whose ctest_serial is true runs alone; a
+class whose ctest_limit is a whole number of seconds states the watcher's
+limit for its tests, which otherwise their labels give
+(runner/ctest_tests.cmake).
 
-A class's ctest_reads declares what its tests read at run time beyond the
-modules they import, for the loop's affected tests (tools/loop_select.py):
-each a binary of the build by its target's name, a name with no "/" and no
-".", or a file or directory of the checkout by its path from the root, a
-directory's ending in "/", "." the whole checkout.
-
-A module that does not import, a test in a package with no labels here, or
-a limit or a read of another form fails the listing, and so the build.
+A module that does not import, a test in a package with no labels here or
+a file in no module, or a limit of another form fails the listing, and so
+the build.
 """
 
-import re
+import fnmatch
+import json
 import sys
 import unittest
 from pathlib import Path
-
-# A read of ctest_reads: ".", a target's name, or a path of the checkout from
-# its root, its parts named plainly and none of them "." or "..".
-READ = re.compile(r"\.|(?:(?!\.\.?/)[A-Za-z0-9_.+-]+/)*(?:(?!\.\.?$)[A-Za-z0-9_.+-]+)?")
 
 # The labels of each package of tests/ that holds Python tests.
 PACKAGE_LABELS = {
@@ -63,12 +57,13 @@ def walk(suite):
 
 
 def listed(loop, root="."):
-    """([(id, labels, serial, limit or None, reads)], [errors]) of the
+    """([(id, labels, serial, limit or None)], [errors]) of the
     tests discover finds under tests/ of the checkout's root; the loop's
     own with loop alone."""
     loader = unittest.TestLoader()
     suite = loader.discover(str(Path(root) / "tests"), top_level_dir=str(root))
     rows, errors = [], []
+    table = json.loads((Path(root) / "tools" / "modules.json").read_text(encoding="utf-8"))
     for test in walk(suite):
         test_id = test.id()
         error = getattr(test, "_exception", None)
@@ -92,12 +87,23 @@ def listed(loop, root="."):
         if limit is not None and (type(limit) is not int or limit < 1):
             errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
             continue
-        reads = getattr(test, "ctest_reads", ())
-        if type(reads) is not tuple or not all(type(r) is str and r and READ.fullmatch(r) for r in reads):
-            errors.append(f"{test_id}: ctest_reads {reads!r} is no tuple of target names and checkout paths")
+        owner = owner_of("/".join(test_id.split(".")[:3]) + ".py", table)
+        if owner is None:
+            errors.append(f"{test_id}: its file is in no module of tools/modules.json")
             continue
-        rows.append((test_id, GIT_LABELS if git else labels, serial, limit, reads))
+        rows.append((test_id, (GIT_LABELS if git else labels) + (owner,), serial, limit))
     return rows, errors + [str(error) for error in loader.errors]
+
+
+def owner_of(path, table):
+    """The name of the module of tools/modules.json holding path, its label:
+    a path ending in / holds every file under it, any other is a pattern on
+    the whole path (tools/loop_modules.py)."""
+    for module in table["modules"]:
+        for pattern in module["paths"]:
+            if path.startswith(pattern) if pattern.endswith("/") else fnmatch.fnmatchcase(path, pattern):
+                return module["name"]
+    return None
 
 
 def main(argv):
@@ -105,8 +111,8 @@ def main(argv):
         print(f"usage: list_tests.py [--loop], not {argv}", file=sys.stderr)
         return 2
     rows, errors = listed(bool(argv))
-    for test_id, labels, serial, limit, reads in rows:
-        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}\t{','.join(reads)}")
+    for test_id, labels, serial, limit in rows:
+        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}")
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0

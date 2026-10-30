@@ -12,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -189,4 +190,36 @@ QIVEN3_CASE(stores, sqlite_references) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
     references_case(qiven3_ctx, f, "stores.sqlite_references");
+}
+
+namespace {
+
+// What the runner wrote of a case of body fn that a StoreError ends, named
+// by the store's namer (support/stores/named.hpp).
+std::string named_run(qiven3::test::Context& ctx, qiven3::test::CaseFn fn) {
+    std::ostringstream out;
+    const int status = qiven3::test::run_case(qiven3::test::Case{"sample.case", nullptr, fn, false}, out, ctx.log);
+    return status == qiven3::test::exit_fail ? out.str() : std::string("not failed");
+}
+
+}  // namespace
+
+QIVEN3_CASE(stores, store_error_named) {
+    // A StoreError has no base: its kind, its kind's code and its detail
+    // are named, each kind's code as message() names it, and none for a
+    // kind with none.
+    using qiven3::test::Context;
+    const std::string own = named_run(qiven3_ctx, [](Context&) {
+        throw qiven3::store::StoreError(qiven3::store::Code::internal, "open", "a.db", "no engine heap installed");
+    });
+    CHECK(own.find("store error StoreError internal: no engine heap installed\n") != std::string::npos);
+    CHECK(own.find("unknown type") == std::string::npos);
+    CHECK(own.find("FAIL sample.case: 1 failed\n") != std::string::npos);
+    const std::string locked = named_run(qiven3_ctx, [](Context&) {
+        throw qiven3::store::StoreError::locked("open", "a.db", qiven3::store::Cause::held, "another writer");
+    });
+    CHECK(locked.find("store error StoreLocked held: another writer\n") != std::string::npos);
+    const std::string none =
+        named_run(qiven3_ctx, [](Context&) { throw qiven3::store::StoreError::not_found("get", "a.db", "e1"); });
+    CHECK(none.find("store error NotFound: \n") != std::string::npos);
 }

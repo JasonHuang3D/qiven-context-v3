@@ -1,6 +1,5 @@
 # Run after the build (cmake -P): lists each case binary's cases and each
-# Python test's id, and writes one add_test() each into OUT, and beside it
-# python_reads.txt, what each Python test declares it reads at run time.
+# Python test's id, and writes one add_test() each into OUT.
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # ADDR2LINE where the build found one, PYTHON when the Python tests are
@@ -16,7 +15,6 @@ set(body "# Written by tests/runner/ctest_tests.cmake after the build.\n")
 set(seen "")
 set(cases 0)
 set(python_tests 0)
-set(reads "")
 set(SLOW_LIMIT 1800)
 set(FAST_LIMIT 60)
 set(OTHER_LIMIT 300)
@@ -135,7 +133,7 @@ if(DEFINED PYTHON)
     if(line STREQUAL "")
       continue()
     endif()
-    if(NOT line MATCHES "^(tests\\.[A-Za-z0-9_.]+)\t([a-z,]+)\t([01])\t([0-9]*)\t([A-Za-z0-9_.+/,-]*)$")
+    if(NOT line MATCHES "^(tests\\.[A-Za-z0-9_.]+)\t([a-z,]+)\t([01])\t([0-9]*)$")
       message(FATAL_ERROR "the Python listing gave a malformed line: '${line}'")
     endif()
     set(id "${CMAKE_MATCH_1}")
@@ -145,9 +143,6 @@ if(DEFINED PYTHON)
       set(serial TRUE)
     endif()
     set(test_limit "${CMAKE_MATCH_4}")
-    if(NOT CMAKE_MATCH_5 STREQUAL "")
-      string(APPEND reads "${id}\t${CMAKE_MATCH_5}\n")
-    endif()
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
     # matched whole, so '*<id>' selects that one test. With LOOP each runs
@@ -167,9 +162,5 @@ if(DEFINED PYTHON)
 endif()
 
 file(WRITE "${OUT}" "${body}")
-# What each Python test declares it reads at run time, its class's
-# ctest_reads, beside OUT for the loop's affected tests: "<id>\t<reads>".
-get_filename_component(out_directory "${OUT}" DIRECTORY)
-file(WRITE "${out_directory}/python_reads.txt" "${reads}")
 message(STATUS "qiven3: ${cases} C++ cases, ${fuzz_targets} fuzz targets and ${python_tests} Python tests "
   "listed for CTest")

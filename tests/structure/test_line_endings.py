@@ -72,7 +72,6 @@ def line_ending_findings(root):
 
 
 class LineEndings(unittest.TestCase):
-    ctest_reads = (".",)
     ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
 
     def test_tree(self):

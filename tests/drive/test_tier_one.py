@@ -58,7 +58,6 @@ def reached(filters, labels):
 
 class Reach(unittest.TestCase):
     ctest_labels = ("fake",)
-    ctest_reads = ("tests/",)
 
     def test_every_test_reached_or_kept_out(self):
         presets = json.loads((binaries.ROOT / "CMakePresets.json").read_bytes())

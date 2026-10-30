@@ -1,21 +1,14 @@
-#include "runner/runner.hpp"
+#include "runner/core.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <exception>
-#include <iostream>
 #include <set>
 #include <string_view>
 
-#include "log/catalogue.hpp"
 #include "memory/memory.hpp"
-#include "platform/platform.hpp"
-#include "store/errors.hpp"
-#include "support/log/journal.hpp"
 
 namespace qiven3::test {
 
@@ -24,8 +17,33 @@ std::vector<Case>& registry() {
     return cases;
 }
 
-Registrar::Registrar(log::Name name, CaseFn fn, bool serial) {
-    registry().push_back(Case{name, fn, serial});
+Registrar::Registrar(std::string_view name, const log::Name* logged, CaseFn fn, bool serial) {
+    registry().push_back(Case{name, logged, fn, serial});
+}
+
+namespace {
+
+std::vector<Namer>& namers() {
+    static std::vector<Namer> registered;
+    return registered;
+}
+
+// The error in flight named by the first namer that knows it; false if none.
+bool named(std::ostream& out) {
+    for (const Namer namer : namers()) {
+        if (namer(out)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
+
+NamerRegistrar::NamerRegistrar(Namer namer) {
+    if (std::find(namers().begin(), namers().end(), namer) == namers().end()) {
+        namers().push_back(namer);
+    }
 }
 
 memory::Arena& Counted::arena(std::size_t bytes) {
@@ -85,88 +103,50 @@ bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) 
     return ok;
 }
 
-namespace {
-
-// The outcomes' names, made once: a Name made within a conditional
-// expression is not made right on every compiler.
-constexpr log::Name passed = "pass";
-constexpr log::Name skipped = "skip";
-constexpr log::Name failed = "fail";
-
-// A StoreError's code by its kind, as message() names it: StoreError's own
-// code, StoreLocked's cause, StoreCorrupt's or StoreFull's code,
-// EntryInvalid's entry code; empty for a kind with none.
-std::string_view store_code(const store::StoreError& e) {
-    if (const auto code = e.code()) {
-        return store::name(*code);
-    }
-    if (const auto cause = e.cause()) {
-        return store::name(*cause);
-    }
-    if (const auto corrupt = e.corrupt()) {
-        return store::name(*corrupt);
-    }
-    if (const auto full = e.full()) {
-        return store::name(*full);
-    }
-    return e.kind() == store::Kind::entry_invalid ? e.entry_code() : std::string_view();
-}
-
-// The case's end in log: its outcome's name, the time since start and the
-// bytes ctx's allocators hold; status, given back.
-int ended(const Case& c, const Context& ctx, std::chrono::steady_clock::time_point start, int status) {
-    const log::Name outcome = status == exit_pass ? passed : status == exit_skip ? skipped : failed;
-    log::event(ctx.log, log::events::case_end, c.name, outcome, log::Millis::since(start),
-               log::Count(ctx.counted.held()));
-    return status;
-}
-
-}  // namespace
-
-int run_case(const Case& c, std::ostream& out, log::Log& log) {
+int run_case(const Case& c, std::ostream& out, log::Log& log, Ended ended_by) {
     const auto start = std::chrono::steady_clock::now();
     Context ctx{out, log};
+    // The case's end given to ended_by; status, given back.
+    const auto ended = [&](int status) {
+        if (ended_by != nullptr) {
+            ended_by(log, c, status, start, ctx.counted.held());
+        }
+        return status;
+    };
     try {
         c.fn(ctx);
     } catch (const Skip& skip) {
-        out << "SKIP " << c.name.text() << ": " << skip.reason << "\n";
+        out << "SKIP " << c.name << ": " << skip.reason << "\n";
         out.flush();
-        return ended(c, ctx, start, exit_skip);
+        return ended(exit_skip);
     } catch (const Stop&) {
         out << "stopped by a failed REQUIRE\n";
     } catch (const std::exception& e) {
         ++ctx.failures;
         out << "exception: " << e.what() << "\n";
-    } catch (const platform::PlatformError& e) {
-        // A plain value with no base: its code's name and its detail.
-        ++ctx.failures;
-        out << "platform error " << platform::name(e.code) << ": " << e.detail.view() << "\n";
-    } catch (const store::StoreError& e) {
-        // As PlatformError's: its kind, its kind's code where it has one,
-        // and its detail.
-        ++ctx.failures;
-        const std::string_view code = store_code(e);
-        out << "store error " << store::name(e.kind()) << (code.empty() ? "" : " ") << code << ": " << e.detail()
-            << "\n";
     } catch (const memory::MemoryError& e) {
-        // As PlatformError's: its code's name, the operation that raised it
-        // (the allocator) and its detail.
+        // A plain value with no base: its code's name, the operation that
+        // raised it (the allocator) and its detail.
         ++ctx.failures;
         out << "memory error " << memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
             << "\n";
     } catch (...) {
+        // Another module's error (a PlatformError, a StoreError) by the
+        // namer its cases registered.
         ++ctx.failures;
-        out << "exception of an unknown type\n";
+        if (!named(out)) {
+            out << "exception of an unknown type\n";
+        }
     }
     ctx.failures += ctx.counted.holding(out);
     if (ctx.failures == 0) {
-        out << "PASS " << c.name.text() << "\n";
+        out << "PASS " << c.name << "\n";
         out.flush();
-        return ended(c, ctx, start, exit_pass);
+        return ended(exit_pass);
     }
-    out << "FAIL " << c.name.text() << ": " << ctx.failures << " failed\n";
+    out << "FAIL " << c.name << ": " << ctx.failures << " failed\n";
     out.flush();
-    return ended(c, ctx, start, exit_fail);
+    return ended(exit_fail);
 }
 
 namespace {
@@ -176,7 +156,7 @@ bool names_valid(const std::vector<Case>& cases, std::ostream& err) {
     std::set<std::string_view> seen;
     bool ok = true;
     for (const Case& c : cases) {
-        const std::string_view name = c.name.text();
+        const std::string_view name = c.name;
         if (name.front() == '.' || name.back() == '.') {
             err << "a case has an incomplete name: '" << name << "'\n";
             ok = false;
@@ -196,7 +176,7 @@ int usage(std::ostream& err) {
 }  // namespace
 
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err, log::Log& log) {
+             std::ostream& out, std::ostream& err, log::Log& log, Ended ended) {
     if (!names_valid(cases, err)) {
         return exit_usage;
     }
@@ -206,17 +186,17 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
             sorted.push_back(&c);
         }
         std::sort(sorted.begin(), sorted.end(),
-                  [](const Case* a, const Case* b) { return a->name.text() < b->name.text(); });
+                  [](const Case* a, const Case* b) { return a->name < b->name; });
         for (const Case* c : sorted) {
-            out << c->name.text() << (c->serial ? "\tserial\n" : "\n");
+            out << c->name << (c->serial ? "\tserial\n" : "\n");
         }
         out.flush();
         return exit_pass;
     }
     if (args.size() == 2 && args[0] == "--run") {
         for (const Case& c : cases) {
-            if (c.name.text() == args[1]) {
-                return run_case(c, out, log);
+            if (c.name == args[1]) {
+                return run_case(c, out, log, ended);
             }
         }
         err << "no such case: " << args[1] << "\n";
@@ -226,25 +206,3 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
 }
 
 }  // namespace qiven3::test
-
-namespace {
-
-// The process's log's pages, of static storage.
-qiven3::test::Journal::Pages journal_pages;
-
-}  // namespace
-
-int main(int argc, char** argv) {
-    // A crash, an abort or a failed assertion is the diagnostic entry's,
-    // which every binary runs before main: a report on standard error, the
-    // process's status, and no dialog.
-    // Unbuffered, so what a case wrote before a crash is in the log.
-    std::setvbuf(stdout, nullptr, _IONBF, 0);
-    // The process's log, its ring in a crash's report, drained at its end.
-    qiven3::test::Journal journal(journal_pages, "runner");
-    std::vector<std::string_view> args;
-    for (int i = 1; i < argc; ++i) {
-        args.emplace_back(argv[i]);
-    }
-    return qiven3::test::run_main(args, qiven3::test::registry(), std::cout, std::cerr, journal.log());
-}

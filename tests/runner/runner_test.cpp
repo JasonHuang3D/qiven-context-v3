@@ -13,7 +13,6 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "runner/runner.hpp"
-#include "store/errors.hpp"
 #include "support/log/cases.hpp"
 #include "support/log/journal.hpp"
 
@@ -22,11 +21,13 @@ namespace {
 using qiven3::test::Case;
 using qiven3::test::Context;
 
-// A case of name, serial or not, of body fn: a literal made a Name as an
-// argument, which an aggregate's member is not on every compiler.
-Case sample(qiven3::log::Name name, bool serial, qiven3::test::CaseFn fn = nullptr) {
-    return Case{name, fn, serial};
+// A case of name, serial or not, of body fn, with no Name of the log's.
+Case sample(std::string_view name, bool serial, qiven3::test::CaseFn fn = nullptr) {
+    return Case{name, nullptr, fn, serial};
 }
+
+// The Name of the case run() runs, which its case.end carries.
+constexpr qiven3::log::Name sample_case = "sample.case";
 
 // A Log of a case's own, numbered 2, over an arena of its context.
 class Logged {
@@ -49,7 +50,8 @@ struct Ran {
 Ran run(Context& ctx, qiven3::test::CaseFn fn) {
     std::ostringstream out;
     Logged logged(ctx);
-    const int status = qiven3::test::run_case(sample("sample.case", false, fn), out, logged.log);
+    const int status = qiven3::test::run_case(Case{sample_case.text(), &sample_case, fn, false}, out, logged.log,
+                                              &qiven3::test::case_ended);
     const qiven3::test::Lines lines = logged.lines();
     return Ran{status, out.str(), lines.at(lines.size() - 1)};
 }
@@ -171,26 +173,6 @@ QIVEN3_CASE(runner, platform_error_named) {
     CHECK(!holds(r.out, "unknown type"));
     CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
     CHECK(holds(r.event, R"("outcome":"fail")"));
-}
-
-QIVEN3_CASE(runner, store_error_named) {
-    // A StoreError has no base: its kind, its kind's code and its detail
-    // are named, each kind's code as message() names it, and none for a
-    // kind with none.
-    const Ran own = run(qiven3_ctx, [](Context&) {
-        throw qiven3::store::StoreError(qiven3::store::Code::internal, "open", "a.db", "no engine heap installed");
-    });
-    CHECK_EQ(own.status, qiven3::test::exit_fail);
-    CHECK(holds(own.out, "store error StoreError internal: no engine heap installed\n"));
-    CHECK(!holds(own.out, "unknown type"));
-    CHECK(holds(own.out, "FAIL sample.case: 1 failed\n"));
-    CHECK(holds(own.event, R"("outcome":"fail")"));
-    const Ran locked = run(qiven3_ctx, [](Context&) {
-        throw qiven3::store::StoreError::locked("open", "a.db", qiven3::store::Cause::held, "another writer");
-    });
-    CHECK(holds(locked.out, "store error StoreLocked held: another writer\n"));
-    const Ran none = run(qiven3_ctx, [](Context&) { throw qiven3::store::StoreError::not_found("get", "a.db", "e1"); });
-    CHECK(holds(none.out, "store error NotFound: \n"));
 }
 
 QIVEN3_CASE(runner, memory_error_named) {

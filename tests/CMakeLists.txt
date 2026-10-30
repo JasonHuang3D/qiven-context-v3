@@ -12,21 +12,64 @@ set(qiven3_bin "${PROJECT_BINARY_DIR}/bin")
 
 # qiven3_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...]
 #                  [LIMIT <seconds>])
-# A case binary: its sources, linked with the runner; each case a CTest test
-# labelled cxx and LABELS, under the watcher's limit by its labels, or LIMIT
-# where the binary states its own (runner/ctest_tests.cmake). The runner
-# comes first, or where LINK names it: after a target that links it
-# (support/stores), so that it is on the link line once.
+# The modules of tools/modules.json, each "<name>;<regex>" of one of its
+# paths: a path ending in / holds every file under it, any other is a
+# pattern on the whole path, * any run of characters (tools/loop_modules.py).
+file(READ "${PROJECT_SOURCE_DIR}/tools/modules.json" qiven3_table)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tools/modules.json")
+set(qiven3_module_paths "")
+string(JSON qiven3_count LENGTH "${qiven3_table}" modules)
+math(EXPR qiven3_last "${qiven3_count} - 1")
+foreach(qiven3_i RANGE ${qiven3_last})
+  string(JSON qiven3_name GET "${qiven3_table}" modules ${qiven3_i} name)
+  string(JSON qiven3_paths GET "${qiven3_table}" modules ${qiven3_i} paths)
+  string(JSON qiven3_count LENGTH "${qiven3_paths}")
+  math(EXPR qiven3_paths_last "${qiven3_count} - 1")
+  foreach(qiven3_j RANGE ${qiven3_paths_last})
+    string(JSON qiven3_path GET "${qiven3_paths}" ${qiven3_j})
+    string(REPLACE "." "\\." qiven3_regex "${qiven3_path}")
+    string(REPLACE "+" "\\+" qiven3_regex "${qiven3_regex}")
+    string(REPLACE "*" ".*" qiven3_regex "${qiven3_regex}")
+    if(NOT qiven3_path MATCHES "/$")
+      string(APPEND qiven3_regex "$")
+    endif()
+    list(APPEND qiven3_module_paths "${qiven3_name}|^${qiven3_regex}")
+  endforeach()
+endforeach()
+
+# The module of the file at path, from the root, into out: the first whose
+# path holds it; a file in none stops the configure.
+function(qiven3_module_of path out)
+  foreach(entry IN LISTS qiven3_module_paths)
+    string(FIND "${entry}" "|" bar)
+    string(SUBSTRING "${entry}" 0 ${bar} name)
+    math(EXPR start "${bar} + 1")
+    string(SUBSTRING "${entry}" ${start} -1 regex)
+    if(path MATCHES "${regex}")
+      set(${out} "${name}" PARENT_SCOPE)
+      return()
+    endif()
+  endforeach()
+  message(FATAL_ERROR "qiven3: ${path} is in no module of tools/modules.json")
+endfunction()
+
+# A case binary: its sources, linked with the log's main and the runner
+# (support/log); each case a CTest test labelled cxx, LABELS and its
+# module's name (its first source's module), under the watcher's limit by
+# its labels, or LIMIT where the binary states its own
+# (runner/ctest_tests.cmake).
 function(qiven3_add_cases target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "LIMIT" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_add_cases(${target}): no SOURCES")
   endif()
-  set(links qiven3_runner ${arg_LINK})
-  if(qiven3_runner IN_LIST arg_LINK)
-    set(links ${arg_LINK})
-  endif()
+  set(links qiven3_case_main ${arg_LINK})
   qiven3_executable(${target} SOURCES ${arg_SOURCES} LINK ${links})
+  list(GET arg_SOURCES 0 first)
+  cmake_path(ABSOLUTE_PATH first BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
+  cmake_path(RELATIVE_PATH first BASE_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  qiven3_module_of("${first}" module)
+  list(APPEND arg_LABELS ${module})
   list(JOIN arg_LABELS "," labels)
   set_property(GLOBAL APPEND PROPERTY QIVEN3_CASE_BINARIES ${target})
   set_property(GLOBAL PROPERTY QIVEN3_CASE_LABELS_${target} "${labels}")
@@ -34,6 +77,7 @@ function(qiven3_add_cases target)
 endfunction()
 
 add_subdirectory(runner)
+add_subdirectory(support/log)
 add_subdirectory(support/faults)
 add_subdirectory(support/fake_platform)
 add_subdirectory(support/fixtures)
@@ -136,7 +180,7 @@ file(WRITE "${qiven3_include}" "if(EXISTS [==[${qiven3_tests_file}]==])
   include([==[${qiven3_tests_file}]==])
 else()
   add_test(qiven3.not_built [==[${CMAKE_COMMAND}]==] -E false)
-  set_tests_properties(qiven3.not_built PROPERTIES LABELS \"cxx;py;fast;fake\")
+  set_tests_properties(qiven3.not_built PROPERTIES LABELS \"cxx;py;fast;fake;support\")
   message(WARNING \"qiven3: the tests are not listed yet: build first\")
 endif()
 ")

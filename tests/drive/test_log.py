@@ -65,7 +65,6 @@ class Levels(unittest.TestCase):
 
 
 class Field(unittest.TestCase):
-    ctest_reads = ("tests/unit/log_plant.cpp",)
     ctest_labels = ("fake",)
 
     def test_planted_field_does_not_compile(self):

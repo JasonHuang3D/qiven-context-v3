@@ -97,7 +97,6 @@ def generated(rng, count):
 
 
 class Refs(unittest.TestCase):
-    ctest_reads = ("qiven3-child",)
     ctest_labels = ("fake",)
 
     def whitespace(self, part):

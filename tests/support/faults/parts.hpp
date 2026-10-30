@@ -98,7 +98,7 @@ inline bool registered(std::string_view base, std::size_t n) {
     for (std::size_t i = 1; i <= n + 1; ++i) {
         const std::string name = std::string(base) + "_part" + std::to_string(i);
         const bool found = std::any_of(registry().begin(), registry().end(),
-                                       [&name](const Case& c) { return c.name.text() == name; });
+                                       [&name](const Case& c) { return c.name == name; });
         if (found != (i <= n)) {
             return false;
         }

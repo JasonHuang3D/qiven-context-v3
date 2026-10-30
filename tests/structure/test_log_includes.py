@@ -41,7 +41,6 @@ def findings(root):
 
 
 class Tree(unittest.TestCase):
-    ctest_reads = ("src/",)
 
     def test_k15(self):
         self.assertEqual(findings(rules.ROOT), [])

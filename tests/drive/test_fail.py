@@ -13,7 +13,6 @@ DEMO = "qiven3_fail_demo"
 
 
 class FailFast(unittest.TestCase):
-    ctest_reads = ("qiven3_fail_demo",)
     ctest_labels = ("fake",)
 
     def test_ends_the_process(self):

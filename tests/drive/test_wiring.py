@@ -1,6 +1,6 @@
 """The CTest wiring: the Python side's skip code, one whole test id selected
 by -k, and each test's labels and properties as the test presets select
-them: each behind the watcher, under its limit by its labels (a slow test
+them: each labelled with one module's name (tools/modules.json), behind the watcher, under its limit by its labels (a slow test
 1,800 s, a fast one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s
 past it."""
 
@@ -15,6 +15,7 @@ from tests.drive import binaries
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis", "loop"}
+MODULES = {m["name"] for m in json.loads((binaries.ROOT / "tools" / "modules.json").read_bytes())["modules"]}
 SHIM = binaries.ROOT / "tools" / "loop_shim.py"
 # The structure tests start no process and read no machine fact: fast, and
 # not drive; but the analysis tools' controls, which run the tools on the
@@ -153,6 +154,8 @@ class Registered(unittest.TestCase):
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
                 labels = set(props["LABELS"])
+                self.assertEqual(len(labels & MODULES), 1, labels)  # its module's, by which the loop selects it
+                labels -= MODULES - LABELS
                 self.assertLessEqual(labels, LABELS)
                 self.assertEqual(len(labels & {"cxx", "py"}), 1)
                 self.assertEqual(props["SKIP_RETURN_CODE"], SKIP_CODE)
