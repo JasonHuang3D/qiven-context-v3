@@ -5,13 +5,16 @@
 // scan's end (store_scan_case.hpp) taken over the factory's objects; and
 // references: a map citing A, its 24 references the most its lists hold,
 // every syntax of its content among them, appended on each store, its
-// counted peak within its budget, 1 MiB plus 4 times the lines given.
+// counted peak within its budget, 1 MiB plus 4 times the lines given; and
+// a scope set's entries ending in `*`, matched by prefix in heads and in
+// an export's heads on each store, one of them one past the scope's bound.
 
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -22,6 +25,7 @@
 #include "store/contract.hpp"
 #include "memory/memory.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/store_scan_case.hpp"
 #include "support/stores/stores.hpp"
@@ -104,6 +108,62 @@ void references_case(qiven3::test::Context& qiven3_ctx, F& f, std::string_view n
     (void)store->close();
 }
 
+// One entry of a scope set: one ending in `*` holds the scopes its bytes
+// before the `*` begin, `*` alone every scope, any other the scope it
+// equals; a scope set holds what one of its entries holds.
+static_assert(qiven3::store::in_scope("project:q*", "project:qiven"));
+static_assert(qiven3::store::in_scope("project:qiven*", "project:qiven"));
+static_assert(!qiven3::store::in_scope("project:q", "project:qiven"));
+static_assert(!qiven3::store::in_scope("project:qiven", "project:q"));
+static_assert(qiven3::store::in_scope("*", "") && qiven3::store::in_scope("*", "person"));
+static_assert(qiven3::store::in_scope("a*", "a*") && !qiven3::store::in_scope("a*", "b*"));
+static_assert(qiven3::store::in_scope("person", "person") && !qiven3::store::in_scope("person", "persons"));
+static_assert(qiven3::store::in_scopes(std::nullopt, "life"));
+
+// A scope set's prefix entries, through heads and an export's heads alike:
+// one lane in each of four project scopes, the last of the scope's bound,
+// and each set holding the lanes its entries match.
+template <class F>
+void prefix_case(qiven3::test::Context& qiven3_ctx, F& f) {
+    const stage_book::Book& book = f.site().book();
+    const std::string longest = "project:q" + std::string(qiven3::store::scope_bytes - 9, 'a');
+    const std::vector<std::string> scopes = {"project:qiven", "project:quill", "project:other", longest};
+    const std::string content = *book.stored("A").content;
+    const auto store = std::make_unique<typename F::Store>(f.make());
+    for (const std::string& scope : scopes) {
+        const std::vector<stage_book::Stored> one = {
+            book.made("A", "A", content, [&](qiven3::entry::header::FieldsView& v) { v.scope = scope; })};
+        (void)store->append(scope, at_lane, std::nullopt, stage_book::views(one));
+    }
+    const std::string past = longest + "*";
+    const std::string beyond = longest + "a*";
+    struct Want {
+        std::vector<std::string_view> set;
+        std::size_t lanes;
+    };
+    const std::vector<Want> wants = {
+        {{"project:q*"}, 3},     {{"project:qiven*"}, 1}, {{"project:qiven"}, 1},
+        {{"project:q"}, 0},      {{"*"}, 4},              {{"project:*"}, 4},
+        {{"project:other", "project:qu*"}, 2},            {{"project:qiven-*"}, 0},
+        {{past}, 1},             {{beyond}, 0},           {{}, 0},
+    };
+    qiven3::memory::Vector<qiven3::store::LaneHead> rows(f.site().chars());
+    for (const Want& want : wants) {
+        const qiven3::store::Scopes set = std::span<const std::string_view>(want.set);
+        (void)store->heads(set, rows);
+        const std::size_t held = rows.size();
+        const auto out = std::make_unique<decltype(store->export_(set, {}))>(store->export_(set, {}));
+        (void)out->heads(rows);
+        std::string named;
+        for (const std::string_view s : want.set) {
+            named += std::string(s) + " ";
+        }
+        CHECK_EQ(named + std::to_string(held), named + std::to_string(want.lanes));
+        CHECK_EQ(named + std::to_string(rows.size()), named + std::to_string(want.lanes));
+    }
+    (void)store->close();
+}
+
 }  // namespace
 
 QIVEN3_CASE(stores, tags) {
@@ -156,6 +216,18 @@ QIVEN3_CASE(stores, sqlite_scan_case) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
     scan_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(stores, memory_prefix) {
+    const auto site = stores::site();
+    stores::Memory f(*site);
+    prefix_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(stores, sqlite_prefix) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
+    prefix_case(qiven3_ctx, f);
 }
 
 QIVEN3_CASE(stores, two_states) {

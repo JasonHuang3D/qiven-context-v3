@@ -54,11 +54,10 @@
 #include "entry/validator.hpp"
 #include "memory/memory.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 
 namespace qiven3::store {
 
-using entry::validator::Head;
-using entry::validator::Id;
 using Header = entry::header::Header<memory::Allocator<char>>;
 using memory::String;
 using memory::Vector;
@@ -252,8 +251,6 @@ struct RangeView {  // a scan's scope, lane and seq to start after, each optiona
     std::optional<std::string_view> scope, lane;
     std::optional<std::int64_t> after;
 };
-// A scope set, `project:*` among its forms; none for the whole store.
-using Scopes = std::optional<std::span<const std::string_view>>;
 // The expected head: an id, or none for an empty lane.
 using Expected = std::optional<std::string_view>;
 

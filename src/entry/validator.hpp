@@ -85,6 +85,7 @@
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
+#include "store/keys.hpp"
 
 namespace qiven3::entry::validator {
 
@@ -94,35 +95,9 @@ inline constexpr std::array<std::string_view, 8> code_names = {
     "parent", "seq", "target", "at_order", "reference", "forgotten_target", "identity", "map_evidence"};
 constexpr std::string_view name(Code code) noexcept { return code_names[static_cast<std::size_t>(code)]; }
 
-// An id by value: sha256: and 64 hex, 71 characters; a longer text is
-// kept to its first 71.
-struct Id {
-    static constexpr std::size_t capacity = 71;
-    std::array<char, capacity> bytes{};
-    std::uint8_t size = 0;
-
-    static constexpr Id of(std::string_view text) noexcept {
-        Id id;
-        const std::size_t n = std::min(text.size(), capacity);
-        for (std::size_t i = 0; i < n; ++i) {
-            id.bytes.at(i) = text[i];
-        }
-        id.size = static_cast<std::uint8_t>(n);
-        return id;
-    }
-    [[nodiscard]] constexpr std::string_view view() const noexcept {
-        return std::string_view(bytes.data(), size);
-    }
-    constexpr bool operator==(const Id&) const = default;
-};
-static_assert(sizeof(Id) == 72, "Id's size is pinned: 71 characters and their count");
-
-// A lane's head: its id and seq.
-struct Head {
-    Id id;
-    std::int64_t seq = 0;
-};
-static_assert(sizeof(Head) == 80, "Head's size is pinned: an Id and seq");
+// An id by value and a lane's head, the store's.
+using store::Head;
+using store::Id;
 
 // The first fault: its code, the entry's index in the call and its id.
 struct RuleError {

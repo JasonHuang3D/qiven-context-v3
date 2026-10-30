@@ -15,6 +15,7 @@
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 
 namespace qiven3::store::state {
 
@@ -75,15 +76,6 @@ std::uint32_t lane_of(const Data& d, std::string_view scope, std::string_view la
         }
     }
     return none;
-}
-
-bool in_scopes(const Scopes& scopes, std::string_view scope) noexcept {
-    if (!scopes) {
-        return true;
-    }
-    return std::any_of(scopes->begin(), scopes->end(), [scope](std::string_view s) {
-        return s == scope || (s == "project:*" && scope.starts_with("project:"));
-    });
 }
 
 std::uint64_t forgets_in(const Data& d, const Scopes& scopes) noexcept {

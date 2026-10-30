@@ -245,9 +245,6 @@ private:
 [[nodiscard]] std::uint32_t find(const Data& d, std::string_view id) noexcept;
 // The index of a lane, or none.
 [[nodiscard]] std::uint32_t lane_of(const Data& d, std::string_view scope, std::string_view lane) noexcept;
-// Whether a scope set holds a scope: none is every scope, `project:*`
-// every project scope.
-[[nodiscard]] bool in_scopes(const Scopes& scopes, std::string_view scope) noexcept;
 // The forget entries in a scope set.
 [[nodiscard]] std::uint64_t forgets_in(const Data& d, const Scopes& scopes) noexcept;
 // Each lane of a scope set and its head, in (scope, lane) order, into rows.

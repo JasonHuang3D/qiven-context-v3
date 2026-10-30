@@ -5,6 +5,7 @@
 #include "store/exchange.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -21,6 +22,7 @@
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::store::sqlite {
@@ -41,7 +43,10 @@ constexpr int held_column = 10;
 // The packed records at an export's pages' front: a text's length in a
 // byte, unheld for one past its bound, which then names nothing, then its
 // bytes; a seq in eight bytes, the low first. Each scope of the set, then
-// each seq to start after with its scope and lane.
+// each seq to start after with its scope and lane. A set's entry ending in
+// `*` is packed as its bytes before the `*`, its length byte's high bit
+// set: so an entry one past the bound that ends in `*` is held too, and
+// one longer names no scope the store holds.
 constexpr std::size_t seq_bytes = 8;
 constexpr std::size_t scope_record = 1 + scope_bytes;
 constexpr std::size_t lane_record = 1 + lane_bytes;
@@ -55,6 +60,32 @@ void pack_text(std::span<std::byte> field, std::string_view text, std::size_t bo
     }
     field.front() = static_cast<std::byte>(text.size());
     std::ranges::transform(text, field.subspan(1).begin(), [](char c) { return static_cast<std::byte>(c); });
+}
+
+constexpr std::byte prefix_bit{0x80};
+
+void pack_entry(std::span<std::byte> field, std::string_view entry) noexcept {
+    const bool prefix = entry.ends_with('*');
+    pack_text(field, prefix ? entry.substr(0, entry.size() - 1) : entry, scope_bytes);
+    if (prefix && field.front() != unheld) {
+        field.front() |= prefix_bit;
+    }
+}
+
+// The set's entry a packed field holds, its bytes in buffer; none if
+// unheld.
+std::optional<std::string_view> entry_of(std::span<const std::byte> field,
+                                         std::array<char, scope_bytes + 1>& buffer) noexcept {
+    if (field.front() == unheld) {
+        return std::nullopt;
+    }
+    const bool prefix = (field.front() & prefix_bit) != std::byte{0};
+    const std::size_t n = std::to_integer<std::size_t>(field.front() & ~prefix_bit);
+    std::ranges::transform(field.subspan(1, n), buffer.begin(), [](std::byte b) { return static_cast<char>(b); });
+    if (prefix) {
+        buffer.at(n) = '*';
+    }
+    return std::string_view(buffer.data(), prefix ? n + 1 : n);
 }
 
 bool field_is(std::span<const std::byte> field, std::string_view text) noexcept {
@@ -134,7 +165,7 @@ void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view f
     every_ = !scopes;
     if (scopes) {
         for (const std::string_view s : *scopes) {
-            pack_text(pages.subspan(scopes_ * scope_record, scope_record), s, scope_bytes);
+            pack_entry(pages.subspan(scopes_ * scope_record, scope_record), s);
             ++scopes_;
         }
     }
@@ -289,9 +320,10 @@ bool Reader::in_set(std::span<const std::byte> pages, std::string_view scope) co
     if (every_) {
         return true;
     }
+    std::array<char, scope_bytes + 1> buffer{};
     for (std::size_t i = 0; i < scopes_; ++i) {
-        const std::span<const std::byte> f = pages.subspan(i * scope_record, scope_record);
-        if (field_is(f, scope) || (field_is(f, "project:*") && scope.starts_with("project:"))) {
+        const std::optional<std::string_view> entry = entry_of(pages.subspan(i * scope_record, scope_record), buffer);
+        if (entry && in_scope(*entry, scope)) {
             return true;
         }
     }

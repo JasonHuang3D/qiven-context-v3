@@ -479,7 +479,7 @@ void figures(Connection& c, Sizes& out, const WhereView& at);
 // h's fields made again on out's allocator.
 void copy_header(const Header& h, Header& out);
 // heads' read, in one read transaction: the head rows of scopes (none:
-// every one; `project:*` every project scope) into rows in (scope, lane)
+// every one; an entry ending in `*` by prefix) into rows in (scope, lane)
 // order, their forget entries, and whether meta's purged is below forgets.
 struct HeadsRead {
     std::uint64_t forgets = 0;

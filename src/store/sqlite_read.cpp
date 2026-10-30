@@ -17,6 +17,7 @@
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
+#include "store/keys.hpp"
 
 namespace qiven3::store::sqlite {
 
@@ -47,18 +48,6 @@ Header row_header(const Statement& s, const Chars& allocator, const WhereView& a
     }
     return h;
 }
-
-namespace {
-
-// Whether a scope set holds scope: none, every scope; `project:*` every
-// project scope.
-bool in_scopes(const Scopes& scopes, std::string_view scope) noexcept {
-    return !scopes || std::any_of(scopes->begin(), scopes->end(), [scope](std::string_view s) {
-               return s == scope || (s == "project:*" && scope.starts_with("project:"));
-           });
-}
-
-}  // namespace
 
 Header read_header(std::string_view id, std::string_view line, const Chars& allocator, const WhereView& at) {
     Header h(allocator);
