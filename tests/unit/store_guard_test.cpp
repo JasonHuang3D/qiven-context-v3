@@ -9,7 +9,11 @@
 // parent; head_parent, head_seq: on a lane with a head, a parent not the
 // head, parent, and a seq not one past it with the right parent (past part
 // 1, refused by the order alone), seq; other_scope, other_lane: an entry
-// whose scope or lane is not the call's, parent.
+// whose scope or lane is not the call's, parent; append_unheld: an entry
+// whose target is not held, target; import_unheld: an import's forget whose
+// target is not held, target; import_forgotten, import_bare: an import
+// giving a forgotten entry's body, forgotten_body, or a held entry's body
+// missing, body_missing.
 
 #include <cstddef>
 #include <filesystem>
@@ -144,12 +148,14 @@ struct Want {
     std::string_view code;
     std::size_t index;
 };
-constexpr std::size_t cases = 12;
+constexpr std::size_t cases = 16;
 constexpr Want wants[cases] = {
     {"append_forget", "forget_path", 0}, {"forget_accept", "forget_kind", 0}, {"forget_unheld", "target", 0},
     {"forget_twice", "target", 1},       {"forget_forgotten", "target", 0},   {"forget_scope", "target", 0},
     {"import_gap", "seq", 1},            {"import_parent", "parent", 1},      {"head_parent", "parent", 0},
-    {"head_seq", "seq", 0},              {"other_scope", "parent", 0},        {"other_lane", "parent", 0}};
+    {"head_seq", "seq", 0},              {"other_scope", "parent", 0},        {"other_lane", "parent", 0},
+    {"append_unheld", "target", 0},      {"import_unheld", "target", 4},      {"import_forgotten", "forgotten_body", 1},
+    {"import_bare", "body_missing", 1}};
 
 // Case k's held state, written on s.
 template <class S>
@@ -161,7 +167,7 @@ void before(std::size_t k, S& s, const Book& book, Arena& arena) {
         (void)s.append(qs, mine, std::nullopt, views(three), NoAdmit{});
     } else if (k <= 5) {
         (void)s.append(qs, mine, std::nullopt, views(chain), NoAdmit{});
-    } else if (k == 8 || k == 9) {
+    } else if (k == 8 || k == 9 || k == 12) {
         const std::vector<Stored> first = {a};
         (void)s.append(qs, mine, std::nullopt, views(first), NoAdmit{});
     }
@@ -240,9 +246,27 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     case 10:
         lines = {a};
         return append(away_scope, mine, std::nullopt);
-    default:
+    case 11:
         lines = {book.stored("C")};
         return append(qs, mine, std::nullopt);
+    case 12: {
+        const std::string c = id_of(book.stored("C"));
+        lines = {book.made("B", "B", *book.stored("B").content, [&](header::FieldsView& f) { f.target = c; })};
+        return append(qs, mine, Expected(id_of(a)));
+    }
+    case 13:
+        lines = {a, book.stored("B"), book.stored("D"), book.stored("ACC"),
+                 again(id_of(book.stored("C")), acc, seq_of(e))};
+        return import();
+    case 14:
+        lines = {a, book.stored("B"), book.stored("D"), book.stored("ACC"), e};
+        return import();
+    default: {
+        Stored bare = book.stored("B");
+        bare.record.reset();
+        lines = {a, bare};
+        return import();
+    }
     }
 }
 

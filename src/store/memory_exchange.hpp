@@ -235,6 +235,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
                                : std::nullopt;
                 StateView view(d, Chars(work), op, {});
                 admit.settled(view, h, content, i, at, Chars(work));
+                stage::settles(h, e.target != none, e.forget != none, e.has_body, i, at);
                 note(peak.work, work);
             }
         }

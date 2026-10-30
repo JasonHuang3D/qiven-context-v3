@@ -266,16 +266,21 @@ private:
 // asked and the count (StoreNotEmpty); then, once every line is in, the
 // final view over pages, the heads compared, meta written, the counts.
 void begin_import(Connection& c, bool defer, const WhereView& at);
-// The final view's rows, in the order inserted; the heads the rows give
+// The final view's rows, in the order inserted, each with whether its
+// target is held and whether a forget names it; the heads the rows give
 // into heads; meta written from the rows, the counts.
 inline constexpr std::string_view final_rows =
-    "SELECT e.id, e.line, b.record FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
+    "SELECT e.id, e.line, b.record, "
+    "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target), "
+    "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget') "
+    "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
 // Both on one statement, the heads' kept open until meta's takes its place.
 void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 [[nodiscard]] Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits);
 
 // Once every line is in: each entry through the admit hook's settled in
-// the final view over pages, afresh, then the heads through its heads.
+// the final view over pages, afresh, then the store's settles, then the
+// heads through its heads.
 template <class A>
 Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
                     std::span<std::byte> pages, Countdown* countdown, const WhereView& at, const Limits& limits,
@@ -292,6 +297,7 @@ Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneH
                 s.null(2) ? std::nullopt : std::optional<std::string_view>(entry::body::detail::parts(s.blob(2)).content);
             ImportView view(c, chars, at);
             admit.settled(view, h, content, i, site, chars);
+            stage::settles(h, s.integer(3) != 0, s.integer(4) != 0, !s.null(2), i, site);
             peak = std::max(peak, work.peak());
         }
     }

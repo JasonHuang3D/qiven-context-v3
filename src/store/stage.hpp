@@ -22,7 +22,10 @@
 // one past it, refused parent or seq. erasable(entries, erased, at), at
 // forget once the store has found what it erases: each forget's target
 // held in the call's scope with its body, none twice, the first not
-// refused EntryInvalid target.
+// refused EntryInvalid target. settles(header, ...), at import once every
+// line is in, after the hook's settled: a target not held, target; a body
+// of a forgotten entry, forgotten_body; a content with no body, not
+// forgotten, body_missing.
 //
 // staged(view, checked, limits, at), inside the store's transaction or
 // lock, after the hook's admit: at append alone, the maximum: the view's
@@ -30,8 +33,10 @@
 // StoreFull store_full, with the size and count the call would reach. It
 // returns the new head and what the call adds. With the call's scope, lane
 // and the head the store read, staged first runs in_order, the store's own
-// order over its keys. A HeadConflict, a guard and whole_record are the
-// store's.
+// order over its keys; given a scratch, at append then targets, each
+// entry's target held in the call's scope, the store's or an earlier one
+// of the call's, refused target. A HeadConflict, a guard and whole_record
+// are the store's.
 //
 // Refusals are EntryInvalid with the entry's index and its id once part 1
 // has read the header through (a body or content fault, the order); the
@@ -42,8 +47,8 @@
 // the next; at forget the line's value, four, on one of its own; the
 // hook's are its own (each hook says). On the caller's
 // allocator, what read keeps: the entries' room, one; each entry's header,
-// one, and body, one. staged, in_order, arrives and erasable none but the
-// view's. Platform
+// one, and body, one. staged, in_order, arrives, erasable and settles none
+// but the view's; targets each held header on a fresh scratch arena. Platform
 // calls: part 1's wipes and each kept body's key's, each noexcept. stage
 // logs nothing.
 //
@@ -307,11 +312,62 @@ void erasable(std::span<const Entry<P>> entries, std::span<const Id> erased, con
     }
 }
 
+// At import, one entry once every line is in, after the hook's settled,
+// by what the store holds of it: its target held, else target; its body
+// held while forgotten, forgotten_body; a content with no body, not
+// forgotten, body_missing.
+inline void settles(const header::Header<Chars>& h, bool target_held, bool forgotten, bool body, std::size_t index,
+                    const AtView& at) {
+    const std::string_view id = h.value(Slot::id);
+    if (h.text(Slot::target) && !target_held) {
+        refuse(at, index, id, "target");
+    }
+    if (body && forgotten) {
+        refuse(at, index, id, "forgotten_body");
+    }
+    if (!body && !forgotten && h.text(Slot::content)) {
+        refuse(at, index, id, "body_missing");
+    }
+}
+
+// At append, each entry's target held in the call's scope, an earlier one
+// of the call's or the store's, each held header read on a fresh scratch
+// arena; the first not held refused target.
+template <View V, platform::Platform P, Scratch S>
+void targets(V& view, std::span<const Entry<P>> entries, std::string_view scope, const AtView& at, S& scratch) {
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const header::Header<Chars>& h = entries[i].header();
+        const std::optional<std::string_view> t = h.text(Slot::target);
+        bool held = !t;
+        for (std::size_t j = 0; j < i && !held; ++j) {
+            held = entries[j].header().value(Slot::id) == *t;
+        }
+        if (!held) {
+            header::Header<Chars> found{Chars(scratch())};
+            held = view.header(*t, found) && found.value(Slot::scope) == scope;
+        }
+        if (!held) {
+            refuse(at, i, h.value(Slot::id), "target");
+        }
+    }
+}
+
 // The store's step after the admit hook: its own order, then staged.
 template <View V, platform::Platform P>
 Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at, std::string_view scope,
               std::string_view lane, const std::optional<Head>& now) {
     in_order(scope, lane, now, std::span<const Entry<P>>(checked.entries), at);
+    return staged(view, checked, limits, at);
+}
+
+// The same, the store's own: its order, at append its targets, then staged.
+template <View V, platform::Platform P, Scratch S>
+Staged staged(V& view, const Checked<P>& checked, const Limits& limits, const AtView& at, std::string_view scope,
+              std::string_view lane, const std::optional<Head>& now, S& scratch) {
+    in_order(scope, lane, now, std::span<const Entry<P>>(checked.entries), at);
+    if (at.op == Operation::append) {
+        targets(view, std::span<const Entry<P>>(checked.entries), scope, at, scratch);
+    }
     return staged(view, checked, limits, at);
 }
 

@@ -156,7 +156,7 @@ std::vector<Step> steps() {
                        (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
-    out.push_back({"append_acc", 0, true, {102, 7, 0, 1}, [](Bed& b, const Chars&) {
+    out.push_back({"append_acc", 0, true, {117, 7, 0, 1},[](Bed& b, const Chars&) {
                        (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
@@ -347,7 +347,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 331}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 346}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

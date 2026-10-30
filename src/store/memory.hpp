@@ -218,7 +218,7 @@ public:
         const std::optional<Head> now = state::expect(d, op, {}, scope, lane, expected);
         state::StateView view(d, chars, op, {}, &scratch);
         admit.admit(view, scope, lane, expected, std::span<const stage::Entry<P>>(checked.entries), at, chars);
-        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at, scope, lane, now);
+        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at, scope, lane, now, scratch);
         state::Batch batch(d);
         for (std::size_t i = 0; i < entries.size(); ++i) {
             batch.add(d, entries[i].line, entries[i].body, checked.entries[i].header());
