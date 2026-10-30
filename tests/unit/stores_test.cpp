@@ -7,7 +7,8 @@
 // every syntax of its content among them, appended on each store, its
 // counted peak within its budget, 1 MiB plus 4 times the lines given; and
 // a scope set's entries ending in `*`, matched by prefix in heads and in
-// an export's heads on each store, one of them one past the scope's bound.
+// an export's heads on each store, one of them one past the scope's bound;
+// and the reads each store lends a step, on its own pages.
 
 #include <cstddef>
 #include <filesystem>
@@ -204,6 +205,105 @@ QIVEN3_CASE(stores, sqlite_factory) {
     stores::Sqlite<> f(*site);
     factory_case(qiven3_ctx, f);
     CHECK(std::filesystem::exists(f.directory() / "store.db"));
+}
+
+// The reads lent to a step, on the store's own: each step given the bytes
+// the plain read gives and the store's pages, three quarters of them taken
+// by each step, so that a second step fits only on pages reset after the
+// first; a step's throw passed on, the store as it was (its peak, head and
+// bytes) and a scan at the record it was at.
+template <class F>
+void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
+    using Chars = qiven3::memory::Allocator<char>;
+    constexpr std::size_t most = qiven3::store::operation_base / 4 * 3;
+    const stage_book::Book& book = f.site().book();
+    const std::vector<stage_book::Stored> a = {book.stored("A")};
+    const std::string id = stage_book::id_of(a[0]);
+    const auto ruled = std::make_unique<typename F::Store>(f.make());
+    (void)ruled->append(at_scope, at_lane, std::nullopt, stage_book::views(a));
+    typename F::Store::Plain& store = *ruled;
+    qiven3::memory::String line(f.site().chars());
+    qiven3::memory::String record(f.site().chars());
+    store.header(id, line);
+    const bool has = store.body(id, record);
+    CHECK_EQ(has, a[0].record.has_value());
+    const auto take = [](const Chars& chars) {
+        qiven3::memory::String room(chars);
+        room.resize(most);
+    };
+    for (int round = 0; round < 2; ++round) {
+        std::string seen;
+        store.header(id, [&](std::string_view held, const Chars& chars) {
+            take(chars);
+            seen = held;
+        });
+        CHECK_EQ(seen, std::string(std::string_view(line)));
+        CHECK(store.peak() >= most && store.peak() <= qiven3::store::operation_base);
+        std::optional<std::string> body;
+        CHECK_EQ(store.body(id,
+                            [&](std::string_view, const std::string_view* held, const Chars& chars) {
+                                take(chars);
+                                body = held != nullptr ? std::optional<std::string>(*held) : std::nullopt;
+                            }),
+                 has);
+        CHECK(body == (has ? std::optional<std::string>(std::string_view(record)) : std::nullopt));
+    }
+    const std::vector<stage_book::Stored> b = {book.stored("B")};
+    (void)ruled->append(at_scope, at_lane, id, stage_book::views(b));
+    const std::size_t peak = store.peak();
+    // Each throws on a line it is given, held by every entry.
+    const auto fail = [](std::string_view held, auto&&...) {
+        if (!held.empty()) {
+            throw std::runtime_error("the step");
+        }
+    };
+    const auto fail_next = [](const qiven3::store::Record& r, const Chars&) {
+        if (!r.line.empty()) {
+            throw std::runtime_error("the step");
+        }
+    };
+    const auto threw = [](const auto& call) {
+        try {
+            call();
+        } catch (const std::runtime_error& e) {
+            return std::string(e.what());
+        }
+        return std::string();
+    };
+    CHECK_EQ(threw([&] { store.header(id, fail); }), std::string("the step"));
+    CHECK_EQ(threw([&] { (void)store.body(id, fail); }), std::string("the step"));
+    CHECK_EQ(store.peak(), peak);
+    const auto head = store.head(at_scope, at_lane);
+    CHECK(head && head->seq == 2 && head->id.view() == stage_book::id_of(b[0]));
+    qiven3::memory::String again(f.site().chars());
+    store.header(id, again);
+    CHECK_EQ(std::string_view(again), std::string_view(line));
+
+    // Two records, each next's step given the pages afresh; a throwing
+    // step leaves the scan at A.
+    auto scan = store.scan({});
+    CHECK_EQ(threw([&] { (void)scan.next(fail_next); }), std::string("the step"));
+    std::string ids;
+    for (int round = 0; round < 3; ++round) {
+        CHECK(scan.next([&](const qiven3::store::Record& r, const Chars& chars) {
+            take(chars);
+            ids += std::string(r.id.view()) + " ";
+        }) == (round < 2));
+    }
+    CHECK_EQ(ids, id + " " + stage_book::id_of(b[0]) + " ");
+    CHECK(scan.peak() >= most && scan.peak() <= qiven3::store::operation_base);
+}
+
+QIVEN3_CASE(stores, memory_lend) {
+    const auto site = stores::site();
+    stores::Memory f(*site);
+    lend_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(stores, sqlite_lend) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
+    lend_case(qiven3_ctx, f);
 }
 
 QIVEN3_CASE(stores, memory_scan_case) {

@@ -12,7 +12,7 @@ using Fake = platform::fake::FakePlatform;
 
 template class Engine<Fake>;
 template class SQLiteStore<Fake, NoHooks>;
-template Imported SQLiteStore<Fake, NoHooks>::import_(detail::SourceArchetype&, Vector<LaneHead>&);
+template Imported SQLiteStore<Fake, NoHooks>::import_(detail::SourceArchetype&, Vector<LaneHead>&, NoAdmit&&);
 
 static_assert(Store<SQLiteStore<Fake, NoHooks>>);
 

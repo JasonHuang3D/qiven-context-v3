@@ -183,7 +183,7 @@ std::vector<Step> steps() {
                        (void)b.store.forgotten(b.a_id);
                        return Peaks{};
                    }});
-    out.push_back({"scan", base, false, {60, 1, 4, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"scan", base, false, {64, 1, 4, 1}, [](Bed& b, const Chars& c) {
                        auto scan = b.store.scan(RangeView{});
                        Header h(c);
                        while (scan.next(h)) {
@@ -347,7 +347,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 329}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 329}, {3, 13, 175}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

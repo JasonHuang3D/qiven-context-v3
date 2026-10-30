@@ -428,7 +428,7 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 std::string scanned(Store& store, const Chars& chars, const qiven3::store::RangeView& range) {
     std::string ids;
     qiven3::store::Header h(chars);
-    for (sqlite::ScanView scan = store.scan(range); scan.next(h);) {
+    for (auto scan = store.scan(range); scan.next(h);) {
         ids += std::string(h.value(Slot::id).substr(7, 4)) + " ";
     }
     return ids;
@@ -497,11 +497,13 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
            test_at);
     CHECK(raised([&] { (void)store->body(a, record); }).starts_with("StoreCorrupt body_mismatch"));
     c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", test_at);
-    CHECK(raised([&] { store->header(b, *out); }).starts_with("StoreCorrupt incoherent"));
+    // A column beside its line: the header read gives the line alone; a
+    // ruled scan compares the columns.
+    CHECK(raised([&] { (void)scanned(*store, chars, {}); }).starts_with("StoreCorrupt incoherent"));
     c.exec("UPDATE entry SET line = (SELECT line FROM entry WHERE id = '" + b + "') WHERE id = '" + a + "'", test_at);
     CHECK(raised([&] { store->header(a, *out); }).starts_with("StoreCorrupt id_mismatch"));
     CHECK(raised([&] { (void)scanned(*store, chars, {}); }).starts_with("StoreCorrupt id_mismatch"));
-    const auto left = std::make_unique<sqlite::ScanView>(store->scan({}));
+    const auto left = std::make_unique<decltype(store->scan({}))>(store->scan({}));
     (void)store->close();
     CHECK_EQ(raised([&] { (void)left->next(*out); }), std::string("StoreError closed"));
 }

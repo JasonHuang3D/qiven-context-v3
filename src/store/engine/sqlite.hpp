@@ -34,13 +34,16 @@
 // EngineHeap's heap shared, under its own lock, and its slots under the
 // engine's.
 
+#include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
@@ -467,10 +470,11 @@ void add_meta(Connection& c, std::int64_t size, std::int64_t count, std::int64_t
 // size's figures: page_size, page_count, freelist_count, the files'.
 void figures(Connection& c, Sizes& out, const WhereView& at);
 
-// The reads (sqlite_read.cpp), through the wrapper. A header line is
-// parsed and checked, its id recomputed and compared with the row's (a
-// mismatch StoreCorrupt id_mismatch); find and a scan compare each column
-// beside the line with its field too (StoreCorrupt incoherent).
+// The reads (sqlite_read.cpp), through the wrapper. An export's header
+// line is parsed and checked, its id recomputed and compared with the
+// row's (a mismatch StoreCorrupt id_mismatch), and each column beside the
+// line compared with its field (StoreCorrupt incoherent); find and a scan
+// give the bytes and keys held, parsing none.
 [[nodiscard]] Header read_header(std::string_view id, std::string_view line, const Chars& allocator,
                                  const WhereView& at);
 // A row of id, scope, lane, seq, parent, kind, target and line, in this
@@ -478,8 +482,6 @@ void figures(Connection& c, Sizes& out, const WhereView& at);
 [[nodiscard]] Header row_header(const Statement& s, const Chars& allocator, const WhereView& at);
 [[nodiscard]] std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_view lane,
                                           const WhereView& at);
-// h's fields made again on out's allocator.
-void copy_header(const Header& h, Header& out);
 // heads' read, in one read transaction: the head rows of scopes (none:
 // every one; an entry ending in `*` by prefix) into rows in (scope, lane)
 // order, their forget entries, and whether meta's purged is below forgets.
@@ -488,17 +490,17 @@ struct HeadsRead {
     bool pending = false;
 };
 [[nodiscard]] HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, const WhereView& at);
-// An entry by id, its header checked into out on out's allocator. With
-// record given: no body row, nothing parsed; else its record into it.
+// An entry by id: its line's bytes into line and its body record's into
+// record, each where given, on its allocator; body where it has a body row.
 enum class Found : std::uint8_t { absent, entry, body };
-[[nodiscard]] Found find(Connection& c, std::string_view id, Header& out, memory::String* record,
+[[nodiscard]] Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record,
                          const WhereView& at);
 // Whether a forget targets id; none is id, NotFound.
 [[nodiscard]] bool forgotten(Connection& c, std::string_view id, const WhereView& at);
 
 // A scan: a cursor at the last (scope, lane, seq) it gave, each next() one
-// query for the first entry of its range past it, checked as find's, on a
-// fresh arena over the pages, copied into out. Made, it reads the greatest
+// query for the first entry of its range past it, its keys' columns and
+// line copied into out, nothing parsed. Made, it reads the greatest
 // rowid of entry, and gives no row past it: entry rows are never deleted,
 // each takes the greatest rowid plus one, and VACUUM keeps the rowids of a
 // table with an index. So every entry committed before it began comes
@@ -516,11 +518,51 @@ public:
     ScanView& operator=(ScanView&&) noexcept = default;
     ~ScanView() = default;
 
-    bool next(Header& out);
-    // The counted peak of its greatest next.
+    // The next record into out, on out's allocator; false at the end.
+    bool next(Record& out) {
+        if (!fetch(out)) {
+            return false;
+        }
+        past(out);
+        return true;
+    }
+    // The next record lent to step: step(record, chars) inside the next,
+    // the record and chars on a fresh arena over the pages, reset after the
+    // step; false at the end, step not called. A step's throw leaves the
+    // scan at that record.
+    template <class Step>
+        requires std::invocable<Step&, const Record&, const Chars&>
+    bool next(Step&& step) {
+        memory::Arena arena(pages_);
+#if defined(QIVEN3_FAULTS)
+        if (countdown_ != nullptr) {
+            arena.attach(countdown_);
+        }
+#endif
+        const Chars chars(arena);
+        Record r(chars);
+        if (!fetch(r)) {
+            return false;
+        }
+        step(std::as_const(r), chars);
+        past(r);
+        peak_ = std::max(peak_, arena.peak());
+        return true;
+    }
+    // The counted peak of its greatest lent next: a plain next writes on
+    // its caller's allocator alone.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
 private:
+    // The next record into out, the cursor where it was; false at the end.
+    bool fetch(Record& out);
+    // The cursor past r.
+    void past(const Record& r) noexcept {
+        at_scope_ = r.scope;
+        at_lane_ = r.lane;
+        at_seq_ = r.seq;
+    }
+
     const Gate* gate_;
     Connection* c_;
     std::span<std::byte> pages_;

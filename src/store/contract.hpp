@@ -14,8 +14,9 @@
 // buffers out: ids, scopes, lanes and lines enter as std::string_view, an
 // entry as EntryView (its header line and its body record or none), and a
 // result is a value type here or is written into the String, Header or
-// Vector the caller gives, on the caller's arena. A header is given parsed,
-// a body record and an export's lines as their bytes.
+// Vector the caller gives, on the caller's arena. A header line, a body
+// record, a scan's records and an export's lines are given as their bytes
+// and keys; the store parses none of them.
 //
 // A scan and an export are handles of their own: move-only values, read
 // one entry at a time by next(), each ended by its destructor. An export
@@ -37,7 +38,8 @@
 // 1 MiB plus 4 times the lines given, the engine's heap apart (2,000 KiB
 // of cache plus 1 MiB a connection); an export's iteration 2 MiB.
 //
-// Allocations: none; Line's two strings are empty until written. Platform
+// Allocations: none; Line's two strings and Record's are empty until
+// written. Platform
 // calls: none. thread: Gate reads the calling thread's id; the rest none.
 
 #include <array>
@@ -241,6 +243,28 @@ struct EntryView {
     std::optional<std::string_view> body;  // its body record, or none
     Keys keys;                             // its keys, NoAdmit's to give
 };
+
+// A scan's record: its keys owned and its header line's bytes, on the
+// caller's allocator.
+struct Record {
+    explicit Record(const memory::Allocator<char>& allocator) noexcept : kind(allocator), line(allocator) {}
+    Id id;
+    memory::Inline<scope_bytes> scope;
+    memory::Inline<lane_bytes> lane;
+    String kind;
+    std::int64_t seq = 0;
+    std::optional<Id> parent, target;
+    bool body = false;  // a body, held or forgotten
+    String line;        // the header line, without its LF
+
+    // Its keys, views of it.
+    [[nodiscard]] Keys keys() const noexcept {
+        const auto text = [](const std::optional<Id>& i) {
+            return i ? std::optional<std::string_view>(i->view()) : std::nullopt;
+        };
+        return Keys{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
+    }
+};
 struct GuardView {  // a head the store holds, as the caller expects it
     std::string_view scope, lane, id;
 };
@@ -422,11 +446,11 @@ struct NoAdmit {
 template <class A, class Rule>
 concept HookOf = std::same_as<Rule, NoAdmit> || std::same_as<std::remove_cvref_t<A>, Rule>;
 
-// A scan's headers in (scope, lane, seq) order; false at the end. Every
+// A scan's records in (scope, lane, seq) order; false at the end. Every
 // entry committed before the scan began comes once, and none after: each
 // lane ends at its length at the scan's start.
 template <class H>
-concept Scan = Handle<H> && requires(H& h, Header& out) {
+concept Scan = Handle<H> && requires(H& h, Record& out) {
     { h.next(out) } -> std::same_as<bool>;
 };
 
@@ -465,12 +489,12 @@ template <class S>
 concept Store = Handle<S> && detail::Declares<S> &&
                 requires(S& s, const S& c, std::string_view v, Expected expected, std::span<const EntryView> entries,
                          std::span<const GuardView> guard, Scopes scopes, std::span<const AfterView> after,
-                         const RangeView& range, Header& header, String& record, Vector<LaneHead>& rows,
+                         const RangeView& range, String& line, String& record, Vector<LaneHead>& rows,
                          Vector<Id>& erased, detail::SourceArchetype& source) {
                     { s.append(v, v, expected, entries) } -> std::same_as<Written>;
                     { s.head(v, v) } -> std::same_as<std::optional<Head>>;
                     { s.heads(scopes, rows) } -> std::same_as<Heads>;
-                    { s.header(v, header) } -> std::same_as<void>;
+                    { s.header(v, line) } -> std::same_as<void>;
                     { s.body(v, record) } -> std::same_as<bool>;  // false: forgotten, or a forget
                     { s.forgotten(v) } -> std::same_as<bool>;
                     { s.scan(range) } -> Scan;

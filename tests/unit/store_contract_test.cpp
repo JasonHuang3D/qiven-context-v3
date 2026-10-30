@@ -46,7 +46,7 @@ using TokenOf = std::conditional_t<Copyable, int, Token>;
 
 template <bool Copyable = false>
 struct MinimalScan {
-    [[nodiscard]] bool next(store::Header& /*out*/) {
+    [[nodiscard]] bool next(store::Record& /*out*/) {
         return left-- > 0;
     }
     int left = 0;
@@ -102,13 +102,13 @@ public:
         rows.clear();
         return {};
     }
-    void header(std::string_view id, store::Header& /*out*/)
+    void header(std::string_view id, store::String& /*line*/)
         requires(P != Plant::header_bool)
     {
         gate_.enter(Operation::header, path);
         throw StoreError::not_found("header", path, id);
     }
-    bool header(std::string_view, store::Header&)
+    bool header(std::string_view, store::String&)
         requires(P == Plant::header_bool)
     {
         return false;
@@ -380,7 +380,8 @@ std::size_t drive(S& s, qiven3::memory::Arena& arena) {
     store::Vector<store::LaneHead> rows{qiven3::memory::Allocator<store::LaneHead>(arena)};
     store::Vector<store::Id> erased{qiven3::memory::Allocator<store::Id>(arena)};
     store::String record(chars);
-    store::Header header(chars);
+    store::String line(chars);
+    store::Record scanned(chars);
     const std::array<store::EntryView, 2> entries = {store::EntryView{"{}", "{}"},
                                                      store::EntryView{"{}", std::nullopt}};
     std::size_t n = 0;
@@ -388,14 +389,14 @@ std::size_t drive(S& s, qiven3::memory::Arena& arena) {
     n += s.head("person", "implementer").has_value() ? 1U : 0U;
     n += s.heads(std::nullopt, rows).purge.done ? 1U : 0U;
     try {
-        s.header(id_a, header);
+        s.header(id_a, line);
     } catch (const StoreError& e) {
         n += e.kind() == store::Kind::not_found && e.id() == id_a ? 1U : 0U;
     }
     n += s.body(id_a, record) ? 0U : 1U;
     n += s.forgotten(id_a) ? 0U : 1U;
     auto scan = s.scan(store::RangeView{});
-    n += scan.next(header) ? 0U : 1U;
+    n += scan.next(scanned) ? 0U : 1U;
     n += s.forget("person", "implementer", id_a, entries, {}, erased).head.seq == 4 ? 1U : 0U;
     n += s.purge().done ? 1U : 0U;
     auto exported = s.export_(std::nullopt, {});

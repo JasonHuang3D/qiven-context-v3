@@ -27,8 +27,8 @@
 // purge and close: the attempt (steps a to c), which raises no engine
 // result; a read-only object attempts none. size: meta, then the figures.
 // head, heads, header, body, forgotten: one query each through
-// sqlite_read.cpp (heads in one read transaction), header and body
-// re-checking what they return; scan a cursor (sqlite::ScanView). export,
+// sqlite_read.cpp (heads in one read transaction), header and body giving
+// the bytes held, parsing neither; scan a cursor (sqlite::ScanView). export,
 // import and verify: exchange.hpp's, an export closed by this object's
 // close, move or end.
 //
@@ -37,7 +37,9 @@
 // forget: 1 MiB plus 4 times the lines given (the object's own where they
 // hold it), halved: the kept arena (read's entries, the rows, the targets,
 // the hook's), and read's scratch, afresh for each line, and the hook's.
-// header, body and a scan's next: an arena over the object's own pages.
+// header, body and a scan's next: none, the bytes on the caller's; lent
+// to a step, the bytes and the step's on an arena over the object's own
+// pages.
 // The engine's heap apart (Engine). Platform calls: at open pages,
 // resolve, synced, at create one or two creates; at append and forget
 // pages past 1 MiB, and part 1's wipes.
@@ -46,6 +48,7 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -229,30 +232,29 @@ public:
         const sqlite::HeadsRead r = sqlite::heads(connection_, scopes, rows, site_of(Operation::heads));
         return Heads{r.forgets, !r.pending ? Purge{} : (last_.done ? Purge::pending("writer") : last_)};
     }
-    void header(std::string_view id, Header& out) {
-        memory::Arena arena(own(Operation::header));
-        hook(arena);
-        Header h{sqlite::Chars(arena)};
-        found(sqlite::find(connection_, id, h, nullptr, site_of(Operation::header)), Operation::header, id);
-        sqlite::copy_header(h, out);
-        peak_ = arena.peak();
+    // The header line's bytes into line, and the body record's into record
+    // (false: forgotten, a forget, or no body), each on its allocator.
+    void header(std::string_view id, String& line) {
+        peak_ = 0;
+        (void)bytes(Operation::header, id, &line, nullptr);
     }
-    // false: forgotten, a forget, or a header with no body; else the record
-    // checked against its header.
     bool body(std::string_view id, String& record) {
-        constexpr Operation op = Operation::body;
-        memory::Arena arena(own(op));
-        hook(arena);
-        const sqlite::Chars chars(arena);
-        Header h(chars);
-        String held(chars);
-        const bool has = found(sqlite::find(connection_, id, h, &held, site_of(op)), op, id) == sqlite::Found::body;
-        if (has) {
-            checked(held, h, id, chars);
-            record.assign(std::string_view(held));  // on record's allocator
-        }
-        peak_ = arena.peak();
-        return has;
+        peak_ = 0;
+        return bytes(Operation::body, id, nullptr, &record);
+    }
+    // The reads lent to a caller's step, as the memory store's: the bytes
+    // and the step's on an arena over the own pages, reset after the step.
+    template <class Step>
+        requires std::invocable<Step&, std::string_view, const sqlite::Chars&>
+    void header(std::string_view id, Step&& step) {
+        lend(Operation::header, id, [&step](std::string_view line, const std::string_view*, const sqlite::Chars& c) {
+            step(line, c);
+        });
+    }
+    template <class Step>
+        requires std::invocable<Step&, std::string_view, const std::string_view*, const sqlite::Chars&>
+    bool body(std::string_view id, Step&& step) {
+        return lend(Operation::body, id, step);
     }
     bool forgotten(std::string_view id) {
         gate_.enter(Operation::forgotten, path_.view());
@@ -343,6 +345,8 @@ public:
     // The counted peak of the last open, append, forget, header or body
     // that returned: its arenas' high-water marks summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
+    // The platform it was opened on.
+    [[nodiscard]] P& platform() const noexcept { return *platform_; }
 #if defined(QIVEN3_FAULTS)
     // Each arena of an operation asks countdown first.
     void attach(sqlite::Countdown* countdown) noexcept { countdown_ = countdown; }
@@ -502,6 +506,25 @@ private:
         gate_.enter(op, path_.view());
         return pages_.bytes().first(operation_base);
     }
+    // A read's bytes where given; body where it has a body row.
+    bool bytes(Operation op, std::string_view id, String* line, String* record) {
+        gate_.enter(op, path_.view());
+        return found(sqlite::find(connection_, id, line, record, site_of(op)), op, id) == sqlite::Found::body;
+    }
+    // A lent read's bytes on an arena to give; the peak once give returns.
+    template <class Give>
+    bool lend(Operation op, std::string_view id, Give&& give) {
+        memory::Arena arena(pages_.bytes().first(operation_base));
+        hook(arena);
+        const sqlite::Chars chars(arena);
+        String line(chars);
+        String held(chars);
+        const bool has = bytes(op, id, &line, op == Operation::body ? &held : nullptr);
+        const std::string_view record(held);
+        give(std::string_view(line), has ? &record : nullptr, chars);
+        peak_ = arena.peak();
+        return has;
+    }
     [[nodiscard]] WhereView site_of(Operation op) const noexcept { return sqlite::site(name(op), path_.view()); }
     sqlite::Found found(sqlite::Found f, Operation op, std::string_view id) const {
         if (f == sqlite::Found::absent) {
@@ -509,21 +532,6 @@ private:
         }
         return f;
     }
-    // A held body record against its header: one the parser refuses
-    // StoreCorrupt incoherent, one not its header's body_mismatch.
-    void checked(std::string_view record, const Header& h, std::string_view id, const sqlite::Chars& chars) {
-        namespace body = entry::body;
-        try {
-            body::check(body::parse(*platform_, record, chars), h);
-        } catch (const body::BodyError& f) {
-            const bool mismatch = f.code == body::Code::body_mismatch;
-            throw StoreError::corrupt(name(Operation::body), path_.view(),
-                                      mismatch ? Corrupt::body_mismatch : Corrupt::incoherent, id);
-        } catch (const ParseError&) {
-            throw StoreError::corrupt(name(Operation::body), path_.view(), Corrupt::incoherent, id);
-        }
-    }
-
     // Steps a to c; a step a result stopped, pending with its reason.
     Purge attempt_steps() {
         sqlite::Connection& c = connection_;

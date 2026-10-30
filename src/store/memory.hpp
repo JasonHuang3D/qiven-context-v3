@@ -12,10 +12,10 @@
 // own order, then the new rows staged on the state's heap and applied by
 // moves that cannot fail, so a refusal leaves the state as it was; a
 // forget so too, its guard, whole records and targets checked. Reads run
-// under the lock, each header parsed again from its line and its id
-// recomputed, each body record parsed and checked against its header, a
-// mismatch StoreCorrupt. A scan fixes, at its start, each lane's entries
-// then held, and reads one header at a time. Export, import and verify are
+// under the lock and give a header line's and a body record's bytes as
+// held, parsing neither. A scan fixes, at its start, each lane's entries
+// then held, and reads one record, its keys and line, at a time. Export,
+// import and verify are
 // memory_exchange.hpp's. It is not durable, has no files and admits no
 // other process: no capability. Its purge is done at once; it has no path,
 // so an error names none.
@@ -34,15 +34,14 @@
 // (stage's) and the hook's on the operation's arenas; on the state's heap,
 // the call's rows, three each, a new lane's two and its ids', the room
 // each container grows to. head, forgotten, size: none. heads: the caller's
-// rows. header: read_header's (canon's four and one, header's check's)
-// on the operation's arena, one on the caller's. body: read_header's, then
-// body's parse (canon's four and one) on the operation's arena, one on the
-// caller's. scan: its lanes' room on the state's heap; each next as
-// header. forget: as append, and the targets' room and forgetting's on the
-// kept arena. export, import, verify: memory_exchange.hpp's. close and
-// purge: none. Platform calls: pages, once at the object's making, once
-// per scan and once per call given lines; part 1's and body's wipes, each
-// noexcept.
+// rows. header, body: the bytes' on the caller's; lent to a step, the
+// step's on an arena over the object's own pages. scan: its lanes' room on
+// the state's heap; each next its kind's and line's on the caller's, or,
+// lent, on an arena over the scan's pages with the step's. forget: as
+// append, and the targets' room and forgetting's on the kept arena.
+// export, import, verify: memory_exchange.hpp's. close and purge: none.
+// Platform calls: pages, once at the object's making, once per scan and
+// once per call given lines; part 1's and body's wipes, each noexcept.
 //
 // thread: one, each object; the state, shared (its lock).
 
@@ -73,7 +72,7 @@
 namespace qiven3::store {
 
 // A scan: the lanes of its range as they stood at its start, each read
-// from the seq after its start, one header at a time. It borrows its store
+// from the seq after its start, one record at a time. It borrows its store
 // object's gate: read while that object lives; once it closes or moves, the
 // gate raises StoreError closed, as SQLite's scan does.
 template <platform::Platform P>
@@ -107,24 +106,50 @@ public:
     MemoryScan& operator=(MemoryScan&&) noexcept = default;
     ~MemoryScan() = default;
 
-    // The next header into out; false at the end.
-    bool next(Header& out) {
-        gate_->enter(Operation::scan, {});
+    // The next record into out, on out's allocator; false at the end.
+    bool next(Record& out) {
+        return advance([&out](const state::Data& d, std::uint32_t i) { state::record_of(d, i, out); });
+    }
+    // The next record lent to step: step(record, chars) inside the next,
+    // the record and chars on an arena over the scan's pages, reset after
+    // the step; false at the end, step not called. A step's throw leaves
+    // the scan at that record. The step calls no store.
+    template <class Step>
+        requires std::invocable<Step&, const Record&, const state::Chars&>
+    bool next(Step&& step) {
         memory::Arena arena(pages_.bytes().first(operation_base));
 #if defined(QIVEN3_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
         }
 #endif
+        const state::Chars chars(arena);
+        const bool more = advance([&](const state::Data& d, std::uint32_t i) {
+            Record r(chars);
+            state::record_of(d, i, r);
+            step(std::as_const(r), chars);
+        });
+        if (more) {
+            peak_ = std::max(peak_, arena.peak());
+        }
+        return more;
+    }
+    // The counted peak of its greatest lent next: a plain next writes on
+    // its caller's allocator alone.
+    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
+
+private:
+    // The next position's entry to give(data, index), under the lock; the
+    // scan past it once give returns.
+    template <class Give>
+    bool advance(Give&& give) {
+        gate_->enter(Operation::scan, {});
         const state::Locked lock(*state_, Operation::scan, {});
         const state::Data& d = lock.data();
         while (lanes_ && lane_ < lanes_->size()) {
             const Pos& p = (*lanes_)[lane_];
             if (at_ < p.end) {
-                const state::Held& e = d.held[d.lanes[p.lane].ids[at_]];
-                const Header h = state::read_header(e, Operation::scan, {}, state::Chars(arena));
-                state::copy_header(h, out);
-                peak_ = std::max(peak_, arena.peak());
+                give(d, d.lanes[p.lane].ids[at_]);
                 ++at_;
                 return true;
             }
@@ -133,10 +158,6 @@ public:
         }
         return false;
     }
-    // The counted peak of its greatest next.
-    [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
-
-private:
     struct Pos {
         std::uint32_t lane = 0;
         std::uint32_t end = 0;  // the lane's entries at the scan's start
@@ -244,36 +265,52 @@ public:
         return Heads{state::forgets_in(lock.data(), scopes), Purge{}};
     }
 
-    void header(std::string_view id, Header& out) {
+    // The header line's bytes into line, on its allocator.
+    void header(std::string_view id, String& line) {
         constexpr Operation op = Operation::header;
         gate_.enter(op, {});
-        memory::Arena arena(own());
-        hook(arena);
         const state::Locked lock(*state_, op, {});
-        const state::Held& e = held(lock.data(), op, id);
-        const Header h = state::read_header(e, op, {}, state::Chars(arena));
-        state::copy_header(h, out);
-        peak_ = arena.peak();
+        line.assign(held(lock.data(), op, id).line);
+        peak_ = 0;
     }
 
-    // false: forgotten, a forget, or a header with no body.
+    // The body record's bytes into record, on its allocator; false:
+    // forgotten, a forget, or a header with no body.
     bool body(std::string_view id, String& record) {
         constexpr Operation op = Operation::body;
         gate_.enter(op, {});
-        memory::Arena arena(own());
-        hook(arena);
-        const state::Chars chars(arena);
         const state::Locked lock(*state_, op, {});
         const state::Held& e = held(lock.data(), op, id);
+        peak_ = 0;
         if (!e.has_body) {
-            peak_ = arena.peak();
             return false;
         }
-        const Header h = state::read_header(e, op, {}, chars);
-        state::check_body(*platform_, e, h, op, chars);
         record.assign(e.body);
-        peak_ = arena.peak();
         return true;
+    }
+
+    // The reads lent to a caller's step, inside the read and under the
+    // lock, with an allocator over the object's own pages, reset after the
+    // step, and the step's peak the object's. header: step(line, chars).
+    // body: step(line, record, chars), record null where it holds no body;
+    // false so. A step's throw leaves the object as it was, its peak too.
+    // The step calls no store.
+    template <class Step>
+        requires std::invocable<Step&, std::string_view, const state::Chars&>
+    void header(std::string_view id, Step&& step) {
+        lend(Operation::header, id, [&step](const state::Held& e, const state::Chars& chars) {
+            step(std::string_view(e.line), chars);
+            return true;
+        });
+    }
+    template <class Step>
+        requires std::invocable<Step&, std::string_view, const std::string_view*, const state::Chars&>
+    bool body(std::string_view id, Step&& step) {
+        return lend(Operation::body, id, [&step](const state::Held& e, const state::Chars& chars) {
+            const std::string_view record(e.body);
+            step(std::string_view(e.line), e.has_body ? &record : nullptr, chars);
+            return e.has_body;
+        });
     }
 
     bool forgotten(std::string_view id) {
@@ -405,6 +442,8 @@ public:
     // The counted peak of the last append, forget, header, body, import or
     // verify that returned: its arenas' high-water marks summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
+    // The platform it was made on.
+    [[nodiscard]] P& platform() const noexcept { return *platform_; }
 
 #if defined(QIVEN3_FAULTS)
     // Each operation's arenas ask the countdown first; null detaches it.
@@ -432,6 +471,18 @@ private:
             arena.attach(countdown_);
         }
 #endif
+    }
+    // A lent read: the gate, an arena over the object's own pages, the
+    // lock, then give(held, chars); the peak set once give returns.
+    template <class Give>
+    bool lend(Operation op, std::string_view id, Give&& give) {
+        gate_.enter(op, {});
+        memory::Arena arena(own());
+        hook(arena);
+        const state::Locked lock(*state_, op, {});
+        const bool has = give(held(lock.data(), op, id), state::Chars(arena));
+        peak_ = arena.peak();
+        return has;
     }
     // The entry of an id: NotFound when the state holds none.
     static const state::Held& held(const state::Data& d, Operation op, std::string_view id) {

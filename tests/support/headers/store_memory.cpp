@@ -12,8 +12,8 @@ using Fake = platform::fake::FakePlatform;
 
 template class MemoryScan<Fake>;
 template class MemoryStore<Fake>;
-template Imported MemoryStore<Fake>::import_(state::MemoryExport&, Vector<LaneHead>&);
-template Imported MemoryStore<Fake>::import_(detail::SourceArchetype&, Vector<LaneHead>&);
+template Imported MemoryStore<Fake>::import_(state::MemoryExport&, Vector<LaneHead>&, NoAdmit&&);
+template Imported MemoryStore<Fake>::import_(detail::SourceArchetype&, Vector<LaneHead>&, NoAdmit&&);
 
 static_assert(Store<MemoryStore<Fake>>);
 

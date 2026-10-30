@@ -253,8 +253,9 @@ std::optional<Head> expect(const Data& d, Operation op, std::string_view path, s
 // a line the parser or the header's rules refuse StoreCorrupt incoherent,
 // an id not the line's or not the one held StoreCorrupt id_mismatch.
 [[nodiscard]] Header read_header(const Held& e, Operation op, std::string_view path, const Chars& allocator);
-// A header copied onto out's allocator, its id kept: one allocation.
-void copy_header(const Header& h, Header& out);
+// The held entry i's keys and line into out, on out's allocator: its
+// parent the lane's entry before it, its target the one its index names.
+void record_of(const Data& d, std::uint32_t i, Record& out);
 // An entry made from its line, its record or none and its keys, on the
 // heap: the line's and the record's allocations; its lane, target and
 // forget none.

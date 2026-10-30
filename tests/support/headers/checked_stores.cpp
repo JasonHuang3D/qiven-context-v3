@@ -12,7 +12,8 @@ using Fake = platform::fake::FakePlatform;
 
 template class MemoryStore<Fake, checked::Rules<Fake>>;
 template class SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>;
-template Imported SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>::import_(detail::SourceArchetype&, Vector<LaneHead>&);
+template Imported SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>::import_(detail::SourceArchetype&, Vector<LaneHead>&,
+                                                                            checked::Rules<Fake>&&);
 
 static_assert(Store<checked::MemoryStore<Fake>>);
 static_assert(Store<checked::SQLiteStore<Fake>>);
@@ -22,3 +23,15 @@ static_assert(sizeof(checked::SQLiteStore<Fake>) == sizeof(SQLiteStore<Fake, NoH
               "a ruled store adds no member");
 
 }  // namespace qiven3::store
+
+namespace qiven3::checked {
+
+using Fake = platform::fake::FakePlatform;
+
+// The ruled reads over each store's lent ones, and their scans.
+template class Ruled<store::MemoryStore<Fake, Rules<Fake>>>;
+template class Ruled<store::SQLiteStore<Fake, store::NoHooks, Rules<Fake>>>;
+template class Scan<store::MemoryScan<Fake>>;
+template class Scan<store::sqlite::ScanView>;
+
+}  // namespace qiven3::checked

@@ -93,7 +93,14 @@ std::optional<Head> WriteView::head(std::string_view scope, std::string_view lan
     return head_of(*c_, scope, lane, at_);
 }
 
-bool WriteView::header(std::string_view id, Header& out) { return find(*c_, id, out, nullptr, at_) != Found::absent; }
+bool WriteView::header(std::string_view id, Header& out) {
+    memory::String line(out.get_allocator());
+    if (find(*c_, id, &line, nullptr, at_) == Found::absent) {
+        return false;
+    }
+    out = read_header(id, line, out.get_allocator(), at_);
+    return true;
+}
 
 bool WriteView::body(std::string_view id, entry::validator::Text<Chars>& out) {
     Statement s = c_->prepare("SELECT record FROM body WHERE id = ?1", at_);

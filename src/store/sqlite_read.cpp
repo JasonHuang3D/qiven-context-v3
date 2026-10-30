@@ -1,7 +1,8 @@
 // sqlite: the reads, through the connection wrapper (sqlite.hpp): a header
-// line parsed and checked, a lane's head, heads in one read transaction,
-// an entry by id with its columns compared with its line, forgotten, and
-// the scan's cursor, ending at each lane's length at its start. This file names nothing of the engine's own.
+// line parsed and checked (the exchange's), a lane's head, heads in one
+// read transaction, an entry's line and body record by id, forgotten, and
+// the scan's cursor over the keys' columns and the line, ending at each
+// lane's length at its start. This file names nothing of the engine's own.
 
 #include <algorithm>
 #include <cstddef>
@@ -32,7 +33,7 @@ using header::Slot;
 
 // The columns find and a scan select, in this order.
 constexpr int line_column = 7;
-constexpr int record_column = 8;
+constexpr int body_column = 8;
 
 }  // namespace
 
@@ -80,23 +81,6 @@ std::optional<Head> head_of(Connection& c, std::string_view scope, std::string_v
     return Head{Id::of(s.text(0)), s.integer(1)};
 }
 
-void copy_header(const Header& h, Header& out) {
-    header::FieldsView f;
-    f.tag = h.value(Slot::tag);
-    f.scope = h.value(Slot::scope);
-    f.lane = h.value(Slot::lane);
-    f.seq = h.seq();
-    f.parent = h.text(Slot::parent);
-    f.kind = h.value(Slot::kind);
-    f.writer = h.value(Slot::writer);
-    f.basis = h.value(Slot::basis);
-    f.at = h.value(Slot::at);
-    f.target = h.text(Slot::target);
-    f.content = h.text(Slot::content);
-    f.id = h.text(Slot::id);
-    out = header::make(f, out.get_allocator());
-}
-
 HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, const WhereView& at) {
     rows.clear();
     HeadsRead read;
@@ -126,22 +110,22 @@ HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, con
     return read;
 }
 
-Found find(Connection& c, std::string_view id, Header& out, memory::String* record, const WhereView& at) {
-    Statement s = c.prepare("SELECT e.id, e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.line, b.record "
-                            "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id WHERE e.id = ?1",
+Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record, const WhereView& at) {
+    Statement s = c.prepare("SELECT e.line, b.record FROM entry AS e LEFT JOIN body AS b ON b.id = e.id WHERE e.id = ?1",
                             at);
     s.bind_text(1, id, at);
     if (!s.step(at)) {
         return Found::absent;
     }
-    if (record != nullptr && s.null(record_column)) {
+    if (line != nullptr) {
+        line->assign(s.blob(0));
+    }
+    if (s.null(1)) {
         return Found::entry;
     }
-    out = row_header(s, out.get_allocator(), at);
-    if (record == nullptr || s.null(record_column)) {
-        return Found::entry;
+    if (record != nullptr) {
+        record->assign(s.blob(1));
     }
-    record->assign(s.blob(record_column));
     return Found::body;
 }
 
@@ -176,22 +160,20 @@ ScanView::ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, 
     }
 }
 
-bool ScanView::next(Header& out) {
+bool ScanView::fetch(Record& out) {
     gate_->enter(Operation::scan, path_);
     if (done_) {
         return false;
     }
     const WhereView at = site(name(Operation::scan), path_);
-    memory::Arena arena(pages_);
-#if defined(QIVEN3_FAULTS)
-    if (countdown_ != nullptr) {
-        arena.attach(countdown_);
-    }
-#endif
-    Statement s = c_->prepare("SELECT id, scope, lane, seq, parent, kind, target, line FROM entry "
-                              "WHERE (scope, lane, seq) > (?1, ?2, ?3) AND (?4 IS NULL OR scope = ?4) "
-                              "AND (?5 IS NULL OR lane = ?5) AND seq > ?6 AND rowid <= ?7 ORDER BY scope, lane, seq "
-                              "LIMIT 1",
+    // Its body key: a body row, or a forget of it (a forget's target held
+    // its body when forgotten).
+    Statement s = c_->prepare("SELECT e.id, e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.line, "
+                              "EXISTS (SELECT 1 FROM body AS b WHERE b.id = e.id) OR "
+                              "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget') "
+                              "FROM entry AS e WHERE (e.scope, e.lane, e.seq) > (?1, ?2, ?3) "
+                              "AND (?4 IS NULL OR e.scope = ?4) AND (?5 IS NULL OR e.lane = ?5) AND e.seq > ?6 "
+                              "AND e.rowid <= ?7 ORDER BY e.scope, e.lane, e.seq LIMIT 1",
                               at);
     s.bind_text(1, at_scope_.view(), at);
     s.bind_text(2, at_lane_.view(), at);
@@ -212,12 +194,18 @@ bool ScanView::next(Header& out) {
         done_ = true;
         return false;
     }
-    const Header h = row_header(s, Chars(arena), at);
-    copy_header(h, out);
-    at_scope_ = memory::Inline<scope_bytes>(h.value(Slot::scope));
-    at_lane_ = memory::Inline<lane_bytes>(h.value(Slot::lane));
-    at_seq_ = h.seq();
-    peak_ = std::max(peak_, arena.peak());
+    const auto id = [&s](int column) {
+        return s.null(column) ? std::nullopt : std::optional<Id>(Id::of(s.text(column)));
+    };
+    out.kind.assign(s.text(5));
+    out.line.assign(s.blob(line_column));
+    out.id = Id::of(s.text(0));
+    out.scope = memory::Inline<scope_bytes>(s.text(1));
+    out.lane = memory::Inline<lane_bytes>(s.text(2));
+    out.seq = s.integer(3);
+    out.parent = id(4);
+    out.target = id(6);
+    out.body = s.integer(body_column) != 0;
     return true;
 }
 

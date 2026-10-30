@@ -428,8 +428,7 @@ constexpr std::array<Forgery, 9> forgeries = {{
     {"INSERT INTO meta (name, value) VALUES ('other', 0)", "StoreCorrupt incoherent: meta: a row of another name"},
 }};
 
-// Each of A's columns altered beside its line, the store open: header
-// StoreCorrupt incoherent; then put back.
+// Each of A's columns altered beside its line, the store open: a ruled scan StoreCorrupt incoherent; then put back.
 void columns(qiven3::test::Context& qiven3_ctx, Rig& rig, const std::string& path, const std::string& a) {
     Store store = Store::open(path, false, false, rig.fake);
     const std::array<std::string, 3> alters = {"scope = scope || 'x'", "seq = seq + 100", "kind = kind || 'x'"};
@@ -443,7 +442,10 @@ void columns(qiven3::test::Context& qiven3_ctx, Rig& rig, const std::string& pat
             c.exec("UPDATE entry SET " + alters.at(i) + " WHERE id = '" + a + "'", test_at);
         }
         Header h{Chars(arena)};
-        CHECK_EQ(raised([&] { store.header(a, h); }),
+        CHECK_EQ(raised([&] {
+                     for (auto scan = store.scan({}); scan.next(h);) {
+                     }
+                 }),
                  std::string("StoreCorrupt incoherent: an entry's column differs from its line"));
         {
             sqlite::Connection c = raw(path);

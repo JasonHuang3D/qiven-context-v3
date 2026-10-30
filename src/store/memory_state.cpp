@@ -133,21 +133,18 @@ Header read_header(const Held& e, Operation op, std::string_view path, const Cha
     return h;
 }
 
-void copy_header(const Header& h, Header& out) {
-    header::FieldsView f;
-    f.tag = h.value(Slot::tag);
-    f.scope = h.value(Slot::scope);
-    f.lane = h.value(Slot::lane);
-    f.seq = h.seq();
-    f.parent = h.text(Slot::parent);
-    f.kind = h.value(Slot::kind);
-    f.writer = h.value(Slot::writer);
-    f.basis = h.value(Slot::basis);
-    f.at = h.value(Slot::at);
-    f.target = h.text(Slot::target);
-    f.content = h.text(Slot::content);
-    f.id = h.text(Slot::id);
-    out = header::make(f, out.get_allocator());
+void record_of(const Data& d, std::uint32_t i, Record& out) {
+    const Held& e = d.held[i];
+    const Lane& l = d.lanes[e.lane];
+    out.kind.assign(std::string_view(e.kind));
+    out.line.assign(std::string_view(e.line));
+    out.id = e.id;
+    out.scope = memory::Inline<scope_bytes>(std::string_view(l.scope));
+    out.lane = memory::Inline<lane_bytes>(std::string_view(l.name));
+    out.seq = e.seq;
+    out.parent = e.seq > 1 ? std::optional<Id>(d.held[l.ids[static_cast<std::size_t>(e.seq - 2)]].id) : std::nullopt;
+    out.target = e.target != none ? std::optional<Id>(d.held[e.target].id) : std::nullopt;
+    out.body = e.content;
 }
 
 Batch::Batch(Data& d) noexcept : rows_(Allocator<Held>(d.heap)), lanes_(Allocator<Lane>(d.heap)) {}

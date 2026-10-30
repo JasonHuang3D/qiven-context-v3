@@ -5,7 +5,7 @@
 // scan ends at each lane's length at its start: A, B, D and ACC appended
 // to the implementer lane and C and M1 to the reviewer lane; three scans
 // begun, the whole store, the reviewer lane alone and every lane after
-// seq 1, and one header read from the first; then B forgotten by E through
+// seq 1, and one record read from the first; then B forgotten by E through
 // another object (its purge done), M2 appended through the scanning object
 // and a lane after both, tester, made through the other. Each scan begun
 // before then gives what was committed before it began, each once, in
@@ -44,13 +44,13 @@ inline std::string cut(const std::vector<Stored>& lines) {
     return ids;
 }
 
-// What a scan still gives, at most `most` headers, cut so.
+// What a scan still gives, at most `most` records' ids, cut so.
 template <store::Scan H>
 std::string rest(H& scan, const Chars& chars, std::size_t most = std::numeric_limits<std::size_t>::max()) {
     std::string ids;
-    store::Header h(chars);
-    for (std::size_t n = 0; n < most && scan.next(h); ++n) {
-        ids += std::string(h.value(entry::header::Slot::id).substr(7, 8)) + " ";
+    store::Record r(chars);
+    for (std::size_t n = 0; n < most && scan.next(r); ++n) {
+        ids += std::string(r.id.view().substr(7, 8)) + " ";
     }
     return ids;
 }
