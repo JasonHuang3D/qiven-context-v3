@@ -224,6 +224,18 @@ qiven3_add_cases(qiven3_unit_write_refuse LABELS fast fake
   SOURCES write_refuse_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_write)
 
+# write/kept over a scratch store's real files on the fake and a fake
+# store's ids (support/fixtures/kept_bed.hpp): the kept file's form, names
+# and corrupt forms; writes kept in order under the lock; each step of the
+# kept files with its faults, the pending file whole or absent at each and
+# settled by ids on the next write; a rename meeting a file under its new
+# name; busy under a held lock; the import's file with no lock and no
+# settle step; each allocation and each platform call failed in turn over
+# a write, a refused write and the import, settled by the next write.
+qiven3_add_cases(qiven3_unit_write_kept LABELS fast fake
+  SOURCES write_kept_test.cpp write_kept_steps_test.cpp write_kept_memory_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_write)
+
 # projectmap's cases: the map files' syntaxes, os.path.isabs on each
 # system, the registry and the marks file read with each code, the marks
 # file written back the same, Marks built and refused, the map's rule

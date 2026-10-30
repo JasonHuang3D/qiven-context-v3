@@ -3,7 +3,9 @@
 # content checked by the entry's own content check; build, its entries built
 # for the store against the fold: keys, holes, digests, targets and headers;
 # refuse, the write command's refusals against the fold: the slot, the
-# person scope, an owner's entry and words, the kinds, refs and cycles.
+# person scope, an owner's entry and words, the kinds, refs and cycles;
+# kept, the kept entry files: their form and names, the lock, settling by
+# ids, the file kept whole as pending and made kept after the append.
 add_library(qiven3_write STATIC
   build.cpp
   build.hpp
@@ -11,6 +13,8 @@ add_library(qiven3_write STATIC
   entries.hpp
   entries_reader.cpp
   entries_reader.hpp
+  kept.cpp
+  kept.hpp
   refuse.cpp
   refuse.hpp
 )
