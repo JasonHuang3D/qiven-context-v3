@@ -10,14 +10,42 @@
 //
 // thread: one (a System serves one thread at a time)
 
-#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <string_view>
 
 #include "platform/files.hpp"
 #include "platform/platform.hpp"
 
 namespace qiven3::platform::files {
+
+// names[root]'s heap below end restored, a parent never before a child in
+// std::string_view's order (unsigned bytes': UTF-8's code points).
+inline void sift(Vector<String>& names, std::size_t root, std::size_t end) noexcept {
+    for (std::size_t child = (2 * root) + 1; child < end; child = (2 * root) + 1) {
+        if (child + 1 < end && std::string_view(names[child]) < std::string_view(names[child + 1])) {
+            ++child;
+        }
+        if (!(std::string_view(names[root]) < std::string_view(names[child]))) {
+            return;
+        }
+        names[root].swap(names[child]);
+        root = child;
+    }
+}
+
+// names sorted by their UTF-8 bytes, a heap sort by swaps alone: no String
+// is moved from, as std::sort's insertion step does, and none allocates.
+inline void sort_names(Vector<String>& names) noexcept {
+    const std::size_t size = names.size();
+    for (std::size_t root = size / 2; root-- > 0;) {
+        sift(names, root, size);
+    }
+    for (std::size_t end = size; end-- > 1;) {
+        names[0].swap(names[end]);
+        sift(names, 0, end);
+    }
+}
 
 // The names directly in directory into names, cleared first: never . or
 // .., sorted by their UTF-8 bytes whatever order the system gives them in,
@@ -46,9 +74,7 @@ void list(S& system, std::string_view directory, Vector<String>& names) {
         throw PlatformError(error == no_unicode_translation ? Code::path : Code::io, "list", detail);
     }
     std::erase_if(names, [](const String& name) { return name == "." || name == ".."; });
-    // std::string_view's order is unsigned bytes': UTF-8's code points.
-    std::sort(names.begin(), names.end(),
-              [](const String& a, const String& b) { return std::string_view(a) < std::string_view(b); });
+    sort_names(names);
 }
 
 // The file at path deleted; none there (2, 3) no fault. Held without
