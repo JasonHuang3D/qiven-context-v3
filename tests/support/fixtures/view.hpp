@@ -2,8 +2,9 @@
 
 // view: a store's view in memory for the validator's cases, and an entry
 // of a call. MemoryView holds headers and contents on std::allocator,
-// each lane's head, the forgotten set, the live clearings, and the size
-// and count held; put appends an entry and moves its lane's head, forget
+// each lane's head, the forgotten set, the generic calls a clearing reads
+// (each_keyed, targets, contains), and the size and count held; put
+// appends an entry and moves its lane's head, forget
 // erases a body and marks its id; forget_of names the first forget put of
 // an id, as an import's final view does. It reads into the caller's buffers on
 // their own allocator: a header copied by make, its id given, one
@@ -103,11 +104,6 @@ public:
         }
         forgotten_.emplace_back(id);
     }
-    // A live clearing of a content digest for a pattern in a scope.
-    constexpr void clear(std::string_view scope, std::string_view content, std::string_view pattern) {
-        clearings_.push_back(std::array<std::string, 3>{std::string(scope), std::string(content),
-                                                        std::string(pattern)});
-    }
 
     [[nodiscard]] constexpr std::optional<validator::Head> head(std::string_view scope, std::string_view lane) {
         ++reads_;
@@ -158,22 +154,40 @@ public:
         }
         return std::nullopt;
     }
-    // Whether a live clearing in scope clears content for pattern; this
-    // view's clearings hold at every time.
-    [[nodiscard]] constexpr bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                                         std::string_view /*at*/) {
+    // The generic calls a store's view gives, each one read: f(id) for
+    // each id of scope of kind with no target, in the order put, until f
+    // gives true, whether it did; the ids whose target is id in scope, in
+    // the order put, into out, cleared first; whether a held header's line
+    // holds bytes.
+    template <typename F>
+    constexpr bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
         ++reads_;
-        for (const std::array<std::string, 3>& c : clearings_) {
-            if (c[0] == scope && c[1] == content && c[2] == pattern) {
+        using header::Slot;
+        for (const Held& e : held_) {
+            if (e.h.value(Slot::scope) == scope && e.h.value(Slot::kind) == kind && !e.h.text(Slot::target) &&
+                f(validator::Id::of(e.h.value(Slot::id)))) {
                 return true;
             }
         }
         return false;
     }
-    [[nodiscard]] constexpr bool holds_content(std::string_view content) {
+    template <typename Out>
+    constexpr void targets(std::string_view id, std::string_view scope, Out& out) {
+        ++reads_;
+        using header::Slot;
+        out.clear();
+        for (const Held& e : held_) {
+            if (e.h.value(Slot::scope) == scope && e.h.text(Slot::target) == std::optional<std::string_view>(id)) {
+                out.push_back(validator::Id::of(e.h.value(Slot::id)));
+            }
+        }
+    }
+    [[nodiscard]] constexpr bool contains(std::string_view bytes) {
         ++reads_;
         for (const Held& e : held_) {
-            if (e.h.text(header::Slot::content) == std::optional<std::string_view>(content)) {
+            std::string line;
+            e.h.line(line);
+            if (line.find(bytes) != std::string::npos) {
                 return true;
             }
         }
@@ -215,7 +229,6 @@ private:
     std::vector<Held> held_;
     std::vector<Lane> heads_;
     std::vector<std::string> forgotten_;
-    std::vector<std::array<std::string, 3>> clearings_;
     std::size_t reads_ = 0;
     std::uint64_t size_ = 0;
     std::uint64_t count_ = 0;

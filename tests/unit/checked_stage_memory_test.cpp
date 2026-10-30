@@ -1,6 +1,6 @@
 // checked/rules' budgets and fault runs over the store's stage, over five calls: an append of A,
 // B and D on an empty lane; an append of A's content with a key in it, its
-// hit cleared; a forget of E on implementer's lane held; and two of a map
+// hit cleared by a direction record held; a forget of E on implementer's lane held; and two of a map
 // citing A (below). Each line's work on fresh scratch arenas, its peak one line's, and what check keeps
 // and admit takes on the operation's arena: the two together within the
 // operation's budget, 1 MiB plus 4 times the lines given; the operation's
@@ -15,7 +15,11 @@
 // value first, 4. Then admit: part 2's (validator's), its index 1 and each
 // body's value 4, and a header the view gives 1 (a first entry's parent, a
 // target). Append: 1 + 64 + 64 + 62 = 191 and 1 + 12 = 13, 204; the
-// secret's 1 + 34 + 4 + 24 + 1 + 1 + 2 = 67 and 1 + 4 = 5, 72; E's 4 + 1 +
+// secret's 1 + 34 + 4 + 24 + 1 + 1 + 2 = 67 and 1 + 4 = 5, then its hit's
+// clearing, D's record held, on the call's allocator (the view gives no
+// work): the members' room 1, the headers', values' and items' 3, D's
+// header 1, its body 1 and value 4, the fold's 1 and the content field's
+// bytes 1, 12; 84. E's 4 + 1 +
 // 17 + 1 = 23 and 1 + 2 = 3, 26. Then a map citing A, A held, by four
 // references and by 24, the most its lists hold, with a relation: every
 // syntax of its content compiled, nine, once each: 83 both, check's 74
@@ -63,7 +67,7 @@ std::vector<Case> cases(const Book& book) {
     std::vector<Case> out;
     out.push_back({"append", {book.stored("A"), book.stored("B"), book.stored("D")}, {}, Operation::append,
                    std::nullopt, false, 204});
-    out.push_back({"secret", {book.with_secret("A", std::nullopt)}, {}, Operation::append, std::nullopt, true, 72});
+    out.push_back({"secret", {book.with_secret("A", std::nullopt)}, {}, Operation::append, std::nullopt, true, 84});
     const std::vector<Stored> lane = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
     out.push_back({"forget", {book.stored("E")}, lane, Operation::forget, id_of(lane.back()), false, 26});
     // A map citing A, every syntax of its content compiled: by four
@@ -76,10 +80,10 @@ std::vector<Case> cases(const Book& book) {
     return out;
 }
 
-void prepare(fixtures::MemoryView& view, const Case& c) {
+void prepare(fixtures::MemoryView& view, const Case& c, const Book& book) {
     hold(view, c.held);
     if (c.clear) {
-        view.clear("project:qiven", content_of(c.call.front()), "aws-akia");
+        hold(view, {book.clearing(c.call.front(), "aws-akia")});
     }
 }
 
@@ -107,7 +111,7 @@ QIVEN3_CASE(store_stage, budget) {
     const Book book(fake);
     for (const Case& c : cases(book)) {
         fixtures::MemoryView view;
-        prepare(view, c);
+        prepare(view, c, book);
         const std::vector<EntryView> lines = views(c.call);
         Arena& arena = qiven3_ctx.counted.arena(budget_of(lines));
         ScratchPages scratch(scratch_bytes);
@@ -143,7 +147,7 @@ QIVEN3_CASE(store_stage, faults) {
     const auto empty = [&](std::size_t) { return scratch.end() && arena->used() == 0; };
     for (const Case& c : cases(book)) {
         fixtures::MemoryView view;
-        prepare(view, c);
+        prepare(view, c, book);
         const std::vector<EntryView> lines = views(c.call);
         const auto op = [&] {
             arena.emplace(pages);

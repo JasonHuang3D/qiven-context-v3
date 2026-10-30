@@ -168,6 +168,55 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(view.contains(R"("kind":"direction")"));
     CHECK(!view.contains(none));
     CHECK(!view.contains(R"("kind":"forget")"));
+
+    // each_keyed: keyed's ids in its order, all walked when f never stops,
+    // the walk ended at the first f stops at.
+    for (const std::string_view kind : {"claim", "direction", "map", "check", "accept"}) {
+        view.keyed(qiven_scope, kind, out);
+        std::vector<std::string> walked;
+        CHECK(!view.each_keyed(qiven_scope, kind, [&](const Id& id) {
+            walked.emplace_back(id.view());
+            return false;
+        }));
+        CHECK(walked == ids(out));
+    }
+    std::vector<std::string> first;
+    CHECK(view.each_keyed(qiven_scope, "claim", [&](const Id& id) {
+        first.emplace_back(id.view());
+        return true;
+    }));
+    CHECK(first == ids_of({&a}));
+    std::vector<std::string> second;
+    CHECK(view.each_keyed(qiven_scope, "claim", [&](const Id& id) {
+        second.emplace_back(id.view());
+        return second.size() == 2;
+    }));
+    CHECK(second == ids_of({&a, &b}));
+    CHECK(!view.each_keyed("person", "claim", [](const Id&) { return true; }));
+
+    // work with no scratch: the view's allocator.
+    CHECK(&view.work().arena() == &chars.arena());
+}
+
+// work over a scratch: each call a fresh arena over the scratch's pages,
+// not the view's allocator, its peak counted, the last given back at the
+// next.
+template <class V, class S>
+void work(qiven3::test::Context& qiven3_ctx, V& view, const S& scratch, const Chars& chars) {
+    {
+        const Chars w = view.work();
+        CHECK(&w.arena() != &chars.arena());
+        qiven3::memory::String s(w);
+        s.assign(200, 'x');
+    }
+    const std::size_t peak = scratch.peak();
+    CHECK(peak >= 200U);
+    {
+        const Chars w = view.work();
+        qiven3::memory::String s(w);
+        s.assign(100, 'x');
+    }
+    CHECK_EQ(scratch.peak(), peak);
 }
 
 // The store's own order with no admit hook, on an empty store: a call
@@ -241,6 +290,10 @@ QIVEN3_CASE(store_view, memory) {
     const state::Locked lock(*st, Operation::append, {});
     state::StateView view(lock.data(), chars, Operation::append, {});
     calls(qiven3_ctx, view, chain, chars);
+    std::vector<std::byte> scratch_pages(buffer_bytes);
+    state::ScratchView scratch(scratch_pages, nullptr);
+    state::StateView over(lock.data(), chars, Operation::append, {}, &scratch);
+    work(qiven3_ctx, over, scratch, chars);
 }
 
 QIVEN3_CASE(store_view, sqlite) {
@@ -261,5 +314,9 @@ QIVEN3_CASE(store_view, sqlite) {
     const sqlite::Totals held = sqlite::totals(c, at);
     sqlite::WriteView view(c, chars, nullptr, at, held);
     calls(qiven3_ctx, view, chain, chars);
+    std::vector<std::byte> scratch_pages(buffer_bytes);
+    sqlite::ScratchView arenas(scratch_pages, nullptr);
+    sqlite::WriteView over(c, chars, &arenas, at, held);
+    work(qiven3_ctx, over, arenas, chars);
     (void)store->close();
 }

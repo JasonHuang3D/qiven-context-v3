@@ -363,28 +363,22 @@ struct Totals {
 };
 [[nodiscard]] Totals totals(Connection& c, const WhereView& at);
 
-// The view's two reads under the write lock, each planned with no
-// structure built in memory as large as its rows (S4's plan check): the
-// clearings of a false secret hit, the scope's direction roots, a record's members by
-// entry_target, and each member's line, body record and whether a forget
-// targets it; and the scan of entry.line for a "content": field.
+// The view's generic reads under the write lock, each planned with no
+// structure built in memory as large as its rows (S4's plan check): a
+// scope's ids of a kind with no target, the ids targeting an id in a
+// scope, a held line, and the scan of entry.line for bytes.
 inline constexpr std::string_view keyed_roots =
     "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 AND target IS NULL ORDER BY lane, seq";
 inline constexpr std::string_view record_members =
     "SELECT id FROM entry WHERE target = ?1 AND scope = ?2 ORDER BY rowid";
 inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id = ?1";
-inline constexpr std::string_view member_rows =
-    "SELECT e.line, b.record, EXISTS (SELECT 1 FROM entry f WHERE f.target = e.id AND "
-    "f.kind = 'forget') FROM entry e LEFT JOIN body b ON b.id = e.id WHERE e.id = ?1";
 inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
 
 // Part 2's view of the transaction (stage::View): the head, a header and
-// a body by id, the forgotten set, the clearings and held contents, the
-// generic calls by the keys held (a line, targets, keyed ids, a byte
-// search), the size and the count the transaction began with. A clearing
-// works on the
-// scratch's fresh arena, one direction record at a time, else on the
-// view's allocator.
+// a body by id, the forgotten set, the generic calls by the keys held (a
+// line, targets, keyed ids, each walked on its cursor by each_keyed, a
+// byte search), a work allocator (the scratch's next arena, else the
+// view's allocator), the size and the count the transaction began with.
 class WriteView {
 public:
     WriteView(Connection& c, const Chars& allocator, ScratchView* scratch, const WhereView& at,
@@ -395,9 +389,6 @@ public:
     bool header(std::string_view id, Header& out);
     bool body(std::string_view id, entry::validator::Text<Chars>& out);
     [[nodiscard]] bool forgotten(std::string_view id);
-    [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                               std::string_view at);
-    [[nodiscard]] bool holds_content(std::string_view content);
     // The generic calls, by the keys the store holds: a record's line by
     // id, false where none is held; the ids whose target is id, in scope;
     // a scope's ids of kind with no target, in (lane, seq) order; each list
@@ -407,13 +398,27 @@ public:
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
     [[nodiscard]] bool contains(std::string_view bytes);
+    // f(id) for each id keyed gives, in its order, until f gives true:
+    // whether it did. No list held: the statement's cursor walked.
+    template <class F>
+    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        Statement s = c_->prepare(keyed_roots, at_);
+        s.bind_text(1, scope, at_);
+        s.bind_text(2, kind, at_);
+        while (s.step(at_)) {
+            if (f(Id::of(s.text(0)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+    // A work allocator: the scratch's next arena, the last one's blocks
+    // given back, else the view's allocator.
+    [[nodiscard]] Chars work() { return scratch_ != nullptr ? Chars((*scratch_)()) : allocator_; }
     [[nodiscard]] std::uint64_t size() const noexcept { return static_cast<std::uint64_t>(held_.size); }
     [[nodiscard]] std::uint64_t count() const noexcept { return static_cast<std::uint64_t>(held_.count); }
 
 private:
-    bool clears(const Id& root, std::string_view scope, std::string_view content, std::string_view pattern,
-                std::string_view at);
-
     Connection* c_;
     Chars allocator_;
     ScratchView* scratch_;

@@ -167,7 +167,6 @@ QIVEN3_CASE(store_stage, secret) {
     REQUIRE(checked.hits.size() == 1U);
     CHECK_EQ(qiven3::entry::secret::name(checked.hits[0].hit.pattern), std::string_view("aws-akia"));
     CHECK_EQ(checked.hits[0].hit.path.view(), std::string_view("admit.mistake"));
-    const std::string digest = std::string(content_of(x));
     // Not cleared: secret, the pattern and the path, no id.
     {
         fixtures::MemoryView view;
@@ -181,18 +180,17 @@ QIVEN3_CASE(store_stage, secret) {
     // Cleared for its content and pattern: admitted; for another pattern not.
     {
         fixtures::MemoryView view;
-        view.clear(qiven_scope, digest, "aws-akia");
+        hold(view, {book.clearing(x, "aws-akia")});
         CHECK(!refused_admit(view, checked, std::nullopt, chars).has_value());
         fixtures::MemoryView other;
-        other.clear(qiven_scope, digest, "sk-key");
+        hold(other, {book.clearing(x, "sk-key")});
         CHECK(refused_admit(other, checked, std::nullopt, chars).has_value());
     }
     // Used: a held header with the content (on reviewer's lane, so the
     // lane's head stays none), or an earlier entry of the call.
     {
         fixtures::MemoryView view;
-        view.clear(qiven_scope, digest, "aws-akia");
-        hold(view, {book.with_secret("C", std::nullopt)});
+        hold(view, {book.clearing(x, "aws-akia"), book.with_secret("C", std::nullopt)});
         const std::optional<Refusal> used = refused_admit(view, checked, std::nullopt, chars);
         REQUIRE(used.has_value());
         CHECK_EQ(used->code, std::string("secret"));
@@ -203,7 +201,7 @@ QIVEN3_CASE(store_stage, secret) {
             checked::check(fake, std::span<const EntryView>(two), at(Operation::append), chars, scratch);
         CHECK_EQ(both.hits.size(), 2U);
         fixtures::MemoryView fresh;
-        fresh.clear(qiven_scope, digest, "aws-akia");
+        hold(fresh, {book.clearing(x, "aws-akia")});
         const std::optional<Refusal> r = refused_admit(fresh, both, std::nullopt, chars);
         REQUIRE(r.has_value());
         CHECK_EQ(r->code, std::string("secret"));

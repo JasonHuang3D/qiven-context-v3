@@ -12,8 +12,9 @@
 // index. admit, inside the store's transaction or lock, against its view:
 // at append the hits settled first, in order, the first not cleared
 // EntryInvalid secret: a hit passes when a live clearing of the entry's
-// scope clears its pattern for the entry's content at the entry's at,
-// unused, no header held but the entry's own, the call's earlier ones
+// scope clears its pattern for the entry's content at the entry's at
+// (checked/clearing, over the view's generic calls), unused, no header
+// held but the entry's own, the call's earlier ones
 // included, having that content. Then part 2 (validator), its first fault
 // EntryInvalid with its code. The store's own step follows (store/stage).
 //
@@ -56,6 +57,7 @@
 #include <string_view>
 #include <utility>
 
+#include "checked/clearing.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
 #include "entry/secret.hpp"
@@ -130,12 +132,14 @@ void secrets(const AtView& at, std::size_t index, const Entry<P>& e, Vector<Hit>
     }
 }
 
-// Whether entry i's hit is cleared, unused.
+// Whether entry i's hit is cleared (checked/clearing), unused.
 template <class V, platform::Platform P>
-bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::string_view pattern) {
+bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::string_view pattern, const AtView& at,
+             const Chars& allocator) {
     const header::Header<Chars>& h = entries[i].header();
     const std::optional<std::string_view> content = h.text(Slot::content);
-    if (!content || !view.cleared(h.value(Slot::scope), *content, pattern, h.value(Slot::at))) {
+    if (!content ||
+        !clearing::cleared(view, h.value(Slot::scope), *content, pattern, h.value(Slot::at), at, allocator)) {
         return false;
     }
     for (std::size_t j = 0; j < i; ++j) {
@@ -143,15 +147,16 @@ bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::str
             return false;
         }
     }
-    return !view.holds_content(*content);
+    return !clearing::held(view, *content, allocator);
 }
 
 // The hits settled, in order, the first not cleared refused.
 template <class V, platform::Platform P>
-void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hits, const AtView& at) {
+void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hits, const AtView& at,
+            const Chars& allocator) {
     for (const Hit& hit : hits) {
         const std::string_view pattern = secret::name(hit.hit.pattern);
-        if (!cleared(view, entries, hit.index, pattern)) {
+        if (!cleared(view, entries, hit.index, pattern, at, allocator)) {
             stage::refuse(at, hit.index, {}, "secret", hit.hit.path.view(), pattern);
         }
     }
@@ -220,7 +225,7 @@ public:
             memory::fail_fast("stage::admit: an operation but append and forget");
         }
         if (hits_) {
-            detail::settle(view, entries, std::span<const Hit>(*hits_), at);
+            detail::settle(view, entries, std::span<const Hit>(*hits_), at, allocator);
         }
         detail::part2(view, scope, lane, expected, entries, at, allocator);
     }
@@ -263,7 +268,7 @@ stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expe
         memory::fail_fast("stage::admit: an operation but append and forget");
     }
     const std::span<const Entry<P>> entries(checked.entries);
-    detail::settle(view, entries, std::span<const Hit>(checked.hits), at);
+    detail::settle(view, entries, std::span<const Hit>(checked.hits), at, allocator);
     detail::part2(view, scope, lane, expected, entries, at, allocator);
     return stage::staged(view, static_cast<const stage::Checked<P>&>(checked), limits, at, scope, lane,
                          view.head(scope, lane));

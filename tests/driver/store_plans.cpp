@@ -21,11 +21,10 @@ struct PlannedView {
     std::string_view sql;
 };
 
-constexpr std::array<PlannedView, 8> statements = {{
+constexpr std::array<PlannedView, 7> statements = {{
     {"keyed_roots", store::sqlite::keyed_roots},
     {"record_members", store::sqlite::record_members},
     {"held_line", store::sqlite::held_line},
-    {"member_rows", store::sqlite::member_rows},
     {"content_scan", store::sqlite::content_scan},
     {"forget_counts", store::sqlite::forget_counts},
     {"head_rows", store::sqlite::head_rows},

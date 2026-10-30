@@ -47,10 +47,7 @@
 // View is the store's view, which it gives inside its transaction or
 // lock: the head of a lane; a header and a body's content by id, each
 // into the caller's buffer, false when not held; whether an id is
-// forgotten (a forget targets it); and, for a content hit's settling
-// (stage's, not validate's), whether a scope's live clearings at a time
-// clear a content digest for a pattern, and whether a header with a given
-// content is held. An entry of the call is Appended: its header, whether
+// forgotten (a forget targets it). An entry of the call is Appended: its header, whether
 // it has a body, and the body's content bytes, as check's Entry gives.
 //
 // Allocations: validate's own: the call's index, one, 4 bytes an entry,
@@ -148,8 +145,6 @@ concept View = requires(V& v, std::string_view s, header::Header<A>& h, Text<A>&
     { v.header(s, h) } -> std::same_as<bool>;
     { v.body(s, out) } -> std::same_as<bool>;
     { v.forgotten(s) } -> std::same_as<bool>;
-    { v.cleared(s, s, s, s) } -> std::same_as<bool>;
-    { v.holds_content(s) } -> std::same_as<bool>;
 };
 
 // The final view of an import: the view, and the first forget held of an

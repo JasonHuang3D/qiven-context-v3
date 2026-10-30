@@ -237,11 +237,6 @@ public:
     bool header(std::string_view id, Header& out) { return view_.header(id, out); }
     bool body(std::string_view id, entry::validator::Text<Chars>& out) { return view_.body(id, out); }
     [[nodiscard]] bool forgotten(std::string_view id) { return view_.forgotten(id); }
-    [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                               std::string_view at) {
-        return view_.cleared(scope, content, pattern, at);
-    }
-    [[nodiscard]] bool holds_content(std::string_view content) { return view_.holds_content(content); }
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
 
 private:

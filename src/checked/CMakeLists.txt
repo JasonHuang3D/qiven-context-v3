@@ -3,6 +3,7 @@
 # part 2, an import's rules) and the ruled stores, each store with the
 # rules as its one hook.
 add_library(qiven3_checked STATIC
+  clearing.hpp
   rules.cpp
   rules.hpp
   stores.hpp

@@ -198,6 +198,26 @@ public:
             f.writer = writer;
         });
     }
+    // D's direction record as a root on reviewer's lane at seq 1, its
+    // writer's role the lane's, its content clearing hit's content for
+    // pattern, at hit's at: a live clearing of that hit.
+    [[nodiscard]] Stored clearing(const Stored& hit, std::string_view pattern) const {
+        const header::Header<> h = header::parse_line(hit.line);
+        const std::string at(h.value(Slot::at));
+        std::string words(content_named("D"));
+        words.insert(words.find("\"episode\":"), R"("clears":{"content":")" + std::string(h.value(Slot::content)) +
+                                                     R"(","pattern":")" + std::string(pattern) + R"("},)");
+        std::string writer;
+        return made("D", "D", words, [&](header::FieldsView& f) {
+            writer = std::string("reviewer") + std::string(f.writer.substr(f.writer.find('/')));
+            f.lane = "reviewer";
+            f.writer = writer;
+            f.parent = std::nullopt;
+            f.target = std::nullopt;
+            f.seq = 1;
+            f.at = at;
+        });
+    }
 
     // M1's content as a root on reviewer's lane at seq 1, under M1's key,
     // n references added (24 at most: evidence's 16, then source's 8), by

@@ -24,19 +24,16 @@
 //
 // StateView is part 2's view over the data, its reads on the operation's
 // allocator: the head, a header (parsed again from its line), a body's
-// content, the forgotten set and forget_of, the size and count; for a
-// content hit, the scope's live clearings (each direction record folded at
-// the entry's at, its current version not expired clearing the pattern
-// for the content) and whether a header with a given content is held.
+// content, the forgotten set and forget_of, the size and count; the
+// generic calls by the keys held (a line, targets, keyed ids, each walked
+// in place by each_keyed, a byte search) and a work allocator.
 //
 // Allocations. The state's on its heap: an entry's line, record and
 // content digest, three; the ids' and a lane's room as they grow; a lane's
 // scope and name, two. A view's on its allocator: header canon's four and
-// one; body one where the buffer is short; cleared, per direction root,
-// its members' room and headers, the directions' contents and the fold's
-// work, on the view's scratch where given, each root's given back before
-// the next (the peak one record's, whatever the records held), else on
-// its allocator.
+// one; body one where the buffer is short; a list's room as it grows;
+// each_keyed none. work: the view's scratch's next arena where given (its
+// arena's peak counted, each given back at the next), else its allocator.
 // Platform calls: none (the pages are the maker's).
 //
 // thread: shared; State's mutex guards its data. Locked and StateView, one.
@@ -306,7 +303,7 @@ inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdo
 #endif
 }
 
-// check's scratch, then the clearing's: at each call a fresh arena over
+// check's scratch, then the view's work: at each call a fresh arena over
 // the same pages, the last one's blocks all given back.
 class ScratchView {
 public:
@@ -333,7 +330,7 @@ private:
 // Part 2's view over the data, while the lock is held.
 class StateView {
 public:
-    // scratch: where given, cleared's work, afresh for each direction root.
+    // scratch: where given, work's arenas, afresh at each call.
     StateView(Data& data, const Chars& allocator, Operation op, std::string_view path,
               ScratchView* scratch = nullptr) noexcept
         : data_(&data), allocator_(allocator), path_(path), op_(op), scratch_(scratch) {}
@@ -343,9 +340,6 @@ public:
     bool body(std::string_view id, validator::Text<Chars>& out);
     [[nodiscard]] bool forgotten(std::string_view id);
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
-    [[nodiscard]] bool cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                               std::string_view at);
-    [[nodiscard]] bool holds_content(std::string_view content);
     // The generic calls, by the keys the store holds: a record's line by
     // id, false where none is held; the ids whose target is id, in scope,
     // in the order written; a scope's ids of kind with no target, in
@@ -355,14 +349,40 @@ public:
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
     [[nodiscard]] bool contains(std::string_view bytes);
+    // f(id) for each id keyed gives, in its order, until f gives true:
+    // whether it did. No list held: the scope's lanes walked by name in
+    // place, the next the least name past the last.
+    template <class F>
+    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        const Data& d = *data_;
+        std::optional<std::string_view> last;
+        for (;;) {
+            std::uint32_t next = none;
+            for (std::uint32_t l = 0; l < d.lanes.size(); ++l) {
+                const std::string_view name(d.lanes[l].name);
+                if (std::string_view(d.lanes[l].scope) == scope && (!last || name > *last) &&
+                    (next == none || name < std::string_view(d.lanes[next].name))) {
+                    next = l;
+                }
+            }
+            if (next == none) {
+                return false;
+            }
+            last = std::string_view(d.lanes[next].name);
+            for (const std::uint32_t r : d.lanes[next].ids) {
+                if (d.held[r].target == none && std::string_view(d.held[r].kind) == kind && f(d.held[r].id)) {
+                    return true;
+                }
+            }
+        }
+    }
+    // A work allocator: the scratch's next arena, the last one's blocks
+    // given back, else the view's allocator.
+    [[nodiscard]] Chars work() { return scratch_ != nullptr ? Chars((*scratch_)()) : allocator_; }
     [[nodiscard]] std::uint64_t size() const noexcept { return data_->size; }
     [[nodiscard]] std::uint64_t count() const noexcept { return data_->count; }
 
 private:
-    // Whether direction record root clears a content for a pattern at at:
-    // its work on a fresh scratch arena, else on the view's allocator.
-    bool clears(std::uint32_t root, std::string_view scope, std::string_view content, std::string_view pattern,
-                std::string_view at);
     // The scope's lanes, by name: the order of the lists above.
     Vector<std::uint32_t> lanes_of(std::string_view scope);
 

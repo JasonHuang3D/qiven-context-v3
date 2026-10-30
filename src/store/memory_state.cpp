@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "entry/body.hpp"
-#include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "memory/memory.hpp"
@@ -22,19 +21,9 @@ namespace qiven3::store::state {
 namespace {
 
 using header::Slot;
-namespace fold = entry::fold;
 
 [[noreturn]] void incoherent(Operation op, std::string_view path, std::string_view detail) {
     throw StoreError::corrupt(name(op), path, Corrupt::incoherent, detail);
-}
-
-// The root of an entry's record: its targets followed back; each target is
-// held before the entry that names it.
-std::uint32_t root_of(const Data& d, std::uint32_t i) noexcept {
-    for (std::size_t steps = 0; d.held[i].target != none && steps < d.held.size(); ++steps) {
-        i = d.held[i].target;
-    }
-    return i;
 }
 
 // The entries a call adds to lane l, from the batch's row `from` on.
@@ -316,11 +305,6 @@ std::optional<Id> StateView::forget_of(std::string_view id) {
     return data_->held[data_->held[i].forget].id;
 }
 
-bool StateView::holds_content(std::string_view content) {
-    return std::any_of(data_->held.begin(), data_->held.end(),
-                       [content](const Held& e) { return std::string_view(e.content) == content; });
-}
-
 bool StateView::line(std::string_view id, String& out) {
     const std::uint32_t i = find(*data_, id);
     if (i == none) {
@@ -374,74 +358,6 @@ bool StateView::contains(std::string_view bytes) {
     return std::any_of(data_->held.begin(), data_->held.end(), [bytes](const Held& e) {
         return std::string_view(e.line).find(bytes) != std::string_view::npos;
     });
-}
-
-bool StateView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                        std::string_view at) {
-    const Data& d = *data_;
-    for (const Lane& l : d.lanes) {
-        if (std::string_view(l.scope) != scope) {
-            continue;
-        }
-        for (const std::uint32_t r : l.ids) {
-            const Held& e = d.held[r];
-            if (e.direction && e.target == none && clears(r, scope, content, pattern, at)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-bool StateView::clears(std::uint32_t root, std::string_view scope, std::string_view content,
-                       std::string_view pattern, std::string_view at) {
-    const Data& d = *data_;
-    const Chars work = scratch_ != nullptr ? Chars((*scratch_)()) : allocator_;
-    Vector<std::uint32_t> members(work);
-    members.push_back(root);
-    for (const Lane& l : d.lanes) {
-        if (std::string_view(l.scope) != scope) {
-            continue;
-        }
-        for (const std::uint32_t m : l.ids) {
-            if (m != root && root_of(d, m) == root) {
-                members.push_back(m);
-            }
-        }
-    }
-    Vector<Header> heads(work);
-    Vector<canon::Basic<Chars>> values(work);
-    Vector<fold::ItemView> items(work);
-    heads.reserve(members.size());
-    values.reserve(members.size());
-    items.reserve(members.size());
-    for (const std::uint32_t m : members) {
-        const Held& e = d.held[m];
-        heads.push_back(read_header(e, op_, path_, work));
-        values.emplace_back(work);
-        if (e.direction && e.has_body) {
-            try {
-                canon::parse(entry::body::detail::parts(std::string_view(e.body)).content, values.back());
-            } catch (const ParseError&) {
-                incoherent(op_, path_, "a direction's content the parser refuses");
-            }
-        }
-        items.push_back(fold::item(heads.back(), values.back(), e.has_body && e.forget == none));
-    }
-    fold::order(std::span<fold::ItemView>(items).subspan(1));
-    fold::State s;
-    try {
-        s = fold::fold(std::span<const fold::ItemView>(items), at, work);
-    } catch (const fold::FoldError&) {
-        incoherent(op_, path_, "a direction record the fold refuses");
-    }
-    if (!s.served()) {
-        return false;
-    }
-    const canon::Basic<Chars>& v = values[s.current];
-    const std::optional<json::Index> c = v.empty() ? std::nullopt : v.find(0, "clears");
-    return c && v.kind(*c) == json::Kind::object && entry::kinds::detail::member(v, *c, "content") == content &&
-           entry::kinds::detail::member(v, *c, "pattern") == pattern;
 }
 
 }  // namespace qiven3::store::state

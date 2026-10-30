@@ -1,6 +1,5 @@
 // sqlite: the writes of append and forget, through the connection wrapper
-// (sqlite.hpp): part 2's view of the transaction, a false secret hit's clearing one
-// direction record at a time on the scratch, the head's check, forget's
+// (sqlite.hpp): part 2's view of the transaction, the head's check, forget's
 // guard, whole records and erasure, the inserts, the head moved, meta added
 // to, and size's figures. This file names nothing of the engine's own.
 
@@ -13,7 +12,6 @@
 #include <string_view>
 
 #include "entry/body.hpp"
-#include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "memory/arena.hpp"
@@ -29,7 +27,6 @@ namespace qiven3::store::sqlite {
 namespace {
 
 namespace header = entry::header;
-namespace fold = entry::fold;
 using header::Slot;
 
 constexpr int done_code = 101;
@@ -134,14 +131,6 @@ bool WriteView::forgotten(std::string_view id) {
     return s.step(at_) && s.integer(0) != 0;
 }
 
-// The text's scan of entry.line for its "content": field, exact on
-// canonical lines: a string value holds no unescaped quote.
-bool WriteView::holds_content(std::string_view content) {
-    String needle(allocator_);
-    needle.append("\"content\":\"").append(content).append("\"");
-    return contains(needle);
-}
-
 bool WriteView::line(std::string_view id, String& out) {
     Statement s = c_->prepare(held_line, at_);
     s.bind_text(1, id, at_);
@@ -176,85 +165,6 @@ bool WriteView::contains(std::string_view bytes) {
     Statement s = c_->prepare(content_scan, at_);
     s.bind_blob(1, bytes, at_);
     return s.step(at_) && s.integer(0) != 0;
-}
-
-// A cursor over the scope's direction roots, each record cleared on its
-// own fresh arena; the first that clears ends the walk.
-bool WriteView::cleared(std::string_view scope, std::string_view content, std::string_view pattern,
-                        std::string_view at) {
-    Statement roots = c_->prepare(keyed_roots, at_);
-    roots.bind_text(1, scope, at_);
-    roots.bind_text(2, "direction", at_);
-    while (roots.step(at_)) {
-        const Id root = Id::of(roots.text(0));
-        if (clears(root, scope, content, pattern, at)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool WriteView::clears(const Id& root, std::string_view scope, std::string_view content, std::string_view pattern,
-                       std::string_view at) {
-    const Chars work = scratch_ != nullptr ? Chars((*scratch_)()) : allocator_;
-    // The record's members: the root and, by entry_target, what names a
-    // member, its revisions, retires and checks among them.
-    Vector<Id> members(work);
-    members.push_back(root);
-    {
-        Statement s = c_->prepare(record_members, at_);
-        for (std::size_t i = 0; i < members.size(); ++i) {
-            const Id m = members[i];
-            s.bind_text(1, m.view(), at_);
-            s.bind_text(2, scope, at_);
-            while (s.step(at_)) {
-                if (members.size() > static_cast<std::uint64_t>(held_.count)) {
-                    incoherent(at_, "a direction record past the entries held");
-                }
-                members.push_back(Id::of(s.text(0)));
-            }
-            s.reset();
-        }
-    }
-    Vector<Header> heads(work);
-    Vector<canon::Basic<Chars>> values(work);
-    Vector<fold::ItemView> items(work);
-    heads.reserve(members.size());
-    values.reserve(members.size());
-    items.reserve(members.size());
-    Statement s = c_->prepare(member_rows, at_);
-    for (const Id& m : members) {
-        s.bind_text(1, m.view(), at_);
-        if (!s.step(at_)) {
-            incoherent(at_, "a direction record's member not held");
-        }
-        heads.push_back(read_header(m.view(), s.blob(0), work, at_));
-        values.emplace_back(work);
-        const bool has_body = !s.null(1);
-        if (has_body && heads.back().value(Slot::kind) == "direction") {
-            try {
-                canon::parse(entry::body::detail::parts(s.blob(1)).content, values.back());
-            } catch (const ParseError&) {
-                incoherent(at_, "a direction's content the parser refuses");
-            }
-        }
-        items.push_back(fold::item(heads.back(), values.back(), has_body && s.integer(2) == 0));
-        s.reset();
-    }
-    fold::order(std::span<fold::ItemView>(items).subspan(1));
-    fold::State state;
-    try {
-        state = fold::fold(std::span<const fold::ItemView>(items), at, work);
-    } catch (const fold::FoldError&) {
-        incoherent(at_, "a direction record the fold refuses");
-    }
-    if (!state.served()) {
-        return false;
-    }
-    const canon::Basic<Chars>& v = values[state.current];
-    const std::optional<json::Index> c = v.empty() ? std::nullopt : v.find(0, "clears");
-    return c && v.kind(*c) == json::Kind::object && entry::kinds::detail::member(v, *c, "content") == content &&
-           entry::kinds::detail::member(v, *c, "pattern") == pattern;
 }
 
 std::optional<Head> expect(Connection& c, std::string_view scope, std::string_view lane, Expected expected,
