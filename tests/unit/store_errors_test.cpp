@@ -1,9 +1,8 @@
 // store/errors' cases: each kind made with its fields and read back, its
 // code given for its own kind alone, an EntryInvalid of code `secret` with
 // no id, fields cut at a code point, the names in the text's spelling,
-// evaluated by the compiler; the widths against the entry's (an id, a
-// field's path, a pattern's name, a scope and a lane at their syntaxes'
-// longest); each kind's message line, its detail, its seconds, and a line
+// evaluated by the compiler (the widths against the entry's are checked's
+// cases); each kind's message line, its detail, its seconds, and a line
 // cut at a code point; an error thrown by value and caught by its type;
 // the fault run, over no allocation and no platform call. The runner's
 // count after each case holds too.
@@ -21,9 +20,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "entry/content_fields.hpp"
-#include "entry/secret.hpp"
-#include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -129,10 +125,7 @@ static_assert(store::name(Cause::not_writable) == "not_writable" && store::name(
 static_assert(store::name(Corrupt::not_a_store) == "not_a_store" && store::name(Corrupt::forgotten_body) == "forgotten_body");
 static_assert(store::name(Full::disk_full) == "disk_full");
 
-// The widths against what fills them.
-static_assert(store::field_bytes == qiven3::entry::content::path_size);
-static_assert(store::id_bytes == std::tuple_size_v<decltype(qiven3::entry::validator::Id::bytes)>);
-static_assert(store::scope_bytes == std::string_view("project:").size() + 48 && store::lane_bytes == 32);
+// The widths against what fills them (the entry's, checked_reads' case).
 static_assert(store::detail_bytes == qiven3::platform::detail_bytes);
 
 // Each kind's line, made and checked away from the case's frame.
@@ -227,13 +220,6 @@ QIVEN3_CASE(store_errors, cut) {
 }
 
 QIVEN3_CASE(store_errors, names) {
-    // Every pattern's name and every part 2 code fit their fields whole.
-    for (std::size_t i = 0; i < qiven3::entry::secret::PATTERNS.size(); ++i) {
-        CHECK(qiven3::entry::secret::name(static_cast<std::uint8_t>(i)).size() <= store::pattern_bytes);
-    }
-    for (const std::string_view code : qiven3::entry::validator::code_names) {
-        CHECK(code.size() <= store::code_bytes);
-    }
     // The names are distinct within each enumeration.
     const auto distinct = [](std::span<const std::string_view> names) {
         for (std::size_t i = 0; i < names.size(); ++i) {

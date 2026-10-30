@@ -17,6 +17,7 @@
 //   id_of, seq_of, lane_head
 //                       a record's id and seq; a lane's head as a source
 //                       gives it
+//   Refusal, refused(f) what a StoreError f raised gives, or none
 //
 // Allocations: the standard's, the records' strings. thread: any.
 
@@ -146,6 +147,36 @@ inline store::LaneHead lane_head(std::string_view scope, std::string_view lane, 
     h.scope = memory::Inline<store::scope_bytes>(scope);
     h.lane = memory::Inline<store::lane_bytes>(lane);
     return h;
+}
+
+// What a StoreError f raised gives: its kind, its code (the store's, a
+// full's or the entry's), its detail and its index; none if f returned.
+struct Refusal {
+    store::Kind kind = store::Kind::store_error;
+    std::string code;
+    std::string detail;
+    std::size_t index = 0;
+};
+
+template <class F>
+std::optional<Refusal> refused(const F& f) {
+    try {
+        f();
+    } catch (const store::StoreError& e) {
+        Refusal r;
+        r.kind = e.kind();
+        if (const std::optional<store::Code> code = e.code()) {
+            r.code = store::name(*code);
+        } else if (const std::optional<store::Full> full = e.full()) {
+            r.code = store::name(*full);
+        } else {
+            r.code = e.entry_code();
+        }
+        r.detail = e.detail();
+        r.index = e.index();
+        return r;
+    }
+    return std::nullopt;
 }
 
 }  // namespace qiven3::test::records

@@ -1,10 +1,10 @@
 # store/errors' cases: each kind with its fields and its code, `secret`
 # with no id, the cuts at a code point and the names, evaluated by the
-# compiler; the widths against the entry's; each kind's line; an error
-# thrown and caught; the fault run over none.
+# compiler; each kind's line; an error thrown and caught; the fault run
+# over none.
 qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
   SOURCES store_errors_test.cpp
-  LINK qiven3_faults qiven3_store qiven3_secret qiven3_entry)
+  LINK qiven3_faults qiven3_store)
 
 # store/codes' cases: the table's named numbers, its order and its names;
 # each row of the mapping and each purge reason, evaluated by the compiler;
@@ -44,7 +44,7 @@ qiven3_add_cases(qiven3_unit_store_guard LABELS fast fake
 # reopen and verify again; a body row lost or stray refused.
 qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
   SOURCES store_plain_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
+  LINK qiven3_faults qiven3_stores)
 
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its

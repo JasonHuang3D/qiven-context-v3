@@ -13,7 +13,8 @@
 // then by open.
 // sweep: a body (a record, of no bytes, none, a key or a record alone) by x1 (a
 // note, of t1; a forget of none, of t1; a bare forget of t1, the body t1's), by
-// append or forget, and by import. own_export: ruled and plain, empty or not.
+// append or forget, and by import. own_export: empty or not (a ruled store's
+// own export is checked's case).
 
 #include <array>
 #include <cstddef>
@@ -30,7 +31,6 @@
 #include <utility>  // pair
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -42,7 +42,7 @@
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
@@ -55,8 +55,8 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::NoAdmit;
 using qiven3::store::Vector;
-using qiven3::test::stage_book::Fake;
-using qiven3::test::stage_book::lane_head;
+using Fake = qiven3::platform::fake::FakePlatform;
+using qiven3::test::records::lane_head;
 using Arena = qiven3::memory::Arena;
 using Chars = qiven3::memory::Allocator<char>;
 using String = qiven3::memory::String;
@@ -278,12 +278,6 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
         gave = given(*s, p, arena);
         (void)s->close();
     }
-    if (p.own) {  // a ruled store's own export; the unit's length links checked
-        using Ruled = qiven3::checked::SQLiteStore<Fake>;
-        const auto ruled = std::make_unique<Ruled>(Ruled::open(path, false, false, site->fake));
-        Arena arena(pages);
-        CHECK_EQ(said([&] { own_import(*ruled, arena); }), std::string(p.refused));
-    }
     const auto again = std::make_unique<Store>(Store::open(path, false, false, site->fake));
     Arena arena(pages);
     CHECK(again->verify() == counts);
@@ -306,10 +300,6 @@ void on_both(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& cou
     std::vector<std::byte> pages(page_bytes);
     Arena arena(pages);
     attempt(qiven3_ctx, s, p, arena);
-    if (p.own) {  // as on_sqlite's
-        qiven3::checked::MemoryStore<Fake> ruled(*st, *fake);
-        CHECK_EQ(said([&] { own_import(ruled, arena); }), std::string(p.refused));
-    }
     CHECK(s.verify() == counts);
     CHECK_EQ(given(s, p, arena), on_sqlite(qiven3_ctx, p, counts));
 }
