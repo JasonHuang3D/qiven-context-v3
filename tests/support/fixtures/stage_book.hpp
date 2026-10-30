@@ -1,12 +1,14 @@
 #pragma once
 
-// stage_book: store/stage's cases' entries and helpers. Book reads the
-// fixtures' entries as stored lines with their body records, and makes
+// stage_book: the store's and checked's cases' entries and helpers. Book
+// reads the fixtures' entries as stored lines with their body records, and
+// makes
 // entries like a fixture's: its fields changed, a content of its own under
 // the fixture's key, its digest and id computed. A secret's fixture is
 // built when the case runs, from parts, so no file holds a live-looking
 // token. refused runs a call and gives the StoreError it raised, as a
-// summary of its fields; check and admit are run so on an arena.
+// summary of its fields; check and admit (checked's rules) are run so on
+// an arena.
 //
 // thread: one (the fake's).
 
@@ -23,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/rules.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "memory/arena.hpp"
@@ -40,6 +43,7 @@
 namespace qiven3::test::stage_book {
 
 namespace stage = qiven3::store::stage;
+namespace checked = qiven3::checked;
 namespace header = qiven3::entry::header;
 namespace body = qiven3::entry::body;
 namespace fixtures = qiven3::test::fixtures;
@@ -358,17 +362,17 @@ inline std::optional<Refusal> refused_check(Fake& fake, const std::vector<Stored
                                             const Chars& chars) {
     const std::vector<EntryView> lines = views(list);
     ScratchPages scratch(scratch_bytes);
-    return refused([&] { (void)stage::check(fake, std::span<const EntryView>(lines), at(op), chars, scratch); });
+    return refused([&] { (void)checked::check(fake, std::span<const EntryView>(lines), at(op), chars, scratch); });
 }
 
-inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const stage::Checked<Fake>& checked,
+inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const checked::Checked<Fake>& checked,
                                             std::optional<std::string_view> expected, const Chars& chars,
                                             const Limits& limits = Limits{}) {
     const std::string_view scope = "project:qiven";
     const std::string_view lane =
         checked.entries.empty() ? std::string_view() : checked.entries[0].header().value(Slot::lane);
     return refused([&] {
-        std::ignore = stage::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
+        std::ignore = checked::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
     });
 }
 

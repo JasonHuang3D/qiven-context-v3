@@ -31,6 +31,7 @@
 #include <system_error>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -53,7 +54,7 @@ namespace {
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 using qiven3::memory::Countdown;
 using qiven3::memory::MemoryError;
 using qiven3::platform::PlatformError;

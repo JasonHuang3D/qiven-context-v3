@@ -27,6 +27,7 @@
 #include <string_view>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
@@ -53,7 +54,7 @@ using qiven3::store::RangeView;
 using qiven3::store::Written;
 using qiven3::memory::String;
 using qiven3::memory::Vector;
-using Store = MemoryStore<Fake>;
+using Store = qiven3::checked::MemoryStore<Fake>;
 
 static_assert(qiven3::store::Store<Store>, "the in-memory store meets the contract");
 static_assert(!Store::capabilities.durable && !Store::capabilities.files && !Store::capabilities.processes,

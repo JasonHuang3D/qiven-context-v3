@@ -15,6 +15,7 @@
 #include <system_error>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -29,7 +30,7 @@ namespace {
 
 namespace fs = std::filesystem;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 
 std::string text(const fs::path& path) {
     std::string out;

@@ -1,9 +1,9 @@
 #pragma once
 
-// sqlite_store: the SQLite store, SQLiteStore<P, H>, a template on the
-// platform and on the step hooks, over the connection wrapper and the
-// open steps of sqlite.hpp; and Engine<P>, the engine heap over pages the
-// platform gives, which its maker keeps past every store it opens.
+// sqlite_store: the SQLite store, SQLiteStore<P, H, Rule>, on the platform,
+// the step hooks and its writes' default admit hook, over sqlite.hpp's
+// connection wrapper and open steps; and Engine<P>, the engine heap over
+// pages the platform gives, which its maker keeps past every store it opens.
 //
 // open(path, create, read_only, platform, limits) runs the text's steps:
 // the path resolved, the guard on it (a .git in it or above it, StoreError
@@ -17,12 +17,12 @@
 // (sqlite_create.hpp). Errors name "open" and the resolved path.
 // A pending purge's one attempt at open, on a read-write object.
 //
-// Each operation runs Gate first. append and forget: stage's check outside
+// Each operation runs Gate first. append and forget: stage's read outside
 // the transaction; BEGIN IMMEDIATE (hook begun); the head; at forget the
-// guard; part 2 against WriteView, a false secret hit's clearing one direction record at
-// a time on check's scratch; at forget whole records and each target's
-// body erased; the rows, the head, meta (hook written); COMMIT (hook
-// committed); then a purge's one attempt. A failure in between rolls back.
+// guard; the admit hook's admit on WriteView (Rule's by default), the
+// store's own order; at forget whole records and each target's body
+// erased; the rows, the head, meta (hook written); COMMIT (hook committed);
+// then a purge's one attempt. A failure in between rolls back.
 // purge and close: the attempt (steps a to c), which raises no engine
 // result; a read-only object attempts none. size: meta, then the figures.
 // head, heads, header, body, forgotten: one query each through
@@ -34,12 +34,12 @@
 // Budgets: the object's own pages, 1 MiB, taken at open; open's resolved
 // path and the synced client's name on an arena over them. append and
 // forget: 1 MiB plus 4 times the lines given (the object's own where they
-// hold it), halved: the kept arena (check's entries, the rows, the
-// targets, part 2's), and check's scratch, afresh for each line, then each
-// direction record's clearing. header, body and a scan's next: an arena
-// over the object's own pages. The engine's heap apart (Engine). Platform
-// calls: at open pages, resolve, synced, at create one or two creates; at
-// append and forget pages past 1 MiB, and part 1's wipes.
+// hold it), halved: the kept arena (read's entries, the rows, the targets,
+// the hook's), and read's scratch, afresh for each line, and the hook's.
+// header, body and a scan's next: an arena over the object's own pages.
+// The engine's heap apart (Engine). Platform calls: at open pages,
+// resolve, synced, at create one or two creates; at append and forget
+// pages past 1 MiB, and part 1's wipes.
 //
 // thread: one, each object (Gate); Engine's heap shared.
 
@@ -110,7 +110,7 @@ private:
     sqlite::EngineHeap heap_;
 };
 
-template <platform::Platform P, Hooks H = NoHooks>
+template <platform::Platform P, Hooks H = NoHooks, class Rule = NoAdmit>
 class SQLiteStore {
     using Slot = entry::header::Slot;
 
@@ -210,7 +210,7 @@ public:
     // IMMEDIATE, the head, part 2, the rows, COMMIT, a purge's attempt.
     // The admit hook's given, read and kept before BEGIN IMMEDIATE, its
     // admit after the head and the guard, with the transaction's view.
-    template <class A = stage::Rules>
+    template <class A = Rule>
         requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
@@ -263,7 +263,7 @@ public:
     }
     // As append, with the guard, whole records and each target's body
     // erased, its id into erased; never refused for size or count.
-    template <class A = stage::Rules>
+    template <class A = Rule>
         requires Admit<std::remove_cvref_t<A>, sqlite::WriteView, stage::Entry<P>, sqlite::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
@@ -281,7 +281,7 @@ public:
     }
     // Into an empty store, all or nothing, on the object's own pages.
     // The admit hook's arrived, settled and heads inside the transaction.
-    template <Source R, class A = stage::Rules>
+    template <Source R, class A = Rule>
         requires AdmitImport<std::remove_cvref_t<A>, sqlite::ImportView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;

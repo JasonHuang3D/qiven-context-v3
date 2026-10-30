@@ -50,6 +50,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -203,7 +204,7 @@ inline std::unique_ptr<Site> site(std::uint64_t seed = 7) { return std::make_uni
 // heap refusing one growth past some 47 MB held: S12 gives its own).
 class Memory {
 public:
-    using Store = store::MemoryStore<Fake>;
+    using Store = checked::MemoryStore<Fake>;
     static constexpr std::string_view name = "memory";
     static constexpr Own own = Own::none;
     static constexpr std::size_t default_heap = std::size_t{64} << 20U;
@@ -245,7 +246,7 @@ private:
 template <store::Hooks H = store::NoHooks>
 class Sqlite {
 public:
-    using Store = store::SQLiteStore<Fake, H>;
+    using Store = checked::SQLiteStore<Fake, H>;
     static constexpr std::string_view name = "sqlite";
     static constexpr Own own = Own::sqlite;
 

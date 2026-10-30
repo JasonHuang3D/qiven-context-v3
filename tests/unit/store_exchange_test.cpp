@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -35,7 +36,7 @@ namespace {
 
 namespace fs = std::filesystem;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 using Export = qiven3::store::sqlite::SQLiteExport<Fake>;
 using qiven3::store::AfterView;
 using qiven3::store::Counts;

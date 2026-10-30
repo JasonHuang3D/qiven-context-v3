@@ -1,4 +1,4 @@
-// store/stage's budgets and fault runs, over five calls: an append of A,
+// checked/rules' budgets and fault runs over the store's stage, over five calls: an append of A,
 // B and D on an empty lane; an append of A's content with a key in it, its
 // hit cleared; a forget of E on implementer's lane held; and two of a map
 // citing A (below). Each line's work on fresh scratch arenas, its peak one line's, and what check keeps
@@ -31,6 +31,7 @@
 #include <string_view>
 #include <vector>
 
+#include "checked/rules.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -86,11 +87,11 @@ void prepare(fixtures::MemoryView& view, const Case& c) {
 // whole.
 bool run(Fake& fake, fixtures::MemoryView& view, const Case& c, const std::vector<EntryView>& lines,
          const Chars& chars, ScratchPages& scratch) {
-    const stage::Checked<Fake> checked =
-        stage::check(fake, std::span<const EntryView>(lines), at(c.op), chars, scratch);
+    const checked::Checked<Fake> checked =
+        checked::check(fake, std::span<const EntryView>(lines), at(c.op), chars, scratch);
     const std::optional<std::string_view> expected =
         c.expected ? std::optional<std::string_view>(*c.expected) : std::nullopt;
-    const stage::Staged staged = stage::admit(view, "project:qiven", checked.entries[0].header().value(Slot::lane),
+    const stage::Staged staged = checked::admit(view, "project:qiven", checked.entries[0].header().value(Slot::lane),
                                               expected, checked, Limits{}, at(c.op), chars);
     return staged.count == c.call.size();
 }

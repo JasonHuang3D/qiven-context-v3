@@ -1,7 +1,7 @@
 {
   "comment": "The modules: each tracked file in one, each test labelled with its module's name; the check is tools/loop_modules.py. A path ending in / holds every file under it, any other is a pattern on the whole path. depends names the modules a module's links and includes reach, transitively.",
   "exceptions": [
-    {"from": "store", "to": ["entry", "secret"], "until": "the store's split"}
+    {"from": "store", "to": ["entry", "secret", "checked"], "until": "the store's split"}
   ],
   "modules": [
     {"name": "build", "layer": "whole-build", "depends": [],
@@ -46,7 +46,7 @@
      "paths": ["src/wire/", "tests/unit/wire.cmake", "tests/unit/wire_*"]},
     {"name": "sqlite", "layer": "foundation", "depends": [],
      "paths": ["third_party/sqlite/"]},
-    {"name": "store", "layer": "foundation", "depends": ["entry", "secret", "memory", "sqlite", "platform", "faults"],
+    {"name": "store", "layer": "foundation", "depends": ["entry", "secret", "checked", "memory", "sqlite", "platform", "faults"],
      "paths": ["src/store/", "tests/support/stores/", "tests/support/seams/", "tests/unit/store.cmake", "tests/unit/store_*",
                "tests/unit/stores_test.cpp", "tests/unit/scan_test.cpp", "tests/support/fixtures/stage_book.hpp",
                "tests/support/fixtures/store_scan_case.hpp",
@@ -64,6 +64,8 @@
     {"name": "secret", "layer": "product", "depends": ["entry", "matcher", "base", "memory", "faults"],
      "paths": ["src/entry/secret.*", "tests/unit/secret.cmake", "tests/unit/secret_*", "tests/unit/matcher_test.cpp",
                "tests/support/fixtures/patterns.hpp"]},
+    {"name": "checked", "layer": "product", "depends": ["store", "entry", "secret", "base", "memory", "platform", "faults"],
+     "paths": ["src/checked/", "tests/unit/checked.cmake", "tests/unit/checked_*"]},
     {"name": "location", "layer": "product", "depends": ["base", "platform", "memory", "faults", "entry", "store", "wire"],
      "paths": ["src/qiven3/location*", "tests/unit/location.cmake", "tests/unit/location_*", "tests/support/fixtures/location_bed.hpp"]},
     {"name": "write", "layer": "product", "depends": ["entry", "matcher", "base", "memory", "platform", "faults"],
@@ -72,14 +74,14 @@
      "paths": ["tests/fuzz/"]},
     {"name": "app", "layer": "product", "depends": ["location", "store", "write", "wire", "log", "diag"],
      "paths": ["src/app/"]},
-    {"name": "driver", "layer": "product", "depends": ["store", "location", "wire", "hal", "log", "diag", "platform"],
+    {"name": "driver", "layer": "product", "depends": ["store", "checked", "location", "wire", "hal", "log", "diag", "platform"],
      "paths": ["tests/driver/", "tests/contract/", "tests/machine/", "tests/slow/", "tests/drive/binaries.py", "tests/drive/samples.py", "tests/drive/session.py",
                "tests/drive/test_store_session.py", "tests/drive/test_streams.py", "tests/drive/test_arguments.py",
                "tests/drive/test_wiring.py"]},
     {"name": "child", "layer": "product", "depends": ["location", "platform", "log", "diag"],
      "paths": ["tests/child/", "tests/unit/child.cmake", "tests/unit/win_process_*", "tests/drive/test_differential.py",
                "tests/drive/test_refs.py"]},
-    {"name": "structure", "layer": "tooling", "depends": ["store", "write", "location", "app", "driver", "child"],
+    {"name": "structure", "layer": "tooling", "depends": ["store", "checked", "write", "location", "app", "driver", "child"],
      "paths": ["tests/structure/", "tests/support/headers/"]},
     {"name": "tooling", "layer": "tooling", "depends": ["platform"],
      "paths": ["tools/", "tests/drive/fake_git.py", "tests/drive/own_git.py", "tests/drive/pinned.py",

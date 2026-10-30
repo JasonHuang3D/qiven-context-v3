@@ -6,10 +6,12 @@
 // over the same state, and a read-only one, each by the constructor. Each
 // object keeps the thread that made it (Gate); a read-only object serves
 // reads alone. It meets the contract within one process by the simplest
-// means: under the state's lock, the head compared, then stage's part 2
-// against the state's view, then the new rows staged on the state's heap
-// and applied by moves that cannot fail, so a refusal leaves the state as
-// it was; a forget so too, its guard and whole records checked. Reads run
+// means: under the state's lock, the head compared, then the admit hook's
+// admit (Rule's, NoAdmit by default, where a call gives none) against the
+// state's view, the store's own order, then the new rows staged on the
+// state's heap and applied by moves that cannot fail, so a refusal leaves
+// the state as it was; a forget so too, its guard and whole records
+// checked. Reads run
 // under the lock, each header parsed again from its line and its id
 // recomputed, each body record parsed and checked against its header, a
 // mismatch StoreCorrupt. A scan fixes, at its start, each lane's entries
@@ -21,15 +23,15 @@
 // Budgets: each operation runs on its own pages, an arena over them, 1 MiB
 // plus 4 times the lines given: the object's own 1 MiB for an operation
 // given none, else pages the call takes. At append and forget the pages
-// split in two halves, the arena check keeps its entries on, and check's
-// scratch, afresh for each line, then admit's clearing's, afresh for each
-// direction root. Import and verify run on the object's own;
+// split in two halves, the arena read keeps its entries on, and read's
+// scratch, afresh for each line, then the hook's, as the hook says.
+// Import and verify run on the object's own;
 // an export's lines go to the caller's arena. Each operation's peak is its
 // arenas' high-water marks summed, peak() the last one's; the state's heap
 // is the store's, as SQLite's files are.
 //
-// Allocations, by operation (the counts are the cases'): append check's
-// and admit's (stage's) on the operation's arenas; on the state's heap,
+// Allocations, by operation (the counts are the cases'): append read's
+// (stage's) and the hook's on the operation's arenas; on the state's heap,
 // the call's rows, three each, a new lane's two and its ids', the room
 // each container grows to. head, forgotten, size: none. heads: the caller's
 // rows. header: read_header's (canon's four and one, header's check's)
@@ -155,7 +157,7 @@ private:
     std::size_t peak_ = 0;
 };
 
-template <platform::Platform P>
+template <platform::Platform P, class Rule = NoAdmit>
 class MemoryStore {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
@@ -194,7 +196,7 @@ public:
 
     // The admit hook's given, read and kept on the call's pages before the
     // lock, its admit inside it with the state's view.
-    template <class A = stage::Rules>
+    template <class A = Rule>
         requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, A&& admit = A{}) {
@@ -289,7 +291,7 @@ public:
     // As append, but forget entries alone, every lane as the guard expects
     // it and whole records; the targets' bodies dropped, their ids into
     // erased; never refused for size or count.
-    template <class A = stage::Rules>
+    template <class A = Rule>
         requires Admit<std::remove_cvref_t<A>, state::StateView, stage::Entry<P>, state::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
@@ -345,7 +347,7 @@ public:
 
     // Into an empty state, all or nothing; the heads it wrote into heads.
     // The admit hook's arrived, settled and heads inside the lock.
-    template <Source R, class A = stage::Rules>
+    template <Source R, class A = Rule>
         requires AdmitImport<std::remove_cvref_t<A>, state::StateView>
     Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
         constexpr Operation op = Operation::import_;

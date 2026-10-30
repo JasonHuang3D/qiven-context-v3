@@ -31,6 +31,7 @@
 #include <system_error>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
@@ -57,7 +58,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::RangeView;
 using qiven3::store::WhereView;
 using qiven3::store::Written;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";

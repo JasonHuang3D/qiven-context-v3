@@ -28,6 +28,7 @@
 #include <string_view>
 #include <utility>
 
+#include "checked/stores.hpp"
 #include "driver/drive.hpp"
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
@@ -154,7 +155,7 @@ template <class D>
 std::optional<Value> import_undeferred([[maybe_unused]] D& d, [[maybe_unused]] memory::Arena& arena,
                                        [[maybe_unused]] ArgView request) {
     if constexpr (D::Factory::own == test::stores::Own::sqlite) {
-        using Undeferred = store::SQLiteStore<test::stores::Fake, test::seams::NoDeferral>;
+        using Undeferred = checked::SQLiteStore<test::stores::Fake, test::seams::NoDeferral>;
         const auto& factory = *held::named(d.states(), request, "state").object;
         Undeferred into = Undeferred::open(factory.path(), false, false, d.site().fake());
         store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};

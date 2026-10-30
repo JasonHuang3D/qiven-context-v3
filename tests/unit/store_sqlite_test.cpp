@@ -36,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -44,7 +45,6 @@
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 
@@ -74,7 +74,7 @@ using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::StoreError;
 using qiven3::store::WhereView;
-using Store = qiven3::store::SQLiteStore<FakePlatform>;
+using Store = qiven3::checked::SQLiteStore<FakePlatform>;
 namespace sqlite = qiven3::store::sqlite;
 
 static_assert(qiven3::store::Store<Store>, "the SQLite store meets the contract");

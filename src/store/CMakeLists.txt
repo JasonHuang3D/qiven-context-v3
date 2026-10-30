@@ -1,7 +1,7 @@
 # qiven3_store: the store, the one target that links qiven3_sqlite: its
 # contract, its typed errors, the engine's result codes mapped to them,
-# stage, the shared validator's two parts as each store calls them, the
-# in-memory reference store, and the SQLite store: exchange its export,
+# stage, the shared validator's part 1 and the admit hook at its places,
+# the store's own order and the maximum, the in-memory reference store, and the SQLite store: exchange its export,
 # import and verify, through the wrapper; engine/, a directory
 # of its own with its own analysis configuration, holds the engine's
 # calls, engine/sqlite.cpp alone including the engine's header and making
@@ -34,4 +34,4 @@ add_library(qiven3_store STATIC
   stage.hpp
 )
 target_include_directories(qiven3_store PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_store PUBLIC qiven3_entry qiven3_secret qiven3_memory PRIVATE qiven3_flags qiven3_sqlite)
+target_link_libraries(qiven3_store PUBLIC qiven3_entry qiven3_memory PRIVATE qiven3_flags qiven3_sqlite)

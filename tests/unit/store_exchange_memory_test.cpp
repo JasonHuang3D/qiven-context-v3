@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -37,7 +38,6 @@
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/exchange.hpp"
-#include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/stage_book.hpp"
@@ -60,7 +60,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 

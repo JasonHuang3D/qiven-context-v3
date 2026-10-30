@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -17,7 +18,7 @@
 namespace {
 
 using Fake = qiven3::platform::fake::FakePlatform;
-using Store = qiven3::store::MemoryStore<Fake>;
+using Store = qiven3::checked::MemoryStore<Fake>;
 
 // The fake, the fixtures, the state's pages and the state, and the
 // caller's arena; on the heap.

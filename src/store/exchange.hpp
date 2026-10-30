@@ -20,10 +20,10 @@
 //
 // Import: the source's heads first; BEGIN IMMEDIATE, foreign keys
 // deferred, StoreNotEmpty unless meta counts no entry; each line through
-// part 1 and the chain rules (stage's import_line) as it arrives, then its
-// entry, body and head rows; once every line is in, each entry in the
-// order inserted through the final view (stage's import_entry), the heads
-// compared with the source's (same_heads), meta written from the rows,
+// part 1 and the admit hook's arrived as it arrives, then its entry, body
+// and head rows; once every line is in, each entry in the order inserted
+// through the final view (the hook's settled), the heads given to the
+// hook's heads with the source's, meta written from the rows,
 // vacuumed and purged equal to forgets; COMMIT; a TRUNCATE checkpoint. A
 // refusal rolls back, then the checkpoint; the caller's heads cleared.
 //

@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -48,7 +49,7 @@ using qiven3::store::Counts;
 using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven3::checked::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
@@ -137,7 +138,7 @@ struct Probe {
     void committed() const noexcept {}
     void rebuilt() const noexcept {}
 };
-using Probed = qiven3::store::SQLiteStore<Fake, Probe>;
+using Probed = qiven3::checked::SQLiteStore<Fake, Probe>;
 
 // A scratch directory of the case's own, removed at its end; the fake over
 // it, the fixtures, the engine heap and the caller's arena.

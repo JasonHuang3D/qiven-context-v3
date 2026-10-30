@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -50,7 +51,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::MemoryStore;
 using qiven3::store::RangeView;
-using Store = MemoryStore<Fake>;
+using Store = qiven3::checked::MemoryStore<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
