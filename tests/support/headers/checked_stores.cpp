@@ -16,5 +16,9 @@ template Imported SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>::import_(deta
 
 static_assert(Store<checked::MemoryStore<Fake>>);
 static_assert(Store<checked::SQLiteStore<Fake>>);
+static_assert(sizeof(checked::MemoryStore<Fake>) == sizeof(MemoryStore<Fake, checked::Rules<Fake>>),
+              "a ruled store adds no member");
+static_assert(sizeof(checked::SQLiteStore<Fake>) == sizeof(SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>),
+              "a ruled store adds no member");
 
 }  // namespace qiven3::store
