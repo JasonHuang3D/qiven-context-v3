@@ -23,7 +23,8 @@
 // whole call; the source's heads first, then each line's keys from the
 // admit hook's read, the store's bounds and chain over them as it arrives,
 // and in at once by its keys, no body dropped; once every line is in, the
-// ids sorted, the targets and forgets linked by the target keys, then each
+// ids sorted (no find answers before it), the first id repeated refused
+// id_held, the targets and forgets linked by the target keys, then each
 // entry, its keys as held, through the hook's settled and the store's
 // settles (forgotten_body and body_missing among them) and the heads
 // compared. A refusal empties the state again: it was empty, so all or
@@ -110,6 +111,10 @@ struct Link {
 // entry's target and forget linked; the state emptied again.
 void import_one(Data& d, const EntryView& line, Rows<Link>& links);
 void sort_ids(Data& d) noexcept;
+// The ids sorted, the first entry in the store's order with an earlier one's
+// id, or none; the targets linked, what settles asks of entry i.
+[[nodiscard]] std::uint32_t repeated(const Data& d) noexcept;
+[[nodiscard]] stage::Standing standing(const Data& d, std::uint32_t i) noexcept;
 void link(Data& d, std::uint32_t i, std::string_view target) noexcept;
 void reset(Data& d) noexcept;
 // Entry i's keys as the state holds them, views of it: its parent the one
@@ -210,6 +215,9 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             note(peak.work, work);
         }
         sort_ids(d);
+        if (const std::uint32_t r = repeated(d); r != none) {
+            stage::refuse(at, r, d.held[r].id.view(), "id_held");
+        }
         for (const Link& l : links) {
             link(d, l.at, l.target.view());
         }
@@ -225,7 +233,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
                               e.has_body ? std::optional<std::string_view>(e.body) : std::nullopt, keys};
             StateView view(d, Chars(work), op, {});
             admit.settled(view, v, i, at, Chars(work));
-            stage::settles(keys, e.target != none, e.forget != none, e.has_body, i, at);
+            stage::settles(keys, standing(d, i), i, at);
             note(peak.work, work);
         }
         heads_of(d, std::nullopt, heads);

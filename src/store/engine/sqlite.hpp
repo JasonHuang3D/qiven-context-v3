@@ -400,8 +400,9 @@ public:
     // or in every scope; a scope's ids of kind with no target, in (lane,
     // seq) order; each list into out, cleared first, the targets' in the
     // order written (rowid); whether a held line holds bytes; whether a
-    // record of id is held in scope.
+    // record of id is held, in any scope or in scope.
     bool line(std::string_view id, String& out);
+    [[nodiscard]] bool held(std::string_view id);
     [[nodiscard]] bool held_in(std::string_view id, std::string_view scope);
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
     void targets(std::string_view id, Vector<Id>& out);

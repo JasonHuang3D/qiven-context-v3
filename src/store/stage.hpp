@@ -35,8 +35,9 @@
 // held in the call's scope with its body, none twice, the first not
 // refused EntryInvalid target. settles(keys, ...), at import once every
 // line is in, after the hook's settled: a target key not held, target; a
-// body of a forgotten entry, forgotten_body; a body key with no body, not
-// forgotten, body_missing.
+// forget whose target has no body key, is another scope's, is a forget or
+// has an earlier forget, target; a body of a forgotten entry,
+// forgotten_body; a body key with no body, not forgotten, body_missing.
 //
 // staged(view, checked, limits, at), inside the store's transaction or
 // lock, after the hook's admit: at append alone, the maximum: the view's
@@ -44,10 +45,14 @@
 // StoreFull store_full, with the size and count the call would reach. It
 // returns the new head and what the call adds. With the call's scope, lane
 // and the head the store read, staged first runs in_order, the store's own
-// order over its keys; guarded the same, at append then targets, each
+// order over its keys; guarded the same, fresh, at append then targets, each
 // entry's target held in the call's scope (the view's held_in), the
 // store's or an earlier one of the call's, refused target. A HeadConflict
-// and a guard are the store's.
+// and a guard are the store's. fresh: an id held, or an earlier one of the
+// call's, refused EntryInvalid id_held, after the order, so that an entry
+// written again keeps its HeadConflict or order refusal, and before any
+// write. At import SQLite refuses it as the line arrives, after arrives;
+// the memory store once its ids sort, every line in.
 //
 // Refusals are EntryInvalid with the entry's index and its id key (none
 // where the id is past its bound); part1's with its id once it has read
@@ -56,9 +61,9 @@
 //
 // Allocations. read: on the caller's allocator, the kept entries' room,
 // one; the hook's are its own (each hook says). part1 on the arena it is
-// given. staged, in_order, arrives, erasable, settles and targets none but
-// the view's. Platform calls: part1's wipes and its body's key's, each
-// noexcept; none at append and forget. stage logs nothing.
+// given. staged, in_order, arrives, erasable, settles, fresh and targets
+// none but the view's. Platform calls: part1's wipes and its body's key's,
+// each noexcept; none at append and forget. stage logs nothing.
 //
 // thread: none; the kept entries, one.
 
@@ -147,6 +152,18 @@ concept View = validator::View<V, Chars> && requires(const V& v) {
 template <class S>
 concept Scratch = requires(S& s) {
     { s() } -> std::same_as<memory::Arena&>;
+};
+
+// What the store holds of an import's entry once every line is in, for
+// settles; the target's four read for a forget with its target held.
+struct Standing {
+    bool target_held = false;    // no target key, or its entry is held
+    bool target_body = false;    // the target has a body key
+    bool target_scope = false;   // the target is of the entry's scope
+    bool target_forget = false;  // the target is a forget
+    bool forget_before = false;  // a forget of the same target is earlier in the store's order
+    bool forgotten = false;      // a forget targets this entry
+    bool body = false;           // this entry's body is held
 };
 
 // The refusals, each written by stage.cpp.
@@ -364,18 +381,21 @@ inline void erasable(std::span<const KeptView> entries, std::span<const Id> eras
 
 // At import, one entry once every line is in, after the hook's settled,
 // by its keys and what the store holds of it: a target key not held,
-// target; its body held while forgotten, forgotten_body; a body key with
-// no body, not forgotten, body_missing.
-inline void settles(const KeysView& k, bool target_held, bool forgotten, bool body, std::size_t index,
-                    const AtView& at) {
+// target; a forget of a target with no body key, of another scope, itself
+// a forget or forgotten earlier, target; its body held while forgotten,
+// forgotten_body; a body key with no body, not forgotten, body_missing.
+inline void settles(const KeysView& k, const Standing& s, std::size_t index, const AtView& at) {
     const std::string_view id = k.id;
-    if (k.target && !target_held) {
+    if (k.target && !s.target_held) {
         refuse(at, index, id, "target");
     }
-    if (body && forgotten) {
+    if (k.kind == "forget" && (!s.target_body || !s.target_scope || s.target_forget || s.forget_before)) {
+        refuse(at, index, id, "target");
+    }
+    if (s.body && s.forgotten) {
         refuse(at, index, id, "forgotten_body");
     }
-    if (!body && !forgotten && k.body) {
+    if (!s.body && !s.forgotten && k.body) {
         refuse(at, index, id, "body_missing");
     }
 }
@@ -408,12 +428,28 @@ Staged staged(V& view, const Checked& checked, const Limits& limits, const AtVie
     return staged(view, checked, limits, at);
 }
 
-// The same, the store's own guards: its order, at append its targets, then
-// staged.
+// At append and forget, each entry's id new: not held (the view's held, in
+// any scope), not an earlier one of the call's; the first refused id_held.
+template <class V>
+void fresh(V& view, std::span<const KeptView> entries, const AtView& at) {
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        bool held = view.held(entries[i].id.view());
+        for (std::size_t j = 0; j < i && !held; ++j) {
+            held = entries[j].id == entries[i].id;
+        }
+        if (held) {
+            refuse(at, i, entries[i].id.view(), "id_held");
+        }
+    }
+}
+
+// The same, the store's own guards: its order, each id new, at append its
+// targets, then staged.
 template <View V>
 Staged guarded(V& view, const Checked& checked, const Limits& limits, const AtView& at, std::string_view scope,
                std::string_view lane, const std::optional<Head>& now) {
     in_order(scope, lane, now, std::span<const KeptView>(checked.kept), at);
+    fresh(view, std::span<const KeptView>(checked.kept), at);
     if (at.op == Operation::append) {
         targets(view, std::span<const KeptView>(checked.kept), scope, at);
     }

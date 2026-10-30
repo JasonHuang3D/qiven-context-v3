@@ -2,9 +2,11 @@
 // keys of lines no parser takes, each write followed by verify and, on
 // SQLite, a reopen and verify again, and what each store then gives compared.
 // no_body_append, no_body_import: a record with no body commits and opens.
-// forget_no_key_import: a forget whose target has no body key leaves the two
-// stores giving the same keys. keys_alike_import, keys_alike_append: a body,
-// none, a body key forgotten, the same by a scan, an export and by id.
+// forget_no_key_import, forget_rule_import: a forget whose target has no body
+// key, is another scope's, is a forget or has an earlier forget, refused.
+// id_held: an id held or repeated in a call, by append, forget and import,
+// refused, the order's refusal first. keys_alike_import, keys_alike_append: a
+// body, none, a body key forgotten, the same by a scan, an export and by id.
 // many_keys_import: body keys with no record past any list of them the
 // import's pages could keep. lost_body: a body row lost or stray, the count
 // equal or not, refused by a scan, an export and verify on the open store,
@@ -17,9 +19,11 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>  // pair
 #include <vector>
 
 #include "memory/arena.hpp"
@@ -130,12 +134,15 @@ struct PlainSource {
     }
 };
 
-// The writes of a case: lines imported or appended, then a forget given.
+// The writes of a case: lines imported or appended each alone, then a first
+// call of lines together, then a forget given; the last refused "code index id".
 struct Plan {
     bool import = false;
     std::vector<Given> lines;
     std::vector<LaneHead> heads;
     std::optional<Given> forget;
+    std::vector<Given> together;
+    std::string_view refused;
 };
 
 std::array<EntryView, 1> one(const Given& g) {
@@ -152,6 +159,13 @@ void write(S& s, const Plan& p, Arena& arena) {
         for (const Given& g : p.lines) {
             (void)s.append(g.keys.scope, g.keys.lane, g.keys.parent, one(g), NoAdmit{});
         }
+    }
+    if (!p.together.empty()) {
+        std::vector<EntryView> call;
+        for (const Given& g : p.together) {
+            call.push_back(one(g)[0]);
+        }
+        (void)s.append("plain", "one", {}, std::span<const EntryView>(call), NoAdmit{});
     }
     if (p.forget) {
         const KeysView& k = p.forget->keys;
@@ -195,13 +209,13 @@ std::string exported(S& s, Arena& arena) {
 }
 
 // What s gives: its keys, by a scan and an export alike, then by id, through
-// the plan's lines, whether it holds a record.
+// the plan's lines where all were written, whether it holds a record.
 template <class S>
 std::string given(S& s, const Plan& p, Arena& arena) {
     const std::string keys = scanned(s, arena);
     std::string out = keys == exported(s, arena) ? keys : std::string("a scan and an export differ\n");
     String record{Chars(arena)};
-    for (const Given& g : p.lines) {
+    for (const Given& g : p.refused.empty() ? p.lines : std::vector<Given>{}) {
         out.append(g.keys.id).append(s.body(g.keys.id, record) ? " record\n" : " no record\n");
     }
     return out;
@@ -213,11 +227,24 @@ std::string said(const F& f) {
     try {
         f();
     } catch (const qiven3::store::StoreError& e) {
+        if (e.kind() == qiven3::store::Kind::entry_invalid) {
+            return std::string(e.entry_code()) + " " + std::to_string(e.index()) + " " + std::string(e.id());
+        }
         const std::optional<qiven3::store::Corrupt> c = e.corrupt();
         return std::string(qiven3::store::name(e.kind())) + " " +
                std::string(c ? qiven3::store::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
     }
     return {};
+}
+
+// p's writes on s, refused as it names, if it names a refusal.
+template <class S>
+void attempt(qiven3::test::Context& qiven3_ctx, S& s, const Plan& p, Arena& arena) {
+    if (p.refused.empty()) {
+        write(s, p, arena);
+    } else {
+        CHECK_EQ(said([&] { write(s, p, arena); }), std::string(p.refused));
+    }
 }
 
 // p on SQLite, verified to counts, reopened and verified to them again; what
@@ -230,7 +257,7 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
     {
         const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake));
         Arena arena(pages);
-        write(*s, p, arena);
+        attempt(qiven3_ctx, *s, p, arena);
         CHECK(s->verify() == counts);
         gave = given(*s, p, arena);
         (void)s->close();
@@ -251,7 +278,7 @@ void on_both(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& cou
     qiven3::store::MemoryStore<Fake> s(*st, *fake);
     std::vector<std::byte> pages(page_bytes);
     Arena arena(pages);
-    write(s, p, arena);
+    attempt(qiven3_ctx, s, p, arena);
     CHECK(s.verify() == counts);
     CHECK_EQ(given(s, p, arena), on_sqlite(qiven3_ctx, p, counts));
 }
@@ -277,7 +304,37 @@ QIVEN3_CASE(store_plain, forget_no_key_import) {
     p.import = true;
     p.lines = {note("t1", "one", 1, {}, false, false), gone("f1", "two", 1, {}, "t1")};
     p.heads = {lane_head("plain", "one", "t1", 1), lane_head("plain", "two", "f1", 1)};
-    on_both(qiven3_ctx, p, Counts{2, 0, 1, 2});
+    p.refused = "target 1 f1";
+    on_both(qiven3_ctx, p, Counts{});
+}
+
+QIVEN3_CASE(store_plain, forget_rule_import) {
+    const Given t1 = note("t1", "one", 1, {}, true, false);
+    const Given f1 = gone("f1", "two", 1, {}, "t1");
+    Given elsewhere = f1;
+    elsewhere.keys.scope = "other";
+    const std::array<std::pair<std::vector<Given>, std::string_view>, 4> rows = {{
+        {{t1, f1, gone("f2", "two", 2, "f1", "t1")}, "target 2 f2"},  // a second forget
+        {{t1, f1, gone("f2", "two", 2, "f1", "f1")}, "target 2 f2"},  // a forget of a forget
+        {{t1, elsewhere}, "target 1 f1"},                             // another scope's
+        {{gone("f1", "two", 1, {}, "f1")}, "target 0 f1"},            // its own target
+    }};
+    for (const auto& [lines, refused] : rows) {
+        on_both(qiven3_ctx, Plan{true, lines, {}, {}, {}, refused}, Counts{});
+    }
+}
+
+QIVEN3_CASE(store_plain, id_held) {
+    const Given a1 = note("a1", "one", 1, {}, true, true);
+    const Given a1_two = note("a1", "two", 1, {}, true, true);
+    const Given a1_three = note("a1", "three", 1, {}, true, true);
+    const Counts held{1, 1, 0, 1};
+    on_both(qiven3_ctx, Plan{false, {a1, a1_two}, {}, {}, {}, "id_held 0 a1"}, held);
+    on_both(qiven3_ctx, Plan{false, {a1, note("a1", "one", 1, "a1", true, true)}, {}, {}, {}, "seq 0 a1"}, held);
+    on_both(qiven3_ctx, Plan{false, {}, {}, {}, {a1, note("a1", "one", 2, "a1", true, true)}, "id_held 1 a1"}, {});
+    on_both(qiven3_ctx, Plan{false, {a1}, {}, gone("a1", "two", 1, {}, "a1"), {}, "id_held 0 a1"}, held);
+    on_both(qiven3_ctx, Plan{true, {a1, a1_two, a1_three}, {}, {}, {}, "id_held 1 a1"}, Counts{});
+    on_both(qiven3_ctx, Plan{true, {a1, a1}, {}, {}, {}, "parent 1 a1"}, Counts{});
 }
 
 QIVEN3_CASE(store_plain, keys_alike_import) {

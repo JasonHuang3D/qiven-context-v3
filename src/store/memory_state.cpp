@@ -295,6 +295,8 @@ bool StateView::line(std::string_view id, String& out) {
     return true;
 }
 
+bool StateView::held(std::string_view id) noexcept { return find(*data_, id) != none; }
+
 bool StateView::held_in(std::string_view id, std::string_view scope) {
     const std::uint32_t i = find(*data_, id);
     return i != none && std::string_view(data_->lanes[data_->held[i].lane].scope) == scope;

@@ -381,6 +381,11 @@ KeysView final_keys(const Statement& s) {
     return KeysView{s.text(0), s.text(5), s.text(6), s.text(9), s.integer(7), text(8), text(10), s.integer(11) != 0};
 }
 
+stage::Standing final_standing(const Statement& s) {
+    const auto on = [&s](int column) { return s.integer(column) != 0; };
+    return stage::Standing{on(3), on(12), on(13), on(14), on(15), on(4), !s.null(2)};
+}
+
 void ImportRows::put(const EntryView& line, const WhereView& at) {
     const KeysView& k = line.keys;
     const std::string_view id = k.id;

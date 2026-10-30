@@ -353,7 +353,7 @@ public:
         state::guard(d, guard);
         state::StateView view(d, chars, op, {}, &scratch);
         admit.admit(view, scope, lane, expected, std::span<const stage::KeptView>(checked.kept), at, chars);
-        const stage::Staged staged = stage::staged(view, checked, state_->limits(), at, scope, lane, now);
+        const stage::Staged staged = stage::guarded(view, checked, state_->limits(), at, scope, lane, now);
         Vector<std::uint32_t> targets(chars);
         targets.reserve(entries.size());
         for (const stage::KeptView& k : checked.kept) {

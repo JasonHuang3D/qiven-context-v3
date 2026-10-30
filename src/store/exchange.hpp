@@ -21,8 +21,8 @@
 // Import: the source's heads first; BEGIN IMMEDIATE, foreign keys
 // deferred, StoreNotEmpty unless meta counts no entry; each line's keys
 // from the admit hook's read, the store's bounds and chain over them
-// (stage's arrives) and the hook's arrived as it arrives, then its entry,
-// body and head rows by its keys; once every line is in, each entry in the
+// (stage's arrives), an id held refused id_held, and the hook's arrived as
+// it arrives, then its entry, body and head rows by its keys; once every line is in, each entry in the
 // order inserted, its keys from its columns (its body key a record held,
 // or a body key that came with none), through the final view (the hook's
 // settled, then stage's settles), the heads given to the
@@ -239,6 +239,7 @@ public:
     bool body(std::string_view id, entry::validator::Text<Chars>& out) { return view_.body(id, out); }
     [[nodiscard]] bool forgotten(std::string_view id) { return view_.forgotten(id); }
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
+    [[nodiscard]] bool held(std::string_view id) { return view_.held(id); }
 
 private:
     Connection* c_;
@@ -263,16 +264,19 @@ private:
 // final view over pages, the heads compared, meta written, the counts.
 void begin_import(Connection& c, bool defer, const WhereView& at);
 // The final view's rows, in the order inserted, each with whether its
-// target is held and whether a forget names it, then its keys; the heads
-// the rows give into heads; meta written from the rows, the counts.
+// target is held and whether a forget names it, then its keys, then what
+// settles asks of its target; the heads the rows give into heads; meta
+// written from the rows, the counts.
 inline constexpr std::string_view final_rows =
-    "SELECT e.id, e.line, b.record, "
-    "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target), "
+    "SELECT e.id, e.line, b.record, e.target IS NULL OR t.id IS NOT NULL, "
     "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget'), "
-    "e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.body "
-    "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
-// A final row's keys, views of it.
+    "e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.body, "
+    "t.body IS 1, t.scope IS e.scope, t.kind IS 'forget', "
+    "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.target AND f.kind = 'forget' AND f.rowid < e.rowid) "
+    "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id LEFT JOIN entry AS t ON t.id = e.target ORDER BY e.rowid";
+// A final row's keys, views of it; what settles asks of it.
 [[nodiscard]] KeysView final_keys(const Statement& s);
+[[nodiscard]] stage::Standing final_standing(const Statement& s);
 // Both on one statement, the heads' kept open until meta's takes its place.
 void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 [[nodiscard]] Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits);
@@ -294,7 +298,7 @@ Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneH
             const EntryView v{s.blob(1), s.null(2) ? std::nullopt : std::optional<std::string_view>(s.blob(2)), keys};
             ImportView view(c, chars, at);
             admit.settled(view, v, i, site, chars);
-            stage::settles(keys, s.integer(3) != 0, s.integer(4) != 0, !s.null(2), i, site);
+            stage::settles(keys, final_standing(s), i, site);
             peak = std::max(peak, work.peak());
         }
     }
@@ -348,6 +352,9 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             const EntryView v{in.line, in.body, keys};
             ImportView view(c, Chars(work), where);
             stage::arrives(view, keys, v, i, at);
+            if (view.held(keys.id)) {
+                stage::refuse(at, i, keys.id, "id_held");
+            }
             admit.arrived(view, v, i, at);
             rows.put(v, where);
             work_peak = std::max(work_peak, work.peak());

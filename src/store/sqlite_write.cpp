@@ -128,6 +128,8 @@ bool WriteView::line(std::string_view id, String& out) {
     return true;
 }
 
+bool WriteView::held(std::string_view id) { return find(*c_, id, nullptr, nullptr, at_) != Found::absent; }
+
 bool WriteView::held_in(std::string_view id, std::string_view scope) {
     Statement s = c_->prepare(held_scope, at_);
     s.bind_text(1, id, at_);

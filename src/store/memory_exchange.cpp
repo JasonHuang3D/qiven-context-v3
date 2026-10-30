@@ -114,8 +114,21 @@ void import_one(Data& d, const EntryView& line, Rows<Link>& links) {
 }
 
 void sort_ids(Data& d) noexcept {
-    std::sort(d.by_id.begin(), d.by_id.end(),
-              [&d](std::uint32_t a, std::uint32_t b) { return d.held[a].id.view() < d.held[b].id.view(); });
+    std::sort(d.by_id.begin(), d.by_id.end(), [&d](std::uint32_t a, std::uint32_t b) {
+        const std::string_view x = d.held[a].id.view();
+        const std::string_view y = d.held[b].id.view();
+        return x != y ? x < y : a < b;
+    });
+}
+
+std::uint32_t repeated(const Data& d) noexcept {
+    std::uint32_t first = none;
+    for (std::size_t k = 1; k < d.by_id.size(); ++k) {
+        if (d.held[d.by_id[k - 1]].id == d.held[d.by_id[k]].id) {
+            first = std::min(first, d.by_id[k]);
+        }
+    }
+    return first;
 }
 
 void link(Data& d, std::uint32_t i, std::string_view target) noexcept {
@@ -124,6 +137,14 @@ void link(Data& d, std::uint32_t i, std::string_view target) noexcept {
     if (d.held[i].is_forget && t != none && d.held[t].forget == none) {
         d.held[t].forget = i;
     }
+}
+
+stage::Standing standing(const Data& d, std::uint32_t i) noexcept {
+    const Held& e = d.held[i];
+    const Held& t = d.held[e.target != none ? e.target : i];
+    const bool scope = std::string_view(d.lanes[t.lane].scope) == std::string_view(d.lanes[e.lane].scope);
+    return stage::Standing{
+        e.target != none, t.content, scope, t.is_forget, t.forget != i, e.forget != none, e.has_body};
 }
 
 KeysView held_keys(const Data& d, std::uint32_t i, std::optional<std::string_view> target) noexcept {
