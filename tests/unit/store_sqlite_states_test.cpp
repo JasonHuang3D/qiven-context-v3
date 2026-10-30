@@ -423,7 +423,7 @@ constexpr std::array<Forgery, 9> forgeries = {{
     {"UPDATE meta SET value = 0 WHERE name = 'vacuumed'",
      "StoreCorrupt incoherent: meta: purged, vacuumed and forgets out of order"},
     {"DELETE FROM body WHERE id = (SELECT id FROM entry WHERE seq = 1)",
-     "StoreCorrupt incoherent: body: the rows not the entries less twice the forgets"},
+     "StoreCorrupt incoherent: body: the rows not the entries with a body key no forget targets"},
     {"DELETE FROM meta WHERE name = 'count'", "StoreCorrupt incoherent: meta: a row missing"},
     {"INSERT INTO meta (name, value) VALUES ('other', 0)", "StoreCorrupt incoherent: meta: a row of another name"},
 }};

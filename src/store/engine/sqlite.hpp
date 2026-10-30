@@ -443,6 +443,7 @@ struct RowView {
     std::int64_t seq = 0;
     std::string_view line;
     std::optional<std::string_view> record;
+    bool body = false;  // its body key, the keys'
 };
 
 // Step 3: the lane's head against the expected one, else HeadConflict.

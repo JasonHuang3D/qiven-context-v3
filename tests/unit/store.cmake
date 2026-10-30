@@ -39,6 +39,13 @@ qiven3_add_cases(qiven3_unit_store_guard LABELS fast fake
   SOURCES store_guard_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
 
+# store's plain path in both stores with no admit hook, on the fake: the body
+# key held and given alike, each write followed by verify and, on SQLite, a
+# reopen and verify again; a body row lost or stray refused.
+qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
+  SOURCES store_plain_test.cpp
+  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_store)
+
 # store/memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
 # lock, thread gate, read-only object and checked reads; a scan's end at

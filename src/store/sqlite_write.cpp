@@ -233,8 +233,8 @@ std::uint64_t erase(Connection& c, std::span<const Id> targets, std::string_view
 
 void insert(Connection& c, std::span<const RowView> rows, Expected expected, const WhereView& at) {
     {
-        Statement s = c.prepare("INSERT INTO entry (id, scope, lane, seq, parent, kind, target, line) VALUES "
-                                "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        Statement s = c.prepare("INSERT INTO entry (id, scope, lane, seq, parent, kind, target, line, body) VALUES "
+                                "(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                                 at);
         for (const RowView& r : rows) {
             s.bind_text(1, r.id, at);
@@ -245,6 +245,7 @@ void insert(Connection& c, std::span<const RowView> rows, Expected expected, con
             s.bind_text(6, r.kind, at);
             r.target ? s.bind_text(7, *r.target, at) : s.bind_null(7, at);
             s.bind_blob(8, r.line, at);
+            s.bind(9, r.body ? 1 : 0, at);
             inserted(c, s, r.scope, r.lane, expected, at);
         }
     }

@@ -361,10 +361,10 @@ constexpr bool heap_pinned = true;
 constexpr bool heap_pinned = false;
 #endif
 constexpr std::array<Pinned, 5> pinned = {{
-    {"export", {1, 208, 50, 0, 1}, {1, 201, 50, 0, 1}},
+    {"export", {1, 209, 50, 0, 1}, {1, 202, 50, 0, 1}},
     {"heads", {0, 0, 4, 2, 0}, {0, 0, 4, 2, 0}},
     {"next", {0, 0, 16, 82, 0}, {0, 0, 16, 82, 0}},
-    {"import", {473, 74, 223, 2, 0}, {473, 74, 223, 2, 0}},
+    {"import", {472, 74, 230, 2, 0}, {472, 74, 230, 2, 0}},
     {"verify", {444, 33, 120, 0, 0}, {444, 33, 120, 0, 0}},
 }};
 

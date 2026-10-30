@@ -34,6 +34,7 @@ using header::Slot;
 // The columns find and a scan select, in this order.
 constexpr int line_column = 7;
 constexpr int body_column = 8;
+constexpr int denied_column = 9;
 
 }  // namespace
 
@@ -153,10 +154,10 @@ bool ScanView::fetch(Record& out) {
         return false;
     }
     const WhereView at = site(name(Operation::scan), path_);
-    // Its body key: a body row, or a forget of it (a forget's target held
-    // its body when forgotten).
-    Statement s = c_->prepare("SELECT e.id, e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.line, "
-                              "EXISTS (SELECT 1 FROM body AS b WHERE b.id = e.id) OR "
+    // Its body key, then whether a body row lost or stray denies it, no
+    // forget standing for the row.
+    Statement s = c_->prepare("SELECT e.id, e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.line, e.body, "
+                              "(e.body <> 0) <> EXISTS (SELECT 1 FROM body AS b WHERE b.id = e.id) AND NOT "
                               "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget') "
                               "FROM entry AS e WHERE (e.scope, e.lane, e.seq) > (?1, ?2, ?3) "
                               "AND (?4 IS NULL OR e.scope = ?4) AND (?5 IS NULL OR e.lane = ?5) AND e.seq > ?6 "
@@ -180,6 +181,9 @@ bool ScanView::fetch(Record& out) {
     if (!s.step(at)) {
         done_ = true;
         return false;
+    }
+    if (s.integer(denied_column) != 0) {
+        incoherent(at, s.text(0));
     }
     const auto id = [&s](int column) {
         return s.null(column) ? std::nullopt : std::optional<Id>(Id::of(s.text(column)));

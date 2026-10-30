@@ -398,7 +398,7 @@ private:
         for (const stage::KeptView& k : checked.kept) {
             const KeysView keys = k.keys();
             rows.push_back(sqlite::RowView{keys.id, keys.scope, keys.lane, keys.kind, keys.parent, keys.target,
-                                           keys.seq, k.line, k.record});
+                                           keys.seq, k.line, k.record, keys.body});
             if (erased != nullptr) {
                 targets.push_back(k.target.value_or(Id{}));
             }

@@ -35,6 +35,7 @@ constexpr int line_column = 7;
 constexpr int record_column = 8;
 constexpr int forgotten_column = 9;
 constexpr int held_column = 10;
+constexpr int body_column = 11;
 
 // The packed records at an export's pages' front: a text's length in a
 // byte, unheld for one past its bound, which then names nothing, then its
@@ -218,10 +219,12 @@ bool Reader::next(std::span<std::byte> pages, Line& line) {
             const auto text = [this](int column) {
                 return rows_.null(column) ? std::nullopt : std::optional<std::string_view>(rows_.text(column));
             };
-            // Its body key: a body row, or a forget of it, as a scan's.
-            const bool keyed = forgotten || !rows_.null(record_column);
+            const bool keyed = rows_.integer(body_column) != 0;
             const KeysView keys{rows_.text(0), rows_.text(1), rows_.text(2), rows_.text(5),
                                 rows_.integer(3), text(4), text(6), keyed};
+            if (!forgotten && keyed != body) {
+                incoherent(at, keys.id);
+            }
             if (!line.keys.assign(keys)) {
                 incoherent(at, keys.id);
             }
@@ -363,20 +366,19 @@ std::optional<Id> ImportView::forget_of(std::string_view id) {
 }
 
 ImportRows::ImportRows(Connection& c, const WhereView& at)
-    : entry_(c.prepare("INSERT INTO entry (id, scope, lane, seq, parent, kind, target, line) "
-                       "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    : entry_(c.prepare("INSERT INTO entry (id, scope, lane, seq, parent, kind, target, line, body) "
+                       "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                        at)),
       body_(c.prepare("INSERT INTO body (id, record) VALUES (?1, ?2)", at)),
       head_(c.prepare("INSERT INTO head (scope, lane, id, seq) VALUES (?1, ?2, ?3, ?4) "
                       "ON CONFLICT (scope, lane) DO UPDATE SET id = excluded.id, seq = excluded.seq",
                       at)) {}
 
-KeysView final_keys(const Statement& s, std::size_t i, std::span<const std::uint64_t> bare) {
+KeysView final_keys(const Statement& s) {
     const auto text = [&s](int column) {
         return s.null(column) ? std::nullopt : std::optional<std::string_view>(s.text(column));
     };
-    const bool body = !s.null(2) || std::ranges::binary_search(bare, static_cast<std::uint64_t>(i));
-    return KeysView{s.text(0), s.text(5), s.text(6), s.text(9), s.integer(7), text(8), text(10), body};
+    return KeysView{s.text(0), s.text(5), s.text(6), s.text(9), s.integer(7), text(8), text(10), s.integer(11) != 0};
 }
 
 void ImportRows::put(const EntryView& line, const WhereView& at) {
@@ -390,6 +392,7 @@ void ImportRows::put(const EntryView& line, const WhereView& at) {
     entry_.bind_text(6, k.kind, at);
     bind_optional(entry_, 7, k.target, at);
     entry_.bind_blob(8, line.line, at);
+    entry_.bind(9, k.body ? 1 : 0, at);
     run(entry_, at);
     if (line.body) {
         body_.bind_text(1, id, at);
@@ -509,6 +512,9 @@ bool WalkView::next() {
     const bool record = !rows_.null(record_column);
     if (record && (forgotten || forget)) {
         throw StoreError::corrupt(at_.operation, at_.path, Corrupt::forgotten_body, id);
+    }
+    if (!forgotten && record != (rows_.integer(body_column) != 0)) {
+        incoherent(at_, id);
     }
     ++counts_.entries;
     counts_.bodies += record ? 1U : 0U;

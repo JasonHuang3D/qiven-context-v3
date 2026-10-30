@@ -33,7 +33,7 @@ constexpr std::array<std::string_view, 7> schema = {
     "CREATE TABLE meta (name TEXT PRIMARY KEY, value INTEGER NOT NULL) STRICT",
     "CREATE TABLE entry (id TEXT PRIMARY KEY, scope TEXT NOT NULL, lane TEXT NOT NULL, seq INTEGER NOT NULL, "
     "parent TEXT REFERENCES entry (id), kind TEXT NOT NULL, target TEXT REFERENCES entry (id), "
-    "line BLOB NOT NULL, UNIQUE (scope, lane, seq)) STRICT",
+    "line BLOB NOT NULL, body INTEGER NOT NULL, UNIQUE (scope, lane, seq)) STRICT",
     "CREATE INDEX entry_target ON entry (target) WHERE target IS NOT NULL",
     "CREATE INDEX entry_forget ON entry (scope) WHERE kind = 'forget'",
     "CREATE TABLE body (id TEXT PRIMARY KEY REFERENCES entry (id), record BLOB NOT NULL) STRICT",
@@ -60,6 +60,14 @@ constexpr std::string_view kept_bodies =
 constexpr std::string_view forget_rows = "SELECT count(*) FROM entry WHERE kind = 'forget'";
 constexpr std::string_view entry_rows = "SELECT count(*) FROM entry";
 constexpr std::string_view body_rows = "SELECT count(*) FROM body";
+// The entries owed a body row: a body key no forget targets.
+constexpr std::string_view owed_bodies =
+    "SELECT count(*) FROM entry AS e WHERE e.body <> 0 AND NOT EXISTS (SELECT 1 FROM entry AS f "
+    "WHERE f.target = e.id AND f.kind = 'forget')";
+// A body row of an entry without the key.
+constexpr std::string_view stray_bodies =
+    "SELECT EXISTS (SELECT 1 FROM body AS b WHERE NOT EXISTS (SELECT 1 FROM entry AS e WHERE e.id = b.id "
+    "AND e.body <> 0))";
 
 // A short statement or detail composed in place: a pragma, a setting's
 // name and value, a count; past its bytes the rest is dropped. A byte past
@@ -316,8 +324,8 @@ Opened coherence(Connection& c, const WhereView& at) {
         }
         opened.entries = c.integer(entry_rows, at);
         opened.bodies = c.integer(body_rows, at);
-        if (opened.bodies != opened.entries - (2 * forgets)) {
-            incoherent(at, "body: the rows not the entries less twice the forgets");
+        if (opened.bodies != c.integer(owed_bodies, at) || c.integer(stray_bodies, at) != 0) {
+            incoherent(at, "body: the rows not the entries with a body key no forget targets");
         }
         c.exec("COMMIT", at);
     } catch (...) {

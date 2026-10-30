@@ -96,15 +96,15 @@ constexpr bool defers() noexcept {
 // structure built in memory as large as its rows (S12's plan check): the
 // forget entries by scope, by entry_forget; the head rows; a lane's entry
 // rows after a seq, in seq order, a scan's key columns and line, then the body
-// record, whether a forget targets the entry (entry_target) and whether
-// its target is held. verify walks by the last two too.
+// record, whether a forget targets the entry (entry_target), whether its
+// target is held and its body key. verify walks by the last three too.
 inline constexpr std::string_view forget_counts =
     "SELECT scope, count(*) FROM entry WHERE kind = 'forget' GROUP BY scope";
 inline constexpr std::string_view head_rows = "SELECT scope, lane, id, seq FROM head ORDER BY scope, lane";
 inline constexpr std::string_view lane_rows =
     "SELECT e.id, e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.line, b.record, "
     "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget'), "
-    "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target) "
+    "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target), e.body "
     "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id WHERE e.scope = ?1 AND e.lane = ?2 AND e.seq > ?3 "
     "ORDER BY e.seq";
 
@@ -269,11 +269,10 @@ inline constexpr std::string_view final_rows =
     "SELECT e.id, e.line, b.record, "
     "e.target IS NULL OR EXISTS (SELECT 1 FROM entry AS t WHERE t.id = e.target), "
     "EXISTS (SELECT 1 FROM entry AS f WHERE f.target = e.id AND f.kind = 'forget'), "
-    "e.scope, e.lane, e.seq, e.parent, e.kind, e.target "
+    "e.scope, e.lane, e.seq, e.parent, e.kind, e.target, e.body "
     "FROM entry AS e LEFT JOIN body AS b ON b.id = e.id ORDER BY e.rowid";
-// A final row's keys, views of it: its body key a record held or one of
-// bare, the lines whose body key came with no record (by index, ascending).
-[[nodiscard]] KeysView final_keys(const Statement& s, std::size_t i, std::span<const std::uint64_t> bare);
+// A final row's keys, views of it.
+[[nodiscard]] KeysView final_keys(const Statement& s);
 // Both on one statement, the heads' kept open until meta's takes its place.
 void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 [[nodiscard]] Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits);
@@ -282,9 +281,8 @@ void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at);
 // the final view over pages, afresh, then the store's settles, then the
 // heads through its heads.
 template <class A>
-Imported end_import(Connection& c, std::span<const LaneHead> given, std::span<const std::uint64_t> bare,
-                    Vector<LaneHead>& heads, std::span<std::byte> pages, Countdown* countdown, const WhereView& at,
-                    const Limits& limits, std::size_t& peak, A& admit) {
+Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads, std::span<std::byte> pages,
+                    Countdown* countdown, const WhereView& at, const Limits& limits, std::size_t& peak, A& admit) {
     const AtView site{Operation::import_, at.path};
     {
         Statement s = c.prepare(final_rows, at);
@@ -292,7 +290,7 @@ Imported end_import(Connection& c, std::span<const LaneHead> given, std::span<co
             memory::Arena work(pages);
             attach_to(work, countdown);
             const Chars chars(work);
-            const KeysView keys = final_keys(s, i, bare);
+            const KeysView keys = final_keys(s);
             const EntryView v{s.blob(1), s.null(2) ? std::nullopt : std::optional<std::string_view>(s.blob(2)), keys};
             ImportView view(c, chars, at);
             admit.settled(view, v, i, site, chars);
@@ -322,7 +320,6 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     attach_to(kept, countdown);
     Vector<LaneHead> given{Chars(kept)};
     source.heads(given);
-    Vector<std::uint64_t> bare{Chars(kept)};  // the lines whose body key came with no record
     std::size_t line_peak = 0;
     std::size_t work_peak = 0;
     Imported done;
@@ -353,13 +350,9 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             stage::arrives(view, keys, v, i, at);
             admit.arrived(view, v, i, at);
             rows.put(v, where);
-            if (keys.body && !v.body) {
-                bare.push_back(i);
-            }
             work_peak = std::max(work_peak, work.peak());
         }
-        done = end_import(c, given, std::span<const std::uint64_t>(bare), heads, pages.subspan(2 * quarter), countdown,
-                          where, limits, work_peak, admit);
+        done = end_import(c, given, heads, pages.subspan(2 * quarter), countdown, where, limits, work_peak, admit);
         hooks.written();
         c.exec("COMMIT", where);
     } catch (...) {
