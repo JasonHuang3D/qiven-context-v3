@@ -1,10 +1,13 @@
 #include "checked/rules.hpp"
 
+#include <array>
+#include <charconv>
 #include <cstddef>
 #include <span>
 #include <string_view>
 
 #include "store/contract.hpp"
+#include "store/errors.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::checked {
@@ -22,6 +25,13 @@ void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> give
     if (source.size() != given.size()) {
         stage::refuse(at, n, n < source.size() ? source[n].head.id.view() : std::string_view(), "head_mismatch");
     }
+}
+
+void refuse_whole(const AtView& at, std::size_t index) {
+    std::array<char, 32> detail{'e', 'n', 't', 'r', 'y', ' '};
+    const std::to_chars_result r = std::to_chars(detail.data() + 6, detail.data() + detail.size(), index);
+    throw store::StoreError(store::Code::whole_record, store::name(at.op), at.path,
+                            std::string_view(detail.data(), static_cast<std::size_t>(r.ptr - detail.data())));
 }
 
 }  // namespace qiven3::checked

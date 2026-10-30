@@ -415,7 +415,6 @@ private:
             const stage::Staged staged = stage::staged(view, checked, limits_, at, scope, lane, now, scratch);
             std::uint64_t dropped = 0;
             if (erased != nullptr) {
-                sqlite::whole_record(connection_, targets, where);
                 dropped = sqlite::erase(connection_, targets, scope, *erased, where);
                 stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(*erased), at);
             }

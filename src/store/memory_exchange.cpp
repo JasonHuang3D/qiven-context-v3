@@ -37,20 +37,6 @@ void release_kept(Data& d) noexcept {
     }
 }
 
-// "entry <index>" into out, written from its end; the view is out's.
-std::string_view naming(std::size_t index, std::array<char, 32>& out) noexcept {
-    std::size_t from = out.size();
-    do {
-        out.at(--from) = static_cast<char>('0' + (index % 10));
-        index /= 10;
-    } while (index != 0);
-    constexpr std::string_view head = "entry ";
-    for (std::size_t k = head.size(); k > 0; --k) {
-        out.at(--from) = head[k - 1];
-    }
-    return std::string_view(out.data(), out.size()).substr(from);
-}
-
 }  // namespace
 
 void guard(const Data& d, std::span<const GuardView> guard) {
@@ -73,19 +59,7 @@ void guard(const Data& d, std::span<const GuardView> guard) {
 }
 
 std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, std::string_view scope,
-                         Vector<Id>& erased, const Chars& allocator) {
-    Vector<std::uint32_t> set(targets.begin(), targets.end(), allocator);
-    std::sort(set.begin(), set.end());
-    const auto in_set = [&set](std::uint32_t i) { return std::binary_search(set.begin(), set.end(), i); };
-    for (std::uint32_t i = 0; i < d.held.size(); ++i) {
-        const Held& e = d.held[i];
-        if (!e.revision || e.forget != none || !in_set(e.target) || in_set(i)) {
-            continue;
-        }
-        const auto j = static_cast<std::size_t>(std::find(targets.begin(), targets.end(), e.target) - targets.begin());
-        std::array<char, 32> detail{};
-        throw StoreError(Code::whole_record, name(Operation::forget), {}, naming(j, detail));
-    }
+                         Vector<Id>& erased) {
     erased.clear();
     erased.reserve(targets.size());
     std::uint64_t bytes = 0;

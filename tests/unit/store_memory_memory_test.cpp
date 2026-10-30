@@ -194,7 +194,7 @@ std::vector<Step> steps() {
                        (void)b.store.size();
                        return Peaks{};
                    }});
-    out.push_back({"forget", 0, true, {56, 5, 1, 1}, [](Bed& b, const Chars& c) {
+    out.push_back({"forget", 0, true, {55, 5, 1, 1}, [](Bed& b, const Chars& c) {
                        Vector<Id> erased(c);
                        (void)b.store.forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Peaks{b.store.peak(), b.call->peak()};
@@ -347,7 +347,7 @@ struct Part {
 };
 constexpr std::size_t step_count = 16;
 constexpr std::array<Part, 4> fault_parts{
-    {{0, 3, 346}, {3, 13, 171}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
+    {{0, 3, 346}, {3, 13, 170}, {13, 14, 396 + import_heap}, {14, step_count, 227}}};
 constexpr bool tiled() {
     std::size_t next = 0;
     for (const Part& p : fault_parts) {

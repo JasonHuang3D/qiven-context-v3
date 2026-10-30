@@ -132,8 +132,6 @@ struct Held {
     std::uint32_t forget = none;  // the first forget held of it
     bool has_body = false;
     bool is_forget = false;
-    bool direction = false;
-    bool revision = false;  // of a kind but the change kinds, with a target
 };
 
 // A lane: its scope, its name, its entries' indices in seq order, its head.
@@ -338,12 +336,13 @@ public:
     [[nodiscard]] bool forgotten(std::string_view id);
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
-    // id, false where none is held; the ids whose target is id, in scope,
-    // in the order written; a scope's ids of kind with no target, in
-    // (lane, seq) order; each list into out, cleared first, on its
-    // allocator; whether a held line holds bytes.
+    // id, false where none is held; the ids whose target is id, in scope
+    // or in every scope, in the order written; a scope's ids of kind with
+    // no target, in (lane, seq) order; each list into out, cleared first,
+    // on its allocator; whether a held line holds bytes.
     bool line(std::string_view id, String& out);
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
+    void targets(std::string_view id, Vector<Id>& out);
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
     [[nodiscard]] bool contains(std::string_view bytes);
     // f(id) for each id keyed gives, in its order, until f gives true:
@@ -394,7 +393,7 @@ private:
 static_assert(sizeof(Allocator<char>) == 8, "the state's allocator is pinned: one Heap*");
 static_assert(sizeof(Open) == 16, "Open's size is pinned: two numbers");
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(Held) == 256, "Held's size is pinned: four texts, an Id, seq, three indices and four flags");
+static_assert(sizeof(Held) == 256, "Held's size is pinned: four texts, an Id, seq, three indices and two flags");
 static_assert(sizeof(Lane) == 192, "Lane's size is pinned: two texts, the ids and a Head");
 #endif
 

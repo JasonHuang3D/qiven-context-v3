@@ -371,6 +371,7 @@ inline constexpr std::string_view keyed_roots =
     "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 AND target IS NULL ORDER BY lane, seq";
 inline constexpr std::string_view record_members =
     "SELECT id FROM entry WHERE target = ?1 AND scope = ?2 ORDER BY rowid";
+inline constexpr std::string_view target_members = "SELECT id FROM entry WHERE target = ?1 ORDER BY rowid";
 inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id = ?1";
 inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
 
@@ -390,12 +391,13 @@ public:
     bool body(std::string_view id, entry::validator::Text<Chars>& out);
     [[nodiscard]] bool forgotten(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
-    // id, false where none is held; the ids whose target is id, in scope;
-    // a scope's ids of kind with no target, in (lane, seq) order; each list
-    // into out, cleared first, the first in the order written (rowid);
-    // whether a held line holds bytes.
+    // id, false where none is held; the ids whose target is id, in scope
+    // or in every scope; a scope's ids of kind with no target, in (lane,
+    // seq) order; each list into out, cleared first, the targets' in the
+    // order written (rowid); whether a held line holds bytes.
     bool line(std::string_view id, String& out);
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out);
+    void targets(std::string_view id, Vector<Id>& out);
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out);
     [[nodiscard]] bool contains(std::string_view bytes);
     // f(id) for each id keyed gives, in its order, until f gives true:
@@ -442,10 +444,6 @@ std::optional<Head> expect(Connection& c, std::string_view scope, std::string_vi
 // forget's guard: every head held as the guard expects it, and every
 // guard lane held; else HeadConflict naming the lane.
 void guard(Connection& c, std::span<const GuardView> guard, const WhereView& at);
-// forget's whole records: a live revision (not forgotten, of a kind but
-// the change kinds) of a target, not itself a target, StoreError
-// whole_record naming the first forget of that target, "entry <j>".
-void whole_record(Connection& c, std::span<const Id> targets, const WhereView& at);
 // forget's erasure: each target's body row deleted, once, in order, where
 // its entry is of scope, its id into erased; the bytes dropped, each
 // record with its LF.

@@ -13,7 +13,6 @@
 
 #include "entry/body.hpp"
 #include "entry/header.hpp"
-#include "entry/kinds.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -59,25 +58,6 @@ void inserted(Connection& c, Statement& s, std::string_view scope, std::string_v
         c.raise(code, at);
     }
     s.reset();
-}
-
-constexpr bool change(std::string_view kind) noexcept {
-    return std::find(entry::kinds::CHANGE_KINDS.begin(), entry::kinds::CHANGE_KINDS.end(), kind) !=
-           entry::kinds::CHANGE_KINDS.end();
-}
-
-// "entry <index>".
-std::string_view naming(std::size_t index, std::array<char, 32>& out) noexcept {
-    std::size_t from = out.size();
-    do {
-        out.at(--from) = static_cast<char>('0' + (index % 10));
-        index /= 10;
-    } while (index != 0);
-    constexpr std::string_view head = "entry ";
-    for (std::size_t k = head.size(); k > 0; --k) {
-        out.at(--from) = head[k - 1];
-    }
-    return std::string_view(out.data(), out.size()).substr(from);
 }
 
 }  // namespace
@@ -151,6 +131,15 @@ void WriteView::targets(std::string_view id, std::string_view scope, Vector<Id>&
     }
 }
 
+void WriteView::targets(std::string_view id, Vector<Id>& out) {
+    out.clear();
+    Statement s = c_->prepare(target_members, at_);
+    s.bind_text(1, id, at_);
+    while (s.step(at_)) {
+        out.push_back(Id::of(s.text(0)));
+    }
+}
+
 void WriteView::keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
     out.clear();
     Statement s = c_->prepare(keyed_roots, at_);
@@ -198,25 +187,6 @@ void guard(Connection& c, std::span<const GuardView> guard, const WhereView& at)
         if (!head_of(c, v.scope, v.lane, at)) {
             throw StoreError::head_conflict(at.operation, at.path, v.scope, v.lane, v.id, {});
         }
-    }
-}
-
-void whole_record(Connection& c, std::span<const Id> targets, const WhereView& at) {
-    Statement s = c.prepare("SELECT r.id, r.kind FROM entry r WHERE r.target = ?1 AND NOT EXISTS (SELECT 1 FROM "
-                            "entry f WHERE f.target = r.id AND f.kind = 'forget')",
-                            at);
-    for (std::size_t j = 0; j < targets.size(); ++j) {
-        s.bind_text(1, targets[j].view(), at);
-        while (s.step(at)) {
-            const std::string_view id = s.text(0);
-            const bool in_set =
-                std::any_of(targets.begin(), targets.end(), [id](const Id& t) { return t.view() == id; });
-            if (!change(s.text(1)) && !in_set) {
-                std::array<char, 32> detail{};
-                throw StoreError(Code::whole_record, at.operation, at.path, naming(j, detail));
-            }
-        }
-        s.reset();
     }
 }
 

@@ -38,8 +38,8 @@ from tests.drive.session import FAKE, Drive, DriveError
 TAGS = ("durable", "files", "processes", "own: sqlite")
 # The statements the SQLite store plans: the view's reads, then the
 # export's.
-PLANNED = ("keyed_roots", "record_members", "held_line", "content_scan", "forget_counts", "head_rows",
-           "lane_rows")
+PLANNED = ("keyed_roots", "record_members", "target_members", "held_line", "content_scan", "forget_counts",
+           "head_rows", "lane_rows")
 
 
 class StoreBinding:

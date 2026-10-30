@@ -4,7 +4,8 @@
 // on implementer, C, M1, M2 and ACC2 on reviewer). line(id) gives a held
 // record's line byte-equal, false for an id not held; targets(id, scope)
 // the ids whose target is it, in the order written, none in another scope
-// or for an id no record targets; keyed(scope, kind) a scope's ids of a
+// or for an id no record targets, and targets(id) the same in every
+// scope; keyed(scope, kind) a scope's ids of a
 // kind with no target, in (lane, seq) order, a revision of the kind left
 // out, none in another scope; contains(bytes) whether a held line holds
 // them. Each list is cleared first. order_memory, order_sqlite: the
@@ -149,6 +150,18 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     view.targets(id_of(a), "person", out);
     CHECK(out.empty());
     view.targets(none, qiven_scope, out);
+    CHECK(out.empty());
+
+    out.push_back(Id::of(none));
+    view.targets(id_of(d), out);
+    CHECK(ids(out) == ids_of({&acc, &acc2}));
+    view.targets(id_of(a), out);
+    CHECK(ids(out) == ids_of({&c}));
+    view.targets(id_of(m1), out);
+    CHECK(ids(out) == ids_of({&m2}));
+    view.targets(id_of(b), out);
+    CHECK(out.empty());
+    view.targets(none, out);
     CHECK(out.empty());
 
     view.keyed(qiven_scope, "claim", out);

@@ -16,7 +16,11 @@
 // (checked/clearing, over the view's generic calls), unused, no header
 // held but the entry's own, the call's earlier ones
 // included, having that content. Then part 2 (validator), its first fault
-// EntryInvalid with its code. The store's own step follows (store/stage).
+// EntryInvalid with its code. At forget then the whole records: a record
+// whose target is a target of the call, in any scope, not forgotten, not
+// itself a target, and of a kind but the change kinds (CHANGE_KINDS) is
+// StoreError whole_record, "entry <j>" naming the first forget of that
+// target. The store's own step follows (store/stage).
 //
 // At import, each line after part 1 passes the store's chain as it
 // arrives (arrived: nothing of the hook's). Once every header
@@ -44,12 +48,14 @@
 // scratch peaks at the greater of one entry's part 1 and its secret check.
 // On the call's kept allocator, the call's hits' room, one where it is
 // short, given back by release. admit: part 2's (validator's) and the
-// view's, on its allocator; import_entry
+// view's, on its allocator, and at forget the members' room and a held
+// header, one each where short; import_entry
 // validator's try_final's and the view's, on its allocator. No platform
 // call. The rules log nothing.
 //
 // thread: none; the entries, one (their keys' platform's).
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -60,6 +66,7 @@
 #include "checked/clearing.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
+#include "entry/kinds.hpp"
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
 #include "memory/memory.hpp"
@@ -102,6 +109,9 @@ struct Checked : stage::Checked<P> {
         : stage::Checked<P>(std::move(read)), hits(std::move(found)) {}
     Vector<Hit> hits;
 };
+
+// whole_record's refusal, its detail naming the forget, "entry <index>".
+[[noreturn]] void refuse_whole(const AtView& at, std::size_t index);
 
 namespace detail {
 
@@ -172,6 +182,39 @@ void part2(V& view, std::string_view scope, std::string_view lane, Expected expe
     }
 }
 
+// A change kind's: a record of it stays whole when its target is forgotten.
+[[nodiscard]] constexpr bool change(std::string_view kind) noexcept {
+    return std::ranges::find(entry::kinds::CHANGE_KINDS, kind) != entry::kinds::CHANGE_KINDS.end();
+}
+
+// At forget, the records each target keeps whole: a record whose target is
+// a target of the call (in any scope, in the view's order), not forgotten,
+// not itself a target, and of a kind but the change kinds refused
+// StoreError whole_record naming the first forget of that target.
+template <class V, platform::Platform P>
+void whole_record(V& view, std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
+    const auto target = [&entries](std::size_t j) {
+        return entries[j].header().text(Slot::target).value_or(std::string_view());
+    };
+    Vector<store::Id> members(allocator);
+    Header found(allocator);
+    for (std::size_t j = 0; j < entries.size(); ++j) {
+        view.targets(target(j), members);
+        for (const store::Id& m : members) {
+            bool in_set = false;
+            for (std::size_t k = 0; k < entries.size() && !in_set; ++k) {
+                in_set = target(k) == m.view();
+            }
+            if (in_set || view.forgotten(m.view())) {
+                continue;
+            }
+            if (view.header(m.view(), found) && !change(found.value(Slot::kind))) {
+                refuse_whole(at, j);
+            }
+        }
+    }
+}
+
 }  // namespace detail
 
 // One entry of an import in its final view, held there with its content
@@ -201,8 +244,8 @@ void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> give
 
 // The rules as an admit hook (Admit, AdmitImport): given, the hits' room;
 // read, nothing (the store's guards run there); kept, at append the secret
-// check, its hits kept on the call's allocator; admit, the hits settled and
-// part 2; arrived, nothing (the store's chain runs first); settled,
+// check, its hits kept on the call's allocator; admit, the hits settled,
+// part 2 and at forget the whole records; arrived, nothing (the store's chain runs first); settled,
 // import_entry; heads, same_heads.
 class Rules {
 public:
@@ -228,6 +271,9 @@ public:
             detail::settle(view, entries, std::span<const Hit>(*hits_), at, allocator);
         }
         detail::part2(view, scope, lane, expected, entries, at, allocator);
+        if (at.op == Operation::forget) {
+            detail::whole_record(view, entries, at, allocator);
+        }
     }
     template <class V>
     static void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/, const AtView& /*at*/) noexcept {}

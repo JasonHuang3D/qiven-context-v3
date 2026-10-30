@@ -10,7 +10,6 @@
 
 #include "entry/body.hpp"
 #include "entry/header.hpp"
-#include "entry/kinds.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
@@ -168,10 +167,6 @@ Held make_held(Data& d, std::string_view line, std::optional<std::string_view> r
     e.id = Id::of(h.value(Slot::id));
     e.seq = h.seq();
     e.is_forget = kind == "forget";
-    e.direction = kind == "direction";
-    e.revision = h.text(Slot::target).has_value() &&
-                 std::find(entry::kinds::CHANGE_KINDS.begin(), entry::kinds::CHANGE_KINDS.end(), kind) ==
-                     entry::kinds::CHANGE_KINDS.end();
     return e;
 }
 
@@ -329,6 +324,20 @@ void StateView::targets(std::string_view id, std::string_view scope, Vector<Id>&
     }
     for (const Held& e : d.held) {
         if (e.target == t && std::string_view(d.lanes[e.lane].scope) == scope) {
+            out.push_back(e.id);
+        }
+    }
+}
+
+void StateView::targets(std::string_view id, Vector<Id>& out) {
+    out.clear();
+    const Data& d = *data_;
+    const std::uint32_t t = find(d, id);
+    if (t == none) {
+        return;
+    }
+    for (const Held& e : d.held) {
+        if (e.target == t) {
             out.push_back(e.id);
         }
     }

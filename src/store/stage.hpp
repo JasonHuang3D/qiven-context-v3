@@ -35,8 +35,8 @@
 // and the head the store read, staged first runs in_order, the store's own
 // order over its keys; given a scratch, at append then targets, each
 // entry's target held in the call's scope, the store's or an earlier one
-// of the call's, refused target. A HeadConflict, a guard and whole_record
-// are the store's.
+// of the call's, refused target. A HeadConflict and a guard are the
+// store's.
 //
 // Refusals are EntryInvalid with the entry's index and its id once part 1
 // has read the header through (a body or content fault, the order); the

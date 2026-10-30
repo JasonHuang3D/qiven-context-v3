@@ -5,11 +5,9 @@
 //
 // Forget: under the lock, after the head is compared, guard compares every
 // lane the state holds with the guard, a lane moved, absent from the guard
-// or unknown to the state a HeadConflict naming it; after part 2,
-// forgetting refuses StoreError whole_record when a revision of a target
-// (an entry of a kind but the change kinds naming it) is neither forgotten
-// nor itself a target of the call, and writes the ids whose body record
-// the forget drops, giving those records' bytes.
+// or unknown to the state a HeadConflict naming it; after the admit hook,
+// forgetting writes the ids whose body record the forget drops, giving
+// those records' bytes.
 //
 // Export: under the lock, the snapshot: the lanes of its scope set, in
 // (scope, lane) order, each with its length then and its first position
@@ -36,8 +34,7 @@
 // a forget, with content and not forgotten, with its body. Then each head,
 // the ids' order and the counters, which give its counts.
 //
-// Allocations. forget: forgetting's sorted copy of the targets, one, and
-// erased's room, one, on the call's allocator. export: its lanes' room on
+// Allocations. forget: erased's room, one, on the call's allocator. export: its lanes' room on
 // the state's heap, one; the registration's room as it grows; heads, the
 // caller's rows' room, one; next, the line's and record's room on the
 // caller's arena, one each where short. import:
@@ -117,7 +114,7 @@ void guard(const Data& d, std::span<const GuardView> guard);
 // bytes, each with its LF. targets: each entry's target's index, in the
 // call's order.
 std::uint64_t forgetting(const Data& d, std::span<const std::uint32_t> targets, std::string_view scope,
-                         Vector<Id>& erased, const Chars& allocator);
+                         Vector<Id>& erased);
 // The exports of the store object numbered owner closed; at the last one,
 // the bodies forgets dropped while they were open freed.
 void close_exports(Data& d, std::uint64_t owner) noexcept;

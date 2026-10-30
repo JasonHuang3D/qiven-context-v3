@@ -320,7 +320,7 @@ public:
         for (const stage::Entry<P>& e : checked.entries) {
             targets.push_back(state::find(d, e.header().text(state::header::Slot::target).value_or("")));
         }
-        const std::uint64_t dropped = state::forgetting(d, targets, scope, erased, chars);
+        const std::uint64_t dropped = state::forgetting(d, targets, scope, erased);
         stage::erasable(std::span<const stage::Entry<P>>(checked.entries), std::span<const Id>(erased), at);
         state::Batch batch(d);
         for (std::size_t i = 0; i < entries.size(); ++i) {
