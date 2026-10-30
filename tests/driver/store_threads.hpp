@@ -54,8 +54,8 @@
 #include "memory/arena.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/stores/stores.hpp"
 
 namespace qiven3::drive::wire {
 
@@ -242,7 +242,7 @@ template <class D>
 std::optional<Value> start_appender(D& d, memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     auto made = std::make_unique<Appender<typename D::Factory>>(*held::named(d.states(), request, "state").object,
-                                                                 test::stores::text(d.site().root()), request);
+                                                                 test::ruled::text(d.site().root()), request);
     return held::id_value("appender", held::keep(d, d.appenders(), std::move(made), state));
 }
 
@@ -267,7 +267,7 @@ std::optional<Value> fill_lane(D& d, memory::Arena&, ArgView request) {
 template <class D>
 std::optional<Value> drain_export(D& d, memory::Arena&, ArgView request) {
     auto& x = *held::named(d.exports(), request, "export").object;
-    if constexpr (D::Factory::own == test::stores::Own::sqlite) {
+    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
         auto& engine = d.site().engine();
         const auto held = [&engine] {
             const store::sqlite::Slots s = engine.slots();

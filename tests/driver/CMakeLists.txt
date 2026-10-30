@@ -21,11 +21,11 @@ if(QIVEN3_HAL)
   target_link_libraries(qiven3_drive_common PUBLIC qiven3_hal_fake)
 endif()
 
-# The fake's drive alone has the store's requests, over support/stores'
-# factory (driver/store_ops.hpp), and location's commands on the fake.
+# The fake's drive alone has the store's requests, over support/checked's
+# ruled factory (driver/store_ops.hpp), and location's commands on the fake.
 qiven3_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
   store_held.hpp store_own.hpp store_plans.cpp store_race.hpp store_threads.hpp store_wire.cpp store_wire.hpp
-  LINK qiven3_drive_common qiven3_stores qiven3_seams qiven3_location qiven3_platform_fake qiven3_platform_current
+  LINK qiven3_drive_common qiven3_checked_stores qiven3_seams qiven3_location qiven3_platform_fake qiven3_platform_current
        qiven3_runner)
 
 # The Windows drive's store_dir reads location's record on the adapter, its

@@ -14,14 +14,14 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/exchange.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/seams/seams.hpp"
-#include "support/stores/stores.hpp"
 
 namespace {
 
 namespace seams = qiven3::test::seams;
-namespace stores = qiven3::test::stores;
+namespace stores = qiven3::test::ruled;
 namespace stage_book = qiven3::test::stage_book;
 using qiven3::store::Kind;
 using qiven3::store::StoreError;

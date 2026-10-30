@@ -2,13 +2,18 @@
 
 // stores: the factory the store cases take, and their tags. A case is a
 // template on a factory F, written once and bound to each store by its
-// store's case file; F::Store satisfies the contract's Store.
+// store's case file; F::Store satisfies the contract's Store. The stores
+// are the plain ones, with no admit hook (NoAdmit), taking records by
+// their keys (records.hpp).
 //
 //   Site, site(seed)    the case's own ground, on the heap: a scratch
 //                       directory (fresh, or the root given) removed at
 //                       its end, the fake platform
 //                       over it, the engine heap once a SQLite factory asks
-//                       for it, the fixtures and the caller's arena
+//                       for it, and the caller's arena
+//   MemoryOn<S, T>, SqliteOn<S, T, H>
+//                       the factories over a store type S and a Site type T
+//                       (a product's ruled factory binds its own)
 //   Memory, Sqlite<H>   a factory over one Site, for one state each:
 //     make(limits)      a new empty store, its object read-write (SQLite in
 //                       a directory of its own under the scratch root)
@@ -50,7 +55,6 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -59,7 +63,6 @@
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
 #include "support/stores/named.hpp"
 
 namespace qiven3::test::stores {
@@ -132,7 +135,7 @@ public:
     // Over the root given, made where absent, and removed at its end as a
     // fresh one is (the drive's, under its --root).
     Site(std::uint64_t seed, std::filesystem::path root)
-        : root_(made(std::move(root))), fake_(config(root_, seed)), book_(fake_), pages_(arena_bytes), arena_(pages_),
+        : root_(made(std::move(root))), fake_(config(root_, seed)), pages_(arena_bytes), arena_(pages_),
           chars_(arena_) {}
     Site(const Site&) = delete;
     Site& operator=(const Site&) = delete;
@@ -149,7 +152,6 @@ public:
     }
 
     [[nodiscard]] Fake& fake() noexcept { return fake_; }
-    [[nodiscard]] const stage_book::Book& book() const noexcept { return book_; }
     [[nodiscard]] const Chars& chars() const noexcept { return chars_; }
     [[nodiscard]] const std::filesystem::path& root() const noexcept { return root_; }
     // The engine heap, made at the first call and kept past every store.
@@ -189,7 +191,6 @@ private:
     std::filesystem::path root_;
     Fake fake_;
     std::optional<store::Engine<Fake>> engine_;  // after the fake, whose pages it holds
-    stage_book::Book book_;
     std::vector<std::byte> pages_;
     memory::Arena arena_;
     Chars chars_;
@@ -202,16 +203,18 @@ inline std::unique_ptr<Site> site(std::uint64_t seed = 7) { return std::make_uni
 // The in-memory store: its state on pages the fake gives, heap bytes of
 // them (the default does not hold S12's 20,000 entries of 1 KiB, its
 // heap refusing one growth past some 47 MB held: S12 gives its own).
-class Memory {
+// S is the store's type over that state, T the Site's.
+template <class S, class T = Site>
+class MemoryOn {
 public:
-    using Store = checked::MemoryStore<Fake>;
+    using Store = S;
     static constexpr std::string_view name = "memory";
     static constexpr Own own = Own::none;
     static constexpr std::size_t default_heap = std::size_t{64} << 20U;
 
-    explicit Memory(Site& site, std::size_t heap = default_heap) : site_(&site), heap_(heap) {}
+    explicit MemoryOn(T& site, std::size_t heap = default_heap) : site_(&site), heap_(heap) {}
 
-    [[nodiscard]] Site& site() noexcept { return *site_; }
+    [[nodiscard]] T& site() noexcept { return *site_; }
     // make() once a factory: a second call is a case's error.
     Store make(const store::Limits& limits = store::Limits{}) {
         if (state_) {
@@ -235,24 +238,25 @@ private:
         return *state_;
     }
 
-    Site* site_;
+    T* site_;
     std::size_t heap_;
     std::optional<platform::fake::FakePages> pages_;  // before the state made over them
     std::unique_ptr<store::state::State> state_;
 };
 
 // The SQLite store, its hooks H (a seam's, seams.hpp) given to each object:
-// its file store.db in a directory of its own under the Site's root.
-template <store::Hooks H = store::NoHooks>
-class Sqlite {
+// its file store.db in a directory of its own under the Site's root. S is
+// the store's type with those hooks, T the Site's.
+template <class S, class T, store::Hooks H>
+class SqliteOn {
 public:
-    using Store = checked::SQLiteStore<Fake, H>;
+    using Store = S;
     static constexpr std::string_view name = "sqlite";
     static constexpr Own own = Own::sqlite;
 
-    explicit Sqlite(Site& site, H hooks = H{}) : site_(&site), hooks_(std::move(hooks)) { (void)site.engine(); }
+    explicit SqliteOn(T& site, H hooks = H{}) : site_(&site), hooks_(std::move(hooks)) { (void)site.engine(); }
 
-    [[nodiscard]] Site& site() noexcept { return *site_; }
+    [[nodiscard]] T& site() noexcept { return *site_; }
     Store make(const store::Limits& limits = store::Limits{}) {
         if (!path_.empty()) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
@@ -278,11 +282,16 @@ public:
     }
 
 private:
-    Site* site_;
+    T* site_;
     H hooks_;
     std::filesystem::path directory_;
     std::string path_;
     store::Limits limits_{};
 };
+
+// The plain stores, with no admit hook.
+using Memory = MemoryOn<store::MemoryStore<Fake>>;
+template <store::Hooks H = store::NoHooks>
+using Sqlite = SqliteOn<store::SQLiteStore<Fake, H>, Site, H>;
 
 }  // namespace qiven3::test::stores

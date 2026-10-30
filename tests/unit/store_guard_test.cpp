@@ -39,7 +39,6 @@
 #include <system_error>
 #include <vector>
 
-#include "entry/header.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -51,12 +50,12 @@
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
-namespace header = qiven3::entry::header;
+namespace records = qiven3::test::records;
 namespace state = qiven3::store::state;
 using qiven3::store::Engine;
 using qiven3::store::EntryView;
@@ -68,22 +67,63 @@ using qiven3::store::Limits;
 using qiven3::store::Line;
 using qiven3::store::NoAdmit;
 using qiven3::store::Vector;
-using qiven3::test::stage_book::Book;
-using qiven3::test::stage_book::Fake;
-using qiven3::test::stage_book::id_of;
-using qiven3::test::stage_book::lane_head;
-using qiven3::test::stage_book::Refusal;
-using qiven3::test::stage_book::refused;
-using qiven3::test::stage_book::Stored;
-using qiven3::test::stage_book::views;
+using records::id_of;
+using records::lane_head;
+using records::Rec;
+using records::rec;
+using records::seq_of;
+using records::views;
 using Arena = qiven3::memory::Arena;
 using Chars = qiven3::memory::Allocator<char>;
-using Slot = header::Slot;
+using Fake = qiven3::platform::fake::FakePlatform;
 
 constexpr std::string_view qs = "project:qiven";
 constexpr std::string_view away_scope = "person";
 constexpr std::string_view mine = "implementer";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
+
+// A StoreError's code (or full reason, or entry code), index, field, id and
+// detail; none where f raised none.
+struct Refusal {
+    std::string code;
+    std::size_t index = 0;
+    std::string field;
+    std::string id;
+    std::string detail;
+};
+template <class F>
+std::optional<Refusal> refused(const F& f) {
+    try {
+        f();
+    } catch (const qiven3::store::StoreError& e) {
+        Refusal r;
+        if (const std::optional<qiven3::store::Code> code = e.code()) {
+            r.code = qiven3::store::name(*code);
+        } else if (const std::optional<qiven3::store::Full> full = e.full()) {
+            r.code = qiven3::store::name(*full);
+        } else {
+            r.code = e.entry_code();
+        }
+        r.index = e.index();
+        r.field = e.field();
+        r.id = e.id();
+        r.detail = e.detail();
+        return r;
+    }
+    return std::nullopt;
+}
+
+// The records the cases write: implementer's chain A, B, D and ACC
+// (accepting D), E forgetting B; C on reviewer's lane, revising A.
+struct Book {
+    Rec a = rec("A", qs, mine, 1, std::nullopt, "claim");
+    Rec b = rec("B", qs, mine, 2, "A", "claim");
+    Rec d = rec("D", qs, mine, 3, "B", "direction");
+    Rec acc = records::targeting(rec("ACC", qs, mine, 4, "D", "accept"), "D");
+    Rec e = records::forget("E", qs, mine, 5, "ACC", "B");
+    Rec c = records::targeting(rec("C", qs, "reviewer", 1, std::nullopt, "claim"), "A");
+    Rec away = rec("AWAY", away_scope, mine, 1, std::nullopt, "claim");
+};
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -122,7 +162,7 @@ struct Scratch {
 struct ListSource {
     using Change = void (*)(qiven3::store::KeysView&);
     std::vector<LaneHead> given;
-    std::vector<Stored> lines;
+    std::vector<Rec> lines;
     Change last = nullptr;
     std::size_t at = 0;
     void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
@@ -130,14 +170,12 @@ struct ListSource {
         if (at == lines.size()) {
             return false;
         }
-        const Stored& s = lines[at++];
+        const Rec& s = lines[at++];
         line.header.assign(s.line);
         line.has_body = s.record.has_value();
         line.body.assign(s.record.value_or(std::string()));
         line.forgotten = false;
-        const std::optional<std::string_view> record =
-            s.record ? std::optional<std::string_view>(*s.record) : std::nullopt;
-        qiven3::store::KeysView k = qiven3::test::stage_book::keyed(s.line, record).keys;
+        qiven3::store::KeysView k = records::view(s.keys);
         if (at == lines.size() && last != nullptr) {
             last(k);
         }
@@ -145,25 +183,12 @@ struct ListSource {
     }
 };
 
-// Fixture E, the forget of B, with its target, parent and seq as given.
-Stored forget_of(const Book& book, std::string_view target, std::string_view parent, std::int64_t seq) {
-    const header::Header<> h = header::parse_line(book.stored("E").line);
-    header::FieldsView f;
-    f.scope = h.value(Slot::scope);
-    f.lane = h.value(Slot::lane);
-    f.seq = seq;
-    f.parent = parent;
-    f.kind = h.value(Slot::kind);
-    f.writer = h.value(Slot::writer);
-    f.basis = h.value(Slot::basis);
-    f.at = h.value(Slot::at);
-    f.target = target;
-    Stored s;
-    header::make(f).line(s.line);
-    return s;
+// A forget on implementer's lane like E, with its target, parent and seq
+// as given, its id of them.
+Rec forget_of(std::string_view target, std::string_view parent, std::int64_t seq) {
+    const std::string id = "F-" + std::string(target) + "-" + std::to_string(seq);
+    return records::forget(id, qs, mine, seq, parent, target);
 }
-
-std::int64_t seq_of(const Stored& s) { return header::parse_line(s.line).seq(); }
 
 // What a case wants refused: its code and index.
 struct Want {
@@ -188,27 +213,26 @@ constexpr Want wants[cases] = {
 // Case k's held state, written on s.
 template <class S>
 void before(std::size_t k, S& s, const Book& book, Arena& arena) {
-    const Stored a = book.stored("A");
-    const std::vector<Stored> chain = {a, book.stored("B"), book.stored("D"), book.stored("ACC")};
+    const Rec& a = book.a;
+    const std::vector<Rec> chain = {a, book.b, book.d, book.acc};
     if (k == 1) {
-        const std::vector<Stored> three = {a, book.stored("B"), book.stored("D")};
+        const std::vector<Rec> three = {a, book.b, book.d};
         (void)s.append(qs, mine, std::nullopt, views(three), NoAdmit{});
     } else if (k <= 5 || (k >= 23 && k <= 26)) {
         (void)s.append(qs, mine, std::nullopt, views(chain), NoAdmit{});
     } else if (k == 8 || k == 9 || k == 12) {
-        const std::vector<Stored> first = {a};
+        const std::vector<Rec> first = {a};
         (void)s.append(qs, mine, std::nullopt, views(first), NoAdmit{});
     }
     if (k == 4) {
-        const std::vector<Stored> e = {book.stored("E")};
-        const std::string acc = id_of(book.stored("ACC"));
+        const std::vector<Rec> e = {book.e};
+        const std::string& acc = id_of(book.acc);
         const std::vector<GuardView> guard = {GuardView{qs, mine, acc}};
         Vector<Id> erased{Chars(arena)};
         (void)s.forget(qs, mine, Expected(acc), views(e), guard, erased, NoAdmit{});
     }
     if (k == 5) {
-        const std::vector<Stored> away = {
-            book.made("A", "A", *a.content, [](header::FieldsView& f) { f.scope = away_scope; })};
+        const std::vector<Rec> away = {book.away};
         (void)s.append(away_scope, mine, std::nullopt, views(away), NoAdmit{});
     }
 }
@@ -216,11 +240,11 @@ void before(std::size_t k, S& s, const Book& book, Arena& arena) {
 // Case k's write on s, after before; its refusal.
 template <class S>
 std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena) {
-    const Stored a = book.stored("A");
-    const Stored e = book.stored("E");
-    const std::string acc = id_of(book.stored("ACC"));
-    const std::string d = id_of(book.stored("D"));
-    std::vector<Stored> lines;
+    const Rec& a = book.a;
+    const Rec& e = book.e;
+    const std::string& acc = id_of(book.acc);
+    const std::string& d = id_of(book.d);
+    std::vector<Rec> lines;
     const auto append = [&](std::string_view scope, std::string_view lane, Expected expected) {
         return refused([&] { (void)s.append(scope, lane, expected, views(lines), NoAdmit{}); });
     };
@@ -236,8 +260,8 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         Vector<LaneHead> wrote{Chars(arena)};
         return refused([&] { (void)s.import_(src, wrote, NoAdmit{}); });
     };
-    const auto again = [&](std::string_view target, std::string_view parent, std::int64_t seq) {
-        return forget_of(book, target, parent, seq);
+    const auto again = [](std::string_view target, std::string_view parent, std::int64_t seq) {
+        return forget_of(target, parent, seq);
     };
     // A's view, its keys or record changed by f, appended on an empty lane.
     const std::string past_id(Id::capacity + 1, 'x');
@@ -255,14 +279,14 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     const ListSource::Change bodied = [](qiven3::store::KeysView& v) { v.body = true; };
     const ListSource::Change untargeted = [](qiven3::store::KeysView& v) { v.target.reset(); };
     const auto changed = [&](ListSource::Change f, char op) {
-        Stored given = e;
-        Stored b = book.stored("B");
+        Rec given = e;
+        Rec b = book.b;
         if (f == bodied) {
             given.record = a.record;
             b.record.reset();
         }
         if (op == 'i') {
-            lines = {a, b, book.stored("D"), book.stored("ACC"), given};
+            lines = {a, b, book.d, book.acc, given};
             return import(f);
         }
         lines = {given};
@@ -283,7 +307,7 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     }
     switch (k) {
     case 15: {
-        Stored bare = book.stored("B");
+        Rec bare = book.b;
         bare.record.reset();
         lines = {a, bare};
         return import();
@@ -306,51 +330,46 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         lines = {e};
         return append(qs, mine, Expected(acc));
     case 1:
-        lines = {book.stored("ACC")};
+        lines = {book.acc};
         return forget(Expected(d), {GuardView{qs, mine, d}});
     case 2:
-        lines = {again(id_of(book.stored("C")), acc, seq_of(e))};
+        lines = {again(id_of(book.c), acc, seq_of(e))};
         return forget(Expected(acc), {GuardView{qs, mine, acc}});
     case 3:
-        lines = {e, again(id_of(book.stored("B")), id_of(e), seq_of(e) + 1)};
+        lines = {e, again(id_of(book.b), id_of(e), seq_of(e) + 1)};
         return forget(Expected(acc), {GuardView{qs, mine, acc}});
     case 4:
-        lines = {again(id_of(book.stored("B")), id_of(e), seq_of(e) + 1)};
+        lines = {again(id_of(book.b), id_of(e), seq_of(e) + 1)};
         return forget(Expected(id_of(e)), {GuardView{qs, mine, id_of(e)}});
-    case 5: {
-        const Stored away = book.made("A", "A", *a.content, [](header::FieldsView& f) { f.scope = away_scope; });
-        lines = {again(id_of(away), acc, seq_of(e))};
-        return forget(Expected(acc), {GuardView{qs, mine, acc}, GuardView{away_scope, mine, id_of(away)}});
-    }
+    case 5:
+        lines = {again(id_of(book.away), acc, seq_of(e))};
+        return forget(Expected(acc), {GuardView{qs, mine, acc}, GuardView{away_scope, mine, id_of(book.away)}});
     case 6:
-        lines = {a, book.made("B", "B", *book.stored("B").content, [](header::FieldsView& f) { f.seq = 3; })};
+        lines = {a, rec("B", qs, mine, 3, "A", "claim")};
         return import();
     case 7:
-        lines = {a, book.stored("D")};
+        lines = {a, book.d};
         return import();
     case 8:
-        lines = {book.stored("D")};
+        lines = {book.d};
         return append(qs, mine, Expected(id_of(a)));
     case 9:
-        lines = {book.made("B", "B", *book.stored("B").content, [](header::FieldsView& f) { f.seq = 5; })};
+        lines = {rec("B", qs, mine, 5, "A", "claim")};
         return append(qs, mine, Expected(id_of(a)));
     case 10:
         lines = {a};
         return append(away_scope, mine, std::nullopt);
     case 11:
-        lines = {book.stored("C")};
+        lines = {book.c};
         return append(qs, mine, std::nullopt);
-    case 12: {
-        const std::string c = id_of(book.stored("C"));
-        lines = {book.made("B", "B", *book.stored("B").content, [&](header::FieldsView& f) { f.target = c; })};
+    case 12:
+        lines = {records::targeting(book.b, id_of(book.c))};
         return append(qs, mine, Expected(id_of(a)));
-    }
     case 13:
-        lines = {a, book.stored("B"), book.stored("D"), book.stored("ACC"),
-                 again(id_of(book.stored("C")), acc, seq_of(e))};
+        lines = {a, book.b, book.d, book.acc, again(id_of(book.c), acc, seq_of(e))};
         return import();
     case 14:
-        lines = {a, book.stored("B"), book.stored("D"), book.stored("ACC"), e};
+        lines = {a, book.b, book.d, book.acc, e};
         return import();
     default:
         return std::nullopt;
@@ -418,14 +437,14 @@ struct PlainSource {
 
 // import_plain on s: lines with no admit hook, taken by their keys alone, the
 // store reading nothing of a line or a record: A's line under keys not its
-// header's with a record no body parser takes, a body key whose body a
-// forget on another lane forgets, and that forget; the counts, the heads,
-// then a scan's keys and lines as given.
+// own with a record no body parser takes, a body key whose body a forget on
+// another lane forgets, and that forget; the counts, the heads, then a
+// scan's keys and lines as given.
 template <class S>
 bool imports_plain(S& s, const Book& book, Arena& arena) {
     using qiven3::store::KeysView;
     PlainSource src;
-    src.lines = {{book.stored("A").line, "a record", KeysView{"p1", "plain", "one", "note", 1, {}, {}, true}},
+    src.lines = {{book.a.line, "a record", KeysView{"p1", "plain", "one", "note", 1, {}, {}, true}},
                  {"line two", std::nullopt, KeysView{"p2", "plain", "one", "note", 2, "p1", {}, true}},
                  {"line three", std::nullopt, KeysView{"p3", "plain", "two", "forget", 1, {}, "p2", false}}};
     src.given = {lane_head("plain", "one", "p2", 2), lane_head("plain", "two", "p3", 1)};
@@ -465,7 +484,7 @@ bool appends_plain(S& s) {
 
 QIVEN3_CASE(store_guard, import_plain) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
-    const auto book = std::make_unique<const Book>(*fake);
+    const auto book = std::make_unique<const Book>();
     std::vector<std::byte> pages(std::size_t{1} << 20U);
     Arena arena(pages);
     {
@@ -493,7 +512,7 @@ QIVEN3_CASE(store_guard, import_plain) {
 
 QIVEN3_CASE(store_guard, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
-    const auto book = std::make_unique<const Book>(*fake);
+    const auto book = std::make_unique<const Book>();
     for (std::size_t k = 0; k < cases; ++k) {
         auto heap = fake->pages(state_bytes);
         const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
@@ -516,7 +535,7 @@ QIVEN3_CASE(store_guard, sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
-    const auto book = std::make_unique<const Book>(*fake);
+    const auto book = std::make_unique<const Book>();
     using Store = qiven3::store::SQLiteStore<Fake>;
     for (std::size_t k = 0; k < cases; ++k) {
         const std::string path = text(scratch->root / ("g" + std::to_string(k)) / "store.db");

@@ -1,7 +1,8 @@
 // store's view cases, the generic calls in both stores: the in-memory
 // store's view over its state and the SQLite store's over its connection,
-// on the fake, after one chain of fixtures on two lanes (A, B, D and ACC
-// on implementer, C, M1, M2 and ACC2 on reviewer). line(id) and header(id)
+// on the fake, after one chain of plain records on two lanes (A, B, D and
+// ACC on implementer, C, M1, M2 and ACC2 on reviewer), verified after the
+// write and, on SQLite, reopened and verified again. line(id) and header(id)
 // give a held record's line byte-equal, body(id) its body record, each false
 // for an id not held; held_in(id, scope)
 // whether a record of id is held in that scope, by its bytes (no prefix,
@@ -14,11 +15,12 @@
 // them. Each list is cleared first. order_memory, order_sqlite: the
 // store's own order with no admit hook, a parent not the lane's head
 // refused parent and a seq not one past it seq, the chain in order
-// appended.
+// appended, verified and, on SQLite, reopened and verified again.
 
 #include <cstddef>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <string_view>
@@ -30,11 +32,12 @@
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
+#include "store/errors.hpp"
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
@@ -46,12 +49,13 @@ using qiven3::store::Id;
 using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::Vector;
-using qiven3::test::stage_book::Book;
-using qiven3::test::stage_book::Fake;
-using qiven3::test::stage_book::id_of;
-using qiven3::test::stage_book::Stored;
-using qiven3::test::stage_book::views;
+using qiven3::test::records::id_of;
+using qiven3::test::records::Rec;
+using qiven3::test::records::rec;
+using qiven3::test::records::targeting;
+using qiven3::test::records::views;
 using Arena = qiven3::memory::Arena;
+using Fake = qiven3::platform::fake::FakePlatform;
 using Chars = qiven3::memory::Allocator<char>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -91,19 +95,28 @@ struct Scratch {
     fs::path root;
 };
 
-// The chain, written by the store given: implementer's lane, then
-// reviewer's.
+// The chain, written by the store given: implementer's lane (claims A and
+// B, direction D, ACC accepting D), then reviewer's (C a claim revising A,
+// maps M1 and M2 revising it, ACC2 accepting D); every record bodied.
 struct Chain {
-    explicit Chain(const Book& book)
-        : mine{book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")},
-          theirs{book.stored("C"), book.stored("M1"), book.stored("M2"), book.stored("ACC2")} {}
+    Chain()
+        : mine{rec("A", qiven_scope, "implementer", 1, std::nullopt, "claim"),
+               rec("B", qiven_scope, "implementer", 2, "A", "claim"),
+               rec("D", qiven_scope, "implementer", 3, "B", "direction"),
+               targeting(rec("ACC", qiven_scope, "implementer", 4, "D", "accept"), "D")},
+          theirs{targeting(rec("C", qiven_scope, "reviewer", 1, std::nullopt, "claim"), "A"),
+                 rec("M1", qiven_scope, "reviewer", 2, "C", "map"),
+                 targeting(rec("M2", qiven_scope, "reviewer", 3, "M1", "map"), "M1"),
+                 targeting(rec("ACC2", qiven_scope, "reviewer", 4, "M2", "accept"), "D")} {}
     template <class S>
     void write(S& store) const {
         (void)store.append(qiven_scope, "implementer", std::nullopt, views(mine));
         (void)store.append(qiven_scope, "reviewer", std::nullopt, views(theirs));
     }
-    std::vector<Stored> mine;
-    std::vector<Stored> theirs;
+    // The counts the chain's write holds.
+    static constexpr qiven3::store::Counts held{8, 8, 0, 2};
+    std::vector<Rec> mine;
+    std::vector<Rec> theirs;
 };
 
 // The ids of a list, each by value.
@@ -114,9 +127,9 @@ std::vector<std::string> ids(const Vector<Id>& list) {
     }
     return out;
 }
-std::vector<std::string> ids_of(const std::vector<const Stored*>& list) {
+std::vector<std::string> ids_of(const std::vector<const Rec*>& list) {
     std::vector<std::string> out;
-    for (const Stored* s : list) {
+    for (const Rec* s : list) {
         out.push_back(id_of(*s));
     }
     return out;
@@ -125,14 +138,14 @@ std::vector<std::string> ids_of(const std::vector<const Stored*>& list) {
 // The generic calls of view V over the chain written.
 template <class V>
 void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const Chars& chars) {
-    const Stored& a = chain.mine[0];
-    const Stored& b = chain.mine[1];
-    const Stored& d = chain.mine[2];
-    const Stored& acc = chain.mine[3];
-    const Stored& c = chain.theirs[0];
-    const Stored& m1 = chain.theirs[1];
-    const Stored& m2 = chain.theirs[2];
-    const Stored& acc2 = chain.theirs[3];
+    const Rec& a = chain.mine[0];
+    const Rec& b = chain.mine[1];
+    const Rec& d = chain.mine[2];
+    const Rec& acc = chain.mine[3];
+    const Rec& c = chain.theirs[0];
+    const Rec& m1 = chain.theirs[1];
+    const Rec& m2 = chain.theirs[2];
+    const Rec& acc2 = chain.theirs[3];
     const std::string none = "sha256:" + std::string(64, '0');
 
     qiven3::memory::String line(chars);
@@ -188,9 +201,9 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(out.empty());
 
     CHECK(view.contains(id_of(m2)));
-    CHECK(view.contains(R"("kind":"direction")"));
+    CHECK(view.contains("kind:direction"));
     CHECK(!view.contains(none));
-    CHECK(!view.contains(R"("kind":"forget")"));
+    CHECK(!view.contains("kind:forget"));
 
     // each_keyed: keyed's ids in its order, all walked when f never stops,
     // the walk ended at the first f stops at.
@@ -247,65 +260,88 @@ void work(qiven3::test::Context& qiven3_ctx, V& view, const S& scratch, const Ch
 // second parent is not the first refused parent at 1; one whose seq is
 // not one past the head refused seq at 0; each refusal leaving the lane
 // empty; then the chain in order appended, its head the last.
+// A refusal's code (or entry code), index and id; none where f raised none.
+struct Refusal {
+    std::string code;
+    std::size_t index = 0;
+    std::string id;
+};
+template <class F>
+std::optional<Refusal> refused(const F& f) {
+    try {
+        f();
+    } catch (const qiven3::store::StoreError& e) {
+        const std::optional<qiven3::store::Code> code = e.code();
+        return Refusal{std::string(code ? qiven3::store::name(*code) : e.entry_code()), e.index(), std::string(e.id())};
+    }
+    return std::nullopt;
+}
+
+// The counts the order's chain holds.
+constexpr qiven3::store::Counts ordered{3, 3, 0, 1};
+
 template <class S>
-void order(qiven3::test::Context& qiven3_ctx, S& store, const Book& book) {
+void order(qiven3::test::Context& qiven3_ctx, S& store) {
     using qiven3::store::NoAdmit;
-    using qiven3::test::stage_book::refused;
-    const Stored a = book.stored("A");
-    const std::vector<Stored> skip_first = {book.stored("B")};
-    const std::vector<Stored> skip_second = {a, book.stored("D")};
-    const std::vector<Stored> late = {
-        book.made("A", "A", *a.content, [](qiven3::entry::header::FieldsView& f) { f.seq = 2; })};
-    const std::vector<Stored> chain = {a, book.stored("B"), book.stored("D")};
-    const auto one = [&](const std::vector<Stored>& list) {
+    const std::vector<Rec> chain = qiven3::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
+    const std::vector<Rec> skip_first = {chain[1]};
+    const std::vector<Rec> skip_second = {chain[0], chain[2]};
+    const std::vector<Rec> late = {rec("A", qiven_scope, "implementer", 2)};
+    const auto one = [&](const std::vector<Rec>& list) {
         const auto lines = views(list);
         return refused([&] { (void)store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{}); });
     };
     const auto first = one(skip_first);
     CHECK(first.has_value() && first->code == "parent" && first->index == 0U);
     const auto second = one(skip_second);
-    CHECK(second.has_value() && second->code == "parent" && second->index == 1U &&
-          second->id == id_of(book.stored("D")));
+    CHECK(second.has_value() && second->code == "parent" && second->index == 1U && second->id == id_of(chain[2]));
     const auto seq = one(late);
     CHECK(seq.has_value() && seq->code == "seq" && seq->index == 0U);
+    CHECK(store.verify() == qiven3::store::Counts{});
     const auto lines = views(chain);
     const qiven3::store::Written w = store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{});
     CHECK_EQ(w.head.id.view(), id_of(chain.back()));
     CHECK(w.head.seq == 3);
+    CHECK(store.verify() == ordered);
 }
 
 }  // namespace
 
 QIVEN3_CASE(store_view, order_memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
-    const auto book = std::make_unique<const Book>(*fake);
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
     qiven3::store::MemoryStore<Fake> store(*st, *fake);
-    order(qiven3_ctx, store, *book);
+    order(qiven3_ctx, store);
 }
 
 QIVEN3_CASE(store_view, order_sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
-    const auto book = std::make_unique<const Book>(*fake);
+    using Store = qiven3::store::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "o" / "store.db");
-    const auto store = std::make_unique<qiven3::store::SQLiteStore<Fake>>(
-        qiven3::store::SQLiteStore<Fake>::open(path, true, false, *fake));
-    order(qiven3_ctx, *store, *book);
-    (void)store->close();
+    {
+        const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
+        order(qiven3_ctx, *store);
+        (void)store->close();
+    }
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
+    CHECK(again->verify() == ordered);
+    const std::optional<qiven3::store::Head> head = again->head(qiven_scope, "implementer");
+    CHECK(head.has_value() && head->seq == 3 && head->id.view() == "D");
+    (void)again->close();
 }
 
 QIVEN3_CASE(store_view, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
-    const auto book = std::make_unique<const Book>(*fake);
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
-    const Chain chain(*book);
+    const Chain chain;
     {
         qiven3::store::MemoryStore<Fake> store(*st, *fake);
         chain.write(store);
+        CHECK(store.verify() == Chain::held);
     }
     std::vector<std::byte> pages(buffer_bytes);
     Arena arena(pages);
@@ -323,12 +359,12 @@ QIVEN3_CASE(store_view, sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
-    const auto book = std::make_unique<const Book>(*fake);
-    const Chain chain(*book);
+    const Chain chain;
+    using Store = qiven3::store::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "v" / "store.db");
-    const auto store = std::make_unique<qiven3::store::SQLiteStore<Fake>>(
-        qiven3::store::SQLiteStore<Fake>::open(path, true, false, *fake));
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
     chain.write(*store);
+    CHECK(store->verify() == Chain::held);
     std::vector<std::byte> pages(buffer_bytes);
     Arena arena(pages);
     const Chars chars(arena);
@@ -342,4 +378,7 @@ QIVEN3_CASE(store_view, sqlite) {
     sqlite::WriteView over(c, chars, &arenas, at, held);
     work(qiven3_ctx, over, arenas, chars);
     (void)store->close();
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
+    CHECK(again->verify() == Chain::held);
+    (void)again->close();
 }

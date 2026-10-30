@@ -65,7 +65,7 @@
      "paths": ["src/entry/secret.*", "tests/unit/secret.cmake", "tests/unit/secret_*", "tests/unit/matcher_test.cpp",
                "tests/support/fixtures/patterns.hpp"]},
     {"name": "checked", "layer": "product", "depends": ["store", "entry", "secret", "base", "memory", "platform", "faults"],
-     "paths": ["src/checked/", "tests/unit/checked.cmake", "tests/unit/checked_*"]},
+     "paths": ["src/checked/", "tests/support/checked/", "tests/unit/checked.cmake", "tests/unit/checked_*"]},
     {"name": "location", "layer": "product", "depends": ["base", "platform", "memory", "faults", "entry", "store", "wire"],
      "paths": ["src/qiven3/location*", "tests/unit/location.cmake", "tests/unit/location_*", "tests/support/fixtures/location_bed.hpp"]},
     {"name": "write", "layer": "product", "depends": ["entry", "matcher", "base", "memory", "platform", "faults"],

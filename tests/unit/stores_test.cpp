@@ -27,13 +27,13 @@
 #include "memory/memory.hpp"
 #include "store/errors.hpp"
 #include "store/keys.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/store_scan_case.hpp"
-#include "support/stores/stores.hpp"
 
 namespace {
 
-namespace stores = qiven3::test::stores;
+namespace stores = qiven3::test::ruled;
 namespace stage_book = qiven3::test::stage_book;
 using qiven3::store::Code;
 using qiven3::store::StoreError;

@@ -33,14 +33,14 @@
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "support/stores/stores.hpp"
+#include "support/checked/stores.hpp"
 
 namespace qiven3::drive {
 namespace {
 
 using Fake = platform::fake::FakePlatform;
 using Result = std::optional<Value>;
-namespace stores = test::stores;
+namespace stores = test::ruled;
 using held::id_value;
 using held::keep;
 using held::Kept;

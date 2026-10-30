@@ -43,9 +43,9 @@
 #include "memory/arena.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
-#include "support/stores/stores.hpp"
 
 namespace qiven3::drive::wire {
 
@@ -241,7 +241,7 @@ private:
 template <class D>
 std::optional<Value> race(D& d, memory::Arena&, ArgView request) {
     const auto made = std::make_unique<Race<typename D::Factory>>(
-        *held::named(d.states(), request, "state").object, test::stores::text(d.site().root()), request);
+        *held::named(d.states(), request, "state").object, test::ruled::text(d.site().root()), request);
     return made->run();
 }
 

@@ -37,18 +37,18 @@
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
+#include "support/checked/stores.hpp"
 #include "support/seams/seams.hpp"
-#include "support/stores/stores.hpp"
 
 namespace qiven3::drive {
 
 // path, UTF-8 and relative, under the Site's root.
-inline std::string under_site(const test::stores::Site& site, std::string_view path) {
+inline std::string under_site(const test::ruled::Site& site, std::string_view path) {
     std::u8string given;
     for (const char c : path) {
         given.push_back(static_cast<char8_t>(c));
     }
-    return test::stores::text(site.root() / std::filesystem::path(given));
+    return test::ruled::text(site.root() / std::filesystem::path(given));
 }
 
 #if defined(QIVEN3_FAULTS)
@@ -115,9 +115,9 @@ private:
 
 template <class D>
 std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unused]] ArgView request) {
-    if constexpr (D::Factory::own == test::stores::Own::sqlite) {
+    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
         using Store = typename D::Store;
-        test::stores::Site& site = d.site();
+        test::ruled::Site& site = d.site();
         const std::string path = under_site(site, text(request, "path"));
         const bool create = flag(request, "create", false);
         const bool read_only = flag(request, "read_only", false);
@@ -125,7 +125,7 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
         // open, and under QIVEN3_FAULTS its pages taken before any countdown.
         static_cast<void>(site.engine());
 #if defined(QIVEN3_FAULTS)
-        Refusals<test::stores::Site> refusals(site, request);
+        Refusals<test::ruled::Site> refusals(site, request);
 #else
         if (request.find("refuse")) {
             throw RequestError("not applicable: built without QIVEN3_FAULTS, so no refusal");
@@ -154,8 +154,8 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
 template <class D>
 std::optional<Value> import_undeferred([[maybe_unused]] D& d, [[maybe_unused]] memory::Arena& arena,
                                        [[maybe_unused]] ArgView request) {
-    if constexpr (D::Factory::own == test::stores::Own::sqlite) {
-        using Undeferred = checked::SQLiteStore<test::stores::Fake, test::seams::NoDeferral>;
+    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
+        using Undeferred = checked::SQLiteStore<test::ruled::Fake, test::seams::NoDeferral>;
         const auto& factory = *held::named(d.states(), request, "state").object;
         Undeferred into = Undeferred::open(factory.path(), false, false, d.site().fake());
         store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};

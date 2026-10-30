@@ -24,8 +24,8 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
-#include "support/stores/stores.hpp"
 
 namespace {
 
@@ -34,8 +34,8 @@ using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::memory::Vector;
-using qiven3::test::stores::Memory;
-using SQLite = qiven3::test::stores::Sqlite<>;
+using qiven3::test::ruled::Memory;
+using SQLite = qiven3::test::ruled::Sqlite<>;
 using Store = Memory::Store;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -113,7 +113,7 @@ std::string appending(SQLite::Store& store, std::string_view lane, const std::ve
 // n records on reviewer's lane, n - 1 roots clearing sk-key, then a
 // revision of the last root clearing aws-akia: every root folded, the last
 // with its revision, before the hit passes; append's counted peak.
-std::size_t cleared_peak(qiven3::test::Context& qiven3_ctx, qiven3::test::stores::Site& site, const Book& book,
+std::size_t cleared_peak(qiven3::test::Context& qiven3_ctx, qiven3::test::ruled::Site& site, const Book& book,
                          std::size_t n) {
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
@@ -150,7 +150,7 @@ struct Bytes {
 };
 
 QIVEN3_CASE(checked_clearing, parsed_view) {
-    const auto site = qiven3::test::stores::site();
+    const auto site = qiven3::test::ruled::site();
     const Stored a = site->book().stored("A");
     Bytes bytes{a.line, *a.record};
     qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven3::store::Operation::append, "here"});
@@ -176,7 +176,7 @@ QIVEN3_CASE(checked_clearing, parsed_view) {
 }
 
 QIVEN3_CASE(checked_clearing, memory) {
-    const auto site = qiven3::test::stores::site();
+    const auto site = qiven3::test::ruled::site();
     const Book& book = site->book();
     Memory mine(*site);
     Memory theirs(*site);
@@ -241,7 +241,7 @@ QIVEN3_CASE(checked_clearing, memory) {
 // before the next, the append's counted peak the same for 4 records held
 // as for 16, within its budget.
 QIVEN3_CASE(checked_clearing, memory_many) {
-    const auto site = qiven3::test::stores::site();
+    const auto site = qiven3::test::ruled::site();
     const Book& book = site->book();
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
@@ -278,7 +278,7 @@ QIVEN3_CASE(checked_clearing, memory_many) {
 }
 
 QIVEN3_CASE(checked_clearing, sqlite_many) {
-    const auto site = qiven3::test::stores::site();
+    const auto site = qiven3::test::ruled::site();
     const Book& book = site->book();
     const std::size_t four = cleared_peak(qiven3_ctx, *site, book, 4);
     const std::size_t sixteen = cleared_peak(qiven3_ctx, *site, book, 16);

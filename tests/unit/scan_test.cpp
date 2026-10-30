@@ -15,14 +15,14 @@
 #include <vector>
 
 #include "runner/runner.hpp"
+#include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/scan/scan.hpp"
-#include "support/stores/stores.hpp"
 
 namespace {
 
 namespace scan = qiven3::test::scan;
-namespace stores = qiven3::test::stores;
+namespace stores = qiven3::test::ruled;
 namespace fs = std::filesystem;
 
 void put(const fs::path& path, std::string_view bytes) {

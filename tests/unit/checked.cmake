@@ -11,11 +11,11 @@ qiven3_add_cases(qiven3_unit_checked_stage LABELS fast fake
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
 
 # checked/clearing's cases (a false secret hit's clearing) through the
-# ruled stores from the stores' factory, on the fake: a hit refused
+# ruled stores from the ruled factory, on the fake: a hit refused
 # uncleared or cleared for another pattern, admitted on an imported state,
 # then refused once used, once the clearing is forgotten and under a
 # revision; over 4 and 16 direction records, append's counted peak equal,
 # in memory and in SQLite.
 qiven3_add_cases(qiven3_unit_checked_clearing LABELS fast fake
   SOURCES checked_clearing_test.cpp
-  LINK qiven3_stores)
+  LINK qiven3_checked_stores)

@@ -28,7 +28,7 @@ qiven3_add_cases(qiven3_unit_store_contract LABELS fast fake
 # held, on the in-memory store's view and the SQLite store's, on the fake.
 qiven3_add_cases(qiven3_unit_store_view LABELS fast fake
   SOURCES store_view_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry qiven3_store)
+  LINK qiven3_faults qiven3_stores)
 
 # store's own guards in both stores with no admit hook, on the fake: a
 # forget appended, a forget given an accept, a forget's target not
@@ -37,7 +37,7 @@ qiven3_add_cases(qiven3_unit_store_view LABELS fast fake
 # verify and, on SQLite, a reopen, the state as before.
 qiven3_add_cases(qiven3_unit_store_guard LABELS fast fake
   SOURCES store_guard_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_entry qiven3_store)
+  LINK qiven3_faults qiven3_stores)
 
 # store's plain path in both stores with no admit hook, on the fake: the body
 # key held and given alike, each write followed by verify and, on SQLite, a
@@ -88,4 +88,4 @@ qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
 # a SQLite store's among them.
 qiven3_add_cases(qiven3_unit_stores LABELS fast fake
   SOURCES stores_test.cpp seams_test.cpp scan_test.cpp
-  LINK qiven3_stores qiven3_seams qiven3_scan qiven3_runner)
+  LINK qiven3_checked_stores qiven3_seams qiven3_scan qiven3_runner)
