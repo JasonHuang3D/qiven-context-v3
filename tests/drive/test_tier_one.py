@@ -65,6 +65,10 @@ class Reach(unittest.TestCase):
         # Tier 1 runs the fake and fast selections on both systems, and no
         # label kept out of it.
         self.assertTrue(reached(filters, {"fast"}) and reached(filters, {"fake"}), filters)
+        # Fast runs on each system only what its fake step does not.
+        fast = [row for row in filters if row[1] == "fast"]
+        self.assertEqual(len(fast), 2, filters)
+        self.assertFalse(reached(fast, {"fast", "fake"}), filters)
         self.assertLessEqual(KEPT_OUT, LABELS)
         self.assertEqual([label for label in sorted(KEPT_OUT) if reached(filters, {label})], [], filters)
         tests = ctest_tests()

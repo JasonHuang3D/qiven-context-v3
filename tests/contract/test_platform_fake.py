@@ -14,7 +14,7 @@ from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
-from tests.contract.platform_machine import CASES, PlatformMachine, skip_reasons
+from tests.contract.platform_machine import CASES, PlatformForms, PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import CASES as PROCESS_CASES
@@ -57,7 +57,7 @@ class Fake(FakeBinding, PlatformCases, PlatformLocation, PlatformFiles, Platform
     ctest_labels = ("fake",)
 
 
-class FakeMachine(FakeBinding, PlatformMachine, PlatformRestMachine, unittest.TestCase):
+class FakeMachine(FakeBinding, PlatformMachine, PlatformForms, PlatformRestMachine, unittest.TestCase):
     """The machine cases, not applicable on the fake: label machine, not fake."""
     ctest_labels = ("machine",)
 

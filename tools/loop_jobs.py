@@ -25,10 +25,12 @@ Linux, linux-plain's build, with its debug information, runs the debugger
 cases under gdb.
 
 The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
-runs, and TIER1_STEPS, fast's label it adds on that job's own build, with no
-structure build: the structure tests run in windows-analysis's own steps
-(tier 2) and in tier 3's full suite; TIER2_STEPS, the step tier 2 adds on
-a job's build: the Windows drive's contract file on windows-msvc's;
+runs, and TIER1_STEPS, the tests of fast's label it adds on that job's own
+build, those its fake step does not run, with no structure build: the
+structure tests run in windows-analysis's own steps (tier 2) and in tier 3's
+full suite; FAST, CI's, the fast test preset's selection, which the tier's
+own filters narrow; TIER2_STEPS, the step tier 2 adds on a job's build: the
+Windows drive's contract files on windows-msvc's;
 SUITES, tier 3's full suite and fuzz targets, once a system after its jobs;
 TIMED_ONLY, the suites tier 3 runs only for a time, a job's own step
 running the same tests without one.
@@ -159,22 +161,26 @@ JOBS = {**{name: (system, preset, [*steps, *LOCAL_STEPS.get(name, ())])
            for name, (system, preset, steps) in CI_JOBS.items()}, **LOCAL}
 
 # The tiers' own. Tier 1's job a system, and the step it adds on it: fast's
-# label on the job's own build, and no structure build.
+# label on the job's own build, and no structure build. FAST stays the fast
+# test preset's selection, as CI's; the tier's filters are the loop's.
 TIER1 = {"windows": "windows-msvc", "linux": "linux-gcc"}
 FAST = Step("fast", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L", "^fast$"))
+# Tier 1's own filter: its fake step, on the same build, has run every test
+# of both labels, so that fast runs only those fake does not, on both systems.
+FAST_ONLY = Step("fast", (*FAST.ci, "-LE", "^fake$"))
 # On Windows fast leaves out the structure tests: some read the records a
 # structure build writes, which tier 1 does not build, so that they would
 # read another tree's, stale after a change. They run in windows-analysis's
 # own steps and in tier 3. On Linux the tests that read the records skip.
-FAST_REST = Step("fast", (*FAST.ci, "-E", "^tests[.]structure[.]"))
-TIER1_STEPS = {"windows-msvc": (FAST_REST,), "linux-gcc": (FAST,)}
+FAST_REST = Step("fast", (*FAST_ONLY.ci, "-E", "^tests[.]structure[.]"))
+TIER1_STEPS = {"windows-msvc": (FAST_REST,), "linux-gcc": (FAST_ONLY,)}
 # Tier 2's step a job, after the job's own: on Windows the Windows drive's
-# contract file on windows-msvc's build, its cases on the adapter over real
-# files and processes, so that a unit's change to the adapter meets them
+# contract files on windows-msvc's build, their cases on the adapter over
+# real files and processes, so that a unit's change to the adapter meets them
 # before tier 3. The rest of the label machine, the adapter's C++ cases
 # that start processes or read the machine's facts, stays tier 3's.
 DRIVE_WINDOWS = Step("drive", ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error",
-                               "-R", "^tests[.]machine[.]test_platform_windows[.]"))
+                               "-R", "^tests[.]machine[.]test_platform_"))
 TIER2_STEPS = {"windows-msvc": (DRIVE_WINDOWS,)}
 FUZZ_TIMED = "fuzz-timed"  # each fuzz target for a time: tools/loop_fuzz.py on the tree
 # Tier 3's suites, once a system after its jobs: (system, steps). On

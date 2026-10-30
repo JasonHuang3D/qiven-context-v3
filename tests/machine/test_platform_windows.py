@@ -1,7 +1,8 @@
 """The platform's cases on the Windows adapter, here, through
 qiven3-drive-windows: those needing neither processes nor machine, as on
 the fake, the process cases over qiven3-child platform's children, and the
-machine cases; the fake's own cases, not applicable here.
+machine cases; the fake's own cases, not applicable here. Those that run
+qiven3, location's and P22, are in machine/test_platform_location.py.
 
 Its configuration location with no override is LocalAppData's qiven3, the
 known folder read here through the system's own call. Each case's drive
@@ -15,7 +16,6 @@ import unittest
 from tests.contract.platform_cases import PlatformBinding, PlatformCases
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
-from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_machine import PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import CASES as OWN_CASES
@@ -94,34 +94,9 @@ class WindowsBinding(PlatformBinding):
         return d.holder_times(kind)
 
 
-class Windows(WindowsBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn,
+class Windows(WindowsBinding, PlatformCases, PlatformFiles, PlatformProcess, PlatformOwn,
               PlatformRest, PlatformLast, PlatformMemory, PlatformMachine, PlatformRestMachine, unittest.TestCase):
     pass
-
-
-# The machine cases' skips until their members land: none. P17, P18 and
-# P21 run; P22, the last of them to skip, runs through location's init
-# as the binary, its synced forms each skipping alone by its reason
-# where this machine has no OneDrive folder; P6, the fake's warnings, is
-# not applicable here.
-UNTIL = {"test_P6_warnings": "not applicable: the warnings are the fake's facts, set by request"}
-# The cases pinned running here, no skip: P22.
-MACHINE_RUNS = ("test_P22_forms_here",)
-
-
-class MachineUntil(unittest.TestCase):
-    """Windows' case P22 runs here, no skip at its own level, through
-    location's init as the binary; P6 is not applicable, by its reason."""
-    ctest_labels = ("drive",)
-
-    def setUp(self):
-        if sys.platform != "win32":
-            self.skipTest("not applicable: the Windows adapter is built on Windows alone")
-
-    def test_machine_until(self):
-        reasons, others = skip_reasons(Windows, MACHINE_RUNS + tuple(UNTIL))
-        self.assertEqual(others, [])
-        self.assertEqual(reasons, dict.fromkeys(MACHINE_RUNS) | UNTIL)
 
 
 # The files' and processes' cases' skips: none. P20, the last of them to

@@ -60,7 +60,7 @@ def skip_reasons(binding, names=CASES):
     return {name: reasons.get(name) for name in names}, others
 
 
-class PlatformMachine:
+class Waiting:
     FACTS = True
     PROGRAM = True
     RESIDUAL = True
@@ -74,6 +74,8 @@ class PlatformMachine:
             self.assert_platform_error(self.failure(d.call, op, **args), "unsupported")
         self.skipTest(f"until package 5: {what}")
 
+
+class PlatformMachine(Waiting):
     def test_P17_facts_here(self):
         """code_page(); facts of a temporary directory on each fixed drive:
         protection unknown (admin_only), File History and BitLocker off."""
@@ -125,6 +127,10 @@ class PlatformMachine:
                 self.assertEqual(d.call("program", name="qiven3-planted"), str(on_path / "qiven3-planted.exe"))
         with self.drive() as d:
             self.assert_platform_error(self.failure(d.call, "program", name="qiven3-on-no-entry"), "start")
+
+
+class PlatformForms(Waiting):
+    """P22, apart: on the system's adapter it runs the binary."""
 
     def guarded(self, d, given, env=None):
         """init through the guard, accepted, with the case's configuration

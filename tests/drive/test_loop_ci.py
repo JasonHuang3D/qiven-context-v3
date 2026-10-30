@@ -17,10 +17,10 @@ build.
 
 The tiers' own steps are read against CI's and the presets: tier 1 adds
 one step, fast, the fast test preset's selection on the job's own build,
-without the structure tests on Windows, and builds no structure tree, whose
+less fake's, without the structure tests on Windows, and builds no structure tree, whose
 tests run in windows-analysis's steps; tier 3's suites build the
 structure, nohal and fuzz presets and run the full and fuzz test presets.
-Tier 2 adds one step, in no workflow: the Windows drive's contract file on
+Tier 2 adds one step, in no workflow: the Windows drive's contract files on
 windows-msvc's build. Each Windows job's trees are its own: no two jobs share one.
 
 Each job of either workflow runs on each dispatch, as each of the loop's
@@ -301,8 +301,8 @@ class LoopAgainstCI(unittest.TestCase):
     def test_tiers(self):
         """The tiers' own steps against CI's and the presets: tier 1's
         one step is fast, the fast test preset's selection on the job's
-        build, without the structure tests on Windows, and no structure
-        build, whose steps stay windows-analysis's, as ci.yml writes them;
+        build less fake's, without the structure tests on Windows, and no
+        structure build, whose steps stay windows-analysis's, as ci.yml writes them;
         tier 3's suites build the structure, nohal and fuzz presets and run
         the full and fuzz test presets on Windows, and run them on Linux on
         linux-plain's and linux-fuzz's trees, read and never owned; a suite
@@ -315,9 +315,11 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual(table["TIER1"], {"windows": "windows-msvc", "linux": "linux-gcc"})
         msvc = list(table["TIER1_STEPS"]["windows-msvc"])
         fast = table["FAST"]
+        # Fast runs only what fake, on the same build, does not.
+        only = (*fast.ci, "-LE", "^fake$")
         # On Windows fast leaves out the structure tests, which read the
         # records of a structure build tier 1 does not run.
-        self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*fast.ci, "-E", "^tests[.]structure[.]"))])
+        self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*only, "-E", "^tests[.]structure[.]"))])
         # The structure build and tests stay windows-analysis's, as ci.yml
         # writes them, and no tier 1 job builds a structure tree.
         analysis = self.ci["windows-analysis"][1]
@@ -327,7 +329,7 @@ class LoopAgainstCI(unittest.TestCase):
         for job in table["TIER1"].values():
             steps = [*self.loop.JOBS[job][2], *table["TIER1_STEPS"][job]]
             self.assertFalse([s.name for s in steps if "structure" in " ".join((s.name, *s.ci[:3]))], job)
-        self.assertEqual(list(table["TIER1_STEPS"]["linux-gcc"]), [fast])
+        self.assertEqual([(s.name, s.ci) for s in table["TIER1_STEPS"]["linux-gcc"]], [("fast", only)])
         self.assertEqual(fast.ci, ("ctest", "--test-dir", "build/ci", "--output-on-failure", "--no-tests=error", "-L",
                                    tests["fast"]["filter"]["include"]["label"]))
         self.assertEqual(tests["fast"]["execution"]["noTestsAction"], "error")
@@ -366,8 +368,8 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertEqual({name: trees[name] for name in linux}, {name: {"build/ci": "build/" + name} for name in linux})
 
     def test_tier_two(self):
-        """Tier 2's own step: the Windows drive's contract file, every
-        test of tests/machine/test_platform_windows.py and no other, after
+        """Tier 2's own step: the Windows drive's contract files, every
+        test of tests/machine/test_platform_*.py and no other, after
         windows-msvc's steps on its own tree; in no workflow, and in no
         other way, tier 3's full suite running the label machine whole."""
         table = self.loop.TABLE
@@ -379,9 +381,10 @@ class LoopAgainstCI(unittest.TestCase):
         self.assertTrue((ROOT / "tests" / "machine" / "test_platform_windows.py").is_file())
         chosen = re.compile(drive.ci[6])
         for name, picked in (("tests.machine.test_platform_windows.Windows.test_P20_lock", True),
+                             ("tests.machine.test_platform_location.WindowsLocation.test_P3_record", True),
                              ("tests.machine.test_platform_windows.HandleCount.test_planted_leak", True),
                              ("tests.contract.test_platform_fake.FakeMachine.test_P17_facts_here", False),
-                             ("win_process.deadline", False), ("tests.machine.test_platform_windowsX.A.b", False)):
+                             ("win_process.deadline", False), ("tests.machine.other.A.b", False)):
             self.assertEqual(bool(chosen.search(name)), picked, name)
         self.assertNotIn(drive.ci, self.ci["windows-msvc"][1])
         presets = self.loop.binary_dirs()
