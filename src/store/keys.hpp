@@ -1,7 +1,7 @@
 #pragma once
 
 // keys: what the store orders and finds a record by, each its caller's.
-// Id is an id by value, Head a lane's head, Keys a record's keys as a
+// Id is an id by value, Head a lane's head, KeysView a record's keys as a
 // caller gives them (views, valid while the caller's bytes are), and
 // in_scopes whether a scope set holds a scope. The store keeps the keys as
 // given and reads no rule of a product's into them.
@@ -59,7 +59,7 @@ inline constexpr std::size_t max_call_entries = UINT32_MAX - 1U;
 
 // A record's keys: its id, scope, lane, kind and seq, its parent and its
 // target if it has them, and whether it has a body, held or forgotten.
-struct Keys {
+struct KeysView {
     std::string_view id, scope, lane, kind;
     std::int64_t seq = 0;
     std::optional<std::string_view> parent, target;

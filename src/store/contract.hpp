@@ -241,7 +241,7 @@ struct Line {
 struct EntryView {
     std::string_view line;                 // the stored header line
     std::optional<std::string_view> body;  // its body record, or none
-    Keys keys;                             // its keys, NoAdmit's to give
+    KeysView keys;                         // its keys, NoAdmit's to give
 };
 
 // A scan's record: its keys owned and its header line's bytes, on the
@@ -258,11 +258,11 @@ struct Record {
     String line;        // the header line, without its LF
 
     // Its keys, views of it.
-    [[nodiscard]] Keys keys() const noexcept {
+    [[nodiscard]] KeysView keys() const noexcept {
         const auto text = [](const std::optional<Id>& i) {
             return i ? std::optional<std::string_view>(i->view()) : std::nullopt;
         };
-        return Keys{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
+        return KeysView{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
     }
 };
 struct GuardView {  // a head the store holds, as the caller expects it
@@ -358,7 +358,7 @@ struct NoHooks {
 };
 
 // The call a refusal names: its operation and the store's path.
-struct At {
+struct AtView {
     Operation op = Operation::append;
     std::string_view path;
 };
@@ -374,8 +374,8 @@ struct At {
 // hook holds on them. P is the store's platform, V its view, E its kept
 // entry, S its scratch.
 template <class A, class P, class V, class E, class S>
-concept Admit = requires(A& a, P& platform, V& view, const At& at, std::span<const EntryView> lines, std::size_t i,
-                         const EntryView& line, Keys& out, const E& e, std::span<const E> entries,
+concept Admit = requires(A& a, P& platform, V& view, const AtView& at, std::span<const EntryView> lines, std::size_t i,
+                         const EntryView& line, KeysView& out, const E& e, std::span<const E> entries,
                          std::string_view v, Expected expected, const memory::Allocator<char>& kept, S& scratch) {
     a.given(at, lines, kept, scratch);
     a.read(platform, at, i, line, out, kept, scratch);
@@ -404,7 +404,7 @@ private:
 // each line's header before its insert, settled with each entry in the
 // final view, heads with the source's heads and those the entries give.
 template <class A, class V>
-concept AdmitImport = requires(A& a, V& view, const At& at, std::size_t i, const Header& h,
+concept AdmitImport = requires(A& a, V& view, const AtView& at, std::size_t i, const Header& h,
                                std::optional<std::string_view> content, const memory::Allocator<char>& work,
                                std::span<const LaneHead> heads) {
     a.arrived(view, h, i, at);
@@ -416,28 +416,29 @@ concept AdmitImport = requires(A& a, V& view, const At& at, std::size_t i, const
 // as its caller gives them.
 struct NoAdmit {
     template <class S>
-    constexpr void given(const At& /*at*/, std::span<const EntryView> /*lines*/,
+    constexpr void given(const AtView& /*at*/, std::span<const EntryView> /*lines*/,
                          const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}
     template <class P, class S>
-    constexpr void read(P& /*platform*/, const At& /*at*/, std::size_t /*index*/, const EntryView& line, Keys& out,
-                        const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {
+    constexpr void read(P& /*platform*/, const AtView& /*at*/, std::size_t /*index*/, const EntryView& line,
+                        KeysView& out, const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {
         out = line.keys;
     }
     template <class E, class S>
-    constexpr void kept(const At& /*at*/, std::size_t /*index*/, const E& /*e*/,
+    constexpr void kept(const AtView& /*at*/, std::size_t /*index*/, const E& /*e*/,
                         const memory::Allocator<char>& /*kept*/, S& /*scratch*/) const noexcept {}
     template <class V, class E>
     constexpr void admit(V& /*view*/, std::string_view /*scope*/, std::string_view /*lane*/, Expected /*expected*/,
-                         std::span<const E> /*entries*/, const At& /*at*/,
+                         std::span<const E> /*entries*/, const AtView& /*at*/,
                          const memory::Allocator<char>& /*kept*/) const noexcept {}
     template <class V>
-    constexpr void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/, const At& /*at*/) const noexcept {}
+    constexpr void arrived(V& /*view*/, const Header& /*h*/, std::size_t /*index*/,
+                           const AtView& /*at*/) const noexcept {}
     template <class V>
     constexpr void settled(V& /*view*/, const Header& /*h*/, std::optional<std::string_view> /*content*/,
-                           std::size_t /*index*/, const At& /*at*/,
+                           std::size_t /*index*/, const AtView& /*at*/,
                            const memory::Allocator<char>& /*work*/) const noexcept {}
     constexpr void heads(std::span<const LaneHead> /*source*/, std::span<const LaneHead> /*given*/,
-                         const At& /*at*/) const noexcept {}
+                         const AtView& /*at*/) const noexcept {}
     constexpr void release() const noexcept {}
 };
 

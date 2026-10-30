@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <string_view>
 #include <vector>
 
@@ -41,9 +42,6 @@ bool platform_named(std::ostream& out) {
 
 const NamerRegistrar platform_namer{&platform_named};
 
-// The process's log's pages, of static storage.
-Journal::Pages journal_pages;
-
 }  // namespace
 
 void case_ended(log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
@@ -60,8 +58,10 @@ int main(int argc, char** argv) {
     // process's status, and no dialog.
     // Unbuffered, so what a case wrote before a crash is in the log.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    // The process's log, its ring in a crash's report, drained at its end.
-    qiven3::test::Journal journal(qiven3::test::journal_pages, "runner");
+    // The process's log, its ring in a crash's report, drained at its end;
+    // its pages on the heap, outliving it, so that no frame holds them.
+    const auto pages = std::make_unique<qiven3::test::Journal::Pages>();
+    qiven3::test::Journal journal(*pages, "runner");
     std::vector<std::string_view> args;
     for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);

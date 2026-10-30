@@ -23,7 +23,7 @@ public:
     // The bytes a Journal's pages hold: its Log's ring and events, and the
     // arena's padding for their alignment.
     static constexpr std::size_t bytes = log::Log::ring_bytes + log::Log::event_bytes + 256;
-    // Pages of static storage, so that no frame holds them.
+    // Pages of static storage or on the heap, so that no frame holds them.
     struct alignas(std::max_align_t) Pages {
         std::array<std::byte, bytes> data{};
     };

@@ -149,7 +149,7 @@ void record_of(const Data& d, std::uint32_t i, Record& out) {
 
 Batch::Batch(Data& d) noexcept : rows_(Allocator<Held>(d.heap)), lanes_(Allocator<Lane>(d.heap)) {}
 
-Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record, const Keys& k) {
+Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record, const KeysView& k) {
     Held e(d.heap);
     e.line.assign(line);
     if (record) {
@@ -164,7 +164,7 @@ Held make_held(Data& d, std::string_view line, std::optional<std::string_view> r
     return e;
 }
 
-void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const Keys& k) {
+void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const KeysView& k) {
     const std::size_t at = d.held.size() + rows_.size();
     if (at >= max_entries) {
         throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());

@@ -260,14 +260,14 @@ void record_of(const Data& d, std::uint32_t i, Record& out);
 // heap: the line's and the record's allocations; its lane, target and
 // forget none.
 [[nodiscard]] Held make_held(Data& d, std::string_view line, std::optional<std::string_view> record,
-                             const Keys& k);
+                             const KeysView& k);
 
 // A call's new entries, staged on the heap, then applied.
 class Batch {
 public:
     explicit Batch(Data& d) noexcept;
     // One entry, admitted: its line, its record or none, its keys.
-    void add(Data& d, std::string_view line, std::optional<std::string_view> record, const Keys& k);
+    void add(Data& d, std::string_view line, std::optional<std::string_view> record, const KeysView& k);
     // The room each container needs, reserved; then the entries in, the
     // heads moved, size and count added: nothing past reserve fails.
     void apply(Data& d, std::uint64_t size);

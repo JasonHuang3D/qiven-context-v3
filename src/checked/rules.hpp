@@ -173,10 +173,10 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
 }
 
 // A header's keys for the store, views of it: a content is a body.
-[[nodiscard]] inline store::Keys keys_of(const header::Header<Chars>& h) {
-    return store::Keys{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
-                       h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
-                       h.text(Slot::target), h.text(Slot::content).has_value()};
+[[nodiscard]] inline store::KeysView keys_of(const header::Header<Chars>& h) {
+    return store::KeysView{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
+                           h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
+                           h.text(Slot::target), h.text(Slot::content).has_value()};
 }
 
 // The secret check of one admitted entry: a header hit refused, the
@@ -329,7 +329,7 @@ public:
         entries_->reserve(lines.size());
     }
     template <stage::Scratch S>
-    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::Keys& out,
+    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
               const Chars& kept, S& scratch) {
         {
             const Entry<P> e = stage::detail::part1(platform, at, index, line, Chars(scratch()));
@@ -339,14 +339,14 @@ public:
     }
     // The secret check on a scratch of its own, part 1's given back.
     template <class S>
-    void kept(const AtView& at, std::size_t index, const stage::Kept& /*e*/, const Chars& /*kept*/, S& scratch) {
+    void kept(const AtView& at, std::size_t index, const stage::KeptView& /*e*/, const Chars& /*kept*/, S& scratch) {
         if (at.op == Operation::append) {
             detail::secrets(at, index, (*entries_)[index], *hits_, Chars(scratch()));
         }
     }
     template <class V>
     void admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
-               std::span<const stage::Kept> /*kept*/, const AtView& at, const Chars& allocator) {
+               std::span<const stage::KeptView> /*kept*/, const AtView& at, const Chars& allocator) {
         if (at.op != Operation::append && at.op != Operation::forget) {
             memory::fail_fast("stage::admit: an operation but append and forget");
         }

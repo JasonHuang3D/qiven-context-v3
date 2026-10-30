@@ -87,12 +87,12 @@ template <platform::Platform P>
 using Entry = entry::check::Entry<P, Chars>;
 
 // The call a refusal names: its operation and the store's path.
-using AtView = At;
+using store::AtView;
 
 // What the store keeps of an entry: its keys owned, its kind, line and
 // body record as views of the call's (valid for the call, the kind the
 // hook's until its release).
-struct Kept {
+struct KeptView {
     Id id;
     memory::Inline<scope_bytes> scope;
     memory::Inline<lane_bytes> lane;
@@ -104,11 +104,11 @@ struct Kept {
     std::optional<std::string_view> record;
 
     // Its keys, views of it.
-    [[nodiscard]] Keys keys() const noexcept {
+    [[nodiscard]] KeysView keys() const noexcept {
         const auto text = [](const std::optional<Id>& i) {
             return i ? std::optional<std::string_view>(i->view()) : std::nullopt;
         };
-        return Keys{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
+        return KeysView{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
     }
 };
 
@@ -116,7 +116,7 @@ struct Kept {
 // with its LF.
 struct Checked {
     explicit Checked(const Chars& allocator) noexcept : kept(allocator) {}
-    Vector<Kept> kept;
+    Vector<KeptView> kept;
     std::uint64_t size = 0;
 };
 
@@ -181,7 +181,7 @@ inline void next(const header::Header<Chars>& h, const std::optional<Head>& now,
 
 // The store's bounds over one entry's keys and its record, then its kind
 // at its operation; the entry kept.
-inline Kept keep(const Keys& k, const EntryView& line, std::size_t index, const AtView& at) {
+inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
     const std::string_view id = Id::fits(k.id) ? k.id : std::string_view();
     const auto bound = [&](bool fits, std::string_view field) {
         if (!fits) {
@@ -205,7 +205,7 @@ inline Kept keep(const Keys& k, const EntryView& line, std::size_t index, const 
     if (at.op == Operation::append && k.kind == "forget") {
         refuse(at, index, id, "forget_path", "header.kind");
     }
-    Kept out;
+    KeptView out;
     out.id = Id::of(k.id);
     out.scope = memory::Inline<scope_bytes>(k.scope);
     out.lane = memory::Inline<lane_bytes>(k.lane);
@@ -229,10 +229,10 @@ inline Kept keep(const Keys& k, const EntryView& line, std::size_t index, const 
 }
 
 // A parsed header's keys, views of it, for the import until it takes keys.
-[[nodiscard]] inline Keys keys_of(const header::Header<Chars>& h) {
-    return Keys{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
-                h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
-                h.text(Slot::target), h.text(Slot::content).has_value()};
+[[nodiscard]] inline KeysView keys_of(const header::Header<Chars>& h) {
+    return KeysView{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
+                    h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
+                    h.text(Slot::target), h.text(Slot::content).has_value()};
 }
 
 // Part 1 of one entry, as check_entry reads it, a fault refused.
@@ -275,7 +275,7 @@ Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, co
     Checked out(allocator);
     out.kept.reserve(lines.size());
     for (std::size_t i = 0; i < lines.size(); ++i) {
-        Keys keys;
+        KeysView keys;
         admit.read(platform, at, i, lines[i], keys, allocator, scratch);
         out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
         if (const std::optional<std::string_view> body = lines[i].body) {
@@ -291,7 +291,7 @@ Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, co
 // admit hook; a refusal thrown.
 template <View V>
 Staged staged(V& view, const Checked& checked, const Limits& limits, const AtView& at) {
-    const std::span<const Kept> entries(checked.kept);
+    const std::span<const KeptView> entries(checked.kept);
     Staged out;
     out.size = checked.size;
     out.count = entries.size();
@@ -313,9 +313,9 @@ Staged staged(V& view, const Checked& checked, const Limits& limits, const AtVie
 // seq one past it, the one before it in the call then the head; the first
 // out of order refused parent or seq. An admit hook's rules run first.
 inline void in_order(std::string_view scope, std::string_view lane, std::optional<Head> now,
-                     std::span<const Kept> entries, const AtView& at) {
+                     std::span<const KeptView> entries, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        const Kept& k = entries[i];
+        const KeptView& k = entries[i];
         if (k.scope.view() != scope || k.lane.view() != lane) {
             refuse(at, i, k.id.view(), "parent");
         }
@@ -334,9 +334,9 @@ void arrives(V& view, const header::Header<Chars>& h, std::size_t index, const A
 // At forget, each target erased: erased the targets whose body the store
 // drops, in the call's order, each once, each held in the call's scope with
 // its body; the first entry whose target is not there refused target.
-inline void erasable(std::span<const Kept> entries, std::span<const Id> erased, const AtView& at) {
+inline void erasable(std::span<const KeptView> entries, std::span<const Id> erased, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        const Kept& k = entries[i];
+        const KeptView& k = entries[i];
         if (i >= erased.size() || erased[i].view() != detail::text(k.target).value_or(std::string_view())) {
             refuse(at, i, k.id.view(), "target");
         }
@@ -365,7 +365,7 @@ inline void settles(const header::Header<Chars>& h, bool target_held, bool forgo
 // of the call's or the store's (the view's held_in, by its keys); the
 // first not held refused target.
 template <class V>
-void targets(V& view, std::span<const Kept> entries, std::string_view scope, const AtView& at) {
+void targets(V& view, std::span<const KeptView> entries, std::string_view scope, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
         const std::optional<Id>& t = entries[i].target;
         bool held = !t;
@@ -385,7 +385,7 @@ void targets(V& view, std::span<const Kept> entries, std::string_view scope, con
 template <View V>
 Staged staged(V& view, const Checked& checked, const Limits& limits, const AtView& at, std::string_view scope,
               std::string_view lane, const std::optional<Head>& now) {
-    in_order(scope, lane, now, std::span<const Kept>(checked.kept), at);
+    in_order(scope, lane, now, std::span<const KeptView>(checked.kept), at);
     return staged(view, checked, limits, at);
 }
 
@@ -394,9 +394,9 @@ Staged staged(V& view, const Checked& checked, const Limits& limits, const AtVie
 template <View V>
 Staged guarded(V& view, const Checked& checked, const Limits& limits, const AtView& at, std::string_view scope,
                std::string_view lane, const std::optional<Head>& now) {
-    in_order(scope, lane, now, std::span<const Kept>(checked.kept), at);
+    in_order(scope, lane, now, std::span<const KeptView>(checked.kept), at);
     if (at.op == Operation::append) {
-        targets(view, std::span<const Kept>(checked.kept), scope, at);
+        targets(view, std::span<const KeptView>(checked.kept), scope, at);
     }
     return staged(view, checked, limits, at);
 }

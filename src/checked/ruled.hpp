@@ -57,7 +57,7 @@ public:
 
 private:
     H scan_;
-    reads::Where at_;
+    reads::WhereView at_;
 };
 
 template <class S>
@@ -66,7 +66,7 @@ public:
     using Plain = S;  // the store it rules
     using S::S;
     // The store an open or a factory gives, ruled.
-    Ruled(S&& store) noexcept : S(std::move(store)) {}  // NOLINT(google-explicit-constructor)
+    Ruled(S&& store) noexcept : S(std::move(store)) {}
 
     // Opens, or creates, as S::open does, ruled: its path, create and
     // read-only flags, platform and limits, then its hooks if given.
@@ -91,7 +91,7 @@ public:
     }
     // false: forgotten, a forget, or a header with no body.
     bool body(std::string_view id, store::String& record) {
-        const reads::Where at = where(store::Operation::body);
+        const reads::WhereView at = where(store::Operation::body);
         return S::body(id, [&](std::string_view line, const std::string_view* held, const reads::Chars& chars) {
             const store::Header h = reads::header_of(id, line, chars, at);
             if (held != nullptr) {
@@ -107,7 +107,7 @@ public:
 
 private:
     // The read a refusal names: the store's path where it has one.
-    [[nodiscard]] reads::Where where(store::Operation op) const noexcept {
+    [[nodiscard]] reads::WhereView where(store::Operation op) const noexcept {
         if constexpr (requires(const S& s) { s.path(); }) {
             return {op, S::path()};
         } else {

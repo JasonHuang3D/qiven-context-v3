@@ -120,7 +120,7 @@ inline EntryView keyed(std::string_view line, std::optional<std::string_view> re
     std::optional<header::Header<>> parsed;
     try {
         parsed.emplace(header::parse_line(line));
-    } catch (...) {  // NOLINT(bugprone-empty-catch): a refused line keeps no keys
+    } catch (...) {  // a refused line keeps no keys
         return EntryView{line, record, {}};
     }
     const header::Header<>& h = *parsed;
@@ -135,9 +135,9 @@ inline EntryView keyed(std::string_view line, std::optional<std::string_view> re
         const std::optional<std::string_view> v = h.text(s);
         return v ? std::optional<std::string_view>(in_line(*v)) : std::nullopt;
     };
-    qiven3::store::Keys k{in_line(h.value(Slot::id)),   in_line(h.value(Slot::scope)), in_line(h.value(Slot::lane)),
-                          in_line(h.value(Slot::kind)), h.seq(),                       text(Slot::parent),
-                          text(Slot::target),           h.text(Slot::content).has_value()};
+    qiven3::store::KeysView k{in_line(h.value(Slot::id)),   in_line(h.value(Slot::scope)), in_line(h.value(Slot::lane)),
+                              in_line(h.value(Slot::kind)), h.seq(),                       text(Slot::parent),
+                              text(Slot::target),           h.text(Slot::content).has_value()};
     return EntryView{line, record, k};
 }
 

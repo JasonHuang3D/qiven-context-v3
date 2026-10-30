@@ -38,17 +38,17 @@ using Chars = memory::Allocator<char>;
 using store::Header;
 
 // The read a refusal names: its operation and the store's path.
-struct Where {
+struct WhereView {
     store::Operation operation;
     std::string_view path;
 };
 
-[[noreturn]] inline void corrupt(const Where& at, store::Corrupt code, std::string_view detail) {
+[[noreturn]] inline void corrupt(const WhereView& at, store::Corrupt code, std::string_view detail) {
     throw store::StoreError::corrupt(store::name(at.operation), at.path, code, detail);
 }
 
 [[nodiscard]] inline Header header_of(std::string_view id, std::string_view line, const Chars& allocator,
-                                      const Where& at) {
+                                      const WhereView& at) {
     namespace header = entry::header;
     Header h(allocator);
     try {
@@ -70,7 +70,7 @@ struct Where {
     return h;
 }
 
-inline void keys_match(const store::Keys& k, const Header& h, const Where& at) {
+inline void keys_match(const store::KeysView& k, const Header& h, const WhereView& at) {
     using entry::header::Slot;
     if (h.value(Slot::scope) != k.scope || h.value(Slot::lane) != k.lane || h.seq() != k.seq ||
         h.text(Slot::parent) != k.parent || h.value(Slot::kind) != k.kind || h.text(Slot::target) != k.target) {
@@ -80,7 +80,7 @@ inline void keys_match(const store::Keys& k, const Header& h, const Where& at) {
 
 template <platform::Platform P>
 void check_body(P& platform, std::string_view id, std::string_view record, const Header& h, const Chars& allocator,
-                const Where& at) {
+                const WhereView& at) {
     namespace body = entry::body;
     try {
         body::check(body::parse(platform, record, allocator), h);

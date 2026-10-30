@@ -19,12 +19,12 @@ import fnmatch
 import json
 import posixpath
 import re
+import runpy
 import sys
 from pathlib import Path
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools import loop_git  # noqa: E402
+# git's one door (tools/loop_git.py), by runpy: under -I this directory is off sys.path.
+GIT = runpy.run_path(str(Path(__file__).resolve().with_name("loop_git.py")))
 
 TABLE = Path(__file__).resolve().parent / "modules.json"
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
@@ -175,10 +175,10 @@ def codemodel(build, source):
 
 def tracked(source):
     """The checkout's tracked files, by the loop's git door."""
-    git = loop_git.which()
+    git = GIT["which"]()
     if git is None:
         raise FileNotFoundError("no git")
-    done = loop_git.run(git, ["ls-files", "-z"], cwd=source, check=True)
+    done = GIT["run"](git, ["ls-files", "-z"], cwd=source, check=True)
     return [p for p in done.stdout.decode("utf-8").split("\0") if p]
 
 

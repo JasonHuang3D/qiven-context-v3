@@ -280,7 +280,7 @@ template <class A>
 Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneHead>& heads,
                     std::span<std::byte> pages, Countdown* countdown, const WhereView& at, const Limits& limits,
                     std::size_t& peak, A& admit) {
-    const At site{Operation::import_, at.path};
+    const AtView site{Operation::import_, at.path};
     {
         Statement s = c.prepare(final_rows, at);
         for (std::size_t i = 0; s.step(at); ++i) {
