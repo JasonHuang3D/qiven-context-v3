@@ -6,13 +6,18 @@
 // written. whole_record: a forget of M1 alone refused whole_record, M2
 // revising it; then M2 and M1 forgotten together. own_export: a ruled
 // store's own export imported, into itself empty, refused StoreNotEmpty
-// once it holds an entry, in memory and in SQLite. Each write followed by
-// verify and, on SQLite, a reopen and verify again. corrupt: a held line or
-// body record changed under the lock is StoreCorrupt at header, body and
-// verify, and served again once restored, a body record's digit
-// body_mismatch; a held line given another held entry's, header's
-// id_mismatch. forged: the ruled verify over a state forged under the lock.
+// once it holds an entry. These three in memory and in SQLite, each write
+// followed by verify and, on SQLite, a reopen and verify again. corrupt: a
+// held line or body record changed under the lock is StoreCorrupt at
+// header, body and verify, and served again once restored, a body record's
+// digit body_mismatch; a held line given another held entry's, header's
+// id_mismatch. sqlite_corrupt: the same through SQLite's connection, and a
+// parent column beside its line the ruled scan's incoherent. sqlite_columns:
+// each of A's scope, seq and kind columns altered beside its line, the
+// ruled scan's incoherent, then put back. forged: the ruled verify over a
+// state forged under the lock.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -32,6 +37,7 @@
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
+#include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
 #include "support/checked/stores.hpp"
@@ -140,11 +146,14 @@ QIVEN3_CASE(checked_reads, widths) {
     }
 }
 
-QIVEN3_CASE(checked_reads, secret_hit) {
-    const auto site = qiven3::test::ruled::site();
-    Memory factory(*site);
-    Memory::Store store = factory.make();
-    const std::vector<Stored> hit = {site->book().with_secret("A", std::nullopt)};
+namespace {
+
+// The store F makes, a content hit given: nothing written.
+template <class F>
+void secret_hit(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book) {
+    const auto owned = std::make_unique<typename F::Store>(factory.make());  // past a frame's share
+    typename F::Store& store = *owned;
+    const std::vector<Stored> hit = {book.with_secret("A", std::nullopt)};
     const std::vector<EntryView> hit_lines = views(hit);
     CHECK_EQ(raised([&] {
                  (void)store.append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(hit_lines));
@@ -154,11 +163,11 @@ QIVEN3_CASE(checked_reads, secret_hit) {
     CHECK(store.verify() == Counts{});
 }
 
-QIVEN3_CASE(checked_reads, whole_record) {
-    const auto site = qiven3::test::ruled::site();
-    const Book& book = site->book();
-    Memory factory(*site);
-    Memory::Store store = factory.make();
+// The store F makes, the reviewer's M1 forgotten alone and with M2.
+template <class F>
+void whole_record(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book) {
+    const auto owned = std::make_unique<typename F::Store>(factory.make());  // past a frame's share
+    typename F::Store& store = *owned;
     std::vector<std::byte> pages(std::size_t{1} << 20U);
     Arena arena(pages);
     const Chars chars(arena);
@@ -190,10 +199,36 @@ QIVEN3_CASE(checked_reads, whole_record) {
     const Written w = store.forget(qiven_scope, reviewer_lane, id_of(lane[2]), whole_lines, guard, erased);
     CHECK_EQ(w.head.seq, 5);
     CHECK_EQ(erased.size(), 2U);
+    CHECK(w.purge.done);
     CHECK(store.forgotten(id_of(lane[1])) && store.forgotten(id_of(lane[2])));
     const Counts counts = store.verify();
     CHECK_EQ(counts.entries, 9U);
     CHECK_EQ(counts.forgets, 2U);
+    (void)store.close();
+    if constexpr (F::Store::capabilities.durable) {
+        const auto again = std::make_unique<typename F::Store>(factory.reopen());
+        CHECK(again->verify() == counts);
+        (void)again->close();
+    }
+}
+
+}  // namespace
+
+// Each on memory and on SQLite.
+QIVEN3_CASE(checked_reads, secret_hit) {
+    const auto site = qiven3::test::ruled::site();
+    Memory memory(*site);
+    secret_hit(qiven3_ctx, memory, site->book());
+    SQLite sqlite(*site);
+    secret_hit(qiven3_ctx, sqlite, site->book());
+}
+
+QIVEN3_CASE(checked_reads, whole_record) {
+    const auto site = qiven3::test::ruled::site();
+    Memory memory(*site);
+    whole_record(qiven3_ctx, memory, site->book());
+    SQLite sqlite(*site);
+    whole_record(qiven3_ctx, sqlite, site->book());
 }
 
 QIVEN3_CASE(checked_reads, own_export) {
@@ -301,6 +336,68 @@ QIVEN3_CASE(checked_reads, corrupt) {
         lock.data().held[0].line.assign(line);
     }
     store.header(a, h);
+}
+
+// The same in SQLite, a row changed through the store's connection: A's
+// body record B's, body_mismatch; B's parent column cleared beside its
+// line, the ruled scan's incoherent; A's line B's, id_mismatch at the
+// header read and the scan.
+QIVEN3_CASE(checked_reads, sqlite_corrupt) {
+    const auto site = qiven3::test::ruled::site();
+    SQLite factory(*site);
+    const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
+    std::vector<std::byte> pages(std::size_t{1} << 17U);
+    Arena arena(pages);
+    const Chars chars(arena);
+    const std::vector<Stored> mine = {site->book().stored("A"), site->book().stored("B")};
+    const std::vector<EntryView> lines = views(mine);
+    (void)store->append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(lines));
+    const std::string a = id_of(mine[0]);
+    const std::string b = id_of(mine[1]);
+    const auto h = std::make_unique<Header>(chars);  // past a frame's share
+    String record(chars);
+    const auto scanned = [&] {
+        for (auto scan = store->scan({}); scan.next(*h);) {
+        }
+    };
+    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    qiven3::store::sqlite::Connection& c = store->connection();
+    c.exec("UPDATE body SET record = (SELECT record FROM body WHERE id = '" + b + "') WHERE id = '" + a + "'", at);
+    CHECK_EQ(corrupt_code([&] { (void)store->body(a, record); }), std::string("body_mismatch"));
+    c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", at);
+    CHECK_EQ(corrupt_code(scanned), std::string("incoherent"));
+    c.exec("UPDATE entry SET line = (SELECT line FROM entry WHERE id = '" + b + "') WHERE id = '" + a + "'", at);
+    CHECK_EQ(corrupt_code([&] { store->header(a, *h); }), std::string("id_mismatch"));
+    CHECK_EQ(corrupt_code(scanned), std::string("id_mismatch"));
+}
+
+// Each of A's columns altered beside its line, in SQLite: the ruled scan
+// StoreCorrupt incoherent; then put back, A's header read again.
+QIVEN3_CASE(checked_reads, sqlite_columns) {
+    const auto site = qiven3::test::ruled::site();
+    SQLite factory(*site);
+    const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
+    const std::vector<Stored> mine = {site->book().stored("A"), site->book().stored("B")};
+    const std::vector<EntryView> lines = views(mine);
+    (void)store->append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(lines));
+    const std::string a = id_of(mine[0]);
+    const std::array<std::string, 3> alters = {"scope = scope || 'x'", "seq = seq + 100", "kind = kind || 'x'"};
+    const std::array<std::string, 3> backs = {"scope = substr(scope, 1, length(scope) - 1)", "seq = seq - 100",
+                                              "kind = substr(kind, 1, length(kind) - 1)"};
+    std::vector<std::byte> pages(std::size_t{1} << 16U);
+    Arena arena(pages);
+    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    for (std::size_t i = 0; i < alters.size(); ++i) {
+        store->connection().exec("UPDATE entry SET " + alters.at(i) + " WHERE id = '" + a + "'", at);
+        Header h{Chars(arena)};
+        const std::optional<Refusal> r = refused([&] {
+            for (auto scan = store->scan({}); scan.next(h);) {
+            }
+        });
+        CHECK(r.has_value() && r->kind == Kind::corrupt && r->detail == "an entry's column differs from its line");
+        store->connection().exec("UPDATE entry SET " + backs.at(i) + " WHERE id = '" + a + "'", at);
+        store->header(a, h);
+    }
 }
 
 namespace {

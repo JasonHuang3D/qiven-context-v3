@@ -8,14 +8,15 @@
 // byte-equal, another version, a file that is no database; the guard's
 // checkout (a .git directory, then a file) and synced folder, by open and
 // alone; incoherent meta; create read-only and invalid limits refused; a
-// second engine heap refused while one is installed. store_sqlite.writes:
-// append, a content hit refused, a HeadConflict, size and its figures;
-// forget's kind, guard, erasure and whole records; each purge done, meta's
-// vacuumed and purged at forgets; a read-only object's purge refused, its
-// close attempting none; close, then closed. store_sqlite.reads: head, heads by scope
-// set, header, body and forgotten, NotFound, scans by range; a body
-// record, a column and a line altered, each StoreCorrupt; a scan left open
-// past close, StoreError closed.
+// second engine heap refused while one is installed. store_sqlite.writes,
+// over plain records: append, a HeadConflict, size and its figures;
+// forget's kind, guard and erasure; each purge done, meta's vacuumed and
+// purged at forgets; verify, and a read-only reopen's, its purge refused,
+// its close attempting none; close, then closed. store_sqlite.reads, over
+// plain records: head, heads by scope set, header, body and forgotten,
+// NotFound, scans by range, verify and a reopen's; a body row deleted, the
+// scan StoreCorrupt incoherent; a scan left open past close, StoreError
+// closed.
 
 #include <array>
 #include <cstddef>
@@ -33,7 +34,6 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -42,8 +42,9 @@
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
+#include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
@@ -53,15 +54,14 @@ using qiven3::platform::fake::FakePlatform;
 using qiven3::store::Capabilities;
 using qiven3::store::Engine;
 using qiven3::store::EntryView;
-using qiven3::test::stage_book::added;
-using qiven3::test::stage_book::Book;
-using qiven3::test::stage_book::id_of;
-using qiven3::test::stage_book::Stored;
-using qiven3::test::stage_book::views;
+using qiven3::test::records::added;
+using qiven3::test::records::chain;
+using qiven3::test::records::forget;
+using qiven3::test::records::id_of;
+using qiven3::test::records::Rec;
+using qiven3::test::records::views;
 using Arena = qiven3::memory::Arena;
 using Chars = qiven3::memory::Allocator<char>;
-namespace header = qiven3::entry::header;
-using Slot = header::Slot;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::Vector;
@@ -70,7 +70,7 @@ using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::StoreError;
 using qiven3::store::WhereView;
-using Store = qiven3::checked::SQLiteStore<FakePlatform>;
+using Store = qiven3::store::SQLiteStore<FakePlatform>;
 namespace sqlite = qiven3::store::sqlite;
 
 static_assert(qiven3::store::Store<Store>, "the SQLite store meets the contract");
@@ -301,70 +301,15 @@ constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer = "implementer";
 constexpr std::string_view reviewer = "reviewer";
 
-// A forget entry like `like`, of target after parent on lane at seq.
-Stored forget_of(const Stored& like, const Stored& target, const Stored& parent, std::string_view lane,
-                 std::int64_t seq) {
-    const header::Header<> e = header::parse_line(like.line);
-    const std::string parent_id = id_of(parent);
-    const std::string target_id = id_of(target);
-    const std::string_view writer = e.value(Slot::writer);
-    const std::string role = std::string(lane) + std::string(writer.substr(writer.find('/')));
-    header::FieldsView f;
-    f.scope = e.value(Slot::scope);
-    f.lane = lane;
-    f.seq = seq;
-    f.parent = parent_id;
-    f.kind = "forget";
-    f.writer = role;
-    f.basis = e.value(Slot::basis);
-    f.at = "2026-10-17T13:00:00.000Z";  // after M2's
-    f.target = target_id;
-    Stored out{std::string(), std::nullopt, std::nullopt};
-    header::make(f).line(out.line);
-    return out;
-}
-
-// A forget of M1 alone refused whole_record, M2 revising it; then M2 and
-// M1 forgotten together, both bodies erased.
-void records(qiven3::test::Context& qiven3_ctx, Store& store, const Book& book, Vector<Id>& erased) {
-    const std::vector<Stored> lane = {book.stored("C"), book.stored("M1"), book.stored("M2")};
-    const std::vector<EntryView> held = views(lane);
-    (void)store.append(qiven_scope, reviewer, std::nullopt, held);
-    const Stored e = book.stored("E");
-    const Stored f1 = forget_of(e, lane[1], lane[2], reviewer, 4);
-    const Stored f2 = forget_of(e, lane[2], lane[2], reviewer, 4);
-    const Stored f3 = forget_of(e, lane[1], f2, reviewer, 5);
-    const std::string implementer_head = id_of(e);
-    const std::string reviewer_head = id_of(lane[2]);
-    const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, implementer_head},
-                                          GuardView{qiven_scope, reviewer, reviewer_head}};
-    const std::vector<Stored> part = {f1};
-    const std::vector<EntryView> part_lines = views(part);
-    CHECK_EQ(raised([&] { (void)store.forget(qiven_scope, reviewer, reviewer_head, part_lines, guard, erased); }),
-             std::string("StoreError whole_record: entry 0"));
-    CHECK_EQ(store.size().volume.count, 8U);
-    const std::vector<Stored> whole = {f2, f3};
-    const std::vector<EntryView> whole_lines = views(whole);
-    const Written w = store.forget(qiven_scope, reviewer, reviewer_head, whole_lines, guard, erased);
-    CHECK_EQ(w.head.seq, 5);
-    CHECK_EQ(erased.size(), 2U);
-    CHECK(w.purge.done);
-}
-
 void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
-    const Book book(rig.fake);
+    const std::vector<Rec> lane = chain(qiven_scope, implementer, {"A", "B", "D", "ACC"});
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
     Vector<Id> erased{Chars(arena)};
     const std::string path = text(rig.scratch.root / "w" / "store.db");
     const auto owned = std::make_unique<Store>(Store::open(path, true, false, rig.fake));  // past a frame's share
     Store& store = *owned;
-    const std::vector<Stored> hit = {book.with_secret("A", std::nullopt)};
-    const std::vector<EntryView> hit_lines = views(hit);
-    CHECK(raised([&] { (void)store.append(qiven_scope, implementer, std::nullopt, hit_lines); })
-              .starts_with("EntryInvalid"));
-    CHECK_EQ(store.size().volume.count, 0U);
-    const std::vector<Stored> first = {book.stored("A"), book.stored("B")};
+    const std::vector<Rec> first = {lane[0], lane[1]};
     const std::vector<EntryView> first_lines = views(first);
     const Written w = store.append(qiven_scope, implementer, std::nullopt, first_lines);
     CHECK_EQ(w.head.id.view(), id_of(first[1]));
@@ -373,12 +318,12 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(w.volume.size, added(first));
     CHECK(w.purge.done);
     CHECK(store.peak() > 0 && store.peak() <= *qiven3::store::operation_budget(*qiven3::store::given(first_lines)));
-    const std::vector<Stored> later = {book.stored("D")};
+    const std::vector<Rec> later = {lane[2]};
     const std::vector<EntryView> later_lines = views(later);
     CHECK(raised([&] { (void)store.append(qiven_scope, implementer, std::nullopt, later_lines); })
               .starts_with("HeadConflict"));
     CHECK_EQ(store.append(qiven_scope, implementer, id_of(first[1]), later_lines).head.seq, 3);
-    const std::vector<Stored> acc = {book.stored("ACC")};
+    const std::vector<Rec> acc = {lane[3]};
     const std::vector<EntryView> acc_lines = views(acc);
     (void)store.append(qiven_scope, implementer, id_of(later[0]), acc_lines);
     const auto sizes = std::make_unique<const qiven3::store::Sizes>(store.size());  // past a frame's share
@@ -388,8 +333,8 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(sizes->view()[0].name.view(), std::string_view("page_size"));
     CHECK(sizes->view()[0].value >= 512U && sizes->view()[3].value > 0U);
 
-    const std::vector<Stored> wrong = {book.stored("A")};
-    const std::vector<Stored> call = {book.stored("E")};
+    const std::vector<Rec> wrong = {lane[0]};
+    const std::vector<Rec> call = {forget("E", qiven_scope, implementer, 5, "ACC", "B")};
     const std::vector<EntryView> wrong_lines = views(wrong);
     const std::vector<EntryView> call_lines = views(call);
     const std::string head = id_of(acc[0]);
@@ -412,56 +357,63 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(c.integer("SELECT count(*) FROM body WHERE id = '" + id_of(first[1]) + "'", test_at), 0);
     CHECK(store.purge().done);
     CHECK_EQ(store.size().volume.size, f.volume.size);
-    records(qiven3_ctx, store, book, erased);
+    const qiven3::store::Counts counts{5, 3, 1, 1};
+    CHECK(store.verify() == counts);
     {
         const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
         CHECK_EQ(raised([&] { (void)reader->purge(); }), std::string("StoreError read_only"));
-        CHECK_EQ(reader->size().volume.count, 10U);
+        CHECK(reader->verify() == counts);
+        CHECK_EQ(reader->size().volume.count, 5U);
         CHECK(reader->close().done);
     }
     CHECK(store.close().done);
     CHECK_EQ(raised([&] { (void)store.purge(); }), std::string("StoreError closed"));
 }
 
-// Each scanned header's id, cut to its first four hex digits; cut, the
-// same of lines given.
+// Each scanned record's id; cut, the same of records given.
 std::string scanned(Store& store, const Chars& chars, const qiven3::store::RangeView& range) {
     std::string ids;
-    qiven3::checked::Header h(chars);
-    for (auto scan = store.scan(range); scan.next(h);) {
-        ids += std::string(h.value(Slot::id).substr(7, 4)) + " ";
+    qiven3::store::Record r(chars);
+    for (auto scan = store.scan(range); scan.next(r);) {
+        ids += std::string(r.id.view()) + " ";
     }
     return ids;
 }
-std::string cut(const std::vector<Stored>& lines) {
+std::string cut(const std::vector<Rec>& lines) {
     std::string ids;
-    for (const Stored& s : lines) {
-        ids += id_of(s).substr(7, 4) + " ";
+    for (const Rec& s : lines) {
+        ids += id_of(s) + " ";
     }
     return ids;
 }
 
-// Two lanes, reviewer's M2 and M1 forgotten; each read; then a body
-// record, a column and a line altered under the store.
+// Two lanes, reviewer's M2 and M1 forgotten; each read; then a body row
+// deleted under the store.
 void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
-    const auto book = std::make_unique<const Book>(rig.fake);  // past a frame's share
     std::vector<std::byte> pages(std::size_t{1} << 17U);
     Arena arena(pages);
     const Chars chars(arena);
     Vector<Id> erased(chars);
-    const auto store = std::make_unique<Store>(Store::open(text(rig.scratch.root / "r" / "store.db"), true, false, rig.fake));
-    const std::vector<Stored> mine = {book->stored("A"), book->stored("B")};
-    const std::vector<Stored> theirs = {book->stored("C"), book->stored("M1"), book->stored("M2")};
+    const std::string path = text(rig.scratch.root / "r" / "store.db");
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig.fake));
+    const std::vector<Rec> mine = chain(qiven_scope, implementer, {"A", "B"});
+    const std::vector<Rec> theirs = chain(qiven_scope, reviewer, {"C", "M1", "M2"});
     (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
     (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
-    const auto f2 = std::make_unique<const Stored>(forget_of(book->stored("E"), theirs[2], theirs[2], reviewer, 4));
-    const auto f3 = std::make_unique<const Stored>(forget_of(book->stored("E"), theirs[1], *f2, reviewer, 5));
+    const auto f2 = std::make_unique<const Rec>(forget("F2", qiven_scope, reviewer, 4, "M2", "M2"));
+    const auto f3 = std::make_unique<const Rec>(forget("F3", qiven_scope, reviewer, 5, "F2", "M1"));
     const std::string a = id_of(mine[0]);
     const std::string b = id_of(mine[1]);
     const std::string m2 = id_of(theirs[2]);
     const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, b}, GuardView{qiven_scope, reviewer, m2}};
-    const std::vector<Stored> forgets = {*f2, *f3};
+    const std::vector<Rec> forgets = {*f2, *f3};
     (void)store->forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
+    const qiven3::store::Counts counts{7, 3, 2, 2};
+    CHECK(store->verify() == counts);
+    {
+        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+        CHECK(reader->verify() == counts);
+    }
     CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));
     Vector<qiven3::store::LaneHead> rows(chars);
     const auto all = std::make_unique<const qiven3::store::Heads>(store->heads(std::nullopt, rows));
@@ -472,18 +424,20 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
-    const auto out = std::make_unique<qiven3::checked::Header>(chars);  // past a frame's share
-    store->header(a, *out);
-    std::string line;
-    out->line(line);
-    CHECK_EQ(line, mine[0].line);
+    const auto out = std::make_unique<qiven3::store::Record>(chars);  // past a frame's share
+    qiven3::memory::String line(chars);
+    store->header(a, line);
+    CHECK_EQ(std::string_view(line), mine[0].line);
+    std::string lent;  // the same lent from the store's own pages
+    store->header(a, [&lent](std::string_view l, const sqlite::Chars&) { lent = l; });
+    CHECK_EQ(lent, mine[0].line);
     CHECK(store->peak() > 0 && store->peak() <= qiven3::store::operation_base);
     qiven3::memory::String record(chars);
     CHECK(store->body(a, record) && std::string_view(record) == *mine[0].record);
     CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(*f2), record));
     CHECK(store->forgotten(id_of(theirs[1])) && !store->forgotten(a));
     const std::string none = "sha256:" + std::string(64, '0');
-    CHECK(raised([&] { store->header(none, *out); }).starts_with("NotFound"));
+    CHECK(raised([&] { store->header(none, line); }).starts_with("NotFound"));
     CHECK(raised([&] { (void)store->body(none, record); }).starts_with("NotFound"));
     CHECK(raised([&] { (void)store->forgotten(none); }).starts_with("NotFound"));
 
@@ -492,17 +446,8 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK_EQ(scanned(*store, chars, {std::nullopt, std::nullopt, 4}), cut({*f3}));
     CHECK_EQ(scanned(*store, chars, {"person", std::nullopt, std::nullopt}), std::string());
 
-    sqlite::Connection& c = store->connection();
-    c.exec("UPDATE body SET record = (SELECT record FROM body WHERE id = '" + b + "') WHERE id = '" + a + "'",
-           test_at);
-    CHECK(raised([&] { (void)store->body(a, record); }).starts_with("StoreCorrupt body_mismatch"));
-    c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", test_at);
-    // A column beside its line: the header read gives the line alone; a
-    // ruled scan compares the columns.
+    store->connection().exec("DELETE FROM body WHERE id = '" + a + "'", test_at);
     CHECK(raised([&] { (void)scanned(*store, chars, {}); }).starts_with("StoreCorrupt incoherent"));
-    c.exec("UPDATE entry SET line = (SELECT line FROM entry WHERE id = '" + b + "') WHERE id = '" + a + "'", test_at);
-    CHECK(raised([&] { store->header(a, *out); }).starts_with("StoreCorrupt id_mismatch"));
-    CHECK(raised([&] { (void)scanned(*store, chars, {}); }).starts_with("StoreCorrupt id_mismatch"));
     const auto left = std::make_unique<decltype(store->scan({}))>(store->scan({}));
     (void)store->close();
     CHECK_EQ(raised([&] { (void)left->next(*out); }), std::string("StoreError closed"));

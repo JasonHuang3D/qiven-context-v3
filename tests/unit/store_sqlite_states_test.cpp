@@ -13,7 +13,8 @@
 // the busy wait and a purge pending "writer"; done once both end; scans by
 // a scope, a lane and an after past the end. forged: a store's file altered
 // as no store would, each refused at open by coherence's check, its kind
-// and detail.
+// and detail, then the file as written open again. The writing cases over
+// plain records, each write verified and reopened.
 
 #include <array>
 #include <chrono>
@@ -31,7 +32,6 @@
 #include <system_error>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
@@ -42,23 +42,30 @@
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
+using qiven3::memory::Arena;
 using qiven3::memory::String;
 using qiven3::memory::Vector;
+using qiven3::store::EntryView;
 using qiven3::store::GuardView;
-using qiven3::checked::Header;
+using qiven3::store::StoreError;
+using qiven3::test::records::chain;
+using qiven3::test::records::id_of;
+using qiven3::test::records::Rec;
+using qiven3::test::records::views;
+using Chars = qiven3::memory::Allocator<char>;
+using Fake = qiven3::platform::fake::FakePlatform;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::store::RangeView;
 using qiven3::store::WhereView;
 using qiven3::store::Written;
-using Store = qiven3::checked::SQLiteStore<Fake>;
+using Store = qiven3::store::SQLiteStore<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -329,23 +336,25 @@ QIVEN3_CASE(store_sqlite, slots_refused) {
 
 namespace {
 
-// A store holding A, B, D and ACC on the implementer's lane, the purge
-// done; its lines kept for the cases' later calls.
+// A store holding A, B, D and ACC on the implementer's lane, plain
+// records, the purge done; its records kept for the cases' later calls,
+// E a forget of B.
 struct Course {
-    explicit Course(Fake& fake)
-        : book(fake), first{book.stored("A"), book.stored("B"), book.stored("D")}, acc{book.stored("ACC")},
-          e{book.stored("E")}, again{book.stored("A")}, first_lines(views(first)), acc_lines(views(acc)),
+    Course()
+        : lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})), first{lane[0], lane[1], lane[2]},
+          acc{lane[3]}, e{qiven3::test::records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")},
+          again{lane[0]}, first_lines(views(first)), acc_lines(views(acc)),
           e_lines(views(e)), again_lines(views(again)), acc_id(id_of(acc[0])), e_id(id_of(e[0])),
           guard{GuardView{qiven_scope, implementer_lane, acc_id}} {}
     void fill(Store& store) const {
         (void)store.append(qiven_scope, implementer_lane, std::nullopt, first_lines);
         (void)store.append(qiven_scope, implementer_lane, id_of(first[2]), acc_lines);
     }
-    Book book;
-    std::vector<Stored> first;
-    std::vector<Stored> acc;
-    std::vector<Stored> e;
-    std::vector<Stored> again;
+    std::vector<Rec> lane;
+    std::vector<Rec> first;
+    std::vector<Rec> acc;
+    std::vector<Rec> e;
+    std::vector<Rec> again;
     std::vector<EntryView> first_lines;
     std::vector<EntryView> acc_lines;
     std::vector<EntryView> e_lines;
@@ -360,7 +369,7 @@ std::string reason(const qiven3::store::Purge& p) { return p.done ? "done" : std
 // A scan's count over range.
 std::size_t scanned(Store& store, const RangeView& range, const Chars& chars) {
     auto scan = store.scan(range);
-    Header h(chars);
+    qiven3::store::Record h(chars);
     std::size_t n = 0;
     while (scan.next(h)) {
         ++n;
@@ -428,39 +437,11 @@ constexpr std::array<Forgery, 9> forgeries = {{
     {"INSERT INTO meta (name, value) VALUES ('other', 0)", "StoreCorrupt incoherent: meta: a row of another name"},
 }};
 
-// Each of A's columns altered beside its line, the store open: a ruled scan StoreCorrupt incoherent; then put back.
-void columns(qiven3::test::Context& qiven3_ctx, Rig& rig, const std::string& path, const std::string& a) {
-    Store store = Store::open(path, false, false, rig.fake);
-    const std::array<std::string, 3> alters = {"scope = scope || 'x'", "seq = seq + 100", "kind = kind || 'x'"};
-    const std::array<std::string, 3> backs = {"scope = substr(scope, 1, length(scope) - 1)", "seq = seq - 100",
-                                              "kind = substr(kind, 1, length(kind) - 1)"};
-    std::vector<std::byte> pages(std::size_t{1} << 16U);
-    Arena arena(pages);
-    for (std::size_t i = 0; i < alters.size(); ++i) {
-        {
-            sqlite::Connection c = raw(path);
-            c.exec("UPDATE entry SET " + alters.at(i) + " WHERE id = '" + a + "'", test_at);
-        }
-        Header h{Chars(arena)};
-        CHECK_EQ(raised([&] {
-                     for (auto scan = store.scan({}); scan.next(h);) {
-                     }
-                 }),
-                 std::string("StoreCorrupt incoherent: an entry's column differs from its line"));
-        {
-            sqlite::Connection c = raw(path);
-            c.exec("UPDATE entry SET " + backs.at(i) + " WHERE id = '" + a + "'", test_at);
-        }
-        store.header(a, h);
-    }
-    (void)store.close();
-}
-
 }  // namespace
 
 QIVEN3_CASE(store_sqlite, pending) {
     const auto rig = std::make_unique<Rig>();
-    const auto course = std::make_unique<Course>(rig->fake);
+    const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "p" / "store.db");
     const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake));
     course->fill(*store);
@@ -485,11 +466,14 @@ QIVEN3_CASE(store_sqlite, pending) {
         (void)store->append(qiven_scope, implementer_lane, course->acc_id, course->again_lines);
     }).starts_with("HeadConflict"));
     CHECK_EQ(arena.used(), 0U);
+    const qiven3::store::Counts counts{5, 3, 1, 1};
+    CHECK(store->verify() == counts);
+    CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
 }
 
 QIVEN3_CASE(store_sqlite, forged) {
     const auto rig = std::make_unique<Rig>();
-    const auto course = std::make_unique<Course>(rig->fake);
+    const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "f" / "store.db");
     {
         Store store = Store::open(path, true, false, rig->fake);
@@ -522,7 +506,8 @@ QIVEN3_CASE(store_sqlite, forged) {
     fs::remove(path + "-wal", error);
     fs::remove(path + "-shm", error);
     std::ofstream(path, std::ios::binary | std::ios::trunc) << base;
-    columns(qiven3_ctx, *rig, path, id_of(course->first[0]));
+    Store store = Store::open(path, false, false, rig->fake);  // the base again, as written
+    CHECK(store.verify() == (qiven3::store::Counts{5, 3, 1, 1}));
 }
 
 QIVEN3_CASE(store_sqlite, paths) {
@@ -540,8 +525,9 @@ QIVEN3_CASE(store_sqlite, paths) {
 // on the first then served: a scan, a forget with its purge, verify.
 QIVEN3_CASE(store_sqlite, second_engine) {
     const auto rig = std::make_unique<Rig>();
-    const auto course = std::make_unique<Course>(rig->fake);
-    const auto store = std::make_unique<Store>(Store::open(text(rig->root / "e" / "store.db"), true, false, rig->fake));
+    const auto course = std::make_unique<Course>();
+    const std::string path = text(rig->root / "e" / "store.db");
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake));
     course->fill(*store);
     const Held before = held(*rig);
     const std::size_t calls = rig->fake.calls().size();
@@ -597,4 +583,5 @@ QIVEN3_CASE(store_sqlite, second_engine) {
     CHECK(counts.entries == 5 && counts.forgets == 1 && counts.lanes == 1);
     CHECK_EQ(reason(store->close()), std::string("done"));
     CHECK_EQ(arena.used(), 0U);
+    CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
 }
