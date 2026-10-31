@@ -30,7 +30,9 @@
 // result; a read-only object attempts none. size: meta, then the figures.
 // head, heads, header, body, forgotten: one query each through
 // sqlite_read.cpp (heads in one read transaction), header and body giving
-// the bytes held, parsing neither; scan a cursor (sqlite::ScanView). export,
+// the bytes held, parsing neither; the generic calls (line, targets, keyed,
+// each_keyed) one statement each by the keys held, through sqlite_read.cpp
+// as the write view's; scan a cursor (sqlite::ScanView). export,
 // import and verify: exchange.hpp's, an export closed by this object's
 // close, move or end.
 //
@@ -41,7 +43,8 @@
 // the hook's), and read's scratch, afresh for each line, and the hook's.
 // header, body and a scan's next: none, the bytes on the caller's; lent
 // to a step, the bytes and the step's on an arena over the object's own
-// pages.
+// pages. line, targets, keyed: none, the bytes' and the list's room on the
+// caller's; each_keyed: none but f's.
 // The engine's heap apart (Engine). Platform calls: at open pages,
 // resolve, synced, at create one or two creates; at append and forget
 // pages past 1 MiB, and the hook's (each hook says).
@@ -214,6 +217,42 @@ public:
         gate_.enter(Operation::forgotten, path_.view());
         return sqlite::forgotten(connection_, id, site_of(Operation::forgotten));
     }
+    // The generic calls, by the keys the store holds, on the connection as
+    // header is, outside any write, one statement each: a record's line
+    // into line, on its allocator, false where none is held; the ids whose
+    // target is id, of scope, in the order written; a scope's ids of kind
+    // with no target, in (lane, seq) order; each list into out, cleared
+    // first, on its allocator. A key past its bound finds none. line names
+    // the operation header, the lists scan; the peak 0 once each returns.
+    bool line(std::string_view id, String& line) {
+        gate_.enter(Operation::header, path_.view());
+        const bool has = sqlite::line_of(connection_, id, line, site_of(Operation::header));
+        peak_ = 0;
+        return has;
+    }
+    void targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
+        gate_.enter(Operation::scan, path_.view());
+        sqlite::targets_of(connection_, id, &scope, out, site_of(Operation::scan));
+        peak_ = 0;
+    }
+    void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
+        out.clear();
+        (void)each_keyed(scope, kind, [&out](const Id& id) {
+            out.push_back(id);
+            return false;
+        });
+    }
+    // keyed lent to f: f(id) for each id keyed gives, in its order, on the
+    // statement's cursor, until f gives true: whether it did. No list held;
+    // f's throw ends the statement, the object as it was. f calls no store.
+    template <class F>
+        requires std::is_invocable_r_v<bool, F&, const Id&>
+    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        gate_.enter(Operation::scan, path_.view());
+        const bool stopped = sqlite::keyed_of(connection_, scope, kind, f, site_of(Operation::scan));
+        peak_ = 0;
+        return stopped;
+    }
     // A cursor over this object's connection and pages (sqlite.hpp).
     sqlite::ScanView scan(const RangeView& range) {
         gate_.enter(Operation::scan, path_.view());
@@ -296,8 +335,8 @@ public:
     [[nodiscard]] Purge opened_purge() const noexcept { return purge_; }
     // The connection, for the store's own modules (exchange) and cases.
     [[nodiscard]] sqlite::Connection& connection() noexcept { return connection_; }
-    // The counted peak of the last open, append, forget, header or body
-    // that returned: its arenas' high-water marks summed.
+    // The counted peak of the last open, append, forget, header, body or
+    // generic call that returned: its arenas' high-water marks summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     // The platform it was opened on.
     [[nodiscard]] P& platform() const noexcept { return *platform_; }

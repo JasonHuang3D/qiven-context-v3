@@ -9,6 +9,8 @@
 // The operations, by the text's names (export_ and import_ for export and
 // import, which C++ reserves): append, head, heads, header, body,
 // forgotten, scan, forget, purge, export_, import_, size, verify, close;
+// the generic calls by the keys held, outside any write, line, targets,
+// keyed and each_keyed (a step given each id, until it stops the walk);
 // read_only() and limits() on a const object; and the type's capabilities,
 // durable, files and processes, as a constant. Views in, the caller's
 // buffers out: ids, scopes, lanes and lines enter as std::string_view, an
@@ -235,6 +237,10 @@ struct SourceArchetype {
     static void heads(Vector<LaneHead>& /*rows*/) noexcept {}
     [[nodiscard]] static bool next(Line& /*line*/) noexcept { return false; }
 };
+// The step each_keyed is given in the concept: an id in, whether to stop.
+struct KeyedArchetype {
+    bool operator()(const Id& /*id*/) const noexcept { return false; }
+};
 // The capabilities, as a constant of their type.
 template <class S>
 concept Declares = requires {
@@ -249,13 +255,17 @@ concept Store = Handle<S> && detail::Declares<S> &&
                 requires(S& s, const S& c, std::string_view v, Expected expected, std::span<const EntryView> entries,
                          std::span<const GuardView> guard, Scopes scopes, std::span<const AfterView> after,
                          const RangeView& range, String& line, String& record, Vector<LaneHead>& rows,
-                         Vector<Id>& erased, detail::SourceArchetype& source) {
+                         Vector<Id>& erased, detail::SourceArchetype& source, detail::KeyedArchetype& step) {
                     { s.append(v, v, expected, entries) } -> std::same_as<Written>;
                     { s.head(v, v) } -> std::same_as<std::optional<Head>>;
                     { s.heads(scopes, rows) } -> std::same_as<Heads>;
                     { s.header(v, line) } -> std::same_as<void>;
                     { s.body(v, record) } -> std::same_as<bool>;  // false: forgotten, or a forget
                     { s.forgotten(v) } -> std::same_as<bool>;
+                    { s.line(v, line) } -> std::same_as<bool>;  // false: none held
+                    { s.targets(v, v, erased) } -> std::same_as<void>;
+                    { s.keyed(v, v, erased) } -> std::same_as<void>;
+                    { s.each_keyed(v, v, step) } -> std::same_as<bool>;  // true: step stopped it
                     { s.scan(range) } -> Scan;
                     { s.forget(v, v, expected, entries, guard, erased) } -> std::same_as<Written>;
                     { s.purge() } -> std::same_as<Purge>;

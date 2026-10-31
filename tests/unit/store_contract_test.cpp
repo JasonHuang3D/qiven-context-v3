@@ -72,7 +72,7 @@ struct MinimalExport {
 // Each plant changes one thing of the minimal store.
 enum class Plant {
     none, copyable, no_verify, append_void, header_bool, scan_copyable, export_no_close, import_one, read_only_mutable,
-    limits_ref
+    limits_ref, no_each_keyed
 };
 
 // The minimal conforming store: it holds a count and a gate.
@@ -120,6 +120,24 @@ public:
     }
     bool forgotten(std::string_view /*id*/) {
         gate_.enter(Operation::forgotten, path);
+        return false;
+    }
+    bool line(std::string_view /*id*/, store::String& /*line*/) {
+        gate_.enter(Operation::header, path);
+        return false;
+    }
+    void targets(std::string_view /*id*/, std::string_view /*scope*/, store::Vector<store::Id>& out) {
+        gate_.enter(Operation::scan, path);
+        out.clear();
+    }
+    void keyed(std::string_view /*scope*/, std::string_view /*kind*/, store::Vector<store::Id>& out) {
+        gate_.enter(Operation::scan, path);
+        out.clear();
+    }
+    template <class F>
+        requires(P != Plant::no_each_keyed)
+    bool each_keyed(std::string_view /*scope*/, std::string_view /*kind*/, F&& /*f*/) {
+        gate_.enter(Operation::scan, path);
         return false;
     }
     MinimalScan<P == Plant::scan_copyable> scan(const store::RangeView& /*range*/) {
@@ -215,6 +233,7 @@ static_assert(!store::Store<Minimal<Plant::export_no_close>> && !store::Export<M
 static_assert(!store::Store<Minimal<Plant::import_one>>);
 static_assert(!store::Store<Minimal<Plant::read_only_mutable>>);
 static_assert(!store::Store<Minimal<Plant::limits_ref>>);
+static_assert(!store::Store<Minimal<Plant::no_each_keyed>>);
 
 // Capabilities as a constant of their type, or refused.
 struct Constant {

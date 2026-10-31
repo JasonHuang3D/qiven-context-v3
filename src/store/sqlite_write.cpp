@@ -99,15 +99,7 @@ bool WriteView::forgotten(std::string_view id) {
     return s.step(at_) && s.integer(0) != 0;
 }
 
-bool WriteView::line(std::string_view id, String& out) {
-    Statement s = c_->prepare(held_line, at_);
-    s.bind_text(1, id, at_);
-    if (!s.step(at_)) {
-        return false;
-    }
-    out.assign(s.blob(0));
-    return true;
-}
+bool WriteView::line(std::string_view id, String& out) { return line_of(*c_, id, out, at_); }
 
 bool WriteView::held(std::string_view id) { return find(*c_, id, nullptr, nullptr, at_) != Found::absent; }
 
@@ -119,32 +111,17 @@ bool WriteView::held_in(std::string_view id, std::string_view scope) {
 }
 
 void WriteView::targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
-    out.clear();
-    Statement s = c_->prepare(record_members, at_);
-    s.bind_text(1, id, at_);
-    s.bind_text(2, scope, at_);
-    while (s.step(at_)) {
-        out.push_back(Id::of(s.text(0)));
-    }
+    targets_of(*c_, id, &scope, out, at_);
 }
 
-void WriteView::targets(std::string_view id, Vector<Id>& out) {
-    out.clear();
-    Statement s = c_->prepare(target_members, at_);
-    s.bind_text(1, id, at_);
-    while (s.step(at_)) {
-        out.push_back(Id::of(s.text(0)));
-    }
-}
+void WriteView::targets(std::string_view id, Vector<Id>& out) { targets_of(*c_, id, nullptr, out, at_); }
 
 void WriteView::keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
     out.clear();
-    Statement s = c_->prepare(keyed_roots, at_);
-    s.bind_text(1, scope, at_);
-    s.bind_text(2, kind, at_);
-    while (s.step(at_)) {
-        out.push_back(Id::of(s.text(0)));
-    }
+    (void)each_keyed(scope, kind, [&out](const Id& id) {
+        out.push_back(id);
+        return false;
+    });
 }
 
 bool WriteView::contains(std::string_view bytes) {

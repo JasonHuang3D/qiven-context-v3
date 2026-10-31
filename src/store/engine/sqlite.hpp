@@ -149,6 +149,28 @@ inline constexpr std::string_view held_line = "SELECT line FROM entry WHERE id =
 inline constexpr std::string_view held_scope = "SELECT EXISTS (SELECT 1 FROM entry WHERE id = ?1 AND scope = ?2)";
 inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM entry WHERE instr(line, ?1) > 0)";
 
+// The generic calls' reads on c over those statements (sqlite_read.cpp),
+// the view's and the store's own outside a write: a record's line into
+// out, false where none is held; the ids whose target is id, of *scope
+// where given, into out, cleared first, in the order written; f(id) for
+// each id of scope and kind with no target, in (lane, seq) order, until f
+// gives true: whether it did, no list held, the statement's cursor walked.
+bool line_of(Connection& c, std::string_view id, String& out, const WhereView& at);
+void targets_of(Connection& c, std::string_view id, const std::string_view* scope, Vector<Id>& out,
+                const WhereView& at);
+template <class F>
+bool keyed_of(Connection& c, std::string_view scope, std::string_view kind, F& f, const WhereView& at) {
+    Statement s = c.prepare(keyed_roots, at);
+    s.bind_text(1, scope, at);
+    s.bind_text(2, kind, at);
+    while (s.step(at)) {
+        if (f(Id::of(s.text(0)))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Part 2's view of the transaction (stage::View): the head, a header line's
 // and a body record's bytes by id, the forgotten set, the generic calls by
 // the keys held (a line, targets, keyed ids, each walked on its cursor by
@@ -182,15 +204,7 @@ public:
     // whether it did. No list held: the statement's cursor walked.
     template <class F>
     bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
-        Statement s = c_->prepare(keyed_roots, at_);
-        s.bind_text(1, scope, at_);
-        s.bind_text(2, kind, at_);
-        while (s.step(at_)) {
-            if (f(Id::of(s.text(0)))) {
-                return true;
-            }
-        }
-        return false;
+        return keyed_of(*c_, scope, kind, f, at_);
     }
     // A work allocator: the scratch's next arena, the last one's blocks
     // given back, else the view's allocator.

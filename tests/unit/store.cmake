@@ -34,7 +34,8 @@ qiven3_add_cases(qiven3_unit_store_view LABELS fast fake
 # records on the plain factory: a line by id, an id's targets in a scope,
 # a scope's ids of a kind with no target and their lent walk; the order,
 # the scopes kept apart, absent ids, a key past its bound, the budget, a
-# closed object; written as templates on a factory, on the in-memory store.
+# closed object; written as templates on a factory, in both stores, the
+# SQLite one reopened before the reads.
 qiven3_add_cases(qiven3_unit_store_calls LABELS fast fake
   SOURCES store_calls_test.cpp
   LINK qiven3_faults qiven3_stores)

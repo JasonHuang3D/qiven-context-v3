@@ -3,7 +3,8 @@
 // store/sqlite's budgets, counts and fault runs, on the fake, over a scratch directory of the case's own and one
 // course of steps on a store of plain records: created; A, B and D appended, then ACC; head, heads, header, body and
 // forgotten of A; a scan read whole; size; B forgotten by E under the guard; purge; a second object opened and
-// closed, read-write, then read-only; the guard alone; each case's course ends verified, then reopened read-only and
+// closed, read-write, then read-only; the guard alone; A's line, B's targets, the notes keyed and their lent walk
+// stopped at the second; each case's course ends verified, then reopened read-only and
 // verified. budget: each step's counted peak (the store's peak(), a scan's) within its budget, 1 MiB plus 4 times
 // the lines given, and the engine's peak, its heap's and its page cache's slots', on a fresh engine heap for each
 // step, the store reopened on it first, within the engine's budget for each connection the step holds.
@@ -202,6 +203,7 @@ inline std::string written(const Written& w) {
 
 inline void add_steps(std::vector<Step>& out);
 inline void add_reads(std::vector<Step>& out);
+inline void add_calls(std::vector<Step>& out);
 
 inline std::vector<Step> steps() {
     std::vector<Step> out;
@@ -286,6 +288,42 @@ inline void add_reads(std::vector<Step>& out) {
     out.push_back({"guard", base, Sort::read, 0, {}, [](Bed& b, const Chars&) {
                        Store::guard(b.path, b.fake);
                        return Ran{0, 0, "guarded"};
+                   }});
+    add_calls(out);
+}
+
+// The generic calls, after the course's forget: A's line, B's targets (E),
+// the scope's notes with no target, and their lent walk.
+inline void add_calls(std::vector<Step>& out) {
+    constexpr std::size_t base = qiven3::store::operation_base;
+    const auto ids = [](const Vector<qiven3::store::Id>& list) {
+        std::string s;
+        for (const qiven3::store::Id& id : list) {
+            s.append(id.view().substr(0, 8)).append(" ");
+        }
+        return s;
+    };
+    out.push_back({"line", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
+                       String line(c);
+                       const bool held = b.store->line(b.a_id, line);
+                       return Ran{b.store->peak(), b.call->peak(), std::to_string(held) + std::to_string(line.size())};
+                   }});
+    out.push_back({"targets", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
+                       Vector<qiven3::store::Id> list(c);
+                       b.store->targets(id_of(b.first[1]), qiven_scope, list);
+                       return Ran{b.store->peak(), b.call->peak(), ids(list)};
+                   }});
+    out.push_back({"keyed", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
+                       Vector<qiven3::store::Id> list(c);
+                       b.store->keyed(qiven_scope, "note", list);
+                       return Ran{b.store->peak(), b.call->peak(), ids(list)};
+                   }});
+    out.push_back({"each_keyed", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
+                       std::size_t n = 0;
+                       const bool stopped = b.store->each_keyed(qiven_scope, "note", [&n](const qiven3::store::Id&) {
+                           return ++n == 2;
+                       });
+                       return Ran{b.store->peak(), 0, std::to_string(stopped) + std::to_string(n)};
                    }});
 }
 

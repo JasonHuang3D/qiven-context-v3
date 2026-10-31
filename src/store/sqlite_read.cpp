@@ -1,8 +1,9 @@
 // sqlite: the reads, through the connection wrapper (connection.hpp): a lane's
 // head, heads in one read transaction, an entry's line and body record by
-// id, forgotten, and the scan's cursor over the keys' columns and the line,
-// ending at each lane's length at its start. This file names nothing of the
-// engine's own.
+// id, forgotten, the generic calls' line and targets by the keys held (the
+// write view's and the store's), and the scan's cursor over the keys'
+// columns and the line, ending at each lane's length at its start. This
+// file names nothing of the engine's own.
 
 #include <algorithm>
 #include <cstddef>
@@ -105,6 +106,29 @@ bool forgotten(Connection& c, std::string_view id, const WhereView& at) {
         throw StoreError::not_found(at.operation, at.path, id);
     }
     return s.integer(0) != 0;
+}
+
+bool line_of(Connection& c, std::string_view id, String& out, const WhereView& at) {
+    Statement s = c.prepare(held_line, at);
+    s.bind_text(1, id, at);
+    if (!s.step(at)) {
+        return false;
+    }
+    out.assign(s.blob(0));
+    return true;
+}
+
+void targets_of(Connection& c, std::string_view id, const std::string_view* scope, Vector<Id>& out,
+                const WhereView& at) {
+    out.clear();
+    Statement s = c.prepare(scope != nullptr ? record_members : target_members, at);
+    s.bind_text(1, id, at);
+    if (scope != nullptr) {
+        s.bind_text(2, *scope, at);
+    }
+    while (s.step(at)) {
+        out.push_back(Id::of(s.text(0)));
+    }
 }
 
 ScanView::ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, Countdown* countdown,

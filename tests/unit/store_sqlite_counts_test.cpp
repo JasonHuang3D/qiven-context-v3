@@ -18,7 +18,7 @@ using namespace qiven3::test::sqlite_bed;  // NOLINT(google-build-using-namespac
 namespace {
 
 // The counts each step makes, pinned as measured on Windows; Linux's as Windows' change, not measured, where plain
-// records changed them. The engine heap's, by its system's file layer, differs by system; elsewhere not compared.
+// records changed them, and the generic calls' as Windows'. The engine heap's, by its system's file layer, differs by system; elsewhere not compared.
 struct Pinned {
     std::string_view name;
     Count windows;
@@ -29,7 +29,7 @@ constexpr bool heap_pinned = true;
 #else
 constexpr bool heap_pinned = false;
 #endif
-constexpr std::array<Pinned, 15> pinned = {{
+constexpr std::array<Pinned, 19> pinned = {{
     {"create", {1, 652, 98, 0, 5}, {1, 642, 98, 0, 5}},
     {"append", {2, 14, 74, 0, 1}, {2, 14, 74, 0, 1}},
     {"append_acc", {2, 21, 43, 0, 1}, {2, 21, 43, 0, 1}},
@@ -45,6 +45,10 @@ constexpr std::array<Pinned, 15> pinned = {{
     {"open", {1, 209, 80, 0, 3}, {1, 203, 80, 0, 3}},
     {"read_only", {1, 208, 68, 0, 3}, {1, 202, 68, 0, 3}},
     {"guard", {1, 0, 0, 0, 3}, {1, 0, 0, 0, 3}},
+    {"line", {0, 1, 3, 1, 0}, {0, 1, 3, 1, 0}},
+    {"targets", {0, 1, 5, 1, 0}, {0, 1, 5, 1, 0}},
+    {"keyed", {0, 1, 8, 4, 0}, {0, 1, 8, 4, 0}},
+    {"each_keyed", {0, 0, 5, 0, 0}, {0, 0, 5, 0, 0}},
 }};
 
 void pin(std::vector<Step>& all) {

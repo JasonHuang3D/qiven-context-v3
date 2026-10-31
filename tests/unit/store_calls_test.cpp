@@ -9,8 +9,10 @@
 // stopping where f gives true, and f's throw leaving the object as it was,
 // its peak too; the budget: none of the object's pages, and on the
 // caller's allocator the bytes' and the list's room alone (counted where
-// the countdown is built); a closed object's call refused. Each case that
-// writes ends in verify and, where durable, a reopen's verify.
+// the countdown is built); a closed object's call refused. In both stores;
+// where durable, the writer reopened before the reads, which so read what
+// the file holds. Each case that writes ends in verify and, where durable,
+// a reopen's verify.
 
 #include <cstddef>
 #include <cstdint>
@@ -53,6 +55,16 @@ void verified(qiven3::test::Context& qiven3_ctx, F& f, S& store, std::uint64_t e
         const auto back = std::make_unique<typename F::Store>(f.reopen());
         CHECK_EQ(back->verify().entries, entries);
         (void)back->close();
+    }
+}
+
+// The calls read what the file holds: where durable, the writer closed
+// and a reopened object in its place before the reads.
+template <class F>
+void reopened(F& f, std::unique_ptr<typename F::Store>& store) {
+    if (!stores::lacking<F>(stores::durable)) {
+        (void)store->close();
+        store = std::make_unique<typename F::Store>(f.reopen());
     }
 }
 
@@ -123,8 +135,9 @@ void answers(qiven3::test::Context& qiven3_ctx, S& store, const std::string& a1,
 template <class F>
 void calls_case(qiven3::test::Context& qiven3_ctx, F& f) {
     using Store = typename F::Store;
-    const auto store = std::make_unique<Store>(f.make());
+    auto store = std::make_unique<Store>(f.make());
     const std::string a1 = fill(*store, f.site().chars());
+    reopened(f, store);
     const auto other = std::make_unique<Store>(f.again());
     const auto reader = std::make_unique<Store>(f.read_only());
     answers(qiven3_ctx, *store, a1, f.site().chars());
@@ -145,8 +158,9 @@ void bounds_case(qiven3::test::Context& qiven3_ctx, F& f) {
     const std::string scope = std::string(qiven3::store::scope_bytes - qs.size(), 's') + std::string(qs);
     const std::vector<Rec> l = {records::rec(id, scope, "a", 1),
                                 records::targeting(records::rec("M", scope, "a", 2, id), id)};
-    const auto store = std::make_unique<typename F::Store>(f.make());
+    auto store = std::make_unique<typename F::Store>(f.make());
     (void)store->append(scope, "a", std::nullopt, records::views(l));
+    reopened(f, store);
     String line(f.site().chars());
     CHECK(store->line(id, line));
     CHECK(!store->line(id + "x", line));
@@ -168,9 +182,10 @@ void bounds_case(qiven3::test::Context& qiven3_ctx, F& f) {
 // and its peak as they were; then each call's budget.
 template <class F>
 void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
-    const auto made = std::make_unique<typename F::Store>(f.make());
+    auto made = std::make_unique<typename F::Store>(f.make());
+    const std::string a1 = fill(*made, f.site().chars());
+    reopened(f, made);
     typename F::Store& store = *made;
-    const std::string a1 = fill(store, f.site().chars());
     const std::size_t peak = store.peak();
     std::string seen;
     const auto visit = [&seen](std::string_view stop) {
@@ -246,5 +261,23 @@ QIVEN3_CASE(store_calls, memory_bounds) {
 QIVEN3_CASE(store_calls, memory_lend) {
     const auto site = stores::site();
     stores::Memory f(*site);
+    lend_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(store_calls, sqlite_calls) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
+    calls_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(store_calls, sqlite_bounds) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
+    bounds_case(qiven3_ctx, f);
+}
+
+QIVEN3_CASE(store_calls, sqlite_lend) {
+    const auto site = stores::site();
+    stores::Sqlite<> f(*site);
     lend_case(qiven3_ctx, f);
 }
