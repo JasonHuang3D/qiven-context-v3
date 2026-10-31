@@ -5,7 +5,8 @@ module depending on it, transitively; a new file its module and theirs; a
 tools/ file the tooling alone; a change to the table the tooling and each
 module whose row changed, with its dependents; a file of the no-test row
 nothing; a file of the whole build, of the support or of no module every
-test. Then the record through runs on fakes: a new tree runs every test
+test; on the checkout's table, a file of driver's that app's tests read
+app. Then the record through runs on fakes: a new tree runs every test
 and records it; a run with nothing changed runs none; a change narrows the
 step by --tests-from-file and its line names the modules and why; a
 removed file selects its module; a failed step leaves its record, so that
@@ -169,6 +170,17 @@ class Choose(unittest.TestCase):
         """A test with no module's label runs, the line counting it."""
         tests, reasons = SELECT["picked"]([("loose", ["fake"]), ("utc.one", ["utc"])], {}, {"utc"})
         self.assertEqual((tests, reasons), (["loose"], ["1 labelled with no module"]))
+
+    def test_the_real_table(self):
+        """The checkout's table: an edit of driver's files that app's tests
+        read, or of driver's own, selects app."""
+        table = SELECT["MODULES"]["load"]()
+        rows = {m["name"]: m for m in table["modules"]}
+        for path in ("tests/drive/binaries.py", "tests/contract/platform_location.py", "tests/driver/common.cpp"):
+            with self.subTest(path=path):
+                why, every = SELECT["choose"](table, rows, [path])
+                self.assertIsNone(every)
+                self.assertEqual(why["app"], "depending on driver")
 
 
 class Record(unittest.TestCase):

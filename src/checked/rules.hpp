@@ -13,8 +13,8 @@
 // the entry; then the call's hits' and entries' room. read, part 1
 // (entry/check), a fault refused, the entry kept and the store's keys from
 // its header (a content is a body). kept, once the store keeps the entry,
-// at append the secret check: a header hit refused EntryInvalid secret,
-// the content's hits kept with their entry's
+// at append the secret check: a header hit refused EntryInvalid secret
+// with no id, the content's hits kept with their entry's
 // index. admit, inside the store's transaction or lock, against its view:
 // at append the hits settled first, in order, the first not cleared
 // EntryInvalid secret: a hit passes when a live clearing of the entry's
@@ -188,8 +188,8 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
                            h.text(Slot::target), h.text(Slot::content).has_value()};
 }
 
-// The secret check of one admitted entry: a header hit refused, the
-// content's hits added to out.
+// The secret check of one admitted entry: a header hit refused with no id,
+// the content's hits added to out.
 template <platform::Platform P>
 void secrets(const AtView& at, std::size_t index, const Entry<P>& e, Vector<Hit>& out, const Chars& scratch) {
     canon::Basic<Chars> value(scratch);
@@ -233,7 +233,7 @@ bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::str
     return !clearing::held(view, *content, allocator);
 }
 
-// The hits settled, in order, the first not cleared refused.
+// The hits settled, in order, the first not cleared refused with no id.
 template <class V, platform::Platform P>
 void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hits, const AtView& at,
             const Chars& allocator) {

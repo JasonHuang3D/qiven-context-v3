@@ -1,6 +1,6 @@
 // store/errors' cases: each kind made with its fields and read back, its
-// code given for its own kind alone, an EntryInvalid of code `secret` with
-// no id, fields cut at a code point, the names in the text's spelling,
+// code given for its own kind alone, an EntryInvalid of code `secret` keeping
+// the id it is given, fields cut at a code point, the names in the text's spelling,
 // evaluated by the compiler (the widths against the entry's are checked's
 // cases); each kind's message line, its detail, its seconds, and a line
 // cut at a code point; an error thrown by value and caught by its type;
@@ -64,7 +64,7 @@ constexpr bool invalid_vectors() {
     constexpr StoreError e = StoreError::entry_invalid("append", path, 2, id_a, "parent", "parent");
     constexpr StoreError s = StoreError::entry_invalid("append", path, 0, id_b, "secret", "content.text", "github_token");
     return e.kind() == Kind::entry_invalid && e.index() == 2 && e.id() == id_a && e.entry_code() == "parent" &&
-           e.field() == "parent" && e.pattern().empty() && s.id().empty() && s.entry_code() == "secret" &&
+           e.field() == "parent" && e.pattern().empty() && s.id() == id_b && s.entry_code() == "secret" &&
            s.field() == "content.text" && s.pattern() == "github_token" && s.index() == 0;
 }
 static_assert(invalid_vectors());
@@ -145,7 +145,7 @@ const std::array<LineVector, 11>& line_vectors() {
          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
         {StoreError::head_conflict("forget", path, "life", "writer", "", ""),
          "HeadConflict: forget data/store.db; scope life, lane writer, expected none, actual none"},
-        {StoreError::entry_invalid("append", path, 0, id_a, "secret", "content.text", "aws_access_key"),
+        {StoreError::entry_invalid("append", path, 0, "", "secret", "content.text", "aws_access_key"),
          "EntryInvalid secret: append data/store.db; entry 0, id none, field content.text, pattern "
          "aws_access_key"},
         {StoreError::not_found("header", path, id_b),

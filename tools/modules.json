@@ -71,7 +71,7 @@
      "paths": ["src/write/", "tests/unit/write.cmake", "tests/unit/write_*", "tests/support/fixtures/kept_bed.hpp"]},
     {"name": "fuzzing", "layer": "product", "depends": ["base", "entry", "wire", "write"],
      "paths": ["tests/fuzz/"]},
-    {"name": "app", "layer": "product", "depends": ["location", "store", "write", "wire", "log", "diag"],
+    {"name": "app", "layer": "product", "depends": ["location", "store", "write", "wire", "log", "diag", "driver"],
      "paths": ["src/app/", "tests/drive/test_arguments.py", "tests/machine/test_platform_location.py"]},
     {"name": "driver", "layer": "product", "depends": ["store", "checked", "location", "wire", "hal", "log", "diag", "platform"],
      "paths": ["tests/driver/", "tests/contract/", "tests/machine/__init__.py", "tests/machine/test_platform_windows.py", "tests/machine/windows_holds.py",

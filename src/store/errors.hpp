@@ -13,9 +13,10 @@
 // the count. An expected or actual head of none is empty.
 //
 // Text is held in place, each field cut at a code point past its bytes; an
-// EntryInvalid of code `secret` never holds an id, whatever it is given.
-// The implementation's own code goes in detail. message() writes the error
-// on one line: names, codes, ids, counts and paths, never content or a key.
+// EntryInvalid keeps the id it is given, whatever its code: a raiser that
+// must not name the entry gives none. The implementation's own code goes in
+// detail. message() writes the error on one line: names, codes, ids, counts
+// and paths, never content or a key.
 //
 // Allocations: none. thread: none.
 
@@ -100,14 +101,14 @@ public:
         e.actual_ = Id(actual);
         return e;
     }
-    // id where computable, else empty; never kept for `secret` (A7).
+    // id as given: where computable, else empty.
     static constexpr StoreError entry_invalid(std::string_view operation, std::string_view path, std::size_t index,
                                               std::string_view id, std::string_view code, std::string_view field,
                                               std::string_view pattern = {}, std::string_view detail = {}) noexcept {
         StoreError e = make(Kind::entry_invalid, 0, operation, path, detail);
         e.index_ = index;
         e.entry_code_ = memory::Inline<code_bytes>(code);
-        e.id_ = Id(code == "secret" ? std::string_view() : id);
+        e.id_ = Id(id);
         e.field_ = memory::Inline<field_bytes>(field);
         e.pattern_ = memory::Inline<pattern_bytes>(pattern);
         return e;
