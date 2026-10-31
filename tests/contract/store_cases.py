@@ -17,7 +17,8 @@ gives CTest as its skip code. test_tags checks that frame on the binding's
 store.
 
 Here: S1 to S9, S4's own SQLite part its plans, and beside S8 the open's
-write probe on a file no one may write. The entries are made through the
+write probe on a file no one may write; S4's part 1 and its clearing,
+checked's rules, are checked_cases.py's. The entries are made through the
 drive (store_entries.py).
 """
 
@@ -29,9 +30,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.contract.store_entries import (CLEARING, HEADER_ROWS, LANES, PARSER_ROWS, PERSON, SCOPE, Maker, body_rows,
-                                          chain_fields, changed_header, clearing, guard_of, header, id_of, large,
-                                          oversized, same_files, same_snapshot, scanned, snapshot, snapshot_files)
+from tests.contract.store_entries import (CLEARING, LANES, PERSON, SCOPE, Maker, chain_fields, clearing, guard_of,
+                                          header, id_of, same_files, same_snapshot, scanned, snapshot, snapshot_files)
 from tests.drive.session import FAKE, Drive, DriveError
 
 # The tags a case may name, in the order a reason lists them.
@@ -373,38 +373,6 @@ class StoreCases:
         self.nothing_written(store, before, code)
         return error
 
-    def test_S4_refusals(self):
-        """S4, part 1: the parser's and the validator's tables of
-        the entry format (each row's bytes a header line; A changed once, its
-        id kept), each EntryInvalid with its code; a content past 65,536
-        bytes and its field's bound, too_long at the field; a content past
-        65,536 bytes with every field within its limit (M2's, its U+0001
-        escaped), too_large, and at the bound: 65,537 bytes too_large,
-        65,536 admitted; nothing written by a refusal. Needs: none."""
-        with self.drive() as drive:
-            self.needs(drive)
-            m, store = Maker(drive), drive.store_make()
-            store.append(PERSON, "implementer", None, m.chain(PERSON, "implementer", 1))
-            a, b = m.held("A", "B")
-            for line, code in PARSER_ROWS:
-                with self.subTest(parser=code, line=line[:20]):
-                    self.refuse(store, SCOPE, "implementer", None, [(line, a[1])], "EntryInvalid", code, index=0)
-            for code, changes in HEADER_ROWS:
-                with self.subTest(header=code, changes=changes):
-                    lane = changes.get("lane", "implementer")
-                    self.refuse(store, SCOPE, lane, None, [(changed_header(a, changes), a[1])], "EntryInvalid", code)
-            for code, record in body_rows(a, b):
-                with self.subTest(body=code):
-                    self.refuse(store, SCOPE, "implementer", None, [(a[0], record)], "EntryInvalid", code)
-            self.refuse(store, SCOPE, "implementer", None, [oversized(m)], "EntryInvalid", "too_long",
-                        field="admit.mistake")
-            for size in (None, 65537):
-                with self.subTest(too_large=size):
-                    self.refuse(store, SCOPE, "reviewer", None, [large(m, size)], "EntryInvalid", "too_large",
-                                index=0)
-            store.append(SCOPE, "reviewer", None, [large(m, 65536)])
-            store.append(SCOPE, "implementer", None, [a])
-
     def test_S4_part_two(self):
         """S4, part 2 and the append's own: one entry a code (a parent not
         the head, a seq gap, a target missing or of another scope, an at
@@ -465,41 +433,6 @@ class StoreCases:
                     text = json.dumps(error.error)
                     self.assertNotIn(secret, text)
                     self.assertNotIn(id_of(entry), text)
-
-    def test_S4_clearing(self):
-        """S4, the four fixtures of a false secret hit's clearing: each appended, refused
-        secret; cleared by a direction, admitted; the same body under the
-        same key again, secret; again after an export imported into
-        an empty store, and after a forget of the admitted entry, secret;
-        cleared for another pattern or another digest, secret. Needs: none."""
-        with self.drive() as drive:
-            self.needs(drive)
-            m = Maker(drive)
-            for value, pattern in CLEARING:
-                with self.subTest(pattern=pattern, value=value[:8]):
-                    store = drive.store_make()
-                    hit = m.claim(SCOPE, "implementer", 1, None, 240, mistake=value)
-                    self.refuse(store, SCOPE, "implementer", None, [hit], "EntryInvalid", "secret", pattern=pattern)
-                    digest = header(hit)["content"]
-                    store.append(SCOPE, "reviewer", None, [clearing(m, digest, pattern, 1, None, 60)])
-                    store.append(SCOPE, "implementer", None, [hit])
-                    again = m.claim(SCOPE, "implementer", 2, hit, 241, mistake=value)
-                    self.assertEqual(header(again)["content"], digest)
-                    self.refuse(store, SCOPE, "implementer", id_of(hit), [again], "EntryInvalid", "secret")
-                    into = drive.store_make()
-                    export = store.export()
-                    into.import_(export)
-                    export.drop()
-                    self.refuse(into, SCOPE, "implementer", id_of(hit), [again], "EntryInvalid", "secret")
-                    gone = m.forget(SCOPE, "implementer", 2, hit, hit, 242)
-                    store.forget(SCOPE, "implementer", id_of(hit), [gone], guard_of(store))
-                    after = m.claim(SCOPE, "implementer", 3, gone, 243, mistake=value)
-                    self.refuse(store, SCOPE, "implementer", id_of(gone), [after], "EntryInvalid", "secret")
-                    other = drive.store_make()
-                    wrong = clearing(m, digest, "sk-key" if pattern != "sk-key" else "aws-akia", 1, None, 60)
-                    elsewhere = clearing(m, "hmac-sha256:" + "0" * 64, pattern, 2, wrong, 61)
-                    other.append(SCOPE, "reviewer", None, [wrong, elsewhere])
-                    self.refuse(other, SCOPE, "implementer", None, [hit], "EntryInvalid", "secret", pattern=pattern)
 
     def test_S4_plans(self):
         """S4's own SQLite part: the view's two reads, the clearings (a
