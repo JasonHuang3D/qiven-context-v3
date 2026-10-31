@@ -1,0 +1,30 @@
+# Every text file is committed and checked out with LF on every system,
+# whatever core.autocrlf a host sets; git tells text from binary by content.
+# The code beside the data below (the fixtures' code, the vendored
+# library's CMake and README) stays so, under B32.
+* text=auto eol=lf
+
+# The data whose bytes a case or a pin reads by digest or byte for byte,
+# each named with what reads it: kept byte for byte, never normalized,
+# whatever their content.
+# The fixtures and the digest vectors: each compiled into the cases as its
+# bytes (tests/support/fixtures/CMakeLists.txt) and parsed strictly; each
+# vector pins its expected bytes.
+tests/fixtures/entries.json -text
+tests/vectors/ids.json -text
+# The fuzz targets' regression corpora: inputs by their bytes, each named
+# by its SHA-1 and compiled in as its bytes (tests/fuzz/CMakeLists.txt);
+# these directories hold such inputs alone. A pattern ends in /** because
+# an attributes pattern does not reach into a directory.
+tests/fuzz/digest/regress/** -text
+tests/fuzz/entries/regress/** -text
+tests/fuzz/entry/regress/** -text
+tests/fuzz/wire/regress/** -text
+# The vendored SQLite amalgamation, as its upstream ships it: each file's
+# SHA-256 pinned in CMakeLists.txt and checked on every configure.
+third_party/sqlite/sqlite3.c -text
+third_party/sqlite/sqlite3.h -text
+
+# Windows' command interpreter reads its scripts with CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

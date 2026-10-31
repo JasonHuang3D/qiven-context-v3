@@ -1,0 +1,15 @@
+{
+  "name": "storage_sqlite",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/store/engine/connection.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "store"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "math",
+  "layer": "core",
+  "status": "slot",
+  "kind": "module",
+  "may_depend": [
+    "core"
+  ],
+  "platforms": [],
+  "adopted": "2026-10-31",
+  "parameters": []
+}

@@ -1,0 +1,14 @@
+{
+  "name": "jobs",
+  "layer": "services",
+  "status": "slot",
+  "kind": "module",
+  "may_depend": [
+    "core",
+    "system",
+    "services"
+  ],
+  "platforms": [],
+  "adopted": "2026-10-31",
+  "parameters": []
+}

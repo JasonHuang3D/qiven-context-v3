@@ -1,0 +1,15 @@
+{
+  "name": "time",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/qiven3/utc.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "base"
+  ]
+}

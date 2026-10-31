@@ -1,0 +1,12 @@
+# The engine's own directory, on its parent's: the engine's configuration
+# call is variadic in its interface, the one call B22 allows, made in
+# sqlite.cpp alone (the structure tests' tokens hold every other file to
+# none of SQLite's variadic functions); every other file of the store is
+# held to none by its parent's configuration. And SQLite's result codes and
+# open flags are ints, its extended codes macros of a signed or and shift,
+# which the signed bitwise check reports where they expand: the engine
+# alone calls SQLite, and the check stays on in the rest of the store.
+InheritParentConfig: true
+Checks: >-
+  -cppcoreguidelines-pro-type-vararg,
+  -bugprone-signed-bitwise

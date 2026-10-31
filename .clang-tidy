@@ -1,0 +1,38 @@
+# The analysis preset's clang-tidy checks, every finding an error. Each
+# check turned off, with its reason:
+# - cppcoreguidelines-avoid-magic-numbers, -avoid-do-while and -macro-usage,
+#   and bugprone-easily-swappable-parameters: style or a heuristic, holding
+#   no property; QIVEN3_CALL and the thread-safety attributes are macros.
+# - cppcoreguidelines-pro-bounds-constant-array-index: it asks for the
+#   Guidelines Support Library's gsl::at, which v3 does not take; the
+#   hardened library checks indexing.
+# - cppcoreguidelines-pro-bounds-avoid-unchecked-container-access: it asks
+#   for gsl::at too; each operator[] it reports is a standard array's,
+#   vector's, string's, string_view's or span's, which the hardened
+#   library checks.
+# - bugprone-std-exception-baseclass: v3's typed errors are plain value
+#   types with no base class, thrown by value and caught by their own type.
+# - cppcoreguidelines-explicit-constructor: v3's implicit constructors are
+#   its consteval ones from a literal, checked at compile time, and its
+#   allocators' converting ones, which the allocator requirements ask for.
+# - bugprone-unsafe-to-allow-exceptions: it refuses a move stated
+#   noexcept(false), which v3 states where a move may throw, as
+#   bugprone-exception-escape asks: the fake's Config, a map's move
+#   allocating in one standard library. exception-escape stays on.
+# A directory's own .clang-tidy turns a check off by file, with its reason.
+Checks: >-
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  clang-analyzer-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-macro-usage,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -bugprone-std-exception-baseclass,
+  -cppcoreguidelines-explicit-constructor,
+  -bugprone-unsafe-to-allow-exceptions
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*[/\](src|tests[/\]support|tests[/\]child)[/\].*'

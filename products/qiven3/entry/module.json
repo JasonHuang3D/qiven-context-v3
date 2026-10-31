@@ -1,0 +1,64 @@
+{
+  "name": "entry",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/entry/check.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "entry",
+      "layer": "product",
+      "depends": [
+        "keys",
+        "matcher",
+        "base",
+        "memory",
+        "platform"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/entry/CMakeLists.txt",
+        "src/entry/body.*",
+        "src/entry/check.*",
+        "src/entry/content*",
+        "src/entry/fold.*",
+        "src/entry/header.*",
+        "src/entry/kinds*",
+        "src/entry/labels.*",
+        "src/entry/projectmap*",
+        "src/entry/refs.*",
+        "src/entry/served*",
+        "src/entry/validator.*",
+        "tests/support/fixtures/CMakeLists.txt",
+        "tests/support/fixtures/fixtures.*",
+        "tests/support/fixtures/vectors.hpp",
+        "tests/support/fixtures/view.hpp",
+        "tests/unit/entry.cmake",
+        "tests/unit/digest_fixtures_test.cpp",
+        "tests/fixtures/",
+        "tests/vectors/",
+        "tests/unit/header_*",
+        "tests/unit/body_*",
+        "tests/unit/kinds_*",
+        "tests/unit/refs_*",
+        "tests/unit/content_*",
+        "tests/unit/check_*",
+        "tests/unit/validator_*",
+        "tests/unit/fold_*",
+        "tests/unit/labels_*",
+        "tests/unit/served_*",
+        "tests/unit/projectmap_*",
+        "tests/unit/vectors_*",
+        "tests/unit/map_test.cpp",
+        "tests/unit/utc_test.cpp",
+        "tests/drive/test_utc.py"
+      ]
+    }
+  ]
+}

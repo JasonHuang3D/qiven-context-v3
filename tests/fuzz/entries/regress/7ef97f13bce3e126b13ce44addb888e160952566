@@ -1,0 +1,29 @@
+{
+    "writer": "implementer/s7",
+  "scope": "project:example",
+  "episode": {"client": "claude-code", "session": "synthetic-session-7"},
+  "pieces": {
+    "lane-record": {"text": "progress: unit one built\nnext_action: review\n"}
+  },
+  "entries": [
+    {"name": "moved", "kind": "item", "basis": "claimed",
+     "content": {"item_id": "core", "state": "active", "turn": "reviewer",
+       "subject": "item:core", "band": "normal",
+       "admit": {"underivable": "Whose turn it is lives in no file v3 reads.",
+                 "mistake": "The next session takes a turn that is not its own."},
+       "evidence": [{"type": "output", "command": "v2 transition core executed",
+                     "piece": "lane-record"}]}},
+    {"name": "lane", "kind": "checkpoint", "basis": "claimed",
+     "content": {"progress": "Unit one built; its tests pass on both systems.",
+       "next_action": "The reviewer reviews unit one.",
+       "refs": ["@name:moved"],
+       "subject": "item:core", "band": "high",
+       "admit": {"underivable": "The lane's state as its session left it.",
+                 "mistake": "A cold start repeats or skips the turn's work."},
+       "evidence": [{"type": "output", "command": "v2 checkpoint implementer",
+                     "piece": "lane-record"}]}},
+    {"kind": "retire", "basis": "claimed", "target": "@question:unit-one-shape",
+     "content": {"reason": "Settled: the reviewer chose the shape in review.",
+       "evidence": [{"type": "entry", "id": "@name:moved"}]}}
+  ]
+}

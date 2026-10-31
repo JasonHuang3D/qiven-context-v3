@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="qiven3 stack" Description="C6262 alone: a frame past /analyze:stacksize, 4,096 bytes" ToolsVersion="17.0">
+  <Rules AnalyzerId="Microsoft.Analyzers.NativeCodeAnalysis" RuleNamespace="Microsoft.Rules.Native">
+    <Rule Id="C6262" Action="Error" />
+  </Rules>
+</RuleSet>

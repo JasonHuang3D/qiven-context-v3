@@ -1,0 +1,210 @@
+# The MemorySanitizer trial: one clang job, linux-msan. MemorySanitizer
+# needs every linked library built with it, the C++ standard library
+# included, which no runner image carries. The job reads the version of the
+# image's own clang++ and builds libc++ and libc++abi under it from LLVM's
+# source of that release, the tarball's SHA-256 printed, against no pin;
+# then builds v3 against them and runs the cases on the fakes (label fake)
+# and every C++ case (label cxx). The same build compiles SQLite's
+# vendored amalgamation (third_party/sqlite, qiven3_sqlite) under the
+# sanitizer with v3, its runs those of the cases that link it. The job's
+# time limit is the trial's, 60 minutes, the library's build included. Its
+# last step states the outcome: what was built, in what time, and what ran.
+#
+# CI is a runtime evaluation, unpinned, as ci.yml's text has it: the
+# ubuntu-24.04 image's own tools, the version of each printed, no system
+# setting changed.
+#
+# Its own workflow, apart from ci.yml's matrix, so that the trial's outcome
+# is its own run's. Standard GitHub-hosted runners only; each action pinned
+# by a full commit SHA of its own repository, its tag in a comment. No
+# secret is read.
+
+name: msan
+
+# By manual dispatch alone: never a pull request, a tag or a push to a
+# branch, never a schedule; the loop runs each job of its system before
+# (tools/loop.py).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A later dispatch never cancels a run in progress. The group is the
+# commit's, so a run of another commit never shares it; a repeated dispatch
+# of the same commit waits for the running one, the latest waiting alone.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  CTEST_PARALLEL_LEVEL: "4"
+  # Every report ends the process with a failing status.
+  MSAN_OPTIONS: halt_on_error=1
+
+jobs:
+  linux-msan:
+    name: linux-msan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # Each step's shell without address-space randomisation, for its own
+    # processes alone (setarch -R): the sanitizer's shadow memory may not map
+    # under the kernel's randomisation, which stays as the image sets it.
+    defaults:
+      run:
+        shell: setarch x86_64 -R bash --noprofile --norc -eo pipefail {0}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CPython, its current release
+        id: python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          check-latest: true
+
+      - name: Ninja, by the image's package manager where the image lacks it
+        env:
+          PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+        run: |
+          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          command -v ninja || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ninja-build; }
+
+      # The LLVM release the library is built from is the image's clang++'s,
+      # read here: "clang version X.Y.Z" in its first line.
+      - name: The image and the tools this job runs, and the clang++ release
+        run: |
+          echo "image $ImageOS $ImageVersion; $(. /etc/os-release && echo "$PRETTY_NAME"), kernel $(uname -r)"
+          echo "glibc: $(ldd --version | sed -n 1p)"
+          for tool in clang clang++; do
+            echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
+          done
+          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
+          release="$(clang++ --version | sed -n 's/.*clang version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | sed -n 1p)"
+          [ -n "$release" ] || { echo "msan: clang++ --version names no release"; exit 1; }
+          echo "msan: libc++ from LLVM $release, the image's clang++'s"
+          echo "LLVM_SOURCE_VERSION=$release" >> "$GITHUB_ENV"
+          symbolizer="$(command -v llvm-symbolizer || command -v "llvm-symbolizer-${release%%.*}" || true)"
+          echo "msan: symbolizer ${symbolizer:-none}"
+          if [ -n "$symbolizer" ]; then echo "MSAN_SYMBOLIZER_PATH=$symbolizer" >> "$GITHUB_ENV"; fi
+          echo "QIVEN3_TRIAL_START=$(date +%s)" >> "$GITHUB_ENV"
+
+      # libc++ with libc++abi inside it, static, so that every binary links
+      # them with no run-time search path; the unwinder is the system's.
+      - name: libc++ under MemorySanitizer, from the LLVM source of the image's clang++
+        id: libcxx
+        run: |
+          start=$SECONDS
+          top="llvm-project-$LLVM_SOURCE_VERSION.src"
+          tarball="$RUNNER_TEMP/$top.tar.xz"
+          curl -fsSL -o "$tarball" "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_SOURCE_VERSION/$top.tar.xz"
+          echo "msan: the source's SHA-256, printed, against no pin: $(sha256sum "$tarball" | cut -d' ' -f1)"
+          tar -xJf "$tarball" -C "$RUNNER_TEMP" --exclude="$top/llvm/test" --exclude="$top/llvm/unittests" \
+            "$top/cmake" "$top/runtimes" "$top/libcxx" "$top/libcxxabi" "$top/libc" "$top/llvm" "$top/third-party"
+          prefix="$RUNNER_TEMP/libcxx-msan"
+          cmake -G Ninja -S "$RUNNER_TEMP/$top/runtimes" -B "$RUNNER_TEMP/libcxx-build" \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_INSTALL_PREFIX="$prefix" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
+            -DLLVM_USE_SANITIZER=MemoryWithOrigins -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF \
+            -DLLVM_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_TESTS=OFF -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
+            -DLIBCXXABI_INCLUDE_TESTS=OFF -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF \
+            -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON -DLIBCXXABI_USE_LLVM_UNWINDER=OFF > "$RUNNER_TEMP/libcxx-configure.log" \
+            || { tail -80 "$RUNNER_TEMP/libcxx-configure.log"; exit 1; }
+          cmake --build "$RUNNER_TEMP/libcxx-build" > "$RUNNER_TEMP/libcxx-build.log" 2>&1 \
+            || { tail -80 "$RUNNER_TEMP/libcxx-build.log"; exit 1; }
+          cmake --install "$RUNNER_TEMP/libcxx-build" > /dev/null
+          test -f "$prefix/include/c++/v1/__config_site" && test -f "$prefix/lib/libc++.a" \
+            || { echo "msan: the install holds no libc++.a or __config_site"; find "$prefix" -maxdepth 3; exit 1; }
+          calls=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' U __msan_' || true)
+          [ "$calls" -gt 0 ] || { echo "msan: libc++.a calls no __msan_ function: not instrumented"; exit 1; }
+          # libc++abi inside libc++.a defines __cxa_throw; the unwinder stays
+          # outside it, which clang's driver links from libgcc_s.
+          abi=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' T __cxa_throw$' || true)
+          unwind=$(nm "$prefix/lib/libc++.a" 2>/dev/null | grep -c ' U _Unwind_RaiseException$' || true)
+          [ "$abi" -gt 0 ] || { echo "msan: libc++.a defines no __cxa_throw: libc++abi is not inside it"; exit 1; }
+          echo "msan: the install: $(cd "$prefix" && find include/c++/v1/__config_site lib -maxdepth 1 -type f | sort | tr '\n' ' ')"
+          echo "msan: libc++.a defines __cxa_throw ($abi), references _Unwind_RaiseException ($unwind)"
+          echo "msan: libc++ $LLVM_SOURCE_VERSION built under MemorySanitizer in $((SECONDS - start)) s, $calls references to its runtime"
+          echo "QIVEN3_LIBCXX=$prefix" >> "$GITHUB_ENV"
+
+      # On a failure, each failed probe of CMake's configure log, at most 5
+      # and 80 lines each: its check, the flags it ran under, and its compile
+      # and link lines with their output.
+      - name: Configure (linux-msan)
+        id: configure
+        run: |
+          status=0
+          cmake --preset linux-msan || status=$?
+          log=build/ci/CMakeFiles/CMakeConfigureLog.yaml
+          if [ "$status" -ne 0 ] && [ -f "$log" ]; then
+            awk '
+              function flush() {
+                if (failed) {
+                  if (shown < 5) {
+                    shown++; print "msan: failed probe " shown ":" check
+                    n = split(body, lines, "\n")
+                    for (i = 1; i < n && i <= 80; i++) print lines[i]
+                    if (n - 1 > 80) print "  (" n - 81 " more lines)"
+                  } else { skipped++ }
+                }
+                probe = 0; failed = 0; keep = 0; inchecks = 0; check = ""; body = ""
+              }
+              /^  -$/ || /^\.\.\.$/ { flush(); next }
+              /^    kind: "try_(compile|run)-v1"$/ { probe = 1 }
+              probe && /^    checks:$/ { inchecks = 1; next }
+              inchecks && /^      - "/ { check = check " " substr($0, 9); next }
+              { inchecks = 0 }
+              probe && /^    cmakeVariables:$/ { keep = 1 }
+              probe && /^      exitCode: [1-9-]/ { failed = 1 }
+              keep { body = body $0 "\n" }
+              END { flush(); if (skipped) print "msan: " skipped " more failed probes"; if (!shown) print "msan: the configure log holds no failed probe" }
+            ' "$log"
+          elif [ "$status" -ne 0 ]; then
+            echo "msan: configure failed before it wrote $log"
+          fi
+          exit "$status"
+
+      # -k 0: every failing source shows in one run, not the first alone.
+      # The build's last step runs each case binary's --list under the
+      # sanitizer. On a failure, the first 10 failed edges follow, each with
+      # its command and output, at most 200 lines in all.
+      - name: Build every target
+        id: build
+        run: |
+          status=0
+          cmake --build --preset linux-msan -- -k 0 2>&1 | tee "$RUNNER_TEMP/build.log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "msan: the build failed: $(grep -c '^FAILED: ' "$RUNNER_TEMP/build.log" || true) failed edges; the first:"
+            awk '/^FAILED: /{ edges++; on = edges <= 10 } /^\[[0-9]+\/[0-9]+\] /{ on = 0 } on' "$RUNNER_TEMP/build.log" | head -200 || true
+          fi
+          exit "$status"
+
+      - name: The cases on the fakes, under MemorySanitizer
+        id: fake
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --preset fake
+
+      - name: Every C++ case, under MemorySanitizer
+        id: cxx
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ctest --test-dir build/ci --output-on-failure --no-tests=error -L '^cxx$'
+
+      - name: The trial's outcome
+        if: ${{ always() }}
+        env:
+          LIBCXX: ${{ steps.libcxx.outcome }}
+          CONFIGURE: ${{ steps.configure.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          FAKE: ${{ steps.fake.outcome }}
+          CXX: ${{ steps.cxx.outcome }}
+        run: |
+          minutes=$(( ($(date +%s) - ${QIVEN3_TRIAL_START:-$(date +%s)}) / 60 ))
+          {
+            echo "msan trial: libc++ ${LLVM_SOURCE_VERSION:-unread} $LIBCXX; configure $CONFIGURE; build $BUILD; fake $FAKE; cxx $CXX"
+            echo "msan trial: $minutes minutes from the toolchain's check, of the job's 60"
+            echo "msan trial: SQLite (qiven3_sqlite) built under the sanitizer with v3, in build $BUILD"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

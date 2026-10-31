@@ -1,0 +1,533 @@
+#pragma once
+
+// kinds: the 22 kinds of this minor version as tables. Each kind has its
+// name, the bases it allows, its group (a core kind in every scope, a work
+// profile kind or the map in project scopes alone, a change, or usage),
+// whether it is served, whether it has content, what its record identity
+// holds, and its own fields; the common fields are one table beside them,
+// each carried on a kind by its row's rule. A field has its name, its
+// value (text, a closed set, a named syntax, a reference, an object of
+// exact keys), how it is carried, its limit in characters (per item on a
+// list) and, on a list, its most items; an object's keys are a shape's
+// fields. A rule that turns on the writer, the basis, the scope or a pin's
+// type is carried as such, and resolve reads it for one entry. kinds checks
+// no content: content reads these tables, its codes and their order its
+// own.
+//
+// served(kind) is whether a kind is served: all but episode, usage and the
+// change kinds. A record's identity, what Holds names, is read by
+// kinds_identity.
+//
+// Allocations: none; every operation reads its arguments in place and
+// returns views or values. Each is constexpr, so its vectors run in
+// constant evaluation too; it reads by index, with no pointer arithmetic.
+// kinds logs nothing.
+//
+// thread: none
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <string_view>
+
+#include "entry/header.hpp"
+#include "memory/fail.hpp"
+#include "qiven3/canon.hpp"
+
+namespace qiven3::entry::kinds {
+
+// The bases, in header's order; a kind's bases are a set of their bits.
+enum class Basis : std::uint8_t { owner_words, observed, claimed, derived };
+using Bases = std::uint8_t;
+constexpr Bases bit(Basis b) noexcept { return static_cast<Bases>(1U << static_cast<unsigned>(b)); }
+constexpr std::optional<Basis> basis_of(std::string_view name) noexcept {
+    for (std::size_t i = 0; i < header::basis_names.size(); ++i) {
+        if (header::basis_names[i] == name) {
+            return static_cast<Basis>(i);
+        }
+    }
+    return std::nullopt;
+}
+
+// Content is at most this many bytes canonical, apart from the fields'
+// limits.
+inline constexpr std::size_t content_limit = 65536;
+
+// How a field is carried: refused (not_allowed), optional or required, or
+// by a rule resolve reads.
+enum class Carried : std::uint8_t {
+    refused,
+    optional,
+    required,
+    by_basis,   // required on basis claimed or observed, else optional
+    by_writer,  // required for a slot or loop, optional for import
+    by_admit,   // required for a slot or import, optional for loop
+    by_type,    // required on a pin of type tool, else optional
+    by_import,  // optional for import, else refused
+    by_scope,   // optional in a project scope, else refused
+};
+
+// A field's value, or a list item's. text is a string within its limit;
+// one_of a string of its closed set; shape an object of its shape's exact
+// keys; the rest a string of the named syntax, a reference (as the
+// entry's references are), or true alone.
+enum class Value : std::uint8_t {
+    text,
+    one_of,
+    shape,
+    subject,
+    slug,
+    time,
+    date,
+    id,
+    digest,
+    revision,
+    clause_id,
+    test_id,
+    path,
+    qualified_name,
+    client,
+    session,
+    pattern_name,
+    pin_name,
+    reference,
+    transcript,
+    map_object,
+    only_true,
+    lane,  // a lane name, none of owner, loop or import
+};
+
+// The objects of exact keys, each a table of fields.
+enum class Shape : std::uint8_t { none, episode, admit, trigger, applies_to, relation, corrected, clears, when, pin };
+
+// The closed sets, each a table of its strings.
+enum class Set : std::uint8_t {
+    none,
+    bands,
+    qualities,
+    pin_types,
+    entity_types,
+    item_states,
+    object_types,
+    results,
+    methods,
+};
+
+// A field's or a kind's name, held by value: a literal's characters, at
+// most 15. view() reads it in place, as long as the label lasts.
+struct Label {
+    std::array<char, 15> text{};
+    std::uint8_t size = 0;
+
+    constexpr Label() noexcept = default;
+    // Implicit, so that a literal is a Label where one is taken; it runs at
+    // compile time, and a literal past 15 characters does not compile.
+    consteval Label(const char* literal) noexcept {
+        const std::string_view s(literal);
+        if (s.size() > text.size()) {
+            memory::fail_fast("kinds::Label: past 15 characters");
+        }
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            text[i] = s[i];
+        }
+        size = static_cast<std::uint8_t>(s.size());
+    }
+    constexpr std::string_view view() const noexcept { return std::string_view(text.data(), size); }
+    friend constexpr bool operator==(const Label& a, std::string_view b) noexcept { return a.view() == b; }
+};
+static_assert(sizeof(Label) == 16, "Label's size is pinned: 15 characters and their count");
+
+struct Field {
+    Label name;
+    Value value = Value::text;
+    Carried carried = Carried::optional;
+    std::uint16_t items = 0;  // a list's most items; 0, no list
+    std::uint16_t limit = 0;  // characters, per item on a list; 0, none
+    Set set = Set::none;      // a closed set: values(field) reads its strings
+    Shape shape = Shape::none;
+};
+static_assert(sizeof(Field) == 24, "Field's size is pinned: its label, four bytes, two counts and two tables");
+
+namespace detail {
+
+constexpr Field text(Label name, Carried c, std::uint16_t limit) noexcept {
+    return Field{name, Value::text, c, 0, limit, Set::none, Shape::none};
+}
+constexpr Field texts(Label name, Carried c, std::uint16_t items, std::uint16_t limit) noexcept {
+    return Field{name, Value::text, c, items, limit, Set::none, Shape::none};
+}
+constexpr Field of(Label name, Value v, Carried c, std::uint16_t limit = 0) noexcept {
+    return Field{name, v, c, 0, limit, Set::none, Shape::none};
+}
+constexpr Field list(Label name, Value v, Carried c, std::uint16_t items, std::uint16_t limit = 0) noexcept {
+    return Field{name, v, c, items, limit, Set::none, Shape::none};
+}
+constexpr Field one(Label name, Carried c, Set values) noexcept {
+    return Field{name, Value::one_of, c, 0, 0, values, Shape::none};
+}
+constexpr Field object(Label name, Carried c, Shape s, std::uint16_t items = 0) noexcept {
+    return Field{name, Value::shape, c, items, 0, Set::none, s};
+}
+
+constexpr Carried R = Carried::required;
+constexpr Carried O = Carried::optional;
+constexpr Carried X = Carried::refused;
+
+// The closed sets.
+inline constexpr std::array<std::string_view, 4> bands = {"core", "high", "normal", "low"};
+inline constexpr std::array<std::string_view, 4> qualities = {"exact", "anchored", "session", "approximate"};
+inline constexpr std::array<std::string_view, 4> pin_types = {"tool", "api", "env", "config"};
+inline constexpr std::array<std::string_view, 7> entity_types = {"person",     "place",        "device", "repository",
+                                                                 "service",    "organization", "other"};
+inline constexpr std::array<std::string_view, 5> item_states = {"open", "active", "waiting", "done", "dropped"};
+inline constexpr std::array<std::string_view, 5> object_types = {"file", "ruling", "law", "item", "other"};
+inline constexpr std::array<std::string_view, 2> results = {"verified", "refuted"};
+inline constexpr std::array<std::string_view, 4> methods = {"test", "rerun", "transcript", "review"};
+
+// The shapes' fields.
+inline constexpr std::array<Field, 2> episode_keys = {of("client", Value::client, R), of("session", Value::session, R)};
+inline constexpr std::array<Field, 2> admit_keys = {text("underivable", R, 200), text("mistake", R, 200)};
+inline constexpr std::array<Field, 3> trigger_keys = {list("activities", Value::slug, O, 16, 200),
+                                                      list("paths", Value::path, O, 16, 200),
+                                                      list("entities", Value::subject, O, 16, 160)};
+inline constexpr std::array<Field, 4> applies_keys = {
+    list("activities", Value::slug, O, 16, 200), list("paths", Value::path, O, 16, 200),
+    list("entities", Value::subject, O, 16, 160), texts("environment", O, 8, 200)};
+inline constexpr std::array<Field, 2> relation_keys = {of("relation", Value::slug, R, 48), of("to", Value::subject, R, 160)};
+inline constexpr std::array<Field, 2> corrected_keys = {of("entry", Value::id, R), of("by", Value::id, R)};
+inline constexpr std::array<Field, 2> clears_keys = {of("content", Value::digest, R), of("pattern", Value::pattern_name, R)};
+inline constexpr std::array<Field, 2> when_keys = {of("time", Value::time, R), one("quality", R, Set::qualities)};
+inline constexpr std::array<Field, 3> pin_keys = {one("type", R, Set::pin_types), of("name", Value::pin_name, R, 200),
+                                                  text("version", Carried::by_type, 64)};
+
+}  // namespace detail
+
+// A shape's exact keys; whether at least one of them must be present.
+constexpr std::span<const Field> members(Shape s) noexcept {
+    switch (s) {
+        case Shape::episode: return detail::episode_keys;
+        case Shape::admit: return detail::admit_keys;
+        case Shape::trigger: return detail::trigger_keys;
+        case Shape::applies_to: return detail::applies_keys;
+        case Shape::relation: return detail::relation_keys;
+        case Shape::corrected: return detail::corrected_keys;
+        case Shape::clears: return detail::clears_keys;
+        case Shape::when: return detail::when_keys;
+        case Shape::pin: return detail::pin_keys;
+        case Shape::none: break;
+    }
+    return {};
+}
+constexpr bool at_least_one(Shape s) noexcept { return s == Shape::trigger; }
+
+// A closed set's strings; a field's, by its set; none off one_of.
+constexpr std::span<const std::string_view> strings(Set s) noexcept {
+    switch (s) {
+        case Set::bands: return detail::bands;
+        case Set::qualities: return detail::qualities;
+        case Set::pin_types: return detail::pin_types;
+        case Set::entity_types: return detail::entity_types;
+        case Set::item_states: return detail::item_states;
+        case Set::object_types: return detail::object_types;
+        case Set::results: return detail::results;
+        case Set::methods: return detail::methods;
+        case Set::none: break;
+    }
+    return {};
+}
+constexpr std::span<const std::string_view> values(const Field& f) noexcept { return strings(f.set); }
+
+// The common fields, in the table's order; each kind carries them by
+// common_carried. Their carriage here is a placeholder.
+enum class Common : std::uint8_t { subject, applies_to, source, evidence, episode, band, admit, expires, when, as_of, item };
+inline constexpr std::array<Field, 11> COMMON = {
+    detail::of("subject", Value::subject, Carried::optional, 160),
+    detail::object("applies_to", Carried::optional, Shape::applies_to),
+    detail::list("source", Value::reference, Carried::optional, 8),
+    detail::list("evidence", Value::reference, Carried::optional, 16),
+    detail::object("episode", Carried::optional, Shape::episode),
+    detail::one("band", Carried::optional, Set::bands),
+    detail::object("admit", Carried::optional, Shape::admit),
+    detail::of("expires", Value::time, Carried::optional),
+    detail::object("when", Carried::optional, Shape::when),
+    detail::of("as_of", Value::date, Carried::optional),
+    detail::of("item", Value::slug, Carried::optional, 64),
+};
+
+namespace detail {
+
+// Each kind's own fields, in the tables' order.
+inline constexpr std::array<Field, 2> direction_fields = {text("words", R, 2000), object("clears", O, Shape::clears)};
+inline constexpr std::array<Field, 1> account_fields = {text("words", R, 2000)};
+inline constexpr std::array<Field, 3> entity_fields = {text("name", R, 120), one("entity_type", R, Set::entity_types),
+                                                       text("description", O, 500)};
+inline constexpr std::array<Field, 4> observation_fields = {text("command", R, 400), text("result", R, 500),
+                                                            of("revision", Value::revision, O),
+                                                            text("environment", O, 200)};
+inline constexpr std::array<Field, 1> claim_fields = {text("claim", R, 1000)};
+inline constexpr std::array<Field, 3> decision_fields = {text("decides", R, 500), texts("reasons", O, 8, 300),
+                                                         list("closes", Value::id, O, 8)};
+inline constexpr std::array<Field, 4> question_fields = {text("question", R, 1500), texts("options", O, 6, 200),
+                                                         text("recommendation", O, 500),
+                                                         of("question_id", Value::slug, O, 64)};
+inline constexpr std::array<Field, 4> lesson_fields = {text("lesson", R, 500), object("trigger", R, Shape::trigger),
+                                                       list("covered_by", Value::test_id, O, 16),
+                                                       object("pins", O, Shape::pin, 8)};
+inline constexpr std::array<Field, 4> episode_fields = {of("client", Value::client, R), of("session", Value::session, R),
+                                                        of("started", Value::time, R), text("topic", O, 200)};
+inline constexpr std::array<Field, 4> relation_fields = {of("from", Value::subject, R, 160),
+                                                         of("relation", Value::slug, R, 48),
+                                                         of("to", Value::subject, R, 160), text("note", O, 300)};
+inline constexpr std::array<Field, 3> goal_fields = {text("objective", R, 500), text("boundary", O, 500),
+                                                     texts("test_questions", O, 8, 300)};
+inline constexpr std::array<Field, 5> clause_fields = {
+    of("clause_id", Value::clause_id, R, 64), text("text", R, 4000), text("authority", R, 120),
+    list("cites", Value::clause_id, O, 16, 64), of("superseded_by", Value::clause_id, O, 64)};
+inline constexpr std::array<Field, 5> module_fields = {
+    text("responsibility", R, 500), list("paths", Value::path, R, 32, 200),
+    list("interface", Value::qualified_name, O, 16, 200), texts("invariants", O, 16, 300),
+    list("covered_by", Value::test_id, O, 16)};
+inline constexpr std::array<Field, 6> item_fields = {
+    of("item_id", Value::slug, R, 64), one("state", R, Set::item_states), text("title", O, 200), text("turn", O, 64),
+    list("waits_on", Value::slug, O, 16, 64), of("under", Value::slug, O, 64)};
+inline constexpr std::array<Field, 6> checkpoint_fields = {
+    text("progress", R, 1000), text("next_action", R, 2100), text("decision_status", O, 1600),
+    list("refs", Value::id, O, 32), text("detail", O, 8000), of("for_lane", Value::lane, Carried::by_import)};
+inline constexpr std::array<Field, 3> measure_fields = {text("measure", R, 500), text("success", O, 300),
+                                                        texts("results", O, 8, 300)};
+inline constexpr std::array<Field, 6> map_fields = {
+    of("object", Value::map_object, R), one("object_type", R, Set::object_types), text("does", R, 500),
+    object("relations", O, Shape::relation, 16), text("contract", O, 1000), texts("constraints", O, 8, 300)};
+inline constexpr std::array<Field, 3> check_fields = {one("result", R, Set::results), one("method", R, Set::methods),
+                                                      text("note", O, 500)};
+inline constexpr std::array<Field, 2> accept_fields = {of("message", Value::transcript, R), text("words", O, 500)};
+inline constexpr std::array<Field, 1> retire_fields = {text("reason", R, 300)};
+inline constexpr std::array<Field, 4> usage_fields = {list("served", Value::id, R, 384), list("cited", Value::id, O, 192),
+                                                      object("corrected", O, Shape::corrected, 48),
+                                                      of("truncated", Value::only_true, O)};
+
+// Tables joined, in their order.
+template <std::size_t... N>
+constexpr std::array<Field, (N + ...)> join(const std::array<Field, N>&... parts) noexcept {
+    std::array<Field, (N + ...)> out{};
+    std::size_t at = 0;
+    const auto put = [&out, &at](const auto& part) {
+        for (const Field& f : part) {
+            out[at] = f;
+            ++at;
+        }
+    };
+    (put(parts), ...);
+    return out;
+}
+
+// Every kind's own fields, one table in KINDS' order (forget has none); a
+// kind's fields are a range of it.
+inline constexpr auto OWN =
+    join(direction_fields, account_fields, entity_fields, observation_fields, claim_fields, decision_fields,
+         question_fields, lesson_fields, episode_fields, relation_fields, goal_fields, clause_fields, module_fields,
+         item_fields, checkpoint_fields, measure_fields, map_fields, check_fields, accept_fields, retire_fields,
+         usage_fields);
+static_assert(OWN.size() <= UINT8_MAX);
+
+}  // namespace detail
+
+// A kind's group: core in every scope; work, the work profile and the
+// map, in project scopes alone; a change; usage.
+enum class Group : std::uint8_t { core, work, change, usage };
+
+// What a record's identity holds, or none.
+enum class Holds : std::uint8_t { none, object, item_id, clause_id, lane, question_id };
+
+// A kind; its own fields are count rows of the joined table from first,
+// read by fields(kind).
+struct Kind {
+    Label name;
+    Bases bases = 0;
+    Group group = Group::core;
+    bool served = false;
+    bool content = true;
+    Holds identity = Holds::none;
+    std::uint8_t count = 0;
+    std::uint8_t first = 0;
+};
+static_assert(sizeof(Kind) == 23, "Kind's size is pinned: its label, five bytes and its fields' range");
+
+constexpr std::span<const Field> fields(const Kind& k) noexcept {
+    return std::span<const Field>(detail::OWN).subspan(k.first, k.count);
+}
+
+namespace detail {
+
+constexpr Bases OW = bit(Basis::owner_words);
+constexpr Bases OB = bit(Basis::observed);
+constexpr Bases CL = bit(Basis::claimed);
+constexpr Bases DE = bit(Basis::derived);
+constexpr Group core = Group::core;
+constexpr Group work = Group::work;
+
+// A table's rows, as a kind's count.
+template <std::size_t N>
+constexpr std::uint8_t count_of(const std::array<Field, N>& /*table*/) noexcept {
+    static_assert(N <= UINT8_MAX);
+    return static_cast<std::uint8_t>(N);
+}
+
+// The kinds with their ranges placed: each starts where the last ended.
+constexpr std::array<Kind, 22> placed(std::array<Kind, 22> rows) noexcept {
+    std::size_t at = 0;
+    for (Kind& k : rows) {
+        k.first = static_cast<std::uint8_t>(at);
+        at += k.count;
+    }
+    return rows;
+}
+
+}  // namespace detail
+
+// The kinds, in header's order of its kind names, each with its own
+// fields' count. A check allows observed or claimed, its method choosing
+// (check_basis).
+inline constexpr std::array<Kind, 22> KINDS = detail::placed({{
+    {"direction", detail::OW, detail::core, true, true, Holds::none, detail::count_of(detail::direction_fields)},
+    {"account", detail::OW, detail::core, true, true, Holds::none, detail::count_of(detail::account_fields)},
+    {"entity", detail::OB | detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::entity_fields)},
+    {"observation", detail::OB, detail::core, true, true, Holds::none, detail::count_of(detail::observation_fields)},
+    {"claim", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::claim_fields)},
+    {"decision", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::decision_fields)},
+    {"question", detail::CL, detail::core, true, true, Holds::question_id, detail::count_of(detail::question_fields)},
+    {"lesson", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::lesson_fields)},
+    {"episode", detail::OB | detail::CL, detail::core, false, true, Holds::none, detail::count_of(detail::episode_fields)},
+    {"relation", detail::CL, detail::core, true, true, Holds::none, detail::count_of(detail::relation_fields)},
+    {"goal", detail::CL, detail::work, true, true, Holds::none, detail::count_of(detail::goal_fields)},
+    {"clause", detail::DE, detail::work, true, true, Holds::clause_id, detail::count_of(detail::clause_fields)},
+    {"module", detail::CL | detail::DE, detail::work, true, true, Holds::none, detail::count_of(detail::module_fields)},
+    {"item", detail::CL, detail::work, true, true, Holds::item_id, detail::count_of(detail::item_fields)},
+    {"checkpoint", detail::CL, detail::work, true, true, Holds::lane, detail::count_of(detail::checkpoint_fields)},
+    {"measure", detail::CL | detail::OB, detail::work, true, true, Holds::none, detail::count_of(detail::measure_fields)},
+    {"map", detail::DE, detail::work, true, true, Holds::object, detail::count_of(detail::map_fields)},
+    {"check", detail::OB | detail::CL, Group::change, false, true, Holds::none, detail::count_of(detail::check_fields)},
+    {"accept", detail::OW, Group::change, false, true, Holds::none, detail::count_of(detail::accept_fields)},
+    {"retire", detail::CL, Group::change, false, true, Holds::none, detail::count_of(detail::retire_fields)},
+    {"forget", detail::OW, Group::change, false, false, Holds::none, 0},
+    {"usage", detail::OB | detail::CL, Group::usage, false, true, Holds::none, detail::count_of(detail::usage_fields)},
+}});
+static_assert(KINDS.back().first + KINDS.back().count == detail::OWN.size(), "the kinds' ranges cover the table");
+
+// The change kinds, which require a target.
+inline constexpr std::array<std::string_view, 4> CHANGE_KINDS = {"check", "accept", "retire", "forget"};
+
+// A kind's place in KINDS, or none outside this minor's 22.
+constexpr std::optional<std::size_t> index_of(std::string_view kind) noexcept {
+    for (std::size_t i = 0; i < KINDS.size(); ++i) {
+        if (KINDS[i].name == kind) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+constexpr bool served(std::string_view kind) noexcept {
+    const std::optional<std::size_t> i = index_of(kind);
+    return i.has_value() && KINDS[*i].served;
+}
+constexpr bool project_only(std::string_view kind) noexcept {
+    const std::optional<std::size_t> i = index_of(kind);
+    return i.has_value() && KINDS[*i].group == Group::work;
+}
+constexpr bool allows(std::string_view kind, Basis basis) noexcept {
+    const std::optional<std::size_t> i = index_of(kind);
+    return i.has_value() && (KINDS[*i].bases & bit(basis)) != 0;
+}
+// A check's basis by its method: observed for test, rerun and transcript,
+// claimed for review; none off the four, which leaves observed or claimed.
+constexpr std::optional<Basis> check_basis(std::string_view method) noexcept {
+    if (method == "review") {
+        return Basis::claimed;
+    }
+    if (method == "test" || method == "rerun" || method == "transcript") {
+        return Basis::observed;
+    }
+    return std::nullopt;
+}
+
+// How kind k carries common field c, by the common table's rows: none on a
+// kind with no content.
+constexpr Carried common_carried(const Kind& k, Common c) noexcept {
+    if (!k.content) {
+        return Carried::refused;
+    }
+    const bool on_served = k.served;
+    switch (c) {
+        case Common::subject:
+            if (!on_served || k.name == "map") {
+                return Carried::refused;
+            }
+            return k.name == "relation" ? Carried::optional : Carried::required;
+        case Common::applies_to:
+        case Common::expires: return on_served ? Carried::optional : Carried::refused;
+        case Common::when: return on_served || k.name == "retire" ? Carried::optional : Carried::refused;
+        case Common::source: return k.group == Group::usage ? Carried::refused : Carried::optional;
+        case Common::evidence:
+            if (k.group == Group::usage) {
+                return Carried::refused;
+            }
+            return k.name == "episode" ? Carried::optional : Carried::by_basis;
+        case Common::episode: return k.name == "episode" ? Carried::refused : Carried::by_writer;
+        case Common::band: return on_served ? Carried::required : Carried::refused;
+        case Common::admit: return on_served && k.name != "clause" ? Carried::by_admit : Carried::refused;
+        case Common::as_of:
+            if (k.name == "account") {
+                return Carried::required;
+            }
+            return k.name == "entity" || k.name == "observation" ? Carried::optional : Carried::refused;
+        case Common::item:
+            return on_served && k.name != "item" && k.name != "map" ? Carried::by_scope : Carried::refused;
+    }
+    return Carried::refused;
+}
+
+// A rule read for one entry: its writer's role (a slot's, loop or
+// import), its basis, on a pin its type, and its scope; a scope not given
+// is no project scope.
+constexpr Carried resolve(Carried c, std::string_view writer, Basis basis, std::string_view pin_type = {},
+                          std::string_view scope = {}) noexcept {
+    const std::string_view role = header::role(writer);
+    switch (c) {
+        case Carried::by_import: return role == "import" ? Carried::optional : Carried::refused;
+        case Carried::by_scope: return scope.starts_with("project:") ? Carried::optional : Carried::refused;
+        case Carried::by_basis:
+            return basis == Basis::claimed || basis == Basis::observed ? Carried::required : Carried::optional;
+        case Carried::by_writer: return role == "import" ? Carried::optional : Carried::required;
+        case Carried::by_admit: return role == "loop" ? Carried::optional : Carried::required;
+        case Carried::by_type: return pin_type == "tool" ? Carried::required : Carried::optional;
+        default: return c;
+    }
+}
+
+namespace detail {
+
+// A string member of the object at node i, or empty.
+template <typename B>
+constexpr std::string_view member(const canon::Basic<B>& v, json::Index i, std::string_view key) {
+    if (v.empty() || v.kind(i) != json::Kind::object) {
+        return {};
+    }
+    const std::optional<json::Index> m = v.find(i, key);
+    return m && v.kind(*m) == json::Kind::string ? v.text(*m) : std::string_view{};
+}
+
+}  // namespace detail
+
+// The tables agree with header's closed sets.
+static_assert([] {
+    for (std::size_t i = 0; i < KINDS.size(); ++i) {
+        if (KINDS[i].name != header::kind_names[i]) {
+            return false;
+        }
+    }
+    return CHANGE_KINDS == header::change_kinds;
+}());
+
+}  // namespace qiven3::entry::kinds

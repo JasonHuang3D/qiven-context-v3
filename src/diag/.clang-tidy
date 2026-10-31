@@ -1,0 +1,12 @@
+# The diagnostic entry's own configuration, on its parent's: its handlers'
+# state is at namespace scope, so that a handler allocates nothing (B25's
+# allowance); and Windows' SIGABRT handler runs on the thread that called
+# abort, not asynchronously, while Linux's handlers, signal.cpp's, call
+# only the async-signal-safe functions its case reads from the object; and
+# dbghelp declares MINIDUMP_TYPE, a set of flags, as an enum without their
+# combinations, which the minidump's type is.
+InheritParentConfig: true
+Checks: >-
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -bugprone-signal-handler,
+  -clang-analyzer-optin.core.EnumCastOutOfRange

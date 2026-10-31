@@ -1,0 +1,50 @@
+{
+  "name": "log",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/log/log.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "catalogue",
+      "default": [
+        "log.start",
+        "log.dropped",
+        "op.begin",
+        "op.end",
+        "error.typed",
+        "drive.request",
+        "drive.reply",
+        "case.end",
+        "fault.injected"
+      ],
+      "built": false
+    }
+  ],
+  "present": [
+    {
+      "name": "log",
+      "layer": "foundation",
+      "depends": [
+        "base",
+        "memory"
+      ],
+      "test_depends": [
+        "diag"
+      ],
+      "paths": [
+        "src/log/",
+        "tests/support/log/",
+        "tests/unit/log.cmake",
+        "tests/unit/log_*",
+        "tests/unit/ring_test.cpp",
+        "tests/unit/events_test.cpp",
+        "tests/drive/test_log.py",
+        "tests/drive/test_log_secret.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "compute",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/hal/hal.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "hal",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [],
+      "paths": [
+        "src/hal/",
+        "tests/support/fake_hal/"
+      ]
+    }
+  ]
+}

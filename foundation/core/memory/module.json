@@ -1,0 +1,33 @@
+{
+  "name": "memory",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/memory/memory.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "memory",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/memory/",
+        "tests/unit/memory.cmake",
+        "tests/unit/memory_test.cpp",
+        "tests/unit/arena_test.cpp",
+        "tests/unit/pool_test.cpp",
+        "tests/unit/free_test.cpp",
+        "tests/unit/free_demo.cpp",
+        "tests/unit/fail_demo.cpp",
+        "tests/drive/test_free.py",
+        "tests/drive/test_fail.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "tools",
+  "layer": "tools",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "tooling",
+      "layer": "tooling",
+      "depends": [],
+      "test_depends": [
+        "platform"
+      ],
+      "paths": [
+        "tools/__init__.py",
+        "tools/debug*",
+        "tools/dumps.py",
+        "tools/fuzz_seeds.py",
+        "tools/git_shim.*",
+        "tools/linux*",
+        "tools/loop*",
+        "tools/nav*",
+        "tools/watch.py",
+        "tools/windows-pins.txt",
+        "tests/drive/fake_git.py",
+        "tests/drive/own_git.py",
+        "tests/drive/pinned.py",
+        "tests/drive/fixtures/",
+        "tests/drive/test_git_*",
+        "tests/drive/test_linux_pins.py",
+        "tests/drive/test_loop*",
+        "tests/drive/test_nav.py",
+        "tests/drive/test_tier_one.py",
+        "tests/drive/test_watch.py",
+        "tests/drive/test_dumps.py"
+      ]
+    }
+  ]
+}

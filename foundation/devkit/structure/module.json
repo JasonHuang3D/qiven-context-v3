@@ -1,0 +1,32 @@
+{
+  "name": "structure",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "structure",
+      "layer": "tooling",
+      "depends": [
+        "store",
+        "checked",
+        "write",
+        "location",
+        "app",
+        "driver",
+        "child",
+        "faults"
+      ],
+      "test_depends": [],
+      "paths": [
+        "tests/structure/",
+        "tests/support/headers/"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "name": "recordlog",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/store/contract.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "limits",
+      "default": {
+        "target_size": 536870912,
+        "warning_size": 671088640,
+        "max_size": 805306368,
+        "target_count": 400000,
+        "warning_count": 480000,
+        "max_count": 550000
+      },
+      "built": true
+    },
+    {
+      "name": "application_id",
+      "default": 1903571713,
+      "built": false
+    },
+    {
+      "name": "user_version",
+      "default": 2,
+      "built": false
+    },
+    {
+      "name": "id_bytes",
+      "default": 71,
+      "built": false
+    },
+    {
+      "name": "scope_bytes",
+      "default": 56,
+      "built": false
+    },
+    {
+      "name": "lane_bytes",
+      "default": 32,
+      "built": false
+    }
+  ],
+  "present": [
+    {
+      "name": "store",
+      "layer": "foundation",
+      "depends": [
+        "keys",
+        "memory",
+        "sqlite",
+        "platform",
+        "base"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/store/",
+        "tests/support/stores/",
+        "tests/support/seams/",
+        "tests/unit/store.cmake",
+        "tests/unit/store_*",
+        "tests/unit/stores_test.cpp",
+        "tests/unit/scan_test.cpp",
+        "tests/unit/seams_test.cpp"
+      ]
+    },
+    {
+      "name": "keys",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [],
+      "paths": [
+        "src/keys/"
+      ]
+    }
+  ]
+}
