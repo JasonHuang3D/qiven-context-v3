@@ -458,7 +458,7 @@ function(qiven3_executable name)
 endfunction()
 
 # The build's targets and their links, for the modules' check
-# (tools/loop_modules.py, against tools/modules.json).
+# (tools/loop_modules.py, against the table the module.json files give).
 cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
 
 enable_testing()

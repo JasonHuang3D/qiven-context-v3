@@ -1,0 +1,14 @@
+{
+  "name": "storage_sqlite",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "store"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "erp",
+  "layer": "products",
+  "status": "slot",
+  "kind": "module",
+  "may_depend": [
+    "core",
+    "system",
+    "services",
+    "kits"
+  ],
+  "platforms": [],
+  "adopted": "2026-10-31",
+  "parameters": []
+}

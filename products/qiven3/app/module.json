@@ -1,0 +1,30 @@
+{
+  "name": "app",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "app",
+      "layer": "product",
+      "depends": [
+        "location",
+        "store",
+        "write",
+        "wire",
+        "log",
+        "diag",
+        "driver"
+      ],
+      "paths": [
+        "src/app/",
+        "tests/drive/test_arguments.py",
+        "tests/machine/test_platform_location.py"
+      ]
+    }
+  ]
+}

@@ -12,28 +12,45 @@ set(qiven3_bin "${PROJECT_BINARY_DIR}/bin")
 
 # qiven3_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...]
 #                  [LIMIT <seconds>])
-# The modules of tools/modules.json, each "<name>;<regex>" of one of its
-# paths: a path ending in / holds every file under it, any other is a
-# pattern on the whole path, * any run of characters (tools/loop_modules.py).
-file(READ "${PROJECT_SOURCE_DIR}/tools/modules.json" qiven3_table)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tools/modules.json")
+# The modules of the table, each "<name>|<regex>" of one of its paths: the
+# present rows of each built module.json, the table's files the root's,
+# tools/ one and each under foundation/, kits/ and products/, in sorted path
+# order (tools/loop_modules.py). A path ending in / holds every file under
+# it, any other is a pattern on the whole path, * any run of characters.
+file(GLOB_RECURSE qiven3_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
+     RELATIVE "${PROJECT_SOURCE_DIR}"
+     "${PROJECT_SOURCE_DIR}/foundation/module.json" "${PROJECT_SOURCE_DIR}/kits/module.json"
+     "${PROJECT_SOURCE_DIR}/products/module.json")
+list(APPEND qiven3_table_files module.json tools/module.json)
+list(SORT qiven3_table_files)
 set(qiven3_module_paths "")
-string(JSON qiven3_count LENGTH "${qiven3_table}" modules)
-math(EXPR qiven3_last "${qiven3_count} - 1")
-foreach(qiven3_i RANGE ${qiven3_last})
-  string(JSON qiven3_name GET "${qiven3_table}" modules ${qiven3_i} name)
-  string(JSON qiven3_paths GET "${qiven3_table}" modules ${qiven3_i} paths)
-  string(JSON qiven3_count LENGTH "${qiven3_paths}")
-  math(EXPR qiven3_paths_last "${qiven3_count} - 1")
-  foreach(qiven3_j RANGE ${qiven3_paths_last})
-    string(JSON qiven3_path GET "${qiven3_paths}" ${qiven3_j})
-    string(REPLACE "." "\\." qiven3_regex "${qiven3_path}")
-    string(REPLACE "+" "\\+" qiven3_regex "${qiven3_regex}")
-    string(REPLACE "*" ".*" qiven3_regex "${qiven3_regex}")
-    if(NOT qiven3_path MATCHES "/$")
-      string(APPEND qiven3_regex "$")
-    endif()
-    list(APPEND qiven3_module_paths "${qiven3_name}|^${qiven3_regex}")
+foreach(qiven3_file IN LISTS qiven3_table_files)
+  file(READ "${PROJECT_SOURCE_DIR}/${qiven3_file}" qiven3_table)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/${qiven3_file}")
+  string(JSON qiven3_status GET "${qiven3_table}" status)
+  if(NOT qiven3_status STREQUAL "built")
+    continue()
+  endif()
+  string(JSON qiven3_count LENGTH "${qiven3_table}" present)
+  if(qiven3_count EQUAL 0)  # its rows another module's (from)
+    continue()
+  endif()
+  math(EXPR qiven3_last "${qiven3_count} - 1")
+  foreach(qiven3_i RANGE ${qiven3_last})
+    string(JSON qiven3_name GET "${qiven3_table}" present ${qiven3_i} name)
+    string(JSON qiven3_paths GET "${qiven3_table}" present ${qiven3_i} paths)
+    string(JSON qiven3_count LENGTH "${qiven3_paths}")
+    math(EXPR qiven3_paths_last "${qiven3_count} - 1")
+    foreach(qiven3_j RANGE ${qiven3_paths_last})
+      string(JSON qiven3_path GET "${qiven3_paths}" ${qiven3_j})
+      string(REPLACE "." "\\." qiven3_regex "${qiven3_path}")
+      string(REPLACE "+" "\\+" qiven3_regex "${qiven3_regex}")
+      string(REPLACE "*" ".*" qiven3_regex "${qiven3_regex}")
+      if(NOT qiven3_path MATCHES "/$")
+        string(APPEND qiven3_regex "$")
+      endif()
+      list(APPEND qiven3_module_paths "${qiven3_name}|^${qiven3_regex}")
+    endforeach()
   endforeach()
 endforeach()
 
@@ -50,7 +67,7 @@ function(qiven3_module_of path out)
       return()
     endif()
   endforeach()
-  message(FATAL_ERROR "qiven3: ${path} is in no module of tools/modules.json")
+  message(FATAL_ERROR "qiven3: ${path} is in no module of the table's present rows (the module.json files)")
 endfunction()
 
 # A case binary: its sources, linked with the log's main and the runner

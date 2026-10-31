@@ -2,8 +2,9 @@
 a scratch checkout, its tests listed by their modules' labels. What each
 change selects: a module's file, or its own .cmake, that module and every
 module depending on it, transitively; a new file its module and theirs; a
-tools/ file the tooling alone; a change to the table the tooling and each
-module whose row changed, with its dependents; a file of the no-test row
+tools/ file the tooling alone; a change to a table file (the tree's
+module.json files) the tooling, the module whose file it is and each
+module whose row changed, with their dependents; a file of the no-test row
 nothing; a file of the whole build, of the support or of no module every
 test; on the checkout's table, a file of driver's that app's tests read
 app. Then the record through runs on fakes: a new tree runs every test
@@ -26,13 +27,14 @@ from pathlib import Path
 
 from tests.drive.own_git import git, own_git
 from tests.drive.test_loop_ci import load_loop
+from tests.drive.test_loop_modules import built_file, from_tree, group_file, slot_file
 from tools import loop_git
 
 LOOP = load_loop()
 SELECT = LOOP.SELECT
 TREE = "build/windows-msvc"
 TESTED = ("base", "utc", "entry", "write", "tooling")  # each module's two tests, ten in all
-TABLE = {"modules": [
+ROWS = [
     {"name": "build", "layer": "whole-build", "depends": [], "paths": ["CMakeLists.txt"]},
     {"name": "notes", "layer": "no-test", "depends": [], "paths": [".gitignore", "README.md"]},
     {"name": "support", "layer": "support", "depends": [], "paths": ["tests/__init__.py", "tests/support/"]},
@@ -40,7 +42,21 @@ TABLE = {"modules": [
     {"name": "utc", "layer": "foundation", "depends": [], "paths": ["src/utc/"]},
     {"name": "entry", "layer": "product", "depends": ["base"], "paths": ["src/entry/", "tests/unit/entry.cmake"]},
     {"name": "write", "layer": "product", "depends": ["entry"], "paths": ["src/write/"]},
-    {"name": "tooling", "layer": "tooling", "depends": [], "paths": ["tools/"]}]}
+    {"name": "tooling", "layer": "tooling", "depends": [], "paths": ["tools/"]}]
+# The table's files: a built file with two rows (base's), one with none and
+# from, a slot, a group.
+LAYOUT = {
+    "module.json": built_file("repository", "repository", [ROWS[1], ROWS[0]]),
+    "foundation/module.json": group_file("foundation", "foundation"),
+    "foundation/core/base/module.json": built_file("base", "core", ROWS[3:5]),
+    "foundation/core/time/module.json": built_file("time", "core", [], **{"from": ["utc"]}),
+    "foundation/devkit/test/module.json": built_file("test", "devkit", ROWS[2:3]),
+    "kits/ai/module.json": slot_file("ai", "kits"),
+    "products/entry/module.json": built_file("entry", "products", ROWS[5:6]),
+    "products/write/module.json": built_file("write", "products", ROWS[6:7]),
+    "tools/module.json": built_file("tools", "tools", ROWS[7:]),
+}
+TABLE = from_tree(LAYOUT)[0]
 FILES = {
     ".gitignore": "build/\n",
     "CMakeLists.txt": "project(p)\n",
@@ -53,7 +69,7 @@ FILES = {
     "tests/support/main.cpp": "// main\n",
     "tests/unit/entry.cmake": "# entry\n",
     "tools/loop.py": "# loop\n",
-    "tools/modules.json": json.dumps(TABLE, indent=1) + "\n",
+    **{path: json.dumps(obj, indent=1) + "\n" for path, obj in LAYOUT.items()},
 }
 
 
@@ -146,16 +162,23 @@ class Choose(unittest.TestCase):
                 self.assertIn(said, why)
 
     def test_table(self):
-        """The table changed: the tooling, and each module whose row changed
-        with its dependents; a row unchanged selects nothing."""
-        table = json.loads(json.dumps(TABLE))
-        table["comment"] = "a comment"
-        self.assertEqual(self.choose(["tools/modules.json"], table)[1], {"tooling": "changed"})
-        table["modules"][5]["paths"].append("tests/unit/entry_test.cpp")
-        tests, why = self.choose(["tools/modules.json"], table)
-        self.assertEqual(why, {"entry": "changed in the table", "write": "depending on entry", "tooling": "changed"})
+        """A table file changed: the tooling, the module whose file it is,
+        and each module whose row changed, with their dependents; a row
+        unchanged selects nothing. A slot's or a group's README.md, no table
+        file, nothing."""
+        self.assertEqual(self.choose(["kits/ai/module.json"])[1], {"tooling": "changed"})
+        self.assertEqual(self.choose(["foundation/module.json"])[1], {"tooling": "changed"})
+        self.assertEqual(self.choose(["kits/ai/README.md", "foundation/README.md"]), ([], {}))
+        tests, why = self.choose(["products/entry/module.json"])
+        self.assertEqual(why, {"entry": "changed", "write": "depending on entry", "tooling": "changed"})
         self.assertEqual(len(tests), 6)
-        self.assertIsNone(self.choose(["tools/modules.json"], TABLE, {})[0])  # no rows recorded: the support's too
+        table = json.loads(json.dumps(TABLE))
+        next(m for m in table["modules"] if m["name"] == "utc")["paths"].append("tests/unit/utc_test.cpp")
+        tests, why = self.choose(["foundation/core/base/module.json"], table)
+        self.assertEqual(why, {"base": "changed", "utc": "changed in the table", "entry": "depending on base",
+                               "write": "depending on base", "tooling": "changed"})
+        self.assertEqual(len(tests), 10)
+        self.assertIsNone(self.choose(["tools/module.json"], TABLE, {})[0])  # no rows recorded: the support's too
 
     def test_every_module_named(self):
         """More than three modules chosen for one reason: the line names each."""

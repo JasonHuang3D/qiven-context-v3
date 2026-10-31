@@ -1,8 +1,8 @@
 """The CTest wiring: the Python side's skip code, one whole test id selected
 by -k, and each test's labels and properties as the test presets select
-them: each labelled with one module's name (tools/modules.json), behind the watcher, under its limit by its labels (a slow test
-1,800 s, a fast one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s
-past it."""
+them: each labelled with one module's name (the table, tools/loop_modules.py),
+behind the watcher, under its limit by its labels (a slow test 1,800 s, a fast
+one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s past it."""
 
 import json
 import re
@@ -12,10 +12,11 @@ from pathlib import Path
 
 from tests import SKIP_CODE
 from tests.drive import binaries
+from tools import loop_modules
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis", "loop"}
-MODULES = {m["name"] for m in json.loads((binaries.ROOT / "tools" / "modules.json").read_bytes())["modules"]}
+MODULES = {m["name"] for m in loop_modules.load(binaries.ROOT)["modules"]}
 SHIM = binaries.ROOT / "tools" / "loop_shim.py"
 # The structure tests start no process and read no machine fact: fast, and
 # not drive; but the analysis tools' controls, which run the tools on the

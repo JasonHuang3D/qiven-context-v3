@@ -1,5 +1,5 @@
 # The unit cases, each module's registered by its own file beside this one
-# (tools/modules.json names each file's module); what stays here is the
+# (the module.json files' table names each file's module); what stays here is the
 # support's.
 include("${CMAKE_CURRENT_SOURCE_DIR}/memory.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/base.cmake")

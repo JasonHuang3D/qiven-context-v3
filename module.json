@@ -1,0 +1,24 @@
+{
+  "name": "repository",
+  "layer": "repository",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "notes",
+      "layer": "no-test",
+      "depends": [],
+      "paths": [
+        ".github/",
+        ".gitattributes",
+        ".gitignore",
+        "LICENSE",
+        "README.md"
+      ]
+    }
+  ]
+}

@@ -11,7 +11,8 @@ which fails a test of no such class that starts git. Each
 line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
 test's labels are its package's, or its module's where MODULE_LABELS names
 it, below, and those its class names in ctest_labels, then the name of the
-module of tools/modules.json its file is in, by which the loop selects it
+module of the table its file is in (the tree's module.json files, read by
+tools/loop_modules.py), by which the loop selects it
 (tools/loop_select.py); a class whose ctest_serial is true runs alone; a
 class whose ctest_limit is a whole number of seconds states the watcher's
 limit for its tests, which otherwise their labels give
@@ -22,8 +23,7 @@ a file in no module, or a limit of another form fails the listing, and so
 the build.
 """
 
-import fnmatch
-import json
+import runpy
 import sys
 import unittest
 from pathlib import Path
@@ -63,7 +63,9 @@ def listed(loop, root="."):
     loader = unittest.TestLoader()
     suite = loader.discover(str(Path(root) / "tests"), top_level_dir=str(root))
     rows, errors = [], []
-    table = json.loads((Path(root) / "tools" / "modules.json").read_text(encoding="utf-8"))
+    # The table's one reader, by runpy: under -I tools/ is off sys.path.
+    modules = runpy.run_path(str(Path(root) / "tools" / "loop_modules.py"))
+    table = modules["load"](root)
     for test in walk(suite):
         test_id = test.id()
         error = getattr(test, "_exception", None)
@@ -87,23 +89,13 @@ def listed(loop, root="."):
         if limit is not None and (type(limit) is not int or limit < 1):
             errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
             continue
-        owner = owner_of("/".join(test_id.split(".")[:3]) + ".py", table)
-        if owner is None:
-            errors.append(f"{test_id}: its file is in no module of tools/modules.json")
+        path = "/".join(test_id.split(".")[:3]) + ".py"
+        owner = modules["owners"](table, [path])[path]
+        if not owner:
+            errors.append(f"{test_id}: its file is in no module of the table")
             continue
-        rows.append((test_id, (GIT_LABELS if git else labels) + (owner,), serial, limit))
+        rows.append((test_id, (GIT_LABELS if git else labels) + (owner[0],), serial, limit))
     return rows, errors + [str(error) for error in loader.errors]
-
-
-def owner_of(path, table):
-    """The name of the module of tools/modules.json holding path, its label:
-    a path ending in / holds every file under it, any other is a pattern on
-    the whole path (tools/loop_modules.py)."""
-    for module in table["modules"]:
-        for pattern in module["paths"]:
-            if path.startswith(pattern) if pattern.endswith("/") else fnmatch.fnmatchcase(path, pattern):
-                return module["name"]
-    return None
 
 
 def main(argv):

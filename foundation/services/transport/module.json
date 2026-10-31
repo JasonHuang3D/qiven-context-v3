@@ -1,0 +1,27 @@
+{
+  "name": "transport",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "wire",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "base",
+        "platform",
+        "faults"
+      ],
+      "paths": [
+        "src/wire/",
+        "tests/unit/wire.cmake",
+        "tests/unit/wire_*"
+      ]
+    }
+  ]
+}

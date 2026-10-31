@@ -1,7 +1,19 @@
-"""The modules' check: tools/modules.json kept true of the checkout.
+"""The modules' check: the modules' table kept true of the checkout.
 
     py -3.15 -I tools/loop_modules.py SOURCE [BUILD]
     py -3.15 -I tools/loop_modules.py --help
+
+The table is the tree: its files are module.json at the root,
+tools/module.json and each module.json under foundation/, kits/ and
+products/, read in sorted path order. Its rows: each built module's present
+rows, its own README.md and module.json (the root's module.json alone) added
+to its first row, or to the first row its from names when it has none; a
+slot's directory a row of the no-test layer, and a group's README.md and
+module.json one. A table file that does not parse, lacks or adds a key for
+its status, or names a layer or a status this check does not know is
+refused; so are two table files or two rows of one name, a from naming no
+row, a tracked file in a slot's directory, or directly in a group's, but
+its README.md and module.json.
 
 Each tracked file in one module; each module's dependencies, followed
 transitively, covering its includes (each #include "..." resolved to the
@@ -26,7 +38,14 @@ from pathlib import Path
 # git's one door (tools/loop_git.py), by runpy: under -I this directory is off sys.path.
 GIT = runpy.run_path(str(Path(__file__).resolve().with_name("loop_git.py")))
 
-TABLE = Path(__file__).resolve().parent / "modules.json"
+ROOT = Path(__file__).resolve().parents[1]  # the checkout this file is in
+TOPS = ("foundation", "kits", "products")  # the trees whose every module.json is a table file
+FILE_LAYERS = ("devkit", "core", "system", "services", "kits", "products", "foundation", "tools", "repository")
+KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
+    "built": ("name", "layer", "status", "platforms", "adopted", "parameters", "present"),
+    "slot": ("name", "layer", "status", "kind", "may_depend", "platforms", "adopted", "parameters"),
+    "group": ("name", "layer", "status", "adopted"),
+}
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
 SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*"([^"]+)"', re.M)
@@ -34,9 +53,94 @@ ROOTS = ("src", "tests", "third_party/sqlite")  # the include directories the bu
 VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
 
 
-def load(path=TABLE):
-    """The table: {"modules": [...], "exceptions": [...]}."""
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+def is_table_file(path):
+    """Whether a checkout's path, from its root, is one of the table's files."""
+    return path in ("module.json", "tools/module.json") or (
+        path.endswith("/module.json") and path.split("/", 1)[0] in TOPS)
+
+
+def table_files(root):
+    """The table's files under a checkout's root, from it, sorted."""
+    root = Path(root)
+    found = [p.relative_to(root).as_posix() for top in TOPS if (root / top).is_dir()
+             for p in (root / top).rglob("module.json") if p.is_file()]
+    return sorted(found + [p for p in ("module.json", "tools/module.json") if (root / p).is_file()])
+
+
+def table_of(texts, files=None):
+    """The table, {"modules": [rows]}, and its errors, from the table's
+    files {path: text}; given the tracked files, what a slot's or a group's
+    directory holds checked too."""
+    errors, rows, names, later, dirs = [], [], {}, [], []
+    for path in sorted(texts):
+        where = path.rpartition("/")[0]
+        own = [f"{where}/README.md", f"{where}/module.json"] if where else [path]
+        try:
+            data = json.loads(texts[path])
+            status = data.get("status")
+        except (ValueError, AttributeError) as error:
+            errors.append(f"table file {path}: does not parse: {error}")
+            continue
+        if status not in KEYS:
+            errors.append(f"table file {path}: status {status} is none of {', '.join(KEYS)}")
+            continue
+        want = set(KEYS[status]) | ({"from"} if status == "built" and data.get("present") == [] else set())
+        lacks, adds = want - set(data), set(data) - want - ({"of"} if status == "slot" else set())
+        if lacks or adds:
+            errors.append(f"table file {path}: " + "; ".join(
+                f"{how} {', '.join(sorted(keys))}" for how, keys in (("lacks", lacks), ("adds", adds)) if keys))
+            continue
+        if status == "built" and any(not isinstance(row, dict) or set(row) != {"name", "layer", "depends", "paths"}
+                                     for row in data["present"]):
+            errors.append(f"table file {path}: a present row lacks or adds a key of name, layer, depends, paths")
+            continue
+        if data["layer"] not in FILE_LAYERS:
+            errors.append(f"table file {path}: layer {data['layer']} is none of {', '.join(FILE_LAYERS)}")
+        if data["name"] in names:
+            errors.append(f"table file {path}: name {data['name']} is {names[data['name']]}'s too")
+        names.setdefault(data["name"], path)
+        if status == "built":
+            mine = [dict(row, paths=list(row["paths"])) for row in data["present"]]
+            if mine:
+                mine[0]["paths"] += own
+            else:
+                later.append((path, data["from"], own))
+            rows += [(path, row) for row in mine]
+        else:
+            paths = [where + "/"] if status == "slot" else own
+            rows.append((path, {"name": data["name"], "layer": "no-test", "depends": [], "paths": paths}))
+            dirs.append((status, data["name"], where, own))
+    named = {}
+    for path, row in rows:
+        if row["name"] in named:
+            errors.append(f"row {row['name']}: in {named[row['name']][0]} and {path}")
+        named.setdefault(row["name"], (path, row))
+    for path, names_from, own in later:
+        missing = [name for name in names_from if name not in named]
+        errors += [f"table file {path}: from {name} names no row" for name in missing]
+        if names_from and not missing:
+            named[names_from[0]][1]["paths"] += own
+    for status, name, where, own in dirs:
+        for f in files or ():
+            inside = f.startswith(where + "/") if status == "slot" else f.rpartition("/")[0] == where
+            if inside and f not in own:
+                errors.append(f"{status} {name}: its directory holds {f}")
+    return {"modules": [row for _, row in rows]}, errors
+
+
+def tree(root=ROOT, files=None):
+    """table_of() over a checkout's table files."""
+    root = Path(root)
+    return table_of({p: (root / p).read_text(encoding="utf-8") for p in table_files(root)}, files)
+
+
+def load(root=ROOT):
+    """A checkout's table, {"modules": [...]}; ValueError naming its first
+    error, when it has any."""
+    table, errors = tree(root)
+    if errors:
+        raise ValueError(f"the table: {errors[0]}" + (f", and {len(errors) - 1} more" if len(errors) > 1 else ""))
+    return table
 
 
 def holds(pattern, path):
@@ -182,15 +286,15 @@ def tracked(source):
     return [p for p in done.stdout.decode("utf-8").split("\0") if p]
 
 
-def run(source, build=None, table_path=None):
-    """The check's errors on a checkout and, given one, its build tree, and
-    the vendored includes left unresolved."""
+def run(source, build=None):
+    """The check's errors on a checkout, its table read from its tree, and,
+    given one, its build tree, and the vendored includes left unresolved."""
     source = Path(source)
-    table = load(table_path or source / "tools" / "modules.json")
     files = tracked(source)
+    table, errors = tree(source, files)
     targets = codemodel(build, source) if build else None
     left = []
-    return check(table, files, lambda f: (source / f).read_bytes(), targets, left), left
+    return errors + check(table, files, lambda f: (source / f).read_bytes(), targets, left), left
 
 
 def main(argv):

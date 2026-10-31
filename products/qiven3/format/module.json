@@ -1,0 +1,14 @@
+{
+  "name": "format",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "base"
+  ]
+}

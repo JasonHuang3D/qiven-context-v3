@@ -33,8 +33,8 @@ jobs as below, or build or test of the jobs named:
   every step of the job.
 Tiers 1 and 2 run the modules' check (tools/loop_modules.py) before each
 ctest step's selection, an error failing the step with no test run, then
-narrow the step to its affected tests by the modules' table,
-tools/modules.json (tools/loop_select.py): the modules of the files
+narrow the step to its affected tests by the modules' table, the tree's
+module.json files (tools/loop_select.py): the modules of the files
 changed against the step's last passing run in its tree, which the tree
 records, and every module depending on one, by their tests' labels; the
 tooling's alone on a tools/ change; every test on a change of the whole

@@ -1,0 +1,68 @@
+{
+  "name": "tests",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "driver",
+      "layer": "product",
+      "depends": [
+        "store",
+        "checked",
+        "location",
+        "wire",
+        "hal",
+        "log",
+        "diag",
+        "platform"
+      ],
+      "paths": [
+        "tests/driver/",
+        "tests/contract/",
+        "tests/machine/__init__.py",
+        "tests/machine/test_platform_windows.py",
+        "tests/machine/windows_holds.py",
+        "tests/slow/",
+        "tests/drive/samples.py",
+        "tests/drive/test_store_session.py",
+        "tests/drive/test_streams.py",
+        "tests/drive/test_wiring.py"
+      ]
+    },
+    {
+      "name": "child",
+      "layer": "product",
+      "depends": [
+        "location",
+        "platform",
+        "log",
+        "diag"
+      ],
+      "paths": [
+        "tests/child/",
+        "tests/unit/child.cmake",
+        "tests/unit/win_process_*",
+        "tests/drive/test_differential.py",
+        "tests/drive/test_refs.py"
+      ]
+    },
+    {
+      "name": "fuzzing",
+      "layer": "product",
+      "depends": [
+        "base",
+        "entry",
+        "wire",
+        "write"
+      ],
+      "paths": [
+        "tests/fuzz/"
+      ]
+    }
+  ]
+}

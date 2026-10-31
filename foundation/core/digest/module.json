@@ -1,0 +1,14 @@
+{
+  "name": "digest",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "base"
+  ]
+}

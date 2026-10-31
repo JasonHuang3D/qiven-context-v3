@@ -1,0 +1,48 @@
+{
+  "name": "sqlite",
+  "layer": "system",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "compile_options",
+      "default": [
+        "SQLITE_THREADSAFE=1",
+        "SQLITE_DQS=0",
+        "SQLITE_DEFAULT_SYNCHRONOUS=2",
+        "SQLITE_DEFAULT_WAL_SYNCHRONOUS=2",
+        "SQLITE_DEFAULT_PAGE_SIZE=4096",
+        "SQLITE_DEFAULT_CACHE_SIZE=-2000",
+        "SQLITE_DEFAULT_WAL_AUTOCHECKPOINT=1000",
+        "SQLITE_DEFAULT_AUTOVACUUM=0",
+        "SQLITE_SECURE_DELETE",
+        "SQLITE_TEMP_STORE=2",
+        "SQLITE_DEFAULT_FOREIGN_KEYS=1",
+        "SQLITE_TRUSTED_SCHEMA=0",
+        "SQLITE_ENABLE_FTS5",
+        "SQLITE_ENABLE_API_ARMOR",
+        "SQLITE_LIKE_DOESNT_MATCH_BLOBS",
+        "SQLITE_STRICT_SUBTYPE=1",
+        "SQLITE_OMIT_AUTOINIT",
+        "SQLITE_OMIT_SHARED_CACHE",
+        "SQLITE_OMIT_LOAD_EXTENSION",
+        "SQLITE_OMIT_DECLTYPE",
+        "SQLITE_OMIT_PROGRESS_CALLBACK"
+      ],
+      "built": false
+    }
+  ],
+  "present": [
+    {
+      "name": "sqlite",
+      "layer": "foundation",
+      "depends": [],
+      "paths": [
+        "third_party/sqlite/"
+      ]
+    }
+  ]
+}

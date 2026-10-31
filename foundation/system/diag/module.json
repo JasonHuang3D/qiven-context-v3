@@ -1,0 +1,22 @@
+{
+  "name": "diag",
+  "layer": "system",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "diag",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "paths": [
+        "src/diag/"
+      ]
+    }
+  ]
+}

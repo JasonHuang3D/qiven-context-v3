@@ -1,0 +1,23 @@
+{
+  "name": "matcher",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "matcher",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "faults"
+      ],
+      "paths": [
+        "src/entry/matcher*"
+      ]
+    }
+  ]
+}

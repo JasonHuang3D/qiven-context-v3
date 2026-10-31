@@ -1,7 +1,8 @@
 """The local loop's affected tests (tools/loop.py): the tests of a ctest
 step, in tiers 1 and 2, that the change since the step last passed in its
-tree reaches by the modules' table, tools/modules.json, never by a list
-kept by hand or a reading of the build.
+tree reaches by the modules' table, never by a list kept by hand or a
+reading of the build. The table is the tree's module.json files, read by
+tools/loop_modules.py, as the run begins.
 
 - The check first: each such step runs the modules' check,
   tools/loop_modules.py, on the checkout and the step's tree. An error
@@ -16,8 +17,9 @@ kept by hand or a reading of the build.
   toolchain's pins changed among them (tools/loop_run.py's own_tree): the
   record goes with the tree it describes.
 - Each changed file selects its module, by the table's paths; a change to
-  the table selects the tooling, whose file it is, and each module whose
-  row changed; then every module depending on one selected, transitively.
+  a table file selects the tooling, whose reading it is, and each module
+  whose row changed; then every module depending on one selected,
+  transitively.
   A file of the no-test row selects nothing. The step runs the tests that
   carry a selected module's label in ctest's own listing
   (--show-only=json-v1), and any test that carries no module's.
@@ -42,9 +44,8 @@ from pathlib import Path
 
 RECORD = ".qiven3-loop-passed.json"
 CHOSEN = ".qiven3-loop-tests-{}.txt"  # the step's slug
-TABLE = "tools/modules.json"
 CHECK = Path(__file__).resolve().parent / "loop_modules.py"
-MODULES = runpy.run_path(str(CHECK))  # the table's one reading: owners(), reach()
+MODULES = runpy.run_path(str(CHECK))  # the table's one reading: load(), owners(), reach()
 EVERY = ("whole-build", "support")  # the layers whose change runs every test
 SHOWN = 3  # the files a reason shows at most; a module chosen is always named
 
@@ -107,7 +108,9 @@ def choose(table, rows, changed):
         for name in names:
             why[name] = "changed"
             files.setdefault(name, []).append(path)
-    if TABLE in changed:
+    if any(MODULES["is_table_file"](path) for path in changed):
+        reader = MODULES["owners"](table, ["tools/loop_modules.py"])["tools/loop_modules.py"]  # the tooling
+        why.update({name: "changed" for name in reader if name not in why})
         why.update({name: "changed in the table" for name in now if rows.get(name) != now[name] and name not in why})
     every = sorted(name for name in why if now[name]["layer"] in EVERY)
     if lost:
@@ -152,7 +155,7 @@ class Selection:
         own_tree)."""
         self.sources = blobs(self.root, self.git)
         try:
-            self.table = json.loads((self.root / TABLE).read_text(encoding="utf-8"))
+            self.table = MODULES["load"](self.root)
         except (OSError, ValueError):
             self.table = None
         self.emptied = dict(emptied or {})
@@ -205,7 +208,7 @@ class Selection:
         if self.sources is None:
             why, every = None, "git cannot list the checkout"
         elif self.table is None:
-            why, every = None, f"{TABLE} cannot be read"
+            why, every = None, "the modules' table cannot be read"
         elif record is None and tree in self.emptied:
             why, every = None, f"its tree emptied, {self.emptied[tree]}"
         elif record is None:
