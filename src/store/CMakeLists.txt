@@ -29,6 +29,7 @@ add_library(qiven3_store STATIC
   sqlite_open.cpp
   sqlite_read.cpp
   sqlite_store.hpp
+  sqlite_store_impl.hpp
   sqlite_write.cpp
   stage.cpp
   stage.hpp
