@@ -1,24 +1,18 @@
-// store/sqlite's budgets, counts and fault runs, on the fake, over a
-// scratch directory of the case's own and one course of steps on a store:
-// created; A, B and D appended, then ACC; head, heads, header, body and
-// forgotten of A; a scan read whole; size; B forgotten by E under the
-// guard; purge; a second object opened and closed, read-write, then
-// read-only; the guard alone. budget: each step's counted peak (the
-// store's peak(), a scan's) within its budget, 1 MiB plus 4 times the
-// lines given, and the engine's peak, its heap's and its page cache's
-// slots', on a fresh engine heap for each step, the store reopened on it
-// first, within the engine's budget for each connection the step holds.
+// store/sqlite's budgets, counts and fault runs, on the fake, over a scratch directory of the case's own and one
+// course of steps on a store of plain records: created; A, B and D appended, then ACC; head, heads, header, body and
+// forgotten of A; a scan read whole; size; B forgotten by E under the guard; purge; a second object opened and
+// closed, read-write, then read-only; the guard alone; each case's course ends verified, then reopened read-only and
+// verified. budget: each step's counted peak (the store's peak(), a scan's) within its budget, 1 MiB plus 4 times
+// the lines given, and the engine's peak, its heap's and its page cache's slots', on a fresh engine heap for each
+// step, the store reopened on it first, within the engine's budget for each connection the step holds.
 // counts: each step's allocations, by allocator (the store's arenas, the engine heap, the caller's arena), its
 // engine calls the wrapper maps and its platform calls, exactly. faults: the steps but the create and the forget,
 // which store_sqlite_parts_test.cpp runs in parts, each within 30 s on every job; a step outside the case's run
-// once, unfaulted: each step run with each of these failed in turn: each run MemoryError,
-// PlatformError or the failed engine call's StoreLocked io, or an
-// allocation the engine absorbs, the step completing; after a refused run
-// the caller's arena and the fake's pages given back, no transaction left
-// open, the store as its reads give it unchanged; a run the engine
-// absorbed, its result as the step's; a write so completed, or a create,
-// undone from the files kept before it. The engine heap given back whole
-// at its end, which fails fast otherwise.
+// once, unfaulted: each step run with each of these failed in turn: each run MemoryError, PlatformError or the
+// failed engine call's StoreLocked io, or an allocation the engine absorbs, the step completing; after a refused
+// run the caller's arena and the fake's pages given back, no transaction left open, the store as its reads give it
+// unchanged; a run the engine absorbed, its result as the step's; a write so completed, or a create, undone from
+// the files kept before it. The engine heap given back whole at its end, which fails fast otherwise.
 
 #include <array>
 #include <cstddef>
@@ -37,7 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
@@ -49,30 +42,31 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/faults/parts.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace qiven3::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.
 void store_sqlite_fault_steps(Context& qiven3_ctx, std::string_view group, FaultRange range); }
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::records;  // NOLINT(google-build-using-namespace)
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using qiven3::memory::MemoryError;
 using qiven3::memory::String;
 using qiven3::memory::Vector;
 using qiven3::platform::PlatformError;
+using qiven3::store::EntryView;
 using qiven3::store::GuardView;
-using qiven3::checked::Header;
 using qiven3::store::Heads;
-using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;
 using qiven3::store::StoreError;
 using qiven3::store::Written;
-using Store = qiven3::checked::SQLiteStore<Fake>;
+using Chars = qiven3::memory::Allocator<char>;
+using Fake = qiven3::platform::fake::FakePlatform;
+using Store = qiven3::store::SQLiteStore<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -96,10 +90,10 @@ std::string bytes_of(const fs::path& path) {
 // store, its steps' lines and the caller's arena; on the heap.
 struct Bed {
     Bed()
-        : root(fresh_root()), fake(config(root)), book(fake), engine(std::make_unique<Engine>(fake)),
-          path(text(root / "s" / "store.db")), first{book.stored("A"), book.stored("B"), book.stored("D")},
-          acc{book.stored("ACC")}, e{book.stored("E")}, first_lines(views(first)), acc_lines(views(acc)),
-          e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
+        : root(fresh_root()), fake(config(root)), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
+          engine(std::make_unique<Engine>(fake)), path(text(root / "s" / "store.db")), first{lane[0], lane[1], lane[2]},
+          acc{lane[3]}, e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, first_lines(views(first)),
+          acc_lines(views(acc)), e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
           guard{GuardView{qiven_scope, implementer_lane, acc_id}}, call_pages(call_bytes) {}
     Bed(const Bed&) = delete;
     Bed& operator=(const Bed&) = delete;
@@ -163,13 +157,13 @@ struct Bed {
 
     fs::path root;
     Fake fake;
-    Book book;
+    std::vector<Rec> lane;
     std::unique_ptr<Engine> engine;  // before the store, which ends first
     std::string path;
     std::unique_ptr<Store> store;
-    std::vector<Stored> first;
-    std::vector<Stored> acc;
-    std::vector<Stored> e;
+    std::vector<Rec> first;
+    std::vector<Rec> acc;
+    std::vector<Rec> e;
     std::vector<EntryView> first_lines;
     std::vector<EntryView> acc_lines;
     std::vector<EntryView> e_lines;
@@ -178,7 +172,7 @@ struct Bed {
     std::string acc_id;
     std::vector<GuardView> guard;
     std::vector<std::byte> call_pages;
-    std::optional<Arena> call;
+    std::optional<qiven3::memory::Arena> call;
     std::string kept_db;
 #if defined(QIVEN3_FAULTS)
     qiven3::memory::Countdown* call_countdown = nullptr;
@@ -254,9 +248,9 @@ void add_reads(std::vector<Step>& out) {
                        return Ran{0, b.call->peak(), std::to_string(rows.size()) + " " + std::to_string(hs.forgets)};
                    }});
     out.push_back({"header", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
-                       Header h(c);
-                       b.store->header(b.a_id, h);
-                       return Ran{b.store->peak(), b.call->peak(), std::string(h.value(Slot::id))};
+                       String line(c);
+                       b.store->header(b.a_id, line);
+                       return Ran{b.store->peak(), b.call->peak(), std::string(line.begin(), line.end())};
                    }});
     out.push_back({"body", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
                        String record(c);
@@ -268,10 +262,10 @@ void add_reads(std::vector<Step>& out) {
                    }});
     out.push_back({"scan", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
                        auto scan = b.store->scan(RangeView{});
-                       Header h(c);
+                       qiven3::store::Record h(c);
                        std::string ids;
                        while (scan.next(h)) {
-                           ids.append(h.value(Slot::id).substr(0, 8)).append(" ");
+                           ids.append(h.id.view().substr(0, 8)).append(" ");
                        }
                        return Ran{scan.peak(), b.call->peak(), ids};
                    }});
@@ -280,7 +274,7 @@ void add_reads(std::vector<Step>& out) {
                        return Ran{0, 0, std::to_string(sizes->volume.size) + " " + std::to_string(sizes->volume.count)};
                    }});
     out.push_back({"forget", 0, Sort::write, 1, {}, [](Bed& b, const Chars& c) {
-                       Vector<Id> erased(c);
+                       Vector<qiven3::store::Id> erased(c);
                        const Written w =
                            b.store->forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Ran{b.store->peak(), b.call->peak(), written(w) + " " + std::to_string(erased.size())};
@@ -336,13 +330,15 @@ QIVEN3_CASE(store_sqlite, budget) {
                   << slots.peak << " slots of it (reopened, the heap's " << opened << ") within " << engine_within
                   << "\n";
     }
+    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 
 #if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
-// The counts each step makes, pinned as measured; the engine's own and the platform calls differ by
-// system. The engine heap's, by its system's file layer: measured on Windows and Linux; elsewhere not compared.
+// The counts each step makes, pinned as measured on Windows; Linux's as Windows' change, not measured, where plain
+// records changed them. The engine heap's, by its system's file layer, differs by system; elsewhere not compared.
 struct Pinned {
     std::string_view name;
     Count windows;
@@ -355,16 +351,16 @@ constexpr bool heap_pinned = false;
 #endif
 constexpr std::array<Pinned, 15> pinned = {{
     {"create", {1, 652, 98, 0, 5}, {1, 642, 98, 0, 5}},
-    {"append", {206, 14, 78, 0, 1}, {206, 14, 78, 0, 1}},
-    {"append_acc", {106, 21, 57, 0, 1}, {106, 21, 57, 0, 1}},
+    {"append", {2, 14, 74, 0, 1}, {2, 14, 74, 0, 1}},
+    {"append_acc", {2, 21, 43, 0, 1}, {2, 21, 43, 0, 1}},
     {"head", {0, 0, 4, 0, 0}, {0, 0, 4, 0, 0}},
     {"heads", {0, 0, 11, 1, 0}, {0, 0, 11, 1, 0}},
-    {"header", {16, 0, 3, 1, 0}, {16, 0, 3, 1, 0}},
-    {"body", {22, 0, 3, 1, 0}, {22, 0, 3, 1, 0}},
+    {"header", {0, 0, 3, 1, 0}, {0, 0, 3, 1, 0}},
+    {"body", {0, 0, 3, 1, 0}, {0, 0, 3, 1, 0}},
     {"forgotten", {0, 0, 3, 0, 0}, {0, 0, 3, 0, 0}},
-    {"scan", {64, 10, 47, 4, 0}, {64, 10, 47, 4, 0}},
+    {"scan", {0, 10, 47, 2, 0}, {0, 10, 47, 2, 0}},
     {"size", {0, 0, 8, 0, 0}, {0, 0, 8, 0, 0}},
-    {"forget", {59, 719, 80, 1, 1}, {59, 722, 80, 1, 1}},
+    {"forget", {3, 719, 64, 1, 1}, {3, 722, 64, 1, 1}},
     {"purge", {0, 0, 3, 0, 0}, {0, 0, 3, 0, 0}},
     {"open", {1, 209, 80, 0, 3}, {1, 203, 80, 0, 3}},
     {"read_only", {1, 208, 68, 0, 3}, {1, 202, 68, 0, 3}},
@@ -393,7 +389,7 @@ std::string fingerprint(Store* store) {
     }
     try {
         std::vector<std::byte> pages(std::size_t{1} << 20U);
-        Arena arena(pages);
+        qiven3::memory::Arena arena(pages);
         const Chars chars(arena);
         std::string out;
         Vector<LaneHead> rows(chars);
@@ -407,9 +403,9 @@ std::string fingerprint(Store* store) {
         out.append(" size ").append(std::to_string(sizes->volume.size));
         out.append(" count ").append(std::to_string(sizes->volume.count)).append(" ids");
         auto scan = store->scan(RangeView{});
-        Header h(chars);
+        qiven3::store::Record h(chars);
         while (scan.next(h)) {
-            out.append(" ").append(h.value(Slot::id));
+            out.append(" ").append(h.id.view());
         }
         return out;
     } catch (const StoreError& e) {
@@ -553,6 +549,8 @@ void qiven3::test::store_sqlite_fault_steps(Context& qiven3_ctx, std::string_vie
             std::cout << "store_sqlite.faults: " << s.name << " failed\n";
         }
     }
+    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 
 QIVEN3_CASE(store_sqlite, counts) {
@@ -588,6 +586,8 @@ QIVEN3_CASE(store_sqlite, counts) {
     sqlite::attach_calls(nullptr, nullptr);
     b->engine->heap().attach(nullptr);
     b->store->attach(nullptr);
+    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 #else
 void qiven3::test::store_sqlite_fault_steps(Context& /*qiven3_ctx*/, std::string_view /*group*/, FaultRange) {

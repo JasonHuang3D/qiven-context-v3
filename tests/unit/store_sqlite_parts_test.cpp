@@ -5,7 +5,7 @@
 // parts' first k, a row a stretch: the create's 100 k a stretch, the last
 // to its completing run (750 on Windows, 740 on Linux); the forget's 100 k
 // a stretch to k 200, 50 to k 300, 100 to k 700, then 60 and 45, the last
-// to its completing run (850 on Windows, 853 on Linux). Beside each row,
+// to its completing run (836 on Windows, Linux's not measured). Beside each row,
 // the seconds the slowest CI Windows job yet ran it in (windows-msvc at
 // 486b505, its files' steps there at about a fifth of their usual pace): a
 // stretch past 30 s there is cut in three parts, one past 60 s in four, so

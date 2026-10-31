@@ -69,7 +69,7 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
           store_sqlite_scan_test.cpp store_sqlite_create_test.cpp store_sqlite_create_parts_test.cpp
           store_sqlite_parts_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_seams qiven3_checked qiven3_store)
+  LINK qiven3_faults qiven3_platform_fake qiven3_seams qiven3_store)
 
 # store/exchange's cases: the SQLite store's export, import and verify on
 # the fake over a scratch directory; its smoke case: a round trip, a
