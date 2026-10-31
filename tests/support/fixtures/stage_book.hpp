@@ -152,11 +152,13 @@ inline std::vector<EntryView> views(const std::vector<Stored>& list) {
     return out;
 }
 
-// The bytes the entries add: each line and record with its LF.
+// The bytes the entries add: each line and record with its LF, and each
+// kind.
 inline std::uint64_t added(const std::vector<Stored>& list) {
     std::uint64_t n = 0;
     for (const Stored& s : list) {
-        n += s.line.size() + 1 + (s.record ? s.record->size() + 1 : 0);
+        n += s.line.size() + 1 + header::parse_line(s.line).value(Slot::kind).size() +
+             (s.record ? s.record->size() + 1 : 0);
     }
     return n;
 }

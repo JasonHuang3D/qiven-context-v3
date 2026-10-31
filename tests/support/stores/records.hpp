@@ -130,11 +130,12 @@ inline std::vector<store::EntryView> views(const std::vector<Rec>& list) {
     return out;
 }
 
-// The bytes the records add: each line and record with its LF.
+// The bytes the records add: each line and record with its LF, and each
+// kind.
 inline std::uint64_t added(const std::vector<Rec>& list) {
     std::uint64_t n = 0;
     for (const Rec& r : list) {
-        n += r.line.size() + 1 + (r.record ? r.record->size() + 1 : 0);
+        n += r.line.size() + 1 + r.keys.kind.size() + (r.record ? r.record->size() + 1 : 0);
     }
     return n;
 }

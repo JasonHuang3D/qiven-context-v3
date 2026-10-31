@@ -14,7 +14,8 @@
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
 // entry by entry: the hook's given before the first line; then each line's
 // keys from the hook's read; the store's bounds over them: id, parent and
-// target at most Id's capacity, scope and lane at most their bytes, else
+// target at most Id's capacity, scope, lane and kind at most their bytes,
+// the entry's line, body and keys at most entry_bytes (field entry), else
 // EntryInvalid too_long, the key's name as its field (a seq below 1 is
 // next's: seq); a body key with no record body_missing, a record with no
 // body key body_mismatch; a forget with no target key target, with a body
@@ -22,7 +23,7 @@
 // forget_kind, its detail naming the entry, at append a forget
 // EntryInvalid forget_path (header.kind); the keys kept, then the hook's
 // kept. It returns the kept entries and the bytes the lines add: each
-// header line and body record with its LF.
+// header line and body record with its LF, and each kind.
 //
 // arrives(view, keys, line, index, at), at import as each line arrives,
 // after the hook's read and before its arrived: the keys' bounds as read's
@@ -197,6 +198,12 @@ inline std::string_view bounds(const KeysView& k, const EntryView& line, std::si
     bound(k.lane.size() <= lane_bytes, "lane");
     bound(!k.parent || Id::fits(*k.parent), "parent");
     bound(!k.target || Id::fits(*k.target), "target");
+    bound(k.kind.size() <= kind_bytes, "kind");
+    std::uint64_t bytes = sum(line.line.size(), line.body ? line.body->size() : 0);
+    for (const std::string_view key : {k.id, k.scope, k.lane, k.kind, k.parent.value_or(""), k.target.value_or("")}) {
+        bytes += key.size();
+    }
+    bound(bytes <= entry_bytes, "entry");
     if (!k.body && line.body) {
         refuse(at, index, id, "body_mismatch");
     }
@@ -265,7 +272,7 @@ Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, co
     for (std::size_t i = 0; i < lines.size(); ++i) {
         KeysView keys;
         admit.read(platform, at, i, lines[i], keys, allocator, scratch);
-        out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1));
+        out.size = detail::sum(out.size, detail::sum(lines[i].line.size(), 1 + keys.kind.size()));
         if (const std::optional<std::string_view> body = lines[i].body) {
             out.size = detail::sum(out.size, detail::sum(body->size(), 1));
         }

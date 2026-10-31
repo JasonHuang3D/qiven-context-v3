@@ -263,7 +263,7 @@ void forgets(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane, 
     const Written w = forget(lines);
     CHECK_EQ(w.head.id.view(), id_of(e));
     CHECK_EQ(w.volume.count, 5U);
-    CHECK_EQ(w.volume.size, size - (b.record->size() + 1U) + e.line.size() + 1U);
+    CHECK_EQ(w.volume.size, size - (b.record->size() + 1U) + added({e}));
     REQUIRE(erased.size() == 1U);
     CHECK_EQ(erased[0].view(), id_of(b));
     CHECK(store.forgotten(id_of(b)));

@@ -1,6 +1,8 @@
 // store's plain path, in both stores with no admit hook (NoAdmit), over plain
 // keys of lines no parser takes, each write followed by verify and, on
-// SQLite, a reopen and verify again, and what each store then gives compared.
+// SQLite, a reopen and verify again, then its own export imported into a
+// fresh store of its type, verified (and reopened), and what each gives
+// compared.
 // no_body_append, no_body_import: a record with no body commits and opens.
 // forget_no_key_import, forget_rule_import: a forget whose target has no body
 // key, is another scope's, is a forget or has an earlier forget, refused.
@@ -15,7 +17,9 @@
 // sweep: a body (a record, of no bytes, none, a key or a record alone) by x1 (a
 // note, of t1; a forget of none, of t1; a bare forget of t1, the body t1's), by
 // append or forget, and by import. own_export: empty or not (a ruled store's
-// own export is checked's case).
+// own export is checked's case). entry_bound: an entry at entry_bytes by
+// append, import and forget committed and moved, a byte past refused.
+// kind_bound: a kind past its bytes refused; its bytes counted, StoreFull.
 
 #include <array>
 #include <cstddef>
@@ -150,6 +154,7 @@ struct Plan {
     std::vector<Given> together;
     std::string_view refused;
     bool own = false;  // last, its own export imported
+    qiven3::store::Limits limits{};
 };
 
 std::array<EntryView, 1> one(const Given& g) {
@@ -264,15 +269,30 @@ void attempt(qiven3::test::Context& qiven3_ctx, S& s, const Plan& p, Arena& aren
     }
 }
 
-// p on SQLite, verified to counts, reopened and verified to them again; what
-// it gave, the same after the reopen.
+// s's own export imported into t, a fresh store of its type, verified to
+// counts and giving gave.
+template <class S, class T>
+void moved(qiven3::test::Context& qiven3_ctx, S& s, T& t, const Plan& p, const Counts& counts,
+           const std::string& gave) {
+    std::vector<std::byte> pages(page_bytes);
+    Arena arena(pages);
+    auto source = s.export_(std::nullopt, {});
+    Vector<LaneHead> rows{Chars(arena)};
+    (void)t.import_(source, rows);
+    CHECK(t.verify() == counts);
+    CHECK_EQ(given(t, p, arena), gave);
+}
+
+// p on SQLite, verified to counts, reopened and verified to them again, its
+// own export moved into a fresh file, reopened; what it gave, the same after.
 std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& counts) {
     std::vector<std::byte> pages(page_bytes);
     const auto site = std::make_unique<Site>();
     const std::string path = text(site->root / "p" / "store.db");
+    const std::string to = text(site->root / "q" / "store.db");
     std::string gave;
     {
-        const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake));
+        const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake, p.limits));
         Arena arena(pages);
         attempt(qiven3_ctx, *s, p, arena);
         CHECK(s->verify() == counts);
@@ -288,7 +308,18 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
     for (const Given& g : p.refused.empty() ? p.lines : std::vector<Given>{}) {
         CHECK(view.header(g.keys.id, held) && std::string_view(held) == g.line);  // parsed by none
     }
+    {
+        const auto t = std::make_unique<Store>(Store::open(to, true, false, site->fake));
+        moved(qiven3_ctx, *again, *t, p, counts, gave);
+        (void)t->close();
+    }
     (void)again->close();
+    const auto t = std::make_unique<Store>(Store::open(to, false, false, site->fake));
+    std::vector<std::byte> more(page_bytes);
+    Arena last(more);
+    CHECK(t->verify() == counts);
+    CHECK(given(*t, p, last) == gave);
+    (void)t->close();
     return gave;
 }
 
@@ -313,13 +344,18 @@ std::string by_id(qiven3::test::Context& qiven3_ctx, Store& s, std::string_view 
 void on_both(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& counts) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
-    const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), qiven3::store::Limits{});
+    auto fresh = fake->pages(state_bytes);
+    const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), p.limits);
+    const auto ft = std::make_unique<qiven3::store::state::State>(fresh.bytes(), qiven3::store::Limits{});
     qiven3::store::MemoryStore<Fake> s(*st, *fake);
+    qiven3::store::MemoryStore<Fake> t(*ft, *fake);
     std::vector<std::byte> pages(page_bytes);
     Arena arena(pages);
     attempt(qiven3_ctx, s, p, arena);
     CHECK(s.verify() == counts);
-    CHECK_EQ(given(s, p, arena), on_sqlite(qiven3_ctx, p, counts));
+    const std::string gave = given(s, p, arena);
+    moved(qiven3_ctx, s, t, p, counts, gave);
+    CHECK_EQ(gave, on_sqlite(qiven3_ctx, p, counts));
 }
 
 }  // namespace
@@ -504,4 +540,34 @@ QIVEN3_CASE(store_plain, own_export) {
     const Given a1 = note("a1", "one", 1, {}, true, true);
     on_both(qiven3_ctx, Plan{false, {}, {}, {}, {}, {}, true}, Counts{});
     on_both(qiven3_ctx, Plan{false, {a1}, {}, {}, {}, "StoreNotEmpty  []", true}, Counts{1, 1, 0, 1});
+}
+
+QIVEN3_CASE(store_plain, entry_bound) {
+    using qiven3::store::entry_bytes;
+    for (const std::size_t past : {std::size_t{0}, std::size_t{1}}) {
+        Given t = note("t1", "one", 1, {}, true, true);
+        t.record = std::string(entry_bytes + past - 21, 'r');  // its line "line t1", its keys t1 plain one note
+        Given f = gone("f1", "two", 1, {}, "t1");
+        f.line.resize(entry_bytes + past - 18, 'l');  // its keys f1 plain two forget t1
+        const Counts one = past == 0 ? Counts{1, 1, 0, 1} : Counts{};
+        const std::string_view refused = past == 0 ? "" : "too_long 0 t1";
+        on_both(qiven3_ctx, Plan{false, {t}, {}, {}, {}, refused}, one);
+        on_both(qiven3_ctx, Plan{true, {t}, {lane_head("plain", "one", "t1", 1)}, {}, {}, refused}, one);
+        const Given small = note("t1", "one", 1, {}, true, true);
+        on_both(qiven3_ctx, Plan{false, {small}, {}, f, {}, past == 0 ? "" : "too_long 0 f1"},
+                past == 0 ? Counts{2, 0, 1, 2} : Counts{1, 1, 0, 1});
+    }
+}
+
+QIVEN3_CASE(store_plain, kind_bound) {
+    const std::string kinds(qiven3::store::kind_bytes + 1, 'k');
+    Given k = note("k1", "one", 1, {}, false, false);
+    k.keys.kind = kinds;
+    on_both(qiven3_ctx, Plan{false, {k}, {}, {}, {}, "too_long 0 k1"}, Counts{});
+    const qiven3::store::Limits limits{39, 39, 39, 10, 10, 10};  // "line k1" and its LF, and a kind of 31
+    for (const std::size_t n : {std::size_t{31}, std::size_t{32}}) {
+        k.keys.kind = std::string_view(kinds).substr(0, n);
+        on_both(qiven3_ctx, Plan{false, {k}, {}, {}, {}, n == 31 ? "" : "StoreFull  []", false, limits},
+                n == 31 ? Counts{1, 0, 0, 1} : Counts{});
+    }
 }

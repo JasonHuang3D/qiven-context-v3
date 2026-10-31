@@ -109,7 +109,7 @@ constexpr bool valid(const Limits& l) noexcept {
 }
 
 // The size, the bytes of every header line and body record held, each with
-// its LF; the count, the header lines; and their state: past the target,
+// its LF, and of each kind; the count, the header lines; and their state: past the target,
 // past the warning, by size or by count.
 struct Volume {
     std::uint64_t size = 0;
@@ -192,6 +192,9 @@ struct Sizes {
     [[nodiscard]] constexpr std::span<const Figure> view() const noexcept { return {detail.data(), figures}; }
 };
 
+// A kind's bytes, a key's bound as the scope's and the lane's.
+inline constexpr std::size_t kind_bytes = 32;
+
 // A record's keys owned: its ids by value, its scope and lane in place,
 // its kind on the caller's allocator.
 struct Keys {
@@ -212,11 +215,11 @@ struct Keys {
         return KeysView{id.view(), scope.view(), lane.view(), kind, seq, text(parent), text(target), body};
     }
     // k made its own; false, and nothing changed, where a key is past its
-    // bound (Id's capacity, the scope's or the lane's bytes).
+    // bound (Id's capacity, the scope's, the lane's or the kind's bytes).
     [[nodiscard]] bool assign(const KeysView& k) {
         const auto fits = [](const std::optional<std::string_view>& i) { return !i || Id::fits(*i); };
-        if (!Id::fits(k.id) || k.scope.size() > scope_bytes || k.lane.size() > lane_bytes || !fits(k.parent) ||
-            !fits(k.target)) {
+        if (!Id::fits(k.id) || k.scope.size() > scope_bytes || k.lane.size() > lane_bytes ||
+            k.kind.size() > kind_bytes || !fits(k.parent) || !fits(k.target)) {
             return false;
         }
         const auto of = [](const std::optional<std::string_view>& i) {
@@ -296,6 +299,12 @@ inline constexpr std::size_t operation_base = kib * kib;
 inline constexpr std::size_t lines_factor = 4;
 inline constexpr std::size_t engine_budget = (2000 * kib) + (kib * kib);
 inline constexpr std::size_t export_budget = 2 * kib * kib;
+// The import's pages for the line in hand, a quarter of an operation's;
+// an entry's bytes (its header line, its body record and its keys) at
+// most a KiB under them, room for its texts' allocations, so that every
+// entry a store holds moves by its own export and import.
+inline constexpr std::size_t import_line_bytes = operation_base / 4;
+inline constexpr std::size_t entry_bytes = import_line_bytes - kib;
 // The bytes of the lines a call is given: each header line and body
 // record; none past SIZE_MAX.
 constexpr std::optional<std::size_t> given(std::span<const EntryView> entries) noexcept {

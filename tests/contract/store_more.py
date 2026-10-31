@@ -351,7 +351,7 @@ class StoreMore:
         flagged, parent, volume = set(), None, store.size()["volume"]
         for i in range(400):
             e = m.claim(SCOPE, "implementer", i + 1, parent, i)
-            size, count = volume["size"] + len(e[0]) + len(e[1]) + 2, volume["count"] + 1
+            size, count = volume["size"] + len(e[0]) + len(e[1]) + 2 + len(header(e)["kind"]), volume["count"] + 1
             if size > bound["max_size"] or count > bound["max_count"]:
                 before = snapshot(store)
                 error = self.failure(store.append, SCOPE, "implementer", id_of(parent), [e])

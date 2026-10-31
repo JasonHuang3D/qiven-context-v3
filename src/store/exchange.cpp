@@ -431,14 +431,15 @@ void read_heads(Statement& s, Vector<LaneHead>& heads, const WhereView& at) {
 Imported write_meta(Connection& c, Statement& s, const WhereView& at, const Limits& limits) {
     s = c.prepare("SELECT (SELECT count(*) FROM entry), (SELECT count(*) FROM body), "
                   "(SELECT count(*) FROM entry WHERE kind = 'forget'), (SELECT count(*) FROM head), "
-                  "(SELECT coalesce(sum(length(line)), 0) FROM entry), (SELECT coalesce(sum(length(record)), 0) FROM body)",
+                  "(SELECT coalesce(sum(length(line) + length(CAST(kind AS BLOB))), 0) FROM entry), "
+                  "(SELECT coalesce(sum(length(record)), 0) FROM body)",
                   at);
     if (!s.step(at)) {
         incoherent(at, "the rows uncounted");
     }
     const auto u = [&s](int column) { return static_cast<std::uint64_t>(s.integer(column)); };
     const Counts n{u(0), u(1), u(2), u(3)};
-    // Each line and record with its LF.
+    // Each line and record with its LF, and each kind.
     const std::uint64_t size = stage::detail::sum(stage::detail::sum(u(4), n.entries), stage::detail::sum(u(5), n.bodies));
     s = c.prepare("UPDATE meta SET value = CASE name WHEN 'size' THEN ?1 WHEN 'count' THEN ?2 ELSE ?3 END", at);
     s.bind(1, static_cast<std::int64_t>(size), at);
@@ -524,7 +525,8 @@ bool WalkView::next() {
     ++counts_.entries;
     counts_.bodies += record ? 1U : 0U;
     counts_.forgets += forget ? 1U : 0U;
-    size_ += rows_.blob(line_column).size() + 1U + (record ? rows_.blob(record_column).size() + 1U : 0U);
+    size_ += rows_.blob(line_column).size() + 1U + rows_.text(5).size() +
+             (record ? rows_.blob(record_column).size() + 1U : 0U);
     last_ = Id::of(id);
     seq_ = rows_.integer(3);
     ++index_;

@@ -346,7 +346,7 @@ void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const Written f = store.forget(qiven_scope, implementer, head, call_lines, guard, erased);
     CHECK_EQ(f.head.id.view(), id_of(call[0]));
     CHECK_EQ(f.volume.count, 5U);
-    CHECK_EQ(f.volume.size, sizes->volume.size - (first[1].record->size() + 1U) + call[0].line.size() + 1U);
+    CHECK_EQ(f.volume.size, sizes->volume.size - (first[1].record->size() + 1U) + added({call[0]}));
     REQUIRE(erased.size() == 1U);
     CHECK_EQ(erased[0].view(), id_of(first[1]));
     CHECK(f.purge.done);

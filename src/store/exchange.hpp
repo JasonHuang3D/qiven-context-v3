@@ -318,7 +318,10 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
                        Countdown* countdown, const WhereView& where, const Limits& limits, H& hooks,
                        std::size_t& peak, A& admit) {
     const stage::AtView at{Operation::import_, where.path};
-    const std::size_t quarter = pages.size() / 4;
+    const std::size_t quarter = import_line_bytes;
+    if (pages.size() < 4 * quarter) {
+        memory::fail_fast("store/exchange: an import's pages short of an operation's");
+    }
     memory::Arena kept(pages.first(quarter));
     attach_to(kept, countdown);
     Vector<LaneHead> given{Chars(kept)};

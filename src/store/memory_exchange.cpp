@@ -86,7 +86,7 @@ void import_one(Data& d, const EntryView& line, Rows<Link>& links) {
         throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, at);
     }
     const auto i = static_cast<std::uint32_t>(at);
-    std::uint64_t bytes = stage::detail::sum(line.line.size(), 1);
+    std::uint64_t bytes = stage::detail::sum(line.line.size(), 1 + line.keys.kind.size());
     if (line.body) {
         bytes = stage::detail::sum(bytes, stage::detail::sum(line.body->size(), 1));
     }
@@ -206,7 +206,7 @@ Counts verify_totals(const Data& d) {
     for (const Held& e : d.held) {
         c.bodies += e.has_body ? 1U : 0U;
         c.forgets += e.is_forget ? 1U : 0U;
-        size += e.line.size() + 1U + (e.has_body ? e.body.size() + 1U : 0U);
+        size += e.line.size() + 1U + e.kind.size() + (e.has_body ? e.body.size() + 1U : 0U);
     }
     if (in_lanes != d.held.size() || d.by_id.size() != d.held.size() || d.count != c.entries ||
         d.forgets != c.forgets || d.size != size) {

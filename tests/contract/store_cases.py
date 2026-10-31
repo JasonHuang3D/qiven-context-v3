@@ -319,7 +319,7 @@ class StoreCases:
     def test_S9_forget(self):
         """S9: B forgotten by E: B's body absent, forgotten; its header and
         id kept; D's parent resolves; the head moved; the size less B's
-        record plus E's line, the count plus 1; the purge done. A second
+        record plus E's line and kind, the count plus 1; the purge done. A second
         forget of B: EntryInvalid target; a claim and a check given to
         forget: StoreError forget_kind; a forget of a version whose
         revision is neither forgotten nor in the set: whole_record;
@@ -345,7 +345,8 @@ class StoreCases:
             self.assertEqual(store.header(header(d)["parent"]), b[0])
             self.assertEqual(store.head(SCOPE, "implementer"), {"id": id_of(e), "seq": 5})
             volume = store.size()["volume"]
-            self.assertEqual(volume["size"], before["size"] - (len(b[1]) + 1) + (len(e[0]) + 1))
+            added = len(e[0]) + 1 + len(header(e)["kind"])
+            self.assertEqual(volume["size"], before["size"] - (len(b[1]) + 1) + added)
             self.assertEqual(volume["count"], before["count"] + 1)
             heads = store.heads()
             self.assertEqual((heads["forgets"], heads["purge"]["done"]), (forgets + 1, True))
