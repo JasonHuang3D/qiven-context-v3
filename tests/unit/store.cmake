@@ -67,6 +67,7 @@ qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
 # create refused at each call, in parts, and its removals refused.
 qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
+          store_sqlite_counts_test.cpp
           store_sqlite_scan_test.cpp store_sqlite_create_test.cpp store_sqlite_create_parts_test.cpp
           store_sqlite_parts_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_seams qiven3_store)

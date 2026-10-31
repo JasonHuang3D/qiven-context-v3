@@ -1,5 +1,5 @@
 // store/sqlite's fault runs of the create and of the forget
-// (store_sqlite_memory_test.cpp's course of steps), each in parts by its k
+// (sqlite_bed.hpp's course of steps), each in parts by its k
 // (support/faults/parts.hpp), each part within 30 s on every job:
 // faults_create_part1 to _part25 and faults_forget_part1 to _part35. The
 // parts' first k, a row a stretch: the create's 100 k a stretch, the last
