@@ -20,7 +20,8 @@
 //       allocator
 //   ParsedView<V>   a store's view (BytesView), which gives bytes, as
 //       cognition's readers read it: header(id, out) the line through
-//       header_of, body(id, out) the record's content; false where V's is
+//       header_of, body(id, out) the record's content, one shorter than
+//       its frame incoherent; false where V's is
 //
 // Allocations: the header's parse and check (canon's four and one, the
 // header's check's), the body's parse and part 1's on the allocator given;
@@ -179,10 +180,14 @@ public:
         out = header_of(id, line, out.get_allocator(), at_);
         return true;
     }
-    // out, the record's room, cut down to its content.
+    // out, the record's room, cut down to its content; a record shorter than
+    // its frame incoherent, as check_body's, before parts reads its places.
     bool body(std::string_view id, store::String& out) {
         if (!view_->body(id, out)) {
             return false;
+        }
+        if (out.size() < entry::body::frame_size) {
+            corrupt(at_, store::Corrupt::incoherent, id);
         }
         const std::string_view content = entry::body::detail::parts(out).content;
         const auto from = static_cast<std::size_t>(content.data() - out.data());

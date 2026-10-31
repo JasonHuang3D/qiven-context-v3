@@ -138,7 +138,9 @@ constexpr std::optional<Code> layout(const json::Basic<A>& v) {
 }
 
 // A canonical record's parts at their fixed places, its layout held: the
-// content between the head and the tail, then the id and the key.
+// content between the head and the tail, then the id and the key. Its
+// caller holds the frame: a record shorter ends the process, so bytes from
+// a store are checked first (the layout, or their size against frame_size).
 constexpr RecordView parts(std::string_view data) noexcept {
     const std::size_t tail = data.size() - (frame_size - head.size());
     RecordView r;

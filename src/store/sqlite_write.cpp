@@ -91,15 +91,7 @@ bool WriteView::header(std::string_view id, String& out) {
     return find(*c_, id, &out, nullptr, at_) != Found::absent;
 }
 
-bool WriteView::body(std::string_view id, String& out) {
-    Statement s = c_->prepare("SELECT record FROM body WHERE id = ?1", at_);
-    s.bind_text(1, id, at_);
-    if (!s.step(at_)) {
-        return false;
-    }
-    out.assign(s.blob(0));
-    return true;
-}
+bool WriteView::body(std::string_view id, String& out) { return find(*c_, id, nullptr, &out, at_) == Found::body; }
 
 bool WriteView::forgotten(std::string_view id) {
     Statement s = c_->prepare("SELECT EXISTS (SELECT 1 FROM entry WHERE target = ?1 AND kind = 'forget')", at_);

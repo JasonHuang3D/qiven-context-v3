@@ -485,8 +485,8 @@ struct HeadsRead {
     bool pending = false;
 };
 [[nodiscard]] HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, const WhereView& at);
-// An entry by id: its line's bytes into line and its body record's into
-// record, each where given, on its allocator; body where it has a body row.
+// An entry by id: its line's bytes into line and its record's into record, each where given, on its allocator; body
+// where it has a body row. A record asked of a body key with no row and no forget is StoreCorrupt incoherent.
 enum class Found : std::uint8_t { absent, entry, body };
 [[nodiscard]] Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record,
                          const WhereView& at);

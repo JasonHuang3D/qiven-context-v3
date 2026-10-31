@@ -10,7 +10,8 @@
 // many_keys_import: body keys with no record past any list of them the
 // import's pages could keep. lost_body: a body row lost or stray, the count
 // equal or not, refused by a scan, an export and verify on the open store,
-// then by open.
+// then by open. body_by_id: body(id) of a body row lost refused, of no key,
+// forgotten or a forget false, by a copy, a lent read and a transaction's view.
 // sweep: a body (a record, of no bytes, none, a key or a record alone) by x1 (a
 // note, of t1; a forget of none, of t1; a bare forget of t1, the body t1's), by
 // append or forget, and by import. own_export: empty or not (a ruled store's
@@ -291,6 +292,23 @@ std::string on_sqlite(qiven3::test::Context& qiven3_ctx, const Plan& p, const Co
     return gave;
 }
 
+// What body(id) says, the same by a copy, a lent read and a transaction's
+// view: "held", "none" or its refusal.
+std::string by_id(qiven3::test::Context& qiven3_ctx, Store& s, std::string_view id, Arena& arena) {
+    const auto read = [](const auto& f) {
+        bool has = false;
+        const std::string refused = said([&] { has = f(); });
+        return refused.empty() ? std::string(has ? "held" : "none") : refused;
+    };
+    String record{Chars(arena)};
+    sqlite::WriteView view(s.connection(), Chars(arena), nullptr, test_at, sqlite::Totals{});
+    const auto lent = [](std::string_view, const std::string_view*, const sqlite::Chars&) {};
+    const std::string copied = read([&] { return s.body(id, record); });
+    CHECK_EQ(read([&] { return s.body(id, lent); }), copied);
+    CHECK_EQ(read([&] { return view.body(id, record); }), copied);
+    return copied;
+}
+
 // p on both stores, each store giving the same.
 void on_both(qiven3::test::Context& qiven3_ctx, const Plan& p, const Counts& counts) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
@@ -419,6 +437,43 @@ QIVEN3_CASE(store_plain, lost_body) {
                  std::string("StoreCorrupt incoherent [body: the rows not the entries with a body key no forget "
                              "targets]"));
     }
+}
+
+QIVEN3_CASE(store_plain, body_by_id) {
+    const auto site = std::make_unique<Site>();
+    const std::string path = text(site->root / "store.db");
+    std::vector<std::byte> pages(page_bytes);
+    Arena arena(pages);
+    Plan p;
+    p.lines = {note("a1", "one", 1, {}, true, true), note("a2", "one", 2, "a1", false, false),
+               note("a3", "one", 3, "a2", true, true)};
+    p.forget = gone("f1", "one", 4, "a3", "a3");
+    const Counts counts{4, 1, 1, 1};
+    const auto rest = [&](Store& s) {  // no body key, forgotten, a forget
+        for (const std::string_view id : {"a2", "a3", "f1"}) {
+            CHECK_EQ(by_id(qiven3_ctx, s, id, arena), std::string("none"));
+        }
+    };
+    const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake));
+    write(*s, p, arena);
+    CHECK(s->verify() == counts);
+    CHECK_EQ(by_id(qiven3_ctx, *s, "a1", arena), std::string("held"));
+    rest(*s);
+    (void)s->close();
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, site->fake));
+    CHECK(again->verify() == counts);
+    rest(*again);
+    sqlite::Connection::open(String(path, Chars(arena)), false, test_at).exec("DELETE FROM body WHERE id = 'a1'",
+                                                                              test_at);
+    const std::string denied = "StoreCorrupt incoherent [a1]";
+    CHECK_EQ(by_id(qiven3_ctx, *again, "a1", arena), denied);
+    String line{Chars(arena)};
+    again->header("a1", line);  // its header still given: the row is the body's
+    CHECK(std::string_view(line) == "line a1");
+    rest(*again);
+    CHECK_EQ(said([&] { (void)again->verify(); }), denied);
+    (void)again->close();
+    CHECK(said([&] { (void)Store::open(path, false, false, site->fake); }).starts_with("StoreCorrupt incoherent"));
 }
 
 QIVEN3_CASE(store_plain, sweep) {

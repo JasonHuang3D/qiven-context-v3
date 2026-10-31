@@ -73,7 +73,8 @@ HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, con
 }
 
 Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record, const WhereView& at) {
-    Statement s = c.prepare("SELECT e.line, b.record FROM entry AS e LEFT JOIN body AS b ON b.id = e.id WHERE e.id = ?1",
+    Statement s = c.prepare("SELECT e.line, b.record, e.body FROM entry AS e LEFT JOIN body AS b ON b.id = e.id "
+                            "WHERE e.id = ?1",
                             at);
     s.bind_text(1, id, at);
     if (!s.step(at)) {
@@ -83,6 +84,10 @@ Found find(Connection& c, std::string_view id, memory::String* line, memory::Str
         line->assign(s.blob(0));
     }
     if (s.null(1)) {
+        // A body key with no row: lost, no forget standing for the row.
+        if (record != nullptr && s.integer(2) != 0 && !forgotten(c, id, at)) {
+            incoherent(at, id);
+        }
         return Found::entry;
     }
     if (record != nullptr) {

@@ -6,8 +6,8 @@
 // tests/fixtures/ is made from its content, key and header, its digest the
 // header's content, written, parsed back to the same record and checked
 // against its header; A's record refused by each body row of the
-// refusals' table with its code; make's refusals; the key's hex read and
-// written back, its stack copy wiped; the pinned sizes.
+// refusals' table with its code, or shorter than its frame; make's refusals;
+// the key's hex read and written back, its stack copy wiped; the pinned sizes.
 
 #include <algorithm>
 #include <array>
@@ -189,6 +189,11 @@ QIVEN3_CASE(body, refusals) {
     std::transform(upper.begin(), upper.end(), upper.begin(), [](char c) { return static_cast<char>(std::toupper(c)); });
     CHECK(upper != std::string(*a->key));
     CHECK_EQ(thrown(parse_check(edited(record, *a->key, upper))), "syntax");
+    // Shorter than its frame: parse's refusal before the parts' places are read.
+    for (std::size_t n = 0; n < body::frame_size; ++n) {
+        CHECK_EQ(thrown(parse_check(record.substr(0, n))), "parse");
+    }
+    CHECK_EQ(thrown(parse_check(R"({"content":{},"id":"sha256:0","key":"0"})")), "syntax");
     // No record: the parser's refusal, or a root that is no object.
     CHECK_EQ(thrown(parse_check(edited(record, "{\"content\":", "{\"content\": "))), "parse");
     for (const std::string_view root : {"[]", "\"x\"", "1", "true"}) {

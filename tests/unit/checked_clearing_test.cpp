@@ -8,7 +8,9 @@
 // checked_clearing.memory_many and checked_clearing.sqlite_many: the
 // clearing over 4 and over 16 direction records, append's counted peak
 // equal, within its budget. checked_clearing.parsed_view: a view's bytes
-// parsed, a record's content, a line refused, none held.
+// parsed, a record's content, a line refused, one shorter than its frame
+// refused, none held. checked_clearing.sqlite_short_record: a direction
+// record's row cut short, an append's clearing refusing it, the process alive.
 
 #include <cstddef>
 #include <cstdint>
@@ -19,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+#include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
@@ -47,6 +50,17 @@ template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
     return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+}
+
+// The corrupt code a call raised, or "none".
+template <class F>
+std::string corrupt_code(const F& f) {
+    try {
+        f();
+    } catch (const qiven3::store::StoreError& e) {
+        return e.corrupt() ? std::string(qiven3::store::name(*e.corrupt())) : std::string("not corrupt");
+    }
+    return "none";
 }
 
 // A forget of target as like's (E's) fields give it, on lane at seq after
@@ -158,21 +172,52 @@ QIVEN3_CASE(checked_clearing, parsed_view) {
     qiven3::memory::Arena arena(pages);
     qiven3::checked::Header h{Chars(arena)};
     qiven3::memory::String content{Chars(arena)};
-    const auto refused_as = [&](std::string_view id) {
-        try {
-            view.header(id, h);
-        } catch (const qiven3::store::StoreError& e) {
-            return std::string(qiven3::store::name(e.corrupt().value()));
-        }
-        return std::string("none");
-    };
+    const auto refused_as = [&](std::string_view id) { return corrupt_code([&] { view.header(id, h); }); };
     CHECK(view.header(id_of(a), h) && h.value(Slot::id) == id_of(a));
     CHECK(view.body(id_of(a), content) && std::string_view(content) == *a.content);
     CHECK_EQ(refused_as("sha256:" + std::string(64, '0')), std::string("id_mismatch"));
     bytes.line = "{a line no parser takes";
     CHECK_EQ(refused_as(id_of(a)), std::string("incoherent"));
+    for (std::size_t n = 1; n < qiven3::entry::body::frame_size; ++n) {
+        bytes.record = a.record->substr(0, n);
+        CHECK_EQ(corrupt_code([&] { (void)view.body(id_of(a), content); }), std::string("incoherent"));
+    }
     bytes = Bytes{};
     CHECK(!view.header(id_of(a), h) && !view.body(id_of(a), content));
+}
+
+// The one direction record clearing the hit, its row cut shorter each time,
+// to no bytes: the append's refusal is the record's, the secret's never
+// reached; the ruled read and verify the same, after a reopen too.
+QIVEN3_CASE(checked_clearing, sqlite_short_record) {
+    const auto site = qiven3::test::ruled::site();
+    const Book& book = site->book();
+    const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
+                                               [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
+    const std::vector<EntryView> hit_lines = views(hit);
+    const std::vector<Stored> direction = {
+        clearing(book, content_of(hit[0]), "aws-akia", nullptr, nullptr, 1, "2026-10-17T09:00:00.000Z")};
+    SQLite factory(*site);
+    const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
+    CHECK_EQ(appending(*store, reviewer_lane, views(direction)), std::string("none"));
+    std::vector<std::byte> pages(1U << 16U);
+    qiven3::memory::Arena arena(pages);
+    qiven3::memory::String record{Chars(arena)};
+    const std::string id = id_of(direction[0]);
+    const std::string denied = "incoherent";
+    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    for (const int n : {163, 100, 10, 0}) {
+        store->connection().exec(
+            "UPDATE body SET record = substr(record, 1, " + std::to_string(n) + ") WHERE id = '" + id + "'", at);
+        CHECK_EQ(corrupt_code([&] { (void)store->append(qiven_scope, implementer_lane, std::nullopt, hit_lines); }),
+                 denied);
+        CHECK_EQ(corrupt_code([&] { (void)store->body(id, record); }), denied);
+        CHECK_EQ(corrupt_code([&] { (void)store->verify(); }), denied);
+    }
+    (void)store->close();
+    const auto again = std::make_unique<SQLite::Store>(factory.reopen());
+    CHECK_EQ(corrupt_code([&] { (void)again->verify(); }), denied);
+    (void)again->close();
 }
 
 QIVEN3_CASE(checked_clearing, memory) {

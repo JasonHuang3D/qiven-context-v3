@@ -230,7 +230,7 @@ public:
         return Heads{r.forgets, !r.pending ? Purge{} : (last_.done ? Purge::pending("writer") : last_)};
     }
     // The header line's bytes into line, and the body record's into record
-    // (false: forgotten, a forget, or no body), each on its allocator.
+    // (false: forgotten, a forget, or no body; a row lost, StoreCorrupt), each on its allocator.
     void header(std::string_view id, String& line) {
         peak_ = 0;
         (void)bytes(Operation::header, id, &line, nullptr);
