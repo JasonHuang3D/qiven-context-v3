@@ -400,8 +400,8 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     const std::vector<Rec> theirs = chain(qiven_scope, reviewer, {"C", "M1", "M2"});
     (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
     (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
-    const auto f2 = std::make_unique<const Rec>(forget("F2", qiven_scope, reviewer, 4, "M2", "M2"));
-    const auto f3 = std::make_unique<const Rec>(forget("F3", qiven_scope, reviewer, 5, "F2", "M1"));
+    const auto f2 = std::make_unique<const Rec>(forget("X2", qiven_scope, reviewer, 4, "M2", "M2"));
+    const auto f3 = std::make_unique<const Rec>(forget("X3", qiven_scope, reviewer, 5, "X2", "M1"));
     const std::string a = id_of(mine[0]);
     const std::string b = id_of(mine[1]);
     const std::string m2 = id_of(theirs[2]);

@@ -277,8 +277,8 @@ void records(qiven3::test::Context& qiven3_ctx, Store& store, const Chars& chars
     const Recs lane = chain(qiven_scope, reviewer_lane, {"C", "M1", "M2"});
     const std::vector<EntryView> held = views(lane);
     (void)store.append(qiven_scope, reviewer_lane, std::nullopt, held);
-    const Rec f2 = forget("F2", qiven_scope, reviewer_lane, 4, "M2", "M2");
-    const Rec f3 = forget("F3", qiven_scope, reviewer_lane, 5, "F2", "M1");
+    const Rec f2 = forget("X2", qiven_scope, reviewer_lane, 4, "M2", "M2");
+    const Rec f3 = forget("X3", qiven_scope, reviewer_lane, 5, "X2", "M1");
     Vector<LaneHead> rows(chars);
     const std::vector<GuardView> guard = guard_of(store, rows);
     Vector<Id> erased(chars);
