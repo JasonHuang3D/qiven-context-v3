@@ -11,6 +11,8 @@
 // parsed, a record's content, a line refused, one shorter than its frame
 // refused, none held. checked_clearing.sqlite_short_record: a direction
 // record's row cut short, an append's clearing refusing it, the process alive.
+// checked_clearing.sqlite_bad_content: a held map's record, its frame whole,
+// its content no parser takes, a revision's append refused, the process alive.
 // checked_clearing.memory_references and checked_clearing.sqlite_references:
 // a map citing A, its 24 references the most its lists hold, every syntax
 // of its content among them, appended on each ruled store, its counted
@@ -222,6 +224,42 @@ QIVEN3_CASE(checked_clearing, sqlite_short_record) {
     const auto again = std::make_unique<SQLite::Store>(factory.reopen());
     CHECK_EQ(corrupt_code([&] { (void)again->verify(); }), denied);
     (void)again->close();
+}
+
+// The writes verified, reopened and moved by the own export; then M1's content
+// one byte off, its frame whole: M2's append refused incoherent, the process alive.
+QIVEN3_CASE(checked_clearing, sqlite_bad_content) {
+    const auto site = qiven3::test::ruled::site();
+    const Book& book = site->book();
+    SQLite factory(*site);
+    SQLite fresh(*site);
+    auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
+    const std::vector<Stored> a = {book.stored("A")};
+    const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1")};
+    const std::vector<Stored> m2 = {book.stored("M2")};
+    CHECK_EQ(appending(*store, implementer_lane, views(a)), std::string("none"));
+    CHECK_EQ(appending(*store, reviewer_lane, views(theirs)), std::string("none"));
+    const qiven3::store::Counts held = store->verify();
+    (void)store->close();
+    store = std::make_unique<SQLite::Store>(factory.reopen());
+    const auto copy = std::make_unique<SQLite::Store>(fresh.make());
+    std::vector<std::byte> pages(1U << 16U);
+    qiven3::memory::Arena arena(pages);
+    Vector<LaneHead> rows{Chars(arena)};
+    auto source = store->export_(std::nullopt, {});
+    (void)copy->import_(source, rows);
+    CHECK(store->verify() == held && copy->verify() == held);
+    (void)copy->close();
+    CHECK(std::make_unique<SQLite::Store>(fresh.reopen())->verify() == held);
+    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    const std::string m1 = id_of(theirs[1]);
+    store->connection().exec(
+        "UPDATE body SET record = CAST(substr(record, 1, 11) || 'x' || substr(record, 13) AS BLOB) WHERE id = '" + m1 +
+            "'",
+        at);
+    CHECK_EQ(corrupt_code([&] { (void)store->append(qiven_scope, reviewer_lane, m1, views(m2)); }),
+             std::string("incoherent"));
+    (void)store->close();
 }
 
 QIVEN3_CASE(checked_clearing, memory) {

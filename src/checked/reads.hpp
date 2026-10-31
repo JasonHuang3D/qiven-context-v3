@@ -21,12 +21,13 @@
 //   ParsedView<V>   a store's view (BytesView), which gives bytes, as
 //       cognition's readers read it: header(id, out) the line through
 //       header_of, body(id, out) the record's content, one shorter than
-//       its frame incoherent; false where V's is
+//       its frame or a content the parser refuses incoherent; false where
+//       V's is
 //
 // Allocations: the header's parse and check (canon's four and one, the
 // header's check's), the body's parse and part 1's on the allocator given;
 // a copy's on out's; ParsedView's on out's: a header's line and the rest of
-// header_of, a body's record in out. Platform calls: the body's parse, its
+// header_of, a body's record in out and its content's parse. Platform calls: the body's parse, its
 // key's, part 1's wipes (noexcept). thread: none.
 
 #include <concepts>
@@ -193,6 +194,10 @@ public:
         const auto from = static_cast<std::size_t>(content.data() - out.data());
         out.erase(from + content.size());
         out.erase(0, from);
+        canon::Basic<Chars> value(out.get_allocator());
+        if (canon::try_parse(std::string_view(out), value)) {
+            corrupt(at_, store::Corrupt::incoherent, id);
+        }
         return true;
     }
     [[nodiscard]] std::optional<keys::Head> head(std::string_view scope, std::string_view lane) {

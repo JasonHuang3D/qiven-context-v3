@@ -173,14 +173,19 @@ class Choose(unittest.TestCase):
 
     def test_the_real_table(self):
         """The checkout's table: an edit of driver's files that app's tests
-        read, or of driver's own, selects app."""
+        read, or of driver's own, selects app; an edit of the helpers every
+        module's tests read, the support's, selects every test."""
         table = SELECT["MODULES"]["load"]()
         rows = {m["name"]: m for m in table["modules"]}
-        for path in ("tests/drive/binaries.py", "tests/contract/platform_location.py", "tests/driver/common.cpp"):
+        for path in ("tests/contract/platform_machine.py", "tests/contract/platform_location.py",
+                     "tests/driver/common.cpp"):
             with self.subTest(path=path):
                 why, every = SELECT["choose"](table, rows, [path])
                 self.assertIsNone(every)
                 self.assertEqual(why["app"], "depending on driver")
+        for path in ("tests/drive/binaries.py", "tests/drive/session.py"):
+            with self.subTest(path=path):
+                self.assertIsNotNone(SELECT["choose"](table, rows, [path])[1])
 
 
 class Record(unittest.TestCase):

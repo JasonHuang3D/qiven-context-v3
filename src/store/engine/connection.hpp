@@ -45,9 +45,10 @@ struct sqlite3_stmt;
 
 namespace qiven3::store::sqlite {
 
-// The file's identity and the engine's least version (STRICT, 3.37.0).
+// The file's identity and the engine's least version (STRICT, 3.37.0);
+// user_version 2 the schema with the body key's column, 1's files refused.
 inline constexpr std::int64_t application_id = 0x71763301;
-inline constexpr std::int64_t user_version = 1;
+inline constexpr std::int64_t user_version = 2;
 inline constexpr int least_version = 3037000;
 // The busy wait, a connection's: 5 s; a purge's statements set 0.
 inline constexpr int busy_milliseconds = 5000;
@@ -110,7 +111,7 @@ inline constexpr std::array<Setting, 11> settings = {
     setting("auto_vacuum", "0"),
     setting("busy_timeout", "5000"),
     setting("application_id", "1903571713", When::create),
-    setting("user_version", "1", When::create),
+    setting("user_version", "2", When::create),
 };
 
 // The engine's version number, as the library gives it.

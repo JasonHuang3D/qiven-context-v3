@@ -467,7 +467,7 @@ class StoreMore:
 
     def test_S17_foreign_file(self):
         """S17: a text file; a store file with application_id 0 and
-        another; with user_version 2; another application's file in DELETE
+        another; with user_version 1; another application's file in DELETE
         mode, and one with no table; a 0-byte file: at open StoreCorrupt
         not_a_store, foreign, foreign, version, foreign, foreign, corrupt;
         create over each and over a store, StoreError exists; each file
@@ -482,7 +482,7 @@ class StoreMore:
             forged = (("a text file", b"Not a database: a line of text.\n" * 128, "not_a_store"),
                       ("application_id 0", files.patched(good, files.APPLICATION_ID_AT, 0), "foreign"),
                       ("another application_id", files.patched(good, files.APPLICATION_ID_AT, ours ^ 1), "foreign"),
-                      ("user_version 2", files.patched(good, files.USER_VERSION_AT, 2), "version"),
+                      ("user_version 1", files.patched(good, files.USER_VERSION_AT, 1), "version"),
                       ("another application's, DELETE mode", files.delete_mode(good, 0x0A0B0C0D), "foreign"),
                       ("no table", files.table_less(), "foreign"),
                       ("0 bytes", b"", "corrupt"))

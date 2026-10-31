@@ -5,7 +5,8 @@
 // -wal 0 bytes; each setting read back; a second create StoreError exists;
 // open again, and read-only; verify, an empty store's counts all 0;
 // close, then closed; missing, a 0-byte file, a foreign file left
-// byte-equal, another version, a file that is no database; the guard's
+// byte-equal, another version, a store's of version 1 left byte-equal, a
+// file that is no database; the guard's
 // checkout (a .git directory, then a file) and synced folder, by open and
 // alone; incoherent meta; create read-only and invalid limits refused; a
 // second engine heap refused while one is installed. store_sqlite.writes,
@@ -182,7 +183,7 @@ void settings_table(qiven3::test::Context& qiven3_ctx) {
         "journal_mode", "synchronous",  "secure_delete", "temp_store",     "foreign_keys", "trusted_schema",
         "cell_size_check", "auto_vacuum", "busy_timeout", "application_id", "user_version"};
     constexpr std::array<std::string_view, 11> values = {"wal", "2", "1",    "2",          "1", "0",
-                                                         "1",   "0", "5000", "1903571713", "1"};
+                                                         "1",   "0", "5000", "1903571713", "2"};
     CHECK_EQ(Store::SETTINGS.size(), names.size());
     for (std::size_t i = 0; i < names.size(); ++i) {
         CHECK_EQ(Store::SETTINGS.at(i).name.view(), names.at(i));
@@ -249,8 +250,16 @@ QIVEN3_OWN_FRAME void refused(qiven3::test::Context& qiven3_ctx, Rig& rig) {
     CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt foreign: application_id 0");
     CHECK(bytes_of(root / "foreign.db") == foreign);
     alter(root / "foreign.db", "PRAGMA application_id = 1903571713");
-    alter(root / "foreign.db", "PRAGMA user_version = 2");
-    CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt version: user_version 2");
+    alter(root / "foreign.db", "PRAGMA user_version = 3");
+    CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt version: user_version 3");
+    // A store's file of version 1, before the body key's column: refused,
+    // the file unchanged, and none left beside it.
+    const fs::path made = root / "a" / "store.db";
+    alter(made, "PRAGMA user_version = 1");
+    const std::string one = bytes_of(made);
+    CHECK(open_error(rig, made) == "StoreCorrupt version: user_version 1");
+    CHECK(bytes_of(made) == one && !fs::exists(text(made) + "-wal") && !fs::exists(text(made) + "-shm"));
+    alter(made, "PRAGMA user_version = 2");
     write_file(root / "text.db", std::string(1024, 'x'));
     CHECK(open_error(rig, root / "text.db").starts_with("StoreCorrupt not_a_store"));
     CHECK(open_error(rig, root / "ro.db", true, true) == "StoreError read_only: create");
