@@ -252,8 +252,10 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
         canon::canonical(value, content);
 
         // The target: the file's, held; or the current version of the
-        // entry's record identity, if any. b's texts are the arena's.
+        // entry's record identity, if any, its key built in the work span. b's
+        // texts are the arena's.
         Built b(arena);
+        memory::String identity(alloc);
         std::optional<detail::Held> target;
         if (e.target_site != entries::none) {
             target = resolve(file.sites()[e.target_site]);
@@ -273,7 +275,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
                                            .id = entries::detail::stand_id};
             const header::Header<memory::Allocator<char>> h = header::make(stand, alloc);
             if (const std::optional<entry::kinds::IdentityView> id = entry::kinds::identity(h, value)) {
-                target = detail::current(before, fold, scope, *id, b.identity);
+                target = detail::current(before, fold, scope, *id, identity);
                 b.derived = target.has_value();
             }
         }
@@ -302,11 +304,12 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
         if (const std::optional<entry::content::ContentError> c = entry::content::try_check(h, value)) {
             detail::refuse_content(file, i, *c);
         }
-        if (b.identity.empty()) {
+        if (identity.empty()) {
             if (const std::optional<entry::kinds::IdentityView> id = entry::kinds::identity(h, value)) {
-                detail::identity_key(*id, b.identity);
+                detail::identity_key(*id, identity);
             }
         }
+        b.identity.assign(identity.data(), identity.size());  // copied out in one allocation
         // The line written in the work span, whose encoder's order is given
         // back with it, then copied out in one allocation.
         memory::String line(alloc);

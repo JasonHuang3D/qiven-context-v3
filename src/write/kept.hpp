@@ -25,9 +25,10 @@
 // A rename never replaces: a file already under the new name is the
 // platform's exists, both kept. In step 2 that fails the command before
 // its append, the <n>.tmp left for the next step 1; in step 4 the file is
-// left pending. Step 1 renames a held pending file whose <n>.jsonl is
-// taken to one past the highest name held instead, so no kept file is lost
-// and the next command settles it [reading]. The import keeps 0000000001
+// left pending. A held pending file whose <n>.jsonl is taken is Refusal
+// corrupt in step 1, both left, never settled: moved, its first line would
+// not name its n [reading: the smaller of a rewrite and a refusal; only a
+// file made outside the lock takes that name]. The import keeps 0000000001
 // by steps 2 to 4 alone, with no lock and no settle step: its directory
 // held nothing, and after a fault it is discarded.
 //
@@ -217,11 +218,12 @@ auto lock(P& platform, std::string_view store, memory::Arena& arena, platform::S
 }
 
 // Step 1, under the lock: every temporary removed unread, every pending
-// file renamed kept or removed by its ids, as above.
+// file renamed kept or removed by its ids, as above; its kept name taken,
+// Refusal corrupt naming it.
 template <platform::Platform P, Holds H>
 void settle(P& platform, std::string_view store, H& holds, memory::Arena& arena, Hooks hooks = {}) {
     memory::Vector<memory::String> names{memory::Allocator<memory::String>(arena)};
-    std::uint64_t top = detail::listed(platform, store, arena, names);
+    static_cast<void>(detail::listed(platform, store, arena, names));
     memory::String path{memory::Allocator<char>(arena)};
     for (const memory::String& name : names) {
         const std::optional<Name> got = parse_name(name);
@@ -239,10 +241,7 @@ void settle(P& platform, std::string_view store, H& holds, memory::Arena& arena,
             if (error.code != platform::Code::exists) {
                 throw;
             }
-            if (top >= last) {
-                throw Refusal{Code::store_full, detail::at(name)};
-            }
-            platform.rename(path, file_name(++top, Form::kept).view(), deadline);
+            throw Refusal{Code::corrupt, detail::at(name)};  // never moved: its first line names its n
         }
     }
 }

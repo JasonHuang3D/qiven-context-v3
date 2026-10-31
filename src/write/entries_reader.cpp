@@ -304,6 +304,13 @@ void Reader::content(Entry& e, json::Index c) {
         if (key == "episode" || key == "clears") {
             refuse_at(key, Why::not_allowed);
         }
+        const std::string_view kind = m->text(e.kind);
+        if (((key == "object" && kind == "map") || (key == "message" && kind == "accept")) &&
+            v->kind(value) == JKind::object) {
+            const Step s(path, path.member(key));
+            reference(value, false);
+            continue;
+        }
         if (v->kind(value) != JKind::array) {
             continue;
         }
@@ -330,24 +337,28 @@ void Reader::references(json::Index list) {
             continue;
         }
         const Step item(path, path.index(i));
-        const std::optional<json::Index> t = v->find(r, "type");
-        const std::string_view type = t && v->kind(*t) == JKind::string ? v->text(*t) : std::string_view{};
-        if (type == "entry") {
-            const std::optional<json::Index> n = v->find(r, "id");
-            if (n && v->kind(*n) == JKind::string && v->text(*n).starts_with("@")) {
-                const Step s(path, path.member("id"));
-                hole(*n);
-            }
-        } else if (type == "repo" || type == "transcript" || type == "output") {
-            refused(Field{v->find(r, "digest").value_or(0), memory::Inline<16>("digest")});
-            const json::Index p =
-                node(Field{v->find(r, "piece").value_or(0), memory::Inline<16>("piece")}, JKind::string, true);
-            const std::uint32_t named = piece(v->text(p));
-            if (named == none) {
-                refuse_at("piece", Why::piece);
-            }
-            m->sites_.push_back(Site{r, Hole::piece, named, 0});
+        reference(r, true);
+    }
+}
+
+void Reader::reference(json::Index r, bool holes) {
+    const std::optional<json::Index> t = v->find(r, "type");
+    const std::string_view type = t && v->kind(*t) == JKind::string ? v->text(*t) : std::string_view{};
+    if (type == "entry" && holes) {
+        const std::optional<json::Index> n = v->find(r, "id");
+        if (n && v->kind(*n) == JKind::string && v->text(*n).starts_with("@")) {
+            const Step s(path, path.member("id"));
+            hole(*n);
         }
+    } else if (type == "repo" || type == "transcript" || type == "output") {
+        refused(Field{v->find(r, "digest").value_or(0), memory::Inline<16>("digest")});
+        const json::Index p =
+            node(Field{v->find(r, "piece").value_or(0), memory::Inline<16>("piece")}, JKind::string, true);
+        const std::uint32_t named = piece(v->text(p));
+        if (named == none) {
+            refuse_at("piece", Why::piece);
+        }
+        m->sites_.push_back(Site{r, Hole::piece, named, 0});
     }
 }
 

@@ -1,6 +1,7 @@
 // write/build's work span, its path pieces and its @name: scope (every
-// name, scope, id and text invented). An import file of 512 entries, each
-// naming a path piece and the entry before it, built in a fixed arena of
+// name, scope, id and text invented). An import file of 512 claims, items
+// or questions, each naming a path piece and the entry before it, built in
+// a fixed arena of
 // two work spans and four MiB: the build's peak past what it holds is the
 // same for 64 entries and for 512, its work given back at each entry's
 // end, and the piece read once for every reference. A path piece named by
@@ -97,15 +98,20 @@ struct Scratch {
 const std::string admit = R"("admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."})";
 const std::string output = R"({"type": "output", "command": "an invented command", "piece": "record"})";
 
-// An import file of n claims, each naming the piece at path and, but the
-// first, the entry before it.
-std::string chain(std::size_t n, const std::string& path) {
+// An import file of n claims, items or questions (each of its own record
+// identity), each naming the piece at path and, but the first, the entry
+// before it.
+std::string chain(std::size_t n, const std::string& path, const std::string& kind = "claim") {
     std::string s = R"({"form": "qiven3-entries/1", "writer": "import", "scope": "project:example", )"
                     R"("pieces": {"record": {"path": ")" + path + R"("}}, "entries": [)";
     for (std::size_t i = 0; i < n; ++i) {
-        s += (i == 0 ? "" : ", ") + std::string(R"({"name": "entry-)") + std::to_string(i) +
-             R"(", "kind": "claim", "basis": "claimed", "content": {"claim": "Invented claim )" + std::to_string(i) +
-             R"(.", "subject": "entity:example", "band": "normal", )" + admit + R"(, "evidence": [)" + output +
+        const std::string own = kind == "item"       ? R"("item_id": "item-)" + std::to_string(i) + R"(", "state": "active")"
+                                : kind == "question" ? R"("question": "Which shape?", "question_id": "invented-question-)" +
+                                                           std::to_string(i) + "\""
+                                                     : R"("claim": "Invented claim )" + std::to_string(i) + ".\"";
+        s += (i == 0 ? "" : ", ") + std::string(R"({"name": "entry-)") + std::to_string(i) + R"(", "kind": ")" + kind +
+             R"(", "basis": "claimed", "content": {)" + own +
+             R"(, "subject": "entity:example", "band": "normal", )" + admit + R"(, "evidence": [)" + output +
              (i == 0 ? "" : R"(, {"type": "entry", "id": "@name:entry-)" + std::to_string(i - 1) + "\"}") + "]}}";
     }
     return s + "]}";
@@ -179,23 +185,26 @@ QIVEN3_CASE(write_build, builds_512_entries_in_a_fixed_arena) {
     const std::string piece = "progress: unit one built\n";
     const std::string path = scratch.put("record.txt", piece);
     const std::size_t fixed = 2 * wb::detail::work_bytes + 4 * mib;
-    std::vector<Result> runs;
-    for (const std::size_t n : {std::size_t{64}, std::size_t{512}}) {
-        FakePlatform platform(config(scratch.root.generic_string()));
-        runs.push_back(build(chain(n, path), platform, fixed));
-        const Result& r = runs.back();
-        REQUIRE(r.refused.empty());
-        REQUIRE(r.records.size() == n);
-        CHECK_EQ(reads(platform), 1U);
-        CHECK(r.records.back().find(keyed(r.records.back(), piece)) != std::string::npos);
-        std::cout << "write_build.span: " << n << " entries held in " << r.held << " bytes, the build's peak "
-                  << r.peak << "\n";
+    for (const std::string kind : {"claim", "item", "question"}) {
+        std::vector<Result> runs;
+        for (const std::size_t n : {std::size_t{64}, std::size_t{512}}) {
+            FakePlatform platform(config(scratch.root.generic_string()));
+            runs.push_back(build(chain(n, path, kind), platform, fixed));
+            const Result& r = runs.back();
+            REQUIRE(r.refused.empty());
+            REQUIRE(r.records.size() == n);
+            CHECK_EQ(reads(platform), 1U);
+            CHECK(r.records.back().find(keyed(r.records.back(), piece)) != std::string::npos);
+            std::cout << "write_build.span: " << n << " " << kind << " entries held in " << r.held
+                      << " bytes, the build's peak " << r.peak << "\n";
+        }
+        // The work, an identity's key among it, given back at each entry's
+        // end: past what is held, the peak is the work span and the piece's
+        // one read, whatever the count.
+        CHECK_EQ(runs[0].peak - runs[0].held, runs[1].peak - runs[1].held);
+        CHECK(runs[1].peak - runs[1].held <= wb::detail::work_bytes + 4096);
+        CHECK(runs[1].held > runs[0].held);
     }
-    // The work given back at each entry's end: past what is held, the peak
-    // is the work span and the piece's one read, whatever the count.
-    CHECK_EQ(runs[0].peak - runs[0].held, runs[1].peak - runs[1].held);
-    CHECK(runs[1].peak - runs[1].held <= wb::detail::work_bytes + 4096);
-    CHECK(runs[1].held > runs[0].held);
 }
 
 QIVEN3_CASE(write_build, reads_a_path_piece_once) {

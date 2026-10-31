@@ -104,8 +104,8 @@ QIVEN3_CASE(write_kept, write_pass) {
     CHECK(names.size() == 2 && names[0] == "0000000001.jsonl" && names[1] == "0000000002.jsonl");
 }
 
-// The import: 0000000001 by steps 2 to 4, no lock, no listing, a stray
-// pending file not settled.
+// The import: 0000000001 by steps 2 to 4, no lock, no listing (a pending
+// file under its name: write_kept_steps.import_exists).
 QIVEN3_CASE(write_kept, import) {
     const Scratch scratch{fresh};
     FakePlatform fake(scratch.config());

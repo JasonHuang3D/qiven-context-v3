@@ -132,6 +132,10 @@ struct Reader {
     void read_entry(json::Index object);
     void content(Entry& e, json::Index c);
     void references(json::Index list);
+    // One reference object: an entry's @ id a hole when holes (a map's
+    // object holds none); a repo, transcript or output reference its piece,
+    // a digest given not_allowed.
+    void reference(json::Index r, bool holes);
     void hole(json::Index node);
     std::uint32_t piece(std::string_view name) const;
     void pieces_used();

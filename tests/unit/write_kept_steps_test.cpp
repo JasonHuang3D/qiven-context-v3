@@ -2,8 +2,8 @@
 // store and a fake store's ids (every scope, writer, id and text invented),
 // each with its nearest pass: step 1 removing each temporary unread and
 // settling a pending file by its ids (none held removed, all held renamed
-// kept, a part corrupt and never settled, and renamed one past the highest
-// when its kept name is taken); step 2 failing before or after its file is
+// kept, a part corrupt and never settled, and corrupt while its kept name
+// is taken); step 2 failing before or after its file is
 // whole, no pending file left; step 3's refusal removing the pending file,
 // a fault before or after the commit leaving it whole; step 4's rename
 // failing busy or exists, the pending file left; each settled by the next
@@ -125,21 +125,35 @@ QIVEN3_CASE(write_kept_steps, settle_by_ids) {
 }
 
 // Step 1, a rename's exists [reading]: a held pending file whose kept name
-// is taken renamed one past the highest name held, both kept.
+// is taken corrupt, both left, nothing appended; the name free, the next
+// write settles it, its n one past the highest after step 1's removals,
+// and every kept file parses under its name.
 QIVEN3_CASE(write_kept_steps, settle_exists) {
     const auto bed = std::make_unique<Bed>();
+    const Entries one(bed->arena, writer, 1, 4);
     const Entries old(bed->arena, writer, 1, 1);
     const std::string pending = bed->file(2, old);
-    bed->plant("0000000001.jsonl", "one");
+    bed->plant("0000000001.jsonl", bed->file(1, one));
     bed->plant("0000000002.jsonl", "a file under the pending file's kept name");
     bed->plant("0000000002.pending", pending);
     hold(bed->store, old);
     const Entries e(bed->arena, writer, 1, 2);
-    CHECK_EQ(bed->write(e), std::uint64_t{4});
-    CHECK_EQ(bed->scratch.names(),
-             std::string("0000000001.jsonl|0000000002.jsonl|0000000003.jsonl|0000000004.jsonl"));
-    CHECK(bed->at("0000000003.jsonl") == pending);
-    CHECK(bed->at("0000000002.jsonl") == "a file under the pending file's kept name");
+    const auto r = refusal([&] { bed->write(e); });
+    CHECK(r && r->code == rc::Code::corrupt && r->path.view() == "kept/0000000002.pending");
+    CHECK(bed->store.appends == 0 && bed->at("0000000002.pending") == pending);
+    CHECK_EQ(bed->scratch.names(), std::string("0000000001.jsonl|0000000002.jsonl|0000000002.pending"));
+    fs::remove(bed->scratch.kept() / "0000000002.jsonl");
+    bed->plant("0000000007.tmp", "torn");
+    CHECK_EQ(bed->write(e), std::uint64_t{3});
+    CHECK_EQ(bed->scratch.names(), std::string("0000000001.jsonl|0000000002.jsonl|0000000003.jsonl"));
+    Vector<String> names{Allocator<String>(bed->arena)};
+    kept::kept_files(bed->fake, bed->scratch.store(), names);
+    for (const String& name : names) {
+        kept::Head head;
+        Vector<kept::LineView> lines{Allocator<kept::LineView>(bed->arena)};
+        kept::parse(bed->at(name), name, bed->arena, head, lines);
+        CHECK(lines.size() == 1 && kept::file_name(head.n, kept::Form::kept).view() == name);
+    }
 }
 
 // Step 2: replace failing leaves nothing; the rename to pending failing
@@ -211,8 +225,8 @@ QIVEN3_CASE(write_kept_steps, append_faulted) {
 
 // Step 4's rename failing after the commit: busy, or exists [reading]
 // with a file under the kept name; the pending file left whole, never
-// removed, and the next write renames it kept, one past the highest when
-// its own name is taken.
+// removed, and the next write renames it kept, refused corrupt while its
+// own name is taken.
 QIVEN3_CASE(write_kept_steps, done_rename_faults) {
     for (const bool exists : {false, true}) {
         const auto bed = std::make_unique<Bed>();
@@ -231,8 +245,13 @@ QIVEN3_CASE(write_kept_steps, done_rename_faults) {
         CHECK(bed->at("0000000001.pending") == bed->file(1, e));
         bed->fake.set_busy(Busy{});
         const Entries next(bed->arena, writer, 1, 3);
-        CHECK_EQ(bed->write(next), exists ? std::uint64_t{3} : std::uint64_t{2});
-        CHECK(bed->at(exists ? "0000000002.jsonl" : "0000000001.jsonl") == bed->file(1, e));
+        if (exists) {  // the kept name taken: corrupt, never settled, until it is free
+            const auto r = refusal([&] { bed->write(next); });
+            CHECK(r && r->code == rc::Code::corrupt && bed->store.appends == 0);
+            fs::remove(bed->scratch.kept() / "0000000001.jsonl");
+        }
+        CHECK_EQ(bed->write(next), std::uint64_t{2});
+        CHECK(bed->at("0000000001.jsonl") == bed->file(1, e));
     }
 }
 

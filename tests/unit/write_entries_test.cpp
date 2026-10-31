@@ -248,13 +248,14 @@ QIVEN3_CASE(write_entries, counts_the_entries) {
     const std::string at = "{\"kind\": \"retire\"";
     CHECK(outcome(with(at, repeat(claim, 61) + at)) == "ok");
     CHECK(outcome(with(at, repeat(claim, 62) + at)) == "form/count@entries");
-    std::string imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(claim, 1998));
+    std::string imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(claim, 510));
     imports = swap(imports, "@name:moved", "@name:elsewhere");
     CHECK(outcome(imports).starts_with("form/placeholder@entries[0].content.evidence[0].id#0"));
     const std::string plain = swap(claim, "@name:moved", "sha256:" + repeat("1", 64));
-    imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(plain, 1998));
+    // 512 entries read, 513 refused.
+    imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(plain, 510));
     CHECK(outcome(imports, 32 * mib) == "ok");
-    imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(plain, 1999));
+    imports = swap(import_file, "\"entries\": [", "\"entries\": [" + repeat(plain, 511));
     CHECK(outcome(imports, 32 * mib) == "form/count@entries");
 }
 
@@ -287,6 +288,33 @@ QIVEN3_CASE(write_entries, refuses_the_pieces) {
     CHECK(outcome(with("\"command\": \"v2 transition core executed\",\n                     \"piece\": \"lane-record\"",
                        "\"command\": \"v2 transition core executed\"")) ==
           "form/missing@entries[0].content.evidence[0].piece#0:moved");
+}
+
+// A map's object and an accept's message are references too: a digest
+// given refused, a piece read in its place.
+QIVEN3_CASE(write_entries, checks_every_reference) {
+    const std::string head = R"json({"form": "qiven3-entries/1", "writer": "import", "scope": "project:example",
+      "pieces": {"record": {"text": "an invented output\n"}}, "entries": [{"name": "c", "kind": "claim",
+      "basis": "claimed", "content": {"claim": "An invented claim.", "subject": "entity:example", "band": "normal",
+      "admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."},
+      "evidence": [{"type": "output", "command": "an invented command", "piece": "record"}]}}, )json";
+    const std::string map = head + R"json({"kind": "map", "basis": "derived", "content": {"admit": {"underivable":
+      "No file holds it.", "mistake": "A session repeats it."}, "band": "high", "contract": "c", "does": "d", "object": {"path":
+      "src/a.py", "piece": "record", "repository": "example", "type": "repo"}, "object_type": "file"}}]})json";
+    const std::string accept = head + R"json({"kind": "accept", "basis": "owner-words", "target": "@name:c",
+      "content": {"message": {"type": "transcript", "client": "claude-code", "session": "s-1",
+      "message": "m-1", "piece": "record"}}}]})json";
+    const std::string digest = "\"digest\": \"hmac-sha256:00\", \"piece\"";
+    CHECK(outcome(map) == "ok");
+    CHECK(outcome(swap(map, "\"piece\": \"record\", \"repository\"", "\"repository\"")) ==
+          "form/missing@entries[1].content.object.piece#1");
+    CHECK(outcome(swap(map, "\"piece\": \"record\", \"repository\"", digest + ": \"record\", \"repository\"")) ==
+          "form/not_allowed@entries[1].content.object.digest#1");
+    CHECK(outcome(accept) == "ok");
+    CHECK(outcome(swap(accept, ", \"piece\": \"record\"}}}", "}}}")) ==
+          "form/missing@entries[1].content.message.piece#1");
+    CHECK(outcome(swap(accept, "\"piece\": \"record\"}}}", digest + ": \"record\"}}}")) ==
+          "form/not_allowed@entries[1].content.message.digest#1");
 }
 
 QIVEN3_CASE(write_entries, refuses_an_entry_form) {

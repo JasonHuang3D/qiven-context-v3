@@ -323,9 +323,10 @@ QIVEN3_CASE(write_refuse, refuses_acts_on_an_owners_entry) {
              std::string("owner_entry@entries[1].content.closes[0]#1"));
     // An accept: owner_entry named before its basis's owner_words.
     const std::string message = R"("message": {"type": "transcript", "client": "claude-code", "session": "s-1",)"
-                                R"( "message": "m-1", "digest": "hmac-sha256:)" + std::string(64, '0') + R"("})";
+                                R"( "message": "m-1", "piece": "said"})";
     const auto accept = [&](const std::string& id) {
-        return file_of(entry("accept", "owner-words", message, target(id)));
+        return file_of("implementer/s7", entry("accept", "owner-words", message, target(id)), home,
+                       R"("said": {"text": "The owner said so."})");
     };
     CHECK_EQ(run(accept(direction)), std::string("owner_entry@entries[0].target#0"));
     CHECK_EQ(run(accept(held_claim)), std::string("owner_words@entries[0].basis#0"));
@@ -387,11 +388,12 @@ QIVEN3_CASE(write_refuse, refuses_the_kinds_of_import_or_none) {
                                R"( "path": "rules/clauses.txt", "piece": "source"}])"),
                          home, source)),
              kind);
-    const std::string in_repo = R"({"digest": "hmac-sha256:)" + std::string(64, '0') +
-                                R"(", "path": "src/a.py", "repository": "example", "type": "repo"})";
-    CHECK_EQ(run(file_of(entry("map", "derived",
+    const std::string in_repo = R"({"piece": "source", "path": "src/a.py", "repository": "example", "type": "repo"})";
+    CHECK_EQ(run(file_of("implementer/s7",
+                         entry("map", "derived",
                                admit + R"(, "band": "high", "contract": "c", "does": "d", "object": )" + in_repo +
-                                   R"(, "object_type": "file")"))),
+                                   R"(, "object_type": "file")"),
+                         home, source)),
              kind);
     CHECK_EQ(run(file_of(entry("module", "claimed",
                                R"("responsibility": "An invented module.", "paths": ["src/a.py"], )" +

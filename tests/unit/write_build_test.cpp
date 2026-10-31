@@ -413,7 +413,7 @@ QIVEN3_CASE(write_build, revises_a_clause_and_a_map_by_their_identities) {
     };
     const std::string digest = R"("digest": "hmac-sha256:)" + std::string(64, '0') + R"(", )";
     const std::string repo = R"({"piece": "source", "path": "src/a.py", "repository": "example", "type": "repo"})";
-    const std::string in_repo = "{" + digest + R"("path": "src/a.py", "repository": "example", "type": "repo"})";
+    const std::string& in_repo = repo;  // a map's object a reference: its digest the piece's
     const std::string root = "{" + digest + R"("id": "@name:root", "type": "entry"})";
     const std::string entries =
         R"({"kind": "clause", "basis": "derived", "content": {"authority": "law", "band": "core",

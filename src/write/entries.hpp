@@ -17,7 +17,9 @@
 // with no episode or clears. A hole: an item of refs or closes, or an entry
 // reference's id, beginning with @ (@name: an earlier entry's, @item:,
 // @lane:, @question:), and a repo, transcript or output reference's piece,
-// in place of its digest, naming one of pieces; each piece named. Last,
+// in place of its digest, naming one of pieces; each piece named. A
+// reference is one of evidence or source, a map's object or an accept's
+// message. Last,
 // each content with stand-ins in its holes (a slot's episode copied in),
 // under a stand-in header, passes entry/content's check, past 65,536 bytes
 // too_large before it; a fault is invalid, its path under the content.
@@ -49,7 +51,7 @@ namespace qiven3::write::entries {
 inline constexpr std::string_view form_value = "qiven3-entries/1";
 inline constexpr std::size_t max_bytes = std::size_t{16} << 20U;  // [proposal]
 inline constexpr std::size_t max_slot_entries = 64;               // [proposal]
-inline constexpr std::size_t max_import_entries = 2000;           // [proposal]
+inline constexpr std::size_t max_import_entries = 512;
 inline constexpr std::size_t max_piece_bytes = std::size_t{4} << 20U;  // [proposal]
 inline constexpr std::size_t max_pieces = 256;       // [reading]
 inline constexpr std::size_t max_path_bytes = 4096;  // [reading]
