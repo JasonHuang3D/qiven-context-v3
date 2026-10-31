@@ -79,7 +79,7 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
 # a maximum entry and a large lane; StoreBusy and StoreNotEmpty at import,
 # the thread gate, the exports' closing, import's rollback and checkpoint.
 qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
-  SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_states_test.cpp
+  SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_counts_test.cpp store_exchange_states_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
 
 # The store cases' support: the factory over each store and its tags, its
