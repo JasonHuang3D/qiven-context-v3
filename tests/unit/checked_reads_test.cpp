@@ -15,7 +15,8 @@
 // parent column beside its line the ruled scan's incoherent. sqlite_columns:
 // each of A's scope, seq and kind columns altered beside its line, the
 // ruled scan's incoherent, then put back. forged: the ruled verify over a
-// state forged under the lock.
+// state forged under the lock. head_mismatch: a SQLite source's lines held,
+// imported with heads short of theirs, refused, nothing left.
 
 #include <array>
 #include <cstddef>
@@ -26,6 +27,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "checked/stores.hpp"
@@ -461,4 +463,79 @@ QIVEN3_CASE(checked_reads, forged) {
                         d.size += b.lane[1].record->size() + 1U;
                     }),
              std::string("forgotten_body"));
+}
+
+namespace {
+
+using qiven3::store::Line;
+
+// A source of lines held: the heads given, then each line.
+struct Held {
+    std::vector<LaneHead> given;
+    std::vector<std::pair<std::string, std::optional<std::string>>> lines;
+    std::size_t at = 0;
+    void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
+    bool next(Line& line) {
+        if (at == lines.size()) {
+            return false;
+        }
+        line.header.assign(lines[at].first);
+        line.has_body = lines[at].second.has_value();
+        line.body.assign(lines[at].second.value_or(std::string()));
+        const std::optional<std::string_view> record =
+            lines[at].second ? std::optional<std::string_view>(*lines[at].second) : std::nullopt;
+        ++at;
+        return line.keys.assign(keyed(lines[at - 1].first, record).keys);
+    }
+};
+
+// An export's lines into held, and their count.
+template <class E>
+std::size_t drain(E& e, Held& held) {
+    std::vector<std::byte> pages(std::size_t{1} << 18U);
+    std::size_t n = 0;
+    for (;;) {
+        Arena arena(pages);
+        Line line(arena);
+        if (!e.next(line)) {
+            return n;
+        }
+        ++n;
+        held.lines.emplace_back(std::string(line.header),
+                                line.has_body ? std::optional<std::string>(std::string(line.body)) : std::nullopt);
+    }
+}
+
+}  // namespace
+
+// The ruled SQLite store's import of a source whose heads differ from its
+// lines' (the store's exchange smoke case's, moved): A, B, D and ACC on
+// one lane, C and M1 on another, exported and held; the heads given short
+// of the lines': head_mismatch, nothing left.
+QIVEN3_CASE(checked_reads, head_mismatch) {
+    const auto site = qiven3::test::ruled::site();
+    const Book& book = site->book();
+    SQLite from(*site);
+    const auto source = std::make_unique<SQLite::Store>(from.make());
+    const std::vector<Stored> mine = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
+    const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1")};
+    (void)source->append(qiven_scope, implementer_lane, std::nullopt, views(mine));
+    (void)source->append(qiven_scope, reviewer_lane, std::nullopt, views(theirs));
+    std::vector<std::byte> pages(std::size_t{1} << 20U);
+    Arena arena(pages);
+    Held copy;
+    {
+        auto all = source->export_(std::nullopt, {});
+        Vector<LaneHead> rows{Chars(arena)};
+        (void)all.heads(rows);
+        copy.given.assign(rows.begin(), rows.end());
+        CHECK_EQ(drain(all, copy), 6U);
+    }
+    copy.given.pop_back();
+    SQLite to(*site);
+    const auto refused = std::make_unique<SQLite::Store>(to.make());
+    Vector<LaneHead> heads{Chars(arena)};
+    CHECK_EQ(raised([&] { (void)refused->import_(copy, heads); }), "EntryInvalid head_mismatch");
+    CHECK(heads.empty());
+    CHECK(refused->verify() == Counts{});
 }

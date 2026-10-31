@@ -1,11 +1,13 @@
 // store/exchange's smoke case, on the fake, over a scratch directory of the
-// case's own: a source store with two lanes and a forget; verify's counts;
-// its export whole, its heads, snapshot and lines; imported into an empty
-// store: the heads, the counts, the size and verify equal, the -wal 0
-// bytes; a second import StoreNotEmpty; an export from a seq of one lane
-// and of a scope set; a source whose heads differ refused, nothing left;
-// an export closed by its own close, by its store object's move and close;
-// each export statement's plan.
+// case's own, the plain SQLite store over plain records: a source store
+// with two lanes and a forget; verify's counts; its export whole, its
+// heads, snapshot and lines; imported into an empty store: the heads, the
+// counts, the size and verify equal, the -wal 0 bytes; a second import
+// StoreNotEmpty; an export from a seq of one lane and of a scope set; its
+// lines held with their keys imported, verify's counts the source's; each
+// import's store reopened read-only and verified; an export closed by its
+// own close, by its store object's move and close; each export statement's
+// plan.
 
 #include <cstddef>
 #include <cstdint>
@@ -20,7 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -30,22 +31,25 @@
 #include "store/exchange.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = qiven3::checked::Export<qiven3::store::sqlite::SQLiteExport<Fake>>;
+using Store = qiven3::store::SQLiteStore<Fake>;
+using Export = qiven3::store::sqlite::SQLiteExport<Fake>;
 using qiven3::store::AfterView;
 using qiven3::store::Counts;
 using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
 using qiven3::store::Vector;
-using qiven3::test::stage_book::Stored;
-using qiven3::test::stage_book::views;
+using qiven3::test::records::chain;
+using qiven3::test::records::forget;
+using qiven3::test::records::owned;
+using qiven3::test::records::Rec;
+using qiven3::test::records::views;
 
 static_assert(qiven3::store::Export<Export>);
 
@@ -62,11 +66,9 @@ std::string text(const fs::path& path) {
 }
 
 // A scratch directory of the case's own, removed at its end; the fake
-// over it, the engine heap, the fixtures and the caller's arena.
+// over it, the engine heap and the caller's arena.
 struct Rig {
-    Rig()
-        : root(fresh()), fake(config(root)), engine(fake), book(fake), pages(std::size_t{1} << 20U), arena(pages),
-          chars(arena) {}
+    Rig() : root(fresh()), fake(config(root)), engine(fake), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
     Rig(const Rig&) = delete;
     Rig& operator=(const Rig&) = delete;
     Rig(Rig&&) = delete;
@@ -92,7 +94,6 @@ struct Rig {
     fs::path root;
     Fake fake;
     qiven3::store::Engine<Fake> engine;
-    qiven3::test::stage_book::Book book;
     std::vector<std::byte> pages;
     qiven3::memory::Arena arena;
     qiven3::memory::Allocator<char> chars;
@@ -117,23 +118,21 @@ std::string raised(const F& f) {
     return "none";
 }
 
-// A source of lines held: the heads given, then each line.
+// A source of lines held: the heads given, then each line with its keys.
 struct Held {
     std::vector<LaneHead> given;
-    std::vector<std::pair<std::string, std::optional<std::string>>> lines;
+    std::vector<Rec> lines;
     std::size_t at = 0;
     void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
     bool next(Line& line) {
         if (at == lines.size()) {
             return false;
         }
-        line.header.assign(lines[at].first);
-        line.has_body = lines[at].second.has_value();
-        line.body.assign(lines[at].second.value_or(std::string()));
-        const std::optional<std::string_view> record =
-            lines[at].second ? std::optional<std::string_view>(*lines[at].second) : std::nullopt;
-        ++at;
-        return line.keys.assign(qiven3::test::stage_book::keyed(lines[at - 1].first, record).keys);
+        const Rec& r = lines[at++];
+        line.header.assign(r.line);
+        line.has_body = r.record.has_value();
+        line.body.assign(r.record.value_or(std::string()));
+        return line.keys.assign(qiven3::test::records::view(r.keys));
     }
 };
 
@@ -149,9 +148,7 @@ std::size_t drain(Export& e, Held* held) {
         }
         ++n;
         if (held != nullptr) {
-            held->lines.emplace_back(std::string(line.header), line.has_body ? std::optional<std::string>(
-                                                                                   std::string(line.body))
-                                                                             : std::nullopt);
+            held->lines.push_back(owned(line));
         }
     }
 }
@@ -162,19 +159,18 @@ std::uintmax_t wal_bytes(const std::string& path) {
     return error ? 0 : n;
 }
 
-// Two lanes, four entries and a forget in the first, two in the second.
-void fill(Store& store, const qiven3::test::stage_book::Book& book, const qiven3::memory::Allocator<char>& chars) {
-    const std::vector<Stored> mine = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
-    const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1")};
-    const std::vector<Stored> forgets = {book.stored("E")};
+// Two lanes, four records and a forget of B in the first, two in the
+// second.
+void fill(Store& store, const qiven3::memory::Allocator<char>& chars) {
+    const std::vector<Rec> mine = chain(held_scope, first_lane, {"A", "B", "D", "ACC"});
+    const std::vector<Rec> theirs = chain(held_scope, second_lane, {"C", "M1"});
+    const std::vector<Rec> forgets = {forget("E", held_scope, first_lane, 5, "ACC", "B")};
     (void)store.append(held_scope, first_lane, std::nullopt, views(mine));
     (void)store.append(held_scope, second_lane, std::nullopt, views(theirs));
-    const std::string acc = qiven3::test::stage_book::id_of(mine[3]);
-    const std::string m1 = qiven3::test::stage_book::id_of(theirs[1]);
-    const std::vector<qiven3::store::GuardView> guard = {qiven3::store::GuardView{held_scope, first_lane, acc},
-                                                         qiven3::store::GuardView{held_scope, second_lane, m1}};
+    const std::vector<qiven3::store::GuardView> guard = {qiven3::store::GuardView{held_scope, first_lane, "ACC"},
+                                                         qiven3::store::GuardView{held_scope, second_lane, "M1"}};
     Vector<qiven3::store::Id> erased(chars);
-    (void)store.forget(held_scope, first_lane, acc, views(forgets), guard, erased);
+    (void)store.forget(held_scope, first_lane, "ACC", views(forgets), guard, erased);
 }
 
 // Each export statement's plan, printed: no line of it a structure built
@@ -214,7 +210,7 @@ bool same(const Vector<LaneHead>& a, const Vector<LaneHead>& b) {
 QIVEN3_CASE(store_exchange, smoke) {
     const auto rig = std::make_unique<Rig>();
     const auto source = std::make_unique<Store>(Store::open(rig->path("from"), true, false, rig->fake));
-    fill(*source, rig->book, rig->chars);
+    fill(*source, rig->chars);
     const Counts held = source->verify();
     CHECK_EQ(held.entries, 7U);
     CHECK_EQ(held.bodies, 5U);
@@ -260,13 +256,16 @@ QIVEN3_CASE(store_exchange, smoke) {
     CHECK_EQ(rows.size(), 0U);
     CHECK_EQ(drain(*none, nullptr), 0U);
 
-    // The heads given short of the lines': head_mismatch, nothing left.
-    copy.given.pop_back();
-    const auto refused = std::make_unique<Store>(Store::open(rig->path("refused"), true, false, rig->fake));
-    CHECK_EQ(raised([&] { (void)refused->import_(copy, heads); }), "EntryInvalid head_mismatch");
-    CHECK(heads.empty());
-    CHECK(refused->verify() == Counts{});
-    CHECK_EQ(wal_bytes(rig->path("refused")), 0U);
+    // The lines held with their keys imported; each import's store reopened.
+    const auto copied = std::make_unique<Store>(Store::open(rig->path("copied"), true, false, rig->fake));
+    CHECK(copied->import_(copy, heads).counts == held);
+    CHECK_EQ(heads.size(), copy.given.size());
+    CHECK(copied->verify() == held);
+    CHECK(copied->close().done && into->close().done);
+    for (const std::string_view name : {"into", "copied"}) {
+        const auto reader = std::make_unique<Store>(Store::open(rig->path(name), false, true, rig->fake));
+        CHECK(reader->verify() == held);
+    }
 
     // A move closes the moved-from object's exports, a close its own.
     auto open = std::make_unique<Export>(source->export_(std::nullopt, {}));

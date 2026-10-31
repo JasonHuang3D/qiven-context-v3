@@ -1,5 +1,6 @@
-// store/exchange's states, on the fake, over a scratch directory of the case's own. maximum: an entry of 64 KiB
-// content exported, imported and verified, each counted peak within 1 MiB. large: a lane of 400 entries
+// store/exchange's states, on the fake, over a scratch directory of the case's own, the plain SQLite store over
+// plain records. maximum: a record of a 64 KiB body exported, imported and verified, each counted peak within
+// 1 MiB. large: a lane of 400 entries
 // exported straight into an import, each peak within 1 MiB and no greater than a lane of 100's (seqs of 3 digits).
 // busy: an import while another object holds the write lock, StoreBusy after the busy wait, nothing written;
 // then imported.
@@ -7,9 +8,10 @@
 // export then read whole on its own. closing: exports closed by their own close in any order, by
 // their store object's close, move, move-assignment and end; an export moved, the moved-from closed, the
 // moved-to read whole and then closed with its store object. rollback: a source that throws after its third
-// line, and a refusal after 60 entries of 64 KiB spilled pages into the -wal: each rolled back, the -wal 0
-// bytes after it, the heads cleared, the store empty; the same source then imported. not_empty: an import
-// into a store holding an entry, StoreNotEmpty, the store unchanged.
+// line, and a refusal after 60 records of 64 KiB bodies spilled pages into the -wal, by the hooks once
+// written and by the admit hook at the heads: each rolled back, the -wal 0 bytes after it, the heads cleared,
+// the store empty; the same source then imported. not_empty: an import into a store holding an entry,
+// StoreNotEmpty, the store unchanged. Each store written verified, then reopened read-only and verified.
 
 #include <chrono>
 #include <cstddef>
@@ -19,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -27,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
@@ -37,11 +39,11 @@
 #include "store/exchange.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::records;  // NOLINT(google-build-using-namespace)
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using qiven3::memory::Vector;
@@ -49,15 +51,18 @@ using qiven3::store::Counts;
 using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
-using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = qiven3::checked::Export<sqlite::SQLiteExport<Fake>>;
+using Fake = qiven3::platform::fake::FakePlatform;
+using Arena = qiven3::memory::Arena;
+using Chars = qiven3::memory::Allocator<char>;
+using Store = qiven3::store::SQLiteStore<Fake>;
+using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
 constexpr std::string_view reviewer_lane = "reviewer";
 constexpr std::size_t own_bytes = qiven3::store::operation_base;
-constexpr std::size_t max_content = std::size_t{64} << 10U;
+constexpr std::size_t max_body = std::size_t{64} << 10U;
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -96,7 +101,7 @@ std::string raised(const F& f) {
 // lines, its next throws.
 struct Held {
     std::vector<LaneHead> given;
-    std::vector<std::pair<std::string, std::optional<std::string>>> lines;
+    std::vector<Rec> lines;
     std::size_t at = 0;
     std::size_t fail_at = 0;  // 0: never
     void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
@@ -107,17 +112,15 @@ struct Held {
         if (at == lines.size()) {
             return false;
         }
-        line.header.assign(lines[at].first);
-        line.has_body = lines[at].second.has_value();
-        line.body.assign(lines[at].second.value_or(std::string()));
-        ++at;
-        return true;
+        const Rec& r = lines[at++];
+        line.header.assign(r.line);
+        line.has_body = r.record.has_value();
+        line.body.assign(r.record.value_or(std::string()));
+        return line.keys.assign(view(r.keys));
     }
-    // A lane of entries, its head the last.
-    void add(const std::vector<Stored>& lane, std::string_view scope, std::string_view name) {
-        for (const Stored& s : lane) {
-            lines.emplace_back(s.line, s.record);
-        }
+    // A lane of records, its head the last.
+    void add(const std::vector<Rec>& lane, std::string_view scope, std::string_view name) {
+        lines.insert(lines.end(), lane.begin(), lane.end());
         given.push_back(lane_head(scope, name, id_of(lane.back()), static_cast<std::int64_t>(lane.size())));
     }
 };
@@ -138,14 +141,22 @@ struct Probe {
     void committed() const noexcept {}
     void rebuilt() const noexcept {}
 };
-using Probed = qiven3::checked::SQLiteStore<Fake, Probe>;
+using Probed = qiven3::store::SQLiteStore<Fake, Probe>;
+
+// An admit hook refusing the heads at an import's end, any held.
+struct HeadsRefused : qiven3::store::NoAdmit {
+    static void heads(std::span<const LaneHead> source, std::span<const LaneHead> /*given*/,
+                      const qiven3::store::AtView& /*at*/) {
+        if (!source.empty()) {
+            throw StoreError(qiven3::store::Code::internal, "import", "", "heads refused");
+        }
+    }
+};
 
 // A scratch directory of the case's own, removed at its end; the fake over
-// it, the fixtures, the engine heap and the caller's arena.
+// it, the engine heap and the caller's arena.
 struct Rig {
-    Rig()
-        : root(fresh()), fake(config(root)), book(fake), engine(fake), pages(std::size_t{1} << 20U), arena(pages),
-          chars(arena) {}
+    Rig() : root(fresh()), fake(config(root)), engine(fake), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
     Rig(const Rig&) = delete;
     Rig& operator=(const Rig&) = delete;
     Rig(Rig&&) = delete;
@@ -172,83 +183,43 @@ struct Rig {
     [[nodiscard]] std::unique_ptr<Store> made(std::string_view name) {
         return std::make_unique<Store>(Store::open(path(name), true, false, fake));
     }
-    // A chain of n claims like A on implementer's lane, each its own
-    // mistake, from seq 1.
-    [[nodiscard]] std::vector<Stored> claims(std::size_t n) const {
-        const std::string a = *book.stored("A").content;
-        const std::string key = "\"mistake\":\"";
-        const std::size_t from = a.find(key) + key.size();
-        std::vector<Stored> out;
-        std::string parent;
-        for (std::size_t i = 0; i < n; ++i) {
-            std::string content = a;
-            const std::string number = std::to_string(1000000 + i);  // one width: entries of one size
-            content.replace(from, a.find('"', from) - from, "case " + number);
-            out.push_back(book.made("A", "A", content, [&](header::FieldsView& f) {
-                f.seq = static_cast<std::int64_t>(i) + 1;
-                f.parent = i == 0 ? std::nullopt : std::optional<std::string_view>(parent);
-            }));
-            parent = id_of(out.back());
-        }
-        return out;
-    }
-    // A chain of n modules like MX on reviewer's lane, each of 64 KiB
-    // content, each its own.
-    [[nodiscard]] std::vector<Stored> modules(std::size_t n) const;
-
     fs::path root;
     Fake fake;
-    Book book;
     Engine engine;
     std::vector<std::byte> pages;
     Arena arena;
     Chars chars;
 };
 
-// MX's content grown to the maximum, 64 KiB: letters of its paths and
-// interface names made four-byte characters, three bytes more each, the
-// last one or two bytes more by a two- or three-byte one.
-std::string maximum_content(const Book& book) {
-    const std::string mx = *book.stored("MX").content;
-    const std::size_t paths = mx.find('[', mx.find("\"paths\":["));
-    const std::size_t paths_end = mx.find(']', paths);
-    const std::size_t names = mx.find('[', mx.find("\"interface\":["));
-    const std::size_t names_end = mx.find(']', names);
-    std::size_t grow = max_content - mx.size();
-    std::string out;
-    out.reserve(max_content);
-    for (std::size_t i = 0; i < mx.size(); ++i) {
-        const bool letter =
-            (i > paths && i < paths_end && mx[i] == 'a') || (i > names && i < names_end && mx[i] == 'b');
-        if (!letter || grow == 0) {
-            out.push_back(mx[i]);
-        } else if (grow >= 3) {
-            out.append("\xF0\x9F\x98\x80");
-            grow -= 3;
-        } else {
-            out.append(grow == 2 ? "\xE2\x82\xAC" : "\xC3\xA9");
-            grow = 0;
-        }
+// A chain of n records on implementer's lane from seq 1, each with a body;
+// ids of one width: records of one size.
+std::vector<Rec> claims(std::size_t n) {
+    std::vector<Rec> out;
+    for (std::size_t i = 0; i < n; ++i) {
+        const std::optional<std::string_view> parent =
+            i == 0 ? std::nullopt : std::optional<std::string_view>(id_of(out.back()));
+        out.push_back(rec("c" + std::to_string(1000000 + i), qiven_scope, implementer_lane,
+                          static_cast<std::int64_t>(i) + 1, parent));
     }
     return out;
 }
 
-std::vector<Stored> Rig::modules(std::size_t n) const {
-    const std::string most = maximum_content(book);
-    const std::string key = "\"mistake\":\"";
-    const std::size_t from = most.find(key) + key.size();
-    std::vector<Stored> out;
-    std::string parent;
+// A chain of n records on reviewer's lane from seq 1, each of a 64 KiB body.
+std::vector<Rec> modules(std::size_t n) {
+    std::vector<Rec> out;
     for (std::size_t i = 0; i < n; ++i) {
-        std::string content = most;
-        content[from + (i / 10)] = static_cast<char>('n' + (i % 10));
-        out.push_back(book.made("MX", "MX", content, [&](header::FieldsView& f) {
-            f.seq = static_cast<std::int64_t>(i) + 1;
-            f.parent = i == 0 ? std::nullopt : std::optional<std::string_view>(parent);
-        }));
-        parent = id_of(out.back());
+        const std::optional<std::string_view> parent =
+            i == 0 ? std::nullopt : std::optional<std::string_view>(id_of(out.back()));
+        out.push_back(big("m" + std::to_string(100 + i), qiven_scope, reviewer_lane, static_cast<std::int64_t>(i) + 1,
+                          parent, max_body));
     }
     return out;
+}
+
+// The store at path reopened read-only, its verify's counts.
+Counts reread(Rig& rig, const std::string& path) {
+    const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+    return reader->verify();
 }
 
 // An export's lines read, each on a fresh arena; their count and the
@@ -279,10 +250,10 @@ struct Peaks {
     bool same = false;  // verify's counts equal
 };
 Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
-    const std::vector<Stored> lane = rig.claims(n);
+    const std::vector<Rec> lane = claims(n);
     auto from = rig.made(std::string(name) + "-from");
     for (std::size_t i = 0; i < n; i += 50) {
-        const std::vector<Stored> batch(lane.begin() + static_cast<std::ptrdiff_t>(i),
+        const std::vector<Rec> batch(lane.begin() + static_cast<std::ptrdiff_t>(i),
                                         lane.begin() + static_cast<std::ptrdiff_t>(std::min(n, i + 50)));
         const std::optional<std::string> parent = i == 0 ? std::nullopt : std::optional(id_of(lane[i - 1]));
         (void)from->append(qiven_scope, implementer_lane, parent, views(batch));
@@ -297,8 +268,10 @@ Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
         p.imported = into->peak();
         p.entries = i.counts.entries;
     }
-    p.same = into->verify() == from->verify();
+    const Counts held = from->verify();
+    p.same = into->verify() == held;
     p.verified = into->peak();
+    p.same = p.same && reread(rig, rig.path(std::string(name) + "-into")) == held;
     return p;
 }
 
@@ -306,8 +279,8 @@ Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
 
 QIVEN3_CASE(store_exchange, maximum) {
     const auto rig = std::make_unique<Rig>();
-    const std::vector<Stored> mx = rig->modules(1);
-    REQUIRE(mx[0].content->size() == max_content);
+    const std::vector<Rec> mx = modules(1);
+    REQUIRE(mx[0].record->size() == max_body);
     const auto from = rig->made("from");
     (void)from->append(qiven_scope, reviewer_lane, std::nullopt, views(mx));
     auto x = std::make_unique<Export>(from->export_(std::nullopt, {}));
@@ -323,12 +296,13 @@ QIVEN3_CASE(store_exchange, maximum) {
     const std::size_t verified = into->peak();
     CHECK(counts == from->verify());
     CHECK_EQ(counts.bodies, 1U);
+    CHECK(reread(*rig, rig->path("into")) == counts);
     CHECK(exported <= own_bytes);
     CHECK(imported <= own_bytes);
     CHECK(verified <= own_bytes);
-    std::cout << "store_exchange.maximum: content " << mx[0].content->size() << " bytes, record "
-              << mx[0].record->size() << "; next " << exported << ", import " << imported << ", verify " << verified
-              << " of " << own_bytes << "; the caller's line " << caller << "\n";
+    std::cout << "store_exchange.maximum: record " << mx[0].record->size() << " bytes; next " << exported
+              << ", import " << imported << ", verify " << verified << " of " << own_bytes << "; the caller's line "
+              << caller << "\n";
 }
 
 QIVEN3_CASE(store_exchange, large) {
@@ -352,7 +326,7 @@ QIVEN3_CASE(store_exchange, large) {
 QIVEN3_CASE(store_exchange, busy) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(rig->claims(3), qiven_scope, implementer_lane);
+    held.add(claims(3), qiven_scope, implementer_lane);
     const auto into = rig->made("into");
     const auto other = std::make_unique<Store>(Store::open(rig->path("into"), false, false, rig->fake));
     other->connection().exec("BEGIN IMMEDIATE", sqlite::site("hold", ""));
@@ -366,16 +340,18 @@ QIVEN3_CASE(store_exchange, busy) {
     CHECK(into->verify() == Counts{});
     held.at = 0;
     CHECK_EQ(into->import_(held, heads).counts.entries, 3U);
+    CHECK(reread(*rig, rig->path("into")) == into->verify());
     std::cout << "store_exchange.busy: StoreBusy after " << waited << " s\n";
 }
 
 QIVEN3_CASE(store_exchange, threads) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(rig->claims(3), qiven_scope, implementer_lane);
+    held.add(claims(3), qiven_scope, implementer_lane);
     const auto from = rig->made("from");
     Vector<LaneHead> written(rig->chars);
     (void)from->import_(held, written);
+    CHECK(reread(*rig, rig->path("from")) == from->verify());
     auto x = std::make_unique<Export>(from->export_(std::nullopt, {}));
     const auto into = rig->made("into");
     std::vector<std::string> got;
@@ -404,10 +380,11 @@ QIVEN3_CASE(store_exchange, threads) {
 QIVEN3_CASE(store_exchange, closing) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(rig->claims(4), qiven_scope, implementer_lane);
+    held.add(claims(4), qiven_scope, implementer_lane);
     auto from = rig->made("from");
     Vector<LaneHead> rows(rig->chars);
     (void)from->import_(held, rows);
+    CHECK(reread(*rig, rig->path("from")) == from->verify());
     const auto closed = [&](Export& e) { return raised([&] { (void)e.heads(rows); }) == "StoreError closed"; };
     // Its own close, in any order: the middle of the list, its first, its last.
     auto e1 = std::make_unique<Export>(from->export_(std::nullopt, {}));
@@ -457,11 +434,11 @@ QIVEN3_CASE(store_exchange, closing) {
 QIVEN3_CASE(store_exchange, rollback) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(rig->claims(5), qiven_scope, implementer_lane);
+    held.add(claims(5), qiven_scope, implementer_lane);
     held.fail_at = 3;
     const auto into = rig->made("into");
     Vector<LaneHead> heads(rig->chars);
-    heads.push_back(lane_head(qiven_scope, implementer_lane, id_of(rig->claims(1)[0]), 1));
+    heads.push_back(lane_head(qiven_scope, implementer_lane, id_of(claims(1)[0]), 1));
     bool threw = false;
     try {
         (void)into->import_(held, heads);
@@ -479,7 +456,7 @@ QIVEN3_CASE(store_exchange, rollback) {
 
     // 60 entries of 64 KiB: their pages spill into the -wal before COMMIT.
     Held big;
-    big.add(rig->modules(60), qiven_scope, reviewer_lane);
+    big.add(modules(60), qiven_scope, reviewer_lane);
     std::uintmax_t seen = 0;
     const std::string path = rig->path("big");
     auto probed = std::make_unique<Probed>(Probed::open(path, true, false, rig->fake, {}, Probe{&path, &seen, true}));
@@ -490,18 +467,21 @@ QIVEN3_CASE(store_exchange, rollback) {
     CHECK(heads.empty());
     CHECK(probed->verify() == Counts{});
     probed.reset();
-    // The heads given short: head_mismatch at the end, after the spill.
+    // The heads refused by the admit hook at the end, after the spill.
     big.at = 0;
-    big.given.push_back(lane_head(qiven_scope, implementer_lane, id_of(rig->claims(1)[0]), 1));
     probed = std::make_unique<Probed>(Probed::open(path, false, false, rig->fake, {}, Probe{&path, &seen, false}));
-    CHECK_EQ(raised([&] { (void)probed->import_(big, heads); }), "EntryInvalid head_mismatch");
+    CHECK_EQ(raised([&] { (void)probed->import_(big, heads, HeadsRefused{}); }), "StoreError internal");
     CHECK_EQ(wal_bytes(path), 0U);
+    CHECK(heads.empty());
     CHECK(probed->verify() == Counts{});
-    big.given.pop_back();
     big.at = 0;
     CHECK_EQ(probed->import_(big, heads).counts.entries, 60U);
     CHECK_EQ(heads.size(), 1U);
     CHECK_EQ(wal_bytes(path), 0U);
+    const Counts counts = probed->verify();
+    CHECK_EQ(counts.entries, 60U);
+    CHECK(reread(*rig, path) == counts);
+    CHECK(reread(*rig, rig->path("into")) == into->verify());
     std::cout << "store_exchange.rollback: the -wal held " << spilled << " bytes once written, 0 after the refusal; "
               << seen << " before the import's COMMIT\n";
 }
@@ -509,9 +489,9 @@ QIVEN3_CASE(store_exchange, rollback) {
 QIVEN3_CASE(store_exchange, not_empty) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(rig->claims(2), qiven_scope, implementer_lane);
+    held.add(claims(2), qiven_scope, implementer_lane);
     const auto into = rig->made("into");
-    const std::vector<Stored> one = rig->claims(1);
+    const std::vector<Rec> one = claims(1);
     (void)into->append(qiven_scope, implementer_lane, std::nullopt, views(one));
     const Counts before = into->verify();
     Vector<LaneHead> heads(rig->chars);
@@ -520,4 +500,5 @@ QIVEN3_CASE(store_exchange, not_empty) {
     CHECK(into->verify() == before);
     CHECK_EQ(before.entries, 1U);
     CHECK_EQ(held.at, 0U);  // refused before its first line
+    CHECK(reread(*rig, rig->path("into")) == before);
 }

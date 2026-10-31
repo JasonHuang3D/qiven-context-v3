@@ -17,6 +17,8 @@
 //   id_of, seq_of, lane_head
 //                       a record's id and seq; a lane's head as a source
 //                       gives it
+//   owned(line)         an export's or a source's line as a record, its text
+//                       and keys owned
 //   Refusal, refused(f) what a StoreError f raised gives, or none
 //
 // Allocations: the standard's, the records' strings. thread: any.
@@ -135,6 +137,16 @@ inline std::uint64_t added(const std::vector<Rec>& list) {
         n += r.line.size() + 1 + (r.record ? r.record->size() + 1 : 0);
     }
     return n;
+}
+
+inline Rec owned(const store::Line& line) {
+    const store::KeysView k = line.keys.view();
+    const auto opt = [](const std::optional<std::string_view>& s) {
+        return s ? std::optional<std::string>(*s) : std::nullopt;
+    };
+    return Rec{std::string(line.header), line.has_body ? std::optional<std::string>(std::string(line.body)) : std::nullopt,
+               Keys{std::string(k.id), std::string(k.scope), std::string(k.lane), std::string(k.kind), k.seq,
+                    opt(k.parent), opt(k.target), k.body}};
 }
 
 inline const std::string& id_of(const Rec& r) { return r.keys.id; }
