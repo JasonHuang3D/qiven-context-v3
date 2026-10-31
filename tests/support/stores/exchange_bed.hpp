@@ -1,8 +1,9 @@
 #pragma once
 
-// store/exchange's budgets, counts and fault runs, on the fake, over a scratch directory of the case's own: a
-// source store with two lanes and a forget (A, B, D and ACC on implementer's lane, C and M1 on reviewer's, B
-// forgotten by E), its lines held as an import's source, and an empty store to import them into. The steps:
+// store/exchange's budgets, counts and fault runs, on the fake, over a scratch directory of the case's own, the
+// plain SQLite store over plain records (records.hpp): a source store with two lanes and a forget (A, B, D and
+// ACC on implementer's lane, C and M1 on reviewer's, B forgotten by E), its lines held with their keys as an
+// import's source, and an empty store to import them into. The steps:
 // export, an export of the scope set project:* from seq 2 of implementer's lane made and closed; heads, its
 // heads read; next, its lines read whole; import, the held lines into the empty store; verify, of the source.
 // budget: each step's counted peak within 1 MiB (an export's pages 1 MiB plus 57 bytes a scope and 98 a seq),
@@ -14,8 +15,10 @@
 // the engine absorbs, the step completing with its own result; after each run the export closed, the caller's
 // arena and the fake's pages given back (an export's engine heap too), no transaction open, the source as its
 // reads give it unchanged; after an import refused its store empty (verify's counts none), its -wal 0 bytes
-// and the caller's heads cleared; an import that completed undone.
+// and the caller's heads cleared; an import that completed undone. An import, refused or not, verified over a
+// reopen of its store.
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -30,21 +33,23 @@
 #include <utility>
 #include <vector>
 
-#include "checked/stores.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/exchange.hpp"
+#include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/fixtures/stage_book.hpp"
+#include "support/stores/records.hpp"
 
 namespace qiven3::test::exchange_bed {
 
-using stage_book::Arena, stage_book::Book, stage_book::Chars, stage_book::Fake, stage_book::id_of;
-using stage_book::Slot, stage_book::Stored, stage_book::views;
+using records::Rec, records::views;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
+using Fake = qiven3::platform::fake::FakePlatform;
+using Chars = qiven3::memory::Allocator<char>;
+using qiven3::memory::Arena;
 using qiven3::memory::Vector;
 using qiven3::store::AfterView;
 using qiven3::store::Counts;
@@ -52,14 +57,15 @@ using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::store::Line;
-using Store = qiven3::checked::SQLiteStore<Fake>;
-using Export = qiven3::checked::Export<sqlite::SQLiteExport<Fake>>;
+using Store = qiven3::store::SQLiteStore<Fake>;
+using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
 
 inline constexpr std::string_view qiven_scope = "project:qiven";
 inline constexpr std::string_view implementer_lane = "implementer";
 inline constexpr std::string_view reviewer_lane = "reviewer";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
+inline constexpr Counts source_counts{7, 5, 1, 2};  // verify's, of the source and an import of it
 inline constexpr std::string_view unfaulted =
     "not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers";
 
@@ -71,30 +77,30 @@ inline std::string text(const fs::path& path) {
     return out;
 }
 
-// A source of lines held: the heads given, then each line.
+// A source of lines held: the heads given, then each line with its keys.
 struct Held {
     std::vector<LaneHead> given;
-    std::vector<std::pair<std::string, std::optional<std::string>>> lines;
+    std::vector<Rec> lines;
     std::size_t at = 0;
     void heads(Vector<LaneHead>& rows) const { rows.assign(given.begin(), given.end()); }
     bool next(Line& line) {
         if (at == lines.size()) {
             return false;
         }
-        line.header.assign(lines[at].first);
-        line.has_body = lines[at].second.has_value();
-        line.body.assign(lines[at].second.value_or(std::string()));
-        ++at;
-        return true;
+        const Rec& r = lines[at++];
+        line.header.assign(r.line);
+        line.has_body = r.record.has_value();
+        line.body.assign(r.record.value_or(std::string()));
+        return line.keys.assign(view(r.keys));
     }
 };
 
-// The scratch, the fake over it, the fixtures, the engine heap, the source
-// and the store to import into, the held lines, the export in hand and the
-// caller's arena; on the heap.
+// The scratch, the fake over it, the engine heap, the source and the store
+// to import into, the held lines, the export in hand and the caller's
+// arena; on the heap.
 struct Bed {
     Bed()
-        : root(fresh_root()), fake(config(root)), book(fake), engine(std::make_unique<Engine>(fake)),
+        : root(fresh_root()), fake(config(root)), engine(std::make_unique<Engine>(fake)),
           from(text(root / "from" / "store.db")), into(text(root / "into" / "store.db")), call_pages(call_bytes) {
         source = std::make_unique<Store>(Store::open(from, true, false, fake));
         fill();
@@ -111,8 +117,7 @@ struct Bed {
             if (!whole->next(line)) {
                 break;
             }
-            held.lines.emplace_back(std::string(line.header),
-                                    line.has_body ? std::optional<std::string>(std::string(line.body)) : std::nullopt);
+            held.lines.push_back(records::owned(line));
         }
     }
     Bed(const Bed&) = delete;
@@ -144,19 +149,17 @@ struct Bed {
     }
 
     void fill() {
-        const std::vector<Stored> mine = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
-        const std::vector<Stored> theirs = {book.stored("C"), book.stored("M1")};
-        const std::vector<Stored> forgets = {book.stored("E")};
+        const std::vector<Rec> mine = records::chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"});
+        const std::vector<Rec> theirs = records::chain(qiven_scope, reviewer_lane, {"C", "M1"});
+        const std::vector<Rec> forgets = {records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")};
         (void)source->append(qiven_scope, implementer_lane, std::nullopt, views(mine));
         (void)source->append(qiven_scope, reviewer_lane, std::nullopt, views(theirs));
-        const std::string acc = id_of(mine[3]);
-        const std::string m1 = id_of(theirs[1]);
-        const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer_lane, acc},
-                                              GuardView{qiven_scope, reviewer_lane, m1}};
+        const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer_lane, "ACC"},
+                                              GuardView{qiven_scope, reviewer_lane, "M1"}};
         std::vector<std::byte> pages(std::size_t{1} << 16U);
         Arena arena(pages);
         Vector<Id> erased{Chars(arena)};
-        (void)source->forget(qiven_scope, implementer_lane, acc, views(forgets), guard, erased);
+        (void)source->forget(qiven_scope, implementer_lane, "ACC", views(forgets), guard, erased);
     }
 
     // A fresh caller's arena.
@@ -179,6 +182,15 @@ struct Bed {
         target->attach(attached);
 #endif
     }
+    // The store imported into closed and opened again: its verify's counts.
+    Counts reopened_target() {
+        target.reset();
+        target = std::make_unique<Store>(Store::open(into, false, false, fake));
+#if defined(QIVEN3_FAULTS)
+        target->attach(attached);
+#endif
+        return target->verify();
+    }
     // A fresh engine heap, the stores closed before; the source or the
     // target reopened after.
     void fresh_engine(bool open_source, bool open_target) {
@@ -197,7 +209,6 @@ struct Bed {
 
     fs::path root;
     Fake fake;
-    Book book;
     std::unique_ptr<Engine> engine;  // before the stores, which end first
     std::string from;
     std::string into;
@@ -231,7 +242,7 @@ struct Step {
     std::string want;       // its result
     std::function<Ran(Bed&, const Chars&)> run;
 };
-inline constexpr std::string_view next_ids = "7f5af8 b  014325 b  e84b77 -  e721d4 b  cdc1cc b  ";
+inline constexpr std::string_view next_ids = "D b  ACC b  E -  C b  M1 b  ";
 
 inline std::vector<Step> steps() {
     std::vector<Step> out;
@@ -258,8 +269,7 @@ inline std::vector<Step> steps() {
                                break;
                            }
                            most = std::max(most, b.call->peak());
-                           const std::string_view h(line.header);
-                           ids.append(h.substr(h.find("\"id\":") + 13, 6)).append(line.has_body ? " b" : " -");
+                           ids.append(line.keys.id.view()).append(line.has_body ? " b" : " -");
                            ids.append(line.forgotten ? "f " : "  ");
                        }
                        return Ran{b.x->peak(), most, ids};

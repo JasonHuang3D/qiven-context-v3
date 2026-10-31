@@ -20,9 +20,10 @@ struct Count {
     friend bool operator==(const Count&, const Count&) = default;
 };
 
-// The counts each step makes, pinned as measured; the engine heap's count
-// is the engine's own, by its system's file layer: measured on Windows and
-// Linux; elsewhere not compared.
+// The counts each step makes, pinned as measured on Windows; Linux's as
+// Windows' change, not measured, where plain records changed them. The
+// engine heap's count is the engine's own, by its system's file layer;
+// elsewhere not compared.
 struct Pinned {
     std::string_view name;
     Count windows;
@@ -36,9 +37,9 @@ constexpr bool heap_pinned = false;
 constexpr std::array<Pinned, 5> pinned = {{
     {"export", {1, 209, 50, 0, 1}, {1, 202, 50, 0, 1}},
     {"heads", {0, 0, 4, 2, 0}, {0, 0, 4, 2, 0}},
-    {"next", {0, 0, 16, 82, 0}, {0, 0, 16, 82, 0}},
-    {"import", {472, 129, 251, 2, 0}, {472, 129, 251, 2, 0}},
-    {"verify", {444, 33, 123, 0, 0}, {444, 33, 123, 0, 0}},
+    {"next", {0, 0, 16, 9, 0}, {0, 0, 16, 9, 0}},
+    {"import", {13, 129, 203, 2, 0}, {13, 129, 203, 2, 0}},
+    {"verify", {0, 17, 28, 0, 0}, {0, 17, 28, 0, 0}},
 }};
 
 Count pinned_of(std::string_view name) {
@@ -100,6 +101,7 @@ QIVEN3_CASE(store_exchange, counts) {
     b->attached = nullptr;
     b->source->attach(nullptr);
     b->target->attach(nullptr);
+    CHECK(b->reopened_target() == source_counts);
 }
 
 #else

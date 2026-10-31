@@ -38,7 +38,7 @@ QIVEN3_CASE(store_exchange, budget) {
         const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
         const std::size_t engine_within = qiven3::store::engine_budget * (s.side == Side::exporting ? 2U : 1U);
         CHECK(r.own <= own_bytes);
-        CHECK(r.own > 0 || s.name == "heads");
+        CHECK(r.own > 0 || s.name == "heads" || s.side == Side::verifying);  // the plain verify counts none
         CHECK_EQ(r.result, std::string(s.want));
         CHECK(r.caller <= call_bytes);
         CHECK(engine <= engine_within);
@@ -46,6 +46,9 @@ QIVEN3_CASE(store_exchange, budget) {
                   << r.caller << " on the caller's arena; engine peak " << engine << ", " << slots.peak
                   << " slots of it (reopened, the heap's " << opened << ") within " << engine_within << "; "
                   << r.result << "\n";
+        if (s.side == Side::importing) {
+            CHECK(b->reopened_target() == source_counts);
+        }
     }
 }
 
@@ -54,7 +57,6 @@ namespace {
 
 using qiven3::memory::MemoryError;
 using qiven3::platform::PlatformError;
-using qiven3::checked::Header;
 using qiven3::store::Heads;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;
@@ -84,9 +86,9 @@ std::string fingerprint(Store& store) {
         out.append(" size ").append(std::to_string(sizes->volume.size));
         out.append(" count ").append(std::to_string(sizes->volume.count)).append(" ids");
         auto scan = store.scan(RangeView{});
-        Header h(chars);
-        while (scan.next(h)) {
-            out.append(" ").append(h.value(Slot::id));
+        qiven3::store::Record record(chars);
+        while (scan.next(record)) {
+            out.append(" ").append(record.id.view());
         }
         return out;
     } catch (const qiven3::store::StoreError& e) {
@@ -131,9 +133,11 @@ bool held_after(Bed& b, const Step& s, const After& before, bool done) {
     if (s.side == Side::importing) {
         good = good && !b.target->connection().in_transaction() && b.heads_left == 0;
         if (done) {
+            good = good && b.reopened_target() == source_counts;
             b.empty_target();
         }
-        return good && b.target->verify() == Counts{} && wal_bytes(b.into) == 0;
+        good = good && b.target->verify() == Counts{} && wal_bytes(b.into) == 0;  // before a close could empty it
+        return good && b.reopened_target() == Counts{};
     }
     good = good && (s.side != Side::exporting || b.engine->heap().used() == before.heap);
     good = good && !b.source->connection().in_transaction();
