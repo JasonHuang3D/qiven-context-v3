@@ -120,7 +120,7 @@ inline constexpr std::array<Setting, 11> settings = {
 [[nodiscard]] bool engine_ready() noexcept;
 // Removes the file at path's UTF-8 bytes and suffix through the engine's
 // default file layer (its delete, which removes files alone); true when it
-// is gone or was never there. Under QIVEN3_FAULTS it asks the engine
+// is gone or was never there. Under QIVEN_FAULTS it asks the engine
 // calls' countdown first, a failed one false.
 [[nodiscard]] bool remove_file(std::string_view path, std::string_view suffix) noexcept;
 

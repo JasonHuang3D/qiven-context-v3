@@ -33,7 +33,7 @@ std::span<std::byte> aligned(std::span<std::byte> pages) noexcept {
     return pages.subspan(pages.size() - space);
 }
 
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
 // p's offset in pages, in constant time; empty if p is not one of its bytes.
 std::optional<std::size_t> offset_of(std::span<std::byte> pages, const void* p) noexcept {
     const std::less<const void*> before;
@@ -49,7 +49,7 @@ std::size_t round_up(std::size_t n) noexcept {
     return rounded == 0 ? slot_align : rounded;
 }
 
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
 // A heap block's header, before its payload: its class, its state and, when
 // free, the next free payload of its class; when held, its own payload's
 // offset, which find() checks.
@@ -105,12 +105,12 @@ Pool::Pool(std::size_t slot, std::span<std::byte> pages) noexcept
 Pool::~Pool() { unpoison(pages_); }
 
 void* Pool::allocate() {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown_ != nullptr && countdown_->fail()) {
         throw MemoryError::budget("pool, fault injected", capacity_ * slot_, slot_, used_);
     }
 #endif
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     if (free_count_ == 0 && bumped_ == capacity_) {
         throw MemoryError::budget("pool", capacity_ * slot_, slot_, used_);
     }
@@ -147,7 +147,7 @@ void Pool::free(void* p) noexcept {
     if (p == nullptr || used_ == 0) {
         fail_fast("pool: a free of a slot it does not hold");
     }
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     ::operator delete(p, std::align_val_t{slot_align});
     ++free_count_;
 #else
@@ -244,7 +244,7 @@ std::size_t Heap::peak() const noexcept {
     return n;
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 void Heap::attach(Countdown* countdown) noexcept {
     hold();
     countdown_ = countdown;
@@ -257,14 +257,14 @@ void* Heap::take(std::size_t n) noexcept {
     if (!cls) {
         return nullptr;
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown_ != nullptr && countdown_->fail()) {
         return nullptr;
     }
 #endif
     const std::size_t slot = slot_of(*cls);
     std::size_t& list = free_[*cls];
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     if (list == 0 && slot > pages_.size() - bump_) {
         return nullptr;
     }
@@ -306,7 +306,7 @@ void* Heap::take(std::size_t n) noexcept {
 
 void Heap::give(void* p) noexcept {
     const Block block = find(p);
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     blocks_.erase(p);
     ::operator delete(p, std::align_val_t{slot_align});
     ++free_[block.cls];
@@ -319,7 +319,7 @@ void Heap::give(void* p) noexcept {
 }
 
 Heap::Block Heap::find(const void* p) const noexcept {
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     const auto found = blocks_.find(p);
     if (found == blocks_.end()) {
         fail_fast("heap: a block it does not hold");

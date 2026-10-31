@@ -217,10 +217,10 @@ class PlatformFiles:
         adapter's; each call of the open's own answers io. Then its
         file's own open failed, its parents made first, and one more file
         opened and published: the published directory holds that file
-        alone. Built without QIVEN3_FAULTS, not applicable."""
+        alone. Built without QIVEN_FAULTS, not applicable."""
         self.needs("files")
         if not has_faults() or debug_library():
-            self.skipTest("not applicable: a fault run needs QIVEN3_FAULTS and the release library")
+            self.skipTest("not applicable: a fault run needs QIVEN_FAULTS and the release library")
         bags = Path(self.files_root()) / "opened"
         bags.mkdir()
         deep = "a/b/c.txt"

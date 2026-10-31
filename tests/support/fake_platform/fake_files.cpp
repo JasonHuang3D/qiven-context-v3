@@ -142,7 +142,7 @@ FakeFiles::FakeFiles(FakePlatform& platform, const Busy& busy)
 FakeFiles::~FakeFiles() = default;
 
 bool FakeFiles::faulted() noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     return countdown_ != nullptr && countdown_->fail();
 #else
     return false;

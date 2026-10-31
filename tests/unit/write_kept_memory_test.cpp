@@ -35,7 +35,7 @@
 using namespace qiven3::test::kept_bed;
 using qiven3::memory::MemoryError;
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 namespace {
 
 constexpr std::string_view writer = "implementer/s7";
@@ -197,7 +197,7 @@ struct Case {
 #endif
 
 QIVEN3_CASE(write_kept_memory, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto bed = std::make_unique<Bed>();
     qiven3::memory::Countdown countdown;
     bed->hooks.work = &countdown;
@@ -225,12 +225,12 @@ QIVEN3_CASE(write_kept_memory, faults) {
     }
     bed->run.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
 QIVEN3_CASE(write_kept_memory, platform_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const auto bed = std::make_unique<Bed>();
     qiven3::memory::Countdown countdown;
     // Each call's fault points: the fake's and its files', the refusal's
@@ -267,6 +267,6 @@ QIVEN3_CASE(write_kept_memory, platform_faults) {
         CHECK_EQ(refused, c.op == Op::refused ? dropped + 1 : 0U);
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

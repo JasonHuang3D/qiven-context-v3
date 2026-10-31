@@ -145,7 +145,7 @@ std::chrono::milliseconds steady_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 using qiven3::platform::win::ClockTrace;
 
 // A retry loop's clock by its trace, read between before and after, as
@@ -276,12 +276,12 @@ QIVEN3_CASE(win_files_stage, publish_exists) {
 // published once released; then held past it: busy, never before the
 // deadline by the clock the adapter reads, naming the staging directory
 // left and the file that stopped its discard; released, a discard removes
-// it. Under QIVEN3_FAULTS the trace shows each publish's retries as
+// it. Under QIVEN_FAULTS the trace shows each publish's retries as
 // check_clock states them.
 QIVEN3_CASE(win_files_stage, publish_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     ClockTrace trace;
 #endif
     const auto bag = [&](WindowsStaged& staged) {
@@ -298,7 +298,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         const fs::path inside = scratch.root / staging_left(scratch.root).front();
         auto reader = std::make_unique<std::ifstream>(inside / "bagit.txt", std::ios::binary);
         CHECK(reader->is_open());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(&trace);
 #endif
         const auto before = steady_ms();
@@ -310,7 +310,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         const auto after = steady_ms();
         release.join();
         CHECK(after - before >= 100ms);  // not before the release
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(nullptr);
         check_clock(qiven3_ctx, trace, before, after, five, false);
         trace = ClockTrace{};
@@ -324,7 +324,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
     {
         const std::ifstream reader(scratch.root / name / "bagit.txt", std::ios::binary);
         CHECK(reader.is_open());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(&trace);
 #endif
         const auto before = steady_ms();
@@ -335,7 +335,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         CHECK_EQ(held.detail, "rename: error 5 (ERROR_ACCESS_DENIED); left " + name +
                                   "/bagit.txt, delete: error 32 (ERROR_SHARING_VIOLATION)");
         CHECK(after - before >= short_wait);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(nullptr);
         check_clock(qiven3_ctx, trace, before, after, short_wait, true);
 #endif
@@ -488,7 +488,7 @@ QIVEN3_CASE(win_files_stage, bound) {
 // then every place free, 16 open and the 17th refused. The pages' fault is
 // memory, as their refusal is; the random draw's and the directory's io.
 QIVEN3_CASE(win_files_stage, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     qiven3::memory::Countdown countdown;
@@ -580,6 +580,6 @@ QIVEN3_CASE(win_files_stage, faults) {
     CHECK_EQ(fill(staged, sinks, "f"), 16U);
     staged.discard();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

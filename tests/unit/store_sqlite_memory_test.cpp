@@ -52,7 +52,7 @@ QIVEN3_CASE(store_sqlite, budget) {
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 // The store as its reads give it: its heads, forget count, size, count and

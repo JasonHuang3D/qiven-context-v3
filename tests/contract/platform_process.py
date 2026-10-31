@@ -424,7 +424,7 @@ class PlatformProcess:
 
     def test_child_memory(self):
         """Each Child request within the member's budget, nothing left on its
-        arena; under QIVEN3_FAULTS, start's and read_line's arena
+        arena; under QIVEN_FAULTS, start's and read_line's arena
         allocations and the adapter's calls failed in turn, each a typed
         error, then done, the calls counted: on the fake over its programs,
         elsewhere over qiven3-child."""

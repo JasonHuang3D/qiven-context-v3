@@ -30,7 +30,7 @@
 //
 // Allocations, all the arena's, each content's check in a work span of
 // work_bytes taken once and given back; past it MemoryError budget. Under
-// QIVEN3_FAULTS the check's arena asks hooks.work first. It logs nothing.
+// QIVEN_FAULTS the check's arena asks hooks.work first. It logs nothing.
 //
 // thread: one (a File stays in the thread that read it)
 
@@ -116,10 +116,10 @@ namespace detail {
 struct Reader;
 }  // namespace detail
 
-// The tests' hook: under QIVEN3_FAULTS each content check's arena asks
+// The tests' hook: under QIVEN_FAULTS each content check's arena asks
 // work first.
 struct Hooks {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* work = nullptr;
 #endif
 };

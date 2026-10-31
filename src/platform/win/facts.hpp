@@ -15,7 +15,7 @@
 // its key missing unknown with the reason naming the key (unopened);
 // in synced a read failing but for none there is PlatformError path, so
 // that no synced folder is missed; in residual a row's read failing is
-// applies unknown. Under QIVEN3_FAULTS each Win32, registry, COM and
+// applies unknown. Under QIVEN_FAULTS each Win32, registry, COM and
 // known-folder call asks the adapter's countdown first and, when it
 // fires, fails as the call would with error 31 (ERROR_GEN_FAILURE), or
 // the HRESULT 0x8007001f.

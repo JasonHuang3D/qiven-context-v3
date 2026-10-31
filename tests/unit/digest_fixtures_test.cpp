@@ -307,7 +307,7 @@ QIVEN3_CASE(fixtures, load_budget) {
 }
 
 QIVEN3_CASE(fixtures, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget_for(file_bytes));
     qiven3::memory::Countdown countdown;
     std::optional<Arena> arena;
@@ -369,6 +369,6 @@ QIVEN3_CASE(fixtures, faults) {
     CHECK_EQ(bytes, 57U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

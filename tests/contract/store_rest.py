@@ -302,7 +302,7 @@ class StoreRest:
         try:
             self.needs(drive, "own: sqlite")
             if not has_faults():
-                self.skipTest("not applicable: built without QIVEN3_FAULTS, so no refusal")
+                self.skipTest("not applicable: built without QIVEN_FAULTS, so no refusal")
         except unittest.SkipTest:
             drive.close()
             raise

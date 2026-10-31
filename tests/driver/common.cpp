@@ -125,7 +125,7 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
     }
 #if !defined(QIVEN3_DRIVE_HAL)
     if (options.hal_fake) {
-        why = "--hal fake: no HAL in this build (QIVEN3_HAL off)";
+        why = "--hal fake: no HAL in this build (QIVEN_HAL off)";
         return std::nullopt;
     }
 #endif
@@ -401,7 +401,7 @@ void begin(Session& session, ArgView request) {
     if (!fault) {
         return;
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const std::int64_t k = integer(*fault, "k");
     const std::string of = text(*fault, "of");
     Faults& faults = session.faults();
@@ -413,7 +413,7 @@ void begin(Session& session, ArgView request) {
     faults.armed->arm(faults.k);
 #else
     (void)session;
-    throw RequestError("not applicable: built without QIVEN3_FAULTS, so no fault");
+    throw RequestError("not applicable: built without QIVEN_FAULTS, so no fault");
 #endif
 }
 
@@ -427,7 +427,7 @@ Value finish(Session& session, Value reply, std::size_t held) {
         reply.set("memory", memory);
     }
     reply.set("held", static_cast<std::int64_t>(held));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Faults& faults = session.faults();
     if (faults.armed != nullptr) {
         Value fault;

@@ -3,7 +3,7 @@
 // HRESULT's names and the error table's names win/facts added; System
 // Protection's key unopened, unknown with its reason; each
 // member's refusal of a path before any read, its out cleared; and, under
-// QIVEN3_FAULTS, each member's first call failed, a typed error before any
+// QIVEN_FAULTS, each member's first call failed, a typed error before any
 // machine fact is read. The reads of this machine are
 // win_facts_machine_test.cpp's.
 
@@ -238,7 +238,7 @@ QIVEN3_CASE(win_facts, refusals) {
 // synced's GetEnvironmentVariableW, each path naming the call and 31; the
 // failed call runs nothing, so no machine fact is read.
 QIVEN3_CASE(win_facts, first_fault) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     WindowsPlatform platform(std::nullopt);
     qiven3::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
@@ -271,6 +271,6 @@ QIVEN3_CASE(win_facts, first_fault) {
     platform.attach(nullptr);
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

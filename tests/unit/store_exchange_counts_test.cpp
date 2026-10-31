@@ -7,7 +7,7 @@
 
 using namespace qiven3::test::exchange_bed;  // NOLINT(google-build-using-namespace)
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 // A step's allocations by allocator, its engine calls and platform calls.

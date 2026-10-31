@@ -1,6 +1,6 @@
 # The diagnostic entry: qiven3_diag, the install, the report and Out, and
 # qiven3_diag_entry, the entry point and the first initializer, an object
-# that qiven3_executable gives every binary. Not core logic: it includes the
+# that qiven_executable gives every binary. Not core logic: it includes the
 # system's headers, links dbghelp on Windows, and links qiven3_memory alone
 # of v3's targets.
 #
@@ -24,12 +24,12 @@ function(qiven3_diag_targets suffix memory)
       PROPERTIES COMPILE_OPTIONS -fno-exceptions)
   endif()
   target_include_directories(qiven3_diag${suffix} PUBLIC "${PROJECT_SOURCE_DIR}/src")
-  target_link_libraries(qiven3_diag${suffix} PUBLIC ${memory} PRIVATE qiven3_flags)
+  target_link_libraries(qiven3_diag${suffix} PUBLIC ${memory} PRIVATE qiven_build)
   add_library(qiven3_diag_entry${suffix} OBJECT "${dir}/entry.cpp" "${dir}/diag.hpp")
   target_include_directories(qiven3_diag_entry${suffix} PRIVATE "${PROJECT_SOURCE_DIR}/src")
-  target_link_libraries(qiven3_diag_entry${suffix} PRIVATE qiven3_flags)
+  target_link_libraries(qiven3_diag_entry${suffix} PRIVATE qiven_build)
   # Under a sanitizer its own report stands for the fault handlers'.
-  if(QIVEN3_SANITIZE)
+  if(QIVEN_SANITIZE)
     target_compile_definitions(qiven3_diag${suffix} PRIVATE QIVEN3_SANITIZED)
   endif()
   if(WIN32)
@@ -45,12 +45,12 @@ endfunction()
 qiven3_diag_targets("" qiven3_memory)
 
 # qiven3_diag_entry_wide: the entry again for a binary whose entry is
-# wmain, the product's on Windows (qiven3_executable's WIDE), starting the
+# wmain, the product's on Windows (qiven_executable's WIDE), starting the
 # C runtime's wmain in place of main.
 if(WIN32)
   add_library(qiven3_diag_entry_wide OBJECT entry.cpp diag.hpp)
   target_include_directories(qiven3_diag_entry_wide PRIVATE "${PROJECT_SOURCE_DIR}/src")
-  target_link_libraries(qiven3_diag_entry_wide PRIVATE qiven3_flags)
+  target_link_libraries(qiven3_diag_entry_wide PRIVATE qiven_build)
   target_compile_definitions(qiven3_diag_entry_wide
     PRIVATE QIVEN3_WIDE_MAIN UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
   target_compile_options(qiven3_diag_entry_wide PRIVATE /wd4073)

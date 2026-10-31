@@ -447,7 +447,7 @@ void Reader::check_contents(memory::Arena& arena, [[maybe_unused]] Hooks hooks) 
                 fault(entry::content::Code::too_large, kinds::content_limit, size, {});
             }
             memory::Arena work(pages);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
             work.attach(hooks.work);
 #endif
             memory::Vector<std::string_view> fills{memory::Allocator<std::string_view>(work)};

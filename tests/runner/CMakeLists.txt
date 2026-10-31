@@ -8,4 +8,4 @@ add_library(qiven3_runner STATIC
   runner.cpp
 )
 target_include_directories(qiven3_runner PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(qiven3_runner PUBLIC qiven3_memory PRIVATE qiven3_flags)
+target_link_libraries(qiven3_runner PUBLIC qiven3_memory PRIVATE qiven_build)

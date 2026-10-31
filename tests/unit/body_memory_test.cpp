@@ -159,7 +159,7 @@ QIVEN3_CASE(body, budget) {
 }
 
 QIVEN3_CASE(body, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Fake fake(qiven3::platform::fake::Config{});
     const std::vector<Entry> all = entries(fake);
     const Entry& x = all.front();
@@ -218,6 +218,6 @@ QIVEN3_CASE(body, faults) {
            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "body.content_digest", countdown, digest_of, empty), 1);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

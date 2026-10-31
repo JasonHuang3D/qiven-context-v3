@@ -1,8 +1,8 @@
 """K10: every binary of the build runs the diagnostic entry. Each executable
 of CMake's records (executables.txt, each directory's executable targets,
 which the root CMakeLists.txt reads from CMake after every directory) is
-listed in the build's binaries.txt, which qiven3_executable writes; no CMakeLists.txt or CMake file but the root's
-qiven3_executable calls add_executable; and each listed binary, started
+listed in the build's binaries.txt, which qiven_executable writes; no CMakeLists.txt or CMake file but build.cmake's
+qiven_executable calls add_executable; and each listed binary, started
 with QIVEN3_DIAG_PROBE=1, prints "diag: entry" from its entry, before main,
 and exits 0. The controls: a planted add_executable, and a binary without
 the entry, this interpreter, each caught.
@@ -21,8 +21,8 @@ from tests.drive import binaries
 ROOT = binaries.ROOT
 PROBE = b"diag: entry\n"
 CALL = re.compile(r"\badd_executable\s*\(")
-# The one definition allowed: qiven3_executable's own call.
-OWN = ("CMakeLists.txt", "add_executable(${name} ")
+# The one definition allowed: qiven_executable's own call.
+OWN = ("foundation/devkit/build/build.cmake", "add_executable(${name} ")
 
 
 def listed(build):
@@ -38,7 +38,7 @@ def executables(build):
 
 
 def stray_calls(root):
-    """Each add_executable call outside qiven3_executable: (file, line)."""
+    """Each add_executable call outside qiven_executable: (file, line)."""
     found = []
     for path in sorted(root.rglob("*")):
         rel = path.relative_to(root).as_posix()
@@ -88,7 +88,8 @@ class Entry(unittest.TestCase):
             planted = Path(d) / "tests" / "planted"
             planted.mkdir(parents=True)
             (planted / "CMakeLists.txt").write_text("add_executable(planted planted.cpp)\n", encoding="utf-8")
-            (Path(d) / "CMakeLists.txt").write_text("  add_executable(${name} x)\n", encoding="utf-8")
+            (Path(d) / OWN[0]).parent.mkdir(parents=True)
+            (Path(d) / OWN[0]).write_text("  add_executable(${name} x)\n", encoding="utf-8")
             self.assertEqual(stray_calls(Path(d)), [("tests/planted/CMakeLists.txt", 1)])
         self.assertIsNotNone(probe_problem([sys.executable, "-I", "-c", "pass"]))
 

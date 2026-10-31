@@ -5,7 +5,7 @@
 // read_line's out and run's two copies are the caller's arena's alone. The
 // Child's state and streams are its pages (one VirtualAlloc, the fault
 // sweep's), the threads' stacks and the C runtime's per-thread blocks the
-// system's, which operator new does not see. Under QIVEN3_SYSTEM_HEAP the
+// system's, which operator new does not see. Under QIVEN_SYSTEM_HEAP the
 // arena's blocks go through operator new too, so the members whose out is
 // on the arena are counted on the arena alone there.
 
@@ -72,7 +72,7 @@ using qiven3::memory::Allocator;
 using qiven3::memory::Arena;
 using qiven3::platform::Ran;
 
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
 constexpr bool arena_counted = false;
 #else
 constexpr bool arena_counted = true;

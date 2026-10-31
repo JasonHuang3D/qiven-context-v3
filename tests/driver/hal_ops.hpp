@@ -1,6 +1,6 @@
 #pragma once
 
-// The drive's HAL half, in a build with QIVEN3_HAL on alone: the state its
+// The drive's HAL half, in a build with QIVEN_HAL on alone: the state its
 // operations keep (driver/hal_ops.cpp), a template on the compute C, held
 // by the session and instantiated for the HAL's fake.
 //

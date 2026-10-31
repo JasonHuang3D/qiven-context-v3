@@ -73,10 +73,10 @@ inline constexpr platform::Seconds deadline{5.0};
 inline constexpr std::size_t header_bytes = 4096;
 inline constexpr std::size_t work_bytes = std::size_t{64} * 1024;
 
-// The fault runs' hook: under QIVEN3_FAULTS a countdown each header line's
+// The fault runs' hook: under QIVEN_FAULTS a countdown each header line's
 // work arena asks first.
 struct Hooks {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* work = nullptr;
 #endif
 };

@@ -398,13 +398,13 @@ def file_pins(text):
 
 
 def cmake_pins(root):
-    """The pins CMakeLists.txt sets, which QIVEN3_PIN_TOOLS checks at
-    configure: {QIVEN3_PIN_NAME: value}."""
+    """The pins the build module's build.cmake sets, which QIVEN_PIN_TOOLS
+    checks at configure: {QIVEN_PIN_NAME: value}."""
     try:
-        text = (root / "CMakeLists.txt").read_text(encoding="utf-8")
+        text = (root / "foundation" / "devkit" / "build" / "build.cmake").read_text(encoding="utf-8")
     except OSError as e:
-        raise CannotRun(f"CMakeLists.txt cannot be read for its pins: {e}") from e
-    return dict(re.findall(r"^set\((QIVEN3_PIN_\w+) ([^)\s]+)\)", text, re.MULTILINE))
+        raise CannotRun(f"foundation/devkit/build/build.cmake cannot be read for its pins: {e}") from e
+    return dict(re.findall(r"^set\((QIVEN_PIN_\w+) ([^)\s]+)\)", text, re.MULTILINE))
 
 
 def sha256(path):

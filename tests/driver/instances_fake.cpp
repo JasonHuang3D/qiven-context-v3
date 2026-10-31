@@ -7,7 +7,7 @@
 // read's io for a path; refuse_pages, the k-th call of pages from now
 // refused; calls, its record; written, its stream's bytes; lent, the bytes
 // of the pages it has lent and not had back, which each reply's "held"
-// gives too. Under QIVEN3_FAULTS each of the fake's calls is a fault point
+// gives too. Under QIVEN_FAULTS each of the fake's calls is a fault point
 // of a request's "fault" (driver/drive.hpp).
 //
 // For the files' cases: set_busy, how often replace's rename ("target",

@@ -36,7 +36,7 @@ namespace {
 using namespace qiven3::test::location_bed;
 }  // namespace
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 namespace wire = qiven3::wire;
@@ -341,7 +341,7 @@ QIVEN3_CASE(location, unwritten) {
 QIVEN3_CASE(location, faults_heap_open) { passes(qiven3_ctx, heap_open, heap_kind, qiven3::test::FaultParts<1>{}, 0); }
 #else
 namespace {
-constexpr std::string_view unfaulted = "not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers";
+constexpr std::string_view unfaulted = "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 void init_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN3_SKIP(unfaulted); }
 void change_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN3_SKIP(unfaulted); }
 void heap_create_part(qiven3::test::Context& /*qiven3_ctx*/, std::size_t /*i*/) { QIVEN3_SKIP(unfaulted); }

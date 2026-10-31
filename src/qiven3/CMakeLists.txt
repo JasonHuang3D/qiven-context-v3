@@ -17,7 +17,7 @@ add_library(qiven3_base STATIC
 target_include_directories(qiven3_base PUBLIC "${PROJECT_SOURCE_DIR}/src")
 # digest's keys are templates on the platform's contract, its header alone:
 # a binary that makes a key links its adapter.
-target_link_libraries(qiven3_base PUBLIC qiven3_memory PRIVATE qiven3_flags)
+target_link_libraries(qiven3_base PUBLIC qiven3_memory PRIVATE qiven_build)
 
 # qiven3_location: the human's choice of the store's directory, the record,
 # the drive check and the commands, apart from qiven3_base so that B12 and
@@ -33,4 +33,4 @@ add_library(qiven3_location STATIC
 target_include_directories(qiven3_location PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_location
   PUBLIC qiven3_store qiven3_entry qiven3_platform qiven3_wire qiven3_base qiven3_memory
-  PRIVATE qiven3_flags)
+  PRIVATE qiven_build)

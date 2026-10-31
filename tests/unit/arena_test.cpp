@@ -42,7 +42,7 @@ QIVEN3_CASE(arena, bounds_budget) {
     Arena arena(std::span<std::byte>(pages->bytes).first(64));
     CHECK_EQ(arena.budget(), 64U);
     void* p = arena.allocate(64, 1);
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
     CHECK(p == static_cast<void*>(pages->bytes.data()));
 #endif
     CHECK_EQ(arena.used(), 64U);
@@ -101,7 +101,7 @@ QIVEN3_CASE(arena, alignment) {
     void* c = arena.allocate(3, 2);
     CHECK_EQ(arena.peak(), 75U);
     void* d = arena.allocate(16, 4096);
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
     CHECK_EQ(address(a) - address(pages->bytes.data()), 0U);
     CHECK_EQ(address(b) - address(pages->bytes.data()), 64U);
     CHECK_EQ(address(c) - address(pages->bytes.data()), 72U);
@@ -111,7 +111,7 @@ QIVEN3_CASE(arena, alignment) {
     CHECK_EQ(address(c) % 2, 0U);
     CHECK_EQ(address(d) % 4096, 0U);
     // The count is the bytes asked; the mark the padding too. Under
-    // QIVEN3_SYSTEM_HEAP the blocks are the system heap's, and the cursor
+    // QIVEN_SYSTEM_HEAP the blocks are the system heap's, and the cursor
     // still runs through the span.
     CHECK_EQ(arena.used(), 28U);
     CHECK_EQ(arena.peak(), 4112U);
@@ -151,7 +151,7 @@ QIVEN3_CASE(arena, used_peak) {
 }
 
 QIVEN3_CASE(arena, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     qiven3::memory::Countdown countdown;
     // Each run is an operation with an arena of its own over the same pages,
@@ -215,6 +215,6 @@ QIVEN3_CASE(arena, faults) {
 #endif
     CHECK_EQ(arena->used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

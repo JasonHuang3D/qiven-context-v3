@@ -3,7 +3,7 @@
 // it cannot read and arguments that are not strict UTF-8, each refused
 // with no request; the views it gives; an answer written whole on the
 // fake, none for no bytes, and failed, the wire's exit status 2, for a
-// write that throws, whatever it throws, and under QIVEN3_FAULTS for each
+// write that throws, whatever it throws, and under QIVEN_FAULTS for each
 // platform call failed in turn.
 
 #include <cstddef>
@@ -248,7 +248,7 @@ QIVEN3_CASE(wire, answer_failed) {
 }
 
 QIVEN3_CASE(wire, answer_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const std::string bytes = "the answer\n";
     qiven3::memory::Countdown countdown;
     std::size_t k = 1;
@@ -272,6 +272,6 @@ QIVEN3_CASE(wire, answer_faults) {
     std::cout << "wire.answer_faults: platform calls " << k - 1 << "\n";
     CHECK_EQ(k, std::size_t{2});
 #else
-    QIVEN3_SKIP("not applicable: QIVEN3_FAULTS is off in this build");
+    QIVEN3_SKIP("not applicable: QIVEN_FAULTS is off in this build");
 #endif
 }

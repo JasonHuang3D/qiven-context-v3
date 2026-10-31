@@ -1,4 +1,4 @@
-"""H6: the core without the HAL. The nohal preset's build, QIVEN3_HAL off,
+"""H6: the core without the HAL. The nohal preset's build, QIVEN_HAL off,
 holds no HAL target and no HAL operation, and lists every test the build
 with the HAL lists; its whole suite passing is the case's run.
 
@@ -34,7 +34,7 @@ class NoHal(unittest.TestCase):
         if not (build / "CMakeCache.txt").is_file():
             self.skipTest(f"the nohal build is absent: no {build.name} beside {here.name}; "
                           "configure and build the preset nohal, then run its suite")
-        self.assertFalse(has_hal(build), f"{build} has QIVEN3_HAL on")
+        self.assertFalse(has_hal(build), f"{build} has QIVEN_HAL on")
 
         found = sorted(set(HAL_TARGETS.findall((build / "build.ninja").read_bytes())))
         self.assertEqual(found, [], "the nohal build names a HAL target or source")

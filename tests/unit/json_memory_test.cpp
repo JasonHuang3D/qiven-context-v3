@@ -116,7 +116,7 @@ QIVEN3_CASE(json, encode_budget) {
 }
 
 QIVEN3_CASE(json, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::string text = mixed();
     std::vector<std::byte> pages(budget_for(text.size()));
     qiven3::memory::Countdown countdown;
@@ -162,6 +162,6 @@ QIVEN3_CASE(json, faults) {
     CHECK(bytes > 0);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

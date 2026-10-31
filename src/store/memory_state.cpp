@@ -42,7 +42,7 @@ State::State(std::span<std::byte> pages, const Limits& limits) : data_(pages), l
     }
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 void attach(State& state, memory::Countdown* countdown) noexcept {
     if (!state.mutex_.try_lock_for(busy_wait)) {
         memory::fail_fast("store/memory: the state's lock held past its wait at attach");

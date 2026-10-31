@@ -58,5 +58,5 @@ sets and reads back every one. SQLite allocates through
 ## Updating
 
 A new version replaces both files from sqlite.org's amalgamation zip, each
-checked against the publisher's digest, and the pins in the top
-`CMakeLists.txt` and this file in the same change.
+checked against the publisher's digest, and the pins in
+`foundation/devkit/build/build.cmake` and this file in the same change.

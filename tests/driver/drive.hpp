@@ -29,7 +29,7 @@
 // its "peak" and "left", the bytes the arena still held once the
 // operation's values were gone, 0 unless a value leaked. A request's
 // "budget" replaces the operation's stated one, so a case can plant one a
-// byte short. Under QIVEN3_FAULTS a request's "fault", {"k": K, "of":
+// byte short. Under QIVEN_FAULTS a request's "fault", {"k": K, "of":
 // "allocation" or "platform"}, fails the operation's K-th allocation on
 // its arena or its K-th call of the fake platform, K 0 failing none; the
 // reply's "fault" gives the calls counted and whether the K-th came.
@@ -46,7 +46,7 @@
 // The adapter is made at its first platform operation, so an adapter that
 // cannot be made is a reply. --config overrides the configuration
 // location; the fake's is otherwise "<root>/qiven3". --hal fake is refused
-// by a build with QIVEN3_HAL off, which has no HAL operation. --store, the
+// by a build with QIVEN_HAL off, which has no HAL operation. --store, the
 // fake's drive alone, selects the store its store requests make, under
 // "<root>/stores" (driver/store_ops.hpp); without it there are none.
 //
@@ -104,7 +104,7 @@ struct Metered {
     std::size_t budget = 0, peak = 0, left = 0;
 };
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The countdowns a request's "fault" arms: its arena's allocations, or the
 // fake platform's calls. thread: one.
 struct Faults {
@@ -125,7 +125,7 @@ public:
 
     const Options& options() const noexcept { return options_; }
     Metered& metered() noexcept { return metered_; }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Faults& faults() noexcept { return faults_; }
 #endif
 #if defined(QIVEN3_DRIVE_HAL)
@@ -135,7 +135,7 @@ public:
 private:
     Options options_;
     Metered metered_;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Faults faults_;
 #endif
 #if defined(QIVEN3_DRIVE_HAL)
@@ -215,7 +215,7 @@ platform::Seconds deadline(ArgView request, std::string_view key);
 std::size_t budget(ArgView request, std::size_t stated);
 
 // Arms the countdown the request's "fault" names, or none; RequestError
-// for a fault built without QIVEN3_FAULTS. The record is cleared.
+// for a fault built without QIVEN_FAULTS. The record is cleared.
 void begin(Session& session, ArgView request);
 // The reply with the request's record, its fault's and `held`; every
 // countdown disarmed.
@@ -223,12 +223,12 @@ Value finish(Session& session, Value reply, std::size_t held);
 
 // f(arena) on an arena over `pages`, the operation's budget: the arena's
 // peak and what it held after f's values were gone go to the session's
-// record, whether f returns or throws. Under QIVEN3_FAULTS the arena asks
+// record, whether f returns or throws. Under QIVEN_FAULTS the arena asks
 // the allocation countdown.
 template <class F>
 std::optional<Value> on_arena(Session& session, std::span<std::byte> pages, F&& f) {
     memory::Arena arena(pages);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     arena.attach(&session.faults().allocation);
 #endif
     struct Note {

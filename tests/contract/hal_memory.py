@@ -1,7 +1,7 @@
 """The HAL's memory checks, defined once over a compute binding
 (contract/hal_cases.py names its part): each member, host side, within
 the 64 KiB budget by its arena's count, a budget a byte short of its peak
-MemoryError budget, and, under QIVEN3_FAULTS, each allocation on its
+MemoryError budget, and, under QIVEN_FAULTS, each allocation on its
 arena failed in turn. The fake HAL makes no platform call.
 """
 
@@ -48,11 +48,11 @@ class HalMemory:
                     self.assertEqual((short["error"]["kind"], short["error"]["code"]), ("memory", "budget"), short)
 
     def test_hal_faults(self):
-        """Under QIVEN3_FAULTS each member's K-th allocation failed for K
+        """Under QIVEN_FAULTS each member's K-th allocation failed for K
         from 1 until it completes: each failed run a typed error, nothing
         held, the drive answering."""
         if not has_faults():
-            self.skipTest("not applicable: built without QIVEN3_FAULTS")
+            self.skipTest("not applicable: built without QIVEN_FAULTS")
         if debug_library():
             self.skipTest("not applicable: MSVC's debug library allocates in a noexcept constructor")
         with self.drive() as d:

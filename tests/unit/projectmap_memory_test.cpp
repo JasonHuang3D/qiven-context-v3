@@ -144,7 +144,7 @@ QIVEN3_CASE(projectmap, budget) {
 }
 
 QIVEN3_CASE(projectmap, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Inputs in;
     const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
     std::vector<std::byte> pages(1U << 16U);
@@ -178,6 +178,6 @@ QIVEN3_CASE(projectmap, faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 // diag: the diagnostic entry, which every binary of the build runs before
-// main (entry.cpp, by qiven3_executable). A fault ends the process with one
+// main (entry.cpp, by qiven_executable). A fault ends the process with one
 // report on standard error, never with a window:
 //
 //   fatal: <cause>

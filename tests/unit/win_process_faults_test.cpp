@@ -1,4 +1,4 @@
-// win/process' fault runs on this machine, under QIVEN3_FAULTS: each Win32
+// win/process' fault runs on this machine, under QIVEN_FAULTS: each Win32
 // call of program, start, the Child's members and run failed in turn, as
 // error 31, until a run completes, each completed point counted. start's
 // every failure is start naming its call, with no process left: each run's
@@ -23,7 +23,7 @@
 #include "runner/runner.hpp"
 #include "support/fixtures/win_process_case.hpp"
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 
 namespace {
 
@@ -96,7 +96,7 @@ constexpr std::string_view start_calls =
 #endif
 
 QIVEN3_CASE(win_process, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch("win-process");
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -210,6 +210,6 @@ QIVEN3_CASE(win_process, faults) {
     std::cout << "win_process.faults: " << points << " fault points, each run to completion\n";
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

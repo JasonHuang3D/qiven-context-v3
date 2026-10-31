@@ -8,7 +8,7 @@ each job's environment its own, matrix values read, as drive gives it to
 the job's steps; the loop's step limit is CI's least job limit.
 The pins are the loop's alone, as its additions to CI's configure: the
 pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop.py), and on Linux the pinned compilers of the preset's
-family, each a pin of tools/linux-pins.txt at the root CMakeLists.txt's
+family, each a pin of tools/linux-pins.txt at foundation/devkit/build/build.cmake's
 version, and nothing else: clang takes the system's only GCC. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
 builds release, which keeps its PDBs, and runs fake's selection and then
 the debugger preset, a label no workflow runs; nor are its own steps,
@@ -36,8 +36,8 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
-PIN = "-DQIVEN3_PIN_TOOLS=ON"
-FAMILY = {"g++": "GCC", "clang++": "CLANG"}  # a CI preset's compiler: its pin's name in CMakeLists.txt
+PIN = "-DQIVEN_PIN_TOOLS=ON"
+FAMILY = {"g++": "GCC", "clang++": "CLANG"}  # a CI preset's compiler: its pin's name in build.cmake
 
 
 def preset_compilers():
@@ -225,7 +225,7 @@ class LoopAgainstCI(unittest.TestCase):
         configure, and on Linux's the pinned compilers in place
         of the preset's, as the text states; nothing else."""
         compilers = preset_compilers()
-        cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        cmake = (ROOT / "foundation" / "devkit" / "build" / "build.cmake").read_text(encoding="utf-8")
         pins = linux_pins()
         for name, (system, preset, steps) in self.ci_jobs().items():
             for step in steps:
@@ -241,7 +241,7 @@ class LoopAgainstCI(unittest.TestCase):
                         got_c, got_cxx = (x.split("=", 1)[1] for x in rest)
                         self.assertEqual(rest[0].split("=")[0] + rest[1].split("=")[0],
                                          "-DCMAKE_C_COMPILER-DCMAKE_CXX_COMPILER")
-                        version = re.search(r"^set\(QIVEN3_PIN_%s (\S+)\)$" % FAMILY[cxx], cmake, re.MULTILINE)
+                        version = re.search(r"^set\(QIVEN_PIN_%s (\S+)\)$" % FAMILY[cxx], cmake, re.MULTILINE)
                         self.assertIsNotNone(version, cxx)
                         for unpinned, pinned in ((c, got_c), (cxx, got_cxx)):
                             self.assertEqual(pinned, f"{unpinned}-{version.group(1).split('.')[0]}")

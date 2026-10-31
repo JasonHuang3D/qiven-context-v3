@@ -107,7 +107,7 @@ QIVEN3_CASE(kinds, budget) {
 }
 
 QIVEN3_CASE(kinds, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<Stored> all = stored();
     std::optional<Stored> map;
     for (const Stored& s : all) {
@@ -139,6 +139,6 @@ QIVEN3_CASE(kinds, faults) {
     CHECK(done);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

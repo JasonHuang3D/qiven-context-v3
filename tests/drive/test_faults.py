@@ -88,7 +88,7 @@ LINUX = {
 
 
 def sanitized():
-    return bool(build_option("QIVEN3_SANITIZE"))
+    return bool(build_option("QIVEN_SANITIZE"))
 
 
 def debug_runtime():

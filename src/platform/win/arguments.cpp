@@ -111,14 +111,14 @@ WindowsArguments::~WindowsArguments() {
 
 namespace {
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 using Faults = memory::Countdown*;
 #else
 using Faults = std::nullptr_t;
 #endif
 
 // run_utf8's body, the pages' call and the arena's allocations each asking
-// faults first under QIVEN3_FAULTS.
+// faults first under QIVEN_FAULTS.
 int run(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses, Faults faults) noexcept {
     if (argc < 0 || (argc > 0 && wide == nullptr) || entry == nullptr) {
         return statuses.refused;
@@ -133,7 +133,7 @@ int run(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statu
     // Measured: what fails from here on is an allocation refused, but for
     // a conversion refused, which the measure has already met.
     try {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (faults != nullptr && faults->fail()) {
             throw PlatformError(Code::memory, "pages", "fault injected");
         }
@@ -142,7 +142,7 @@ int run(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statu
 #endif
         const WindowsPages pages = take_pages(n);
         memory::Arena arena(pages.bytes().first(n));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         arena.attach(faults);
 #endif
         const WindowsArguments arguments(given, arena);
@@ -164,7 +164,7 @@ int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses 
     return run(argc, wide, entry, statuses, nullptr);
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses,
              memory::Countdown* faults) noexcept {
     return run(argc, wide, entry, statuses, faults);

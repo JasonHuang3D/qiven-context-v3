@@ -8,4 +8,4 @@ add_library(qiven3_wire STATIC
   wire.hpp
 )
 target_include_directories(qiven3_wire PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_wire PRIVATE qiven3_memory qiven3_base qiven3_flags)
+target_link_libraries(qiven3_wire PRIVATE qiven3_memory qiven3_base qiven_build)

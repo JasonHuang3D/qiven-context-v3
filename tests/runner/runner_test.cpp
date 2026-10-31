@@ -91,7 +91,7 @@ void sample_counted_none_held(Context& qiven3_ctx) {
 }
 
 // The pool slots sample_counted_held holds, the last first, each holding
-// the one before it in its first bytes. Under QIVEN3_SYSTEM_HEAP a slot is
+// the one before it in its first bytes. Under QIVEN_SYSTEM_HEAP a slot is
 // the system heap's: held from here, it stays reachable, and LeakSanitizer
 // reports no leak of it, while any other block lost still is one. The
 // runner's count is what reads the bytes as held.

@@ -116,7 +116,7 @@ QIVEN3_CASE(digest, budgets) {
 }
 
 QIVEN3_CASE(digest, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Header header;
     Fake fake{qiven3::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, fixture_key());
@@ -159,6 +159,6 @@ QIVEN3_CASE(digest, faults) {
     CHECK_EQ(draws.untyped, 0U);
     CHECK_EQ(draws.unchecked, 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

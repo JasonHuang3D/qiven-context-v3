@@ -135,7 +135,7 @@ QIVEN3_CASE(store_stage, budget) {
 }
 
 QIVEN3_CASE(store_stage, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Fake fake(qiven3::platform::fake::Config{});
     const Book book(fake);
     std::vector<std::byte> pages(4U << 20U);
@@ -169,7 +169,7 @@ QIVEN3_CASE(store_stage, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 

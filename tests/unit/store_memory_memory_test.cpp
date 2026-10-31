@@ -97,7 +97,7 @@ struct Bed {
     // A fresh caller's arena.
     Chars caller() {
         call.emplace(call_pages);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         call->attach(call_countdown);
 #endif
         return Chars(*call);
@@ -122,7 +122,7 @@ struct Bed {
     std::vector<GuardView> guard;
     std::vector<std::byte> call_pages;
     std::optional<Arena> call;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown* call_countdown = nullptr;
 #endif
 };
@@ -302,7 +302,7 @@ QIVEN3_CASE(store_memory, budget) {
 }
 
 QIVEN3_CASE(store_memory, counts) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto b = std::make_unique<Bed>();
     qiven3::memory::Countdown arenas;
     qiven3::memory::Countdown heap;
@@ -335,11 +335,11 @@ QIVEN3_CASE(store_memory, counts) {
     state::attach(b->state, nullptr);
     state::attach(b->state2, nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 // The fault runs in parts, each well under the watcher's limit on every
@@ -465,7 +465,7 @@ void faults_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
 namespace {
 
 void faults_part(qiven3::test::Context&, std::size_t) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 }
 
 }  // namespace

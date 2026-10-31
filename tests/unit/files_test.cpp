@@ -392,7 +392,7 @@ QIVEN3_CASE(files, stage_bound) {
 // call): io, and no file, no parent made by the open, nothing more open or
 // kept; the next open makes its file.
 QIVEN3_CASE(files, stage_insert) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     qiven3::memory::Countdown countdown;
@@ -413,7 +413,7 @@ QIVEN3_CASE(files, stage_insert) {
     stage.discard();
     CHECK_EQ(fake.files().kept(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
@@ -444,7 +444,7 @@ QIVEN3_CASE(files, lock) {
 // Each system call and each platform call failed in turn: a typed error,
 // the target's bytes whole, no temporary file and nothing kept after.
 QIVEN3_CASE(files, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     qiven3::memory::Countdown countdown;
@@ -499,6 +499,6 @@ QIVEN3_CASE(files, faults) {
     CHECK(clean(0));
     fake.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

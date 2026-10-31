@@ -63,7 +63,7 @@ inline constexpr std::string_view qiven_scope = "project:qiven";
 inline constexpr std::string_view implementer_lane = "implementer";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 inline constexpr std::string_view unfaulted =
-    "not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers";
+    "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 
 inline std::string text(const fs::path& path) {
     std::string out;
@@ -116,7 +116,7 @@ struct Bed {
     // A fresh caller's arena.
     Chars caller() {
         call.emplace(call_pages);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         call->attach(call_countdown);
 #endif
         return Chars(*call);
@@ -166,7 +166,7 @@ struct Bed {
     std::vector<std::byte> call_pages;
     std::optional<qiven3::memory::Arena> call;
     std::string kept_db;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown* call_countdown = nullptr;
 #endif
 };

@@ -48,7 +48,7 @@
 // afresh (its holes, content value and canonical bytes, headers, digest
 // and body), so that the arena a file needs grows with its entries' lines
 // and its pieces' bytes, not with its entry count; past either MemoryError
-// budget. Under QIVEN3_FAULTS each entry's work arena asks hooks.work
+// budget. Under QIVEN_FAULTS each entry's work arena asks hooks.work
 // first. Platform calls: random_bytes once an entry, now once an entry,
 // read once a path piece, wipe at each key's end. It logs nothing.
 //
@@ -183,7 +183,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
         const std::string_view kind = file.text(e.kind);
         const std::span<const Built> before(out.data(), out.size());
         memory::Arena work_arena(pages);  // given back whole at the entry's end
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         work_arena.attach(hooks.work);
 #endif
         const memory::Allocator<char> alloc(work_arena);

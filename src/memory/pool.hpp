@@ -4,7 +4,7 @@
 // and Heap, a pool for each size class over one span, SQLite's allocator.
 // Each counts the bytes it holds and their high-water mark, exactly.
 //
-// Under QIVEN3_SYSTEM_HEAP each slot is its own allocation of the system
+// Under QIVEN_SYSTEM_HEAP each slot is its own allocation of the system
 // heap, freed at its free, so AddressSanitizer bounds and poisons it; the
 // span still bounds the count of slots, so the counts and the budget are
 // the same as without the option. Without it, under AddressSanitizer, the
@@ -22,7 +22,7 @@
 
 #include "memory/memory.hpp"
 
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
 #include <unordered_map>
 #endif
 
@@ -59,7 +59,7 @@ public:
     [[nodiscard]] std::size_t used() const noexcept { return used_; }
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     void attach(Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
@@ -68,16 +68,16 @@ private:
     std::size_t slot_ = 0;
     std::size_t capacity_ = 0;
     // Slots ever handed out from the span's front, and the freed ones'
-    // list, by index; under QIVEN3_SYSTEM_HEAP, their count.
+    // list, by index; under QIVEN_SYSTEM_HEAP, their count.
     std::size_t bumped_ = 0;
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     std::size_t free_count_ = 0;
 #else
     std::size_t free_head_ = no_slot;
 #endif
     std::size_t used_ = 0;
     std::size_t peak_ = 0;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Countdown* countdown_ = nullptr;
 #endif
 };
@@ -114,7 +114,7 @@ public:
     [[nodiscard]] std::size_t peak() const noexcept;
     [[nodiscard]] std::size_t budget() const noexcept { return pages_.size(); }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     void attach(Countdown* countdown) noexcept;
 #endif
 
@@ -133,7 +133,7 @@ private:
     void* take(std::size_t n) noexcept QIVEN3_REQUIRES(mutex_);
     void give(void* p) noexcept QIVEN3_REQUIRES(mutex_);
     // A held block's class and its payload's offset in the span (0 under
-    // QIVEN3_SYSTEM_HEAP), in constant time; any other pointer fails fast.
+    // QIVEN_SYSTEM_HEAP), in constant time; any other pointer fails fast.
     struct Block {
         std::size_t cls = 0;
         std::size_t at = 0;
@@ -147,13 +147,13 @@ private:
     std::size_t bump_ QIVEN3_GUARDED_BY(mutex_) = 0;
     // Each class's freed slots: the list's first payload offset, 0 for
     // none, since a header precedes each payload; or, under
-    // QIVEN3_SYSTEM_HEAP, their count. A slot is a header of slot_align
+    // QIVEN_SYSTEM_HEAP, their count. A slot is a header of slot_align
     // bytes and its class's bytes.
     std::array<std::size_t, heap_classes> free_ QIVEN3_GUARDED_BY(mutex_){};
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     std::unordered_map<const void*, std::size_t> blocks_ QIVEN3_GUARDED_BY(mutex_);
 #endif
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Countdown* countdown_ QIVEN3_GUARDED_BY(mutex_) = nullptr;
 #endif
 };

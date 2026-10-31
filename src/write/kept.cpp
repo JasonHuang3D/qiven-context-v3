@@ -230,7 +230,7 @@ void parse(std::string_view bytes, std::string_view name, memory::Arena& arena, 
             line.header = *header_line;
             {
                 memory::Arena work_arena(work);  // given back whole at the line's end
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
                 work_arena.attach(hooks.work);
 #endif
                 namespace header = entry::header;

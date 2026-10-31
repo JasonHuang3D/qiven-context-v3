@@ -153,7 +153,7 @@ int extended(sqlite3* db, int rc) noexcept {
     throw to_error(code, at);
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 std::atomic<Countdown*>& faults() noexcept {
     static std::atomic<Countdown*> countdown{nullptr};
     return countdown;
@@ -166,9 +166,9 @@ std::atomic<Countdown*>& arenas() noexcept {
 #endif
 
 // Whether the engine calls' countdown fails this call: its result then
-// SQLITE_IOERR, the engine not called. Never without QIVEN3_FAULTS.
+// SQLITE_IOERR, the engine not called. Never without QIVEN_FAULTS.
 bool injected() noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     Countdown* const countdown = faults().load(std::memory_order_acquire);
     return countdown != nullptr && countdown->fail();
 #else
@@ -198,7 +198,7 @@ std::string_view bytes_of(sqlite3_stmt* statement, int column) noexcept {
 
 int engine_version() noexcept { return sqlite3_libversion_number(); }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 void attach_calls(Countdown* calls, Countdown* arenas_too) noexcept {
     faults().store(calls, std::memory_order_release);
     arenas().store(arenas_too, std::memory_order_release);

@@ -6,7 +6,7 @@
 // per path in memory, no file made; a monotonic clock that pause()
 // advances, so a retry until the deadline takes no time; and the busy
 // counts, how often a call refuses as a holder would before it succeeds,
-// each refusal counted down. Under QIVEN3_FAULTS each call giving an error
+// each refusal counted down. Under QIVEN_FAULTS each call giving an error
 // asks the countdown first and, when it fires, gives 31 (a close, a
 // discard's close and an unlock done first, so nothing stays open);
 // open_staged asks it again at its record's insert, before it makes
@@ -100,7 +100,7 @@ public:
     [[nodiscard]] const Busy& busy() const noexcept { return busy_; }
     // What the fake keeps: files open, staging directories, locks opened.
     [[nodiscard]] std::size_t kept() const noexcept;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
@@ -113,7 +113,7 @@ private:
     Busy busy_;
     std::chrono::milliseconds clock_{0};
     std::unique_ptr<State> state_;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown_ = nullptr;
 #endif
 };

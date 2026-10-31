@@ -2,12 +2,12 @@
 // never CTest tests themselves. free.*: a wrong pointer given back to a pool
 // or a heap, another allocator's, a block's interior (a heap's with a copied
 // header too), one past the last block or past the span, or a block given
-// back twice, each a broken invariant; under QIVEN3_SYSTEM_HEAP a pool's
+// back twice, each a broken invariant; under QIVEN_SYSTEM_HEAP a pool's
 // slot is the system heap's, whose AddressSanitizer reports the wrong free
 // instead. asan.*: a touch of a freed block, of a heap block's header, of an
 // arena's block after the arena's end, past its cursor or in its padding,
 // which AddressSanitizer reports, the blocks the system heap's under
-// QIVEN3_SYSTEM_HEAP, or poisoned in the span (memory/poison.hpp); each
+// QIVEN_SYSTEM_HEAP, or poisoned in the span (memory/poison.hpp); each
 // skipped where no tool would see it. A case that ends prints "not caught";
 // one that passes its wrong free prints "past the wrong free" first.
 
@@ -52,7 +52,7 @@ void not_caught() {
 
 // Whether AddressSanitizer sees a touch of v3's blocks: on the system heap,
 // or poisoned in the span.
-#if defined(QIVEN3_SYSTEM_HEAP) || QIVEN3_POISONING
+#if defined(QIVEN_SYSTEM_HEAP) || QIVEN3_POISONING
 #define QIVEN3_SEEN 1
 #else
 #define QIVEN3_SEEN 0
@@ -69,7 +69,7 @@ void touch(const void* p) {
 }  // namespace
 
 #if !QIVEN3_SEEN
-constexpr const char* unseen = "not applicable: built without QIVEN3_SYSTEM_HEAP or AddressSanitizer";
+constexpr const char* unseen = "not applicable: built without QIVEN_SYSTEM_HEAP or AddressSanitizer";
 #endif
 
 QIVEN3_CASE(free, pool_foreign) {
@@ -227,12 +227,12 @@ QIVEN3_CASE(asan, heap_header) {
     not_caught();
 #else
     QIVEN3_SKIP("not applicable: a block's header is in the span, poisoned, only under "
-                "AddressSanitizer without QIVEN3_SYSTEM_HEAP");
+                "AddressSanitizer without QIVEN_SYSTEM_HEAP");
 #endif
 }
 
 QIVEN3_CASE(asan, arena_use_after_end) {
-#if defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN_SYSTEM_HEAP)
     const auto pages = std::make_unique<Page>();
     void* p = nullptr;
     {
@@ -242,7 +242,7 @@ QIVEN3_CASE(asan, arena_use_after_end) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: the block is the system heap's only under QIVEN3_SYSTEM_HEAP; in the "
+    QIVEN3_SKIP("not applicable: the block is the system heap's only under QIVEN_SYSTEM_HEAP; in the "
                 "span, the arena's end gives the pages back to their owner unpoisoned");
 #endif
 }

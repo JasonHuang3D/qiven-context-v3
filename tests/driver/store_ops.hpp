@@ -42,7 +42,7 @@
 // over pages the drive's fake gives, as many bytes as the contract states
 // for the operation (1 MiB plus 4 times the lines given; an export's
 // reads 2 MiB), "budget" replacing it; the reply's "memory" is that
-// arena's. Under QIVEN3_FAULTS a request's "fault" of "platform" counts
+// arena's. Under QIVEN_FAULTS a request's "fault" of "platform" counts
 // the calls of the Site's fake, which the stores make. A store's typed
 // error is "kind" "store": "class" its kind's name (StoreError,
 // HeadConflict, ...), "operation", "path", "detail", and its kind's

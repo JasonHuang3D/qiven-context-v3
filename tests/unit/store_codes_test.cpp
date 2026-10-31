@@ -266,7 +266,7 @@ QIVEN3_CASE(store_codes, line) {
 // its first allocation, every code is mapped at every place and step, and
 // the run completes at once, no call failed.
 QIVEN3_CASE(store_codes, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
     qiven3::memory::Countdown countdown;
     std::optional<qiven3::memory::Arena> arena;
@@ -294,6 +294,6 @@ QIVEN3_CASE(store_codes, faults) {
     CHECK_EQ(arena->used(), 0U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

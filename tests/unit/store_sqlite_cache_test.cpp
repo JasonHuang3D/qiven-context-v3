@@ -181,7 +181,7 @@ QIVEN3_CASE(store_sqlite, slots_refused) {
                  "StoreError internal: the engine heap's pages cannot hold the page cache's slots");
         CHECK(!sqlite::engine_ready());
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // The slots' configuration failed: the engine shut down, none kept.
     qiven3::memory::Countdown calls;
     calls.arm(1);

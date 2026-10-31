@@ -1,5 +1,5 @@
 // faults' unit for the analysis preset: the loop, which the header holds
-// under QIVEN3_FAULTS alone (this unit's own definition, for an object no
+// under QIVEN_FAULTS alone (this unit's own definition, for an object no
 // binary links), run over a typed error of memory's, as the cases give it,
 // with an operation and a check of the kinds they give.
 

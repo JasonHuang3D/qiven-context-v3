@@ -29,12 +29,12 @@ CASES = ("test_own_replace_killed", "test_own_kill_ended", "test_own_hang_deadli
 
 class PlatformOwn:
     def test_own_replace_killed(self):
-        """Under QIVEN3_FAULTS, each of replace's calls failed in turn, as a
+        """Under QIVEN_FAULTS, each of replace's calls failed in turn, as a
         child killed there ends it: PlatformError, the old bytes whole
         after each; then the new bytes, nothing kept (P10's on the fake)."""
         self.needs("own: fake")
         if not has_faults():
-            self.skipTest("not applicable: built without QIVEN3_FAULTS")
+            self.skipTest("not applicable: built without QIVEN_FAULTS")
         target = self.files_root() / "killed.txt"
         target.write_bytes(OLD)
         with self.drive() as d:

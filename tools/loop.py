@@ -44,7 +44,7 @@ depending on which; a step with none affected does not run.
 The toolchain is an input too: each kept tree records the pins it was
 configured under (on Windows WINDOWS_PINS, the toolset, the SDK, CPython,
 clang-tidy and tools/windows-pins.txt; on Linux tools/linux-pins.txt and
-the prefix; on both the pins CMakeLists.txt sets). A tree whose pins
+the prefix; on both the pins the build module's build.cmake sets). A tree whose pins
 changed, or that records none, is emptied before its configure, its line
 naming the pins that changed, and its steps run every test, saying why.
 
@@ -59,7 +59,7 @@ the debugger cases under gdb. No job runs macOS, here or in CI.
 - windows: a shell set up by vcvars64.bat -vcvars_ver=14.44.35207 (found by
   vswhere, or QIVEN3_VCVARS), the tools of WINDOWS_PINS checked by SHA-256
   and version, CPython 3.15.0 this interpreter; each configure with
-  QIVEN3_PIN_TOOLS on; for windows-analysis, clang-tidy (QIVEN3_CLANG_TIDY,
+  QIVEN_PIN_TOOLS on; for windows-analysis, clang-tidy (QIVEN3_CLANG_TIDY,
   else LLVM's under ProgramFiles) by CLANG_TIDY's SHA-256 and version.
   vcvars' variables are read by name without regard to case, as Windows
   names them: a name the loop inherits keeps its case through vcvars, and
@@ -79,7 +79,7 @@ the debugger cases under gdb. No job runs macOS, here or in CI.
   not touched. Each job builds in its own tree within the clone,
   build/JOB, kept as on Windows; each has its own TMPDIR, the
   clean-binaries check's RUNNER_TEMP. The logs are kept in the clone's
-  build/loop/. Each configure with QIVEN3_PIN_TOOLS on and the pinned
+  build/loop/. Each configure with QIVEN_PIN_TOOLS on and the pinned
   compilers, clang taking the system's only GCC, the pinned one, for its
   C++ library and start files; each step under setarch -R, as CI's Linux
   shell. From the prefix and the pins the loop sets, for every step:

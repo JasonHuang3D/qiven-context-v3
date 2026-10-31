@@ -206,7 +206,7 @@ QIVEN3_CASE(memory, mutex_deadline) {
 }
 
 QIVEN3_CASE(memory, countdown) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown countdown;
     CHECK(!countdown.fail());
     countdown.arm(3);
@@ -221,7 +221,7 @@ QIVEN3_CASE(memory, countdown) {
     CHECK(!countdown.fired());
     CHECK(!countdown.fail());
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

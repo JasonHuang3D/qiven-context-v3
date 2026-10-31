@@ -383,7 +383,7 @@ QIVEN3_CASE(validator, import_budget) {
 }
 
 QIVEN3_CASE(validator, import_faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::vector<std::byte> item_pages(1U << 20U);
@@ -417,6 +417,6 @@ QIVEN3_CASE(validator, import_faults) {
     s.entries.clear();
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

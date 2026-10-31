@@ -47,7 +47,7 @@ void Log::write(Level level, std::string_view event, std::uint64_t op, std::span
     const HeadView head{level_name(level).text(), event, number_, op, Millis::since(start_).value()};
     try {
         memory::Arena arena(pages_);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         arena.attach(countdown_);
 #endif
         bool pushed = false;

@@ -77,7 +77,7 @@ QIVEN3_CASE(pool, any_order) {
     for (std::size_t i = 0; i < pool.capacity(); ++i) {
         again.push_back(pool.allocate());
     }
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
     std::sort(slots.begin(), slots.end(), std::less<void*>());
     std::sort(again.begin(), again.end(), std::less<void*>());
     CHECK(slots == again);
@@ -89,7 +89,7 @@ QIVEN3_CASE(pool, any_order) {
 }
 
 QIVEN3_CASE(pool, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Pool pool(64, pages->bytes);
     qiven3::memory::Countdown countdown;
@@ -122,7 +122,7 @@ QIVEN3_CASE(pool, faults) {
     CHECK_EQ(runs.unchecked, 0U);
     pool.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
@@ -155,7 +155,7 @@ QIVEN3_CASE(heap, allocate_free_size) {
     CHECK_EQ(heap.used(), 2 * heap_slot(16) + heap_slot(1024));
     // A freed slot serves its class again.
     void* f = heap.allocate(10);
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
     CHECK(f == a);
 #endif
     heap.free(e);
@@ -269,7 +269,7 @@ QIVEN3_CASE(heap, threads) {
 }
 
 QIVEN3_CASE(heap, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
     qiven3::memory::Countdown countdown;
@@ -308,6 +308,6 @@ QIVEN3_CASE(heap, faults) {
     CHECK_EQ(runs.unchecked, 0U);
     heap.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

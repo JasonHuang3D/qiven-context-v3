@@ -2,7 +2,7 @@
 (contract/platform_cases.py names the binding's part): each operation of
 the drive's platform half within its stated budget by the arena's count;
 a budget a byte short of its peak, MemoryError budget and nothing held;
-and, under QIVEN3_FAULTS, its fault sweep: each allocation on its arena,
+and, under QIVEN_FAULTS, its fault sweep: each allocation on its arena,
 and each platform call, the fake's and the Windows adapter's win/files
 and win/facts calls, failed in turn.
 
@@ -125,7 +125,7 @@ class PlatformMemory:
             self.assertEqual(reply["held"], 0)
 
     def test_faults(self):
-        """Under QIVEN3_FAULTS, each operation's K-th allocation, and its
+        """Under QIVEN_FAULTS, each operation's K-th allocation, and its
         K-th platform call, failed for K from 1 until it completes: each
         failed run a typed error, or for facts' and residual's platform
         calls the failed read unknown (session.unknown_read), nothing held,
@@ -136,7 +136,7 @@ class PlatformMemory:
                 reply = d.reply("now", fault={"k": 1, "of": "allocation"})
                 self.assertEqual(reply["error"]["kind"], "request", reply)
                 self.assertTrue(reply["error"]["detail"].startswith("not applicable:"), reply)
-                self.skipTest("not applicable: built without QIVEN3_FAULTS")
+                self.skipTest("not applicable: built without QIVEN_FAULTS")
             if debug_library():
                 self.skipTest("not applicable: MSVC's debug library allocates in a noexcept constructor")
             kinds = ("allocation", "platform")

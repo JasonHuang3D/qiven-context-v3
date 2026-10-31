@@ -92,8 +92,8 @@ def build_option(name, build=None):
 
 
 def has_faults(build=None):
-    """Whether the build has QIVEN3_FAULTS on, which is off unless set."""
-    value = build_option("QIVEN3_FAULTS", build)
+    """Whether the build has QIVEN_FAULTS on, which is off unless set."""
+    value = build_option("QIVEN_FAULTS", build)
     return value is not None and value.upper() in ("ON", "1", "TRUE", "YES", "Y")
 
 
@@ -145,8 +145,8 @@ def warm_requests():
 
 
 def has_hal(build=None):
-    """Whether the build has the HAL: QIVEN3_HAL is on unless set off."""
-    value = build_option("QIVEN3_HAL", build)
+    """Whether the build has the HAL: QIVEN_HAL is on unless set off."""
+    value = build_option("QIVEN_HAL", build)
     return value is None or value.upper() not in ("OFF", "0", "FALSE", "NO", "N")
 
 

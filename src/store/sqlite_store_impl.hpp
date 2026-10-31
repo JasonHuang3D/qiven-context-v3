@@ -68,7 +68,7 @@ template <platform::Platform P, Hooks H, class Rule>
 void SQLiteStore<P, H, Rule>::guard(std::string_view path, P& platform) {
     Pages pages = platform.pages(operation_base);
     memory::Arena arena(pages.bytes());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (sqlite::arenas_countdown() != nullptr) {
         arena.attach(sqlite::arenas_countdown());
     }

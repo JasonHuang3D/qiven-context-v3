@@ -118,7 +118,7 @@ MISTAKE = ({"op": "hal_fake", "devices": [CPU]},
 
 def minimum():
     """The build's minimum level."""
-    return session.build_option("QIVEN3_LOG_LEVEL") or "info"
+    return session.build_option("QIVEN_LOG_LEVEL") or "info"
 
 
 def report_events(err):
@@ -186,7 +186,7 @@ class K14(unittest.TestCase):
     def test_K14_report(self):
         if not session.has_hal():
             self.skipTest("not applicable: the HAL is off, so no caller's mistake ends a drive")
-        if session.build_option("QIVEN3_SANITIZE"):
+        if session.build_option("QIVEN_SANITIZE"):
             self.skipTest("not applicable: under a sanitizer its report stands for the entry's")
         root = self.place / "root"
         root.mkdir()

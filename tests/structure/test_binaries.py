@@ -41,8 +41,8 @@ class Imports(unittest.TestCase):
 
     @unittest.skipIf(MACOS, "Mach-O is not read, so K11 skips macOS: a residual")
     def test_K11_binaries(self):
-        sanitize = build_option("QIVEN3_SANITIZE") or ""
-        compiler = build_option("QIVEN3_CXX_COMPILER_ID") or ""
+        sanitize = build_option("QIVEN_SANITIZE") or ""
+        compiler = build_option("QIVEN_CXX_COMPILER_ID") or ""
         found, past = {}, {}
         for binary in listed():
             read = imports.read_file(binary)

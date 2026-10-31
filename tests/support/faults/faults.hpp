@@ -4,7 +4,7 @@
 // platform call failed, for k from 1 until it completes. Each run must end
 // in the operation's typed error, after which the caller's check reads the
 // count (the allocators holding nothing) and, from package 5, the store.
-// Built without QIVEN3_FAULTS there is no countdown, and a case says so as
+// Built without QIVEN_FAULTS there is no countdown, and a case says so as
 // not applicable. Each run whose failure came writes fault.injected, its k
 // and the site, the operation's name, to the case's log.
 //
@@ -16,7 +16,7 @@
 #include "log/log.hpp"
 #include "memory/memory.hpp"
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 
 namespace qiven3::test {
 

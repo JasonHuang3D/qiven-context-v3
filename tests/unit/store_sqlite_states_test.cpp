@@ -255,7 +255,7 @@ QIVEN3_CASE(store_sqlite, second_engine) {
     const std::size_t calls = rig->fake.calls().size();
     const std::size_t lent = rig->fake.lent();
     const std::string installed = "StoreError internal: an engine heap is installed already";
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // The platform's calls, the engine's and the installed heap's allocations counted, none failed.
     qiven3::memory::Countdown platform;
     qiven3::memory::Countdown engine;
@@ -265,7 +265,7 @@ QIVEN3_CASE(store_sqlite, second_engine) {
     rig->engine->heap().attach(&heap);
 #endif
     const std::string refused = raised([&] { const Engine second(rig->fake); });
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     rig->fake.attach(nullptr);
     sqlite::attach_calls(nullptr, nullptr);
     rig->engine->heap().attach(nullptr);
@@ -273,7 +273,7 @@ QIVEN3_CASE(store_sqlite, second_engine) {
               << engine.calls() << ", engine heap allocations " << heap.calls() << "\n";
     CHECK(platform.calls() == 0 && engine.calls() == 0 && heap.calls() == 0);
 #else
-    std::cout << "store_sqlite.second_engine: faults: not applicable: built without QIVEN3_FAULTS\n";
+    std::cout << "store_sqlite.second_engine: faults: not applicable: built without QIVEN_FAULTS\n";
 #endif
     CHECK_EQ(refused, installed);
     CHECK_EQ(rig->fake.calls().size(), calls);

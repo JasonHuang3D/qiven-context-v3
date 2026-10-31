@@ -14,7 +14,7 @@
 
 using namespace qiven3::test::sqlite_bed;  // NOLINT(google-build-using-namespace)
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 // The counts each step makes, pinned as measured on Windows; Linux's as Windows' change, not measured, where plain

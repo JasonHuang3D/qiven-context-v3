@@ -134,7 +134,7 @@ std::chrono::milliseconds steady_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 using qiven3::platform::win::ClockTrace;
 
 // A retry loop's clock by its trace, read between before and after: its
@@ -250,7 +250,7 @@ QIVEN3_CASE(win_files, read) {
 // read's memory: one allocation of the caller's arena past the string's
 // own 15 bytes, none within them; failed, MemoryError with the file closed.
 QIVEN3_CASE(win_files, read_memory) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -293,7 +293,7 @@ QIVEN3_CASE(win_files, read_memory) {
     arena.attach(nullptr);
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
@@ -356,7 +356,7 @@ QIVEN3_CASE(win_files, replace) {
 // P9's reader on the adapter: a reader holds the target past the deadline,
 // busy with the old bytes and no temporary file, never before the deadline
 // by the clock the adapter reads; a deadline of 0 one try. Under
-// QIVEN3_FAULTS the trace shows the retries as check_clock states them,
+// QIVEN_FAULTS the trace shows the retries as check_clock states them,
 // and an unarmed countdown, which fails none, counts the adapter's Win32
 // calls: the held replace of deadline 0 makes those of a replace that
 // renames at its first try, and one more, its temporary file's deletion;
@@ -367,16 +367,16 @@ QIVEN3_CASE(win_files, replace_held) {
     WindowsPlatform platform(std::nullopt);
     const fs::path target = scratch.root / "map-marks.json";
     write_bytes(target, "old");
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown countdown;
     platform.attach(&countdown);
     ClockTrace held_trace;
     ClockTrace zero_trace;
 #endif
-    // The Win32 calls op makes; 0 without QIVEN3_FAULTS.
+    // The Win32 calls op makes; 0 without QIVEN_FAULTS.
     const auto calls = [&](auto op) {
         std::size_t made = 0;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         countdown.disarm();
         op();
         made = countdown.calls();
@@ -390,7 +390,7 @@ QIVEN3_CASE(win_files, replace_held) {
     {
         const std::ifstream reader(target, std::ios::binary);  // shares read and write, not delete
         CHECK(reader.is_open());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(&held_trace);
 #endif
         const auto before = steady_ms();
@@ -400,13 +400,13 @@ QIVEN3_CASE(win_files, replace_held) {
         CHECK(held.code == Code::busy);
         CHECK_EQ(held.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
         CHECK(after - before >= short_wait);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         check_clock(qiven3_ctx, held_trace, before, after, short_wait, true);
         platform.trace(&zero_trace);
 #endif
         Thrown zero;
         once = calls([&] { zero = thrown([&] { platform.replace(text(target), "new", Seconds{0.0}); }); });
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         platform.trace(nullptr);
         CHECK_EQ(zero_trace.reads, 2U);  // its start, and its one try's
         CHECK_EQ(zero_trace.pauses, 0U);
@@ -419,7 +419,7 @@ QIVEN3_CASE(win_files, replace_held) {
     const std::size_t first_try = calls([&] { platform.replace(text(target), "new", five); });
     CHECK_EQ(bytes_of(target), std::string("new"));
     CHECK(!temporary_left(scratch.root));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     CHECK(first_try > 0U);
     CHECK_EQ(once, first_try + 1);
     CHECK_EQ(retried, once + held_trace.pauses);
@@ -431,7 +431,7 @@ QIVEN3_CASE(win_files, replace_held) {
 }
 
 // P20's lock half: held past the deadline, busy, never before it by the
-// clock the adapter reads, and under QIVEN3_FAULTS the retries as
+// clock the adapter reads, and under QIVEN_FAULTS the retries as
 // check_clock states them; at 0 busy; released, acquired.
 QIVEN3_CASE(win_files, lock) {
     const Scratch scratch;
@@ -439,7 +439,7 @@ QIVEN3_CASE(win_files, lock) {
     const fs::path file = scratch.root / "location.lock";
     auto held = platform.lock(text(file), five);
     CHECK(fs::is_regular_file(file));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     ClockTrace trace;
     platform.trace(&trace);
 #endif
@@ -450,7 +450,7 @@ QIVEN3_CASE(win_files, lock) {
     CHECK_EQ(second.operation, std::string("lock"));
     CHECK_EQ(second.detail, std::string("lock: error 33 (ERROR_LOCK_VIOLATION)"));
     CHECK(after - before >= short_wait);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     platform.trace(nullptr);
     check_clock(qiven3_ctx, trace, before, after, short_wait, true);
 #endif
@@ -476,7 +476,7 @@ QIVEN3_CASE(win_files, lock) {
 // Each Win32 call failed in turn: a typed error each time, nothing held
 // open after it, no temporary file, the target's bytes old or new.
 QIVEN3_CASE(win_files, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     qiven3::memory::Countdown countdown;
@@ -547,6 +547,6 @@ QIVEN3_CASE(win_files, faults) {
     CHECK_EQ(arena.used(), 0U);
     platform.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

@@ -4,7 +4,7 @@
 # (QIVEN3_FUZZ_BINARY), so that one regression binary holds every target.
 # In every build the regression cases run each over its kept inputs, fuzz/<target>/regress/<sha1>, which
 # configure writes into regress_inputs.cpp as bytes, so that the binary
-# reads no path. Under libFuzzer (QIVEN3_SANITIZE with fuzzer) each target
+# reads no path. Under libFuzzer (QIVEN_SANITIZE with fuzzer) each target
 # is a binary of its own on libFuzzer's main, its corpus,
 # fuzz/<target>/corpus/ in the build, seeded at the build by
 # tools/fuzz_seeds.py and grown by libFuzzer, its findings under
@@ -71,15 +71,15 @@ qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
     entry/target.cpp wire/target.cpp
   LINK qiven3_platform_fake qiven3_write qiven3_entry qiven3_wire)
 
-if(QIVEN3_SANITIZE MATCHES "fuzzer")
+if(QIVEN_SANITIZE MATCHES "fuzzer")
   set(fuzz_lines "")
   foreach(target IN LISTS qiven3_fuzz_targets)
     set(dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     file(MAKE_DIRECTORY "${dir}/corpus" "${dir}/artifacts")
-    qiven3_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
+    qiven_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
       LINK qiven3_write qiven3_entry qiven3_wire qiven3_base qiven3_platform_fake)
     target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
-    # libFuzzer's main, here alone (cmake/sanitize.cmake): MSVC's
+    # libFuzzer's main, here alone (foundation/devkit/build/sanitize.cmake): MSVC's
     # /fsanitize=fuzzer on the target's own object names it to the link.
     if(MSVC)
       target_compile_options(qiven3_fuzz_${target} PRIVATE /fsanitize=fuzzer)

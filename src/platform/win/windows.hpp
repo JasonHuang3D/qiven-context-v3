@@ -59,7 +59,7 @@ using WindowsLock = files::Lock<WindowsFiles>;
 
 // A started process tree in a Job Object (win/process): its pages, which
 // hold its state (the process, the Job Object, the input's pipe, two
-// events, under QIVEN3_FAULTS the countdown its calls ask first) and its
+// events, under QIVEN_FAULTS the countdown its calls ask first) and its
 // two streams, each read by a thread into a buffer of its cap and a byte;
 // and its three threads: out's reader, err's reader and the deadline's
 // watch. The state lives on the pages so that the threads keep its address
@@ -181,7 +181,7 @@ public:
     [[nodiscard]] std::chrono::sys_time<std::chrono::milliseconds> now() const;
     // n bytes as whole pages, zeroed: memory.
     [[nodiscard]] WindowsPages pages(std::size_t n);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // The countdown win/files' calls ask first; null for none.
     void attach(memory::Countdown* countdown) noexcept { files_.attach(countdown); }
     // The trace win/files' retries record their clock into; null for none.
@@ -213,7 +213,7 @@ static_assert(Platform<WindowsPlatform>);
 // three threads (std::jthread, 24 bytes each), its handles and the
 // countdown on the pages; the adapter its scratch, the override's size, three flags and
 // its WindowsFiles: the adapter's address, under
-// QIVEN3_FAULTS the countdown's and the trace's, stage's 16 slots of 24
+// QIVEN_FAULTS the countdown's and the trace's, stage's 16 slots of 24
 // bytes and a serial.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
@@ -221,7 +221,7 @@ static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "the System's address, Dir, digits");
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsChild) == 88, "its pages and three threads");
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 static_assert(sizeof(WindowsFiles) == 416 && sizeof(WindowsPlatform) == 448, "scratch, size, flags, files");
 #else
 static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
@@ -288,7 +288,7 @@ struct Utf8Statuses {
 // refuses wide, statuses.faulted where the pages or the arena refuse an
 // allocation, each with no line (no adapter is made to print one).
 int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses) noexcept;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // As run_utf8, the pages' call and the arena's two allocations each asking
 // faults first.
 int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses,

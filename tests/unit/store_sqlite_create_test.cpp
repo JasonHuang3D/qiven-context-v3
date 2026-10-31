@@ -47,7 +47,7 @@ namespace qiven3::test {
 void store_sqlite_create_refused(Context& qiven3_ctx, const std::array<FaultRange, 4>& ranges);
 }  // namespace qiven3::test
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 namespace fs = std::filesystem;
@@ -437,9 +437,9 @@ QIVEN3_CASE(store_sqlite, create_unremoved) {
 #else
 void qiven3::test::store_sqlite_create_refused(Context& /*qiven3_ctx*/,
                                                const std::array<FaultRange, 4>& /*ranges*/) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 }
 QIVEN3_CASE(store_sqlite, create_unremoved) {
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 }
 #endif

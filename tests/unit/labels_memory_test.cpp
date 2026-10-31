@@ -140,7 +140,7 @@ QIVEN3_CASE(labels, budget) {
 }
 
 QIVEN3_CASE(labels, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<Stored> all = stored();
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -166,6 +166,6 @@ QIVEN3_CASE(labels, faults) {
     CHECK_EQ(made.quoted, 2U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

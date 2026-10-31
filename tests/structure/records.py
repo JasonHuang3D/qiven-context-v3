@@ -141,7 +141,7 @@ def main(argv):
     source, build_dir, cmake, dumpbin = (Path(a) for a in argv[1:5])
     out = build_dir / "structure"
     index = record(source, build_dir, out, dumpbin)
-    names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM", "QIVEN3_HAL")
+    names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM", "QIVEN_HAL")
     graph(source, build_dir, out, cmake, cache_values(build_dir, names))
     index["digests"] = digests(source)
     plant_out = out / "plant"

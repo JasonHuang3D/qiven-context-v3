@@ -303,7 +303,7 @@ inline std::size_t run_budget(ArgView request) {
     return sum(member_budget, sum(bytes("out"), bytes("err")));
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The adapter's fault points, which every adapter the drive serves has.
 template <class P>
 concept Faulted = requires(P& p, memory::Countdown* countdown) { p.attach(countdown); };
@@ -388,7 +388,7 @@ std::size_t PlatformDrive<P>::holding() const {
 template <platform::Platform P>
 Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     P& p = platform();
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     static_assert(ops::Faulted<P>, "every adapter the drive serves has fault points");
     p.attach(&session_.faults().platform);
 #endif
@@ -418,7 +418,7 @@ Value PlatformDrive<P>::reply(ArgView request) {
     } catch (...) {
         answer = caught(op);
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (platform_) {
         platform_->attach(nullptr);
     }

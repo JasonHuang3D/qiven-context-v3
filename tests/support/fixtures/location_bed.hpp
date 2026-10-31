@@ -42,7 +42,7 @@ namespace location = qiven3::location;
 namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
 using qiven3::platform::State;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 using qiven3::memory::Countdown;
 #else
 using Countdown = void;  // nothing counts: run's arenas unused
@@ -191,7 +191,7 @@ struct Bed {
         const std::string dir = text(target(s));
         location::Hooks hooks;
         hooks.peak = peak;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         hooks.arenas = arenas;
 #else
         static_cast<void>(arenas);

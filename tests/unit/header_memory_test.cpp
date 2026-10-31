@@ -160,7 +160,7 @@ QIVEN3_CASE(header, budget) {
 }
 
 QIVEN3_CASE(header, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<std::string> all = lines();
     const std::string& text = all.front();
     const header::Header<> plain = header::parse_line(text);
@@ -216,6 +216,6 @@ QIVEN3_CASE(header, faults) {
     report("make", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "header.make", countdown, make, empty), 1);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

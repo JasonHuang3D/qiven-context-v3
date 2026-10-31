@@ -67,7 +67,7 @@ inline constexpr std::string_view reviewer_lane = "reviewer";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 inline constexpr Counts source_counts{7, 5, 1, 2};  // verify's, of the source and an import of it
 inline constexpr std::string_view unfaulted =
-    "not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers";
+    "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 
 inline std::string text(const fs::path& path) {
     std::string out;
@@ -165,7 +165,7 @@ struct Bed {
     // A fresh caller's arena.
     Chars caller() {
         call.emplace(call_pages);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         call->attach(call_countdown);
 #endif
         return Chars(*call);
@@ -178,7 +178,7 @@ struct Bed {
         std::error_code error;
         fs::remove_all(root / "into", error);
         target = std::make_unique<Store>(Store::open(into, true, false, fake));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         target->attach(attached);
 #endif
     }
@@ -186,7 +186,7 @@ struct Bed {
     Counts reopened_target() {
         target.reset();
         target = std::make_unique<Store>(Store::open(into, false, false, fake));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         target->attach(attached);
 #endif
         return target->verify();
@@ -222,7 +222,7 @@ struct Bed {
     std::vector<std::byte> call_pages;
     std::optional<Arena> call;
     std::size_t heads_left = 0;  // the caller's heads after a refused import
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown* call_countdown = nullptr;
     qiven3::memory::Countdown* attached = nullptr;  // the stores' arenas'
 #endif

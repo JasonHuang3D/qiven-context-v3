@@ -154,7 +154,7 @@ int run(P& platform, const ArgumentsView& args, const Hooks& hooks) {
     auto pages = platform.pages(budget);
     memory::Arena arena(pages.bytes());
     const Measure measure(arena, hooks.peak);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     arena.attach(hooks.arenas);
 #endif
     const memory::Allocator<char> on(arena);

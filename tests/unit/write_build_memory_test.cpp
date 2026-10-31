@@ -238,7 +238,7 @@ QIVEN3_CASE(write_build, budget) {
 }
 
 QIVEN3_CASE(write_build, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
     std::optional<Arena> arena;
@@ -272,12 +272,12 @@ QIVEN3_CASE(write_build, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
 QIVEN3_CASE(write_build, platform_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     const std::string bytes = path_file_of(scratch);
     FakePlatform platform(config(scratch.root.generic_string()));
@@ -320,6 +320,6 @@ QIVEN3_CASE(write_build, platform_faults) {
     CHECK_EQ(left.built, 3U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

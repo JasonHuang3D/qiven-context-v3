@@ -1,5 +1,5 @@
 // parts' unit for the analysis preset: a table of three parts over two
-// passes, its ranges, the registry's check, and, under QIVEN3_FAULTS, a
+// passes, its ranges, the registry's check, and, under QIVEN_FAULTS, a
 // pass's runs within a range over a typed error of the unit's own, as the
 // cases give them.
 
@@ -22,7 +22,7 @@ static_assert(parts.range(2, 1).from == 1 && parts.range(2, 1).to == SIZE_MAX);
 
 bool parts_registered() { return registered("unit.parts", parts.from.size()); }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 namespace {
 struct Refused {};
 }  // namespace

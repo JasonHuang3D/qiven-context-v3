@@ -4,7 +4,7 @@
 // catalogue (log/catalogue.hpp) with fields of four types alone, so that no
 // run-time text can reach a line: a Name is made in constant evaluation
 // from a literal, and the others are numbers. An event below the build's
-// minimum, QIVEN3_LOG_MIN, compiles to nothing.
+// minimum, QIVEN_LOG_MIN, compiles to nothing.
 //
 // A Log takes its ring's 64 KiB and its events' 4 KiB once from its
 // binary's arena, and gives both back at its end. Each event builds its
@@ -30,11 +30,11 @@
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 
-#if !defined(QIVEN3_LOG_MIN)
+#if !defined(QIVEN_LOG_MIN)
 #if defined(NDEBUG)
-#define QIVEN3_LOG_MIN info
+#define QIVEN_LOG_MIN info
 #else
-#define QIVEN3_LOG_MIN trace
+#define QIVEN_LOG_MIN trace
 #endif
 #endif
 
@@ -43,7 +43,7 @@ namespace qiven3::log {
 enum class Level : std::uint8_t { trace, debug, info, warn, error };
 
 // The build's minimum: trace in a Debug build, info in every other.
-inline constexpr Level minimum = Level::QIVEN3_LOG_MIN;
+inline constexpr Level minimum = Level::QIVEN_LOG_MIN;
 
 // A name of at most 64 printable ASCII bytes, no '"' and no '\', made in
 // constant evaluation from a literal: a run-time text does not compile.
@@ -273,7 +273,7 @@ public:
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     [[nodiscard]] std::uint64_t number() const noexcept { return number_; }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // Each event's allocations ask the countdown first; null detaches it.
     void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
@@ -295,7 +295,7 @@ private:
     std::uint64_t failed_ = 0;
     std::size_t peak_ = 0;
     std::chrono::steady_clock::time_point start_;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown_ = nullptr;
 #endif
 };

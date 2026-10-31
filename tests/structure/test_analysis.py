@@ -88,7 +88,7 @@ def cache(build):
 
 
 def is_analysis(build):
-    return build is not None and cache(build).get("QIVEN3_ANALYZE") == "analysis"
+    return build is not None and cache(build).get("QIVEN_ANALYZE") == "analysis"
 
 
 ANALYSIS = unittest.skipUnless(is_analysis(build_directory()), "not the analysis build (QIVEN3_BUILD)")
@@ -135,9 +135,9 @@ class Tools:
         entry = {"directory": str(self.directory), "file": str(self.source), "command": subprocess.list2cmdline(
             [a.strip('"') for a in args])}
         (self.directory / "compile_commands.json").write_text(json.dumps([entry]), encoding="utf-8")
-        tidy = cache(self.build).get("QIVEN3_CLANG_TIDY")
+        tidy = cache(self.build).get("QIVEN_CLANG_TIDY")
         if not tidy:
-            raise AssertionError("the analysis build names no QIVEN3_CLANG_TIDY")
+            raise AssertionError("the analysis build names no QIVEN_CLANG_TIDY")
         return run([tidy, "-p", str(self.directory), "--config-file=" + str(ROOT / ".clang-tidy"), "--quiet",
                     str(self.source)], self.directory)
 

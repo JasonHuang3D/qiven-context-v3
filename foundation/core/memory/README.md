@@ -2,7 +2,7 @@
 
 layer core, status built
 
-- **Holds:** the allocator type and containers over an arena, pools, the budget's error, bounded text, the lock, checked sizes, and the failing countdown under `QIVEN3_FAULTS`
+- **Holds:** the allocator type and containers over an arena, pools, the budget's error, bounded text, the lock, checked sizes, and the failing countdown under `QIVEN_FAULTS`
 - **Never holds:** a system call, I/O, or a product's concept
 - **Contract:** `include/qiven/memory/memory.hpp`; not yet in this directory: its files are the `present` paths of module.json.
 - **Consumers:** support, diag, faults, base, log, platform, hal, matcher, wire, store, entry, secret, checked, location, write

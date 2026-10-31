@@ -458,7 +458,7 @@ QIVEN3_CASE(write_refuse, refuses_an_under_cycle) {
 }
 
 QIVEN3_CASE(write_refuse, allocates_nothing) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // Read and built first; then the countdown on the arena, each of its
     // allocations failed in turn over a pass and a refusal: none is made.
     FakePlatform platform(config());
@@ -489,7 +489,7 @@ QIVEN3_CASE(write_refuse, allocates_nothing) {
         CHECK_EQ(refused.has_value(), bytes.find("retire") != std::string::npos);
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

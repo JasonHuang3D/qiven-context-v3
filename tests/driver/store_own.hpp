@@ -6,7 +6,7 @@
 //
 //   store_open_at {path, create?, read_only?, refuse? [{of, k}]}
 //       an open of the file at path, under the Site's root, its object
-//       closed at once: {made: true} or {error}, and under QIVEN3_FAULTS
+//       closed at once: {made: true} or {error}, and under QIVEN_FAULTS
 //       each countdown "refuse" names, armed at k for the open: "platform"
 //       (the Site's fake's calls), "arena" (the store's arenas), "engine_call"
 //       (the engine calls the wrapper maps), "engine_heap" (the engine
@@ -51,7 +51,7 @@ inline std::string under_site(const test::ruled::Site& site, std::string_view pa
     return test::ruled::text(site.root() / std::filesystem::path(given));
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The kinds of countdown store_open_at arms.
 inline constexpr std::array<std::string_view, 4> refusal_kinds = {"platform", "arena", "engine_call", "engine_heap"};
 
@@ -122,13 +122,13 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
         const bool create = flag(request, "create", false);
         const bool read_only = flag(request, "read_only", false);
         // The engine made first, in every build: its heap installed for the
-        // open, and under QIVEN3_FAULTS its pages taken before any countdown.
+        // open, and under QIVEN_FAULTS its pages taken before any countdown.
         static_cast<void>(site.engine());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         Refusals<test::ruled::Site> refusals(site, request);
 #else
         if (request.find("refuse")) {
-            throw RequestError("not applicable: built without QIVEN3_FAULTS, so no refusal");
+            throw RequestError("not applicable: built without QIVEN_FAULTS, so no refusal");
         }
 #endif
         Value out;
@@ -141,7 +141,7 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
         } catch (...) {
             out.set("error", caught("store_open_at"));
         }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         refusals.detach();
         out.set("refused", refusals.given());
 #endif

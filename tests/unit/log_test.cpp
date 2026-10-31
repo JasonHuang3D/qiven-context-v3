@@ -191,7 +191,7 @@ QIVEN3_CASE(log, budget) {
 }
 
 QIVEN3_CASE(log, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(log_budget);
     qiven3::memory::Countdown countdown;
     std::optional<Arena> arena;
@@ -237,7 +237,7 @@ QIVEN3_CASE(log, faults) {
     CHECK_EQ(allocations, 4U);
     CHECK_EQ(completed_at, 5U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

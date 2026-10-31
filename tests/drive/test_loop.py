@@ -37,7 +37,8 @@ LOOP = load_loop()
 WINDOWS = sys.platform == "win32"
 PLANT = "planted by the loop's case"
 TIMEOUT = 1800
-COPY_IGNORED = shutil.ignore_patterns("build", ".codegraph", "__pycache__")
+# The root's build/ alone, not the build module's directory, and each .codegraph and __pycache__.
+COPY_IGNORED = lambda d, _: {".codegraph", "__pycache__", *(["build"] if Path(d).resolve() == ROOT.resolve() else [])}
 LOOP_FILES = sorted(p.name for p in (ROOT / "tools").glob("loop*.py")) + ["status.py"]
 
 

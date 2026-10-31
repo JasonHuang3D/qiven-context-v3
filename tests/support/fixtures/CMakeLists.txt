@@ -77,4 +77,4 @@ add_library(qiven3_fixtures STATIC
   "${fixtures_source}"
 )
 target_include_directories(qiven3_fixtures PUBLIC "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(qiven3_fixtures PUBLIC qiven3_base PRIVATE qiven3_flags)
+target_link_libraries(qiven3_fixtures PUBLIC qiven3_base PRIVATE qiven_build)

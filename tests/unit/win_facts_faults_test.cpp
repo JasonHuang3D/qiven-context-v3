@@ -1,4 +1,4 @@
-// win/facts' fault runs on this machine, under QIVEN3_FAULTS: each
+// win/facts' fault runs on this machine, under QIVEN_FAULTS: each
 // platform call of facts, residual and synced failed in turn, until a run
 // completes. facts' failed read is unknown, its reason naming the call and
 // error 31, the other readings as completed; GetVolumePathNameW's is path.
@@ -25,7 +25,7 @@
 #include "platform/win/windows.hpp"
 #include "runner/runner.hpp"
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 
 namespace {
 
@@ -183,7 +183,7 @@ std::vector<std::string> sweep(WindowsPlatform& platform, Op op, Answered answer
 #endif
 
 QIVEN3_CASE(win_facts_machine, facts_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -206,12 +206,12 @@ QIVEN3_CASE(win_facts_machine, facts_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
 QIVEN3_CASE(win_facts_machine, residual_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -247,12 +247,12 @@ QIVEN3_CASE(win_facts_machine, residual_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
 QIVEN3_CASE(win_facts_machine, synced_faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -284,7 +284,7 @@ QIVEN3_CASE(win_facts_machine, synced_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

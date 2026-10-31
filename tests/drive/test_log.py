@@ -4,7 +4,7 @@ fields hold no run-time text.
 - The binary half: qiven3_unit_log holds an event at trace and its control
   at info (tests/unit/log_k13.cpp). The control's name is in the binary's
   bytes in every build; the trace event's is there when the build's minimum,
-  the cache's QIVEN3_LOG_LEVEL, is trace, and absent otherwise.
+  the cache's QIVEN_LOG_LEVEL, is trace, and absent otherwise.
 - The static half: the build makes qiven3_log_plant_control, whose event
   takes a Name; the plant, qiven3_log_plant, the same file with its field a
   std::string_view, fails to compile at the line marked, and the control,
@@ -29,9 +29,9 @@ def level():
     """The build's minimum level, as its cache holds it."""
     cache = binaries.directory("QIVEN3_BUILD") / "CMakeCache.txt"
     for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith("QIVEN3_LOG_LEVEL:"):
+        if line.startswith("QIVEN_LOG_LEVEL:"):
             return line.split("=", 1)[1].strip()
-    raise RuntimeError(f"no QIVEN3_LOG_LEVEL in {cache}")
+    raise RuntimeError(f"no QIVEN_LOG_LEVEL in {cache}")
 
 
 def build(target):

@@ -27,7 +27,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/EHsc;/utf-8;/permissive-;/W0>")
 include_directories(src tests third_party/sqlite)
 get_filename_component(outside "${CMAKE_SOURCE_DIR}/../outside" ABSOLUTE)
-add_library(qiven3_flags INTERFACE)
+add_library(qiven_build INTERFACE)
 add_library(qiven3_platform STATIC src/platform/platform.cpp)
 add_library(qiven3_platform_win STATIC src/platform/win/windows.cpp src/platform/win/process.cpp)
 target_link_libraries(qiven3_platform_win PUBLIC qiven3_platform PRIVATE kernel32)
@@ -40,13 +40,13 @@ file(GLOB entry_sources CONFIGURE_DEPENDS src/entry/*.cpp)
 list(REMOVE_ITEM entry_sources "${CMAKE_SOURCE_DIR}/src/entry/secret.cpp")
 add_library(qiven3_entry STATIC ${entry_sources})
 target_include_directories(qiven3_entry PRIVATE "${outside}")
-target_link_libraries(qiven3_entry PUBLIC qiven3_platform qiven3_sqlite qiven3_flags)
+target_link_libraries(qiven3_entry PUBLIC qiven3_platform qiven3_sqlite qiven_build)
 add_library(qiven3_secret STATIC src/entry/secret.cpp)
 add_library(qiven3_reader STATIC src/reader/secret_include.cpp src/reader/replace_call.cpp)
 target_link_libraries(qiven3_reader PUBLIC qiven3_store)
 add_library(qiven3_mapcheck STATIC src/qiven3/mapcheck.cpp)
 add_library(qiven3_base STATIC src/qiven3/clean.cpp src/app/main.cpp)
-target_link_libraries(qiven3_base PUBLIC qiven3_platform qiven3_flags)
+target_link_libraries(qiven3_base PUBLIC qiven3_platform qiven_build)
 add_library(qiven3_location STATIC src/qiven3/location.cpp)
 target_link_libraries(qiven3_location PUBLIC qiven3_mapcheck qiven3_platform_win ws2_32 ole32)
 add_library(qiven3_app_instances STATIC src/app/instances.cpp)
@@ -181,7 +181,7 @@ PLANTS = {
         "Checks: '-bugprone-*'\n",
     "src/platform/.clang-tidy": "InheritParentConfig: true\nChecks: '-bugprone-*'\n",
     "src/memory/.clang-tidy": "# B26\nChecks: -cppcoreguidelines-pro-bounds-pointer-arithmetic\n",
-    "analysis.ruleset": '<RuleSet Name="plant"><Rules><Rule Id="C26481" Action="None" /></Rules></RuleSet>\n',
+    "foundation/devkit/build/analysis.ruleset": '<RuleSet Name="plant"><Rules><Rule Id="C26481" Action="None" /></Rules></RuleSet>\n',
     "../outside/outside.hpp": "#pragma once\ninline int outside() { return 0; }\n",
     # The stated allowances by file and header, the drives' binary streams
     # and memory's poisoning; the same headers in another file are caught.
@@ -245,7 +245,8 @@ PLANTED = [
     ("B17", "src/app/instances.cpp", "name"), ("B17", "qiven3_location", "link"),
     ("B17", "src/entry/malloc.hpp", "include"), ("B17", "src/memory/new.hpp", "include"),
     *(("B17", f"src/entry/crt_{n.lstrip('_')}.cpp", "name") for n in B17_ADDED),
-    ("B26", ".clang-tidy", "tidy"), ("B26", "src/entry/.clang-tidy", "tidy"), ("B26", "analysis.ruleset", "ruleset"),
+    ("B26", ".clang-tidy", "tidy"), ("B26", "src/entry/.clang-tidy", "tidy"),
+    ("B26", "foundation/devkit/build/analysis.ruleset", "ruleset"),
     ("B26", "src/qiven3/.clang-tidy", "tidy"),
 ]
 # Files and targets with no finding: the clean file, the allowances, the exemptions.

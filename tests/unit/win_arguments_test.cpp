@@ -2,7 +2,7 @@
 // program's name not read, so a name that is not valid UTF-16 reaches the
 // entry, as an empty argv[0]; an argument after it that is not, a command
 // line past its bounds and a vector it cannot read each the refused status
-// with the entry not run; and, under QIVEN3_FAULTS, the pages' call and
+// with the entry not run; and, under QIVEN_FAULTS, the pages' call and
 // the arena's two allocations each failed in turn, the faulted status,
 // apart from the refused one, with the entry not run.
 
@@ -84,7 +84,7 @@ QIVEN3_CASE(win_arguments, refused) {
 // The pages' call, then the arena's two allocations, each failed in turn:
 // faulted, the entry not run; past them, the entry's status.
 QIVEN3_CASE(win_arguments, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const std::wstring name = L"qiven3";
     const std::wstring first = L"location";
     const std::vector<const wchar_t*> wide = {name.c_str(), first.c_str(), nullptr};
@@ -104,6 +104,6 @@ QIVEN3_CASE(win_arguments, faults) {
     std::cout << "win_arguments.faults: failed in turn " << k - 1 << "\n";
     CHECK_EQ(k, std::size_t{4});
 #else
-    QIVEN3_SKIP("not applicable: QIVEN3_FAULTS is off in this build");
+    QIVEN3_SKIP("not applicable: QIVEN_FAULTS is off in this build");
 #endif
 }

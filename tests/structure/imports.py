@@ -221,7 +221,7 @@ def read_file(path):
 
 def outside(imports, system, sanitize, compiler=""):
     """Each import on neither the system's list nor the preset's residual,
-    given the build's QIVEN3_SANITIZE and its C++ compiler's CMake id; on
+    given the build's QIVEN_SANITIZE and its C++ compiler's CMake id; on
     Windows an API set, Windows' own, passes in every preset."""
     if system == "windows":
         allowed = set(WINDOWS_SYSTEM)

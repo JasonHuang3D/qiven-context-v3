@@ -73,7 +73,7 @@ namespace qiven3::store::sqlite {
 
 // A fresh arena asks the countdown first, where one is given.
 inline void attach_to([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown != nullptr) {
         arena.attach(countdown);
     }

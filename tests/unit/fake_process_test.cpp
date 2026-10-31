@@ -124,7 +124,7 @@ QIVEN3_CASE(fake_process, argv_refused) {
 
 // A line past a short string's buffer, read into an arena too small for it:
 // the budget; the same line is then read whole, then the next. Under
-// QIVEN3_FAULTS each of the line's allocations is failed in turn on a new
+// QIVEN_FAULTS each of the line's allocations is failed in turn on a new
 // Child, its next read_line giving the first line whole.
 QIVEN3_CASE(fake_process, read_line_kept) {
     FakePlatform fake{Config{}};
@@ -158,7 +158,7 @@ QIVEN3_CASE(fake_process, read_line_kept) {
         CHECK_EQ(std::string(line), std::string("second\n"));
         CHECK(!child.read_line(five, line));
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown countdown;
     std::size_t k = 1;
     for (; k <= 8; ++k) {

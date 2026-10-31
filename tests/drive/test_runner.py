@@ -67,7 +67,7 @@ class Routes(unittest.TestCase):
         1."""
         ran = binaries.run(DEMO, ["--run", "demo.crash"])
         self.assertEqual(ran.out, b"")
-        sanitize = build_option("QIVEN3_SANITIZE") or ""
+        sanitize = build_option("QIVEN_SANITIZE") or ""
         if "undefined" in sanitize:
             self.assertEqual(ran.status, 1)
             self.assertIn(b"runtime error: store to null pointer", ran.err)

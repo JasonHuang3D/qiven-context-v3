@@ -5,12 +5,12 @@ A wrong pointer given back to a pool or a heap fails fast, with the
 fail-fast's status, 0xC0000409 on Windows and SIGABRT elsewhere, writing
 nothing on standard output and the diagnostic entry's report on standard
 error, so a case never passes its wrong free. Under
-QIVEN3_SYSTEM_HEAP a pool's slot is the system heap's, so AddressSanitizer
+QIVEN_SYSTEM_HEAP a pool's slot is the system heap's, so AddressSanitizer
 reports the pool's wrong free, and a touch of a freed block, of an arena's
 block after its end, past it or in its padding, each with its report and
 its runtime's status 1.
 
-Under AddressSanitizer with QIVEN3_SYSTEM_HEAP, the build holds memory's
+Under AddressSanitizer with QIVEN_SYSTEM_HEAP, the build holds memory's
 code a second time without it, its blocks in the span and poisoned but for
 what is handed out: qiven3_free_demo_poisoned, whose wrong frees fail fast
 and whose touches of a freed slot, a heap block's header, the arena's space
@@ -67,12 +67,12 @@ def option_on(name):
 
 
 def address():
-    return "address" in (build_option("QIVEN3_SANITIZE") or "")
+    return "address" in (build_option("QIVEN_SANITIZE") or "")
 
 
 def demos():
     """Each demo the build holds, with how its blocks sit."""
-    system_heap = option_on("QIVEN3_SYSTEM_HEAP")
+    system_heap = option_on("QIVEN_SYSTEM_HEAP")
     if not address():
         return [(DEMO, UNSEEN_HEAP if system_heap else PLAIN)]
     if system_heap:
@@ -138,15 +138,15 @@ class Free(unittest.TestCase):
     def test_poisoned_cases(self):
         # memory's cases, the free in every position and the fault runs
         # among them, on its code with the blocks in the span, poisoned.
-        if not (address() and option_on("QIVEN3_SYSTEM_HEAP")):
+        if not (address() and option_on("QIVEN_SYSTEM_HEAP")):
             self.skipTest("not applicable: memory's cases are built a second time only under "
-                          "AddressSanitizer with QIVEN3_SYSTEM_HEAP")
+                          "AddressSanitizer with QIVEN_SYSTEM_HEAP")
         listed = binaries.run(POISONED_CASES, ["--list"])
         self.assertEqual(listed.status, 0)
         self.assertEqual(listed.out, binaries.run(CASES, ["--list"]).out)
         names = [line.split("\t")[0] for line in listed.out.decode("utf-8").splitlines()]
         self.assertGreater(len(names), 0)
-        passing = (0,) if option_on("QIVEN3_FAULTS") else (0, SKIP_CODE)
+        passing = (0,) if option_on("QIVEN_FAULTS") else (0, SKIP_CODE)
         for name in names:
             with self.subTest(case=name):
                 ran = binaries.run(POISONED_CASES, ["--run", name])

@@ -1,4 +1,4 @@
-// entry: the start of every binary, which qiven3_executable links as an
+// entry: the start of every binary, which qiven_executable links as an
 // object. On Windows, in two stages: the image's entry point sets the error
 // mode, so that no system dialog opens from the first instruction on, and
 // starts the C runtime; then the first initializer, in the library's

@@ -9,7 +9,7 @@
 // the standard library's, aligned to 4,096 bytes and zeroed; its normcase
 // folds ASCII letters alone. It reads no registry and starts no process.
 // Each operation called is kept in its record, in order; under
-// QIVEN3_FAULTS each is a fault point (attach).
+// QIVEN_FAULTS each is a fault point (attach).
 //
 // replace, stage, lock, list, remove and rename are files'
 // (platform/files.hpp) over the fake's system calls (fake_files.hpp), on
@@ -243,7 +243,7 @@ public:
     [[nodiscard]] const std::string& written() const noexcept { return output_.bytes(); }
     // The bytes of the pages lent and not yet given back.
     [[nodiscard]] std::size_t lent() const noexcept { return lent_; }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // Each call but wipe, noexcept by the contract, asks the countdown
     // first and, when it fires, fails as io, pages as memory; null
     // detaches it.
@@ -268,7 +268,7 @@ private:
     std::size_t pages_calls_ = 0;
     std::size_t refuse_at_ = 0;
     FakeFiles files_;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown_ = nullptr;
 #endif
 };

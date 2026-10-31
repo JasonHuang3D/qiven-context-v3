@@ -315,7 +315,7 @@ QIVEN3_CASE(files_names, rename) {
 // Each system call failed in turn, then each allocation of list's names:
 // a typed error, names cleared, the files as before or as done.
 QIVEN3_CASE(files_names, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
@@ -367,6 +367,6 @@ QIVEN3_CASE(files_names, faults) {
     arena.attach(nullptr);
     CHECK_EQ(joined(names), std::string("1.pending|2.pending|a-long-name-past-the-small-string.json"));
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

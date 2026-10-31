@@ -220,7 +220,7 @@ void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
     String line(chars);
     Vector<Id> out{chars};
     out.reserve(5);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown countdown;
     arena.attach(&countdown);
     countdown.disarm();
@@ -237,7 +237,7 @@ void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
     CHECK(!store.each_keyed(qs, "note", visit("")));
     CHECK_EQ(store.peak(), 0U);
     CHECK_EQ(arena.used(), used);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     CHECK_EQ(countdown.calls(), 1U);
     arena.attach(nullptr);
 #endif

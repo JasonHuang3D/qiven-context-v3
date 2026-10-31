@@ -10,7 +10,7 @@
 //
 // It lives in its adapter, whose scratch it borrows for a path's UTF-16
 // forms, and takes no memory but read's out and list's names on the
-// caller's arena and a staging directory's pages. Under QIVEN3_FAULTS each Win32 call asks the
+// caller's arena and a staging directory's pages. Under QIVEN_FAULTS each Win32 call asks the
 // countdown first and, when it fires, fails as the call would with error
 // 31 (ERROR_GEN_FAILURE), a handle it opened closed first, and the
 // retries' clock and pauses record into a trace, if one is attached.
@@ -53,7 +53,7 @@ private:
     std::size_t size_ = 0;
 };
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The retries' clock as they read it, for the cases: elapsed()'s reads
 // since attached or cleared, the first, the one before the last (the
 // first while there are fewer than three) and the last; pause()'s calls
@@ -165,7 +165,7 @@ public:
     // allocation of the caller's arena; any error io: path, io.
     void read(std::string_view path, String& out);
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
     // The countdown, which a started Child's calls ask too.
     [[nodiscard]] memory::Countdown* countdown() const noexcept { return countdown_; }
@@ -213,7 +213,7 @@ private:
     static void shut(void*& handle) noexcept;
 
     WindowsPlatform* platform_;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown_ = nullptr;
     ClockTrace* trace_ = nullptr;
 #endif

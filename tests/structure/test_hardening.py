@@ -44,8 +44,8 @@ NT_PLANTED = 0x7F  # a note type of no meaning
 
 def preset():
     """What the build's preset holds: (cet expected, fortify expected)."""
-    sanitize = build_option("QIVEN3_SANITIZE") or ""
-    compiler = build_option("QIVEN3_CXX_COMPILER_ID") or ""
+    sanitize = build_option("QIVEN_SANITIZE") or ""
+    compiler = build_option("QIVEN_CXX_COMPILER_ID") or ""
     optimized = (build_option("CMAKE_BUILD_TYPE") or "") in OPTIMIZED
     return not (sanitize and compiler == CLANG), optimized and not sanitize
 

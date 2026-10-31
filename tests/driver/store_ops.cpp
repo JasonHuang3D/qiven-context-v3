@@ -487,7 +487,7 @@ stores::Site& StoreDrive<F>::site() {
 template <class F>
 Value StoreDrive<F>::run(const Entry& entry, ArgView request) {
     stores::Site& s = site();
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     s.fake().attach(&session_.faults().platform);
 #else
     static_cast<void>(s);
@@ -529,7 +529,7 @@ Value StoreDrive<F>::reply(ArgView request) {
             answer = error_reply(plain("exception", op + ": an exception of no type the drive names"));
         }
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (site_) {
         site_->fake().attach(nullptr);
     }

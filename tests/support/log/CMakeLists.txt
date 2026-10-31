@@ -5,7 +5,7 @@ add_library(qiven3_case_main STATIC
   main.cpp
   "${PROJECT_SOURCE_DIR}/tests/runner/runner.hpp"
 )
-target_link_libraries(qiven3_case_main PUBLIC qiven3_runner qiven3_log PRIVATE qiven3_flags qiven3_diag
+target_link_libraries(qiven3_case_main PUBLIC qiven3_runner qiven3_log PRIVATE qiven_build qiven3_diag
                       qiven3_platform)
 
 # The runner's own cases, each a CTest test, with the log's main.
@@ -14,5 +14,5 @@ qiven3_add_cases(qiven3_runner_test LABELS fast SOURCES "${PROJECT_SOURCE_DIR}/t
 
 # One case per route, run as processes by tests/drive/test_runner.py; never
 # a CTest test itself.
-qiven3_executable(qiven3_runner_demo SOURCES "${PROJECT_SOURCE_DIR}/tests/runner/runner_demo.cpp"
+qiven_executable(qiven3_runner_demo SOURCES "${PROJECT_SOURCE_DIR}/tests/runner/runner_demo.cpp"
                   LINK qiven3_case_main)

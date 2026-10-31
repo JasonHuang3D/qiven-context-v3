@@ -2,7 +2,7 @@
 
 // poison: AddressSanitizer's view of the bytes an arena, a pool or a heap
 // holds. Under AddressSanitizer, with the blocks in the span (no
-// QIVEN3_SYSTEM_HEAP), each allocator poisons what it holds and has not
+// QIVEN_SYSTEM_HEAP), each allocator poisons what it holds and has not
 // handed out: the span at its start, a freed slot, a heap block's header,
 // an arena's space past its cursor and its padding; it unpoisons exactly
 // what it hands out, and its whole span at its end, when the pages go back
@@ -26,7 +26,7 @@
 #endif
 #endif
 
-#if defined(QIVEN3_ASAN) && !defined(QIVEN3_SYSTEM_HEAP)
+#if defined(QIVEN3_ASAN) && !defined(QIVEN_SYSTEM_HEAP)
 #define QIVEN3_POISONING 1
 #include <sanitizer/asan_interface.h>
 #define QIVEN3_POISON(p, n) ASAN_POISON_MEMORY_REGION((p), (n))

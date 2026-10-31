@@ -56,7 +56,7 @@ QIVEN3_CASE(location, budget) {
     CHECK(arena.peak() >= lengths && arena.peak() <= 2 * lengths + 64);
 }
 
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
 struct Count {
@@ -193,7 +193,7 @@ QIVEN3_CASE(location, counts) {
 
 #else
 namespace {
-constexpr std::string_view unfaulted = "not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers";
+constexpr std::string_view unfaulted = "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 }  // namespace
 QIVEN3_CASE(location, counts) { QIVEN3_SKIP(unfaulted); }
 #endif

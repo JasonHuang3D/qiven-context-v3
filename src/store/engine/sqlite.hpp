@@ -98,7 +98,7 @@ inline constexpr Refused directory_refused = 1U << 4U;
 
 // The writes (sqlite_write.cpp), through the wrapper.
 using Chars = memory::Allocator<char>;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 using Countdown = memory::Countdown;
 // The process's two countdowns: calls, which each engine call the wrapper
 // maps asks first, a failed one taking SQLITE_IOERR as its result, the
@@ -112,7 +112,7 @@ struct Countdown {};
 #endif
 
 // stage's scratch: at each call a fresh arena over the same pages, the
-// last one's blocks all given back; under QIVEN3_FAULTS each asks the
+// last one's blocks all given back; under QIVEN_FAULTS each asks the
 // countdown, where one is given.
 class ScratchView {
 public:
@@ -312,7 +312,7 @@ public:
         requires std::invocable<Step&, const Record&, const Chars&>
     bool next(Step&& step) {
         memory::Arena arena(pages_);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
         }

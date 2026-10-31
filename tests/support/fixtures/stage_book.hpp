@@ -73,7 +73,7 @@ public:
     Arena& operator()() {
         end();
         arena_.emplace(pages_);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena_->attach(countdown_);
         }
@@ -93,7 +93,7 @@ public:
     }
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     [[nodiscard]] bool leaked() const noexcept { return leaked_; }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     void attach(qiven3::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
@@ -102,7 +102,7 @@ private:
     std::optional<Arena> arena_;
     std::size_t peak_ = 0;
     bool leaked_ = false;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown* countdown_ = nullptr;
 #endif
 };

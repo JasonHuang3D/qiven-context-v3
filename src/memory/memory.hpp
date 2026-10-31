@@ -1,7 +1,7 @@
 #pragma once
 
 // memory: v3's allocator type and containers over an arena, the budget's
-// error, bounded text, the lock, checked sizes and, under QIVEN3_FAULTS, the
+// error, bounded text, the lock, checked sizes and, under QIVEN_FAULTS, the
 // failing countdown. Ownership is single and scoped: an arena lends its
 // bytes to the containers of one operation and takes them all back at its
 // end.
@@ -120,7 +120,7 @@ struct MemoryError {
     Inline<96> detail;
 };
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The failing countdown: armed at k, the k-th call of fail() after arming
 // returns true, the k-th allocation (or platform call) failing; every other
 // call returns false. Unarmed, none fails. thread: one.

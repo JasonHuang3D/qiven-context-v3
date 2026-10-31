@@ -113,7 +113,7 @@ QIVEN3_CASE(served, budget) {
 }
 
 QIVEN3_CASE(served, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Held m1 = held(all, "M1");
@@ -143,12 +143,12 @@ QIVEN3_CASE(served, faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
 QIVEN3_CASE(served, escaped_label_faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     // The owner's words as quoted in a document of record whose path is
     // 200 U+FEFF, refuted by transcript: the label's 741 bytes served as
     // 1,341, each U+FEFF escaped as a field's text is.
@@ -205,6 +205,6 @@ QIVEN3_CASE(served, escaped_label_faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

@@ -4,8 +4,8 @@ checkout the case makes, a planted pin change empties the tree, a file
 planted in it gone, and its fake step runs every test, its line saying
 why; an unchanged pin keeps the tree and the narrow selection; a tree whose
 mark records no pins is emptied once. Each system's side gives its pins:
-Windows' table, tools/windows-pins.txt and CMakeLists.txt's; inside WSL
-the pin file's, CMakeLists.txt's and the prefix, to every unit it drives.
+Windows' table, tools/windows-pins.txt and build.cmake's; inside WSL
+the pin file's, build.cmake's and the prefix, to every unit it drives.
 A ctest step's status is named as ctest's, 8 as (tests failed); another
 step's 8 stays unnamed. Inside WSL each sanitizer runtime's symbolizer is
 the pinned file, and no GCC installation is given; --help names each
@@ -29,7 +29,7 @@ LOOP = load_loop()
 RUN = LOOP.RUN
 STATUS = RUN["STATUS"]
 JOB = "windows-msvc"
-PINS = {"cl": "14.44.35207 one", "QIVEN3_PIN_GCC": "13.3.0", "command g++-13": "13.3.0 two path/g++-13"}
+PINS = {"cl": "14.44.35207 one", "QIVEN_PIN_GCC": "13.3.0", "command g++-13": "13.3.0 two path/g++-13"}
 
 
 def scratch(case):
@@ -130,15 +130,17 @@ class SystemPins(unittest.TestCase):
 
     def test_windows(self):
         """Windows' table, the toolset, the SDK, CPython, clang-tidy, the
-        debugger's pin file and CMakeLists.txt's pins; a pin file's change
+        debugger's pin file and build.cmake's pins; a pin file's change
         is a change of its pins."""
         top = scratch(self)
         (top / "tools").mkdir()
         shutil.copyfile(ROOT / "tools" / "windows-pins.txt", top / "tools" / "windows-pins.txt")
-        shutil.copyfile(ROOT / "CMakeLists.txt", top / "CMakeLists.txt")
+        build = Path("foundation", "devkit", "build", "build.cmake")
+        (top / build.parent).mkdir(parents=True)
+        shutil.copyfile(ROOT / build, top / build)
         pins = LOOP.WINDOWS["windows_pins"](top)
         for name in [*(p[0] for p in LOOP.WINDOWS_PINS), "toolset", "sdk", "cpython", "clang-tidy", "debugger cdb",
-                     "QIVEN3_PIN_MSVC", "QIVEN3_PIN_GCC", "QIVEN3_PIN_CLANG", "QIVEN3_PIN_CMAKE"]:
+                     "QIVEN_PIN_MSVC", "QIVEN_PIN_GCC", "QIVEN_PIN_CLANG", "QIVEN_PIN_CMAKE"]:
             self.assertIn(name, pins)
         self.assertEqual(pins["cpython"], "3.15.0")
         text = (top / "tools" / "windows-pins.txt").read_text(encoding="utf-8")
@@ -163,7 +165,7 @@ class SystemPins(unittest.TestCase):
 
     def test_inside(self):
         """Inside WSL, every unit driven under the pin file's pins,
-        CMakeLists.txt's and the prefix; the sync and the drive faked."""
+        build.cmake's and the prefix; the sync and the drive faked."""
         base = scratch(self)
         linux = LOOP.LINUX["inside"].__globals__
         given, envs = [], []
@@ -188,7 +190,7 @@ class SystemPins(unittest.TestCase):
         expected = {**RUN["file_pins"]((ROOT / "tools" / "linux-pins.txt").read_text(encoding="utf-8")),
                     **RUN["cmake_pins"](ROOT), "prefix": "/nonexistent/prefix"}
         self.assertTrue(all(pins == expected for pins in given), given[0])
-        self.assertIn("QIVEN3_PIN_GCC", expected)
+        self.assertIn("QIVEN_PIN_GCC", expected)
         # Each runtime's symbolizer the pinned file, by its pin's source (none where it is not found, as
         # on Windows); no GCC installation given, clang taking the system's only GCC.
         source = [v.split()[-1] for k, v in expected.items() if k.startswith("command llvm-symbolizer")]

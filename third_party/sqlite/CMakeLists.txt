@@ -1,12 +1,12 @@
 # qiven3_sqlite: SQLite 3.53.4's amalgamation, sqlite3.c and sqlite3.h as
-# extracted, unchanged (README.md here). The top CMakeLists.txt checks both
+# extracted, unchanged (README.md here). The build's build.cmake checks both
 # files' SHA-256 before this directory is read, so a changed amalgamation
 # never builds. qiven3_store alone links it (B1).
 #
 # Compiled as C at its own level: MSVC /W3 without /WX, at which the pinned
 # amalgamation builds with no warning; gcc and clang their defaults without
 # -Werror. The core's warnings, its analysis and its frame bound never cover
-# it: it links no qiven3_flags. The build's sanitizers, path maps and floors
+# it: it links no qiven_build. The build's sanitizers, path maps and floors
 # reach it as they reach every target.
 add_library(qiven3_sqlite STATIC
   sqlite3.c

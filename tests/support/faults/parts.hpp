@@ -106,7 +106,7 @@ inline bool registered(std::string_view base, std::size_t n) {
     return true;
 }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 
 // One pass's runs within a part's range.
 class PartRuns {

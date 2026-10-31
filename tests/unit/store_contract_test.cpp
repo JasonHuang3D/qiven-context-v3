@@ -521,7 +521,7 @@ QIVEN3_CASE(store_contract, line) {
 // its first allocation, the gate, the volume and the budgets run, and the
 // run completes at once.
 QIVEN3_CASE(store_contract, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
     qiven3::memory::Countdown countdown;
     std::optional<qiven3::memory::Arena> arena;
@@ -548,7 +548,7 @@ QIVEN3_CASE(store_contract, faults) {
     CHECK_EQ(arena->used(), 0U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

@@ -10,7 +10,7 @@ qiven3_add_cases(qiven3_unit_files LABELS fast fake
 
 # The fake's processes held to their contract: start and run refusing a
 # relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
-# its line on a failed allocation, by the budget and, under QIVEN3_FAULTS,
+# its line on a failed allocation, by the budget and, under QIVEN_FAULTS,
 # each of the line's allocations failed in turn.
 qiven3_add_cases(qiven3_unit_fake_process LABELS fast fake
   SOURCES fake_process_test.cpp
@@ -41,7 +41,7 @@ endif()
 
 # win/arguments' run_utf8, wmain's body, on Windows alone: the program's
 # name not read; what it cannot read or past a bound refused; under
-# QIVEN3_FAULTS the pages' call and each allocation failed in turn, a
+# QIVEN_FAULTS the pages' call and each allocation failed in turn, a
 # fault's status apart. fast and fake, as win_files'.
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_arguments LABELS fast fake

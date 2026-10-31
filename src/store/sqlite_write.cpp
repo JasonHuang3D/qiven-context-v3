@@ -61,7 +61,7 @@ memory::Arena& ScratchView::operator()() {
         peak_ = std::max(peak_, arena_->peak());
     }
     arena_.emplace(pages_);  // the last one ended first
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown_ != nullptr) {
         arena_.value().attach(countdown_);
     }

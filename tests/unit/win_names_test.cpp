@@ -240,7 +240,7 @@ QIVEN3_CASE(win_names, rename) {
 }
 
 QIVEN3_CASE(win_names, faults) {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     qiven3::memory::Countdown countdown;
@@ -288,6 +288,6 @@ QIVEN3_CASE(win_names, faults) {
     CHECK(clean(0));
     platform.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

@@ -264,7 +264,7 @@ FakePlatform::FakePlatform(const Config& config)
 
 void FakePlatform::record(std::string_view operation) const {
     calls_.emplace_back(operation);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown_ != nullptr && operation != "wipe" && countdown_->fail()) {
         fail(operation == "pages" ? Code::memory : Code::io, operation, "fault injected");
     }

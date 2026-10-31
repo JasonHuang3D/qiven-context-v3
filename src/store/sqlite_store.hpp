@@ -340,7 +340,7 @@ public:
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     // The platform it was opened on.
     [[nodiscard]] P& platform() const noexcept { return *platform_; }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // Each arena of an operation asks countdown first.
     void attach(sqlite::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
@@ -352,7 +352,7 @@ private:
         if (pages_.bytes().size() < operation_base) {
             memory::fail_fast("store/sqlite: pages short of their request");
         }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         countdown_ = sqlite::arenas_countdown();
 #endif
     }
@@ -382,7 +382,7 @@ private:
     std::span<std::byte> room(std::span<const EntryView> entries, std::optional<Pages>& extra);
 
     void hook([[maybe_unused]] memory::Arena& arena) const noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
         }

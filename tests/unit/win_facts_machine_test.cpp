@@ -137,13 +137,13 @@ QIVEN3_CASE(win_facts_machine, facts_here) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     const std::array<std::string, 2> paths = {text(scratch.root), "C:\\"};
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown allocations;
     arena.attach(&allocations);
 #endif
     for (const std::string& path : paths) {
         Facts facts(arena);
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         allocations.disarm();
 #endif
         platform.facts(path, facts);
@@ -154,12 +154,12 @@ QIVEN3_CASE(win_facts_machine, facts_here) {
         CHECK_EQ(std::string(facts.volume), path.substr(0, 2));
         CHECK(formed(facts.protection) && formed(facts.file_history) && formed(facts.bitlocker));
         read_here(qiven3_ctx, facts);
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
         CHECK_EQ(allocations.calls(), past_inline({facts.volume, facts.protection.reason, facts.file_history.reason,
                                                    facts.bitlocker.reason}));
 #endif
     }
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     arena.attach(nullptr);
 #endif
     CHECK_EQ(arena.used(), 0U);
@@ -200,7 +200,7 @@ QIVEN3_CASE(win_facts_machine, residual_here) {
         row_is(qiven3_ctx, rows.at(0), 0, Applies::no);
         row_is(qiven3_ctx, rows.at(5), 5, Applies::no);
     }
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     // The six rows reserved at once, then each text past 15 bytes.
     std::size_t texts = 1;
     for (const readings::RowView& row : readings::rows) {

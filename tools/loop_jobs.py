@@ -6,7 +6,7 @@ the same preset, and each of its steps runs CI's command, in CI's order. CI
 is unpinned and runs on the images' own tools; the pins are the loop's
 alone, as each step's local additions, apart from CI's command, so that a
 test reads one against the other (tests/drive/test_loop_ci.py):
-- every configure adds QIVEN3_PIN_TOOLS, under which configure fails on
+- every configure adds QIVEN_PIN_TOOLS, under which configure fails on
   any compiler, CMake, Ninja or CPython but the pinned (tier 3 adds a fresh
   cache, tools/loop_tiers.py);
 - the Linux configures name the pinned compilers, gcc-13 and g++-13 or
@@ -65,7 +65,7 @@ JOB_ENV = {"windows-asan": {"CTEST_PARALLEL_LEVEL": "2"}}
 LINUX_SHELL = ("setarch", "x86_64", "-R")
 
 CLEAN = "clean-check"  # CI's clean-binaries check, its script read from ci.yml
-PIN = "-DQIVEN3_PIN_TOOLS=ON"
+PIN = "-DQIVEN_PIN_TOOLS=ON"
 
 # The pinned compilers of the Linux jobs, by the compiler CI's preset names.
 LINUX_COMPILERS = {

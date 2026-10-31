@@ -1,4 +1,4 @@
-# Included by CMakeLists.txt: the sanitizers of QIVEN3_SANITIZE, on every
+# Included by build.cmake: the sanitizers of QIVEN_SANITIZE, on every
 # target. libFuzzer's main is linked into the fuzz targets alone
 # (tests/fuzz/CMakeLists.txt); every other target takes libFuzzer's
 # instrumentation without it.
@@ -10,12 +10,12 @@ if(MSVC)
   # options it implies stand for it, and the fuzz targets take it alone.
   # The counters' runtime, which /fsanitize=fuzzer would name, is named to
   # every link: sancov.lib on the DLL runtime libFuzzer needs.
-  set(qiven3_fuzz_coverage /fsanitize-coverage=edge /fsanitize-coverage=inline-8bit-counters
+  set(qiven_fuzz_coverage /fsanitize-coverage=edge /fsanitize-coverage=inline-8bit-counters
     /fsanitize-coverage=trace-cmp /fsanitize-coverage=trace-div)
-  string(REPLACE "," ";" qiven3_sanitizers "${QIVEN3_SANITIZE}")
-  foreach(sanitizer IN LISTS qiven3_sanitizers)
+  string(REPLACE "," ";" qiven_sanitizers "${QIVEN_SANITIZE}")
+  foreach(sanitizer IN LISTS qiven_sanitizers)
     if(sanitizer STREQUAL "fuzzer")
-      add_compile_options(${qiven3_fuzz_coverage})
+      add_compile_options(${qiven_fuzz_coverage})
       add_link_options("/DEFAULTLIB:sancov$<$<CONFIG:Debug>:d>.lib")
     else()
       add_compile_options("/fsanitize=${sanitizer}")
@@ -23,14 +23,14 @@ if(MSVC)
   endforeach()
   add_link_options(/INCREMENTAL:NO)
 else()
-  string(REPLACE "fuzzer" "fuzzer-no-link" qiven3_sanitizers "${QIVEN3_SANITIZE}")
-  add_compile_options("-fsanitize=${qiven3_sanitizers}" -fno-sanitize-recover=all
+  string(REPLACE "fuzzer" "fuzzer-no-link" qiven_sanitizers "${QIVEN_SANITIZE}")
+  add_compile_options("-fsanitize=${qiven_sanitizers}" -fno-sanitize-recover=all
     -fno-omit-frame-pointer)
-  add_link_options("-fsanitize=${qiven3_sanitizers}")
+  add_link_options("-fsanitize=${qiven_sanitizers}")
   # MemorySanitizer's report names where the unwritten bytes came from.
-  if(QIVEN3_SANITIZE STREQUAL "memory")
+  if(QIVEN_SANITIZE STREQUAL "memory")
     add_compile_options(-fsanitize-memory-track-origins=2)
     add_link_options(-fsanitize-memory-track-origins=2)
   endif()
 endif()
-message(STATUS "qiven3: sanitizers ${QIVEN3_SANITIZE}")
+message(STATUS "qiven3: sanitizers ${QIVEN_SANITIZE}")

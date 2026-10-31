@@ -8,7 +8,7 @@ The conversion's budget is its measure, argc + 1 pointers, the name's
 null and each other argument's UTF-8 and its null, which its arena's peak
 meets; a command line holds at most 32,767 units after the name and 16,384
 arguments; an unpaired surrogate after the name is PlatformError path,
-naming the argument; under QIVEN3_FAULTS each of its two allocations fails
+naming the argument; under QIVEN_FAULTS each of its two allocations fails
 in turn. The binary's answer it cannot write ends it with status 2.
 
 On every system, the binary's per-call wire: a request past each bound or
@@ -134,7 +134,7 @@ class Conversion(WindowsOnly):
 
     def test_faults(self):
         if not has_faults():
-            self.skipTest("not applicable: QIVEN3_FAULTS is off in this build")
+            self.skipTest("not applicable: QIVEN_FAULTS is off in this build")
         for texts, allocations in ((self.TEXTS, 2), ([], 1)):
             with self.subTest(argc=len(texts)):
                 given = [units(t) for t in texts]

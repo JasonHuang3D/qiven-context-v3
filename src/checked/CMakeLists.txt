@@ -9,4 +9,4 @@ add_library(qiven3_checked STATIC
   stores.hpp
 )
 target_include_directories(qiven3_checked PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_checked PUBLIC qiven3_store qiven3_entry qiven3_secret qiven3_memory PRIVATE qiven3_flags)
+target_link_libraries(qiven3_checked PUBLIC qiven3_store qiven3_entry qiven3_secret qiven3_memory PRIVATE qiven_build)

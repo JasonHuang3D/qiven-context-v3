@@ -117,7 +117,7 @@ public:
         requires std::invocable<Step&, const Record&, const state::Chars&>
     bool next(Step&& step) {
         memory::Arena arena(pages_.bytes().first(operation_base));
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
         }
@@ -478,7 +478,7 @@ public:
     // The platform it was made on.
     [[nodiscard]] P& platform() const noexcept { return *platform_; }
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     // Each operation's arenas ask the countdown first; null detaches it.
     void attach(state::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
@@ -499,7 +499,7 @@ private:
         return extra->bytes().first(budget);
     }
     void hook([[maybe_unused]] memory::Arena& arena) const noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
         }

@@ -107,7 +107,7 @@ struct ChildState {
     void* input = nullptr;
     void* changed = nullptr;  // auto-reset: a stream grew or ended, or the tree was ended
     void* stop = nullptr;     // manual-reset: set by the destructor, ending the watch
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown = nullptr;
 #endif
     Clock::rep deadline = 0;   // the steady clock's count at the deadline, before the threads
@@ -199,7 +199,7 @@ WindowsChild::WindowsChild(const Caps& caps, WindowsFiles& files) : WindowsChild
     fresh.out.capacity = *out_bytes;
     fresh.err.data = bytes.subspan(sizeof(ChildState) + *out_bytes).data();
     fresh.err.capacity = *err_bytes;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     fresh.countdown = files.countdown();
 #endif
     std::memcpy(bytes.data(), &fresh, sizeof(fresh));
@@ -276,7 +276,7 @@ WindowsChild::~WindowsChild() {
 ChildState& WindowsChild::state() const noexcept { return *static_cast<ChildState*>(pages_.address()); }
 
 bool WindowsChild::faulted() noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* countdown = state().countdown;
     return countdown != nullptr && countdown->fail();
 #else

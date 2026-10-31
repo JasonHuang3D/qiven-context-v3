@@ -18,7 +18,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
-        "QIVEN3_PIN_TOOLS": "ON",
+        "QIVEN_PIN_TOOLS": "ON",
         "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"
       }
     },
@@ -26,7 +26,7 @@
       "name": "debug",
       "inherits": "here",
       "displayName": "Debug, MSVC",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "QIVEN3_FAULTS": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "QIVEN_FAULTS": "ON"}
     },
     {
       "name": "release",
@@ -39,14 +39,14 @@
       "inherits": "here",
       "displayName": "AddressSanitizer, MSVC",
       "description": "/fsanitize=address on every target; the runtime's DLL goes beside each test binary; v3's allocators on the system heap; the failing countdown",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON", "QIVEN3_FAULTS": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address", "QIVEN_SYSTEM_HEAP": "ON", "QIVEN_FAULTS": "ON"}
     },
     {
       "name": "fuzz",
       "inherits": "here",
       "displayName": "libFuzzer with AddressSanitizer, MSVC",
       "description": "/fsanitize=address and libFuzzer's coverage options on every target, /fsanitize=fuzzer on the fuzz targets alone, and /INCREMENTAL:NO; builds the fuzz targets",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "fuzzer,address", "QIVEN_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "structure",
@@ -60,29 +60,29 @@
       "inherits": "here",
       "displayName": "The frame bound, MSVC: /analyze's C6262 at 4,096 bytes, an error",
       "description": "/analyze /analyze:stacksize4096 over v3's own sources, by stack.ruleset: C6262 alone",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "stack"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_ANALYZE": "stack"}
     },
     {
       "name": "analysis",
       "inherits": "here",
       "displayName": "Static analysis, MSVC: the Core Guidelines checker, then clang-tidy",
       "description": "/analyze with EspXEngine.dll and analysis.ruleset over v3's own sources; then the target qiven3_tidy runs clang-tidy, by .clang-tidy, over compile_commands.json's sources of src/ and tests/support/",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_ANALYZE": "analysis"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_ANALYZE": "analysis"}
     },
     {
       "name": "nohal",
       "inherits": "here",
       "displayName": "Without the HAL, MSVC (H6)",
-      "description": "QIVEN3_HAL off: no qiven3_hal, no HAL fake and no H case but H6",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_HAL": "OFF"}
+      "description": "QIVEN_HAL off: no qiven3_hal, no HAL fake and no H case but H6",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_HAL": "OFF"}
     },
     {
       "name": "ci",
       "hidden": true,
       "inherits": "base",
-      "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN3_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN3_PYTHON, which the workflow sets",
+      "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN3_PYTHON, which the workflow sets",
       "binaryDir": "${sourceDir}/build/ci",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN3_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN3_PYTHON}"}
     },
     {
       "name": "ci-windows",
@@ -95,48 +95,48 @@
       "name": "ci-asan",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as asan",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address", "QIVEN3_SYSTEM_HEAP": "ON",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address", "QIVEN_SYSTEM_HEAP": "ON",
                          "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "ci-stack",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as stack",
-      "cacheVariables": {"QIVEN3_ANALYZE": "stack", "QIVEN3_LOOP_TESTS": "OFF"}
+      "cacheVariables": {"QIVEN_ANALYZE": "stack", "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "ci-analysis",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as analysis",
-      "cacheVariables": {"QIVEN3_ANALYZE": "analysis", "QIVEN3_LOOP_TESTS": "OFF"}
+      "cacheVariables": {"QIVEN_ANALYZE": "analysis", "QIVEN3_LOOP_TESTS": "OFF"}
     },
     {
       "name": "linux-gcc",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, the image's g++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON", "QIVEN3_LOOP_TESTS": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address,undefined", "QIVEN_SYSTEM_HEAP": "ON", "QIVEN3_LOOP_TESTS": "ON"}
     },
     {
       "name": "linux-clang",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, the image's clang++: AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address,undefined", "QIVEN_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-tsan",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, the image's clang++: ThreadSanitizer alone",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "thread"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "thread"}
     },
     {
       "name": "linux-fuzz",
       "inherits": "ci",
       "displayName": "CI on ubuntu-24.04, the image's clang++: libFuzzer with AddressSanitizer and UndefinedBehaviorSanitizer",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN3_SANITIZE": "fuzzer,address,undefined", "QIVEN3_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "fuzzer,address,undefined", "QIVEN_SYSTEM_HEAP": "ON"}
     },
     {
       "name": "linux-plain",
@@ -154,7 +154,7 @@
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang", "CMAKE_CXX_COMPILER": "clang++", "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "QIVEN3_SANITIZE": "memory", "QIVEN3_SYSTEM_HEAP": "ON",
+        "QIVEN_SANITIZE": "memory", "QIVEN_SYSTEM_HEAP": "ON",
         "CMAKE_C_FLAGS": "-fsanitize=memory",
         "CMAKE_CXX_FLAGS": "-fsanitize=memory -nostdinc++ -isystem $env{QIVEN3_LIBCXX}/include/c++/v1",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -stdlib=libc++ -L$env{QIVEN3_LIBCXX}/lib"

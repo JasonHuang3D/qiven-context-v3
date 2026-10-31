@@ -42,7 +42,7 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   `ci-analysis`. Configure and build the `structure` preset before
   `ctest --preset full`: the structure tests it runs read that build's
   records.
-- The developer presets pin the toolchain (`QIVEN3_PIN_TOOLS`): configure
+- The developer presets pin the toolchain (`QIVEN_PIN_TOOLS`): configure
   fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython
   3.15.0. Run them from a shell that `vcvars64.bat -vcvars_ver=14.44.35207`

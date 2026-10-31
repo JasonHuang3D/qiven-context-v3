@@ -1,5 +1,5 @@
 // The drive's HAL operations, on the HAL's fake (--hal fake), in a build
-// with QIVEN3_HAL on alone (driver/hal_ops.hpp). The contract's operations
+// with QIVEN_HAL on alone (driver/hal_ops.hpp). The contract's operations
 // are templates on the compute C, instantiated for the fake; hal_fake and
 // hal_counts are the fake's own.
 //

@@ -117,7 +117,8 @@ def check_clang_tidy(env):
 def windows_pins(root):
     """The toolchain's pins each Windows tree records (tools/loop_run.py's
     own_tree): WINDOWS_PINS, the toolset, the SDK, CPython, CLANG_TIDY,
-    tools/windows-pins.txt's and the pins CMakeLists.txt sets."""
+    tools/windows-pins.txt's and the pins the build module's build.cmake
+    sets."""
     try:
         listed = file_pins((root / "tools" / "windows-pins.txt").read_text(encoding="utf-8"))
     except OSError as e:
@@ -157,7 +158,7 @@ def windows(args, report):
     report.plan(1 + planned_lines(units, phase))
     report.line(f"loop: windows tools hold: cmake, ctest {WINDOWS_PINS[0][1]}, ninja {WINDOWS_PINS[2][1]}, "
                 f"toolset {VCVARS_VER}, SDK {SDK}, CPython 3.15.0, each by its SHA-256")
-    extra = ("-DQIVEN3_CLANG_TIDY=" + check_clang_tidy(env),) if any(u.name == "windows-analysis" for u in units) \
+    extra = ("-DQIVEN_CLANG_TIDY=" + check_clang_tidy(env),) if any(u.name == "windows-analysis" for u in units) \
         else ()
     if phase == "test":  # the affected tests, and each passing step's record (tools/loop_select.py)
         select = Selection(ROOT, tools["ctest"], env, git_which())

@@ -110,7 +110,7 @@ QIVEN3_CASE(fold, budget) {
 }
 
 QIVEN3_CASE(fold, faults) {
-#if defined(QIVEN3_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
+#if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Chain c = chain(3);
     std::vector<std::byte> pages(1024);
     qiven3::memory::Countdown countdown;
@@ -133,6 +133,6 @@ QIVEN3_CASE(fold, faults) {
     CHECK(s->served() && s->current == 2U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN3_FAULTS, or with MSVC's debug containers");
+    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

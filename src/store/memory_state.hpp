@@ -184,7 +184,7 @@ public:
     [[nodiscard]] const Limits& limits() const noexcept { return limits_; }
 private:
     friend class Locked;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     friend void attach(State& state, memory::Countdown* countdown) noexcept;
 #endif
 
@@ -193,7 +193,7 @@ private:
     Limits limits_;
 };
 
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
 // The state's heap asks the countdown first; null detaches it.
 void attach(State& state, memory::Countdown* countdown) noexcept;
 #endif
@@ -275,8 +275,8 @@ private:
     std::uint64_t forgets_ = 0;
 };
 
-// The failing countdown under QIVEN3_FAULTS; elsewhere a type never made.
-#if defined(QIVEN3_FAULTS)
+// The failing countdown under QIVEN_FAULTS; elsewhere a type never made.
+#if defined(QIVEN_FAULTS)
 using Countdown = memory::Countdown;
 #else
 struct Countdown {};
@@ -284,7 +284,7 @@ struct Countdown {};
 
 // An arena asks the countdown first, where one is given.
 inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (countdown != nullptr) {
         arena.attach(countdown);
     }

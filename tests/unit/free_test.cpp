@@ -76,7 +76,7 @@ QIVEN3_CASE(pool, free_every_position) {
             CHECK_EQ(pool.used(), held * 48);
             // The slot just freed serves the next request, and goes back.
             void* again = pool.allocate();
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
             CHECK(again == slots[i]);
 #endif
             pool.free(again);
@@ -90,7 +90,7 @@ QIVEN3_CASE(pool, free_every_position) {
             again.push_back(pool.allocate());
         }
         CHECK_EQ(std::set<void*>(again.begin(), again.end()).size(), capacity);
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
         std::sort(slots.begin(), slots.end(), std::less<void*>());
         std::sort(again.begin(), again.end(), std::less<void*>());
         CHECK(slots == again);
@@ -119,7 +119,7 @@ QIVEN3_CASE(heap, free_every_position) {
             --held;
             CHECK_EQ(heap.used(), held * 144);
             void* again = heap.allocate(128);
-#if !defined(QIVEN3_SYSTEM_HEAP)
+#if !defined(QIVEN_SYSTEM_HEAP)
             CHECK(again == blocks[i]);
 #endif
             heap.free(again);

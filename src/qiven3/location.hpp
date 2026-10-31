@@ -123,11 +123,11 @@ static_assert(sizeof(ArgumentsView) == 40, "ArgumentsView's size is pinned: two 
 [[nodiscard]] std::optional<std::string_view> config_option(std::span<const std::string_view> argv) noexcept;
 
 // A run's hooks, the tests' alone: peak, where given, takes the command
-// arena's peak at its end; under QIVEN3_FAULTS the arena asks arenas
+// arena's peak at its end; under QIVEN_FAULTS the arena asks arenas
 // first.
 struct Hooks {
     std::size_t* peak = nullptr;
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     memory::Countdown* arenas = nullptr;
 #endif
 };

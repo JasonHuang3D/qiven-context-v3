@@ -85,7 +85,7 @@ void WindowsFiles::shut(void*& handle) noexcept {
 }
 
 bool WindowsFiles::faulted() noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     return countdown_ != nullptr && countdown_->fail();
 #else
     return false;
@@ -108,7 +108,7 @@ void WindowsFiles::random_bytes(std::span<std::byte> into) {
 std::chrono::milliseconds WindowsFiles::elapsed() const noexcept {
     const auto read =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (trace_ != nullptr) {
         trace_->first = trace_->reads == 0 ? read : trace_->first;
         trace_->previous = trace_->reads == 0 ? read : trace_->last;
@@ -120,7 +120,7 @@ std::chrono::milliseconds WindowsFiles::elapsed() const noexcept {
 }
 
 void WindowsFiles::pause(std::chrono::milliseconds wait) noexcept {
-#if defined(QIVEN3_FAULTS)
+#if defined(QIVEN_FAULTS)
     if (trace_ != nullptr) {
         ++trace_->pauses;
         trace_->asked += wait;

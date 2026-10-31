@@ -4,7 +4,7 @@
   sets NTDDI_VERSION 0x0A000010 (NTDDI_WIN11_GE) and _WIN32_WINNT and
   WINVER 0x0A00 (_WIN32_WINNT_WIN10), each once, and undefines none; a
   command off Windows sets none. Configure checks the build's own flags
-  (CMakeLists.txt); this holds each target to them, since cl takes the
+  (foundation/devkit/build/build.cmake); this holds each target to them, since cl takes the
   last of two /D of one name without a word. No source of the tree
   defines or undefines one of them.
 - Linux: K11 (test_binaries.py) reads each binary's glibc needs.
@@ -90,9 +90,9 @@ class Floors(unittest.TestCase):
 
     def test_windows_commands_planted(self):
         floor = " ".join(f"-D{n}={v}" for n, v in FLOOR.items())
-        control = f"cl /nologo /TP -DQIVEN3_LOG_MIN=info {floor} /DWIN32 /W4 /WX /c a.cpp"
+        control = f"cl /nologo /TP -DQIVEN_LOG_MIN=info {floor} /DWIN32 /W4 /WX /c a.cpp"
         self.assertEqual(command_findings(control, True), [])
-        self.assertEqual(command_findings("cc -DQIVEN3_LOG_MIN=info -c a.cpp", False), [])
+        self.assertEqual(command_findings("cc -DQIVEN_LOG_MIN=info -c a.cpp", False), [])
         plants = {
             "a target's higher value after the floor's": control.replace("/c", "-DNTDDI_VERSION=0x0A000011 /c"),
             "a target's lower value": control.replace("/c", "/D_WIN32_WINNT=0x0A00 /DWINVER=0x0603 /c"),
@@ -140,7 +140,7 @@ class Floors(unittest.TestCase):
         plants = {
             "another value": text.replace(target, '"CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"'),
             "a newer value": text.replace(target, '"CMAKE_OSX_DEPLOYMENT_TARGET": "26.0"'),
-            "none": text.replace(target, '"QIVEN3_FAULTS": "ON"'),
+            "none": text.replace(target, '"QIVEN_FAULTS": "ON"'),
         }
         for name, planted in plants.items():
             with self.subTest(plant=name):
