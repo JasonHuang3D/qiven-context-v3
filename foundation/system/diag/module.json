@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/diag/diag.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -12,8 +13,10 @@
       "name": "diag",
       "layer": "foundation",
       "depends": [
-        "memory"
+        "memory",
+        "log"
       ],
+      "test_depends": [],
       "paths": [
         "src/diag/"
       ]

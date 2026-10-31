@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/qiven3/location.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -15,10 +16,12 @@
         "base",
         "platform",
         "memory",
-        "faults",
         "entry",
         "store",
         "wire"
+      ],
+      "test_depends": [
+        "faults"
       ],
       "paths": [
         "src/qiven3/location*",

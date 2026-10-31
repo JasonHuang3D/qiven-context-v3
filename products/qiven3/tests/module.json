@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "tests/driver/drive.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -21,6 +22,7 @@
         "diag",
         "platform"
       ],
+      "test_depends": [],
       "paths": [
         "tests/driver/",
         "tests/contract/",
@@ -43,6 +45,7 @@
         "log",
         "diag"
       ],
+      "test_depends": [],
       "paths": [
         "tests/child/",
         "tests/unit/child.cmake",
@@ -58,8 +61,11 @@
         "base",
         "entry",
         "wire",
-        "write"
+        "write",
+        "diag",
+        "log"
       ],
+      "test_depends": [],
       "paths": [
         "tests/fuzz/"
       ]

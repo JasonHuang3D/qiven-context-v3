@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/entry/matcher.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -12,7 +13,9 @@
       "name": "matcher",
       "layer": "foundation",
       "depends": [
-        "memory",
+        "memory"
+      ],
+      "test_depends": [
         "faults"
       ],
       "paths": [

@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/qiven3/digest.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [],

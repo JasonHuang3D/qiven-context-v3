@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/app/main.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -14,10 +15,12 @@
       "depends": [
         "location",
         "store",
-        "write",
         "wire",
+        "diag"
+      ],
+      "test_depends": [
+        "write",
         "log",
-        "diag",
         "driver"
       ],
       "paths": [

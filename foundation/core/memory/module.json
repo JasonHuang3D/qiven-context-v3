@@ -5,13 +5,15 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/memory/memory.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
     {
       "name": "memory",
       "layer": "foundation",
-      "depends": [
+      "depends": [],
+      "test_depends": [
         "faults"
       ],
       "paths": [

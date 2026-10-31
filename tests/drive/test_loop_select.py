@@ -5,7 +5,9 @@ module depending on it, transitively; a new file its module and theirs; a
 tools/ file the tooling alone; a change to a table file (the tree's
 module.json files) the tooling, the module whose file it is and each
 module whose row changed, with their dependents; a file of the no-test row
-nothing; a file of the whole build, of the support or of no module every
+no module; any change, the tests that read every tracked file, those
+alone of their module; a module's tests' dependencies read as its
+library's; a file of the whole build, of the support or of no module every
 test; on the checkout's table, a file of driver's that app's tests read
 app. Then the record through runs on fakes: a new tree runs every test
 and records it; a run with nothing changed runs none; a change narrows the
@@ -40,9 +42,11 @@ ROWS = [
     {"name": "support", "layer": "support", "depends": [], "paths": ["tests/__init__.py", "tests/support/"]},
     {"name": "base", "layer": "foundation", "depends": [], "paths": ["src/base/"]},
     {"name": "utc", "layer": "foundation", "depends": [], "paths": ["src/utc/"]},
-    {"name": "entry", "layer": "product", "depends": ["base"], "paths": ["src/entry/", "tests/unit/entry.cmake"]},
+    {"name": "entry", "layer": "product", "depends": [], "paths": ["src/entry/", "tests/unit/entry.cmake"]},
     {"name": "write", "layer": "product", "depends": ["entry"], "paths": ["src/write/"]},
     {"name": "tooling", "layer": "tooling", "depends": [], "paths": ["tools/"]}]
+for _row in ROWS:  # entry's tests on base: the selection reads the union of the two
+    _row["test_depends"] = ["base"] if _row["name"] == "entry" else []
 # The table's files: a built file with two rows (base's), one with none and
 # from, a slot, a group.
 LAYOUT = {
@@ -128,7 +132,25 @@ class Choose(unittest.TestCase):
         if why is None:
             return None, every
         names = {m["name"] for m in table["modules"]}
+        whole = {test: why.pop(test) for test in SELECT["WHOLE"] if test in why}  # any change's: apart
+        self.assertEqual(whole, dict.fromkeys(SELECT["WHOLE"], "reading every tracked file") if changed else {})
         return SELECT["picked"](listing(), why, names)[0], why
+
+    def test_whole(self):
+        """Any change, a notes file's or a table file's among them, chooses
+        the tests that read every tracked file, those alone of their module."""
+        tests = [("tests.structure.test_content.Content.test_tree", ["fake", "structure"]),
+                 ("tests.structure.test_content.Content.test_planted", ["fake", "structure"]),
+                 ("tests.structure.test_boundaries.Tree.test_b1", ["fake", "structure"]), *listing()]
+        names = {"structure", *(m["name"] for m in TABLE["modules"])}
+        rows = {m["name"]: m for m in TABLE["modules"]}
+        for changed, more in ((["README.md"], []), (["kits/ai/README.md"], []),
+                              (["kits/ai/module.json"], ["tooling.one", "tooling.two"])):
+            with self.subTest(changed=changed):
+                chosen, reasons = SELECT["picked"](tests, SELECT["choose"](TABLE, rows, changed)[0], names)
+                self.assertEqual(chosen, [tests[0][0], tests[2][0], *more])
+                self.assertEqual(reasons[-1], "2 tests reading every tracked file")
+        self.assertEqual(SELECT["picked"](tests, SELECT["choose"](TABLE, rows, [])[0], names)[0], [])
 
     def test_module_and_dependents(self):
         """A module's file, or its own .cmake: it and its dependents."""

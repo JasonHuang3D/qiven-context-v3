@@ -5,13 +5,15 @@
   "platforms": [
     "windows"
   ],
+  "contract": null,
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
     {
       "name": "tooling",
       "layer": "tooling",
-      "depends": [
+      "depends": [],
+      "test_depends": [
         "platform"
       ],
       "paths": [

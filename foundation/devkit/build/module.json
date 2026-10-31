@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": null,
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -18,6 +19,7 @@
       "name": "build",
       "layer": "whole-build",
       "depends": [],
+      "test_depends": [],
       "paths": [
         "foundation/devkit/build/",
         "CMakeLists.txt",

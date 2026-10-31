@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "third_party/sqlite/sqlite3.h",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -40,6 +41,7 @@
       "name": "sqlite",
       "layer": "foundation",
       "depends": [],
+      "test_depends": [],
       "paths": [
         "third_party/sqlite/"
       ]

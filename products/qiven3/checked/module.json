@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/checked/stores.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -18,7 +19,9 @@
         "secret",
         "base",
         "memory",
-        "platform",
+        "platform"
+      ],
+      "test_depends": [
         "faults"
       ],
       "paths": [

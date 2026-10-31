@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/hal/hal.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -14,6 +15,7 @@
       "depends": [
         "memory"
       ],
+      "test_depends": [],
       "paths": [
         "src/hal/",
         "tests/support/fake_hal/"

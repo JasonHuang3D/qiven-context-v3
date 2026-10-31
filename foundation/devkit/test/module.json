@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "tests/support/faults/faults.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -16,6 +17,7 @@
         "log",
         "diag"
       ],
+      "test_depends": [],
       "paths": [
         "tests/support/faults/",
         "tests/faults/",
@@ -33,6 +35,7 @@
         "memory",
         "diag"
       ],
+      "test_depends": [],
       "paths": [
         "tests/CMakeLists.txt",
         "tests/__init__.py",

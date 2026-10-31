@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/log/log.hpp",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -29,7 +30,9 @@
       "layer": "foundation",
       "depends": [
         "base",
-        "memory",
+        "memory"
+      ],
+      "test_depends": [
         "diag"
       ],
       "paths": [

@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/store/contract.hpp",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -17,7 +18,7 @@
         "warning_count": 480000,
         "max_count": 550000
       },
-      "built": false
+      "built": true
     },
     {
       "name": "application_id",
@@ -54,8 +55,10 @@
         "memory",
         "sqlite",
         "platform",
-        "faults",
         "base"
+      ],
+      "test_depends": [
+        "faults"
       ],
       "paths": [
         "src/store/",
@@ -72,6 +75,7 @@
       "name": "keys",
       "layer": "foundation",
       "depends": [],
+      "test_depends": [],
       "paths": [
         "src/keys/"
       ]

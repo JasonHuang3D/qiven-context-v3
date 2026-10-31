@@ -1,6 +1,12 @@
-# qiven-context-v3
+# repository
 
-Qiven Context v3: a native C++20 core that keeps a person's working context
+layer repository, status built
+
+- **Contract:** none
+- **Parameters:** none
+- **Holds:** the root's notes: this README, the licence, `.gitattributes`, `.gitignore` and `.github/`, and the module table's root file; the build's root files are devkit's `build` module's, and every other file is its module's
+
+Qiven Context v3 (`qiven-context-v3`): a native C++20 core that keeps a person's working context
 as entries in a local SQLite store, at a directory its user chooses; selects
 what a session reads from it; forgets on request; and seals the store's
 history into self-verifying bundles, which a separate reference reader

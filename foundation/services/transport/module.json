@@ -5,15 +5,28 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/wire/wire.hpp",
   "adopted": "2026-10-31",
-  "parameters": [],
+  "parameters": [
+    {
+      "name": "bounds",
+      "default": {
+        "count": 0,
+        "argument_bytes": 0,
+        "total_bytes": 0
+      },
+      "built": true
+    }
+  ],
   "present": [
     {
       "name": "wire",
       "layer": "foundation",
       "depends": [
         "memory",
-        "base",
+        "base"
+      ],
+      "test_depends": [
         "platform",
         "faults"
       ],

@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/qiven3/qiven3.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [],

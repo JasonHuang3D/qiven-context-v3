@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/qiven3/canon.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -13,7 +14,9 @@
       "layer": "foundation",
       "depends": [
         "memory",
-        "platform",
+        "platform"
+      ],
+      "test_depends": [
         "faults"
       ],
       "paths": [

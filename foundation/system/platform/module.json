@@ -5,6 +5,7 @@
   "platforms": [
     "windows"
   ],
+  "contract": "src/platform/platform.hpp",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -23,7 +24,9 @@
       "name": "platform",
       "layer": "foundation",
       "depends": [
-        "memory",
+        "memory"
+      ],
+      "test_depends": [
         "faults"
       ],
       "paths": [
