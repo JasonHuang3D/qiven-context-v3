@@ -72,13 +72,13 @@
 #include <string_view>
 #include <utility>
 
+#include "keys/keys.hpp"
 #include "memory/arena.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::store::stage {
 

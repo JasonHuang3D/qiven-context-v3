@@ -47,7 +47,7 @@
 namespace qiven3::checked::clearing {
 
 using Chars = memory::Allocator<char>;
-using store::Id;
+using keys::Id;
 using store::Vector;
 
 namespace detail {

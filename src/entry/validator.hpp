@@ -82,10 +82,10 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
+#include "keys/keys.hpp"
 #include "memory/fail.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::entry::validator {
 
@@ -95,9 +95,9 @@ inline constexpr std::array<std::string_view, 8> code_names = {
     "parent", "seq", "target", "at_order", "reference", "forgotten_target", "identity", "map_evidence"};
 constexpr std::string_view name(Code code) noexcept { return code_names[static_cast<std::size_t>(code)]; }
 
-// An id by value and a lane's head, the store's.
-using store::Head;
-using store::Id;
+// An id by value and a lane's head, the keys'.
+using keys::Head;
+using keys::Id;
 
 // The first fault: its code, the entry's index in the call and its id.
 struct RuleError {
@@ -139,7 +139,7 @@ concept Appended = requires(const E& e) {
 };
 
 // The most entries one call takes.
-inline constexpr std::size_t max_entries = store::max_call_entries;
+inline constexpr std::size_t max_entries = keys::max_call_entries;
 
 namespace detail {
 

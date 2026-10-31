@@ -108,7 +108,7 @@ public:
     [[nodiscard]] std::optional<std::string> head(std::string_view scope, std::string_view lane) const;
     // The head compared with expected, unlocked, a mismatch HeadConflict;
     // then each entry a line appended, and the head file rewritten to the
-    // last one's id, which it gives.
+    // last one's id, read from its keys, which it gives.
     std::string append(std::string_view scope, std::string_view lane, store::Expected expected,
                        std::span<const store::EntryView> entries);
     // The lane file's lines as they lie, a torn one among them.

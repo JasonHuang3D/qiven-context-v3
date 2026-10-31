@@ -20,7 +20,7 @@
 #include <span>
 #include <string_view>
 
-namespace qiven3::store {
+namespace qiven3::keys {
 
 // An id by value: up to 71 bytes, the length of sha256: and 64 hex. of()
 // keeps a longer text to its first 71; a caller whose text may be longer
@@ -83,4 +83,4 @@ using Scopes = std::optional<std::span<const std::string_view>>;
     return !scopes || std::ranges::any_of(*scopes, [scope](std::string_view s) { return in_scope(s, scope); });
 }
 
-}  // namespace qiven3::store
+}  // namespace qiven3::keys

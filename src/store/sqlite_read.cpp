@@ -11,12 +11,12 @@
 #include <span>
 #include <string_view>
 
+#include "keys/keys.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::store::sqlite {
 

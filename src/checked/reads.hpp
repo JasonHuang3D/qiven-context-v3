@@ -39,12 +39,12 @@
 #include "checked/part1.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
+#include "keys/keys.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::checked::reads {
 
@@ -83,7 +83,7 @@ struct WhereView {
     return h;
 }
 
-inline void keys_match(const store::KeysView& k, const Header& h, const WhereView& at) {
+inline void keys_match(const keys::KeysView& k, const Header& h, const WhereView& at) {
     using entry::header::Slot;
     if (h.value(Slot::scope) != k.scope || h.value(Slot::lane) != k.lane || h.seq() != k.seq ||
         h.text(Slot::parent) != k.parent || h.value(Slot::kind) != k.kind || h.text(Slot::target) != k.target) {
@@ -91,7 +91,7 @@ inline void keys_match(const store::KeysView& k, const Header& h, const WhereVie
     }
 }
 
-inline void body_key(const store::KeysView& k, const Header& h, const WhereView& at) {
+inline void body_key(const keys::KeysView& k, const Header& h, const WhereView& at) {
     if (h.text(entry::header::Slot::content).has_value() != k.body) {
         corrupt(at, store::Corrupt::incoherent, k.id);
     }
@@ -195,15 +195,15 @@ public:
         out.erase(0, from);
         return true;
     }
-    [[nodiscard]] std::optional<store::Head> head(std::string_view scope, std::string_view lane) {
+    [[nodiscard]] std::optional<keys::Head> head(std::string_view scope, std::string_view lane) {
         return view_->head(scope, lane);
     }
     [[nodiscard]] bool forgotten(std::string_view id) { return view_->forgotten(id); }
-    [[nodiscard]] std::optional<store::Id> forget_of(std::string_view id) { return view_->forget_of(id); }
-    void targets(std::string_view id, std::string_view scope, store::Vector<store::Id>& out) {
+    [[nodiscard]] std::optional<keys::Id> forget_of(std::string_view id) { return view_->forget_of(id); }
+    void targets(std::string_view id, std::string_view scope, store::Vector<keys::Id>& out) {
         view_->targets(id, scope, out);
     }
-    void targets(std::string_view id, store::Vector<store::Id>& out) { view_->targets(id, out); }
+    void targets(std::string_view id, store::Vector<keys::Id>& out) { view_->targets(id, out); }
     [[nodiscard]] bool contains(std::string_view bytes) { return view_->contains(bytes); }
     template <class F>
     bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {

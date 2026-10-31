@@ -41,7 +41,7 @@ add_library(qiven3_entry STATIC
   validator.hpp
 )
 target_include_directories(qiven3_entry PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_entry PUBLIC qiven3_matcher qiven3_base qiven3_memory PRIVATE qiven3_flags)
+target_link_libraries(qiven3_entry PUBLIC qiven3_keys qiven3_matcher qiven3_base qiven3_memory PRIVATE qiven3_flags)
 
 # qiven3_secret: the secret check, apart from the entry's modules so that
 # the reader links none of it (B13); it links the matcher and the entry.

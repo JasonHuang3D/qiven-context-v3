@@ -81,7 +81,7 @@ public:
             return false;
         }
         const reads::WhereView at{store::Operation::export_, path_.view()};
-        const store::KeysView keys = line.keys.view();
+        const keys::KeysView keys =line.keys.view();
         const Header h = reads::header_of(keys.id, line.header, line.header.get_allocator(), at);
         reads::keys_match(keys, h, at);
         reads::body_key(keys, h, at);
@@ -151,7 +151,7 @@ public:
         using H = decltype(S::scan(range));
         return Scan<H>(S::scan(range), where(store::Operation::scan).path);
     }
-    auto export_(store::Scopes scopes, std::span<const store::AfterView> after) {
+    auto export_(keys::Scopes scopes, std::span<const store::AfterView> after) {
         using E = decltype(S::export_(scopes, after));
         return Export<E>(S::export_(scopes, after), where(store::Operation::export_).path);
     }
@@ -163,7 +163,7 @@ public:
         const reads::WhereView at = where(store::Operation::verify);
         auto scan = S::scan(store::RangeView{});
         for (std::size_t i = 0;; ++i) {
-            store::Id id;
+            keys::Id id;
             bool body = false;
             if (!scan.next([&](const store::Record& r, const reads::Chars& chars) {
                     const Header h = reads::header_of(r.id.view(), r.line, chars, at);

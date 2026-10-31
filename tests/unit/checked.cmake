@@ -15,7 +15,9 @@ qiven3_add_cases(qiven3_unit_checked_stage LABELS fast fake
 # uncleared or cleared for another pattern, admitted on an imported state,
 # then refused once used, once the clearing is forgotten and under a
 # revision; over 4 and 16 direction records, append's counted peak equal,
-# in memory and in SQLite.
+# in memory and in SQLite; memory_references and sqlite_references, moved
+# from the stores' cases: a map's 24 references, the most its lists hold,
+# appended within its budget on each ruled store.
 qiven3_add_cases(qiven3_unit_checked_clearing LABELS fast fake
   SOURCES checked_clearing_test.cpp
   LINK qiven3_checked_stores)

@@ -31,10 +31,10 @@
 #include <string_view>
 #include <vector>
 
+#include "keys/keys.hpp"
 #include "memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::test::records {
 

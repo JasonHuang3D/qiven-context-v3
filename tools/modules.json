@@ -1,8 +1,6 @@
 {
   "comment": "The modules: each tracked file in one, each test labelled with its module's name; the check is tools/loop_modules.py. A path ending in / holds every file under it, any other is a pattern on the whole path. depends names the modules a module's links and includes reach, transitively.",
-  "exceptions": [
-    {"from": "store", "to": ["entry", "secret", "checked"], "until": "the store's split"}
-  ],
+  "exceptions": [],
   "modules": [
     {"name": "build", "layer": "whole-build", "depends": [],
      "paths": ["CMakeLists.txt", "CMakePresets.json", "cmake/", ".clang-tidy", "analysis.ruleset", "stack.ruleset"]},
@@ -46,10 +44,12 @@
      "paths": ["src/wire/", "tests/unit/wire.cmake", "tests/unit/wire_*"]},
     {"name": "sqlite", "layer": "foundation", "depends": [],
      "paths": ["third_party/sqlite/"]},
-    {"name": "store", "layer": "foundation", "depends": ["entry", "secret", "checked", "memory", "sqlite", "platform", "faults"],
+    {"name": "keys", "layer": "foundation", "depends": [],
+     "paths": ["src/keys/"]},
+    {"name": "store", "layer": "foundation", "depends": ["keys", "memory", "sqlite", "platform", "faults", "base"],
      "paths": ["src/store/", "tests/support/stores/", "tests/support/seams/", "tests/unit/store.cmake", "tests/unit/store_*",
                "tests/unit/stores_test.cpp", "tests/unit/scan_test.cpp", "tests/unit/seams_test.cpp"]},
-    {"name": "entry", "layer": "product", "depends": ["store", "matcher", "base", "memory", "platform", "faults"],
+    {"name": "entry", "layer": "product", "depends": ["keys", "matcher", "base", "memory", "platform", "faults"],
      "paths": ["src/entry/CMakeLists.txt", "src/entry/body.*", "src/entry/check.*", "src/entry/content*",
                "src/entry/fold.*", "src/entry/header.*", "src/entry/kinds*", "src/entry/labels.*",
                "src/entry/projectmap*", "src/entry/refs.*", "src/entry/served*", "src/entry/validator.*",
@@ -62,7 +62,7 @@
     {"name": "secret", "layer": "product", "depends": ["entry", "matcher", "base", "memory", "faults"],
      "paths": ["src/entry/secret.*", "tests/unit/secret.cmake", "tests/unit/secret_*", "tests/unit/matcher_test.cpp",
                "tests/support/fixtures/patterns.hpp"]},
-    {"name": "checked", "layer": "product", "depends": ["store", "entry", "secret", "base", "memory", "platform", "faults"],
+    {"name": "checked", "layer": "product", "depends": ["keys", "store", "entry", "secret", "base", "memory", "platform", "faults"],
      "paths": ["src/checked/", "tests/support/checked/", "tests/unit/checked.cmake", "tests/unit/checked_*",
                "tests/support/fixtures/stage_book.hpp"]},
     {"name": "location", "layer": "product", "depends": ["base", "platform", "memory", "faults", "entry", "store", "wire"],

@@ -52,14 +52,14 @@
 #include <thread>
 #include <type_traits>
 
+#include "keys/keys.hpp"
 #include "memory/memory.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 
 namespace qiven3::store {
 
-using memory::String;
-using memory::Vector;
+using keys::Head, keys::Id, keys::in_scope, keys::in_scopes, keys::KeysView, keys::max_call_entries, keys::Scopes;
+using memory::String, memory::Vector;
 
 // The operations, and their names as the text spells them.
 enum class Operation : std::uint8_t {

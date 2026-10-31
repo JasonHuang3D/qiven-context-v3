@@ -93,12 +93,12 @@
 #include "entry/kinds.hpp"
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
+#include "keys/keys.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
-#include "store/keys.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::checked {
@@ -182,8 +182,8 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
 }
 
 // A header's keys for the store, views of it: a content is a body.
-[[nodiscard]] inline store::KeysView keys_of(const header::Header<Chars>& h) {
-    return store::KeysView{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
+[[nodiscard]] inline keys::KeysView keys_of(const header::Header<Chars>& h) {
+    return keys::KeysView{h.value(Slot::id),    h.value(Slot::scope),  h.value(Slot::lane),
                            h.value(Slot::kind),  h.seq(),               h.text(Slot::parent),
                            h.text(Slot::target), h.text(Slot::content).has_value()};
 }
@@ -269,11 +269,11 @@ void whole_record(V& view, std::span<const Entry<P>> entries, const AtView& at, 
     const auto target = [&entries](std::size_t j) {
         return entries[j].header().text(Slot::target).value_or(std::string_view());
     };
-    Vector<store::Id> members(allocator);
+    Vector<keys::Id> members(allocator);
     Header found(allocator);
     for (std::size_t j = 0; j < entries.size(); ++j) {
         view.targets(target(j), members);
-        for (const store::Id& m : members) {
+        for (const keys::Id& m : members) {
             bool in_set = false;
             for (std::size_t k = 0; k < entries.size() && !in_set; ++k) {
                 in_set = target(k) == m.view();
@@ -340,7 +340,7 @@ public:
         entries_->reserve(lines.size());
     }
     template <stage::Scratch S>
-    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
+    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, keys::KeysView& out,
               const Chars& kept, S& scratch) {
         {
             const Entry<P> e = part1(platform, at, index, line, Chars(scratch()));
@@ -374,7 +374,7 @@ public:
     }
     // At import: part 1 of the line on its work arena, a fault refused, the
     // entry held until release and the store's keys given from its header.
-    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, store::KeysView& out,
+    void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, keys::KeysView& out,
               const Chars& work) {
         line_.emplace(part1(platform, at, index, line, work));
         out = detail::keys_of(line_->header());

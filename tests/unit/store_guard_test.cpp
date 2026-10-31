@@ -39,12 +39,12 @@
 #include <system_error>
 #include <vector>
 
+#include "keys/keys.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "store/keys.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
