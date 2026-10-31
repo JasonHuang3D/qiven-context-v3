@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -140,11 +140,11 @@ struct Row {
     std::optional<ParseCode> code;
 };
 
-void check_rows(qiven3::test::Context& qiven3_ctx, const std::vector<Row>& rows) {
+void check_rows(qiven::runner::Context& qiven_ctx, const std::vector<Row>& rows) {
     for (const Row& r : rows) {
         const std::optional<ParseCode> got = code(r.data);
         if (!CHECK(got == r.code)) {
-            qiven3_ctx.out << "  vector " << r.data.substr(0, 80) << ": " << shown(got) << ", not " << shown(r.code)
+            qiven_ctx.out << "  vector " << r.data.substr(0, 80) << ": " << shown(got) << ", not " << shown(r.code)
                            << "\n";
         }
     }
@@ -165,9 +165,9 @@ std::string nested(std::size_t levels) { return repeat(R"({"a":)", levels - 1) +
 
 }  // namespace
 
-QIVEN3_CASE(canon, refusals) {
+QIVEN_CASE(canon, refusals) {
     // The first table of the refusals, each row's bytes with its code.
-    check_rows(qiven3_ctx, {
+    check_rows(qiven_ctx, {
         {"\xef\xbb\xbf{}", ParseCode::bom},
         {R"({"a":1,"a":2})", ParseCode::duplicate_key},
         {R"({"a":NaN})", ParseCode::constant},
@@ -207,11 +207,11 @@ QIVEN3_CASE(canon, refusals) {
     CHECK(v.integer(*v.find(0, "a")) == 1);
 }
 
-QIVEN3_CASE(canon, edge_refusals) {
+QIVEN_CASE(canon, edge_refusals) {
     // The edge vectors: the pass's codes win over the walk's wherever each
     // sits, and inside a member the key's characters, then its rule, then
     // its value.
-    check_rows(qiven3_ctx, {
+    check_rows(qiven_ctx, {
         {R"({"a":1,"a":2,"b":1.5})", ParseCode::floating},
         {R"([1.5,{"a":1,"a":2}])", ParseCode::floating},
         {R"([1.5,)", ParseCode::floating},
@@ -268,7 +268,7 @@ QIVEN3_CASE(canon, edge_refusals) {
     });
 }
 
-QIVEN3_CASE(canon, accepted_round_trips) {
+QIVEN_CASE(canon, accepted_round_trips) {
     const std::vector<std::string> accepted = {
         R"({"a":9007199254740991})",
         R"({"a":-9007199254740991})",
@@ -293,17 +293,17 @@ QIVEN3_CASE(canon, accepted_round_trips) {
     };
     for (const std::string& data : accepted) {
         if (!CHECK(round_trip(data))) {
-            qiven3_ctx.out << "  vector " << data.substr(0, 80) << ": " << shown(code(data)) << "\n";
+            qiven_ctx.out << "  vector " << data.substr(0, 80) << ": " << shown(code(data)) << "\n";
         }
     }
     for (const cv::Line& line : cv::lines) {
         if (!CHECK(round_trip(line.bytes)) || !CHECK_EQ(line.bytes.size(), line.size)) {
-            qiven3_ctx.out << "  line " << line.name << "\n";
+            qiven_ctx.out << "  line " << line.name << "\n";
         }
     }
 }
 
-QIVEN3_CASE(canon, encoder) {
+QIVEN_CASE(canon, encoder) {
     // The digests' objects as the text shows them, with ASCII escapes:
     // not canonical as given; their canonical bytes are the hex's.
     const std::array<std::string_view, 2> escaped = {cv::cv2_escaped, cv::cv3_escaped};
@@ -326,7 +326,7 @@ QIVEN3_CASE(canon, encoder) {
     CHECK(out == "{\"a\":\"\xe8\xae\xb0\xe5\xbf\x86\"}");
 }
 
-QIVEN3_CASE(canon, walk) {
+QIVEN_CASE(canon, walk) {
     // A value built in memory: each walk code, with out unchanged.
     const auto refused = [](const Std& v) {
         std::string out = "kept";

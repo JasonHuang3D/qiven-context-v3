@@ -42,7 +42,7 @@
 #include "keys/keys.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/engine/sqlite.hpp"
@@ -482,7 +482,7 @@ bool appends_plain(S& s) {
 
 }  // namespace
 
-QIVEN3_CASE(store_guard, import_plain) {
+QIVEN_CASE(store_guard, import_plain) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
     const auto book = std::make_unique<const Book>();
     std::vector<std::byte> pages(std::size_t{1} << 20U);
@@ -510,7 +510,7 @@ QIVEN3_CASE(store_guard, import_plain) {
     (void)again->close();
 }
 
-QIVEN3_CASE(store_guard, memory) {
+QIVEN_CASE(store_guard, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
     const auto book = std::make_unique<const Book>();
     for (std::size_t k = 0; k < cases; ++k) {
@@ -531,7 +531,7 @@ QIVEN3_CASE(store_guard, memory) {
     }
 }
 
-QIVEN3_CASE(store_guard, sqlite) {
+QIVEN_CASE(store_guard, sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);

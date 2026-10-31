@@ -23,7 +23,7 @@
 #include "entry/secret.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/patterns.hpp"
 
@@ -118,7 +118,7 @@ std::string rep(std::string_view s, std::size_t n) {
 
 }  // namespace
 
-QIVEN3_CASE(secret, patterns) {
+QIVEN_CASE(secret, patterns) {
     CHECK_EQ(secret::PATTERNS.size(), 12U);
     for (std::size_t p = 0; p < secret::PATTERNS.size(); ++p) {
         CHECK(secret::name(static_cast<std::uint8_t>(p)) == content::pattern_names.at(p));
@@ -128,7 +128,7 @@ QIVEN3_CASE(secret, patterns) {
     }
 }
 
-QIVEN3_CASE(secret, header) {
+QIVEN_CASE(secret, header) {
     const canon::Basic<> held = one("--token\x20" + rep("t", 20));
     const auto refused = [&](std::string_view scope, std::string_view lane) -> std::string {
         const header::Header<> h = header::make(fields(scope, lane));
@@ -150,7 +150,7 @@ QIVEN3_CASE(secret, header) {
     CHECK(!header_hit("project:qiven", "implementer", "slack-xox", "header.lane"));
 }
 
-QIVEN3_CASE(secret, fixtures) {
+QIVEN_CASE(secret, fixtures) {
     const header::Header<> h = header::make(fields("project:qiven", "implementer"));
     std::size_t hits = 0;
     std::size_t misses = 0;
@@ -170,7 +170,7 @@ QIVEN3_CASE(secret, fixtures) {
     CHECK_EQ(hits + misses, fixtures::recipes.size());
 }
 
-QIVEN3_CASE(secret, languages) {
+QIVEN_CASE(secret, languages) {
     // auth-header, cli-secret and tencent-akid, in English and in Chinese.
     const std::string auth_en = "Authorization: Bearer " + rep("a", 20);
     const std::string auth_zh = "\xe8\xaf\xb7\xe6\xb1\x82\xe5\xa4\xb4 Authorization: Bearer " + rep("a1", 10) +
@@ -209,7 +209,7 @@ QIVEN3_CASE(secret, languages) {
                               "auth-header@subject;cli-secret@tags[1];tencent-akid@words;"));
 }
 
-QIVEN3_CASE(secret, pinned) {
+QIVEN_CASE(secret, pinned) {
     // No pinned id or digest, header or content, hits.
     canon::Basic<> all;
     fixtures::load_entries(all);

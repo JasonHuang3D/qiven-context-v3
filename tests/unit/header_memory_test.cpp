@@ -16,7 +16,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -77,7 +77,7 @@ std::vector<std::string> lines() {
 
 }  // namespace
 
-QIVEN3_CASE(header, budget) {
+QIVEN_CASE(header, budget) {
     std::size_t most_parse = 0;
     std::size_t most_check = 0;
     std::size_t most_line = 0;
@@ -88,13 +88,13 @@ QIVEN3_CASE(header, budget) {
         const std::size_t budget = budget_for(text.size());
         Peaks peaks;
         {
-            Arena& arena = qiven3_ctx.counted.arena(budget);
+            Arena& arena = qiven_ctx.counted.arena(budget);
             const Header h = header::parse_line(text, Allocator<char>(arena));
             peaks.parse = arena.peak();
             CHECK_EQ(arena.used(), h.bytes() + 1);  // the text's terminator
         }
         {
-            Arena& arena = qiven3_ctx.counted.arena(budget);
+            Arena& arena = qiven_ctx.counted.arena(budget);
             const Header h = header::make(f, Allocator<char>(arena));
             peaks.make = arena.peak();
             const std::size_t held = arena.used();
@@ -104,7 +104,7 @@ QIVEN3_CASE(header, budget) {
             CHECK_EQ(arena.used(), held);
         }
         {
-            Arena& arena = qiven3_ctx.counted.arena(budget);
+            Arena& arena = qiven_ctx.counted.arena(budget);
             const Header h = header::make(f, Allocator<char>(arena));
             const std::size_t held = arena.used();
             String out{Allocator<char>(arena)};
@@ -125,7 +125,7 @@ QIVEN3_CASE(header, budget) {
         // A byte short of each peak: MemoryError budget.
         bool parse_refused = false;
         try {
-            Arena& shorter = qiven3_ctx.counted.arena(peaks.parse - 1);
+            Arena& shorter = qiven_ctx.counted.arena(peaks.parse - 1);
             static_cast<void>(header::parse_line(text, Allocator<char>(shorter)));
         } catch (const MemoryError& e) {
             parse_refused = budget_error(e);
@@ -133,14 +133,14 @@ QIVEN3_CASE(header, budget) {
         CHECK(parse_refused);
         bool check_refused = false;
         try {
-            Arena& shorter = qiven3_ctx.counted.arena(peaks.make + peaks.check - 1);
+            Arena& shorter = qiven_ctx.counted.arena(peaks.make + peaks.check - 1);
             const Header h = header::make(f, Allocator<char>(shorter));
             static_cast<void>(header::try_check(h));
         } catch (const MemoryError& e) {
             check_refused = budget_error(e);
         }
         CHECK(check_refused);
-        Arena& shorter = qiven3_ctx.counted.arena(peaks.make + peaks.line - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peaks.make + peaks.line - 1);
         const Header h = header::make(f, Allocator<char>(shorter));
         String out{Allocator<char>(shorter)};
         out = "kept";
@@ -159,7 +159,7 @@ QIVEN3_CASE(header, budget) {
               << "; compile_budget " << qiven3::entry::matcher::compile_budget << "\n";
 }
 
-QIVEN3_CASE(header, faults) {
+QIVEN_CASE(header, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<std::string> all = lines();
     const std::string& text = all.front();
@@ -187,7 +187,7 @@ QIVEN3_CASE(header, faults) {
         const Header h = header::parse_line(text, Allocator<char>(*arena));
         done = h.present(Slot::id);
     };
-    report("parse_line", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "header.parse_line", countdown, parse, empty), 5);
+    report("parse_line", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "header.parse_line", countdown, parse, empty), 5);
     // Two for each of five syntaxes: scope, lane, writer, the id's, content.
     const auto check = [&] {
         arena.emplace(pages);
@@ -195,7 +195,7 @@ QIVEN3_CASE(header, faults) {
         arena->attach(&countdown);
         done = !header::try_check(h);
     };
-    report("check", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "header.check", countdown, check, empty), 10);
+    report("check", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "header.check", countdown, check, empty), 10);
     // The value's nodes and text, then canon's sorted members and bytes.
     const auto line = [&] {
         arena.emplace(pages);
@@ -205,7 +205,7 @@ QIVEN3_CASE(header, faults) {
         h.line(out);
         done = std::string(out) == text;
     };
-    report("line", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "header.line", countdown, line, empty), 4);
+    report("line", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "header.line", countdown, line, empty), 4);
     // The header's text alone.
     const auto make = [&] {
         arena.emplace(pages);
@@ -213,9 +213,9 @@ QIVEN3_CASE(header, faults) {
         const Header h = header::make(f, Allocator<char>(*arena));
         done = h.bytes() > 0;
     };
-    report("make", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "header.make", countdown, make, empty), 1);
+    report("make", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "header.make", countdown, make, empty), 1);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

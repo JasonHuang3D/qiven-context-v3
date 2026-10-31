@@ -22,7 +22,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -121,9 +121,9 @@ Made label_all(const std::vector<Parsed>& all, std::vector<labels::CheckView>& c
 
 }  // namespace
 
-QIVEN3_CASE(labels, budget) {
+QIVEN_CASE(labels, budget) {
     const std::vector<Stored> all = stored();
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     const std::vector<Parsed> entries = parsed(all, arena);
     std::vector<labels::CheckView> checks;
     checks.reserve(entries.size());
@@ -139,7 +139,7 @@ QIVEN3_CASE(labels, budget) {
     CHECK_EQ(checks.size(), 3U);
 }
 
-QIVEN3_CASE(labels, faults) {
+QIVEN_CASE(labels, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<Stored> all = stored();
     std::vector<std::byte> pages(budget);
@@ -157,7 +157,7 @@ QIVEN3_CASE(labels, faults) {
     };
     const auto empty = [&](std::size_t) { return true; };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "labels.label", countdown, op, empty);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "labels.label", countdown, op, empty);
     std::cout << "labels.faults: label's allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
@@ -166,6 +166,6 @@ QIVEN3_CASE(labels, faults) {
     CHECK_EQ(made.quoted, 2U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

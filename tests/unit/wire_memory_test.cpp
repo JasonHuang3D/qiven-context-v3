@@ -21,7 +21,7 @@
 #include <utility>
 
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "wire/wire.hpp"
 
 // MemorySanitizer's and ThreadSanitizer's runtimes define operator new in
@@ -110,7 +110,7 @@ struct Count {
 #endif
 
 // That taken, operator new's calls, is none, where they are counted.
-void none_counted(qiven3::test::Context& qiven3_ctx, std::string_view name, std::size_t taken) {
+void none_counted(qiven::runner::Context& qiven_ctx, std::string_view name, std::size_t taken) {
     if constexpr (counted) {
         std::cout << name << ": operator new calls " << taken << "\n";
         CHECK_EQ(taken, std::size_t{0});
@@ -138,7 +138,7 @@ struct Counting {
 
 }  // namespace
 
-QIVEN3_CASE(wire_memory, read) {
+QIVEN_CASE(wire_memory, read) {
     // Arguments of each shape, the argument vector built before counting.
     const std::array<const char*, 9> argv = {"qiven3", "location", "init", "", "caf\xc3\xab",
                                              "\xf0\x9f\x98\x80", "--config", "x", nullptr};
@@ -174,14 +174,14 @@ QIVEN3_CASE(wire_memory, read) {
     }
     const std::size_t taken = count();
     std::cout << "wire_memory.read: " << read << " read, " << refused << " refused\n";
-    none_counted(qiven3_ctx, "wire_memory.read", taken);
+    none_counted(qiven_ctx, "wire_memory.read", taken);
     // 45 vectors: the count's step refuses argc 8, the argument's argc 2
     // to 8 ("location" is 8 bytes), the total's argc 8.
     CHECK_EQ(read, std::size_t{36});
     CHECK_EQ(refused, std::size_t{9});
 }
 
-QIVEN3_CASE(wire_memory, answer) {
+QIVEN_CASE(wire_memory, answer) {
     Counting output;
     Count count;
     const int status = wire::answer(output, "an answer of some bytes\n", 0);
@@ -189,7 +189,7 @@ QIVEN3_CASE(wire_memory, answer) {
     wire::write(output, "a line\n");
     output.out.refuse = true;
     const int failed = wire::answer(output, "a line\n", 0);
-    none_counted(qiven3_ctx, "wire_memory.answer", count());
+    none_counted(qiven_ctx, "wire_memory.answer", count());
     CHECK_EQ(status, 0);
     CHECK_EQ(none, 4);
     CHECK_EQ(failed, wire::failed);

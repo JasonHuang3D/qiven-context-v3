@@ -25,7 +25,7 @@
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -308,7 +308,7 @@ Held held(const fixtures::EntryView& e) {
 
 }  // namespace
 
-QIVEN3_CASE(kinds, identity) {
+QIVEN_CASE(kinds, identity) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::size_t none = 0;
@@ -349,7 +349,7 @@ QIVEN3_CASE(kinds, identity) {
     CHECK_EQ(none, 10U);
 }
 
-QIVEN3_CASE(kinds, tables) {
+QIVEN_CASE(kinds, tables) {
     // Each kind's served flag, group and identity, printed for the record.
     std::size_t fields = 0;
     for (const kinds::Kind& k : KINDS) {

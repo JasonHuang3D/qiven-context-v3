@@ -26,7 +26,7 @@ endif()
 qiven_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
   store_held.hpp store_own.hpp store_plans.cpp store_race.hpp store_threads.hpp store_wire.cpp store_wire.hpp
   LINK qiven3_drive_common qiven3_checked_stores qiven3_seams qiven3_location qiven3_platform_fake qiven3_platform_current
-       qiven3_runner)
+       qiven_runner)
 
 # The Windows drive's store_dir reads location's record on the adapter, its
 # refusal in the store half's wire form.

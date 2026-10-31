@@ -8,7 +8,7 @@
 # is a binary of its own on libFuzzer's main, its corpus,
 # fuzz/<target>/corpus/ in the build, seeded at the build by
 # tools/fuzz_seeds.py and grown by libFuzzer, its findings under
-# fuzz/<target>/artifacts/; the listing step (runner/ctest_tests.cmake)
+# fuzz/<target>/artifacts/; the listing step (the runner's ctest_tests.cmake)
 # makes each a CTest test labelled fuzz from fuzz_targets.txt.
 set(qiven3_fuzz_targets digest entries entry wire)
 

@@ -25,7 +25,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
@@ -104,7 +104,7 @@ std::string raised(const F& f) {
 }
 
 // A and B appended, D after them; a HeadConflict between, nothing written.
-void appends(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane) {
+void appends(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane) {
     CHECK_EQ(store.size().volume.count, 0U);
     const Recs first = {lane[0], lane[1]};
     const std::vector<EntryView> lines = views(first);
@@ -130,7 +130,7 @@ void appends(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane) 
 }
 
 // The reads over A, B and D.
-void reads(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane, const Chars& chars) {
+void reads(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, const Chars& chars) {
     const Rec& a = lane[0];
     const Rec& d = lane[2];
     const std::optional<qiven3::store::Head> head = store.head(qiven_scope, implementer_lane);
@@ -175,13 +175,13 @@ void reads(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane, co
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, smoke) {
+QIVEN_CASE(store_memory, smoke) {
     const auto rig = std::make_unique<Rig>();
     Store store(rig->state, rig->fake);
     CHECK(!store.read_only());
     CHECK(store.limits() == Limits{});
-    appends(qiven3_ctx, store, rig->lane);
-    reads(qiven3_ctx, store, rig->lane, rig->chars);
+    appends(qiven_ctx, store, rig->lane);
+    reads(qiven_ctx, store, rig->lane, rig->chars);
 
     // A second object over the state, and a read-only one.
     Store again(rig->state, rig->fake);
@@ -237,7 +237,7 @@ struct ListSource {
 Rec forget_e() { return forget("E", qiven_scope, implementer_lane, 5, "ACC", "B"); }
 
 // forget_kind, the guard's conflicts, then B forgotten by E.
-void forgets(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane, const Chars& chars) {
+void forgets(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, const Chars& chars) {
     const Rec& b = lane[1];
     const Rec e = forget_e();
     const Recs kind = {lane[0]};
@@ -273,7 +273,7 @@ void forgets(qiven3::test::Context& qiven3_ctx, Store& store, const Recs& lane, 
 
 // Reviewer's lane of C, M1 and M2; then M2 and M1 forgotten in one call
 // (a forget of M1 alone refused whole_record is checked's case).
-void records(qiven3::test::Context& qiven3_ctx, Store& store, const Chars& chars) {
+void records(qiven::runner::Context& qiven_ctx, Store& store, const Chars& chars) {
     const Recs lane = chain(qiven_scope, reviewer_lane, {"C", "M1", "M2"});
     const std::vector<EntryView> held = views(lane);
     (void)store.append(qiven_scope, reviewer_lane, std::nullopt, held);
@@ -339,11 +339,11 @@ std::size_t lines_of(Exported& x) {
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, exchange) {
+QIVEN_CASE(store_memory, exchange) {
     const auto rig = std::make_unique<Rig>();
     const Recs& lane = rig->lane;
     Store store(rig->state, rig->fake);
-    appends(qiven3_ctx, store, lane);
+    appends(qiven_ctx, store, lane);
     const Recs acc = {lane[3]};
     const std::vector<EntryView> acc_lines = views(acc);
     {
@@ -358,8 +358,8 @@ QIVEN3_CASE(store_memory, exchange) {
         CHECK_EQ(n, 3U);
     }
     auto early = store.export_(std::nullopt, {});
-    forgets(qiven3_ctx, store, lane, rig->chars);
-    records(qiven3_ctx, store, rig->chars);
+    forgets(qiven_ctx, store, lane, rig->chars);
+    records(qiven_ctx, store, rig->chars);
 
     // The export opened before the forget: B's body, not forgotten.
     Vector<LaneHead> rows(rig->chars);

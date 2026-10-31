@@ -17,7 +17,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
 #include "store/errors.hpp"
 #include "support/faults/faults.hpp"
@@ -221,7 +221,7 @@ std::vector<int> outside() {
 // Every code of the table and outside it, at every place: the family's
 // kind, the detail's name and number, the site's operation and path; at
 // every step, a reason of the four kinds the text names.
-QIVEN3_CASE(store_codes, sweep) {
+QIVEN_CASE(store_codes, sweep) {
     std::size_t n = 0;
     std::vector<int> codes;
     for (const store::Result& r : store::results) {
@@ -253,7 +253,7 @@ QIVEN3_CASE(store_codes, sweep) {
 }
 
 // An error from a code, on its line: its kind, its cause and the detail.
-QIVEN3_CASE(store_codes, line) {
+QIVEN_CASE(store_codes, line) {
     const StoreError e = store::to_error(266, at("open"));
     std::vector<char> out(2048);
     const std::string_view line = store::message(e, out);
@@ -265,7 +265,7 @@ QIVEN3_CASE(store_codes, line) {
 // No allocation and no platform call: with an arena's countdown armed at
 // its first allocation, every code is mapped at every place and step, and
 // the run completes at once, no call failed.
-QIVEN3_CASE(store_codes, faults) {
+QIVEN_CASE(store_codes, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
     qiven3::memory::Countdown countdown;
@@ -286,7 +286,7 @@ QIVEN3_CASE(store_codes, faults) {
     };
     const auto empty = [&](std::size_t) { return true; };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven3_ctx.log, "store_codes.map", countdown, op, empty);
+        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_codes.map", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);
@@ -294,6 +294,6 @@ QIVEN3_CASE(store_codes, faults) {
     CHECK_EQ(arena->used(), 0U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

@@ -20,7 +20,7 @@
 
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "support/stores/sqlite_rig.hpp"
@@ -64,7 +64,7 @@ constexpr std::size_t slot_measured = 4368;
 
 }  // namespace
 
-QIVEN3_CASE(store_sqlite, cache) {
+QIVEN_CASE(store_sqlite, cache) {
     const auto rig = std::make_unique<Rig>();
     const std::string path = plain(*rig);
     const Held one = cache_after(*rig, path, "SELECT length(x) FROM t WHERE rowid = 1");
@@ -104,7 +104,7 @@ QIVEN3_CASE(store_sqlite, cache) {
     }
 }
 
-QIVEN3_CASE(store_sqlite, cache_shared) {
+QIVEN_CASE(store_sqlite, cache_shared) {
     const auto rig = std::make_unique<Rig>();
     const std::string path = plain(*rig);
     for (const std::size_t connections : {sqlite::default_connections, std::size_t{1}}) {
@@ -149,7 +149,7 @@ QIVEN3_CASE(store_sqlite, cache_shared) {
     }
 }
 
-QIVEN3_CASE(store_sqlite, slots_refused) {
+QIVEN_CASE(store_sqlite, slots_refused) {
     const auto rig = std::make_unique<Rig>();
     const std::string path = plain(*rig);
     const sqlite::Slots before = rig->engine->slots();

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/stores/exchange_bed.hpp"
 
 using namespace qiven3::test::exchange_bed;  // NOLINT(google-build-using-namespace)
@@ -57,7 +57,7 @@ Count pinned_of(std::string_view name) {
 
 }  // namespace
 
-QIVEN3_CASE(store_exchange, counts) {
+QIVEN_CASE(store_exchange, counts) {
     const auto b = std::make_unique<Bed>();
     qiven3::memory::Countdown arenas;
     qiven3::memory::Countdown heap;
@@ -105,5 +105,5 @@ QIVEN3_CASE(store_exchange, counts) {
 }
 
 #else
-QIVEN3_CASE(store_exchange, counts) { QIVEN3_SKIP(unfaulted); }
+QIVEN_CASE(store_exchange, counts) { QIVEN_SKIP(unfaulted); }
 #endif

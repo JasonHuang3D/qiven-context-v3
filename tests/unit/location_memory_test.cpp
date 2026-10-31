@@ -17,7 +17,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/location.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/engine/sqlite.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/location_bed.hpp"
@@ -26,7 +26,7 @@ namespace {
 using namespace qiven3::test::location_bed;
 }  // namespace
 
-QIVEN3_CASE(location, budget) {
+QIVEN_CASE(location, budget) {
     const auto b = std::make_unique<Bed>(Scratch{});
     for (const Step s : steps) {
         b->prepare(s);
@@ -130,7 +130,7 @@ constexpr std::array<HeapPinned, 2> heap_pinned = {{{Step::init_new, 654, 642}, 
 
 }  // namespace
 
-QIVEN3_CASE(location, counts) {
+QIVEN_CASE(location, counts) {
     const auto b = std::make_unique<Bed>(Scratch{});
     const bool at_length = text(b->root).size() == Bed::root_length;
     std::cout << "location.counts: the root " << text(b->root).size() << " bytes"
@@ -195,5 +195,5 @@ QIVEN3_CASE(location, counts) {
 namespace {
 constexpr std::string_view unfaulted = "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 }  // namespace
-QIVEN3_CASE(location, counts) { QIVEN3_SKIP(unfaulted); }
+QIVEN_CASE(location, counts) { QIVEN_SKIP(unfaulted); }
 #endif

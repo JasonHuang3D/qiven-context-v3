@@ -34,7 +34,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
@@ -64,7 +64,7 @@ static_assert(!Appends<qiven3::checked::SQLiteStore<Fake>, qiven3::store::NoAdmi
 
 }  // namespace
 
-QIVEN3_CASE(store_stage, append) {
+QIVEN_CASE(store_stage, append) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -94,7 +94,7 @@ QIVEN3_CASE(store_stage, append) {
     CHECK_EQ(next.head.seq, 3);
 }
 
-QIVEN3_CASE(store_stage, forget) {
+QIVEN_CASE(store_stage, forget) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -155,7 +155,7 @@ QIVEN3_CASE(store_stage, forget) {
     CHECK_EQ(path->field, std::string("header.kind"));
 }
 
-QIVEN3_CASE(store_stage, secret) {
+QIVEN_CASE(store_stage, secret) {
     const auto bench = std::make_unique<Bench>(8U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -230,7 +230,7 @@ QIVEN3_CASE(store_stage, secret) {
     CHECK(imported.hits.empty());
 }
 
-QIVEN3_CASE(store_stage, part2) {
+QIVEN_CASE(store_stage, part2) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -252,7 +252,7 @@ QIVEN3_CASE(store_stage, part2) {
 // The target's rules the store leaves to checked, at append and import
 // alike: C's target A of another scope, part 2's target; C its own target,
 // part 1's id_mismatch (an id is its header's digest, the target in it).
-QIVEN3_CASE(store_stage, target_rules) {
+QIVEN_CASE(store_stage, target_rules) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     const Book& book = bench->book;
     const Stored a = book.made("A", "A", *book.stored("A").content, [](auto& f) { f.scope = "project:other"; });
@@ -282,7 +282,7 @@ QIVEN3_CASE(store_stage, target_rules) {
     }
 }
 
-QIVEN3_CASE(store_stage, maximum) {
+QIVEN_CASE(store_stage, maximum) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -319,7 +319,7 @@ QIVEN3_CASE(store_stage, maximum) {
     CHECK_EQ(size->code, std::string("store_full"));
 }
 
-QIVEN3_CASE(store_stage, import) {
+QIVEN_CASE(store_stage, import) {
     const auto bench = std::make_unique<Bench>(4U << 20U);
     Fake& fake = bench->fake;
     const Book& book = bench->book;
@@ -416,7 +416,7 @@ QIVEN3_CASE(store_stage, import) {
 }
 
 // The source's heads against those its entries give, in order.
-QIVEN3_CASE(store_stage, import_heads) {
+QIVEN_CASE(store_stage, import_heads) {
     const auto bench = std::make_unique<Bench>(1U << 20U);
     const Book& book = bench->book;
     const std::vector<Stored> all = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
@@ -439,7 +439,7 @@ QIVEN3_CASE(store_stage, import_heads) {
 }
 
 // A ruled memory export's next: a forged line, key and body key, the store's two.
-QIVEN3_CASE(store_stage, memory_export) {
+QIVEN_CASE(store_stage, memory_export) {
     using qiven3::store::state::Held;
     const auto bench = std::make_unique<Bench>(1U << 20U);
     const std::vector<Stored> list = {bench->book.stored("A")};

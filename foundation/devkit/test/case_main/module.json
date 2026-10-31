@@ -1,0 +1,15 @@
+{
+  "name": "case_main",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "log"
+  ]
+}

@@ -13,7 +13,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/json.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -47,10 +47,10 @@ bool budget_error(const MemoryError& e) { return e.code == MemoryCode::budget; }
 
 }  // namespace
 
-QIVEN3_CASE(json, scan_budget) {
+QIVEN_CASE(json, scan_budget) {
     for (const std::string& text : {worst(), mixed()}) {
         const std::size_t budget = budget_for(text.size());
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         std::size_t peak = 0;
         std::size_t nodes = 0;
         {
@@ -68,7 +68,7 @@ QIVEN3_CASE(json, scan_budget) {
         // MSVC's debug containers allocate in their noexcept constructors,
         // where scan's keys meet the short budget and the process ends, so
         // this half runs where its iterators do not debug: asan, CI.
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         json::Value v{Allocator<char>(shorter)};
         bool refused = false;
         try {
@@ -84,14 +84,14 @@ QIVEN3_CASE(json, scan_budget) {
     }
 }
 
-QIVEN3_CASE(json, encode_budget) {
+QIVEN_CASE(json, encode_budget) {
     for (const std::string& text : {worst(), mixed()}) {
         json::Basic<> value;
         json::scan(text, 16, value);
         std::string want;
         json::encode(value, want);
         const std::size_t budget = budget_for(want.size());
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         std::size_t peak = 0;
         {
             String out{Allocator<char>(arena)};
@@ -102,7 +102,7 @@ QIVEN3_CASE(json, encode_budget) {
         std::cout << "json.encode_budget: output " << want.size() << " bytes, peak " << peak << ", budget " << budget
                   << "\n";
         CHECK(peak <= budget);
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         String out{Allocator<char>(shorter)};
         bool refused = false;
         try {
@@ -115,7 +115,7 @@ QIVEN3_CASE(json, encode_budget) {
     }
 }
 
-QIVEN3_CASE(json, faults) {
+QIVEN_CASE(json, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::string text = mixed();
     std::vector<std::byte> pages(budget_for(text.size()));
@@ -131,7 +131,7 @@ QIVEN3_CASE(json, faults) {
         nodes = v.size();
     };
     const qiven3::test::FaultRuns scans = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "json.scan", countdown, scan, check);
+        qiven_ctx.log, "json.scan", countdown, scan, check);
     std::cout << "json.faults: scan's allocations " << scans.typed << ", completed at " << scans.completed_at << "\n";
     // The nodes, the text and the keys' check, one allocation each.
     CHECK_EQ(scans.typed, 3U);
@@ -151,7 +151,7 @@ QIVEN3_CASE(json, faults) {
         bytes = out.size();
     };
     const qiven3::test::FaultRuns encodes = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "json.encode", countdown, encode, check);
+        qiven_ctx.log, "json.encode", countdown, encode, check);
     std::cout << "json.faults: encode's allocations " << encodes.typed << ", completed at " << encodes.completed_at
               << "\n";
     // The sorted members and the bytes.
@@ -162,6 +162,6 @@ QIVEN3_CASE(json, faults) {
     CHECK(bytes > 0);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

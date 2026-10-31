@@ -10,7 +10,7 @@
 #include <span>
 #include <string_view>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace qiven3::fuzz {
 // Each target's function, its target.cpp's.
@@ -31,7 +31,7 @@ namespace {
 
 // The target's kept inputs, each through its function; how many ran.
 template <typename Input>
-std::size_t kept(qiven3::test::Context& qiven3_ctx, std::string_view target, const Input& input) {
+std::size_t kept(qiven::runner::Context& qiven_ctx, std::string_view target, const Input& input) {
     namespace fuzz = qiven3::fuzz;
     std::size_t ran = 0;
     for (std::size_t i = 0; i < fuzz::kept_count(); ++i) {
@@ -49,10 +49,10 @@ std::size_t kept(qiven3::test::Context& qiven3_ctx, std::string_view target, con
 
 }  // namespace
 
-QIVEN3_CASE(fuzz_regress, digest) { CHECK(kept(qiven3_ctx, "digest", qiven3::fuzz::digest_input) > 0); }
+QIVEN_CASE(fuzz_regress, digest) { CHECK(kept(qiven_ctx, "digest", qiven3::fuzz::digest_input) > 0); }
 
-QIVEN3_CASE(fuzz_regress, entries) { CHECK(kept(qiven3_ctx, "entries", qiven3::fuzz::entries_input) > 0); }
+QIVEN_CASE(fuzz_regress, entries) { CHECK(kept(qiven_ctx, "entries", qiven3::fuzz::entries_input) > 0); }
 
-QIVEN3_CASE(fuzz_regress, entry) { CHECK(kept(qiven3_ctx, "entry", qiven3::fuzz::entry_input) > 0); }
+QIVEN_CASE(fuzz_regress, entry) { CHECK(kept(qiven_ctx, "entry", qiven3::fuzz::entry_input) > 0); }
 
-QIVEN3_CASE(fuzz_regress, wire) { CHECK(kept(qiven3_ctx, "wire", qiven3::fuzz::wire_input) > 0); }
+QIVEN_CASE(fuzz_regress, wire) { CHECK(kept(qiven_ctx, "wire", qiven3::fuzz::wire_input) > 0); }

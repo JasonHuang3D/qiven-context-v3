@@ -1,4 +1,4 @@
-"""The runner's routes through a process: qiven3_runner_demo's cases, its
+"""The runner's routes through a process: qiven_runner_demo's cases, its
 --list and its refusals, each status as CTest reads it."""
 
 import signal
@@ -9,7 +9,7 @@ from tests import SKIP_CODE
 from tests.drive import binaries
 from tests.drive.session import build_option
 
-DEMO = "qiven3_runner_demo"
+DEMO = "qiven_runner_demo"
 
 
 def lines(data):

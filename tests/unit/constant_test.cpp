@@ -16,7 +16,7 @@
 #include "qiven3/digest.hpp"
 #include "qiven3/json.hpp"
 #include "qiven3/utf.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/filled.hpp"
 
 namespace {
@@ -195,7 +195,7 @@ static_assert(hexed(digest::hmac(fixtures_key(), "{}")) ==
 
 }  // namespace
 
-QIVEN3_CASE(constant, vectors) {
+QIVEN_CASE(constant, vectors) {
     // Each static_assert above held when this binary was built.
     CHECK(true);
 }

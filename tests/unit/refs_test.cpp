@@ -14,7 +14,7 @@
 
 #include "entry/refs.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -193,7 +193,7 @@ std::string output_of(const std::string& command) {
 
 // A transcript's syntaxes compile past MSVC's default step limit: these
 // run at run time.
-QIVEN3_CASE(refs, transcript) {
+QIVEN_CASE(refs, transcript) {
     CHECK(transcript_refused("claude-code", "00000000-0000-4000-8000-000000000039",
                              "00000000-0000-4000-8000-000000000039", Field::none));
     CHECK(transcript_refused("zcode", "s", "a.b_c:d-1", Field::none));
@@ -205,7 +205,7 @@ QIVEN3_CASE(refs, transcript) {
 
 // Repo references that compile their repository's syntax beside others
 // pass MSVC's step limit under /analyze: these run at run time.
-QIVEN3_CASE(refs, repo) {
+QIVEN_CASE(refs, repo) {
     CHECK(accepted(R"({"digest":")" DIGEST R"(","path":"qiven3/entry.py","repository":"qiven-context-v3","type":"repo"})"));
     CHECK(accepted(R"({"anchor":"Q14","digest":")" DIGEST R"(","name":"entry_id","path":"docs/a b#c.md",)"
                    R"("repository":"qiven","revision":")" REVISION R"(","type":"repo"})"));
@@ -214,7 +214,7 @@ QIVEN3_CASE(refs, repo) {
                   Code::syntax, Field::revision));
 }
 
-QIVEN3_CASE(refs, limits) {
+QIVEN_CASE(refs, limits) {
     // A command of 400 characters, Chinese or Latin, and one past.
     CHECK(!run_fault(output_of(repeat(ji, 400))).has_value());
     CHECK(!run_fault(output_of(repeat("c", 400))).has_value());
@@ -258,7 +258,7 @@ QIVEN3_CASE(refs, limits) {
     CHECK(thrown);
 }
 
-QIVEN3_CASE(refs, fixtures) {
+QIVEN_CASE(refs, fixtures) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     std::size_t references = 0;

@@ -28,7 +28,7 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
@@ -180,7 +180,7 @@ std::size_t times(const std::string& text, const std::string& part) {
 
 }  // namespace
 
-QIVEN3_CASE(write_build, builds_512_entries_in_a_fixed_arena) {
+QIVEN_CASE(write_build, builds_512_entries_in_a_fixed_arena) {
     const Scratch scratch;
     const std::string piece = "progress: unit one built\n";
     const std::string path = scratch.put("record.txt", piece);
@@ -207,7 +207,7 @@ QIVEN3_CASE(write_build, builds_512_entries_in_a_fixed_arena) {
     }
 }
 
-QIVEN3_CASE(write_build, reads_a_path_piece_once) {
+QIVEN_CASE(write_build, reads_a_path_piece_once) {
     const Scratch scratch;
     const std::string piece = "line one\r\nline two\n";
     const std::string path = scratch.put("record.txt", piece);
@@ -229,7 +229,7 @@ QIVEN3_CASE(write_build, reads_a_path_piece_once) {
     }
 }
 
-QIVEN3_CASE(write_build, refuses_an_at_name_of_another_scope) {
+QIVEN_CASE(write_build, refuses_an_at_name_of_another_scope) {
     const Scratch scratch;
     FakePlatform platform(config(scratch.root.generic_string()));
     const std::string head = R"({"form": "qiven3-entries/1", "writer": "import", "scope": "project:example", )"

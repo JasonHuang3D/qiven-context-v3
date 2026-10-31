@@ -22,7 +22,7 @@
 #include "entry/kinds.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "write/build.hpp"
@@ -240,7 +240,7 @@ std::string run(const std::string& bytes) {
 
 }  // namespace
 
-QIVEN3_CASE(write_refuse, passes_a_session_file_and_counts_the_queries) {
+QIVEN_CASE(write_refuse, passes_a_session_file_and_counts_the_queries) {
     FakeFold fold;
     fold.currents.push_back(Current{"question", "unit-one-shape", id_of('3')});
     const std::string entries = item("core") + ", " + checkpoint(R"("refs": ["@name:core"], )") + ", " +
@@ -259,7 +259,7 @@ QIVEN3_CASE(write_refuse, passes_a_session_file_and_counts_the_queries) {
              1);
 }
 
-QIVEN3_CASE(write_refuse, revises_the_reviews_claimed_entries) {
+QIVEN_CASE(write_refuse, revises_the_reviews_claimed_entries) {
     // The review's imported claim and decision, basis claimed: a session
     // revises, retires, checks, closes and replaces them by a relation.
     const std::string revised =
@@ -272,7 +272,7 @@ QIVEN3_CASE(write_refuse, revises_the_reviews_claimed_entries) {
     CHECK_EQ(run(file_of(relation("entity:other", "replaces", "entry:" + imported_decision))), std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_each_slot) {
+QIVEN_CASE(write_refuse, refuses_each_slot) {
     CHECK_EQ(run(file_of("import", claim)), std::string("slot@writer#-"));
     CHECK_EQ(run(file_of("owner/s1", claim)), std::string("slot@writer#-"));
     CHECK_EQ(run(file_of("loop", claim)), std::string("slot@writer#-"));
@@ -301,7 +301,7 @@ QIVEN3_CASE(write_refuse, refuses_each_slot) {
     CHECK_EQ(run(file_of("owner", claim)), std::string("form/syntax@writer#-"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_the_person_scope) {
+QIVEN_CASE(write_refuse, refuses_the_person_scope) {
     CHECK_EQ(run(file_of("implementer/s7", claim, "person")), std::string("person_scope@scope#-"));
     CHECK_EQ(run(file_of("implementer/s7", claim, "life")), std::string("person_scope@scope#-"));
     CHECK_EQ(run(file_of("implementer/s7", claim, home)), std::string("ok"));
@@ -312,7 +312,7 @@ QIVEN3_CASE(write_refuse, refuses_the_person_scope) {
     CHECK_EQ(run(file_of("loop", claim, "person")), std::string("slot@writer#-"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_acts_on_an_owners_entry) {
+QIVEN_CASE(write_refuse, refuses_acts_on_an_owners_entry) {
     CHECK_EQ(run(file_of(retire(direction))), std::string("owner_entry@entries[0].target#0"));
     CHECK_EQ(run(file_of(check(direction))), std::string("owner_entry@entries[0].target#0"));
     CHECK_EQ(run(file_of(retire(goal))), std::string("owner_entry@entries[0].target#0"));
@@ -336,7 +336,7 @@ QIVEN3_CASE(write_refuse, refuses_acts_on_an_owners_entry) {
     CHECK_EQ(run(file_of(decision(held_claim))), std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_a_relation_serving_an_owners_entry) {
+QIVEN_CASE(write_refuse, refuses_a_relation_serving_an_owners_entry) {
     const std::string owner = "entry:" + direction;
     for (const char* slug : {"replaced-by", "superseded-by", "retired-by", "refuted-by"}) {
         CHECK_EQ(run(file_of(relation(owner, slug, "entity:example"))),
@@ -361,7 +361,7 @@ QIVEN3_CASE(write_refuse, refuses_a_relation_serving_an_owners_entry) {
     CHECK_EQ(run(file_of(relation("entity:example", "cites", owner))), std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_the_owners_words) {
+QIVEN_CASE(write_refuse, refuses_the_owners_words) {
     const std::string words = R"("words": "Keep the tests pinned.", "subject": "entity:owner", "band": "core", )";
     CHECK_EQ(run(file_of(entry("direction", "owner-words", words + admit))),
              std::string("owner_words@entries[0].basis#0"));
@@ -376,7 +376,7 @@ QIVEN3_CASE(write_refuse, refuses_the_owners_words) {
              std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_the_kinds_of_import_or_none) {
+QIVEN_CASE(write_refuse, refuses_the_kinds_of_import_or_none) {
     const std::string kind = "kind@entries[0].kind#0";
     CHECK_EQ(run(file_of(entry("goal", "claimed", R"("objective": "Ship one unit.", )" + served("activity:ship")))),
              kind);
@@ -411,7 +411,7 @@ QIVEN3_CASE(write_refuse, refuses_the_kinds_of_import_or_none) {
     CHECK_EQ(run(file_of(claim)), std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_a_checkpoint_naming_no_item) {
+QIVEN_CASE(write_refuse, refuses_a_checkpoint_naming_no_item) {
     FakeFold fold;
     fold.currents.push_back(Current{"item", "core", id_of('4')});
     fold.currents.push_back(Current{"checkpoint", "implementer", id_of('5')});
@@ -435,7 +435,7 @@ QIVEN3_CASE(write_refuse, refuses_a_checkpoint_naming_no_item) {
     CHECK_EQ(with(""), std::string("refs_item@entries[2].content.refs#2"));
 }
 
-QIVEN3_CASE(write_refuse, refuses_an_under_cycle) {
+QIVEN_CASE(write_refuse, refuses_an_under_cycle) {
     FakeFold fold;
     CHECK_EQ(run(file_of(item("core", "core")), fold), std::string("cycle@entries[0].content.under#0:core"));
     fold.unders = {{"b", "core"}};
@@ -457,7 +457,7 @@ QIVEN3_CASE(write_refuse, refuses_an_under_cycle) {
     CHECK_EQ(run(file_of(item("core", "b") + ", " + later), fold), std::string("ok"));
 }
 
-QIVEN3_CASE(write_refuse, allocates_nothing) {
+QIVEN_CASE(write_refuse, allocates_nothing) {
 #if defined(QIVEN_FAULTS)
     // Read and built first; then the countdown on the arena, each of its
     // allocations failed in turn over a pass and a refusal: none is made.
@@ -481,7 +481,7 @@ QIVEN3_CASE(write_refuse, allocates_nothing) {
         };
         arena.attach(&countdown);
         const qiven3::test::FaultRuns runs = qiven3::test::run_faults<qiven3::memory::MemoryError>(
-            qiven3_ctx.log, "write_refuse.write", countdown, op, [](std::size_t) { return true; });
+            qiven_ctx.log, "write_refuse.write", countdown, op, [](std::size_t) { return true; });
         arena.attach(nullptr);
         CHECK_EQ(runs.typed, 0U);
         CHECK_EQ(runs.completed_at, 1U);
@@ -489,11 +489,11 @@ QIVEN3_CASE(write_refuse, allocates_nothing) {
         CHECK_EQ(refused.has_value(), bytes.find("retire") != std::string::npos);
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(write_refuse, names_the_first_code_in_its_order) {
+QIVEN_CASE(write_refuse, names_the_first_code_in_its_order) {
     // The slot and the scope before any entry; within an entry owner_entry,
     // owner_words, kind, refs_item, cycle; an earlier entry first.
     const std::string words = R"("words": "w", "subject": "entity:owner", "band": "core", )" + admit;

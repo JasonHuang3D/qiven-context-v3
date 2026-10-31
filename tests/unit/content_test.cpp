@@ -19,7 +19,7 @@
 #include "entry/content.hpp"
 #include "entry/header.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -458,7 +458,7 @@ std::optional<ContentError> run(const Vector& t) {
 
 }  // namespace
 
-QIVEN3_CASE(content, vectors) {
+QIVEN_CASE(content, vectors) {
     std::size_t passed = 0;
     std::size_t refused = 0;
     const std::vector<Vector> all = vectors();
@@ -471,7 +471,7 @@ QIVEN3_CASE(content, vectors) {
               << " refused, each as wanted\n";
 }
 
-QIVEN3_CASE(content, limits) {
+QIVEN_CASE(content, limits) {
     // A lesson of 501 Chinese characters: the limit and the count measured.
     const std::string ji = "\xe8\xae\xb0";
     const std::optional<ContentError> e = run(lesson_case("501", lesson(repeat(ji, 501), ""), std::nullopt, ""));
@@ -496,7 +496,7 @@ QIVEN3_CASE(content, limits) {
               << " bytes too_large at 65536\n";
 }
 
-QIVEN3_CASE(content, fixtures) {
+QIVEN_CASE(content, fixtures) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::size_t n = 0;

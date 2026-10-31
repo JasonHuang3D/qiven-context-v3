@@ -24,7 +24,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/faults/faults.hpp"
@@ -430,7 +430,7 @@ std::size_t drive(S& s, qiven3::memory::Arena& arena) {
 }
 
 // The minimal store through the concept: fifteen answers as given.
-QIVEN3_CASE(store_contract, smoke) {
+QIVEN_CASE(store_contract, smoke) {
     std::vector<std::byte> pages(16384);
     qiven3::memory::Arena arena(pages);
     Minimal<> s(false);
@@ -454,7 +454,7 @@ QIVEN3_CASE(store_contract, smoke) {
 
 // The gate: another thread first, then closed, then read-only; each names
 // its operation and the path.
-QIVEN3_CASE(store_contract, gate) {
+QIVEN_CASE(store_contract, gate) {
     store::Gate writable(false);
     store::Gate reading(true);
     std::size_t refused = 0, served = 0;
@@ -506,7 +506,7 @@ QIVEN3_CASE(store_contract, gate) {
 }
 
 // A line takes nothing from the arena until written.
-QIVEN3_CASE(store_contract, line) {
+QIVEN_CASE(store_contract, line) {
     std::vector<std::byte> pages(4096);
     qiven3::memory::Arena arena(pages);
     store::Line line(arena);
@@ -520,7 +520,7 @@ QIVEN3_CASE(store_contract, line) {
 // No allocation and no platform call: with an arena's countdown armed at
 // its first allocation, the gate, the volume and the budgets run, and the
 // run completes at once.
-QIVEN3_CASE(store_contract, faults) {
+QIVEN_CASE(store_contract, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
     qiven3::memory::Countdown countdown;
@@ -540,7 +540,7 @@ QIVEN3_CASE(store_contract, faults) {
     };
     const auto empty = [&](std::size_t) { return true; };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven3_ctx.log, "store_contract.gate", countdown, op, empty);
+        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_contract.gate", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);
@@ -548,7 +548,7 @@ QIVEN3_CASE(store_contract, faults) {
     CHECK_EQ(arena->used(), 0U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

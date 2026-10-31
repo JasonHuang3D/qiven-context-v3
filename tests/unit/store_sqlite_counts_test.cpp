@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
@@ -67,7 +67,7 @@ void pin(std::vector<Step>& all) {
 
 }  // namespace
 
-QIVEN3_CASE(store_sqlite, counts) {
+QIVEN_CASE(store_sqlite, counts) {
     const auto b = std::make_unique<Bed>();
     std::vector<Step> all = steps();
     pin(all);
@@ -104,5 +104,5 @@ QIVEN3_CASE(store_sqlite, counts) {
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 #else
-QIVEN3_CASE(store_sqlite, counts) { QIVEN3_SKIP(unfaulted); }
+QIVEN_CASE(store_sqlite, counts) { QIVEN_SKIP(unfaulted); }
 #endif

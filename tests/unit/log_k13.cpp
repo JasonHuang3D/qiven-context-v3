@@ -10,7 +10,7 @@
 
 #include "log/log.hpp"
 #include "memory/arena.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/log/cases.hpp"
 
 namespace {
@@ -33,8 +33,8 @@ struct InfoControl {
 
 }  // namespace
 
-QIVEN3_CASE(log, k13_levels) {
-    qiven3::memory::Arena& arena = qiven3_ctx.counted.arena(qlog::Log::ring_bytes + qlog::Log::event_bytes);
+QIVEN_CASE(log, k13_levels) {
+    qiven3::memory::Arena& arena = qiven_ctx.counted.arena(qlog::Log::ring_bytes + qlog::Log::event_bytes);
     const std::size_t lines = [&] {
         qlog::Log lg(arena, qlog::Count(1U), "qiven3_unit_log");
         qlog::event(lg, TraceOnly{}, qlog::Count(1U));

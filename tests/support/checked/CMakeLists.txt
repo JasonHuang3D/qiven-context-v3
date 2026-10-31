@@ -6,4 +6,4 @@
 add_library(qiven3_checked_stores INTERFACE)
 target_include_directories(qiven3_checked_stores INTERFACE "${PROJECT_SOURCE_DIR}/tests")
 target_link_libraries(qiven3_checked_stores INTERFACE qiven3_checked qiven3_store qiven3_platform_fake qiven3_fixtures
-  qiven3_runner)
+  qiven_runner)

@@ -20,7 +20,7 @@
 #include <utility>
 
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -97,7 +97,7 @@ struct Count {
 
 }  // namespace
 
-QIVEN3_CASE(win_files_stage, memory) {
+QIVEN_CASE(win_files_stage, memory) {
     const auto device = std::make_unique<std::random_device>();
     const fs::path root =
         fs::temp_directory_path() / ("qiven3-win-stage-" + std::to_string((*device)()) + std::to_string((*device)()));

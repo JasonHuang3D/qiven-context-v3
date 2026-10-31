@@ -31,7 +31,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
@@ -238,7 +238,7 @@ struct Scratch {
 
 }  // namespace
 
-QIVEN3_CASE(write_build, builds_a_write_file_on_an_empty_fold) {
+QIVEN_CASE(write_build, builds_a_write_file_on_an_empty_fold) {
     FakeFold fold;
     fold.currents.push_back(Row{"project:example", "unit-one-shape", id_of('3'), "2026-10-29T07:00:00.000Z", 1, "question"});
     FakePlatform platform(config());
@@ -269,7 +269,7 @@ QIVEN3_CASE(write_build, builds_a_write_file_on_an_empty_fold) {
     }
 }
 
-QIVEN3_CASE(write_build, revises_against_the_fold) {
+QIVEN_CASE(write_build, revises_against_the_fold) {
     FakeFold fold;
     const std::string scope = "project:example";
     fold.heads.push_back(Row{scope, "implementer", id_of('a'), "2026-10-29T08:30:00.000Z", 4, ""});
@@ -297,7 +297,7 @@ QIVEN3_CASE(write_build, revises_against_the_fold) {
     }
 }
 
-QIVEN3_CASE(write_build, builds_an_import_file_a_chain_per_scope) {
+QIVEN_CASE(write_build, builds_an_import_file_a_chain_per_scope) {
     FakeFold fold;
     FakePlatform platform(config());
     const Result r = build(import_file, fold, platform);
@@ -314,7 +314,7 @@ QIVEN3_CASE(write_build, builds_an_import_file_a_chain_per_scope) {
     CHECK(has(r.built[1].line, "\"scope\":\"project:other\""));
 }
 
-QIVEN3_CASE(write_build, refuses_what_resolves_to_nothing) {
+QIVEN_CASE(write_build, refuses_what_resolves_to_nothing) {
     FakeFold fold;
     FakePlatform platform(config());
     CHECK(build(write_file, fold, platform).refused == "form/placeholder@entries[2].target#2:");
@@ -334,7 +334,7 @@ QIVEN3_CASE(write_build, refuses_what_resolves_to_nothing) {
     CHECK(has(r.built[2].line, "\"target\":\"" + id_of('4') + "\""));
 }
 
-QIVEN3_CASE(write_build, reads_and_digests_a_path_piece) {
+QIVEN_CASE(write_build, reads_and_digests_a_path_piece) {
     const Scratch scratch;
     const std::string bytes = "line one\r\nline two\n";
     const std::string path = scratch.put("piece.txt", bytes);
@@ -380,7 +380,7 @@ const std::string claim = R"({"kind": "claim", "basis": "claimed", "content": {"
 
 }  // namespace
 
-QIVEN3_CASE(write_build, builds_a_forget_with_no_body) {
+QIVEN_CASE(write_build, builds_a_forget_with_no_body) {
     FakeFold fold;
     fold.held.push_back(Row{"project:example", "", id_of('4'), "2026-10-29T09:00:00.000Z", 1, "claim"});
     FakePlatform platform(config());
@@ -399,7 +399,7 @@ QIVEN3_CASE(write_build, builds_a_forget_with_no_body) {
     CHECK(h.value(qiven3::entry::header::Slot::id) == f.id);
 }
 
-QIVEN3_CASE(write_build, revises_a_clause_and_a_map_by_their_identities) {
+QIVEN_CASE(write_build, revises_a_clause_and_a_map_by_their_identities) {
     FakeFold fold;
     const std::string scope = "project:example";
     fold.currents.push_back(Row{scope, "ENG-110", id_of('b'), "2026-10-29T07:00:00.000Z", 1, "clause"});
@@ -443,7 +443,7 @@ QIVEN3_CASE(write_build, revises_a_clause_and_a_map_by_their_identities) {
              std::string("invalid/content@entries[2].content.object.id#2:"));
 }
 
-QIVEN3_CASE(write_build, a_question_without_its_id_is_a_root) {
+QIVEN_CASE(write_build, a_question_without_its_id_is_a_root) {
     FakeFold fold;
     const std::string scope = "project:example";
     fold.currents.push_back(Row{scope, "unit-one-shape", id_of('d'), "2026-10-29T07:00:00.000Z", 1, "question"});
@@ -465,7 +465,7 @@ QIVEN3_CASE(write_build, a_question_without_its_id_is_a_root) {
     CHECK(has(r.built[0].record, "\"id\":\"" + id_of('f') + "\""));
 }
 
-QIVEN3_CASE(write_build, checks_expires_against_the_real_at) {
+QIVEN_CASE(write_build, checks_expires_against_the_real_at) {
     FakeFold fold;
     fold.currents.push_back(Row{"project:example", "core", id_of('f'), "2026-10-29T07:00:00.000Z", 1, "item"});
     FakePlatform platform(config());
@@ -480,7 +480,7 @@ QIVEN3_CASE(write_build, checks_expires_against_the_real_at) {
     CHECK(build(expiring("2026-10-29T08:00:00.001Z"), fold, platform).refused.empty());
 }
 
-QIVEN3_CASE(write_build, an_import_checkpoint_revises_by_for_lane) {
+QIVEN_CASE(write_build, an_import_checkpoint_revises_by_for_lane) {
     FakeFold fold;
     const std::string scope = "project:example";
     fold.heads.push_back(Row{scope, "import", id_of('a'), "2026-10-29T07:00:00.000Z", 9, ""});

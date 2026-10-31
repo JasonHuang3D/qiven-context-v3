@@ -1,4 +1,4 @@
-# The tests: case binaries on qiven3_runner, and the Python tests, each
+# The tests: case binaries on qiven_runner, and the Python tests, each
 # case and each Python test its own CTest test with its labels.
 #
 # A step after the build lists each case binary's cases (--list) and each
@@ -74,7 +74,7 @@ endfunction()
 # (support/log); each case a CTest test labelled cxx, LABELS and its
 # module's name (its first source's module), under the watcher's limit by
 # its labels, or LIMIT where the binary states its own
-# (runner/ctest_tests.cmake).
+# (the runner's ctest_tests.cmake).
 function(qiven3_add_cases target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "LIMIT" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
@@ -93,7 +93,8 @@ function(qiven3_add_cases target)
   set_property(GLOBAL PROPERTY QIVEN3_CASE_LIMIT_${target} "${arg_LIMIT}")
 endfunction()
 
-add_subdirectory(runner)
+set(qiven3_runner_dir "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner")
+add_subdirectory("${qiven3_runner_dir}" runner)
 add_subdirectory(support/log)
 add_subdirectory(support/faults)
 add_subdirectory(support/fake_platform)
@@ -182,11 +183,11 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     ${qiven3_python_args} ${qiven3_fuzz_args} -D "SOURCE=${PROJECT_SOURCE_DIR}" -D "BIN=${qiven3_bin}"
     -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN3_SKIP_CODE}"
     -D "ADDR2LINE=${CMAKE_ADDR2LINE}"
-    -P "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake"
-  DEPENDS ${qiven3_case_binaries} ${qiven3_fuzz_binaries} qiven3_runner_demo qiven3_fail_demo qiven3_free_demo
+    -P "${qiven3_runner_dir}/ctest_tests.cmake"
+  DEPENDS ${qiven3_case_binaries} ${qiven3_fuzz_binaries} qiven_runner_demo qiven3_fail_demo qiven3_free_demo
     qiven3-fault qiven3-fault-import
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/runner/ctest_tests.cmake" ${qiven3_python_files}
+    "${qiven3_runner_dir}/ctest_tests.cmake" "${qiven3_runner_dir}/list_tests.py" ${qiven3_python_files}
   COMMENT "Listing the C++ cases and the Python tests for CTest"
   VERBATIM)
 add_custom_target(qiven3_ctest_tests ALL DEPENDS "${qiven3_tests_file}")

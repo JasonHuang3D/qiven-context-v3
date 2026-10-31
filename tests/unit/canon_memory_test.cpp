@@ -14,7 +14,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -52,10 +52,10 @@ bool budget_error(const MemoryError& e) { return e.code == MemoryCode::budget; }
 
 }  // namespace
 
-QIVEN3_CASE(canon, parse_budget) {
+QIVEN_CASE(canon, parse_budget) {
     for (const std::string& text : {worst(), mixed()}) {
         const std::size_t budget = budget_for(text.size());
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         std::size_t peak = 0;
         std::size_t nodes = 0;
         {
@@ -73,7 +73,7 @@ QIVEN3_CASE(canon, parse_budget) {
         // MSVC's debug containers allocate in their noexcept constructors,
         // where the short budget ends the process, so this half runs where
         // its iterators do not debug: asan, CI.
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         canon::Value v{Allocator<char>(shorter)};
         bool refused = false;
         try {
@@ -89,12 +89,12 @@ QIVEN3_CASE(canon, parse_budget) {
     }
 }
 
-QIVEN3_CASE(canon, canonical_budget) {
+QIVEN_CASE(canon, canonical_budget) {
     for (const std::string& text : {worst(), mixed()}) {
         canon::Basic<> value;
         canon::parse(text, value);
         const std::size_t budget = budget_for(text.size());
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         std::size_t peak = 0;
         {
             String out{Allocator<char>(arena)};
@@ -105,7 +105,7 @@ QIVEN3_CASE(canon, canonical_budget) {
         std::cout << "canon.canonical_budget: output " << text.size() << " bytes, peak " << peak << ", budget "
                   << budget << "\n";
         CHECK(peak <= budget);
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         String out{Allocator<char>(shorter)};
         bool refused = false;
         try {
@@ -118,7 +118,7 @@ QIVEN3_CASE(canon, canonical_budget) {
     }
 }
 
-QIVEN3_CASE(canon, faults) {
+QIVEN_CASE(canon, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::string text = mixed();
     std::vector<std::byte> pages(budget_for(text.size()));
@@ -134,7 +134,7 @@ QIVEN3_CASE(canon, faults) {
         nodes = v.size();
     };
     const qiven3::test::FaultRuns parses =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "canon.parse", countdown, parse, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "canon.parse", countdown, parse, check);
     std::cout << "canon.faults: parse's allocations " << parses.typed << ", completed at " << parses.completed_at
               << "\n";
     // The scan's nodes, text and keys' check, then the comparison's sorted
@@ -156,7 +156,7 @@ QIVEN3_CASE(canon, faults) {
         bytes = out.size();
     };
     const qiven3::test::FaultRuns writes =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "canon.canonical", countdown, write, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "canon.canonical", countdown, write, check);
     std::cout << "canon.faults: canonical's allocations " << writes.typed << ", completed at "
               << writes.completed_at << "\n";
     // The sorted members and the bytes.
@@ -167,6 +167,6 @@ QIVEN3_CASE(canon, faults) {
     CHECK_EQ(bytes, text.size());
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

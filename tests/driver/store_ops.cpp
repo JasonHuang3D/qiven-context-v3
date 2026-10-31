@@ -30,7 +30,7 @@
 #include "driver/store_threads.hpp"
 #include "driver/store_wire.hpp"
 #include "memory/arena.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/checked/stores.hpp"
@@ -520,7 +520,7 @@ Value StoreDrive<F>::reply(ArgView request) {
         answer = run(table_.find(op)->second, request);
     } catch (const store::StoreError& error) {
         answer = error_reply(wire::error(error));
-    } catch (const test::Skip& skip) {
+    } catch (const qiven::runner::Skip& skip) {
         answer = error_reply(plain("request", skip.reason));
     } catch (...) {
         try {

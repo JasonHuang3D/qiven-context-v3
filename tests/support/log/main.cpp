@@ -1,7 +1,7 @@
 // qiven3_case_main: the main of every case binary, the log's. It holds the
 // process's log (support/log/journal.hpp), which the runner hands to the
 // cases, writes each case's case.end into it, and names a PlatformError a
-// case lets out; the runner (runner/core.hpp) knows none of them.
+// case lets out; the runner (qiven/runner/core.hpp) knows none of them.
 
 #include <chrono>
 #include <cstddef>
@@ -14,7 +14,7 @@
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/log/journal.hpp"
 
 namespace qiven3::test {
@@ -40,13 +40,13 @@ bool platform_named(std::ostream& out) {
     }
 }
 
-const NamerRegistrar platform_namer{&platform_named};
+const qiven::runner::NamerRegistrar platform_namer{&platform_named};
 
 }  // namespace
 
-void case_ended(log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
+void case_ended(log::Log& log, const qiven::runner::Case& c, int status, std::chrono::steady_clock::time_point start,
                 std::size_t held) {
-    const log::Name outcome = status == exit_pass ? passed : status == exit_skip ? skipped : failed;
+    const log::Name outcome = status == qiven::runner::exit_pass ? passed : status == qiven::runner::exit_skip ? skipped : failed;
     log::event(log, log::events::case_end, *c.logged, outcome, log::Millis::since(start), log::Count(held));
 }
 
@@ -66,6 +66,6 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         args.emplace_back(argv[i]);
     }
-    return qiven3::test::run_main(args, qiven3::test::registry(), std::cout, std::cerr, journal.log(),
+    return qiven::runner::run_main(args, qiven::runner::registry(), std::cout, std::cerr, journal.log(),
                                   &qiven3::test::case_ended);
 }

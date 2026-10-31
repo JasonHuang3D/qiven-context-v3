@@ -160,7 +160,7 @@ def unresolved_at(envelope):
 
 class Nav(unittest.TestCase):
     ctest_labels = ("fake",)
-    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
+    ctest_git = True  # starts git: listed on the loop's build alone (foundation/devkit/test/runner/list_tests.py)
 
     def setUp(self):
         clangd_or_skip(self)
@@ -298,7 +298,7 @@ class Nav(unittest.TestCase):
 
 class Checkout(unittest.TestCase):
     ctest_labels = ("fake",)
-    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
+    ctest_git = True  # starts git: listed on the loop's build alone (foundation/devkit/test/runner/list_tests.py)
 
     def setUp(self):
         clangd_or_skip(self)

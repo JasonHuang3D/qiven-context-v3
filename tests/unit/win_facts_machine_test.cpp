@@ -25,7 +25,7 @@
 #include "memory/arena.hpp"
 #include "platform/win/facts.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -109,7 +109,7 @@ std::size_t past_inline(std::initializer_list<std::string_view> texts) {
 // unknown, admin_only; File History on where its configuration directory
 // is in the local application data, else off (no policy here); BitLocker
 // off.
-void read_here(qiven3::test::Context& qiven3_ctx, const Facts& facts) {
+void read_here(qiven::runner::Context& qiven_ctx, const Facts& facts) {
     CHECK(facts.protection.state == State::unknown);
     CHECK_EQ(std::string(facts.protection.reason), std::string("admin_only"));
     const std::optional<std::wstring> local = variable(L"LOCALAPPDATA");
@@ -120,7 +120,7 @@ void read_here(qiven3::test::Context& qiven3_ctx, const Facts& facts) {
 }
 
 // A row's applies and texts as residual's rules give them.
-void row_is(qiven3::test::Context& qiven3_ctx, const Row& row, std::size_t i, Applies applies) {
+void row_is(qiven::runner::Context& qiven_ctx, const Row& row, std::size_t i, Applies applies) {
     const readings::RowView& expected = readings::rows.at(i);
     CHECK_EQ(std::string(row.name), std::string(expected.name));
     CHECK_EQ(std::string(row.applies), std::string(readings::text(applies)));
@@ -131,7 +131,7 @@ void row_is(qiven3::test::Context& qiven3_ctx, const Row& row, std::size_t i, Ap
 
 }  // namespace
 
-QIVEN3_CASE(win_facts_machine, facts_here) {
+QIVEN_CASE(win_facts_machine, facts_here) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -153,7 +153,7 @@ QIVEN3_CASE(win_facts_machine, facts_here) {
                   << named(facts.bitlocker.state) << " (" << facts.bitlocker.reason << ")\n";
         CHECK_EQ(std::string(facts.volume), path.substr(0, 2));
         CHECK(formed(facts.protection) && formed(facts.file_history) && formed(facts.bitlocker));
-        read_here(qiven3_ctx, facts);
+        read_here(qiven_ctx, facts);
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
         CHECK_EQ(allocations.calls(), past_inline({facts.volume, facts.protection.reason, facts.file_history.reason,
                                                    facts.bitlocker.reason}));
@@ -165,7 +165,7 @@ QIVEN3_CASE(win_facts_machine, facts_here) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(win_facts_machine, residual_here) {
+QIVEN_CASE(win_facts_machine, residual_here) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -192,13 +192,13 @@ QIVEN3_CASE(win_facts_machine, residual_here) {
         REQUIRE(rows.size() == expected.size());
         for (std::size_t i = 0; i < rows.size(); ++i) {
             std::cout << "win_facts_machine.residual_here: " << rows.at(i).name << " " << rows.at(i).applies << "\n";
-            row_is(qiven3_ctx, rows.at(i), i, expected.at(i));
+            row_is(qiven_ctx, rows.at(i), i, expected.at(i));
         }
         // No path: no volume, so restore_points and encryption no.
         platform.residual({}, rows);
         REQUIRE(rows.size() == expected.size());
-        row_is(qiven3_ctx, rows.at(0), 0, Applies::no);
-        row_is(qiven3_ctx, rows.at(5), 5, Applies::no);
+        row_is(qiven_ctx, rows.at(0), 0, Applies::no);
+        row_is(qiven_ctx, rows.at(5), 5, Applies::no);
     }
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     // The six rows reserved at once, then each text past 15 bytes.
@@ -229,7 +229,7 @@ QIVEN3_CASE(win_facts_machine, residual_here) {
             platform.residual(paths, rows);
         };
         const qiven3::test::FaultRuns r = qiven3::test::run_faults<qiven3::memory::MemoryError>(
-            qiven3_ctx.log, "win_facts_machine.residual", allocations, fresh,
+            qiven_ctx.log, "win_facts_machine.residual", allocations, fresh,
             [&](std::size_t) {
                 emptied += rows.empty() ? 1 : 0;
                 return rows.empty() || rows.size() == readings::rows.size();
@@ -244,7 +244,7 @@ QIVEN3_CASE(win_facts_machine, residual_here) {
 #endif
 }
 
-QIVEN3_CASE(win_facts_machine, synced_here) {
+QIVEN_CASE(win_facts_machine, synced_here) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -256,7 +256,7 @@ QIVEN3_CASE(win_facts_machine, synced_here) {
         CHECK(out.empty());
         const std::optional<std::wstring> folder = variable(L"OneDrive");
         if (!folder.has_value()) {
-            QIVEN3_SKIP("not applicable: no OneDrive variable here, so no synced folder");
+            QIVEN_SKIP("not applicable: no OneDrive variable here, so no synced folder");
         }
         const std::string cloud = text(fs::path(*folder));
         std::string upper = cloud;

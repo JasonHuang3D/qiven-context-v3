@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -81,7 +81,7 @@ constexpr std::string_view registry_text =
 
 }  // namespace
 
-QIVEN3_CASE(canon, key_by_place) {
+QIVEN_CASE(canon, key_by_place) {
     std::vector<std::string> seen;
     Std v;
     REQUIRE(!canon::try_parse(R"({"a":[{"b":1}],"c":{"d":{"e":[]}}})", v, Record{&seen}));
@@ -116,7 +116,7 @@ QIVEN3_CASE(canon, key_by_place) {
     CHECK(out == marks);
 }
 
-QIVEN3_CASE(canon, layout_any) {
+QIVEN_CASE(canon, layout_any) {
     // The registry in any layout: CRLF, indented, a final line end, keys
     // out of order; refused when step 6 runs.
     CHECK(!code(registry_text, Registry{}, canon::Layout::any));

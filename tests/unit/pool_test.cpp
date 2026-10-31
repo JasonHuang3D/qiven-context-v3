@@ -18,7 +18,7 @@
 
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -39,7 +39,7 @@ constexpr std::size_t heap_slot(std::size_t payload) { return 16 + payload; }
 
 }  // namespace
 
-QIVEN3_CASE(pool, any_order) {
+QIVEN_CASE(pool, any_order) {
     const auto pages = std::make_unique<Pages>();
     // From the span's second byte: the pool starts at its first aligned one.
     Pool pool(24, std::span<std::byte>(pages->bytes).subspan(1, 1024));
@@ -88,7 +88,7 @@ QIVEN3_CASE(pool, any_order) {
     CHECK_EQ(pool.used(), 0U);
 }
 
-QIVEN3_CASE(pool, faults) {
+QIVEN_CASE(pool, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Pool pool(64, pages->bytes);
@@ -115,18 +115,18 @@ QIVEN3_CASE(pool, faults) {
     };
     const auto check = [&](std::size_t) { return pool.used() == 0; };
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "pool.faults", countdown, op, check);
+        qiven_ctx.log, "pool.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);
     CHECK_EQ(runs.untyped, 0U);
     CHECK_EQ(runs.unchecked, 0U);
     pool.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(heap, allocate_free_size) {
+QIVEN_CASE(heap, allocate_free_size) {
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
     CHECK_EQ(heap.budget(), 4096U);
@@ -166,7 +166,7 @@ QIVEN3_CASE(heap, allocate_free_size) {
     CHECK_EQ(heap.peak(), all);
 }
 
-QIVEN3_CASE(heap, resize) {
+QIVEN_CASE(heap, resize) {
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
     auto* p = static_cast<unsigned char*>(heap.allocate(20));
@@ -205,7 +205,7 @@ QIVEN3_CASE(heap, resize) {
     CHECK_EQ(heap.peak(), heap_slot(32) + heap_slot(128));
 }
 
-QIVEN3_CASE(heap, budget) {
+QIVEN_CASE(heap, budget) {
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
     // 4096 bytes hold 85 slots of 48 bytes, and 16 left over.
@@ -232,7 +232,7 @@ QIVEN3_CASE(heap, budget) {
     CHECK_EQ(heap.peak(), 85U * 48U);
 }
 
-QIVEN3_CASE(heap, threads) {
+QIVEN_CASE(heap, threads) {
     std::vector<std::byte> bytes(std::size_t{8} << 20);
     Heap heap(bytes);
     std::atomic<std::size_t> nulls{0};
@@ -268,7 +268,7 @@ QIVEN3_CASE(heap, threads) {
     CHECK(heap.peak() > 0U);
 }
 
-QIVEN3_CASE(heap, faults) {
+QIVEN_CASE(heap, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
@@ -301,13 +301,13 @@ QIVEN3_CASE(heap, faults) {
     };
     const auto check = [&](std::size_t) { return heap.used() == 0; };
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "heap.faults", countdown, op, check);
+        qiven_ctx.log, "heap.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);
     CHECK_EQ(runs.untyped, 0U);
     CHECK_EQ(runs.unchecked, 0U);
     heap.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

@@ -23,7 +23,7 @@
 
 #include "memory/arena.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 #if defined(QIVEN_FAULTS)
 
@@ -182,7 +182,7 @@ std::vector<std::string> sweep(WindowsPlatform& platform, Op op, Answered answer
 
 #endif
 
-QIVEN3_CASE(win_facts_machine, facts_faults) {
+QIVEN_CASE(win_facts_machine, facts_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -206,11 +206,11 @@ QIVEN3_CASE(win_facts_machine, facts_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(win_facts_machine, residual_faults) {
+QIVEN_CASE(win_facts_machine, residual_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -247,11 +247,11 @@ QIVEN3_CASE(win_facts_machine, residual_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(win_facts_machine, synced_faults) {
+QIVEN_CASE(win_facts_machine, synced_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -284,7 +284,7 @@ QIVEN3_CASE(win_facts_machine, synced_faults) {
     }
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 

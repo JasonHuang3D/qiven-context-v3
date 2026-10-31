@@ -1,0 +1,15 @@
+{
+  "name": "scan",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "tests/support/scan/scan.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [],
+  "from": [
+    "support"
+  ]
+}

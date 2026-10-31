@@ -23,7 +23,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
@@ -148,7 +148,7 @@ constexpr std::size_t budget_for(std::size_t input) { return 65536 + 4 * input; 
 
 }  // namespace
 
-QIVEN3_CASE(fixtures, files) {
+QIVEN_CASE(fixtures, files) {
     CHECK_EQ(fixtures::file_count(), 1U);
     CHECK_EQ(fixtures::file_name(0), std::string_view("entries.json"));
     const std::optional<std::string_view> data = fixtures::bytes("entries.json");
@@ -168,7 +168,7 @@ QIVEN3_CASE(fixtures, files) {
     CHECK(!fixtures::layout(v));
 }
 
-QIVEN3_CASE(fixtures, entries) {
+QIVEN_CASE(fixtures, entries) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     REQUIRE(fixtures::entry_count(v) == pinned.size());
@@ -207,7 +207,7 @@ QIVEN3_CASE(fixtures, entries) {
     CHECK_EQ(*text_of(l2, "target"), *text_of(l1, "id"));
 }
 
-QIVEN3_CASE(fixtures, mapped) {
+QIVEN_CASE(fixtures, mapped) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     CHECK_EQ(fixtures::mapped_count(v), 2U);
@@ -247,7 +247,7 @@ QIVEN3_CASE(fixtures, mapped) {
     CHECK_EQ(kept, std::string("kept"));
 }
 
-QIVEN3_CASE(fixtures, layout_refused) {
+QIVEN_CASE(fixtures, layout_refused) {
     // The constant-evaluated vectors above, once more at run time, and
     // parse_entries' throw, out unchanged.
     CHECK(!fault_of(good));
@@ -274,9 +274,9 @@ QIVEN3_CASE(fixtures, layout_refused) {
     CHECK(v.empty());
 }
 
-QIVEN3_CASE(fixtures, load_budget) {
+QIVEN_CASE(fixtures, load_budget) {
     const std::size_t budget = budget_for(file_bytes);
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     std::size_t peak = 0;
     {
         canon::Value v{Allocator<char>(arena)};
@@ -291,7 +291,7 @@ QIVEN3_CASE(fixtures, load_budget) {
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
     // As canon's: under MSVC's debug containers the short budget ends the
     // process in a noexcept constructor, so this half runs elsewhere.
-    Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+    Arena& shorter = qiven_ctx.counted.arena(peak - 1);
     canon::Value v{Allocator<char>(shorter)};
     bool refused_short = false;
     try {
@@ -306,7 +306,7 @@ QIVEN3_CASE(fixtures, load_budget) {
 #endif
 }
 
-QIVEN3_CASE(fixtures, faults) {
+QIVEN_CASE(fixtures, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget_for(file_bytes));
     qiven3::memory::Countdown countdown;
@@ -321,7 +321,7 @@ QIVEN3_CASE(fixtures, faults) {
         entries = fixtures::entry_count(v);
     };
     const qiven3::test::FaultRuns loads =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "fixtures.load", countdown, load, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.load", countdown, load, check);
     std::cout << "fixtures.faults: load's allocations " << loads.typed << ", completed at " << loads.completed_at
               << "\n";
     // canon's four: the scan's nodes, text and keys' check, then the
@@ -349,7 +349,7 @@ QIVEN3_CASE(fixtures, faults) {
         read += fixtures::mapped(loaded, 1).hex.size();
     };
     const qiven3::test::FaultRuns accesses =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "fixtures.access", countdown, access, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.access", countdown, access, check);
     CHECK_EQ(accesses.typed, 0U);
     CHECK_EQ(accesses.completed_at, 1U);
     CHECK_EQ(read, 12U + 11U + 1U + 150U);
@@ -362,13 +362,13 @@ QIVEN3_CASE(fixtures, faults) {
         bytes = out.size();
     };
     const qiven3::test::FaultRuns decodes =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "fixtures.from_hex", countdown, decode, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.from_hex", countdown, decode, check);
     CHECK_EQ(decodes.typed, 1U);
     CHECK_EQ(decodes.completed_at, 2U);
     CHECK_EQ(decodes.untyped, 0U);
     CHECK_EQ(bytes, 57U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

@@ -35,7 +35,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/filled.hpp"
 #include "support/fixtures/fixtures.hpp"
@@ -344,7 +344,7 @@ void setup(const canon::Basic<>& v, Setup& s, Arena& arena) {
 
 }  // namespace
 
-QIVEN3_CASE(validator, import_budget) {
+QIVEN_CASE(validator, import_budget) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::vector<std::byte> pages(1U << 20U);
@@ -353,7 +353,7 @@ QIVEN3_CASE(validator, import_budget) {
     setup(v, s, items);
     std::size_t total = 0;
     for (const Imported& i : s.entries) {
-        Arena& arena = qiven3_ctx.counted.arena(budget_base + 8 * i.bytes);
+        Arena& arena = qiven_ctx.counted.arena(budget_base + 8 * i.bytes);
         const std::size_t used = arena.used();
         const std::size_t before = arena.peak();
         CHECK(!validator::try_final(s.view, i.head, i.content, Allocator<char>(arena)));
@@ -382,7 +382,7 @@ QIVEN3_CASE(validator, import_budget) {
     s.entries.clear();
 }
 
-QIVEN3_CASE(validator, import_faults) {
+QIVEN_CASE(validator, import_faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -404,7 +404,7 @@ QIVEN3_CASE(validator, import_faults) {
             arena->attach(nullptr);
         };
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "validator.try_final", countdown, op, empty);
+            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "validator.try_final", countdown, op, empty);
         std::cout << "validator.import_faults: " << i.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, i.allocations);
@@ -417,6 +417,6 @@ QIVEN3_CASE(validator, import_faults) {
     s.entries.clear();
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

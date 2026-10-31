@@ -16,7 +16,7 @@
 
 #include "memory/memory.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -64,13 +64,13 @@ int run(const std::vector<std::wstring>& texts) {
 
 // The name is not read: one that is not valid UTF-16 runs the entry, its
 // argv[0] empty.
-QIVEN3_CASE(win_arguments, name_unread) {
+QIVEN_CASE(win_arguments, name_unread) {
     CHECK_EQ(run({L"qiven3", L"location"}), ran);
     CHECK_EQ(run({lone(L"qiven3"), L"location"}), ran);
 }
 
 // What it cannot read or is past a bound: refused, the entry not run.
-QIVEN3_CASE(win_arguments, refused) {
+QIVEN_CASE(win_arguments, refused) {
     CHECK_EQ(run({L"qiven3", lone(L"location")}), refused);
     // 32,768 units after the name: past a command line's; 32,767 within.
     CHECK_EQ(run({L"qiven3", std::wstring(win::command_line_units, L'a'), L"b"}), refused);
@@ -83,7 +83,7 @@ QIVEN3_CASE(win_arguments, refused) {
 
 // The pages' call, then the arena's two allocations, each failed in turn:
 // faulted, the entry not run; past them, the entry's status.
-QIVEN3_CASE(win_arguments, faults) {
+QIVEN_CASE(win_arguments, faults) {
 #if defined(QIVEN_FAULTS)
     const std::wstring name = L"qiven3";
     const std::wstring first = L"location";
@@ -104,6 +104,6 @@ QIVEN3_CASE(win_arguments, faults) {
     std::cout << "win_arguments.faults: failed in turn " << k - 1 << "\n";
     CHECK_EQ(k, std::size_t{4});
 #else
-    QIVEN3_SKIP("not applicable: QIVEN_FAULTS is off in this build");
+    QIVEN_SKIP("not applicable: QIVEN_FAULTS is off in this build");
 #endif
 }

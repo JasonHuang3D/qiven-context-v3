@@ -22,7 +22,7 @@
 #include "entry/header.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -306,7 +306,7 @@ std::string repeat(std::string_view s, std::size_t n) {
 
 }  // namespace
 
-QIVEN3_CASE(check, vectors) {
+QIVEN_CASE(check, vectors) {
     // The compiler's vectors again at run time, each named.
     std::size_t held = 0;
     for (std::size_t i = 0; i < wants.size(); ++i) {
@@ -321,7 +321,7 @@ QIVEN3_CASE(check, vectors) {
     std::cout << "check.vectors: " << held << " of " << wants.size() << " as wanted\n";
 }
 
-QIVEN3_CASE(check, fixtures) {
+QIVEN_CASE(check, fixtures) {
     Fake fake(qiven3::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -350,7 +350,7 @@ QIVEN3_CASE(check, fixtures) {
     CHECK(bodies >= 10U);
 }
 
-QIVEN3_CASE(check, refusals) {
+QIVEN_CASE(check, refusals) {
     Fake fake(qiven3::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -399,7 +399,7 @@ QIVEN3_CASE(check, refusals) {
     CHECK_EQ(run_check(line, edited(record, *a->key, upper)), "body syntax");
 }
 
-QIVEN3_CASE(check, parser) {
+QIVEN_CASE(check, parser) {
     Fake fake(qiven3::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -433,7 +433,7 @@ QIVEN3_CASE(check, parser) {
     std::cout << "check.parser: " << refused << " refusals, each row on the line and on the record\n";
 }
 
-QIVEN3_CASE(check, large) {
+QIVEN_CASE(check, large) {
     // A module past 65,536 bytes canonical, each field within its limit,
     // bound to its header: content's too_large through part 1.
     Fake fake(qiven3::platform::fake::Config{});
@@ -464,7 +464,7 @@ QIVEN3_CASE(check, large) {
     std::cout << "check.large: " << big.size() << " bytes too_large, its header alone admitted\n";
 }
 
-QIVEN3_CASE(check, raise) {
+QIVEN_CASE(check, raise) {
     // Each part's fault thrown as its error, and named as the format does.
     CHECK_EQ(thrown([] { check::raise(Fault{Part::parse, static_cast<std::uint8_t>(qiven3::ParseCode::floating), {}}); }),
              "parse float");

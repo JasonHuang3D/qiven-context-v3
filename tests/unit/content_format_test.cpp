@@ -25,7 +25,7 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -117,7 +117,7 @@ bool is(const std::optional<ContentError>& e, Code c, std::string_view path, std
 
 }  // namespace
 
-QIVEN3_CASE(content, format_limits) {
+QIVEN_CASE(content, format_limits) {
     // A checkpoint's three texts and detail, each at its limit and past it.
     for (const auto& [key, limit] : {std::pair<std::string, std::size_t>{"next_action", 2100}, {"decision_status", 1600},
                                      {"detail", 8000}, {"progress", 1000}}) {
@@ -137,7 +137,7 @@ QIVEN3_CASE(content, format_limits) {
     std::cout << "content.format: 2100, 1600, 8000, 1000 and 1500 admitted, one past each too_long\n";
 }
 
-QIVEN3_CASE(content, format_for_lane) {
+QIVEN_CASE(content, format_for_lane) {
     const Members cp = checkpoint();
     CHECK(passes(verdict("checkpoint", "import", S, with(cp, "for_lane", R"("implementer")"))));
     CHECK(passes(verdict("checkpoint", "import", S, with(cp, "for_lane", string_of("a" + repeat("b-9", 10) + "c")))));
@@ -160,7 +160,7 @@ QIVEN3_CASE(content, format_for_lane) {
     std::cout << "content.format: for_lane by import alone, a lane name, none reserved\n";
 }
 
-QIVEN3_CASE(content, format_question_closes) {
+QIVEN_CASE(content, format_question_closes) {
     // question_id: a slug of 64.
     const Members question = served({{"question", R"("q")"}});
     CHECK(passes(verdict("question", "import", S, with(question, "question_id", string_of(repeat("q1-", 21) + "x")))));
@@ -189,7 +189,7 @@ QIVEN3_CASE(content, format_question_closes) {
     std::cout << "content.format: question_id a slug of 64, closes 8 ids\n";
 }
 
-QIVEN3_CASE(content, format_item_when) {
+QIVEN_CASE(content, format_item_when) {
     // item: a slug of 64 on a served kind in a project scope.
     const Members claim = served({{"claim", R"("c")"}});
     CHECK(passes(verdict("claim", "import", S, with(claim, "item", string_of(repeat("p", 64))))));
@@ -216,7 +216,7 @@ QIVEN3_CASE(content, format_item_when) {
     std::cout << "content.format: item in a project scope alone, when on retire\n";
 }
 
-QIVEN3_CASE(content, format_detail_closes_elsewhere) {
+QIVEN_CASE(content, format_detail_closes_elsewhere) {
     // detail a checkpoint's alone and closes a decision's alone: on each
     // other kind of the 22, not_allowed at the field, in a project scope by
     // writer import, the kind's basis claimed where it allows that.

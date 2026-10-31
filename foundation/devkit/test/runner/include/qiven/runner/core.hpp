@@ -1,10 +1,10 @@
 #pragma once
 
-// qiven3_runner: the test runner, on the standard library and v3's memory
-// alone. A case is registered as "group.name" (runner/runner.hpp, the log's
-// QIVEN3_CASE); a case binary lists its cases with --list and runs one with
+// qiven_runner: the test runner, on the standard library and v3's memory
+// alone. A case is registered as "group.name" (qiven/runner/runner.hpp, the log's
+// QIVEN_CASE); a case binary lists its cases with --list and runs one with
 // --run NAME, the case's result its exit status. Each case is its own CTest
-// test. A case takes v3's allocators from its context, qiven3_ctx.counted,
+// test. A case takes v3's allocators from its context, qiven_ctx.counted,
 // which counts them after it (Counted). The process's log is the main's
 // (support/log/main.cpp): the runner hands it to the cases and gives each
 // case's end to the main's Ended, knowing neither the log's type nor its
@@ -30,7 +30,7 @@ class Log;
 class Name;
 }  // namespace qiven3::log
 
-namespace qiven3::test {
+namespace qiven::runner {
 
 // The exit statuses of a case binary.
 inline constexpr int exit_pass = 0;
@@ -52,9 +52,9 @@ public:
     Counted& operator=(const Counted&) = delete;
     ~Counted() = default;
 
-    memory::Arena& arena(std::size_t bytes);
-    memory::Pool& pool(std::size_t slot, std::size_t bytes);
-    memory::Heap& heap(std::size_t bytes);
+    qiven3::memory::Arena& arena(std::size_t bytes);
+    qiven3::memory::Pool& pool(std::size_t slot, std::size_t bytes);
+    qiven3::memory::Heap& heap(std::size_t bytes);
     // A line to out for each allocator holding bytes; how many do.
     int holding(std::ostream& out) const;
     // The bytes all of them hold, saturating at SIZE_MAX.
@@ -72,9 +72,9 @@ private:
         std::vector<Page> pages;
         std::optional<A> allocator;  // ended before its pages
     };
-    std::deque<Owned<memory::Arena>> arenas_;
-    std::deque<Owned<memory::Pool>> pools_;
-    std::deque<Owned<memory::Heap>> heaps_;
+    std::deque<Owned<qiven3::memory::Arena>> arenas_;
+    std::deque<Owned<qiven3::memory::Pool>> pools_;
+    std::deque<Owned<qiven3::memory::Heap>> heaps_;
 };
 
 // What a running case reports to: its failed checks, written as they fail,
@@ -82,7 +82,7 @@ private:
 // cases (fault.injected, support/faults/faults.hpp).
 struct Context {
     std::ostream& out;
-    log::Log& log;
+    qiven3::log::Log& log;
     int failures = 0;
     Counted counted{};
 };
@@ -93,7 +93,7 @@ struct Case {
     // "group.name", made from the macro's literals; logged, the same as the
     // log's Name, which the runner passes on and never reads.
     std::string_view name;
-    const log::Name* logged = nullptr;
+    const qiven3::log::Name* logged = nullptr;
     CaseFn fn = nullptr;
     // A case whose report carries a time runs alone (CTest's RUN_SERIAL).
     bool serial = false;
@@ -103,12 +103,12 @@ struct Case {
 std::vector<Case>& registry();
 
 struct Registrar {
-    Registrar(std::string_view name, const log::Name* logged, CaseFn fn, bool serial);
+    Registrar(std::string_view name, const qiven3::log::Name* logged, CaseFn fn, bool serial);
 };
 
 // What a case's end is given to: the log the case ran with, the case, its
 // status and start, and the bytes its allocators held (the main's case.end).
-using Ended = void (*)(log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
+using Ended = void (*)(qiven3::log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
                        std::size_t held);
 
 // Names an error a case let out that is none of the standard library's or
@@ -122,7 +122,7 @@ struct NamerRegistrar {
     explicit NamerRegistrar(Namer namer);
 };
 
-// Thrown by QIVEN3_SKIP: the case does not apply, for the reason given.
+// Thrown by QIVEN_SKIP: the case does not apply, for the reason given.
 struct Skip {
     std::string reason;
 };
@@ -165,7 +165,7 @@ bool check_eq(Context& ctx, const A& a, const B& b, const char* expr, const char
 // so the status is the system's. A case that returns, its exception
 // caught, ends by ended where one is given: its log, the case, its status,
 // its start and the bytes its allocators held.
-int run_case(const Case& c, std::ostream& out, log::Log& log, Ended ended = nullptr);
+int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ended = nullptr);
 
 // The runner's command line, with the binary's name dropped:
 //   --list        each case's name, sorted, one a line; a serial case's
@@ -174,19 +174,19 @@ int run_case(const Case& c, std::ostream& out, log::Log& log, Ended ended = null
 // Anything else, an unknown name, or a registry with an empty or repeated
 // name, is exit_usage.
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err, log::Log& log, Ended ended = nullptr);
+             std::ostream& out, std::ostream& err, qiven3::log::Log& log, Ended ended = nullptr);
 
-}  // namespace qiven3::test
+}  // namespace qiven::runner
 
 #define CHECK(cond) \
-    ::qiven3::test::check(qiven3_ctx, static_cast<bool>(cond), #cond, __FILE__, __LINE__)
+    ::qiven::runner::check(qiven_ctx, static_cast<bool>(cond), #cond, __FILE__, __LINE__)
 #define CHECK_EQ(a, b) \
-    ::qiven3::test::check_eq(qiven3_ctx, (a), (b), #a " == " #b, __FILE__, __LINE__)
+    ::qiven::runner::check_eq(qiven_ctx, (a), (b), #a " == " #b, __FILE__, __LINE__)
 #define REQUIRE(cond)                                                                       \
     do {                                                                                    \
-        if (!::qiven3::test::check(qiven3_ctx, static_cast<bool>(cond), #cond, __FILE__, \
+        if (!::qiven::runner::check(qiven_ctx, static_cast<bool>(cond), #cond, __FILE__, \
                                    __LINE__)) {                                             \
-            throw ::qiven3::test::Stop{};                                                   \
+            throw ::qiven::runner::Stop{};                                                   \
         }                                                                                   \
     } while (false)
-#define QIVEN3_SKIP(reason) throw ::qiven3::test::Skip{std::string(reason)}
+#define QIVEN_SKIP(reason) throw ::qiven::runner::Skip{std::string(reason)}

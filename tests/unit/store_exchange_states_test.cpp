@@ -32,7 +32,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -277,7 +277,7 @@ Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
 
 }  // namespace
 
-QIVEN3_CASE(store_exchange, maximum) {
+QIVEN_CASE(store_exchange, maximum) {
     const auto rig = std::make_unique<Rig>();
     const std::vector<Rec> mx = modules(1);
     REQUIRE(mx[0].record->size() == max_body);
@@ -305,7 +305,7 @@ QIVEN3_CASE(store_exchange, maximum) {
               << caller << "\n";
 }
 
-QIVEN3_CASE(store_exchange, large) {
+QIVEN_CASE(store_exchange, large) {
     const auto rig = std::make_unique<Rig>();
     const Peaks small = round_trip(*rig, 100, "small");
     const Peaks large = round_trip(*rig, 400, "large");
@@ -323,7 +323,7 @@ QIVEN3_CASE(store_exchange, large) {
               << " and " << large.verified << "\n";
 }
 
-QIVEN3_CASE(store_exchange, busy) {
+QIVEN_CASE(store_exchange, busy) {
     const auto rig = std::make_unique<Rig>();
     Held held;
     held.add(claims(3), qiven_scope, implementer_lane);
@@ -344,7 +344,7 @@ QIVEN3_CASE(store_exchange, busy) {
     std::cout << "store_exchange.busy: StoreBusy after " << waited << " s\n";
 }
 
-QIVEN3_CASE(store_exchange, threads) {
+QIVEN_CASE(store_exchange, threads) {
     const auto rig = std::make_unique<Rig>();
     Held held;
     held.add(claims(3), qiven_scope, implementer_lane);
@@ -377,7 +377,7 @@ QIVEN3_CASE(store_exchange, threads) {
               << "\n";
 }
 
-QIVEN3_CASE(store_exchange, closing) {
+QIVEN_CASE(store_exchange, closing) {
     const auto rig = std::make_unique<Rig>();
     Held held;
     held.add(claims(4), qiven_scope, implementer_lane);
@@ -431,7 +431,7 @@ QIVEN3_CASE(store_exchange, closing) {
     last.reset();
 }
 
-QIVEN3_CASE(store_exchange, rollback) {
+QIVEN_CASE(store_exchange, rollback) {
     const auto rig = std::make_unique<Rig>();
     Held held;
     held.add(claims(5), qiven_scope, implementer_lane);
@@ -486,7 +486,7 @@ QIVEN3_CASE(store_exchange, rollback) {
               << seen << " before the import's COMMIT\n";
 }
 
-QIVEN3_CASE(store_exchange, not_empty) {
+QIVEN_CASE(store_exchange, not_empty) {
     const auto rig = std::make_unique<Rig>();
     Held held;
     held.add(claims(2), qiven_scope, implementer_lane);

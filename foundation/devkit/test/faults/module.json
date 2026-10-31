@@ -1,0 +1,32 @@
+{
+  "name": "faults",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "tests/support/faults/faults.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "faults",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "log",
+        "diag"
+      ],
+      "test_depends": [],
+      "paths": [
+        "tests/support/faults/",
+        "tests/faults/",
+        "tests/drive/test_faults.py",
+        "tests/drive/test_hardened.py",
+        "tests/drive/test_hang.py",
+        "tests/drive/test_debug.py",
+        "tests/drive/test_entry.py"
+      ]
+    }
+  ]
+}

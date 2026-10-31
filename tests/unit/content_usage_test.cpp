@@ -15,7 +15,7 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -99,7 +99,7 @@ bool refused_as(const Counts& n, content::Code code, std::string_view path) {
 
 }  // namespace
 
-QIVEN3_CASE(content, usage_max) {
+QIVEN_CASE(content, usage_max) {
     const Counts most{items_of("served"), items_of("cited"), items_of("corrected"), client_max, session_max};
     CHECK_EQ(most.served, 384U);
     CHECK_EQ(most.cited, 192U);

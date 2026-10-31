@@ -15,7 +15,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/json.hpp"
 #include "qiven3/utf.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -55,7 +55,7 @@ struct Row {
 
 }  // namespace
 
-QIVEN3_CASE(json, edge_pass_codes) {
+QIVEN_CASE(json, edge_pass_codes) {
     const std::array<Row, 28> rows{{
         {R"({"a":1,"a":2,"b":1.5})", ParseCode::floating},
         {R"([1.5,{"a":1,"a":2}])", ParseCode::floating},
@@ -89,7 +89,7 @@ QIVEN3_CASE(json, edge_pass_codes) {
     for (const Row& r : rows) {
         const std::optional<ParseCode> got = code(r.text);
         if (!CHECK(got == r.code)) {
-            qiven3_ctx.out << "  vector " << r.text << ": " << (got ? qiven3::name(*got) : "accepted") << "\n";
+            qiven_ctx.out << "  vector " << r.text << ": " << (got ? qiven3::name(*got) : "accepted") << "\n";
         }
     }
     // The thrown form.
@@ -104,7 +104,7 @@ QIVEN3_CASE(json, edge_pass_codes) {
     CHECK(qiven3::name(ParseCode::floating) == "float");
 }
 
-QIVEN3_CASE(json, edge_walk_values) {
+QIVEN_CASE(json, edge_walk_values) {
     // The walk's codes are canon's; scan accepts each and keeps what the
     // walk reads: a lone surrogate in its three-byte form, a noncharacter,
     // a key off its syntax, a null.
@@ -144,7 +144,7 @@ QIVEN3_CASE(json, edge_walk_values) {
     CHECK(code(text2) == ParseCode::int_range);
 }
 
-QIVEN3_CASE(json, edge_canonical) {
+QIVEN_CASE(json, edge_canonical) {
     // Scanned, and their canonical bytes other than the text: step 6's
     // not_canonical.
     const std::array<std::string_view, 8> not_canonical = {
@@ -167,12 +167,12 @@ QIVEN3_CASE(json, edge_canonical) {
         const std::optional<ParseCode> got = json::try_scan(s, 16, v);
         CHECK(!got);
         if (!got && !CHECK(encoded(v) == s)) {
-            qiven3_ctx.out << "  vector " << s << ": " << encoded(v) << "\n";
+            qiven_ctx.out << "  vector " << s << ": " << encoded(v) << "\n";
         }
     }
 }
 
-QIVEN3_CASE(json, depth) {
+QIVEN_CASE(json, depth) {
     // 17 levels are depth, 16 are not; the scan as written counts brackets
     // outside strings alone, and 100,000 levels are depth, no stack fault.
     CHECK(code(repeat("[", 17)) == ParseCode::depth);
@@ -195,7 +195,7 @@ QIVEN3_CASE(json, depth) {
     CHECK(!json::try_scan("1", 0, flat));
 }
 
-QIVEN3_CASE(json, integers) {
+QIVEN_CASE(json, integers) {
     const std::array<std::string_view, 7> texts = {"0", "1", "-1", "12", "9007199254740991", "-9007199254740991",
                                                    "1000000"};
     const std::array<long long, 7> values = {0, 1, -1, 12, 9007199254740991, -9007199254740991, 1000000};
@@ -215,7 +215,7 @@ QIVEN3_CASE(json, integers) {
     CHECK(code("-0.0") == ParseCode::floating);
 }
 
-QIVEN3_CASE(json, strings) {
+QIVEN_CASE(json, strings) {
     // The encoder's escapes, every other byte raw.
     std::string raw;
     for (int c = 0; c < 0x20; ++c) {
@@ -253,7 +253,7 @@ QIVEN3_CASE(json, strings) {
     CHECK(code("\xc2\xa0[1]") == ParseCode::syntax);
 }
 
-QIVEN3_CASE(json, building) {
+QIVEN_CASE(json, building) {
     // A value built in document order, and members appended to its root:
     // the encoder sorts keys by code point.
     Std inner;
@@ -293,7 +293,7 @@ QIVEN3_CASE(json, building) {
     CHECK(again == copy);
 }
 
-QIVEN3_CASE(json, replaced_on_success) {
+QIVEN_CASE(json, replaced_on_success) {
     Std v;
     REQUIRE(!json::try_scan(R"({"a":1})", 16, v));
     CHECK(json::try_scan(R"({"a":1,"a":2})", 16, v) == ParseCode::duplicate_key);

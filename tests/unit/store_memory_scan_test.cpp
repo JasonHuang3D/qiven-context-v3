@@ -8,7 +8,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -35,10 +35,10 @@ struct Rig {
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, scan_at_start) {
+QIVEN_CASE(store_memory, scan_at_start) {
     const auto rig = std::make_unique<Rig>();
     Store store(rig->state, rig->fake);
     Store other(rig->state, rig->fake);
-    qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, rig->chars);
+    qiven3::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
     CHECK(other.verify() == qiven3::test::scan_case::written);
 }

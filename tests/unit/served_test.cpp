@@ -37,7 +37,7 @@
 #include "entry/refs.hpp"
 #include "entry/served.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -393,7 +393,7 @@ std::string m_block(std::string_view first, std::string_view state_line, std::st
 
 }  // namespace
 
-QIVEN3_CASE(served, map_blocks) {
+QIVEN_CASE(served, map_blocks) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Held m1 = held(all, "M1");
@@ -423,7 +423,7 @@ QIVEN3_CASE(served, map_blocks) {
     std::cout << "served.map_blocks: M1 " << served::cost(b1) << " units, M2 " << served::cost(b2) << "\n";
 }
 
-QIVEN3_CASE(served, lesson_when) {
+QIVEN_CASE(served, lesson_when) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Held l1 = held(all, "L1");
@@ -466,7 +466,7 @@ QIVEN3_CASE(served, lesson_when) {
     std::cout << "served.lesson_when: L2 " << served::cost(b2) << " units, " << b2.size() << " bytes\n";
 }
 
-QIVEN3_CASE(served, mx_stub) {
+QIVEN_CASE(served, mx_stub) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Held mx = held(all, "MX");
@@ -490,7 +490,7 @@ QIVEN3_CASE(served, mx_stub) {
               << served::cost(out) << "\n";
 }
 
-QIVEN3_CASE(served, refusals) {
+QIVEN_CASE(served, refusals) {
     const auto code = [](const std::string& line, std::string_view content, const served::State& s,
                          const std::optional<MapMark>& mark) -> std::optional<served::Code> {
         try {

@@ -18,7 +18,7 @@
 
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "wire/wire.hpp"
 
@@ -83,7 +83,7 @@ using qiven3::memory::MemoryError;
 static_assert(wire::failed == 2, "the wire's own failures end with exit status 2");
 static_assert(wire::Output<FakePlatform>, "every platform is an output");
 
-QIVEN3_CASE(wire, empty) {
+QIVEN_CASE(wire, empty) {
     const wire::Bounds none{0, 0, 0};
     const std::optional<wire::RequestView> zero = wire::read_request(0, nullptr, none);
     REQUIRE(zero.has_value());
@@ -99,7 +99,7 @@ QIVEN3_CASE(wire, empty) {
     CHECK(Argv({"a"}, "\xff\xfe").read({1, 1, 1}).has_value());
 }
 
-QIVEN3_CASE(wire, unreadable) {
+QIVEN_CASE(wire, unreadable) {
     const wire::Bounds wide{most, most, most};
     CHECK(!wire::read_request(-1, nullptr, wide).has_value());
     const Argv given({"location", "show"});
@@ -113,7 +113,7 @@ QIVEN3_CASE(wire, unreadable) {
     CHECK(wire::read_request(2, holed.data(), wide).has_value());
 }
 
-QIVEN3_CASE(wire, count) {
+QIVEN_CASE(wire, count) {
     const wire::Bounds three{3, 100, 100};
     const std::optional<wire::RequestView> at = Argv({"a", "b", "c"}).read(three);
     REQUIRE(at.has_value());
@@ -128,7 +128,7 @@ QIVEN3_CASE(wire, count) {
     CHECK(!wire::read_request(5, holed.data(), three).has_value());
 }
 
-QIVEN3_CASE(wire, argument_bytes) {
+QIVEN_CASE(wire, argument_bytes) {
     const wire::Bounds five{4, 5, 100};
     const std::optional<wire::RequestView> at = Argv({"abcde", "", "xyz"}).read(five);
     REQUIRE(at.has_value());
@@ -144,7 +144,7 @@ QIVEN3_CASE(wire, argument_bytes) {
     CHECK(!Argv({"", "a"}).read(empty_only).has_value());
 }
 
-QIVEN3_CASE(wire, total_bytes) {
+QIVEN_CASE(wire, total_bytes) {
     const wire::Bounds six{4, 10, 6};
     const std::optional<wire::RequestView> at = Argv({"abc", "def"}).read(six);
     REQUIRE(at.has_value());
@@ -161,7 +161,7 @@ QIVEN3_CASE(wire, total_bytes) {
     CHECK(!Argv({"ab", "cd", "ef"}).read(tight).has_value());
 }
 
-QIVEN3_CASE(wire, utf8) {
+QIVEN_CASE(wire, utf8) {
     const wire::Bounds wide{most, most, most};
     // U+00EB, U+4E2D, U+20AC, U+1F600, U+E000 and the last code point.
     const std::vector<std::string> good = {"caf\xc3\xab", "\xe4\xb8\xad", "\xe2\x82\xac", "\xf0\x9f\x98\x80",
@@ -183,7 +183,7 @@ QIVEN3_CASE(wire, utf8) {
     std::cout << "wire.utf8: " << good.size() << " read, " << bad.size() << " refused\n";
 }
 
-QIVEN3_CASE(wire, views) {
+QIVEN_CASE(wire, views) {
     const std::vector<std::string> given = {"location", "init", "", " spaced out ", "--config", "x"};
     const Argv vector(given);
     const std::optional<wire::RequestView> read = vector.read({6, 12, 33});
@@ -198,7 +198,7 @@ QIVEN3_CASE(wire, views) {
     CHECK(!read->empty());
 }
 
-QIVEN3_CASE(wire, answer_whole) {
+QIVEN_CASE(wire, answer_whole) {
     FakePlatform fake{Config{}};
     const std::string bytes = "first line\nsecond, caf\xc3\xab\n";
     CHECK_EQ(wire::answer(fake, bytes, 7), 7);
@@ -215,7 +215,7 @@ QIVEN3_CASE(wire, answer_whole) {
     CHECK_EQ(line.written(), bytes);
 }
 
-QIVEN3_CASE(wire, answer_empty) {
+QIVEN_CASE(wire, answer_empty) {
     FakePlatform fake{Config{}};
     CHECK_EQ(wire::answer(fake, "", 3), 3);
     CHECK_EQ(wire::answer(fake, std::string_view{}, 0), 0);
@@ -226,7 +226,7 @@ QIVEN3_CASE(wire, answer_empty) {
     CHECK(fake.calls() == std::vector<std::string>{"standard_output"});
 }
 
-QIVEN3_CASE(wire, answer_failed) {
+QIVEN_CASE(wire, answer_failed) {
     Throwing<PlatformError> platform{PlatformError(Code::io, "stdout", "WriteFile: broken pipe")};
     CHECK_EQ(wire::answer(platform, "a line\n", 0), wire::failed);
     Throwing<MemoryError> memory{MemoryError(MemoryCode::budget, "stdout", "budget 1, request 2, held 0")};
@@ -247,7 +247,7 @@ QIVEN3_CASE(wire, answer_failed) {
     CHECK(typed);
 }
 
-QIVEN3_CASE(wire, answer_faults) {
+QIVEN_CASE(wire, answer_faults) {
 #if defined(QIVEN_FAULTS)
     const std::string bytes = "the answer\n";
     qiven3::memory::Countdown countdown;
@@ -272,6 +272,6 @@ QIVEN3_CASE(wire, answer_faults) {
     std::cout << "wire.answer_faults: platform calls " << k - 1 << "\n";
     CHECK_EQ(k, std::size_t{2});
 #else
-    QIVEN3_SKIP("not applicable: QIVEN_FAULTS is off in this build");
+    QIVEN_SKIP("not applicable: QIVEN_FAULTS is off in this build");
 #endif
 }

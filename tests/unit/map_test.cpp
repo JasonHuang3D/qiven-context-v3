@@ -22,7 +22,7 @@
 #include "entry/served.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -87,7 +87,7 @@ std::string id_of(const header::Header<>& h) {
 
 }  // namespace
 
-QIVEN3_CASE(map, fa2_stale) {
+QIVEN_CASE(map, fa2_stale) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Map m1 = map(all, "M1");

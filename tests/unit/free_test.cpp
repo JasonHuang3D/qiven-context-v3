@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "memory/pool.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -57,7 +57,7 @@ std::vector<std::size_t> free_order(std::size_t n) {
 
 }  // namespace
 
-QIVEN3_CASE(pool, free_every_position) {
+QIVEN_CASE(pool, free_every_position) {
     for (const std::size_t count : spans) {
         std::vector<Page> pages(count);
         Pool pool(48, bytes_of(pages));
@@ -102,7 +102,7 @@ QIVEN3_CASE(pool, free_every_position) {
     }
 }
 
-QIVEN3_CASE(heap, free_every_position) {
+QIVEN_CASE(heap, free_every_position) {
     // One class: 100 bytes in 128, a slot of 144 with its header.
     for (const std::size_t count : spans) {
         std::vector<Page> pages(count);
@@ -129,7 +129,7 @@ QIVEN3_CASE(heap, free_every_position) {
     }
 }
 
-QIVEN3_CASE(heap, free_mixed_classes) {
+QIVEN_CASE(heap, free_mixed_classes) {
     // Six classes in turn, 16 to 512 bytes, until the span is spent.
     constexpr std::array<std::size_t, 6> asked{1, 17, 33, 65, 129, 257};
     constexpr std::array<std::size_t, 6> payload{16, 32, 64, 128, 256, 512};

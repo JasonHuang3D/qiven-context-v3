@@ -102,4 +102,4 @@ qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
 # scans' patterns and a directory scanned, a SQLite store's among them.
 qiven3_add_cases(qiven3_unit_stores LABELS fast fake
   SOURCES stores_test.cpp seams_test.cpp scan_test.cpp
-  LINK qiven3_stores qiven3_seams qiven3_scan qiven3_runner)
+  LINK qiven3_stores qiven3_seams qiven3_scan qiven_runner)

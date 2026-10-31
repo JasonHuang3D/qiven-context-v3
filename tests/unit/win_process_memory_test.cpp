@@ -21,7 +21,7 @@
 #include <string_view>
 #include <utility>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/win_process_case.hpp"
 
 namespace {
@@ -104,7 +104,7 @@ constexpr std::size_t start_news = 6;
 
 }  // namespace
 
-QIVEN3_CASE(win_process, memory) {
+QIVEN_CASE(win_process, memory) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);

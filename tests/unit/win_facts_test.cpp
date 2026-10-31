@@ -21,7 +21,7 @@
 #include "memory/arena.hpp"
 #include "platform/win/facts.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -156,7 +156,7 @@ constexpr std::string_view nowhere = "C:\\qiven3-win-facts-never-read";
 
 }  // namespace
 
-QIVEN3_CASE(win_facts, names) {
+QIVEN_CASE(win_facts, names) {
     // A Win32 error's HRESULT, then COM's own names, then one unnamed.
     const std::array<std::pair<std::uint32_t, std::string_view>, 8> results = {{
         {0x8007001FU, "HRESULT 0x8007001f, ERROR_GEN_FAILURE (31)"},
@@ -181,7 +181,7 @@ QIVEN3_CASE(win_facts, names) {
 
 // System Protection's key unopened: unknown, never off; missing, the key
 // named first; refused, admin_only; another error, the call and the error.
-QIVEN3_CASE(win_facts, unopened) {
+QIVEN_CASE(win_facts, unopened) {
     const std::array<std::pair<long, std::string_view>, 3> statuses = {{
         {2, "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SPP\\Clients: RegOpenKeyExW: "
             "ERROR_FILE_NOT_FOUND (2)"},
@@ -197,7 +197,7 @@ QIVEN3_CASE(win_facts, unopened) {
 
 // A relative path and a text no path holds: path, before any read, each
 // member's out cleared.
-QIVEN3_CASE(win_facts, refusals) {
+QIVEN_CASE(win_facts, refusals) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -237,7 +237,7 @@ QIVEN3_CASE(win_facts, refusals) {
 // Each member's first call failed: facts' and residual's GetVolumePathNameW,
 // synced's GetEnvironmentVariableW, each path naming the call and 31; the
 // failed call runs nothing, so no machine fact is read.
-QIVEN3_CASE(win_facts, first_fault) {
+QIVEN_CASE(win_facts, first_fault) {
 #if defined(QIVEN_FAULTS)
     WindowsPlatform platform(std::nullopt);
     qiven3::memory::Countdown countdown;
@@ -271,6 +271,6 @@ QIVEN3_CASE(win_facts, first_fault) {
     platform.attach(nullptr);
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

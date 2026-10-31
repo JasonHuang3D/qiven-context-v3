@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "platform/files.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 
@@ -163,7 +163,7 @@ constexpr Seconds five{5.0};
 
 }  // namespace
 
-QIVEN3_CASE(files, replace) {
+QIVEN_CASE(files, replace) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const fs::path target = scratch.root / "record.json";
@@ -178,7 +178,7 @@ QIVEN3_CASE(files, replace) {
 
 // P9 on the fake: a reader holds the target, released before the deadline,
 // then held past it; a handle on the temporary file, the same.
-QIVEN3_CASE(files, replace_held) {
+QIVEN_CASE(files, replace_held) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const fs::path target = scratch.root / "map-marks.json";
@@ -226,7 +226,7 @@ QIVEN3_CASE(files, replace_held) {
 
 // replace refused: P25's paths, a relative one, one outside the root, one
 // with no name, a missing directory; nothing written.
-QIVEN3_CASE(files, replace_refused) {
+QIVEN_CASE(files, replace_refused) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const std::string root = text(scratch.root);
@@ -246,7 +246,7 @@ QIVEN3_CASE(files, replace_refused) {
 // P19 on the fake: two files staged and published; again with a file held
 // inside, released before the deadline, then held past it; then onto a
 // present name; open of ../x and publish of a/b.
-QIVEN3_CASE(files, stage) {
+QIVEN_CASE(files, stage) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const std::string root = text(scratch.root);
@@ -317,7 +317,7 @@ QIVEN3_CASE(files, stage) {
 // would each give another first. The first by its path inside, component
 // by component in UTF-8's byte order, is named: B/y.txt, B ending before
 // B-x.txt and B before a.txt; the Windows adapter's walk meets it first.
-QIVEN3_CASE(files, stage_order) {
+QIVEN_CASE(files, stage_order) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     auto stage = fake.stage(text(scratch.root));
@@ -342,7 +342,7 @@ QIVEN3_CASE(files, stage_order) {
 // 17th refused, io naming the bound, nothing made; one closed, then one more
 // open. Each end that frees a slot: a Sink's close and its end, publish,
 // discard and the Staged's end.
-QIVEN3_CASE(files, stage_bound) {
+QIVEN_CASE(files, stage_bound) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const std::string root = text(scratch.root);
@@ -391,7 +391,7 @@ QIVEN3_CASE(files, stage_bound) {
 // An open whose record's insert throws (its fault point, open's second
 // call): io, and no file, no parent made by the open, nothing more open or
 // kept; the next open makes its file.
-QIVEN3_CASE(files, stage_insert) {
+QIVEN_CASE(files, stage_insert) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
@@ -413,13 +413,13 @@ QIVEN3_CASE(files, stage_insert) {
     stage.discard();
     CHECK_EQ(fake.files().kept(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
 // P20's lock on the fake: held, then released before the deadline; held
 // past it; another holder's count.
-QIVEN3_CASE(files, lock) {
+QIVEN_CASE(files, lock) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     const std::string path = text(scratch.root / "location.lock");
@@ -443,7 +443,7 @@ QIVEN3_CASE(files, lock) {
 
 // Each system call and each platform call failed in turn: a typed error,
 // the target's bytes whole, no temporary file and nothing kept after.
-QIVEN3_CASE(files, faults) {
+QIVEN_CASE(files, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
@@ -459,7 +459,7 @@ QIVEN3_CASE(files, faults) {
     fake.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
         const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven3_ctx.log, site, countdown, op, clean);
+            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);
@@ -499,6 +499,6 @@ QIVEN3_CASE(files, faults) {
     CHECK(clean(0));
     fake.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

@@ -18,7 +18,7 @@
 #include "entry/secret.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/patterns.hpp"
 
@@ -109,12 +109,12 @@ bool budget_error(const MemoryError& e) { return e.code == MemoryCode::budget; }
 
 }  // namespace
 
-QIVEN3_CASE(matcher, vectors) {
+QIVEN_CASE(matcher, vectors) {
     // The static assertions above held, or this binary was not built.
     CHECK(hits(lane, "writer"));
 }
 
-QIVEN3_CASE(matcher, patterns) {
+QIVEN_CASE(matcher, patterns) {
     std::vector<matcher::Basic<>> compiled;
     for (const std::string_view p : patterns()) {
         compiled.push_back(matcher::compile(p));
@@ -134,7 +134,7 @@ QIVEN3_CASE(matcher, patterns) {
     CHECK_EQ(compiled.size(), 12U);
 }
 
-QIVEN3_CASE(matcher, linear) {
+QIVEN_CASE(matcher, linear) {
     // url-password over a://, 30,000 x, : and 30,000 p, with no @: no hit.
     const matcher::Basic<> url = matcher::compile(patterns()[7]);
     for (const std::size_t n : {std::size_t{10000}, std::size_t{30000}}) {
@@ -151,7 +151,7 @@ QIVEN3_CASE(matcher, linear) {
     }
 }
 
-QIVEN3_CASE(matcher, compile_budget) {
+QIVEN_CASE(matcher, compile_budget) {
     std::vector<std::string_view> all = patterns();
     for (const std::string_view s : {lane, number, key_syntax, case_id, symbol}) {
         all.push_back(s);
@@ -160,7 +160,7 @@ QIVEN3_CASE(matcher, compile_budget) {
     all.emplace_back("[a-z]{255}");
     std::size_t largest = 0;
     for (const std::string_view p : all) {
-        Arena& arena = qiven3_ctx.counted.arena(matcher::compile_budget);
+        Arena& arena = qiven_ctx.counted.arena(matcher::compile_budget);
         std::size_t peak = 0;
         {
             matcher::Automaton a{Allocator<char>(arena)};
@@ -178,7 +178,7 @@ QIVEN3_CASE(matcher, compile_budget) {
         largest = peak > largest ? peak : largest;
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
         // A byte short: MemoryError budget, the caller's automaton unchanged.
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         matcher::Automaton a{Allocator<char>(shorter)};
         bool refused = false;
         try {
@@ -194,7 +194,7 @@ QIVEN3_CASE(matcher, compile_budget) {
               << matcher::compile_budget << ", scratch " << sizeof(matcher::detail::Scratch) << "\n";
 }
 
-QIVEN3_CASE(matcher, faults) {
+QIVEN_CASE(matcher, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(matcher::compile_budget + 4096);
     qiven3::memory::Countdown countdown;
@@ -208,7 +208,7 @@ QIVEN3_CASE(matcher, faults) {
         compiled = a.compiled() && matcher::hit(a, "Authorization: Bearer " + rep("a", 8));
     };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "matcher.compile", countdown, compile, check);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "matcher.compile", countdown, compile, check);
     std::cout << "matcher.faults: compile's allocations " << runs.typed << ", completed at " << runs.completed_at
               << "\n";
     // The scratch, then the automaton's words.
@@ -219,6 +219,6 @@ QIVEN3_CASE(matcher, faults) {
     CHECK(compiled);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

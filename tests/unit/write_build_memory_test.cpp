@@ -30,7 +30,7 @@
 #include "entry/kinds.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "write/build.hpp"
@@ -205,10 +205,10 @@ std::string path_file_of(const Scratch& scratch) {
 
 }  // namespace
 
-QIVEN3_CASE(write_build, budget) {
+QIVEN_CASE(write_build, budget) {
     FakePlatform platform(config());
     for (const std::string* bytes : {&write_file, &import_file}) {
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         {
             const we::File f = we::read(*bytes, arena);
             const std::size_t file_held = arena.used();
@@ -227,7 +227,7 @@ QIVEN3_CASE(write_build, budget) {
         CHECK_EQ(arena.used(), 0U);
     }
     // A refusal once built: out empty, the file alone held.
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     Left left;
     build(invalid_file, arena, platform, none, none, left);
     REQUIRE(left.refused.has_value());
@@ -237,7 +237,7 @@ QIVEN3_CASE(write_build, budget) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(write_build, faults) {
+QIVEN_CASE(write_build, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -260,7 +260,7 @@ QIVEN3_CASE(write_build, faults) {
                   left, we::Hooks{&countdown});
         };
         const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-            qiven3_ctx.log, "write_build.build", countdown, op, [&](std::size_t) { return left.clean; });
+            qiven_ctx.log, "write_build.build", countdown, op, [&](std::size_t) { return left.clean; });
         std::cout << "write_build.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);
@@ -272,11 +272,11 @@ QIVEN3_CASE(write_build, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
-QIVEN3_CASE(write_build, platform_faults) {
+QIVEN_CASE(write_build, platform_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     const std::string bytes = path_file_of(scratch);
@@ -307,7 +307,7 @@ QIVEN3_CASE(write_build, platform_faults) {
         }
     };
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<Failed>(
-        qiven3_ctx.log, "write_build.platform", countdown, op,
+        qiven_ctx.log, "write_build.platform", countdown, op,
         [&](std::size_t) { return left.clean && platform.calls().back() == "wipe"; });
     std::cout << "write_build.faults: the platform's calls failed " << runs.typed << ", completed at "
               << runs.completed_at << ", reads refused " << refusals << "\n";
@@ -320,6 +320,6 @@ QIVEN3_CASE(write_build, platform_faults) {
     CHECK_EQ(left.built, 3U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

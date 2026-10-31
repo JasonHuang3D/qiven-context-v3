@@ -24,7 +24,7 @@
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
@@ -89,7 +89,7 @@ std::string since(const Fake& fake, std::size_t& mark) {
 
 }  // namespace
 
-QIVEN3_CASE(location, arguments) {
+QIVEN_CASE(location, arguments) {
     const std::array<std::string_view, 5> init = {"init", "--config", "/c", "/d", "--accept"};
     const auto a = location::arguments(init);
     REQUIRE(a.has_value());
@@ -108,7 +108,7 @@ QIVEN3_CASE(location, arguments) {
     CHECK(!location::arguments({}));
 }
 
-QIVEN3_CASE(location, smoke) {
+QIVEN_CASE(location, smoke) {
     const Scratch scratch;
     const std::string dir = text(scratch.root / "store");
     const std::string other = text(scratch.root / "other");
@@ -154,7 +154,7 @@ QIVEN3_CASE(location, smoke) {
 
 // Each usage error through main: exit 2, the usage line alone, the platform
 // called for standard_output alone, nothing made; the statuses the text's.
-QIVEN3_CASE(location, usage) {
+QIVEN_CASE(location, usage) {
     static_assert(location::recorded == 0 && location::refused == 1 && location::usage == 2 &&
                   location::not_accepted == 4);
     const Scratch scratch;

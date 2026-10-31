@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "memory/arena.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "write/entries.hpp"
 
 namespace qiven3::fuzz {
@@ -66,7 +66,7 @@ std::string outcome(std::string_view bytes) {
 
 }  // namespace
 
-QIVEN3_CASE(fuzz_regress, entries_seeds_give_their_refusals) {
+QIVEN_CASE(fuzz_regress, entries_seeds_give_their_refusals) {
     namespace fuzz = qiven3::fuzz;
     std::array<int, seeds.size()> met{};
     std::size_t ran = 0;

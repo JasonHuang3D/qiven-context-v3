@@ -23,7 +23,7 @@
 #include "memory/arena.hpp"
 #include "memory/poison.hpp"
 #include "memory/pool.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -72,7 +72,7 @@ void touch(const void* p) {
 constexpr const char* unseen = "not applicable: built without QIVEN_SYSTEM_HEAP or AddressSanitizer";
 #endif
 
-QIVEN3_CASE(free, pool_foreign) {
+QIVEN_CASE(free, pool_foreign) {
     const auto mine = std::make_unique<Page>();
     const auto theirs = std::make_unique<Page>();
     Pool pool(48, mine->bytes);
@@ -86,7 +86,7 @@ QIVEN3_CASE(free, pool_foreign) {
     not_caught();
 }
 
-QIVEN3_CASE(free, pool_interior) {
+QIVEN_CASE(free, pool_interior) {
     const auto pages = std::make_unique<Page>();
     Pool pool(48, pages->bytes);
     void* p = pool.allocate();
@@ -96,7 +96,7 @@ QIVEN3_CASE(free, pool_interior) {
     not_caught();
 }
 
-QIVEN3_CASE(free, pool_one_past) {
+QIVEN_CASE(free, pool_one_past) {
     // One past the one slot handed out: the next slot's place, not yet cut.
     const auto pages = std::make_unique<Page>();
     Pool pool(48, pages->bytes);
@@ -107,7 +107,7 @@ QIVEN3_CASE(free, pool_one_past) {
     not_caught();
 }
 
-QIVEN3_CASE(free, pool_past_span) {
+QIVEN_CASE(free, pool_past_span) {
     const auto pages = std::make_unique<Page>();
     Pool pool(4096, pages->bytes);
     void* p = pool.allocate();
@@ -117,7 +117,7 @@ QIVEN3_CASE(free, pool_past_span) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_foreign) {
+QIVEN_CASE(free, heap_foreign) {
     const auto mine = std::make_unique<Page>();
     const auto theirs = std::make_unique<Page>();
     Heap heap(mine->bytes);
@@ -131,7 +131,7 @@ QIVEN3_CASE(free, heap_foreign) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_interior) {
+QIVEN_CASE(free, heap_interior) {
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
     void* p = heap.allocate(128);
@@ -144,7 +144,7 @@ QIVEN3_CASE(free, heap_interior) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_interior_forged) {
+QIVEN_CASE(free, heap_interior_forged) {
     // An interior pointer whose preceding bytes copy a held block's header,
     // its class and its state, but not its own offset.
     const auto pages = std::make_unique<Page>();
@@ -158,7 +158,7 @@ QIVEN3_CASE(free, heap_interior_forged) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_one_past) {
+QIVEN_CASE(free, heap_one_past) {
     // One past the last block: the front of the span not yet cut.
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
@@ -169,7 +169,7 @@ QIVEN3_CASE(free, heap_one_past) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_past_span) {
+QIVEN_CASE(free, heap_past_span) {
     // The span's one block of 2,048 bytes ends 2,032 bytes short of its end.
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
@@ -180,7 +180,7 @@ QIVEN3_CASE(free, heap_past_span) {
     not_caught();
 }
 
-QIVEN3_CASE(free, heap_twice) {
+QIVEN_CASE(free, heap_twice) {
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
     void* p = heap.allocate(100);
@@ -190,7 +190,7 @@ QIVEN3_CASE(free, heap_twice) {
     not_caught();
 }
 
-QIVEN3_CASE(asan, pool_use_after_free) {
+QIVEN_CASE(asan, pool_use_after_free) {
 #if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
     Pool pool(48, pages->bytes);
@@ -199,11 +199,11 @@ QIVEN3_CASE(asan, pool_use_after_free) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP(unseen);
+    QIVEN_SKIP(unseen);
 #endif
 }
 
-QIVEN3_CASE(asan, heap_use_after_free) {
+QIVEN_CASE(asan, heap_use_after_free) {
 #if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
@@ -212,11 +212,11 @@ QIVEN3_CASE(asan, heap_use_after_free) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP(unseen);
+    QIVEN_SKIP(unseen);
 #endif
 }
 
-QIVEN3_CASE(asan, heap_header) {
+QIVEN_CASE(asan, heap_header) {
     // The first block's header, the span's first 16 bytes, its payload after.
 #if QIVEN3_POISONING
     const auto pages = std::make_unique<Page>();
@@ -226,12 +226,12 @@ QIVEN3_CASE(asan, heap_header) {
     heap.free(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: a block's header is in the span, poisoned, only under "
+    QIVEN_SKIP("not applicable: a block's header is in the span, poisoned, only under "
                 "AddressSanitizer without QIVEN_SYSTEM_HEAP");
 #endif
 }
 
-QIVEN3_CASE(asan, arena_use_after_end) {
+QIVEN_CASE(asan, arena_use_after_end) {
 #if defined(QIVEN_SYSTEM_HEAP)
     const auto pages = std::make_unique<Page>();
     void* p = nullptr;
@@ -242,12 +242,12 @@ QIVEN3_CASE(asan, arena_use_after_end) {
     touch(p);
     not_caught();
 #else
-    QIVEN3_SKIP("not applicable: the block is the system heap's only under QIVEN_SYSTEM_HEAP; in the "
+    QIVEN_SKIP("not applicable: the block is the system heap's only under QIVEN_SYSTEM_HEAP; in the "
                 "span, the arena's end gives the pages back to their owner unpoisoned");
 #endif
 }
 
-QIVEN3_CASE(asan, arena_past_block) {
+QIVEN_CASE(asan, arena_past_block) {
     // The arena's unused span past a block: past its cursor.
 #if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
@@ -257,11 +257,11 @@ QIVEN3_CASE(asan, arena_past_block) {
     arena.deallocate(p, 100);
     not_caught();
 #else
-    QIVEN3_SKIP(unseen);
+    QIVEN_SKIP(unseen);
 #endif
 }
 
-QIVEN3_CASE(asan, arena_padding) {
+QIVEN_CASE(asan, arena_padding) {
     // The padding between a block of 100 bytes and the next at 112.
 #if QIVEN3_SEEN
     const auto pages = std::make_unique<Page>();
@@ -273,6 +273,6 @@ QIVEN3_CASE(asan, arena_padding) {
     arena.deallocate(p, 100);
     not_caught();
 #else
-    QIVEN3_SKIP(unseen);
+    QIVEN_SKIP(unseen);
 #endif
 }

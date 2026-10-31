@@ -16,7 +16,7 @@
 #include "log/log.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/log/cases.hpp"
 
@@ -49,8 +49,8 @@ std::string untimed(std::string_view line) {
 
 }  // namespace
 
-QIVEN3_CASE(log, start) {
-    Arena& arena = qiven3_ctx.counted.arena(log_budget);
+QIVEN_CASE(log, start) {
+    Arena& arena = qiven_ctx.counted.arena(log_budget);
     {
         const qlog::Log lg(arena, qlog::Count(7U), "qiven3_unit_log");
         // The ring's span and the events' pages, exactly, and no padding.
@@ -68,8 +68,8 @@ QIVEN3_CASE(log, start) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(log, operations) {
-    Arena& arena = qiven3_ctx.counted.arena(log_budget);
+QIVEN_CASE(log, operations) {
+    Arena& arena = qiven_ctx.counted.arena(log_budget);
     qlog::Log lg(arena, qlog::Count(1U), "qiven3_unit_log");
     {
         qlog::Op first = qlog::begin(lg, "first");
@@ -105,8 +105,8 @@ QIVEN3_CASE(log, operations) {
     CHECK(last.find(R"("name":"second","op":2,"outcome":"dropped","peak":0,)") != std::string::npos);
 }
 
-QIVEN3_CASE(log, drain) {
-    Arena& arena = qiven3_ctx.counted.arena(log_budget);
+QIVEN_CASE(log, drain) {
+    Arena& arena = qiven_ctx.counted.arena(log_budget);
     qlog::Log lg(arena, qlog::Count(2U), "qiven3_unit_log");
     Sink out;
     CHECK(lg.drain(out));
@@ -148,10 +148,10 @@ QIVEN3_CASE(log, drain) {
               << " evicted by log.dropped's line\n";
 }
 
-QIVEN3_CASE(log, budget) {
+QIVEN_CASE(log, budget) {
     // The Log's two blocks: a byte short refuses the second, nothing held.
     {
-        Arena& shorter = qiven3_ctx.counted.arena(log_budget - 1);
+        Arena& shorter = qiven_ctx.counted.arena(log_budget - 1);
         bool refused = false;
         try {
             const qlog::Log lg(shorter, qlog::Count(1U), "qiven3_unit_log");
@@ -163,7 +163,7 @@ QIVEN3_CASE(log, budget) {
     }
     // The widest event, eight 64-byte names: its line within 1,024 bytes
     // and its arena's peak within the 4 KiB.
-    Arena& arena = qiven3_ctx.counted.arena(log_budget);
+    Arena& arena = qiven_ctx.counted.arena(log_budget);
     qlog::Log lg(arena, qlog::Count(qlog::max_number), "qiven3_unit_log");
     qiven3::test::widest(lg);
     CHECK_EQ(lg.failed(), 0U);
@@ -177,9 +177,9 @@ QIVEN3_CASE(log, budget) {
               << "), its event's peak " << lg.peak() << " of " << qlog::Log::event_bytes << "\n";
     // The same line over its peak less a byte: MemoryError budget, the
     // output unchanged.
-    const std::size_t peak = qiven3::test::widest_peak(qiven3_ctx.counted.arena(qlog::Log::event_bytes));
+    const std::size_t peak = qiven3::test::widest_peak(qiven_ctx.counted.arena(qlog::Log::event_bytes));
     CHECK(peak <= lg.peak());
-    Arena& tight = qiven3_ctx.counted.arena(peak - 1);
+    Arena& tight = qiven_ctx.counted.arena(peak - 1);
     bool refused = false;
     try {
         static_cast<void>(qiven3::test::widest_peak(tight));
@@ -190,7 +190,7 @@ QIVEN3_CASE(log, budget) {
     CHECK_EQ(tight.used(), 0U);
 }
 
-QIVEN3_CASE(log, faults) {
+QIVEN_CASE(log, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(log_budget);
     qiven3::memory::Countdown countdown;
@@ -202,7 +202,7 @@ QIVEN3_CASE(log, faults) {
     };
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     const qiven3::test::FaultRuns made = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "log.make", countdown, make, check);
+        qiven_ctx.log, "log.make", countdown, make, check);
     // The ring's span and the events' pages.
     CHECK_EQ(made.typed, 2U);
     CHECK_EQ(made.completed_at, 3U);
@@ -237,11 +237,11 @@ QIVEN3_CASE(log, faults) {
     CHECK_EQ(allocations, 4U);
     CHECK_EQ(completed_at, 5U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(log, constant) {
+QIVEN_CASE(log, constant) {
     // The static half (unit/log_static.cpp) held if this
     // binary was built; this reports it.
     CHECK(qiven3::test::constant_held());

@@ -24,7 +24,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -207,7 +207,7 @@ bool same(const Vector<LaneHead>& a, const Vector<LaneHead>& b) {
 
 }  // namespace
 
-QIVEN3_CASE(store_exchange, smoke) {
+QIVEN_CASE(store_exchange, smoke) {
     const auto rig = std::make_unique<Rig>();
     const auto source = std::make_unique<Store>(Store::open(rig->path("from"), true, false, rig->fake));
     fill(*source, rig->chars);

@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "support/stores/records.hpp"
 
@@ -72,7 +72,7 @@ std::string rest(H& scan, const Chars& chars, std::size_t most = std::numeric_li
 
 // store and other: two objects on one empty store, read-write.
 template <store::Store S>
-void scan_ends_at_start(Context& qiven3_ctx, S& store, S& other, const Chars& chars) {
+void scan_ends_at_start(qiven::runner::Context& qiven_ctx, S& store, S& other, const Chars& chars) {
     const Lanes lanes;
     const std::vector<Rec>& mine = lanes.mine;
     const std::vector<Rec>& theirs = lanes.theirs;

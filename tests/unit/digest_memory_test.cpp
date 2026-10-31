@@ -18,7 +18,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 
@@ -62,9 +62,9 @@ std::array<std::byte, 32> fixture_key() {
 
 // One operation of digest's, writing into out.
 template <typename Op>
-void budget_case(qiven3::test::Context& qiven3_ctx, std::string_view name, std::size_t input, const Op& op) {
+void budget_case(qiven::runner::Context& qiven_ctx, std::string_view name, std::size_t input, const Op& op) {
     const std::size_t budget = budget_for(input);
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     std::size_t peak = 0;
     std::size_t allocations = 0;
     {
@@ -78,7 +78,7 @@ void budget_case(qiven3::test::Context& qiven3_ctx, std::string_view name, std::
     CHECK(peak <= budget);
     CHECK(arena.used() == 0);
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
-    Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+    Arena& shorter = qiven_ctx.counted.arena(peak - 1);
     String out{Allocator<char>(shorter)};
     bool refused = false;
     try {
@@ -95,17 +95,17 @@ void budget_case(qiven3::test::Context& qiven3_ctx, std::string_view name, std::
 
 }  // namespace
 
-QIVEN3_CASE(digest, budgets) {
+QIVEN_CASE(digest, budgets) {
     const Header header;
     Fake fake{qiven3::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, fixture_key());
-    budget_case(qiven3_ctx, "frame", header.bytes(), [&](String& out) { digest::frame(header.fields, out); });
-    budget_case(qiven3_ctx, "entry_id", header.bytes(), [&](String& out) { digest::entry_id(header.fields, out); });
-    budget_case(qiven3_ctx, "plain", header.content.size(), [&](String& out) { digest::plain(header.content, out); });
-    budget_case(qiven3_ctx, "keyed", header.content.size(),
+    budget_case(qiven_ctx, "frame", header.bytes(), [&](String& out) { digest::frame(header.fields, out); });
+    budget_case(qiven_ctx, "entry_id", header.bytes(), [&](String& out) { digest::entry_id(header.fields, out); });
+    budget_case(qiven_ctx, "plain", header.content.size(), [&](String& out) { digest::plain(header.content, out); });
+    budget_case(qiven_ctx, "keyed", header.content.size(),
                 [&](String& out) { digest::keyed(key, header.content, out); });
     // new_key takes no arena: the key and its draw are on the stack.
-    Arena& arena = qiven3_ctx.counted.arena(budget_for(0));
+    Arena& arena = qiven_ctx.counted.arena(budget_for(0));
     {
         const digest::Key<Fake> drawn = digest::new_key(fake);
         String out{Allocator<char>(arena)};
@@ -115,7 +115,7 @@ QIVEN3_CASE(digest, budgets) {
     CHECK(arena.used() == 0);
 }
 
-QIVEN3_CASE(digest, faults) {
+QIVEN_CASE(digest, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Header header;
     Fake fake{qiven3::platform::fake::Config{}};
@@ -126,7 +126,7 @@ QIVEN3_CASE(digest, faults) {
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     const auto runs = [&](qiven3::log::Name site, auto write) {
         const qiven3::test::FaultRuns r = qiven3::test::run_faults<MemoryError>(
-            qiven3_ctx.log, site, countdown,
+            qiven_ctx.log, site, countdown,
             [&] {
                 arena.emplace(pages);
                 arena->attach(&countdown);
@@ -149,7 +149,7 @@ QIVEN3_CASE(digest, faults) {
     // new_key's platform calls: the draw fails, its bytes wiped after.
     fake.attach(&countdown);
     const qiven3::test::FaultRuns draws = qiven3::test::run_faults<qiven3::platform::PlatformError>(
-        qiven3_ctx.log, "digest.new_key", countdown, [&] { const digest::Key<Fake> k = digest::new_key(fake); },
+        qiven_ctx.log, "digest.new_key", countdown, [&] { const digest::Key<Fake> k = digest::new_key(fake); },
         [&](std::size_t) { return fake.calls().back() == "wipe"; });
     fake.attach(nullptr);
     std::cout << "digest.faults: new_key's platform calls failed " << draws.typed << ", completed at "
@@ -159,6 +159,6 @@ QIVEN3_CASE(digest, faults) {
     CHECK_EQ(draws.untyped, 0U);
     CHECK_EQ(draws.unchecked, 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

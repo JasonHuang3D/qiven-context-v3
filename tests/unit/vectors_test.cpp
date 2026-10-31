@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/vectors.hpp"
 
@@ -288,7 +288,7 @@ std::string_view ids() {
 
 }  // namespace
 
-QIVEN3_CASE(vectors, ids) {
+QIVEN_CASE(vectors, ids) {
     CHECK_EQ(fixtures::vector_file_count(), 1U);
     CHECK_EQ(fixtures::vector_file_name(0), std::string_view("ids.json"));
     Context c;
@@ -304,7 +304,7 @@ QIVEN3_CASE(vectors, ids) {
               << " entries, " << c.files.size() << " file versions\n";
 }
 
-QIVEN3_CASE(vectors, planted) {
+QIVEN_CASE(vectors, planted) {
     Context c;
     fixtures::load_entries(c.fixtures);
     const std::string_view data = ids();

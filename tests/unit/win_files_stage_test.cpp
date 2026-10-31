@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -154,7 +154,7 @@ using qiven3::platform::win::ClockTrace;
 // text's 50 ms after each such read but a spent one. Spent: it gave up at
 // its first read past the deadline, never before; else every read short
 // of it.
-void check_clock(qiven3::test::Context& qiven3_ctx, const ClockTrace& t, std::chrono::milliseconds before,
+void check_clock(qiven::runner::Context& qiven_ctx, const ClockTrace& t, std::chrono::milliseconds before,
                  std::chrono::milliseconds after, Seconds deadline, bool spent) {
     CHECK(t.reads >= (spent ? 2U : 1U));
     CHECK(before <= t.first && t.first <= t.previous && t.previous <= t.last && t.last <= after);
@@ -174,7 +174,7 @@ constexpr std::string_view ended = "the staging directory is published or discar
 // parents made, then published under name, no staging directory left; a
 // file publish closed answers a write io and a close none; the ended
 // Staged io; each refused path, nothing made; open's errors.
-QIVEN3_CASE(win_files_stage, publish) {
+QIVEN_CASE(win_files_stage, publish) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path bags = scratch.root / "bags";
@@ -250,7 +250,7 @@ QIVEN3_CASE(win_files_stage, publish) {
 
 // Onto a present name, empty or not: exists, its bytes kept, the staging
 // directory discarded first.
-QIVEN3_CASE(win_files_stage, publish_exists) {
+QIVEN_CASE(win_files_stage, publish_exists) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     fs::create_directories(scratch.root / "full");
@@ -278,7 +278,7 @@ QIVEN3_CASE(win_files_stage, publish_exists) {
 // left and the file that stopped its discard; released, a discard removes
 // it. Under QIVEN_FAULTS the trace shows each publish's retries as
 // check_clock states them.
-QIVEN3_CASE(win_files_stage, publish_held) {
+QIVEN_CASE(win_files_stage, publish_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
 #if defined(QIVEN_FAULTS)
@@ -312,7 +312,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         CHECK(after - before >= 100ms);  // not before the release
 #if defined(QIVEN_FAULTS)
         platform.trace(nullptr);
-        check_clock(qiven3_ctx, trace, before, after, five, false);
+        check_clock(qiven_ctx, trace, before, after, five, false);
         trace = ClockTrace{};
 #endif
         CHECK_EQ(bytes_of(scratch.root / "one" / "data" / "headers.jsonl"), std::string("{}\n"));
@@ -337,7 +337,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
         CHECK(after - before >= short_wait);
 #if defined(QIVEN_FAULTS)
         platform.trace(nullptr);
-        check_clock(qiven3_ctx, trace, before, after, short_wait, true);
+        check_clock(qiven_ctx, trace, before, after, short_wait, true);
 #endif
         CHECK(!fs::exists(scratch.root / "two"));
         CHECK(fs::is_regular_file(scratch.root / name / "bagit.txt"));
@@ -350,7 +350,7 @@ QIVEN3_CASE(win_files_stage, publish_held) {
 // discard: the tree gone, its open files closed; a file inside held: busy,
 // left naming it by its path inside, which a later discard removes; the
 // Staged's end discards.
-QIVEN3_CASE(win_files_stage, discard) {
+QIVEN_CASE(win_files_stage, discard) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     {
@@ -398,7 +398,7 @@ QIVEN3_CASE(win_files_stage, discard) {
 // its path inside, component by component in UTF-8's byte order, is named:
 // B/y.txt, B ending before B-x.txt and B before a.txt. a.txt alone held,
 // the walk deletes those before it and names it.
-QIVEN3_CASE(win_files_stage, discard_order) {
+QIVEN_CASE(win_files_stage, discard_order) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     WindowsStaged staged = platform.stage(text(scratch.root));
@@ -434,7 +434,7 @@ QIVEN3_CASE(win_files_stage, discard_order) {
 // io naming the bound with nothing made; then each end that frees a place,
 // the places it frees opened again, one more refused: a Sink's close, its
 // end, publish, discard and the Staged's end.
-QIVEN3_CASE(win_files_stage, bound) {
+QIVEN_CASE(win_files_stage, bound) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const std::string root = text(scratch.root);
@@ -487,7 +487,7 @@ QIVEN3_CASE(win_files_stage, bound) {
 // handle open under the runs' directory, the run completing past the last;
 // then every place free, 16 open and the 17th refused. The pages' fault is
 // memory, as their refusal is; the random draw's and the directory's io.
-QIVEN3_CASE(win_files_stage, faults) {
+QIVEN_CASE(win_files_stage, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -503,7 +503,7 @@ QIVEN3_CASE(win_files_stage, faults) {
     platform.attach(&countdown);
     const auto check = [&](qiven3::log::Name site, auto op, std::size_t completed) {
         const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven3_ctx.log, site, countdown, op, clean);
+            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_files_stage.faults: completed at " << r.completed_at << ", typed "
                   << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
@@ -580,6 +580,6 @@ QIVEN3_CASE(win_files_stage, faults) {
     CHECK_EQ(fill(staged, sinks, "f"), 16U);
     staged.discard();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

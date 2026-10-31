@@ -72,7 +72,7 @@ def line_ending_findings(root):
 
 
 class LineEndings(unittest.TestCase):
-    ctest_git = True  # starts git: listed on the loop's build alone (tests/runner/list_tests.py)
+    ctest_git = True  # starts git: listed on the loop's build alone (foundation/devkit/test/runner/list_tests.py)
 
     def test_tree(self):
         self.assertEqual(line_ending_findings(rules.ROOT), [])

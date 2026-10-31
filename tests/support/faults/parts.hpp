@@ -31,7 +31,7 @@
 #include <string_view>
 
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace qiven3::test {
@@ -97,8 +97,8 @@ struct FaultParts {
 inline bool registered(std::string_view base, std::size_t n) {
     for (std::size_t i = 1; i <= n + 1; ++i) {
         const std::string name = std::string(base) + "_part" + std::to_string(i);
-        const bool found = std::any_of(registry().begin(), registry().end(),
-                                       [&name](const Case& c) { return c.name == name; });
+        const bool found = std::any_of(qiven::runner::registry().begin(), qiven::runner::registry().end(),
+                                       [&name](const qiven::runner::Case& c) { return c.name == name; });
         if (found != (i <= n)) {
             return false;
         }
@@ -164,6 +164,6 @@ private:
 
 }  // namespace qiven3::test
 
-// A part's case, "<group>.<name>_part<i>", i from 1: fn(qiven3_ctx, i - 1).
+// A part's case, "<group>.<name>_part<i>", i from 1: fn(qiven_ctx, i - 1).
 #define QIVEN3_FAULT_PART(group, name, i, fn) \
-    QIVEN3_CASE(group, name##_part##i) { fn(qiven3_ctx, std::size_t{i} - 1); }
+    QIVEN_CASE(group, name##_part##i) { fn(qiven_ctx, std::size_t{i} - 1); }

@@ -24,7 +24,7 @@
 #include "platform/files.hpp"
 #include "platform/win/files.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -142,7 +142,7 @@ constexpr Seconds once{0.0};
 
 }  // namespace
 
-QIVEN3_CASE(win_names, list) {
+QIVEN_CASE(win_names, list) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     WindowsFiles system(platform);
@@ -173,7 +173,7 @@ QIVEN3_CASE(win_names, list) {
     CHECK(thrown([&] { platform.list("relative", names); }).code == Code::path);
 }
 
-QIVEN3_CASE(win_names, remove) {
+QIVEN_CASE(win_names, remove) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     WindowsFiles system(platform);
@@ -204,7 +204,7 @@ QIVEN3_CASE(win_names, remove) {
     CHECK(thrown([&] { platform.remove("relative"); }).code == Code::path);
 }
 
-QIVEN3_CASE(win_names, rename) {
+QIVEN_CASE(win_names, rename) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     WindowsFiles system(platform);
@@ -239,7 +239,7 @@ QIVEN3_CASE(win_names, rename) {
     CHECK(thrown([&] { platform.rename("relative", "moved", five); }).code == Code::path);
 }
 
-QIVEN3_CASE(win_names, faults) {
+QIVEN_CASE(win_names, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -257,7 +257,7 @@ QIVEN3_CASE(win_names, faults) {
     platform.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
         const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven3_ctx.log, site, countdown, op, clean);
+            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);
@@ -288,6 +288,6 @@ QIVEN3_CASE(win_names, faults) {
     CHECK(clean(0));
     platform.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

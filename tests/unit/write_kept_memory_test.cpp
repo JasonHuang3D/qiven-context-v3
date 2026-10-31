@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
@@ -196,7 +196,7 @@ struct Case {
 }  // namespace
 #endif
 
-QIVEN3_CASE(write_kept_memory, faults) {
+QIVEN_CASE(write_kept_memory, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto bed = std::make_unique<Bed>();
     qiven3::memory::Countdown countdown;
@@ -214,7 +214,7 @@ QIVEN3_CASE(write_kept_memory, faults) {
             }
         };
         const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-            qiven3_ctx.log, "write_kept.write", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
+            qiven_ctx.log, "write_kept.write", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
         std::cout << "write_kept_memory.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << ", untyped " << runs.untyped << ", unchecked " << runs.unchecked << "\n";
         CHECK_EQ(runs.typed, c.points);
@@ -225,11 +225,11 @@ QIVEN3_CASE(write_kept_memory, faults) {
     }
     bed->run.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
-QIVEN3_CASE(write_kept_memory, platform_faults) {
+QIVEN_CASE(write_kept_memory, platform_faults) {
 #if defined(QIVEN_FAULTS)
     const auto bed = std::make_unique<Bed>();
     qiven3::memory::Countdown countdown;
@@ -254,7 +254,7 @@ QIVEN3_CASE(write_kept_memory, platform_faults) {
             bed->fake.attach(nullptr);
         };
         const qiven3::test::FaultRuns runs = qiven3::test::run_faults<PlatformError>(
-            qiven3_ctx.log, "write_kept.platform", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
+            qiven_ctx.log, "write_kept.platform", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
         std::cout << "write_kept_memory.platform_faults: " << c.name << "'s calls failed " << runs.typed
                   << ", completed at " << runs.completed_at << ", untyped " << runs.untyped << ", unchecked "
                   << runs.unchecked << ", refused " << refused << "\n";
@@ -267,6 +267,6 @@ QIVEN3_CASE(write_kept_memory, platform_faults) {
         CHECK_EQ(refused, c.op == Op::refused ? dropped + 1 : 0U);
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

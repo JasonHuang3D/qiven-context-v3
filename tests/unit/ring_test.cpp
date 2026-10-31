@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "log/ring.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -61,7 +61,7 @@ bool holds(const Ring& ring, const std::vector<std::string>& pushed, std::uint64
 
 }  // namespace
 
-QIVEN3_CASE(ring, order) {
+QIVEN_CASE(ring, order) {
     std::vector<char> storage(64);
     Ring ring(storage);
     CHECK(ring.lines().older.empty());
@@ -77,7 +77,7 @@ QIVEN3_CASE(ring, order) {
     CHECK(ring.since(3).older.empty());
 }
 
-QIVEN3_CASE(ring, wraps_whole) {
+QIVEN_CASE(ring, wraps_whole) {
     // 16 bytes: "aaaaaa\n" twice is 14; the third starts at the front, the
     // first evicted, and the 2 bytes at the end stay unused.
     std::vector<char> storage(16);
@@ -95,7 +95,7 @@ QIVEN3_CASE(ring, wraps_whole) {
     CHECK_EQ(ring.first(), 2U);
 }
 
-QIVEN3_CASE(ring, refuses) {
+QIVEN_CASE(ring, refuses) {
     std::vector<char> storage(8);
     Ring ring(storage);
     CHECK(ring.push("abc"));
@@ -109,7 +109,7 @@ QIVEN3_CASE(ring, refuses) {
     CHECK_EQ(ring.first(), 1U);
 }
 
-QIVEN3_CASE(ring, every_span) {
+QIVEN_CASE(ring, every_span) {
     std::size_t runs = 0;
     for (std::size_t bytes = 2; bytes <= 48; ++bytes) {
         std::vector<char> storage(bytes, '#');

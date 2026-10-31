@@ -29,7 +29,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -137,7 +137,7 @@ std::vector<std::string> ids_of(const std::vector<const Rec*>& list) {
 
 // The generic calls of view V over the chain written.
 template <class V>
-void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const Chars& chars) {
+void calls(qiven::runner::Context& qiven_ctx, V& view, const Chain& chain, const Chars& chars) {
     const Rec& a = chain.mine[0];
     const Rec& b = chain.mine[1];
     const Rec& d = chain.mine[2];
@@ -238,7 +238,7 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
 // not the view's allocator, its peak counted, the last given back at the
 // next.
 template <class V, class S>
-void work(qiven3::test::Context& qiven3_ctx, V& view, const S& scratch, const Chars& chars) {
+void work(qiven::runner::Context& qiven_ctx, V& view, const S& scratch, const Chars& chars) {
     {
         const Chars w = view.work();
         CHECK(&w.arena() != &chars.arena());
@@ -281,7 +281,7 @@ std::optional<Refusal> refused(const F& f) {
 constexpr qiven3::store::Counts ordered{3, 3, 0, 1};
 
 template <class S>
-void order(qiven3::test::Context& qiven3_ctx, S& store) {
+void order(qiven::runner::Context& qiven_ctx, S& store) {
     using qiven3::store::NoAdmit;
     const std::vector<Rec> chain = qiven3::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
     const std::vector<Rec> skip_first = {chain[1]};
@@ -307,15 +307,15 @@ void order(qiven3::test::Context& qiven3_ctx, S& store) {
 
 }  // namespace
 
-QIVEN3_CASE(store_view, order_memory) {
+QIVEN_CASE(store_view, order_memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
     qiven3::store::MemoryStore<Fake> store(*st, *fake);
-    order(qiven3_ctx, store);
+    order(qiven_ctx, store);
 }
 
-QIVEN3_CASE(store_view, order_sqlite) {
+QIVEN_CASE(store_view, order_sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
@@ -323,7 +323,7 @@ QIVEN3_CASE(store_view, order_sqlite) {
     const std::string path = text(scratch->root / "o" / "store.db");
     {
         const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
-        order(qiven3_ctx, *store);
+        order(qiven_ctx, *store);
         (void)store->close();
     }
     const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
@@ -333,7 +333,7 @@ QIVEN3_CASE(store_view, order_sqlite) {
     (void)again->close();
 }
 
-QIVEN3_CASE(store_view, memory) {
+QIVEN_CASE(store_view, memory) {
     const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
@@ -348,14 +348,14 @@ QIVEN3_CASE(store_view, memory) {
     const Chars chars(arena);
     const state::Locked lock(*st, Operation::append, {});
     state::StateView view(lock.data(), chars);
-    calls(qiven3_ctx, view, chain, chars);
+    calls(qiven_ctx, view, chain, chars);
     std::vector<std::byte> scratch_pages(buffer_bytes);
     state::ScratchView scratch(scratch_pages, nullptr);
     state::StateView over(lock.data(), chars, &scratch);
-    work(qiven3_ctx, over, scratch, chars);
+    work(qiven_ctx, over, scratch, chars);
 }
 
-QIVEN3_CASE(store_view, sqlite) {
+QIVEN_CASE(store_view, sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
@@ -372,11 +372,11 @@ QIVEN3_CASE(store_view, sqlite) {
     const qiven3::store::WhereView at = sqlite::site("append", path);
     const sqlite::Totals held = sqlite::totals(c, at);
     sqlite::WriteView view(c, chars, nullptr, at, held);
-    calls(qiven3_ctx, view, chain, chars);
+    calls(qiven_ctx, view, chain, chars);
     std::vector<std::byte> scratch_pages(buffer_bytes);
     sqlite::ScratchView arenas(scratch_pages, nullptr);
     sqlite::WriteView over(c, chars, &arenas, at, held);
-    work(qiven3_ctx, over, arenas, chars);
+    work(qiven_ctx, over, arenas, chars);
     (void)store->close();
     const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
     CHECK(again->verify() == Chain::held);

@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
 namespace {
@@ -120,7 +120,7 @@ constexpr std::string_view entry_a =
 
 }  // namespace
 
-QIVEN3_CASE(digest, framing) {
+QIVEN_CASE(digest, framing) {
     const std::vector<std::pair<Field, std::string_view>> rows = {
         {std::nullopt, "ffffffffffffffff"},
         {"", "0000000000000000"},
@@ -135,7 +135,7 @@ QIVEN3_CASE(digest, framing) {
     }
 }
 
-QIVEN3_CASE(digest, entry_a) {
+QIVEN_CASE(digest, entry_a) {
     // Entry A's eleven fields, parent and target absent.
     const std::array<Field, 11> fields = {
         "qiven-entry/1", "project:qiven", "implementer", "1", std::nullopt, "claim", "implementer/s39", "claimed",
@@ -151,7 +151,7 @@ QIVEN3_CASE(digest, entry_a) {
     CHECK_EQ(plain, id);
 }
 
-QIVEN3_CASE(digest, sha256) {
+QIVEN_CASE(digest, sha256) {
     const std::string cavp_1304 = unhex(
         "451101250ec6f26652249d59dc974b7361d571a8101cdfd36aba3b5854d3ae086b5fdd4597721b66e3c0dc5d8c606d9657d0"
         "e323283a5217d1f53f2f284f57b85c8a61ac8924711f895c5ed90ef17745ed2d728abd22a5f7a13479a462d71b56c19a74a4"
@@ -185,7 +185,7 @@ QIVEN3_CASE(digest, sha256) {
     CHECK_EQ(hex(parts.finish()), hex(digest::sha256(cavp_1304)));
 }
 
-QIVEN3_CASE(digest, hmac) {
+QIVEN_CASE(digest, hmac) {
     const std::string case7 =
         "This is a test using a larger than block-size key and a larger than block-size data. The key needs to "
         "be hashed before being used by the HMAC algorithm.";
@@ -215,7 +215,7 @@ QIVEN3_CASE(digest, hmac) {
              std::string("a3b6167473100ee06e0c796c2955552b"));
 }
 
-QIVEN3_CASE(digest, keyed) {
+QIVEN_CASE(digest, keyed) {
     Fake fake(seeded(0));
     const std::array<std::byte, 32> material = fixture_key();
     const Key key(fake, material);
@@ -240,7 +240,7 @@ QIVEN3_CASE(digest, keyed) {
     }
 }
 
-QIVEN3_CASE(digest, lessons) {
+QIVEN_CASE(digest, lessons) {
     // L1 and L2, each under its own key: the content digest over its
     // canonical content, the evidence digest over the interpreter's output,
     // and the id over its framed header, parent and target absent on L1.
@@ -311,7 +311,7 @@ QIVEN3_CASE(digest, lessons) {
     }
 }
 
-QIVEN3_CASE(digest, same) {
+QIVEN_CASE(digest, same) {
     const std::string key = pattern(32, 1, 0);
     std::string first = key;
     first[0] = '\xff';
@@ -324,7 +324,7 @@ QIVEN3_CASE(digest, same) {
     CHECK(digest::same("", ""));
 }
 
-QIVEN3_CASE(digest, key_wipes) {
+QIVEN_CASE(digest, key_wipes) {
     Fake fake(seeded(0));
     const std::string data = "qiven";
     const std::string zero = "hmac-sha256:" + hex(digest::hmac(std::string(32, '\0'), data));
@@ -350,7 +350,7 @@ QIVEN3_CASE(digest, key_wipes) {
     CHECK_EQ(wipes(fake), 11U);  // each key at its end
 }
 
-QIVEN3_CASE(digest, new_key) {
+QIVEN_CASE(digest, new_key) {
     // The fake seeded 1 draws its first block: the key is those bytes, and
     // the drawn copy is wiped.
     Fake fake(seeded(1));

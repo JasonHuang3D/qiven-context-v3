@@ -13,7 +13,7 @@ using Fake = platform::fake::FakePlatform;
 using Memory = store::MemoryStore<Fake>;
 using SQLite = store::SQLiteStore<Fake>;
 
-template void scan_ends_at_start(Context&, Memory&, Memory&, const Chars&);
-template void scan_ends_at_start(Context&, SQLite&, SQLite&, const Chars&);
+template void scan_ends_at_start(qiven::runner::Context&, Memory&, Memory&, const Chars&);
+template void scan_ends_at_start(qiven::runner::Context&, SQLite&, SQLite&, const Chars&);
 
 }  // namespace qiven3::test::scan_case

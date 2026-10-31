@@ -21,7 +21,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
@@ -108,9 +108,9 @@ std::optional<we::EntriesError> refusal(std::string_view bytes, Arena& arena, we
 
 }  // namespace
 
-QIVEN3_CASE(write_entries, budget) {
+QIVEN_CASE(write_entries, budget) {
     for (const std::string* bytes : {&write_file, &import_file}) {
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         {
             const we::File f = we::read(*bytes, arena);
             CHECK(!f.entries().empty());
@@ -124,16 +124,16 @@ QIVEN3_CASE(write_entries, budget) {
     }
 }
 
-QIVEN3_CASE(write_entries, refusal_gives_back) {
+QIVEN_CASE(write_entries, refusal_gives_back) {
     for (const std::string* bytes : {&invalid_file, &form_file}) {
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         const std::optional<we::EntriesError> e = refusal(*bytes, arena);
         REQUIRE(e.has_value());
         CHECK(e->code == (bytes == &invalid_file ? we::Code::invalid : we::Code::form));
         CHECK_EQ(arena.used(), 0U);
     }
     // An arena too small for the work span: MemoryError, nothing held.
-    Arena& small = qiven3_ctx.counted.arena(we::detail::work_bytes);
+    Arena& small = qiven_ctx.counted.arena(we::detail::work_bytes);
     bool budget_error = false;
     try {
         static_cast<void>(refusal(write_file, small));
@@ -144,7 +144,7 @@ QIVEN3_CASE(write_entries, refusal_gives_back) {
     CHECK_EQ(small.used(), 0U);
 }
 
-QIVEN3_CASE(write_entries, faults) {
+QIVEN_CASE(write_entries, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -167,7 +167,7 @@ QIVEN3_CASE(write_entries, faults) {
             done = true;
         };
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "write_entries.read", countdown, op, empty);
+            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "write_entries.read", countdown, op, empty);
         std::cout << "write_entries.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);
@@ -184,6 +184,6 @@ QIVEN3_CASE(write_entries, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

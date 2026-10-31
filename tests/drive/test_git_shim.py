@@ -3,7 +3,7 @@ system, every Python test runs behind the counting shim, which stands
 first on PATH under git's program name (tools/loop_shim.py), so that a
 start of git by any name PATH resolves is counted, the door's or not; the
 loop's own tests, of a class whose ctest_git is true, are listed there
-alone (tests/runner/list_tests.py), and the shim fails a test of no such
+alone (foundation/devkit/test/runner/list_tests.py), and the shim fails a test of no such
 class that starts git, so that no test that starts git runs in a second
 step of a run. A start by an absolute path passes the shim: the guard's,
 by the source (tests/drive/test_git_count.py), the stated limit.
@@ -197,7 +197,7 @@ def selects(filters, labels, test_id):
 def git_tests():
     """The loop's own tests, as the loop's build lists them: (ids, their
     labels as ctest holds them)."""
-    rows, errors = runpy.run_path(str(ROOT / "tests" / "runner" / "list_tests.py"))["listed"](True, ROOT)
+    rows, errors = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))["listed"](True, ROOT)
     if errors:
         raise AssertionError("\n".join(errors))
     ids = sorted(row[0] for row in rows if "loop" in row[1])

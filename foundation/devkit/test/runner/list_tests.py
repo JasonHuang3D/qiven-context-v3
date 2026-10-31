@@ -1,7 +1,7 @@
 """Print each Python test of tests/ for CTest: its id, its labels, serial,
 and its own limit.
 
-Run from the checkout's root as python -I tests/runner/list_tests.py
+Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
 [--loop]. The loop's own tests, of a class whose ctest_git is true, those
 that start git, are listed with --loop alone, which one build a system
 gives (QIVEN3_LOOP_TESTS), labelled loop and fake alone, so that the git
@@ -16,7 +16,7 @@ tools/loop_modules.py), by which the loop selects it
 (tools/loop_select.py); a class whose ctest_serial is true runs alone; a
 class whose ctest_limit is a whole number of seconds states the watcher's
 limit for its tests, which otherwise their labels give
-(runner/ctest_tests.cmake).
+(ctest_tests.cmake, beside this file).
 
 A module that does not import, a test in a package with no labels here or
 a file in no module, or a limit of another form fails the listing, and so

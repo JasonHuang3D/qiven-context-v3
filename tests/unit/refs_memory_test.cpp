@@ -21,7 +21,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -56,9 +56,9 @@ constexpr std::size_t budget = 262144;
 
 }  // namespace
 
-QIVEN3_CASE(refs, budget) {
+QIVEN_CASE(refs, budget) {
     for (const Case& c : cases) {
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         canon::Basic<Allocator<char>> v{Allocator<char>(arena)};
         canon::parse(c.text, v);
         const std::size_t used = arena.used();
@@ -71,19 +71,19 @@ QIVEN3_CASE(refs, budget) {
                   << " compiles, within " << qiven3::entry::matcher::compile_budget << " each\n";
     }
     // A path, a name and a subject but repo's take nothing from an arena of none.
-    Arena& none = qiven3_ctx.counted.arena(64);
+    Arena& none = qiven_ctx.counted.arena(64);
     CHECK(refs::check_subject("entity:docker", Allocator<char>(none)));
     CHECK(refs::check_path("src/x.py") && refs::check_name("Store.append"));
     CHECK_EQ(none.peak(), 0U);
     // A byte short of one compile's peak: MemoryError, nothing held.
-    Arena& one = qiven3_ctx.counted.arena(budget);
+    Arena& one = qiven_ctx.counted.arena(budget);
     CHECK(refs::check_subject("repo:qiven/src/x.py", Allocator<char>(one)));
     const std::size_t peak = one.peak();
     CHECK_EQ(one.used(), 0U);
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
     bool refused = false;
     try {
-        Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peak - 1);
         static_cast<void>(refs::check_subject("repo:qiven/src/x.py", Allocator<char>(shorter)));
     } catch (const MemoryError&) {
         refused = true;
@@ -92,7 +92,7 @@ QIVEN3_CASE(refs, budget) {
 #endif
 }
 
-QIVEN3_CASE(refs, faults) {
+QIVEN_CASE(refs, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -119,7 +119,7 @@ QIVEN3_CASE(refs, faults) {
             done = !refs::try_check_reference(v).has_value();
             arena->attach(nullptr);
         };
-        report(c.name, qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "refs.check_reference", countdown, op, empty),
+        report(c.name, qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_reference", countdown, op, empty),
                c.allocations);
     }
     for (const auto& [subject, want] : {std::pair<std::string_view, std::size_t>{"repo:qiven/src/x.py#f", 2},
@@ -130,11 +130,11 @@ QIVEN3_CASE(refs, faults) {
             done = refs::check_subject(subject, Allocator<char>(*arena));
             arena->attach(nullptr);
         };
-        report(subject, qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "refs.check_subject", countdown, op, empty),
+        report(subject, qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_subject", countdown, op, empty),
                want);
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

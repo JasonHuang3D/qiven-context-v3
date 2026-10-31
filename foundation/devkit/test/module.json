@@ -1,56 +1,6 @@
 {
   "name": "test",
   "layer": "devkit",
-  "status": "built",
-  "platforms": [
-    "windows"
-  ],
-  "contract": "tests/support/faults/faults.hpp",
-  "adopted": "2026-10-31",
-  "parameters": [],
-  "present": [
-    {
-      "name": "faults",
-      "layer": "foundation",
-      "depends": [
-        "memory",
-        "log",
-        "diag"
-      ],
-      "test_depends": [],
-      "paths": [
-        "tests/support/faults/",
-        "tests/faults/",
-        "tests/drive/test_faults.py",
-        "tests/drive/test_hardened.py",
-        "tests/drive/test_hang.py",
-        "tests/drive/test_debug.py",
-        "tests/drive/test_entry.py"
-      ]
-    },
-    {
-      "name": "support",
-      "layer": "support",
-      "depends": [
-        "memory",
-        "diag"
-      ],
-      "test_depends": [],
-      "paths": [
-        "tests/CMakeLists.txt",
-        "tests/__init__.py",
-        "tests/drive/__init__.py",
-        "tests/drive/binaries.py",
-        "tests/drive/session.py",
-        "tests/runner/CMakeLists.txt",
-        "tests/runner/core.hpp",
-        "tests/runner/runner.cpp",
-        "tests/runner/ctest_tests.cmake",
-        "tests/runner/list_tests.py",
-        "tests/support/scan/",
-        "tests/unit/CMakeLists.txt",
-        "tools/status.py"
-      ]
-    }
-  ]
+  "status": "group",
+  "adopted": "2026-10-31"
 }

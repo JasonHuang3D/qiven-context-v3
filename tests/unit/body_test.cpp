@@ -25,7 +25,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -127,7 +127,7 @@ std::string thrown(const Op& op) {
 
 }  // namespace
 
-QIVEN3_CASE(body, fixtures) {
+QIVEN_CASE(body, fixtures) {
     Fake fake(qiven3::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -167,7 +167,7 @@ QIVEN3_CASE(body, fixtures) {
     CHECK(made >= 10U);
 }
 
-QIVEN3_CASE(body, refusals) {
+QIVEN_CASE(body, refusals) {
     Fake fake(qiven3::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -243,7 +243,7 @@ QIVEN3_CASE(body, refusals) {
     CHECK_EQ(std::string(body::name(Code::body_mismatch)), "body_mismatch");
 }
 
-QIVEN3_CASE(body, key) {
+QIVEN_CASE(body, key) {
     Fake fake(qiven3::platform::fake::Config{});
     const std::size_t before = fake.calls().size();
     const digest::Key<Fake> key = digest::key_from_hex(fake, k0);

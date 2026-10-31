@@ -36,7 +36,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -286,7 +286,7 @@ std::string fingerprint(Store& store) {
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, budget) {
+QIVEN_CASE(store_memory, budget) {
     const auto b = std::make_unique<Bed>();
     for (const Step& s : steps()) {
         const Chars c = b->caller();
@@ -301,7 +301,7 @@ QIVEN3_CASE(store_memory, budget) {
     CHECK_EQ(fingerprint(b->other), fingerprint(b->store));
 }
 
-QIVEN3_CASE(store_memory, counts) {
+QIVEN_CASE(store_memory, counts) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto b = std::make_unique<Bed>();
     qiven3::memory::Countdown arenas;
@@ -335,7 +335,7 @@ QIVEN3_CASE(store_memory, counts) {
     state::attach(b->state, nullptr);
     state::attach(b->state2, nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
@@ -367,7 +367,7 @@ constexpr bool tiled() {
 }
 static_assert(tiled());
 
-void faults_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
+void faults_part(qiven::runner::Context& qiven_ctx, std::size_t part) {
     const Part& range = fault_parts.at(part);
     const std::vector<Step> course = steps();
     REQUIRE(course.size() == step_count);
@@ -435,7 +435,7 @@ void faults_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
         };
         attach(&countdown);
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<Typed>(qiven3_ctx.log, "store_memory.step", countdown, op, check);
+            qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_memory.step", countdown, op, check);
         attach(nullptr);
         CHECK(done);
         CHECK_EQ(runs.untyped, 0U);
@@ -464,18 +464,18 @@ void faults_part(qiven3::test::Context& qiven3_ctx, std::size_t part) {
 #else
 namespace {
 
-void faults_part(qiven3::test::Context&, std::size_t) {
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+void faults_part(qiven::runner::Context&, std::size_t) {
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 }
 
 }  // namespace
 #endif
 
 // The parts: make to append_acc; head to export; import; verify and close.
-QIVEN3_CASE(store_memory, faults) { faults_part(qiven3_ctx, 0); }
-QIVEN3_CASE(store_memory, faults_reads) { faults_part(qiven3_ctx, 1); }
-QIVEN3_CASE(store_memory, faults_import) { faults_part(qiven3_ctx, 2); }
-QIVEN3_CASE(store_memory, faults_rest) { faults_part(qiven3_ctx, 3); }
+QIVEN_CASE(store_memory, faults) { faults_part(qiven_ctx, 0); }
+QIVEN_CASE(store_memory, faults_reads) { faults_part(qiven_ctx, 1); }
+QIVEN_CASE(store_memory, faults_import) { faults_part(qiven_ctx, 2); }
+QIVEN_CASE(store_memory, faults_rest) { faults_part(qiven_ctx, 3); }
 
 // The body's bytes, 64 KiB.
 constexpr std::size_t max_body = std::size_t{64} << 10U;
@@ -483,7 +483,7 @@ constexpr std::size_t max_body = std::size_t{64} << 10U;
 // A record of a 64 KiB body on reviewer's lane: its append within 1 MiB
 // plus 4 times its lines, its import into the second state and verify
 // within 1 MiB.
-QIVEN3_CASE(store_memory, maximum) {
+QIVEN_CASE(store_memory, maximum) {
     const auto b = std::make_unique<Bed>();
     const std::vector<Rec> mx = {big("MX", qiven_scope, "reviewer", 1, std::nullopt, max_body)};
     const std::vector<EntryView> lines = views(mx);

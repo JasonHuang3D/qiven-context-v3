@@ -40,9 +40,10 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
     target_link_libraries(${name}_poisoned PUBLIC ${pair} PRIVATE qiven_build)
   endforeach()
 
-  add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/tests/runner/runner.cpp"
+  add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/src/runner.cpp"
     "${PROJECT_SOURCE_DIR}/tests/support/log/main.cpp")
-  target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/tests")
+  target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/include"
+    "${PROJECT_SOURCE_DIR}/tests")
   target_link_libraries(qiven3_runner_poisoned PUBLIC qiven3_memory_poisoned qiven3_log_poisoned
     PRIVATE qiven_build qiven3_diag_poisoned qiven3_platform_poisoned)
   qiven_executable(qiven3_unit_memory_poisoned

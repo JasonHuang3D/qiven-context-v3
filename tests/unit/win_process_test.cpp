@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/win_process_case.hpp"
 
 namespace {
@@ -29,7 +29,7 @@ using qiven3::memory::Arena;
 
 }  // namespace
 
-QIVEN3_CASE(win_process, program) {
+QIVEN_CASE(win_process, program) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -54,7 +54,7 @@ QIVEN3_CASE(win_process, program) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(win_process, start_refusals) {
+QIVEN_CASE(win_process, start_refusals) {
     const Scratch scratch("win-process");
     WindowsPlatform platform(std::nullopt);
     const std::string child = child_program();
@@ -95,7 +95,7 @@ QIVEN3_CASE(win_process, start_refusals) {
 }
 
 // The 8 arguments of the measure and the quoting's edges: each read back.
-QIVEN3_CASE(win_process, argv) {
+QIVEN_CASE(win_process, argv) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -123,7 +123,7 @@ QIVEN3_CASE(win_process, argv) {
 
 // The allowlist's names v3's own environment holds, and the caller's pairs,
 // one replacing TEMP by its name in any case; nothing else.
-QIVEN3_CASE(win_process, environment) {
+QIVEN_CASE(win_process, environment) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -162,7 +162,7 @@ QIVEN3_CASE(win_process, environment) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(win_process, write_close_input) {
+QIVEN_CASE(win_process, write_close_input) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -191,7 +191,7 @@ QIVEN3_CASE(win_process, write_close_input) {
 
 // wait past its timeout: deadline, the child running; kill(): its code 1,
 // again nothing; the process gone.
-QIVEN3_CASE(win_process, wait_kill) {
+QIVEN_CASE(win_process, wait_kill) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -217,7 +217,7 @@ QIVEN3_CASE(win_process, wait_kill) {
 // A grandchild in the tree: gone by kill(); by its supervisor's death,
 // which closes the supervisor's job (kill on close); by the Child's end
 // and by a move onto it; each within 1 s.
-QIVEN3_CASE(win_process, tree) {
+QIVEN_CASE(win_process, tree) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);

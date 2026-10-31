@@ -12,11 +12,11 @@
 #include <array>
 #include <cstddef>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/parts.hpp"
 
 namespace qiven3::test {
-void store_sqlite_create_refused(Context& qiven3_ctx, const std::array<FaultRange, 4>& ranges);
+void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
 }  // namespace qiven3::test
 
 namespace {
@@ -63,10 +63,10 @@ constexpr qiven3::test::FaultParts<count()> cut() {
 constexpr auto parts = cut();
 static_assert(parts.whole() && parts.from.size() == 127);
 
-void create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
+void create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
     CHECK(qiven3::test::registered("store_sqlite.create_refused", parts.from.size()));
     qiven3::test::store_sqlite_create_refused(
-        qiven3_ctx, {parts.range(i, 0), parts.range(i, 1), parts.range(i, 2), parts.range(i, 3)});
+        qiven_ctx, {parts.range(i, 0), parts.range(i, 1), parts.range(i, 2), parts.range(i, 3)});
 }
 
 }  // namespace

@@ -29,7 +29,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
@@ -168,14 +168,14 @@ std::optional<validator::RuleError> run(Setup& s, Arena& arena) {
 
 }  // namespace
 
-QIVEN3_CASE(validator, budget) {
+QIVEN_CASE(validator, budget) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::vector<std::byte> pages(1U << 20U);
     for (const Case& c : cases()) {
         Arena items(pages);
         Setup s = setup(v, c, items);
-        Arena& arena = qiven3_ctx.counted.arena(budget_base + 8 * s.bytes);
+        Arena& arena = qiven_ctx.counted.arena(budget_base + 8 * s.bytes);
         const std::size_t used = arena.used();
         const std::size_t before = arena.peak();
         CHECK(!run(s, arena));
@@ -187,7 +187,7 @@ QIVEN3_CASE(validator, budget) {
     }
 }
 
-QIVEN3_CASE(validator, faults) {
+QIVEN_CASE(validator, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     canon::Basic<> v;
     fixtures::load_entries(v);
@@ -208,7 +208,7 @@ QIVEN3_CASE(validator, faults) {
             arena->attach(nullptr);
         };
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "validator.validate", countdown, op, empty);
+            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "validator.validate", countdown, op, empty);
         std::cout << "validator.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);
@@ -221,6 +221,6 @@ QIVEN3_CASE(validator, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

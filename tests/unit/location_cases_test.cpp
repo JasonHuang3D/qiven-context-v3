@@ -36,7 +36,7 @@
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -184,7 +184,7 @@ struct Bed {
 
 }  // namespace
 
-QIVEN3_CASE(location, record) {
+QIVEN_CASE(location, record) {
     const auto b = std::make_unique<Bed>();
     const fs::path dir = b->root / "store";
     const std::string d = text(dir);
@@ -233,7 +233,7 @@ QIVEN3_CASE(location, record) {
     }
 }
 
-QIVEN3_CASE(location, not_chosen) {
+QIVEN_CASE(location, not_chosen) {
     const auto b = std::make_unique<Bed>();
     CHECK_EQ(b->store_dir(), std::string("StoreError store_dir not_chosen"));
     CHECK(!fs::exists(b->config_dir));
@@ -245,7 +245,7 @@ QIVEN3_CASE(location, not_chosen) {
     CHECK(!fs::exists(b->root / "store") && !fs::exists(b->record));
 }
 
-QIVEN3_CASE(location, guard) {
+QIVEN_CASE(location, guard) {
     const auto b = std::make_unique<Bed>();
     fs::create_directories(b->root / "repo" / ".git");
     fs::create_directories(b->root / "wt");
@@ -283,7 +283,7 @@ QIVEN3_CASE(location, guard) {
     }
 }
 
-QIVEN3_CASE(location, warnings) {
+QIVEN_CASE(location, warnings) {
     const auto b = std::make_unique<Bed>();
     struct Warn {
         std::size_t condition;
@@ -338,7 +338,7 @@ QIVEN3_CASE(location, warnings) {
     CHECK(b->said("; not_moved: store.db\n"));
 }
 
-QIVEN3_CASE(location, init) {
+QIVEN_CASE(location, init) {
     const auto b = std::make_unique<Bed>();
     // The configuration directory missing: made, then recorded.
     const fs::path made = b->root / "made";
@@ -404,7 +404,7 @@ QIVEN3_CASE(location, init) {
     CHECK(b->said("PlatformError exists") && bytes_of(file) == "kept" && !fs::exists(b->root / "s"));
 }
 
-QIVEN3_CASE(location, change) {
+QIVEN_CASE(location, change) {
     const auto b = std::make_unique<Bed>();
     const fs::path old = b->root / "old";
     CHECK_EQ(b->run({"init", text(old)}), location::recorded);
@@ -481,7 +481,7 @@ QIVEN3_CASE(location, change) {
 #endif
 }
 
-QIVEN3_CASE(location, output) {
+QIVEN_CASE(location, output) {
     const auto b = std::make_unique<Bed>();
     b->c.encoding = qiven3::platform::fake::Encoding::ascii;
     b->remake();
@@ -496,7 +496,7 @@ QIVEN3_CASE(location, output) {
     CHECK_EQ(b->store_dir(), dir);
 }
 
-QIVEN3_CASE(location, lock) {
+QIVEN_CASE(location, lock) {
     const auto b = std::make_unique<Bed>();
     fs::create_directories(b->config_dir);
     {

@@ -20,7 +20,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -69,10 +69,10 @@ Chain chain(std::size_t n) {
 
 }  // namespace
 
-QIVEN3_CASE(fold, budget) {
+QIVEN_CASE(fold, budget) {
     for (const std::size_t n : {std::size_t{1}, std::size_t{2}, std::size_t{64}}) {
         const Chain c = chain(n);
-        Arena& arena = qiven3_ctx.counted.arena(64 + 8 * n);
+        Arena& arena = qiven_ctx.counted.arena(64 + 8 * n);
         const std::size_t before = arena.peak();
         const fold::State s = fold::fold(std::span<const ItemView>(c.items), NOW, Allocator<char>(arena));
         CHECK(s.served() && s.current == n - 1);
@@ -82,7 +82,7 @@ QIVEN3_CASE(fold, budget) {
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
         bool refused = false;
         try {
-            Arena& shorter = qiven3_ctx.counted.arena(arena.peak() - 1);
+            Arena& shorter = qiven_ctx.counted.arena(arena.peak() - 1);
             static_cast<void>(fold::fold(std::span<const ItemView>(c.items), NOW, Allocator<char>(shorter)));
         } catch (const MemoryError&) {
             refused = true;
@@ -95,7 +95,7 @@ QIVEN3_CASE(fold, budget) {
     fixtures::load_entries(v);
     const std::optional<fixtures::EntryView> a = fixtures::find_entry(v, "A");
     REQUIRE(a.has_value() && a->content.has_value());
-    Arena& none = qiven3_ctx.counted.arena(65536);
+    Arena& none = qiven_ctx.counted.arena(65536);
     const header::Header<Allocator<char>> h = header::parse_line(a->header, Allocator<char>(none));
     canon::Basic<Allocator<char>> content{Allocator<char>(none)};
     canon::parse(*a->content, content);
@@ -109,7 +109,7 @@ QIVEN3_CASE(fold, budget) {
     CHECK_EQ(none.peak(), peak);
 }
 
-QIVEN3_CASE(fold, faults) {
+QIVEN_CASE(fold, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Chain c = chain(3);
     std::vector<std::byte> pages(1024);
@@ -124,7 +124,7 @@ QIVEN3_CASE(fold, faults) {
     };
     const auto empty = [&](std::size_t) { return arena->used() == 0; };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "fold.fold", countdown, op, empty);
+        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fold.fold", countdown, op, empty);
     std::cout << "fold.faults: fold's allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 1U);
     CHECK_EQ(runs.completed_at, 2U);
@@ -133,6 +133,6 @@ QIVEN3_CASE(fold, faults) {
     CHECK(s->served() && s->current == 2U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

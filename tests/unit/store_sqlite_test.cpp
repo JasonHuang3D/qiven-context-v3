@@ -38,7 +38,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -178,7 +178,7 @@ void alter(const fs::path& path, std::string_view sql) {
 }
 
 // SETTINGS, row by row, as the text's table gives them.
-void settings_table(qiven3::test::Context& qiven3_ctx) {
+void settings_table(qiven::runner::Context& qiven_ctx) {
     constexpr std::array<std::string_view, 11> names = {
         "journal_mode", "synchronous",  "secure_delete", "temp_store",     "foreign_keys", "trusted_schema",
         "cell_size_check", "auto_vacuum", "busy_timeout", "application_id", "user_version"};
@@ -192,7 +192,7 @@ void settings_table(qiven3::test::Context& qiven3_ctx) {
 }
 
 // create, then what it made, read through the store's connection.
-QIVEN3_OWN_FRAME void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     Store store = Store::open(text(path), true, false, rig.fake);
     CHECK(!store.read_only());
@@ -225,7 +225,7 @@ QIVEN3_OWN_FRAME void created(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // open again, read-write and read-only.
-QIVEN3_OWN_FRAME void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string path = text(rig.scratch.root / "a" / "store.db");
     Store store = Store::open(path, false, false, rig.fake);
     CHECK(!sqlite::differing(store.connection(), test_at).has_value());
@@ -239,7 +239,7 @@ QIVEN3_OWN_FRAME void reopened(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // The files open refuses.
-QIVEN3_OWN_FRAME void refused(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
     CHECK(open_error(rig, root / "none.db") == "StoreError missing");
     write_file(root / "empty.db", "");
@@ -271,7 +271,7 @@ QIVEN3_OWN_FRAME void refused(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 
 // The guard: a checkout by a .git directory, then a file, and a synced
 // folder, by open and alone; nothing made.
-QIVEN3_OWN_FRAME void guarded(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void guarded(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
     fs::create_directories(root / "repo" / ".git");
     fs::create_directories(root / "work");
@@ -288,7 +288,7 @@ QIVEN3_OWN_FRAME void guarded(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 }
 
 // Coherence refuses a meta that disagrees with the rows.
-QIVEN3_OWN_FRAME void incoherent(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+QIVEN3_OWN_FRAME void incoherent(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     alter(path, "UPDATE meta SET value = 1 WHERE name = 'forgets'");
     CHECK(open_error(rig, path).starts_with("StoreCorrupt incoherent: meta: forgets"));
@@ -310,7 +310,7 @@ constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer = "implementer";
 constexpr std::string_view reviewer = "reviewer";
 
-void writes(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::vector<Rec> lane = chain(qiven_scope, implementer, {"A", "B", "D", "ACC"});
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
@@ -398,7 +398,7 @@ std::string cut(const std::vector<Rec>& lines) {
 
 // Two lanes, reviewer's M2 and M1 forgotten; each read; then a body row
 // deleted under the store.
-void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
+void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     std::vector<std::byte> pages(std::size_t{1} << 17U);
     Arena arena(pages);
     const Chars chars(arena);
@@ -464,24 +464,24 @@ void reads(qiven3::test::Context& qiven3_ctx, Rig& rig) {
 
 }  // namespace
 
-QIVEN3_CASE(store_sqlite, reads) {
+QIVEN_CASE(store_sqlite, reads) {
     const auto rig = std::make_unique<Rig>();
-    reads(qiven3_ctx, *rig);
+    reads(qiven_ctx, *rig);
 }
 
-QIVEN3_CASE(store_sqlite, writes) {
+QIVEN_CASE(store_sqlite, writes) {
     const auto rig = std::make_unique<Rig>();
-    writes(qiven3_ctx, *rig);
+    writes(qiven_ctx, *rig);
 }
 
-QIVEN3_CASE(store_sqlite, smoke) {
-    settings_table(qiven3_ctx);
+QIVEN_CASE(store_sqlite, smoke) {
+    settings_table(qiven_ctx);
     const auto rig = std::make_unique<Rig>();
-    created(qiven3_ctx, *rig);
-    reopened(qiven3_ctx, *rig);
-    refused(qiven3_ctx, *rig);
-    guarded(qiven3_ctx, *rig);
-    incoherent(qiven3_ctx, *rig);
+    created(qiven_ctx, *rig);
+    reopened(qiven_ctx, *rig);
+    refused(qiven_ctx, *rig);
+    guarded(qiven_ctx, *rig);
+    incoherent(qiven_ctx, *rig);
     CHECK(raised([&] { const Engine<FakePlatform> second(rig->fake); }) ==
           "StoreError internal: an engine heap is installed already");
     CHECK(sqlite::engine_version() >= sqlite::least_version);

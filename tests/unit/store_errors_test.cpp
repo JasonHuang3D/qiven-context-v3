@@ -23,7 +23,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
 #include "support/faults/faults.hpp"
 
@@ -172,7 +172,7 @@ std::string line_of(const StoreError& error, std::size_t room) {
 
 }  // namespace
 
-QIVEN3_CASE(store_errors, lines) {
+QIVEN_CASE(store_errors, lines) {
     std::size_t n = 0;
     for (const LineVector& v : line_vectors()) {
         CHECK_EQ(line_of(v.error, 2048), std::string(v.line));
@@ -182,7 +182,7 @@ QIVEN3_CASE(store_errors, lines) {
     CHECK_EQ(n, 11U);
 }
 
-QIVEN3_CASE(store_errors, seconds) {
+QIVEN_CASE(store_errors, seconds) {
     const auto waited = [](double s) {
         const std::string line = line_of(StoreError::busy("append", "p", s), 256);
         return line.substr(line.find("waited ") + 7);
@@ -201,7 +201,7 @@ QIVEN3_CASE(store_errors, seconds) {
 
 // A line past its room ends at a code point: a path of a Chinese character
 // cut inside it loses the whole character, and nothing follows the cut.
-QIVEN3_CASE(store_errors, cut) {
+QIVEN_CASE(store_errors, cut) {
     const StoreError e(Code::missing, "open", "d/\xE4\xB8\xAD\xE6\x96\x87", "detail");
     const std::string whole = line_of(e, 256);
     CHECK_EQ(whole, std::string("StoreError missing: open d/\xE4\xB8\xAD\xE6\x96\x87; detail"));
@@ -219,7 +219,7 @@ QIVEN3_CASE(store_errors, cut) {
     CHECK_EQ(p.path(), std::string_view(long_path));
 }
 
-QIVEN3_CASE(store_errors, names) {
+QIVEN_CASE(store_errors, names) {
     // The names are distinct within each enumeration.
     const auto distinct = [](std::span<const std::string_view> names) {
         for (std::size_t i = 0; i < names.size(); ++i) {
@@ -238,7 +238,7 @@ QIVEN3_CASE(store_errors, names) {
     CHECK(distinct(store::full_names));
 }
 
-QIVEN3_CASE(store_errors, thrown) {
+QIVEN_CASE(store_errors, thrown) {
     bool caught = false;
     try {
         throw StoreError::locked("open", path, Cause::not_writable, "SQLITE_READONLY (8)");
@@ -251,7 +251,7 @@ QIVEN3_CASE(store_errors, thrown) {
 // No allocation and no platform call: with an arena's countdown armed at
 // its first allocation, every kind is made and written on its line, and
 // the run completes at once, no call failed.
-QIVEN3_CASE(store_errors, faults) {
+QIVEN_CASE(store_errors, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
     qiven3::memory::Countdown countdown;
@@ -268,7 +268,7 @@ QIVEN3_CASE(store_errors, faults) {
     };
     const auto empty = [&](std::size_t) { return true; };
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven3_ctx.log, "store_errors.message", countdown, op, empty);
+        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_errors.message", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);
@@ -276,6 +276,6 @@ QIVEN3_CASE(store_errors, faults) {
     CHECK_EQ(arena->used(), 0U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

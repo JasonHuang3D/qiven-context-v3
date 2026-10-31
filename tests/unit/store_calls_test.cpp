@@ -26,7 +26,7 @@
 #include "keys/keys.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/stores/records.hpp"
@@ -48,7 +48,7 @@ constexpr std::string_view other_scope = "project:other";
 // A writing case's end: verify counts entries, the object closes, and
 // where durable a reopened object's verify counts them again.
 template <class F, class S>
-void verified(qiven3::test::Context& qiven3_ctx, F& f, S& store, std::uint64_t entries) {
+void verified(qiven::runner::Context& qiven_ctx, F& f, S& store, std::uint64_t entries) {
     CHECK_EQ(store.verify().entries, entries);
     (void)store.close();
     if (!stores::lacking<F>(stores::durable)) {
@@ -100,7 +100,7 @@ std::string fill(S& store, const qiven3::memory::Allocator<char>& chars) {
 
 // Each call's answer on one object, its lists cleared first.
 template <class S>
-void answers(qiven3::test::Context& qiven3_ctx, S& store, const std::string& a1,
+void answers(qiven::runner::Context& qiven_ctx, S& store, const std::string& a1,
              const qiven3::memory::Allocator<char>& chars) {
     String line(chars);
     line.assign("stale");
@@ -133,27 +133,27 @@ void answers(qiven3::test::Context& qiven3_ctx, S& store, const std::string& a1,
 }
 
 template <class F>
-void calls_case(qiven3::test::Context& qiven3_ctx, F& f) {
+void calls_case(qiven::runner::Context& qiven_ctx, F& f) {
     using Store = typename F::Store;
     auto store = std::make_unique<Store>(f.make());
     const std::string a1 = fill(*store, f.site().chars());
     reopened(f, store);
     const auto other = std::make_unique<Store>(f.again());
     const auto reader = std::make_unique<Store>(f.read_only());
-    answers(qiven3_ctx, *store, a1, f.site().chars());
-    answers(qiven3_ctx, *other, a1, f.site().chars());
-    answers(qiven3_ctx, *reader, a1, f.site().chars());
+    answers(qiven_ctx, *store, a1, f.site().chars());
+    answers(qiven_ctx, *other, a1, f.site().chars());
+    answers(qiven_ctx, *reader, a1, f.site().chars());
     (void)reader->close();
     (void)other->close();
     String line(f.site().chars());
     const std::optional<records::Refusal> closed = records::refused([&] { (void)other->line("A1", line); });
     CHECK(closed && closed->code == "closed");
-    verified(qiven3_ctx, f, *store, 9);
+    verified(qiven_ctx, f, *store, 9);
 }
 
 // A key one past its bound, its first bytes a held key's: none found.
 template <class F>
-void bounds_case(qiven3::test::Context& qiven3_ctx, F& f) {
+void bounds_case(qiven::runner::Context& qiven_ctx, F& f) {
     const std::string id(Id::capacity, 'x');
     const std::string scope = std::string(qiven3::store::scope_bytes - qs.size(), 's') + std::string(qs);
     const std::vector<Rec> l = {records::rec(id, scope, "a", 1),
@@ -175,13 +175,13 @@ void bounds_case(qiven3::test::Context& qiven3_ctx, F& f) {
     CHECK_EQ(joined(out), id + " M");
     store->keyed(scope + "s", "note", out);
     CHECK(out.empty());
-    verified(qiven3_ctx, f, *store, 2);
+    verified(qiven_ctx, f, *store, 2);
 }
 
 // each_keyed lent: stopped where f gives true, f's throw leaving the object
 // and its peak as they were; then each call's budget.
 template <class F>
-void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
+void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
     auto made = std::make_unique<typename F::Store>(f.make());
     const std::string a1 = fill(*made, f.site().chars());
     reopened(f, made);
@@ -241,43 +241,43 @@ void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
     CHECK_EQ(countdown.calls(), 1U);
     arena.attach(nullptr);
 #endif
-    verified(qiven3_ctx, f, store, 9);
+    verified(qiven_ctx, f, store, 9);
 }
 
 }  // namespace
 
-QIVEN3_CASE(store_calls, memory_calls) {
+QIVEN_CASE(store_calls, memory_calls) {
     const auto site = stores::site();
     stores::Memory f(*site);
-    calls_case(qiven3_ctx, f);
+    calls_case(qiven_ctx, f);
 }
 
-QIVEN3_CASE(store_calls, memory_bounds) {
+QIVEN_CASE(store_calls, memory_bounds) {
     const auto site = stores::site();
     stores::Memory f(*site);
-    bounds_case(qiven3_ctx, f);
+    bounds_case(qiven_ctx, f);
 }
 
-QIVEN3_CASE(store_calls, memory_lend) {
+QIVEN_CASE(store_calls, memory_lend) {
     const auto site = stores::site();
     stores::Memory f(*site);
-    lend_case(qiven3_ctx, f);
+    lend_case(qiven_ctx, f);
 }
 
-QIVEN3_CASE(store_calls, sqlite_calls) {
+QIVEN_CASE(store_calls, sqlite_calls) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
-    calls_case(qiven3_ctx, f);
+    calls_case(qiven_ctx, f);
 }
 
-QIVEN3_CASE(store_calls, sqlite_bounds) {
+QIVEN_CASE(store_calls, sqlite_bounds) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
-    bounds_case(qiven3_ctx, f);
+    bounds_case(qiven_ctx, f);
 }
 
-QIVEN3_CASE(store_calls, sqlite_lend) {
+QIVEN_CASE(store_calls, sqlite_lend) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
-    lend_case(qiven3_ctx, f);
+    lend_case(qiven_ctx, f);
 }

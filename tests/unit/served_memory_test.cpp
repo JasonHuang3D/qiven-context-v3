@@ -26,7 +26,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -76,13 +76,13 @@ void write(const Held& x, bool stub, String& out) {
 
 }  // namespace
 
-QIVEN3_CASE(served, budget) {
+QIVEN_CASE(served, budget) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     for (const auto& [name, stub] : {std::pair<std::string_view, bool>{"M1", false}, {"L2", false}, {"MX", false},
                                      {"MX", true}}) {
         const Held x = held(all, name);
-        Arena& arena = qiven3_ctx.counted.arena(1U << 20U);
+        Arena& arena = qiven_ctx.counted.arena(1U << 20U);
         String out{Allocator<char>(arena)};
         const std::size_t before = arena.peak();
         write(x, stub, out);
@@ -98,7 +98,7 @@ QIVEN3_CASE(served, budget) {
                   << used << " held\n";
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
         bool refused = false;
-        Arena& shorter = qiven3_ctx.counted.arena(used - 1);
+        Arena& shorter = qiven_ctx.counted.arena(used - 1);
         String kept{Allocator<char>(shorter)};
         kept = "x";  // within the string's own buffer: no allocation
         try {
@@ -112,7 +112,7 @@ QIVEN3_CASE(served, budget) {
     }
 }
 
-QIVEN3_CASE(served, faults) {
+QIVEN_CASE(served, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     canon::Basic<> all;
     fixtures::load_entries(all);
@@ -132,8 +132,8 @@ QIVEN3_CASE(served, faults) {
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
         const qiven3::test::FaultRuns runs =
-            stub ? qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.stub", countdown, op, empty)
-                 : qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.block", countdown, op, empty);
+            stub ? qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.stub", countdown, op, empty)
+                 : qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.block", countdown, op, empty);
         std::cout << "served.faults: " << (stub ? "stub" : "block") << "'s allocations " << runs.typed
                   << ", completed at " << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, 1U);
@@ -143,11 +143,11 @@ QIVEN3_CASE(served, faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }
 
-QIVEN3_CASE(served, escaped_label_faults) {
+QIVEN_CASE(served, escaped_label_faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     // The owner's words as quoted in a document of record whose path is
     // 200 U+FEFF, refuted by transcript: the label's 741 bytes served as
@@ -193,8 +193,8 @@ QIVEN3_CASE(served, escaped_label_faults) {
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
         const qiven3::test::FaultRuns runs =
-            stub ? qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.escaped_stub", countdown, op, empty)
-                 : qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "served.escaped_block", countdown, op, empty);
+            stub ? qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_stub", countdown, op, empty)
+                 : qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_block", countdown, op, empty);
         std::cout << "served.escaped_label_faults: " << (stub ? "stub" : "block") << "'s allocations " << runs.typed
                   << ", completed at " << runs.completed_at << ", " << text.size() << " bytes\n";
         CHECK_EQ(runs.typed, 1U);
@@ -205,6 +205,6 @@ QIVEN3_CASE(served, escaped_label_faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

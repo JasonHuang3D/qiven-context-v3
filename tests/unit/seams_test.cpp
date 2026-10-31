@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/exchange.hpp"
@@ -46,7 +46,7 @@ static_assert(qiven3::store::sqlite::defers<qiven3::store::NoHooks>());
 
 }  // namespace
 
-QIVEN3_CASE(seams, steps) {
+QIVEN_CASE(seams, steps) {
     const auto site = stores::site();
     Recorder recorder;
     stores::Sqlite<seams::Steps<Recorder>> f(*site, seams::Steps<Recorder>(recorder));
@@ -62,7 +62,7 @@ QIVEN3_CASE(seams, steps) {
     (void)store.close();
 }
 
-QIVEN3_CASE(seams, incoherent_row) {
+QIVEN_CASE(seams, incoherent_row) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
     const std::vector<records::Rec> a = records::chain(at_scope, at_lane, {"A"});
@@ -82,7 +82,7 @@ QIVEN3_CASE(seams, incoherent_row) {
     CHECK(found == qiven3::store::Corrupt::incoherent);
 }
 
-QIVEN3_CASE(seams, vacuum_and_checkpoint) {
+QIVEN_CASE(seams, vacuum_and_checkpoint) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
     const std::vector<records::Rec> a = records::chain(at_scope, at_lane, {"A"});
@@ -96,7 +96,7 @@ QIVEN3_CASE(seams, vacuum_and_checkpoint) {
     (void)back.close();
 }
 
-QIVEN3_CASE(seams, naive_store) {
+QIVEN_CASE(seams, naive_store) {
     const auto site = stores::site();
     const std::vector<records::Rec> a = records::chain(at_scope, at_lane, {"A"});
     const std::vector<records::Rec> b = {records::rec("B", at_scope, at_lane, 2, "A")};

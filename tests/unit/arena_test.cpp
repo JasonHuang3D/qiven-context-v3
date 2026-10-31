@@ -13,7 +13,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -37,7 +37,7 @@ std::uintptr_t address(const void* p) { return std::bit_cast<std::uintptr_t>(p);
 
 }  // namespace
 
-QIVEN3_CASE(arena, bounds_budget) {
+QIVEN_CASE(arena, bounds_budget) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(std::span<std::byte>(pages->bytes).first(64));
     CHECK_EQ(arena.budget(), 64U);
@@ -69,7 +69,7 @@ QIVEN3_CASE(arena, bounds_budget) {
     CHECK(still);
 }
 
-QIVEN3_CASE(arena, a_byte_short) {
+QIVEN_CASE(arena, a_byte_short) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(std::span<std::byte>(pages->bytes).first(100));
     static_cast<void>(arena.allocate(99, 1));
@@ -93,7 +93,7 @@ QIVEN3_CASE(arena, a_byte_short) {
     CHECK(empty);
 }
 
-QIVEN3_CASE(arena, alignment) {
+QIVEN_CASE(arena, alignment) {
     const auto pages = std::make_unique<Two>();
     Arena arena(pages->bytes);
     void* a = arena.allocate(1, 1);
@@ -130,7 +130,7 @@ QIVEN3_CASE(arena, alignment) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(arena, used_peak) {
+QIVEN_CASE(arena, used_peak) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     CHECK_EQ(arena.used(), 0U);
@@ -150,7 +150,7 @@ QIVEN3_CASE(arena, used_peak) {
     CHECK_EQ(arena.peak(), 114U);
 }
 
-QIVEN3_CASE(arena, faults) {
+QIVEN_CASE(arena, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     qiven3::memory::Countdown countdown;
@@ -184,7 +184,7 @@ QIVEN3_CASE(arena, faults) {
         }
     };
     const qiven3::test::FaultRuns raw = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "arena.blocks", countdown, blocks, check);
+        qiven_ctx.log, "arena.blocks", countdown, blocks, check);
     CHECK_EQ(raw.typed, 5U);
     CHECK_EQ(raw.completed_at, 6U);
     CHECK_EQ(raw.untyped, 0U);
@@ -204,7 +204,7 @@ QIVEN3_CASE(arena, faults) {
         length = v.size() * v.front().size();
     };
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "arena.strings", countdown, strings, check);
+        qiven_ctx.log, "arena.strings", countdown, strings, check);
     std::cout << "arena.faults: typed " << runs.typed << ", completed at " << runs.completed_at
               << "\n";
     CHECK(runs.completed_at > 1);
@@ -215,6 +215,6 @@ QIVEN3_CASE(arena, faults) {
 #endif
     CHECK_EQ(arena->used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

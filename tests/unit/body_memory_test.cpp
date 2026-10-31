@@ -18,7 +18,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
@@ -78,7 +78,7 @@ struct Peaks {
 
 }  // namespace
 
-QIVEN3_CASE(body, budget) {
+QIVEN_CASE(body, budget) {
     Fake fake(qiven3::platform::fake::Config{});
     Peaks most;
     std::size_t longest = 0;
@@ -88,7 +88,7 @@ QIVEN3_CASE(body, budget) {
         const std::size_t budget = budget_for(x.record.size());
         Peaks peaks;
         {
-            Arena& arena = qiven3_ctx.counted.arena(budget);
+            Arena& arena = qiven_ctx.counted.arena(budget);
             const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(arena));
             peaks.make = arena.peak();
             CHECK_EQ(arena.used(), b.bytes() + 1);  // the text's terminator
@@ -107,7 +107,7 @@ QIVEN3_CASE(body, budget) {
             peaks.digest = arena.used() - held - peaks.line;
         }
         {
-            Arena& arena = qiven3_ctx.counted.arena(budget);
+            Arena& arena = qiven_ctx.counted.arena(budget);
             const Body b = body::parse(fake, x.record, Allocator<char>(arena));
             peaks.parse = arena.peak();
             CHECK_EQ(arena.used(), b.bytes() + 1);
@@ -124,7 +124,7 @@ QIVEN3_CASE(body, budget) {
         // A byte short of each peak: MemoryError budget.
         bool make_refused = false;
         try {
-            Arena& shorter = qiven3_ctx.counted.arena(peaks.make - 1);
+            Arena& shorter = qiven_ctx.counted.arena(peaks.make - 1);
             static_cast<void>(body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(shorter)));
         } catch (const MemoryError& e) {
             make_refused = budget_error(e);
@@ -132,16 +132,16 @@ QIVEN3_CASE(body, budget) {
         CHECK(make_refused);
         bool parse_refused = false;
         try {
-            Arena& shorter = qiven3_ctx.counted.arena(peaks.parse - 1);
+            Arena& shorter = qiven_ctx.counted.arena(peaks.parse - 1);
             static_cast<void>(body::parse(fake, x.record, Allocator<char>(shorter)));
         } catch (const MemoryError& e) {
             parse_refused = budget_error(e);
         }
         CHECK(parse_refused);
         // line writes into the caller's string, on its own arena here.
-        Arena& whole = qiven3_ctx.counted.arena(budget);
+        Arena& whole = qiven_ctx.counted.arena(budget);
         const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(whole));
-        Arena& shorter = qiven3_ctx.counted.arena(peaks.line - 1);
+        Arena& shorter = qiven_ctx.counted.arena(peaks.line - 1);
         String out{Allocator<char>(shorter)};
         bool line_refused = false;
         try {
@@ -158,7 +158,7 @@ QIVEN3_CASE(body, budget) {
               << ", content_digest " << most.digest << ", check 0\n";
 }
 
-QIVEN3_CASE(body, faults) {
+QIVEN_CASE(body, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Fake fake(qiven3::platform::fake::Config{});
     const std::vector<Entry> all = entries(fake);
@@ -187,14 +187,14 @@ QIVEN3_CASE(body, faults) {
         const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
         done = b.id() == id;
     };
-    report("make", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "body.make", countdown, make, empty), 5);
+    report("make", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "body.make", countdown, make, empty), 5);
     const auto parse = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
         const Body b = body::parse(fake, x.record, Allocator<char>(*arena));
         done = b.content() == x.content;
     };
-    report("parse", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "body.parse", countdown, parse, empty), 5);
+    report("parse", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "body.parse", countdown, parse, empty), 5);
     // The record's one, and the digest's text's one.
     const auto line = [&] {
         arena.emplace(pages);
@@ -204,7 +204,7 @@ QIVEN3_CASE(body, faults) {
         b.line(out);
         done = std::string(out) == x.record;
     };
-    report("line", qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "body.line", countdown, line, empty), 1);
+    report("line", qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "body.line", countdown, line, empty), 1);
     const auto digest_of = [&] {
         arena.emplace(pages);
         const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
@@ -215,9 +215,9 @@ QIVEN3_CASE(body, faults) {
         done = std::string(out) == std::string(h.value(Slot::content));
     };
     report("content_digest",
-           qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "body.content_digest", countdown, digest_of, empty), 1);
+           qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "body.content_digest", countdown, digest_of, empty), 1);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

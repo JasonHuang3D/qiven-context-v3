@@ -18,7 +18,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -87,12 +87,12 @@ std::string rowids(Store& store, const std::vector<std::string>& ids) {
 
 }  // namespace
 
-QIVEN3_CASE(store_sqlite, scan_at_start) {
+QIVEN_CASE(store_sqlite, scan_at_start) {
     const auto rig = std::make_unique<Rig>();
     const std::string path = text(rig->root / "s" / "store.db");
     Store store = Store::open(path, true, false, rig->fake);
     Store other = Store::open(path, false, false, rig->fake);
-    qiven3::test::scan_case::scan_ends_at_start(qiven3_ctx, store, other, rig->chars);
+    qiven3::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
     CHECK(store.close().done);
     CHECK(other.close().done);
     Store reopened = Store::open(path, false, false, rig->fake);
@@ -110,7 +110,7 @@ QIVEN3_CASE(store_sqlite, scan_at_start) {
 // would have without the VACUUM. An engine renumbering entry fails both:
 // the rowids close the gap, and E, appended after the scan began, falls
 // under its bound.
-QIVEN3_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
+QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     using qiven3::test::records::Rec;
     namespace scan_case = qiven3::test::scan_case;
     namespace records = qiven3::test::records;

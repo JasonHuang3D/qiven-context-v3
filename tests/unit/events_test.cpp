@@ -14,7 +14,7 @@
 
 #include "diag/events.hpp"
 #include "log/ring.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -64,7 +64,7 @@ void push(Ring& ring, const std::string& prefix, int from, int to) {
 
 }  // namespace
 
-QIVEN3_CASE(events, table) {
+QIVEN_CASE(events, table) {
     Rings rings{};
     std::vector<std::unique_ptr<Held>> held;
     for (std::size_t i = 0; i <= rings_max; ++i) {
@@ -85,7 +85,7 @@ QIVEN3_CASE(events, table) {
     }
 }
 
-QIVEN3_CASE(events, lines) {
+QIVEN_CASE(events, lines) {
     Rings rings{};
     const Seen none = seen(rings);
     CHECK_EQ(none.count, 0U);
@@ -117,7 +117,7 @@ QIVEN3_CASE(events, lines) {
     CHECK(release(rings, b.ring));
 }
 
-QIVEN3_CASE(events, wrapped) {
+QIVEN_CASE(events, wrapped) {
     // A span of 16 bytes and lines of 4 with their '\n': after 5, the ring
     // holds two pieces, its older first.
     Rings rings{};
@@ -135,7 +135,7 @@ QIVEN3_CASE(events, wrapped) {
     CHECK(release(rings, small.ring));
 }
 
-QIVEN3_CASE(events, cut_long) {
+QIVEN_CASE(events, cut_long) {
     // A line past 300 code points comes out cut at 300.
     Rings rings{};
     Held big(4096);

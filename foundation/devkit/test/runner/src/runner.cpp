@@ -1,4 +1,4 @@
-#include "runner/core.hpp"
+#include "qiven/runner/core.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -10,14 +10,14 @@
 
 #include "memory/memory.hpp"
 
-namespace qiven3::test {
+namespace qiven::runner {
 
 std::vector<Case>& registry() {
     static std::vector<Case> cases;
     return cases;
 }
 
-Registrar::Registrar(std::string_view name, const log::Name* logged, CaseFn fn, bool serial) {
+Registrar::Registrar(std::string_view name, const qiven3::log::Name* logged, CaseFn fn, bool serial) {
     registry().push_back(Case{name, logged, fn, serial});
 }
 
@@ -46,18 +46,18 @@ NamerRegistrar::NamerRegistrar(Namer namer) {
     }
 }
 
-memory::Arena& Counted::arena(std::size_t bytes) {
-    Owned<memory::Arena>& owned = arenas_.emplace_back(bytes);
+qiven3::memory::Arena& Counted::arena(std::size_t bytes) {
+    Owned<qiven3::memory::Arena>& owned = arenas_.emplace_back(bytes);
     return owned.allocator.emplace(owned.span());
 }
 
-memory::Pool& Counted::pool(std::size_t slot, std::size_t bytes) {
-    Owned<memory::Pool>& owned = pools_.emplace_back(bytes);
+qiven3::memory::Pool& Counted::pool(std::size_t slot, std::size_t bytes) {
+    Owned<qiven3::memory::Pool>& owned = pools_.emplace_back(bytes);
     return owned.allocator.emplace(slot, owned.span());
 }
 
-memory::Heap& Counted::heap(std::size_t bytes) {
-    Owned<memory::Heap>& owned = heaps_.emplace_back(bytes);
+qiven3::memory::Heap& Counted::heap(std::size_t bytes) {
+    Owned<qiven3::memory::Heap>& owned = heaps_.emplace_back(bytes);
     return owned.allocator.emplace(owned.span());
 }
 
@@ -85,7 +85,7 @@ std::size_t Counted::held() const noexcept {
     std::size_t sum = 0;
     const auto each = [&](const auto& list) {
         for (const auto& owned : list) {
-            sum = memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
+            sum = qiven3::memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
         }
     };
     each(arenas_);
@@ -103,7 +103,7 @@ bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) 
     return ok;
 }
 
-int run_case(const Case& c, std::ostream& out, log::Log& log, Ended ended_by) {
+int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ended_by) {
     const auto start = std::chrono::steady_clock::now();
     Context ctx{out, log};
     // The case's end given to ended_by; status, given back.
@@ -124,11 +124,11 @@ int run_case(const Case& c, std::ostream& out, log::Log& log, Ended ended_by) {
     } catch (const std::exception& e) {
         ++ctx.failures;
         out << "exception: " << e.what() << "\n";
-    } catch (const memory::MemoryError& e) {
+    } catch (const qiven3::memory::MemoryError& e) {
         // A plain value with no base: its code's name, the operation that
         // raised it (the allocator) and its detail.
         ++ctx.failures;
-        out << "memory error " << memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
+        out << "memory error " << qiven3::memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
             << "\n";
     } catch (...) {
         // Another module's error (a PlatformError, a StoreError) by the
@@ -176,7 +176,7 @@ int usage(std::ostream& err) {
 }  // namespace
 
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err, log::Log& log, Ended ended) {
+             std::ostream& out, std::ostream& err, qiven3::log::Log& log, Ended ended) {
     if (!names_valid(cases, err)) {
         return exit_usage;
     }
@@ -205,4 +205,4 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
     return usage(err);
 }
 
-}  // namespace qiven3::test
+}  // namespace qiven::runner

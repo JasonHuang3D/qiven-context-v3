@@ -24,7 +24,7 @@
 #include "memory/arena.hpp"
 #include "platform/files.hpp"
 #include "platform/names.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 
@@ -131,7 +131,7 @@ constexpr Seconds five{5.0};
 
 // Sorted by UTF-8 bytes, which neither the fake's order (the reverse) nor
 // NTFS's (case folded) is; . and .. never; a directory's own names not.
-QIVEN3_CASE(files_names, list) {
+QIVEN_CASE(files_names, list) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
@@ -158,7 +158,7 @@ QIVEN3_CASE(files_names, list) {
     CHECK_EQ(system.kept(), 0U);
 }
 
-QIVEN3_CASE(files_names, list_errors) {
+QIVEN_CASE(files_names, list_errors) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
@@ -193,7 +193,7 @@ QIVEN3_CASE(files_names, list_errors) {
 // The names on the caller's arena, counted exactly: each name of at most
 // 15 bytes is held in its String, so the arena holds the vector's array
 // alone; past the budget MemoryError, names cleared.
-QIVEN3_CASE(files_names, list_memory) {
+QIVEN_CASE(files_names, list_memory) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     for (int i = 0; i < 40; ++i) {
@@ -224,7 +224,7 @@ QIVEN3_CASE(files_names, list_memory) {
 
 // Removed; none there, twice and in a missing directory, no fault; a
 // directory io, kept; held without sharing delete busy at once, kept.
-QIVEN3_CASE(files_names, remove) {
+QIVEN_CASE(files_names, remove) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
@@ -260,7 +260,7 @@ QIVEN3_CASE(files_names, remove) {
 // both kept; held, retried until the deadline then busy, both kept; one
 // try for a deadline of 0 or not a number; a missing file io; a name of
 // more than one component, . or .., path.
-QIVEN3_CASE(files_names, rename) {
+QIVEN_CASE(files_names, rename) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
@@ -314,7 +314,7 @@ QIVEN3_CASE(files_names, rename) {
 
 // Each system call failed in turn, then each allocation of list's names:
 // a typed error, names cleared, the files as before or as done.
-QIVEN3_CASE(files_names, faults) {
+QIVEN_CASE(files_names, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
@@ -331,7 +331,7 @@ QIVEN3_CASE(files_names, faults) {
     };
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed, auto typed) {
         const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<decltype(typed)>(qiven3_ctx.log, site, countdown, op, clean);
+            qiven3::test::run_faults<decltype(typed)>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         if (completed != 0) {
             CHECK_EQ(r.completed_at, completed);
@@ -367,6 +367,6 @@ QIVEN3_CASE(files_names, faults) {
     arena.attach(nullptr);
     CHECK_EQ(joined(names), std::string("1.pending|2.pending|a-long-name-past-the-small-string.json"));
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

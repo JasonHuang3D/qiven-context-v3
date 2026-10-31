@@ -15,7 +15,7 @@
 #include <string_view>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/scan/scan.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/stores.hpp"
@@ -39,7 +39,7 @@ std::vector<scan::Pattern> joined(std::vector<scan::Pattern> a, const std::vecto
 
 }  // namespace
 
-QIVEN3_CASE(scan, patterns) {
+QIVEN_CASE(scan, patterns) {
     // U+00E9, U+20AC and U+1F600: two, three and four bytes, the last a pair.
     const std::string text = "a\xC3\xA9\xE2\x82\xAC\xF0\x9F\x98\x80";
     CHECK_EQ(scan::utf16le(text), std::string("a\0\xE9\0\xAC\x20\x3D\xD8\x00\xDE", 10));
@@ -62,7 +62,7 @@ QIVEN3_CASE(scan, patterns) {
     CHECK_EQ(scan::windows(m[0], 4).size(), 1U);
 }
 
-QIVEN3_CASE(scan, directory) {
+QIVEN_CASE(scan, directory) {
     const auto site = stores::site();
     const fs::path dir = site->root() / "scanned";
     const std::string key = "\x10\x20\xFE";
@@ -81,7 +81,7 @@ QIVEN3_CASE(scan, directory) {
     CHECK(scan::scan(site->root() / "absent", patterns).hits.size() == 1U);
 }
 
-QIVEN3_CASE(scan, store_directory) {
+QIVEN_CASE(scan, store_directory) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
     const std::vector<records::Rec> a = records::chain("project:qiven", "implementer", {"A"});

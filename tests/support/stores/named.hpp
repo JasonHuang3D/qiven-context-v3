@@ -1,6 +1,6 @@
 #pragma once
 
-// The store's namer (runner/core.hpp): a StoreError a case lets out,
+// The store's namer (qiven/runner/core.hpp): a StoreError a case lets out,
 // named by the runner of every binary that includes this header (the
 // store's cases, through support/stores/stores.hpp), with nothing of the
 // store in the runner.
@@ -8,7 +8,7 @@
 #include <ostream>
 #include <string_view>
 
-#include "runner/core.hpp"
+#include "qiven/runner/core.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::test::stores {
@@ -47,6 +47,6 @@ inline bool store_named(std::ostream& out) {
     }
 }
 
-inline const NamerRegistrar store_namer{&store_named};
+inline const qiven::runner::NamerRegistrar store_namer{&store_named};
 
 }  // namespace qiven3::test::stores

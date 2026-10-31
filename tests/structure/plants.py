@@ -25,7 +25,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/EHsc;/utf-8;/permissive-;/W0>")
-include_directories(src tests third_party/sqlite)
+include_directories(src tests third_party/sqlite foundation/devkit/test/runner/include)
 get_filename_component(outside "${CMAKE_SOURCE_DIR}/../outside" ABSOLUTE)
 add_library(qiven_build INTERFACE)
 add_library(qiven3_platform STATIC src/platform/platform.cpp)
@@ -54,7 +54,7 @@ add_library(qiven3_reader_instances STATIC src/reader/instances.cpp)
 target_link_libraries(qiven3_reader_instances PRIVATE qiven3_platform_win)
 add_library(qiven3_unit_plant STATIC tests/unit/sqlite_text_test.cpp tests/unit/long_test.cpp
   tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/goldens.cpp
-  tests/support/goldens/write.cpp tests/runner/runner.cpp)
+  tests/support/goldens/write.cpp foundation/devkit/test/runner/src/runner.cpp)
 add_library(qiven3_diag STATIC src/diag/diag_windows.cpp)
 target_link_libraries(qiven3_diag PRIVATE dbghelp)
 """
@@ -165,14 +165,15 @@ PLANTS = {
     "tests/support/goldens/goldens.cpp": "const char* goldens_registry() { return \"tests/goldens/v1/registry.json\"; }\n",
     "tests/support/goldens/write.cpp": "#include <cstdio>\nvoid* goldens_write() "
         "{ return std::fopen(\"tests/goldens/v1/x\", \"w\"); }\n",
-    "tests/runner/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n#include \"support/plant/joined.hpp\"\n"
-        "#include \"runner/runner.hpp\"\n#include \"driver/drive.hpp\"\n"
+    "foundation/devkit/test/runner/src/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n"
+        "#include \"support/plant/joined.hpp\"\n#include \"qiven/runner/runner.hpp\"\n#include \"driver/drive.hpp\"\n"
         "int runner_quiet() { _CrtSetReportMode(0, 0); return int(SetErrorMode(1)); }\n",
     # The runner's error mode and reports are the diagnostic entry's now.
     "src/diag/diag_windows.cpp": "#include <windows.h>\n#include <crtdbg.h>\n#include <dbghelp.h>\n"
         "int diag_quiet() { _CrtSetReportMode(0, 0); SymSetOptions(0); return int(SetErrorMode(1)); }\n",
     "tests/unit/own_test.cpp": "#include \"unit/own.hpp\"\n", "tests/unit/own.hpp": "\n",
-    "tests/runner/runner.hpp": "#pragma once\n", "tests/driver/drive.hpp": "#pragma once\n",
+    "foundation/devkit/test/runner/include/qiven/runner/runner.hpp": "#pragma once\n",
+    "tests/driver/drive.hpp": "#pragma once\n",
     "tests/unit/dbg_test.cpp": "#include <crtdbg.h>\n",
     ".clang-tidy": "Checks: '-*,cppcoreguidelines-*,-cppcoreguidelines-pro-bounds-pointer-arithmetic'\n",
     "src/entry/.clang-tidy": "InheritParentConfig: true\nChecks: >-\n  -cppcoreguidelines-pro-bounds-*,\n"
@@ -225,7 +226,8 @@ PLANTED = [
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
     ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
     ("B9", "src/entry/outside.cpp", ""), ("B9", "tests/unit/own_test.cpp", ""), ("B9", "tests/unit/dbg_test.cpp", ""),
-    ("B5", "tests/runner/runner.cpp", ""), ("B9", "tests/runner/runner.cpp", ""),
+    ("B5", "foundation/devkit/test/runner/src/runner.cpp", ""),
+    ("B9", "foundation/devkit/test/runner/src/runner.cpp", ""),
     ("B10", "src/entry/load_library.cpp", ""), ("B10", "src/entry/load_library_ex.cpp", ""),
     ("B11", "src/entry/dotdot.cpp", ""),
     ("B12", "src/store/forget_include.cpp", ""), ("B12", "qiven3_store", ""),

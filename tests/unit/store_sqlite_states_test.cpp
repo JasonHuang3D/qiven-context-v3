@@ -25,7 +25,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -101,7 +101,7 @@ std::size_t scanned(Store& store, const RangeView& range, const Chars& chars) {
 
 // The purge held by a reader's snapshot, then by a writer; an append
 // StoreBusy beside the writer.
-void held(qiven3::test::Context& qiven3_ctx, Store& store, const Course& course, const std::string& path,
+void held(qiven::runner::Context& qiven_ctx, Store& store, const Course& course, const std::string& path,
           Fake& fake, const Chars& chars) {
     {
         sqlite::Connection reader = raw(path);
@@ -161,7 +161,7 @@ constexpr std::array<Forgery, 9> forgeries = {{
 
 }  // namespace
 
-QIVEN3_CASE(store_sqlite, pending) {
+QIVEN_CASE(store_sqlite, pending) {
     const auto rig = std::make_unique<Rig>();
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "p" / "store.db");
@@ -170,7 +170,7 @@ QIVEN3_CASE(store_sqlite, pending) {
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
     const Chars chars(arena);
-    held(qiven3_ctx, *store, *course, path, rig->fake, chars);
+    held(qiven_ctx, *store, *course, path, rig->fake, chars);
     CHECK_EQ(reason(store->purge()), std::string("done"));
     {
         Vector<LaneHead> rows(chars);
@@ -193,7 +193,7 @@ QIVEN3_CASE(store_sqlite, pending) {
     CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
 }
 
-QIVEN3_CASE(store_sqlite, forged) {
+QIVEN_CASE(store_sqlite, forged) {
     const auto rig = std::make_unique<Rig>();
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "f" / "store.db");
@@ -232,7 +232,7 @@ QIVEN3_CASE(store_sqlite, forged) {
     CHECK(store.verify() == (qiven3::store::Counts{5, 3, 1, 1}));
 }
 
-QIVEN3_CASE(store_sqlite, paths) {
+QIVEN_CASE(store_sqlite, paths) {
     CHECK_EQ(sqlite::directory_of("/store.db"), std::string_view("/"));
     CHECK_EQ(sqlite::directory_of("Q:\\store.db"), std::string_view("Q:\\"));
     CHECK_EQ(sqlite::directory_of("Q:\\a\\store.db"), std::string_view("Q:\\a"));
@@ -245,7 +245,7 @@ QIVEN3_CASE(store_sqlite, paths) {
 // bytes and slots as before; an engine heap on pages of the case's own
 // refused by the heap's own check, as when two are made at once; the store
 // on the first then served: a scan, a forget with its purge, verify.
-QIVEN3_CASE(store_sqlite, second_engine) {
+QIVEN_CASE(store_sqlite, second_engine) {
     const auto rig = std::make_unique<Rig>();
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "e" / "store.db");

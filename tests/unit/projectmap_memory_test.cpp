@@ -22,7 +22,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/view.hpp"
@@ -128,11 +128,11 @@ std::size_t run(Op op, Inputs& in, Arena& arena, const digest::Key<Fake>& key) {
 
 }  // namespace
 
-QIVEN3_CASE(projectmap, budget) {
+QIVEN_CASE(projectmap, budget) {
     Inputs in;
     const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
     for (const Op op : OPS) {
-        Arena& arena = qiven3_ctx.counted.arena(1U << 20U);
+        Arena& arena = qiven_ctx.counted.arena(1U << 20U);
         const std::size_t before = arena.peak();
         const std::size_t held = run(op, in, arena, key);
         std::cout << "projectmap.budget: " << label(op) << " peak " << arena.peak() - before
@@ -143,7 +143,7 @@ QIVEN3_CASE(projectmap, budget) {
     }
 }
 
-QIVEN3_CASE(projectmap, faults) {
+QIVEN_CASE(projectmap, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Inputs in;
     const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
@@ -168,7 +168,7 @@ QIVEN3_CASE(projectmap, faults) {
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "projectmap", countdown, once, empty);
+            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "projectmap", countdown, once, empty);
         std::cout << "projectmap.faults: " << label(op) << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, expected(op));
@@ -178,6 +178,6 @@ QIVEN3_CASE(projectmap, faults) {
         arena.reset();
     }
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

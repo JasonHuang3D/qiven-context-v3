@@ -28,7 +28,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
@@ -144,7 +144,7 @@ std::vector<std::pair<std::string, Call>> calls() {
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, busy) {
+QIVEN_CASE(store_memory, busy) {
     const auto b = std::make_unique<Bed>();
     const std::vector<std::pair<std::string, Call>> all = calls();
     std::vector<std::string> got(all.size());
@@ -174,7 +174,7 @@ QIVEN3_CASE(store_memory, busy) {
     }
 }
 
-QIVEN3_CASE(store_memory, gate) {
+QIVEN_CASE(store_memory, gate) {
     const auto b = std::make_unique<Bed>();
     Store store(b->state, b->fake);
     auto scan = store.scan(RangeView{});
@@ -202,7 +202,7 @@ QIVEN3_CASE(store_memory, gate) {
     CHECK_EQ(store.head(qiven_scope, implementer_lane)->seq, 4);
 }
 
-QIVEN3_CASE(store_memory, read_only) {
+QIVEN_CASE(store_memory, read_only) {
     const auto b = std::make_unique<Bed>();
     Store reader(b->state, b->fake, true);
     for (const auto& [name, call] : calls()) {
@@ -253,7 +253,7 @@ void replace(state::Data& d, std::uint32_t i, const Rec& s) {
 
 }  // namespace
 
-QIVEN3_CASE(store_memory, forged) {
+QIVEN_CASE(store_memory, forged) {
     CHECK_EQ(forged(false, [](Bed&, state::Data&) {}), std::string("none"));
     // B's line naming D for its parent, its keys and size kept; ACC's
     // target index A's, its line naming none: the store's verify reads no

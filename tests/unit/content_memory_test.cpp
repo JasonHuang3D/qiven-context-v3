@@ -26,7 +26,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -110,12 +110,12 @@ constexpr std::size_t budget = 262144;
 
 }  // namespace
 
-QIVEN3_CASE(content, budget) {
+QIVEN_CASE(content, budget) {
     const std::vector<Case> all = cases();
     CHECK_EQ(all.size(), 9U);
     for (const Case& c : all) {
         const header::Header<> h = header::parse_line(c.header);
-        Arena& arena = qiven3_ctx.counted.arena(budget);
+        Arena& arena = qiven_ctx.counted.arena(budget);
         canon::Basic<Allocator<char>> v{Allocator<char>(arena)};
         canon::parse(c.content, v);
         const std::size_t used = arena.used();
@@ -129,7 +129,7 @@ QIVEN3_CASE(content, budget) {
     }
 }
 
-QIVEN3_CASE(content, faults) {
+QIVEN_CASE(content, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
     qiven3::memory::Countdown countdown;
@@ -148,7 +148,7 @@ QIVEN3_CASE(content, faults) {
             arena->attach(nullptr);
         };
         const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven3_ctx.log, "content.check", countdown, op, empty);
+            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "content.check", countdown, op, empty);
         std::cout << "content.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);
@@ -160,6 +160,6 @@ QIVEN3_CASE(content, faults) {
     }
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

@@ -57,7 +57,7 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
@@ -114,7 +114,7 @@ std::optional<std::string> lacking(const Needs& n) {
 template <class F>
 void require(const Needs& n) {
     if (std::optional<std::string> why = lacking<F>(n)) {
-        throw Skip{std::move(*why)};
+        throw qiven::runner::Skip{std::move(*why)};
     }
 }
 
@@ -228,7 +228,7 @@ public:
     // again on the fake given: a thread's own, the fake being thread: one.
     Store again(Fake& on) { return Store(state(), on); }
     Store read_only() { return Store(state(), site_->fake(), true); }
-    [[noreturn]] static Store reopen() { throw Skip{"not applicable: the memory store is not durable"}; }
+    [[noreturn]] static Store reopen() { throw qiven::runner::Skip{"not applicable: the memory store is not durable"}; }
 
 private:
     store::state::State& state() {

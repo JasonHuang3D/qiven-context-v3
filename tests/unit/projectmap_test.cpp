@@ -20,7 +20,7 @@
 #include "entry/projectmap_files.hpp"
 #include "entry/served.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/filled.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -259,7 +259,7 @@ constexpr std::optional<content::ContentError> map_content(const std::string& te
 }  // namespace
 
 // Past the compiler's step limit, so at run time.
-QIVEN3_CASE(projectmap, entry_digest) {
+QIVEN_CASE(projectmap, entry_digest) {
     CHECK(!map_content("{" MAP_HEAD R"("object":)" + entry_object(ID_A) + R"(,"object_type":"item"})").has_value());
     const std::optional<content::ContentError> source =
         map_content("{" MAP_HEAD R"("object":)" + entry_object(ID_A) + R"(,"object_type":"item","source":[)" +
@@ -268,7 +268,7 @@ QIVEN3_CASE(projectmap, entry_digest) {
           source->path.view() == "source[0].digest");
 }
 
-QIVEN3_CASE(projectmap, thrown) {
+QIVEN_CASE(projectmap, thrown) {
     bool registry_thrown = false;
     try {
         static_cast<void>(projectmap::parse_registry(R"({"r":{"path":"/a"}})"));

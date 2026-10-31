@@ -34,7 +34,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -422,7 +422,7 @@ std::string by(const Held& version, std::span<const CheckView> checks) {
 
 }  // namespace
 
-QIVEN3_CASE(labels, capacity) {
+QIVEN_CASE(labels, capacity) {
     // A writer past its syntax's length overflows the label: its budget.
     const std::string writer(labels::capacity, 'w');
     try {
@@ -437,7 +437,7 @@ QIVEN3_CASE(labels, capacity) {
     CHECK_EQ(labels::label(VersionView{fits, Basis::claimed, {}, {}}, {}).text().size(), labels::capacity);
 }
 
-QIVEN3_CASE(labels, fa2_model_entry) {
+QIVEN_CASE(labels, fa2_model_entry) {
     canon::Basic<> all;
     fixtures::load_entries(all);
     const Held a = held(all, "A");
@@ -498,7 +498,7 @@ QIVEN3_CASE(labels, fa2_model_entry) {
     std::cout << "labels.fa2_model_entry: " << by(d, std::array{own, transcript_check}) << "\n";
 }
 
-QIVEN3_CASE(labels, document_of_record) {
+QIVEN_CASE(labels, document_of_record) {
     // D with a document of record in its source: quoted in it, unbound;
     // after ACC2, bound (unverified), the binding row above it.
     canon::Basic<> all;

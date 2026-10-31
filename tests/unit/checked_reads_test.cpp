@@ -37,7 +37,7 @@
 #include "entry/validator.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -112,7 +112,7 @@ std::vector<GuardView> guard_of(S& store, Vector<LaneHead>& rows) {
 
 // The store F makes, holding A or nothing, its own export imported.
 template <class F>
-void own_export(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book, bool held) {
+void own_export(qiven::runner::Context& qiven_ctx, F& factory, const Book& book, bool held) {
     std::vector<std::byte> pages(std::size_t{1} << 20U);
     Arena arena(pages);
     const auto s = std::make_unique<typename F::Store>(factory.make());
@@ -139,7 +139,7 @@ void own_export(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book,
 
 }  // namespace
 
-QIVEN3_CASE(checked_reads, widths) {
+QIVEN_CASE(checked_reads, widths) {
     for (std::size_t i = 0; i < qiven3::entry::secret::PATTERNS.size(); ++i) {
         CHECK(qiven3::entry::secret::name(static_cast<std::uint8_t>(i)).size() <= qiven3::store::pattern_bytes);
     }
@@ -152,7 +152,7 @@ namespace {
 
 // The store F makes, a content hit given: nothing written.
 template <class F>
-void secret_hit(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book) {
+void secret_hit(qiven::runner::Context& qiven_ctx, F& factory, const Book& book) {
     const auto owned = std::make_unique<typename F::Store>(factory.make());  // past a frame's share
     typename F::Store& store = *owned;
     const std::vector<Stored> hit = {book.with_secret("A", std::nullopt)};
@@ -167,7 +167,7 @@ void secret_hit(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book)
 
 // The store F makes, the reviewer's M1 forgotten alone and with M2.
 template <class F>
-void whole_record(qiven3::test::Context& qiven3_ctx, F& factory, const Book& book) {
+void whole_record(qiven::runner::Context& qiven_ctx, F& factory, const Book& book) {
     const auto owned = std::make_unique<typename F::Store>(factory.make());  // past a frame's share
     typename F::Store& store = *owned;
     std::vector<std::byte> pages(std::size_t{1} << 20U);
@@ -217,29 +217,29 @@ void whole_record(qiven3::test::Context& qiven3_ctx, F& factory, const Book& boo
 }  // namespace
 
 // Each on memory and on SQLite.
-QIVEN3_CASE(checked_reads, secret_hit) {
+QIVEN_CASE(checked_reads, secret_hit) {
     const auto site = qiven3::test::ruled::site();
     Memory memory(*site);
-    secret_hit(qiven3_ctx, memory, site->book());
+    secret_hit(qiven_ctx, memory, site->book());
     SQLite sqlite(*site);
-    secret_hit(qiven3_ctx, sqlite, site->book());
+    secret_hit(qiven_ctx, sqlite, site->book());
 }
 
-QIVEN3_CASE(checked_reads, whole_record) {
+QIVEN_CASE(checked_reads, whole_record) {
     const auto site = qiven3::test::ruled::site();
     Memory memory(*site);
-    whole_record(qiven3_ctx, memory, site->book());
+    whole_record(qiven_ctx, memory, site->book());
     SQLite sqlite(*site);
-    whole_record(qiven3_ctx, sqlite, site->book());
+    whole_record(qiven_ctx, sqlite, site->book());
 }
 
-QIVEN3_CASE(checked_reads, own_export) {
+QIVEN_CASE(checked_reads, own_export) {
     const auto site = qiven3::test::ruled::site();
     for (const bool held : {false, true}) {
         Memory memory(*site);
-        own_export(qiven3_ctx, memory, site->book(), held);
+        own_export(qiven_ctx, memory, site->book(), held);
         SQLite sqlite(*site);
-        own_export(qiven3_ctx, sqlite, site->book(), held);
+        own_export(qiven_ctx, sqlite, site->book(), held);
     }
 }
 
@@ -291,7 +291,7 @@ std::string corrupt_code(const F& f) {
 
 }  // namespace
 
-QIVEN3_CASE(checked_reads, corrupt) {
+QIVEN_CASE(checked_reads, corrupt) {
     const auto b = std::make_unique<Bed>();
     Store store(b->state, b->fake);
     const std::string a = id_of(b->lane[0]);
@@ -344,7 +344,7 @@ QIVEN3_CASE(checked_reads, corrupt) {
 // body record B's, body_mismatch; B's parent column cleared beside its
 // line, the ruled scan's incoherent; A's line B's, id_mismatch at the
 // header read and the scan.
-QIVEN3_CASE(checked_reads, sqlite_corrupt) {
+QIVEN_CASE(checked_reads, sqlite_corrupt) {
     const auto site = qiven3::test::ruled::site();
     SQLite factory(*site);
     const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
@@ -375,7 +375,7 @@ QIVEN3_CASE(checked_reads, sqlite_corrupt) {
 
 // Each of A's columns altered beside its line, in SQLite: the ruled scan
 // StoreCorrupt incoherent; then put back, A's header read again.
-QIVEN3_CASE(checked_reads, sqlite_columns) {
+QIVEN_CASE(checked_reads, sqlite_columns) {
     const auto site = qiven3::test::ruled::site();
     SQLite factory(*site);
     const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
@@ -437,7 +437,7 @@ void replace(state::Data& d, std::uint32_t i, const Stored& s) {
 // under the lock: a line whose parent, or seq, is not its place's, and a
 // target index not its header's, incoherent; a forgotten entry's body kept,
 // forgotten_body.
-QIVEN3_CASE(checked_reads, forged) {
+QIVEN_CASE(checked_reads, forged) {
     CHECK_EQ(forged(false, [](Bed&, state::Data&) {}), std::string("none"));
     CHECK_EQ(forged(false,
                     [](Bed& b, state::Data& d) {
@@ -512,7 +512,7 @@ std::size_t drain(E& e, Held& held) {
 // lines' (the store's exchange smoke case's, moved): A, B, D and ACC on
 // one lane, C and M1 on another, exported and held; the heads given short
 // of the lines': head_mismatch, nothing left.
-QIVEN3_CASE(checked_reads, head_mismatch) {
+QIVEN_CASE(checked_reads, head_mismatch) {
     const auto site = qiven3::test::ruled::site();
     const Book& book = site->book();
     SQLite from(*site);

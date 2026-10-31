@@ -22,7 +22,7 @@
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -246,7 +246,7 @@ std::optional<fold::Code> fault(std::span<const ItemView> r, std::string_view no
 
 }  // namespace
 
-QIVEN3_CASE(fold, refusals) {
+QIVEN_CASE(fold, refusals) {
     const std::array<ItemView, 2> ok = {V1, V2};
     CHECK(!fault(ok).has_value());
     // No root: none at all, a change first, a first entry with a target.
@@ -270,7 +270,7 @@ QIVEN3_CASE(fold, refusals) {
     CHECK_EQ(std::string(fold::name(fold::Code::now)), "now");
 }
 
-QIVEN3_CASE(fold, fa2_status_change) {
+QIVEN_CASE(fold, fa2_status_change) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::vector<std::string_view> names = {"A", "B", "C", "D", "ACC", "E", "M1", "M2", "ACC2"};
@@ -339,7 +339,7 @@ QIVEN3_CASE(fold, fa2_status_change) {
     CHECK_EQ(all.size(), 9U);
 }
 
-QIVEN3_CASE(fold, scope_order) {
+QIVEN_CASE(fold, scope_order) {
     // The fixtures' entries of project:qiven in the order: each parent and
     // each target before its child.
     canon::Basic<> v;

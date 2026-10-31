@@ -17,7 +17,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
 namespace {
@@ -79,7 +79,7 @@ std::pair<Code, std::string> thrown(Op&& op) {
 
 // Each refused argv[0] is one of the fake's programs, so only the refusal
 // keeps it from running; one more is none of them, refused alike.
-QIVEN3_CASE(fake_process, argv_refused) {
+QIVEN_CASE(fake_process, argv_refused) {
     FakePlatform fake{Config{}};
     const std::string talker = absolute("talker.exe");
     const std::vector<std::pair<std::string, std::string>> refused = {
@@ -126,7 +126,7 @@ QIVEN3_CASE(fake_process, argv_refused) {
 // the budget; the same line is then read whole, then the next. Under
 // QIVEN_FAULTS each of the line's allocations is failed in turn on a new
 // Child, its next read_line giving the first line whole.
-QIVEN3_CASE(fake_process, read_line_kept) {
+QIVEN_CASE(fake_process, read_line_kept) {
     FakePlatform fake{Config{}};
     const std::string talker = absolute("talker.exe");
     const std::string first(200, 'x');

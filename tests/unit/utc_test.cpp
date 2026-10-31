@@ -28,7 +28,7 @@
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -183,7 +183,7 @@ std::int64_t local_offset() {
 
 }  // namespace
 
-QIVEN3_CASE(utc, vectors) {
+QIVEN_CASE(utc, vectors) {
     for (const AtVector& v : at_vectors) {
         CHECK(at_ok(v));
     }
@@ -208,7 +208,7 @@ QIVEN3_CASE(utc, vectors) {
 }
 
 // L1's `when` holds 05:00 for a message stamped 13:00 at +08:00.
-QIVEN3_CASE(utc, shift) {
+QIVEN_CASE(utc, shift) {
     canon::Basic<> entries;
     fixtures::load_entries(entries);
     canon::Basic<> content;
@@ -227,7 +227,7 @@ QIVEN3_CASE(utc, shift) {
 
 // The zone the process's C runtime reads; tests/drive/test_utc.py reads
 // the line under each TZ it sets.
-QIVEN3_CASE(utc, zone) {
+QIVEN_CASE(utc, zone) {
     const std::int64_t offset = local_offset();
     CHECK(offset != INT64_MIN);
     std::cout << "utc.zone: local offset " << offset << " s\n";
@@ -237,9 +237,9 @@ QIVEN3_CASE(utc, zone) {
 
 // print_at's one allocation, its 24 characters, within 64 bytes; reading
 // takes none.
-QIVEN3_CASE(utc, budgets) {
+QIVEN_CASE(utc, budgets) {
     constexpr std::size_t budget = 64;
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     std::size_t peak = 0;
     {
         String out{Allocator<char>(arena)};
@@ -254,7 +254,7 @@ QIVEN3_CASE(utc, budgets) {
     CHECK(peak > 0 && peak <= budget);
     CHECK(arena.used() == 0);
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
-    Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+    Arena& shorter = qiven_ctx.counted.arena(peak - 1);
     String out{Allocator<char>(shorter)};
     bool refused = false;
     try {
@@ -269,13 +269,13 @@ QIVEN3_CASE(utc, budgets) {
 #endif
 }
 
-QIVEN3_CASE(utc, faults) {
+QIVEN_CASE(utc, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(64);
     qiven3::memory::Countdown countdown;
     std::optional<Arena> arena;
     const qiven3::test::FaultRuns r = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "utc.print_at", countdown,
+        qiven_ctx.log, "utc.print_at", countdown,
         [&] {
             arena.emplace(pages);
             arena->attach(&countdown);
@@ -290,6 +290,6 @@ QIVEN3_CASE(utc, faults) {
     CHECK_EQ(r.untyped, 0U);
     CHECK_EQ(r.unchecked, 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

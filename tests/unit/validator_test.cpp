@@ -23,7 +23,7 @@
 #include "entry/header.hpp"
 #include "entry/validator.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/filled.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
@@ -441,7 +441,7 @@ bool is(const std::optional<RuleError>& e, Code code) {
 
 }  // namespace
 
-QIVEN3_CASE(validator, fixtures) {
+QIVEN_CASE(validator, fixtures) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     MemoryView view;
@@ -456,7 +456,7 @@ QIVEN3_CASE(validator, fixtures) {
     CHECK(is(append(empty, v, {"C"}), Code::target));
 }
 
-QIVEN3_CASE(validator, refusals) {
+QIVEN_CASE(validator, refusals) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     MemoryView view = lanes(v);
@@ -492,7 +492,7 @@ QIVEN3_CASE(validator, refusals) {
              Code::reference));
 }
 
-QIVEN3_CASE(validator, raise) {
+QIVEN_CASE(validator, raise) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     MemoryView view = lanes(v);

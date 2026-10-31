@@ -5,13 +5,13 @@
 // lock and no settle step; the rebuild's names in order. The steps' faults
 // and settling are write_kept_steps_test.cpp's.
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
 using namespace qiven3::test::kept_bed;
 
 // The form, its names, and a file read back: its ids, and a forget's no body.
-QIVEN3_CASE(write_kept, form) {
+QIVEN_CASE(write_kept, form) {
     std::vector<std::byte> pages(mib);
     Arena arena(pages);
     const Entries e(arena, "implementer/s7", 3, 4, true);
@@ -42,7 +42,7 @@ QIVEN3_CASE(write_kept, form) {
 }
 
 // What parse refuses: each corrupt naming kept/<name>, lines left empty.
-QIVEN3_CASE(write_kept, parse_corrupt) {
+QIVEN_CASE(write_kept, parse_corrupt) {
     std::vector<std::byte> pages(mib);
     Arena arena(pages);
     const Entries e(arena, "implementer/s7", 2, 1);
@@ -75,7 +75,7 @@ QIVEN3_CASE(write_kept, parse_corrupt) {
 }
 
 // Two writes: each kept whole under the lock, 1 then 2; the rebuild's names.
-QIVEN3_CASE(write_kept, write_pass) {
+QIVEN_CASE(write_kept, write_pass) {
     const Scratch scratch{fresh};
     FakePlatform fake(scratch.config());
     std::vector<std::byte> pages(4 * mib);
@@ -106,7 +106,7 @@ QIVEN3_CASE(write_kept, write_pass) {
 
 // The import: 0000000001 by steps 2 to 4, no lock, no listing (a pending
 // file under its name: write_kept_steps.import_exists).
-QIVEN3_CASE(write_kept, import) {
+QIVEN_CASE(write_kept, import) {
     const Scratch scratch{fresh};
     FakePlatform fake(scratch.config());
     std::vector<std::byte> pages(4 * mib);

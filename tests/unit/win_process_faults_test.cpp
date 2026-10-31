@@ -20,7 +20,7 @@
 #include <thread>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/win_process_case.hpp"
 
 #if defined(QIVEN_FAULTS)
@@ -95,7 +95,7 @@ constexpr std::string_view start_calls =
 
 #endif
 
-QIVEN3_CASE(win_process, faults) {
+QIVEN_CASE(win_process, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch("win-process");
     WindowsPlatform platform(std::nullopt);
@@ -210,6 +210,6 @@ QIVEN3_CASE(win_process, faults) {
     std::cout << "win_process.faults: " << points << " fault points, each run to completion\n";
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

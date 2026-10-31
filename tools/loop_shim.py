@@ -2,7 +2,7 @@
 git by a name PATH resolves is counted: the shim (tools/git_shim.c, built
 by the toolset's cl, on Windows; tools/git_shim.sh on Linux) stands first
 on PATH under git's program name, logs each start and runs the real git,
-PATH's before the shim. tests/runner/ctest_tests.cmake runs every Python
+PATH's before the shim. foundation/devkit/test/runner/ctest_tests.cmake runs every Python
 test so on the build QIVEN3_LOOP_TESTS names, one a system, whose fake
 step is the loop's one step a run that starts git.
 
@@ -15,7 +15,7 @@ that the step's count is its real starts. The run fails (status 1) when
 the shim's starts differ from the door's, a start past the door, by a name
 built at run time or a shell's line; or, without --git, when the test
 starts git at all: a test that starts git is the loop's own (a class's
-ctest_git, tests/runner/list_tests.py), listed on that build alone, so
+ctest_git, foundation/devkit/test/runner/list_tests.py), listed on that build alone, so
 that no test that starts git runs in a second step of a run. Else its
 status is the test's. A start by an absolute path passes the shim: the
 guard's, by the source (tests/drive/test_git_count.py), the stated limit.

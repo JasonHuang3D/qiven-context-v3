@@ -38,10 +38,6 @@
       "paths": [
         "src/log/",
         "tests/support/log/",
-        "tests/runner/runner.hpp",
-        "tests/runner/runner_test.cpp",
-        "tests/runner/runner_demo.cpp",
-        "tests/drive/test_runner.py",
         "tests/unit/log.cmake",
         "tests/unit/log_*",
         "tests/unit/ring_test.cpp",

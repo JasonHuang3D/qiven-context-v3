@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "platform/platform.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
 #include "support/faults/faults.hpp"
 #include "support/stores/exchange_bed.hpp"
@@ -16,7 +16,7 @@ constexpr std::size_t own_bytes = qiven3::store::operation_base;
 
 }  // namespace
 
-QIVEN3_CASE(store_exchange, budget) {
+QIVEN_CASE(store_exchange, budget) {
     const auto b = std::make_unique<Bed>();
     CHECK_EQ(sqlite::Reader::pages_for(b->scopes, b->after), own_bytes + 57U + 98U);
     CHECK_EQ(sqlite::Reader::pages_for(std::nullopt, {}), own_bytes);
@@ -145,7 +145,7 @@ bool held_after(Bed& b, const Step& s, const After& before, bool done) {
 }
 
 // One step's fault runs.
-void fault_step(qiven3::test::Context& qiven3_ctx, Bed& b, const Step& s, qiven3::memory::Countdown& countdown) {
+void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3::memory::Countdown& countdown) {
     if (s.side == Side::importing) {
         b.empty_target();
     }
@@ -200,7 +200,7 @@ void fault_step(qiven3::test::Context& qiven3_ctx, Bed& b, const Step& s, qiven3
     };
     attach(b, &countdown);
     const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<Typed>(qiven3_ctx.log, "store_exchange.step", countdown, op, check);
+        qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_exchange.step", countdown, op, check);
     attach(b, nullptr);
     for (const std::string& r : results) {
         t.differed += r == result ? 0U : 1U;
@@ -216,23 +216,23 @@ void fault_step(qiven3::test::Context& qiven3_ctx, Bed& b, const Step& s, qiven3
     CHECK_EQ(t.memory + t.platform + t.engine + t.absorbed, runs.typed);
     CHECK_EQ(t.differed, 0U);
 }
-void fault_steps(qiven3::test::Context& qiven3_ctx, Side side) {
+void fault_steps(qiven::runner::Context& qiven_ctx, Side side) {
     const auto b = std::make_unique<Bed>();
     qiven3::memory::Countdown countdown;
     for (const Step& s : steps()) {
         if (s.side == side) {
-            fault_step(qiven3_ctx, *b, s, countdown);
+            fault_step(qiven_ctx, *b, s, countdown);
         }
     }
 }
 
 }  // namespace
 
-QIVEN3_CASE(store_exchange, faults_export) { fault_steps(qiven3_ctx, Side::exporting); }
-QIVEN3_CASE(store_exchange, faults_import) { fault_steps(qiven3_ctx, Side::importing); }
-QIVEN3_CASE(store_exchange, faults_verify) { fault_steps(qiven3_ctx, Side::verifying); }
+QIVEN_CASE(store_exchange, faults_export) { fault_steps(qiven_ctx, Side::exporting); }
+QIVEN_CASE(store_exchange, faults_import) { fault_steps(qiven_ctx, Side::importing); }
+QIVEN_CASE(store_exchange, faults_verify) { fault_steps(qiven_ctx, Side::verifying); }
 #else
-QIVEN3_CASE(store_exchange, faults_export) { QIVEN3_SKIP(unfaulted); }
-QIVEN3_CASE(store_exchange, faults_import) { QIVEN3_SKIP(unfaulted); }
-QIVEN3_CASE(store_exchange, faults_verify) { QIVEN3_SKIP(unfaulted); }
+QIVEN_CASE(store_exchange, faults_export) { QIVEN_SKIP(unfaulted); }
+QIVEN_CASE(store_exchange, faults_import) { QIVEN_SKIP(unfaulted); }
+QIVEN_CASE(store_exchange, faults_verify) { QIVEN_SKIP(unfaulted); }
 #endif

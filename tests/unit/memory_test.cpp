@@ -15,7 +15,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "memory/pool.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 
 namespace {
 
@@ -50,7 +50,7 @@ struct alignas(4096) Pages {
 
 }  // namespace
 
-QIVEN3_CASE(memory, add_mul) {
+QIVEN_CASE(memory, add_mul) {
     CHECK(add(top - 1, 1) == std::optional<std::size_t>{top});
     CHECK(!add(top - 1, 2).has_value());
     CHECK(mul(top / 3, 3) == std::optional<std::size_t>{top / 3 * 3});
@@ -60,7 +60,7 @@ QIVEN3_CASE(memory, add_mul) {
     CHECK(!mul(std::size_t{1} << 32, std::size_t{1} << 32).has_value());
 }
 
-QIVEN3_CASE(memory, inline_cut) {
+QIVEN_CASE(memory, inline_cut) {
     CHECK_EQ(Inline<8>("").size(), 0U);
     CHECK_EQ(Inline<3>("abc").view(), "abc");
     // A two-byte, a three-byte and a four-byte sequence, each cut before.
@@ -72,7 +72,7 @@ QIVEN3_CASE(memory, inline_cut) {
     CHECK_EQ(Inline<5>("a\xF0\x9F\x98\x80z").view(), "a\xF0\x9F\x98\x80");
 }
 
-QIVEN3_CASE(memory, error_budget) {
+QIVEN_CASE(memory, error_budget) {
     const MemoryError e = MemoryError::budget("arena", 65536, 70000, top);
     CHECK(e.code == MemoryCode::budget);
     CHECK_EQ(qiven3::memory::name(e.code), "budget");
@@ -81,7 +81,7 @@ QIVEN3_CASE(memory, error_budget) {
     static_assert(std::is_nothrow_copy_constructible_v<MemoryError>);
 }
 
-QIVEN3_CASE(memory, allocator) {
+QIVEN_CASE(memory, allocator) {
     const auto a = std::make_unique<Pages>();
     const auto b = std::make_unique<Pages>();
     Arena one(a->bytes);
@@ -112,7 +112,7 @@ QIVEN3_CASE(memory, allocator) {
     CHECK_EQ(one.peak(), 40U);
 }
 
-QIVEN3_CASE(memory, string_on_arena) {
+QIVEN_CASE(memory, string_on_arena) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -130,7 +130,7 @@ QIVEN3_CASE(memory, string_on_arena) {
     CHECK(arena.peak() >= 105U);
 }
 
-QIVEN3_CASE(memory, vector_on_arena) {
+QIVEN_CASE(memory, vector_on_arena) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -150,7 +150,7 @@ QIVEN3_CASE(memory, vector_on_arena) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-QIVEN3_CASE(memory, container_budget) {
+QIVEN_CASE(memory, container_budget) {
     std::array<std::byte, 256> bytes{};
     Arena arena(bytes);
     Vector<int> v(Allocator<int>{arena});
@@ -184,7 +184,7 @@ bool taken(qiven3::memory::Mutex& mutex, std::chrono::milliseconds wait) {
     return false;
 }
 
-QIVEN3_CASE(memory, mutex_deadline) {
+QIVEN_CASE(memory, mutex_deadline) {
     qiven3::memory::Mutex mutex;
     bool first = false;
     bool other = true;
@@ -205,7 +205,7 @@ QIVEN3_CASE(memory, mutex_deadline) {
     CHECK(other);
 }
 
-QIVEN3_CASE(memory, countdown) {
+QIVEN_CASE(memory, countdown) {
 #if defined(QIVEN_FAULTS)
     qiven3::memory::Countdown countdown;
     CHECK(!countdown.fail());
@@ -221,14 +221,14 @@ QIVEN3_CASE(memory, countdown) {
     CHECK(!countdown.fired());
     CHECK(!countdown.fail());
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
 // The sizes, for the record: each pinned one is a static_assert beside its
 // type, checked where the build's options and library give the pinned
 // layout.
-QIVEN3_CASE(memory, sizes) {
+QIVEN_CASE(memory, sizes) {
     std::cout << "Allocator<char> " << sizeof(Allocator<char>) << "\nString " << sizeof(String)
               << "\nVector<int> " << sizeof(Vector<int>) << "\nArena " << sizeof(Arena)
               << "\nPool " << sizeof(qiven3::memory::Pool) << "\nHeap "

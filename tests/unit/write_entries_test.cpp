@@ -22,7 +22,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
@@ -130,7 +130,7 @@ std::string encoded(const qiven3::json::Value& v) {
 
 }  // namespace
 
-QIVEN3_CASE(write_entries, reads_a_write_file) {
+QIVEN_CASE(write_entries, reads_a_write_file) {
     std::vector<std::byte> pages(8 * mib);
     Arena arena(pages);
     std::string bytes = write_file;
@@ -169,7 +169,7 @@ QIVEN3_CASE(write_entries, reads_a_write_file) {
     CHECK(f.key(f.sites(e[0])[0]).empty());
 }
 
-QIVEN3_CASE(write_entries, fills_the_holes) {
+QIVEN_CASE(write_entries, fills_the_holes) {
     std::vector<std::byte> pages(8 * mib);
     Arena arena(pages);
     we::File f = we::read(write_file, arena);
@@ -200,7 +200,7 @@ QIVEN3_CASE(write_entries, fills_the_holes) {
     }
 }
 
-QIVEN3_CASE(write_entries, reads_an_import_file) {
+QIVEN_CASE(write_entries, reads_an_import_file) {
     std::vector<std::byte> pages(8 * mib);
     Arena arena(pages);
     const we::File f = we::read(import_file, arena);
@@ -216,7 +216,7 @@ QIVEN3_CASE(write_entries, reads_an_import_file) {
     CHECK(outcome(swap(import_file, "\"elsewhere\"", "\"else-where\"")) == "ok");
 }
 
-QIVEN3_CASE(write_entries, refuses_the_file_form) {
+QIVEN_CASE(write_entries, refuses_the_file_form) {
     CHECK(outcome(write_file) == "ok");
     CHECK(outcome("{") == "form/json@");
     CHECK(outcome("[]") == "form/type@");
@@ -240,7 +240,7 @@ QIVEN3_CASE(write_entries, refuses_the_file_form) {
     CHECK(outcome(std::string(we::max_bytes + 1, ' ')) == "form/too_large@");
 }
 
-QIVEN3_CASE(write_entries, counts_the_entries) {
+QIVEN_CASE(write_entries, counts_the_entries) {
     const std::string claim = R"json({"kind": "claim", "basis": "claimed",
      "content": {"claim": "An invented claim.", "subject": "entity:example", "band": "normal",
        "admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."},
@@ -259,7 +259,7 @@ QIVEN3_CASE(write_entries, counts_the_entries) {
     CHECK(outcome(imports, 32 * mib) == "form/count@entries");
 }
 
-QIVEN3_CASE(write_entries, refuses_the_pieces) {
+QIVEN_CASE(write_entries, refuses_the_pieces) {
     CHECK(outcome(with("\"lane-record\": {", "\"Lane_Record\": {")) == "form/syntax@pieces.Lane_Record");
     CHECK(outcome(with("\"lane-record\": {\"text\"", "\"lane-record\": {\"path\": \"/tmp/x\", \"text\"")) ==
           "form/not_allowed@pieces.lane-record.path");
@@ -292,7 +292,7 @@ QIVEN3_CASE(write_entries, refuses_the_pieces) {
 
 // A map's object and an accept's message are references too: a digest
 // given refused, a piece read in its place.
-QIVEN3_CASE(write_entries, checks_every_reference) {
+QIVEN_CASE(write_entries, checks_every_reference) {
     const std::string head = R"json({"form": "qiven3-entries/1", "writer": "import", "scope": "project:example",
       "pieces": {"record": {"text": "an invented output\n"}}, "entries": [{"name": "c", "kind": "claim",
       "basis": "claimed", "content": {"claim": "An invented claim.", "subject": "entity:example", "band": "normal",
@@ -317,7 +317,7 @@ QIVEN3_CASE(write_entries, checks_every_reference) {
           "form/not_allowed@entries[1].content.message.digest#1");
 }
 
-QIVEN3_CASE(write_entries, refuses_an_entry_form) {
+QIVEN_CASE(write_entries, refuses_an_entry_form) {
     CHECK(outcome(with("{\"name\": \"moved\"", "7, {\"name\": \"moved\"")) == "form/type@entries[0]#0");
     CHECK(outcome(with("{\"name\": \"moved\",", "{\"name\": \"moved\", \"extra\": 1,")) ==
           "form/unknown_member@entries[0].extra#0");  // the members before the name
@@ -359,7 +359,7 @@ QIVEN3_CASE(write_entries, refuses_an_entry_form) {
           "form/not_allowed@entries[0].content.clears#0:moved");
 }
 
-QIVEN3_CASE(write_entries, refuses_an_invalid_content) {
+QIVEN_CASE(write_entries, refuses_an_invalid_content) {
     CHECK(outcome(with("\"turn\": \"reviewer\",", "\"turn\": \"reviewer\", \"colour\": \"red\",")) ==
           "invalid/content@entries[0].content.colour#0:moved unknown_field 0 0");
     CHECK(outcome(with("\"state\": \"active\"", "\"state\": \"busy\"")) ==
@@ -391,7 +391,7 @@ QIVEN3_CASE(write_entries, refuses_an_invalid_content) {
               .starts_with("invalid/content@entries[0].content#0:moved too_large 65536 "));
 }
 
-QIVEN3_CASE(write_entries, arena_too_small) {
+QIVEN_CASE(write_entries, arena_too_small) {
     std::vector<std::byte> pages(64 * 1024);
     Arena arena(pages);
     bool budget = false;

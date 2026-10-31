@@ -23,7 +23,7 @@
 
 #include "memory/arena.hpp"
 #include "platform/win/windows.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -142,7 +142,7 @@ using qiven3::platform::win::ClockTrace;
 // refused try; a pause of the text's 50 ms after each such read but a
 // spent one. Spent: it gave up at its first read past the deadline, never
 // before; else every read short of it.
-void check_clock(qiven3::test::Context& qiven3_ctx, const ClockTrace& t, std::chrono::milliseconds before,
+void check_clock(qiven::runner::Context& qiven_ctx, const ClockTrace& t, std::chrono::milliseconds before,
                  std::chrono::milliseconds after, Seconds deadline, bool spent) {
     CHECK(t.reads >= (spent ? 2U : 1U));
     CHECK(before <= t.first && t.first <= t.previous && t.previous <= t.last && t.last <= after);
@@ -155,7 +155,7 @@ void check_clock(qiven3::test::Context& qiven3_ctx, const ClockTrace& t, std::ch
 
 }  // namespace
 
-QIVEN3_CASE(win_files, create) {
+QIVEN_CASE(win_files, create) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path made = scratch.root / "made";
@@ -201,7 +201,7 @@ QIVEN3_CASE(win_files, create) {
     CHECK_EQ(bad.detail, std::string("not UTF-8"));
 }
 
-QIVEN3_CASE(win_files, read) {
+QIVEN_CASE(win_files, read) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
@@ -249,7 +249,7 @@ QIVEN3_CASE(win_files, read) {
 
 // read's memory: one allocation of the caller's arena past the string's
 // own 15 bytes, none within them; failed, MemoryError with the file closed.
-QIVEN3_CASE(win_files, read_memory) {
+QIVEN_CASE(win_files, read_memory) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -293,11 +293,11 @@ QIVEN3_CASE(win_files, read_memory) {
     arena.attach(nullptr);
     CHECK_EQ(arena.used(), 0U);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }
 
-QIVEN3_CASE(win_files, remove_directory) {
+QIVEN_CASE(win_files, remove_directory) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path empty = scratch.root / "empty";
@@ -329,7 +329,7 @@ QIVEN3_CASE(win_files, remove_directory) {
     CHECK_EQ(relative.detail, std::string("not absolute"));
 }
 
-QIVEN3_CASE(win_files, replace) {
+QIVEN_CASE(win_files, replace) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path target = scratch.root / "record.json";
@@ -362,7 +362,7 @@ QIVEN3_CASE(win_files, replace) {
 // renames at its first try, and one more, its temporary file's deletion;
 // the deadline's replace those and one rename more for each pause.
 // Released, the new bytes.
-QIVEN3_CASE(win_files, replace_held) {
+QIVEN_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path target = scratch.root / "map-marks.json";
@@ -401,7 +401,7 @@ QIVEN3_CASE(win_files, replace_held) {
         CHECK_EQ(held.detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
         CHECK(after - before >= short_wait);
 #if defined(QIVEN_FAULTS)
-        check_clock(qiven3_ctx, held_trace, before, after, short_wait, true);
+        check_clock(qiven_ctx, held_trace, before, after, short_wait, true);
         platform.trace(&zero_trace);
 #endif
         Thrown zero;
@@ -433,7 +433,7 @@ QIVEN3_CASE(win_files, replace_held) {
 // P20's lock half: held past the deadline, busy, never before it by the
 // clock the adapter reads, and under QIVEN_FAULTS the retries as
 // check_clock states them; at 0 busy; released, acquired.
-QIVEN3_CASE(win_files, lock) {
+QIVEN_CASE(win_files, lock) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
     const fs::path file = scratch.root / "location.lock";
@@ -452,7 +452,7 @@ QIVEN3_CASE(win_files, lock) {
     CHECK(after - before >= short_wait);
 #if defined(QIVEN_FAULTS)
     platform.trace(nullptr);
-    check_clock(qiven3_ctx, trace, before, after, short_wait, true);
+    check_clock(qiven_ctx, trace, before, after, short_wait, true);
 #endif
     CHECK(thrown([&] { platform.lock(text(file), Seconds{0.0}); }).code == Code::busy);
     auto moved = std::move(held);
@@ -475,7 +475,7 @@ QIVEN3_CASE(win_files, lock) {
 
 // Each Win32 call failed in turn: a typed error each time, nothing held
 // open after it, no temporary file, the target's bytes old or new.
-QIVEN3_CASE(win_files, faults) {
+QIVEN_CASE(win_files, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -495,7 +495,7 @@ QIVEN3_CASE(win_files, faults) {
     platform.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
         const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven3_ctx.log, site, countdown, op, clean);
+            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_files.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);
@@ -547,6 +547,6 @@ QIVEN3_CASE(win_files, faults) {
     CHECK_EQ(arena.used(), 0U);
     platform.attach(nullptr);
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
 #endif
 }

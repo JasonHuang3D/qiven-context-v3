@@ -15,7 +15,7 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "qiven3/utf.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/faults.hpp"
 
 namespace {
@@ -68,7 +68,7 @@ struct Valid {
 
 }  // namespace
 
-QIVEN3_CASE(utf, valid_vectors) {
+QIVEN_CASE(utf, valid_vectors) {
     const std::array<Valid, 9> valid{{
         {"", 0, 0},
         {"\x61", 1, 1},
@@ -94,7 +94,7 @@ QIVEN3_CASE(utf, valid_vectors) {
     CHECK(points == (std::vector<char32_t>{0x61, 0xE9, 0x4E2D, 0x1F600}));
 }
 
-QIVEN3_CASE(utf, refused_vectors) {
+QIVEN_CASE(utf, refused_vectors) {
     const std::array<std::string_view, 12> refused{{
         "\xff", "\xc0\x80", "\xc1\xbf", "\xe0\x80\x80", "\xed\xa0\x80", "\xed\xbf\xbf",
         "\xf4\x90\x80\x80", "\xf5\x80\x80\x80", "\x80", "\xe2\x82", "\xf0\x9d\x84", "\xf0\x8f\xbf\xbf",
@@ -111,7 +111,7 @@ QIVEN3_CASE(utf, refused_vectors) {
     }
 }
 
-QIVEN3_CASE(utf, value_form) {
+QIVEN_CASE(utf, value_form) {
     // The parser keeps a lone \u surrogate in its three-byte form, which the
     // value form reads as surrogate and the strict form as utf8.
     std::vector<char32_t> out;
@@ -127,7 +127,7 @@ QIVEN3_CASE(utf, value_form) {
     CHECK(out.empty());
 }
 
-QIVEN3_CASE(utf, order_vectors) {
+QIVEN_CASE(utf, order_vectors) {
     struct Pair {
         std::string_view a;
         std::string_view b;
@@ -152,7 +152,7 @@ QIVEN3_CASE(utf, order_vectors) {
     CHECK(utf::compare("ab", "ab") == std::strong_ordering::equal);
 }
 
-QIVEN3_CASE(utf, backslashreplace_vectors) {
+QIVEN_CASE(utf, backslashreplace_vectors) {
     struct Name {
         std::u16string_view name;
         std::string_view out;
@@ -176,7 +176,7 @@ QIVEN3_CASE(utf, backslashreplace_vectors) {
     CHECK(out == "\x61\x5c\x75\x64\x63\x38\x30\x62");
 }
 
-QIVEN3_CASE(utf, ranges) {
+QIVEN_CASE(utf, ranges) {
     std::size_t surrogates = 0;
     std::size_t nonchars = 0;
     for (char32_t p = 0; p <= 0x10FFFFU; ++p) {
@@ -200,7 +200,7 @@ QIVEN3_CASE(utf, ranges) {
     CHECK_EQ(wrong, 0U);
 }
 
-QIVEN3_CASE(utf, decode_budget) {
+QIVEN_CASE(utf, decode_budget) {
     // the specification's budget for decode: 64 KiB plus 4 times the input's
     // bytes, into the caller's vector on the arena; measured here.
     std::string text;
@@ -208,7 +208,7 @@ QIVEN3_CASE(utf, decode_budget) {
         text += "a\xc3\xa9\xe4\xb8\xad\xf0\x9f\x98\x80";
     }
     const std::size_t budget = 65536 + 4 * text.size();
-    Arena& arena = qiven3_ctx.counted.arena(budget);
+    Arena& arena = qiven_ctx.counted.arena(budget);
     std::size_t peak = 0;
     {
         qiven3::memory::Vector<char32_t> out{Allocator<char32_t>(arena)};
@@ -221,7 +221,7 @@ QIVEN3_CASE(utf, decode_budget) {
     CHECK(peak <= budget);
     CHECK(peak >= 4 * 8000U);
     // A byte short: MemoryError budget, the vector unchanged.
-    Arena& shorter = qiven3_ctx.counted.arena(peak - 1);
+    Arena& shorter = qiven_ctx.counted.arena(peak - 1);
     qiven3::memory::Vector<char32_t> out{Allocator<char32_t>(shorter)};
     bool refused = false;
     try {
@@ -233,7 +233,7 @@ QIVEN3_CASE(utf, decode_budget) {
     CHECK(out.empty());
 }
 
-QIVEN3_CASE(utf, decode_faults) {
+QIVEN_CASE(utf, decode_faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(65536);
     qiven3::memory::Countdown countdown;
@@ -248,7 +248,7 @@ QIVEN3_CASE(utf, decode_faults) {
         decoded = out.size();
     };
     const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
-        qiven3_ctx.log, "utf.decode", countdown, op, check);
+        qiven_ctx.log, "utf.decode", countdown, op, check);
     std::cout << "utf.decode_faults: allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 1U);
     CHECK_EQ(runs.completed_at, 2U);
@@ -257,6 +257,6 @@ QIVEN3_CASE(utf, decode_faults) {
     CHECK_EQ(decoded, 6U);
     arena.reset();
 #else
-    QIVEN3_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 #endif
 }

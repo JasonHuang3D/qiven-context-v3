@@ -11,7 +11,7 @@
 # 30 s, so that the watcher acts first.
 cmake_minimum_required(VERSION 3.28)
 
-set(body "# Written by tests/runner/ctest_tests.cmake after the build.\n")
+set(body "# Written by foundation/devkit/test/runner/ctest_tests.cmake after the build.\n")
 set(seen "")
 set(cases 0)
 set(python_tests 0)
@@ -122,7 +122,7 @@ if(DEFINED PYTHON)
   if(LOOP)
     set(list_args --loop)
   endif()
-  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/tests/runner/list_tests.py" ${list_args}
+  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/runner/list_tests.py" ${list_args}
     WORKING_DIRECTORY "${SOURCE}"
     OUTPUT_VARIABLE listed ERROR_VARIABLE listed_err RESULT_VARIABLE status)
   if(NOT status EQUAL 0)

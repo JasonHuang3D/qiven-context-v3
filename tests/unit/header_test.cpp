@@ -19,7 +19,7 @@
 #include "entry/header.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -214,7 +214,7 @@ std::string thrown(const Op& op) {
 
 }  // namespace
 
-QIVEN3_CASE(header, fixtures) {
+QIVEN_CASE(header, fixtures) {
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::size_t checked = 0;
@@ -240,7 +240,7 @@ QIVEN3_CASE(header, fixtures) {
     CHECK_EQ(checked, 12U);
 }
 
-QIVEN3_CASE(header, refusals) {
+QIVEN_CASE(header, refusals) {
     const auto check_fields = [](const FieldsView& f) { return [f] { header::check(header::make(f)); }; };
     const auto check_line = [](std::string line) { return [line] { header::check(header::parse_line(line)); }; };
     FieldsView f = a_fields();
@@ -281,7 +281,7 @@ QIVEN3_CASE(header, refusals) {
     CHECK_EQ(std::string(header::name(Code::reflect_kind)), "reflect_kind");
 }
 
-QIVEN3_CASE(header, stamp) {
+QIVEN_CASE(header, stamp) {
     Fake fake(qiven3::platform::fake::Config{});
     const auto set = [&fake](std::string_view at, std::int64_t micros) {
         fake.set_clock(std::chrono::time_point_cast<std::chrono::microseconds>(*utc::parse_at(at)) +

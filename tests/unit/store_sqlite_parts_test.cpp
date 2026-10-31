@@ -21,11 +21,11 @@
 #include <cstddef>
 #include <string_view>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/faults/parts.hpp"
 
 namespace qiven3::test {
-void store_sqlite_fault_steps(Context& qiven3_ctx, std::string_view group, FaultRange range);
+void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range);
 }  // namespace qiven3::test
 
 namespace {
@@ -55,14 +55,14 @@ constexpr qiven3::test::FaultParts<35> forget_parts{{{
 }}};
 static_assert(create_parts.whole() && forget_parts.whole());
 
-void create_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
+void create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
     CHECK(qiven3::test::registered("store_sqlite.faults_create", create_parts.from.size()));
-    qiven3::test::store_sqlite_fault_steps(qiven3_ctx, "create", create_parts.range(i, 0));
+    qiven3::test::store_sqlite_fault_steps(qiven_ctx, "create", create_parts.range(i, 0));
 }
 
-void forget_part(qiven3::test::Context& qiven3_ctx, std::size_t i) {
+void forget_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
     CHECK(qiven3::test::registered("store_sqlite.faults_forget", forget_parts.from.size()));
-    qiven3::test::store_sqlite_fault_steps(qiven3_ctx, "forget", forget_parts.range(i, 0));
+    qiven3::test::store_sqlite_fault_steps(qiven_ctx, "forget", forget_parts.range(i, 0));
 }
 
 }  // namespace

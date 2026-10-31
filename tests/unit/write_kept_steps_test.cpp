@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-#include "runner/runner.hpp"
+#include "qiven/runner/runner.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
 using namespace qiven3::test::kept_bed;
@@ -65,7 +65,7 @@ void hold(Store& store, const Entries& e) {
 
 // Step 1: a torn .tmp and replace's own temporary removed unread, a kept
 // file and another name untouched.
-QIVEN3_CASE(write_kept_steps, settle_temporaries) {
+QIVEN_CASE(write_kept_steps, settle_temporaries) {
     const auto bed = std::make_unique<Bed>();
     bed->plant("0000000001.jsonl", "a kept file, not read");
     bed->plant("0000000002.tmp", "{\"kept\":\"qiven3-ke");
@@ -81,7 +81,7 @@ QIVEN3_CASE(write_kept_steps, settle_temporaries) {
 // Step 1: a pending file whose ids the store holds none of removed, all of
 // renamed kept; a part, corrupt, never settled, nothing appended, until
 // the store holds them all.
-QIVEN3_CASE(write_kept_steps, settle_by_ids) {
+QIVEN_CASE(write_kept_steps, settle_by_ids) {
     {
         const auto bed = std::make_unique<Bed>();
         const Entries old(bed->arena, writer, 2, 1);
@@ -128,7 +128,7 @@ QIVEN3_CASE(write_kept_steps, settle_by_ids) {
 // is taken corrupt, both left, nothing appended; the name free, the next
 // write settles it, its n one past the highest after step 1's removals,
 // and every kept file parses under its name.
-QIVEN3_CASE(write_kept_steps, settle_exists) {
+QIVEN_CASE(write_kept_steps, settle_exists) {
     const auto bed = std::make_unique<Bed>();
     const Entries one(bed->arena, writer, 1, 4);
     const Entries old(bed->arena, writer, 1, 1);
@@ -159,7 +159,7 @@ QIVEN3_CASE(write_kept_steps, settle_exists) {
 // Step 2: replace failing leaves nothing; the rename to pending failing
 // leaves the .tmp whole and no pending file; nothing appended; the next
 // write removes the .tmp.
-QIVEN3_CASE(write_kept_steps, keep_faults) {
+QIVEN_CASE(write_kept_steps, keep_faults) {
     const auto bed = std::make_unique<Bed>();
     const Entries e(bed->arena, writer, 2, 1);
     bed->fake.set_busy(Busy{.target = never});
@@ -176,7 +176,7 @@ QIVEN3_CASE(write_kept_steps, keep_faults) {
 
 // Step 4 on a refusal: the pending file removed, the refusal thrown; its
 // removal failing is dropped, the file left and removed by the next write.
-QIVEN3_CASE(write_kept_steps, done_refused) {
+QIVEN_CASE(write_kept_steps, done_refused) {
     const auto bed = std::make_unique<Bed>();
     const Entries e(bed->arena, writer, 2, 1);
     const auto refuse = [] { throw Refusal{rc::Code::head_conflict}; };
@@ -197,7 +197,7 @@ QIVEN3_CASE(write_kept_steps, done_refused) {
 // Step 3 faulted, as a kill or the store's io: before the commit the
 // pending file is left whole and the next write removes it; after it, left
 // whole and the next write renames it kept.
-QIVEN3_CASE(write_kept_steps, append_faulted) {
+QIVEN_CASE(write_kept_steps, append_faulted) {
     for (const bool committed : {false, true}) {
         const auto bed = std::make_unique<Bed>();
         const Entries e(bed->arena, writer, 2, 1);
@@ -227,7 +227,7 @@ QIVEN3_CASE(write_kept_steps, append_faulted) {
 // with a file under the kept name; the pending file left whole, never
 // removed, and the next write renames it kept, refused corrupt while its
 // own name is taken.
-QIVEN3_CASE(write_kept_steps, done_rename_faults) {
+QIVEN_CASE(write_kept_steps, done_rename_faults) {
     for (const bool exists : {false, true}) {
         const auto bed = std::make_unique<Bed>();
         const Entries e(bed->arena, writer, 2, 1);
@@ -257,7 +257,7 @@ QIVEN3_CASE(write_kept_steps, done_rename_faults) {
 
 // The lock held: busy naming it, nothing kept or appended; released, the
 // nearest pass.
-QIVEN3_CASE(write_kept_steps, busy) {
+QIVEN_CASE(write_kept_steps, busy) {
     const auto bed = std::make_unique<Bed>();
     const Entries e(bed->arena, writer, 1, 1);
     {
@@ -270,7 +270,7 @@ QIVEN3_CASE(write_kept_steps, busy) {
 }
 
 // Past the last name: store_full, nothing kept or appended [reading].
-QIVEN3_CASE(write_kept_steps, past_last) {
+QIVEN_CASE(write_kept_steps, past_last) {
     const auto bed = std::make_unique<Bed>();
     bed->plant("9999999999.jsonl", "the last");
     const Entries e(bed->arena, writer, 1, 1);
@@ -282,7 +282,7 @@ QIVEN3_CASE(write_kept_steps, past_last) {
 // The import's step 2 meeting a file under the pending name, which only
 // a directory that held something gives: exists, both kept, nothing
 // appended, no settle step.
-QIVEN3_CASE(write_kept_steps, import_exists) {
+QIVEN_CASE(write_kept_steps, import_exists) {
     const auto bed = std::make_unique<Bed>();
     bed->plant("0000000001.pending", "a file under the pending name");
     const Entries e(bed->arena, "import", 2, 1);
