@@ -13,12 +13,12 @@
 // moves that cannot fail, so a refusal leaves the state as it was; a
 // forget so too, its guard, whole records and targets checked. Reads run
 // under the lock and give a header line's and a body record's bytes as
-// held, parsing neither. A scan fixes, at its start, each lane's entries
-// then held, and reads one record, its keys and line, at a time. Export,
-// import and verify are
-// memory_exchange.hpp's. It is not durable, has no files and admits no
-// other process: no capability. Its purge is done at once; it has no path,
-// so an error names none.
+// held, parsing neither; the generic calls (line, targets, keyed,
+// each_keyed) look up by the keys held. A scan fixes, at its start, each
+// lane's entries then held, and reads one record, its keys and line, at a
+// time. Export, import and verify are memory_exchange.hpp's. It is not
+// durable, has no files and admits no other process: no capability. Its
+// purge is done at once; it has no path, so an error names none.
 //
 // Budgets: each operation runs on its own pages, an arena over them, 1 MiB
 // plus 4 times the lines given: the object's own 1 MiB for an operation
@@ -35,8 +35,9 @@
 // the call's rows, three each, a new lane's two and its ids', the room
 // each container grows to. head, forgotten, size: none. heads: the caller's
 // rows. header, body: the bytes' on the caller's; lent to a step, the
-// step's on an arena over the object's own pages. scan: its lanes' room on
-// the state's heap; each next its kind's and line's on the caller's, or,
+// step's on an arena over the object's own pages. line, targets, keyed:
+// the bytes' and the list's room on the caller's, none on the object's
+// pages; each_keyed: none but f's. scan: its lanes' room on the state's heap; each next its kind's and line's on the caller's, or,
 // lent, on an arena over the scan's pages with the step's. forget: as
 // append, and the targets' room and forgetting's on the kept arena.
 // export, import, verify: memory_exchange.hpp's. close and purge: none.
@@ -319,6 +320,38 @@ public:
         return held(lock.data(), op, id).forget != state::none;
     }
 
+    // The generic calls, by the keys the store holds, under the lock as
+    // header is, outside any write: a record's line into line, on its
+    // allocator, false where none is held; the ids whose target is id, of
+    // scope, in the order written; a scope's ids of kind with no target, in
+    // (lane, seq) order, its lanes by name; each list into out, cleared
+    // first, on its allocator. A key past its bound finds none. line names
+    // the operation header, the lists scan.
+    bool line(std::string_view id, String& line) {
+        return look(Operation::header, [&](state::StateView& v) { return v.line(id, line); });
+    }
+    void targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
+        (void)look(Operation::scan, [&](state::StateView& v) {
+            v.targets(id, scope, out);
+            return true;
+        });
+    }
+    void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
+        out.clear();
+        (void)each_keyed(scope, kind, [&out](const Id& id) {
+            out.push_back(id);
+            return false;
+        });
+    }
+    // keyed lent to f: f(id) for each id keyed gives, in its order, under
+    // the lock, until f gives true: whether it did. No list held; f's throw
+    // leaves the object as it was. f calls no store.
+    template <class F>
+        requires std::is_invocable_r_v<bool, F&, const Id&>
+    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        return look(Operation::scan, [&](state::StateView& v) { return v.each_keyed(scope, kind, f); });
+    }
+
     MemoryScan<P> scan(const RangeView& range) {
         gate_.enter(Operation::scan, {});
         return MemoryScan<P>(gate_, *state_, *platform_, range, countdown_);
@@ -438,8 +471,9 @@ public:
 
     [[nodiscard]] bool read_only() const noexcept { return gate_.read_only(); }
     [[nodiscard]] Limits limits() const noexcept { return state_->limits(); }
-    // The counted peak of the last append, forget, header, body, import or
-    // verify that returned: its arenas' high-water marks summed.
+    // The counted peak of the last append, forget, header, body, generic
+    // call, import or verify that returned: its arenas' high-water marks
+    // summed.
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     // The platform it was made on.
     [[nodiscard]] P& platform() const noexcept { return *platform_; }
@@ -480,6 +514,20 @@ private:
         hook(arena);
         const state::Locked lock(*state_, op, {});
         const bool has = give(held(lock.data(), op, id), state::Chars(arena));
+        peak_ = arena.peak();
+        return has;
+    }
+    // A lookup: the gate, the lock, then give(view) over the state, its
+    // allocator an arena over the object's own pages; the peak set once
+    // give returns.
+    template <class Give>
+    bool look(Operation op, Give&& give) {
+        gate_.enter(op, {});
+        memory::Arena arena(own());
+        hook(arena);
+        const state::Locked lock(*state_, op, {});
+        state::StateView view(lock.data(), state::Chars(arena));
+        const bool has = give(view);
         peak_ = arena.peak();
         return has;
     }
