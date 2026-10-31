@@ -47,8 +47,9 @@
 // returns the new head and what the call adds. With the call's scope, lane
 // and the head the store read, staged first runs in_order, the store's own
 // order over its keys; guarded the same, fresh, at append then targets, each
-// entry's target held in the call's scope (the view's held_in), the
-// store's or an earlier one of the call's, refused target. A HeadConflict
+// entry's target held as settles reads it at import (the view's held, any
+// scope): the store's, the call's earlier one or itself; else target; its
+// scope, or itself as its target, the hook's to refuse. A HeadConflict
 // and a guard are the store's. fresh: an id held, or an earlier one of the
 // call's, refused EntryInvalid id_held, after the order, so that an entry
 // written again keeps its HeadConflict or order refusal, and before any
@@ -362,19 +363,19 @@ inline void settles(const KeysView& k, const Standing& s, std::size_t index, con
     }
 }
 
-// At append, each entry's target held in the call's scope, an earlier one
-// of the call's or the store's (the view's held_in, by its keys); the
-// first not held refused target.
+// At append, each entry's target held, as settles holds it at import: the
+// entry itself, an earlier one of the call's or the store's in any scope
+// (the view's held, by its keys); the first not held refused target.
 template <class V>
-void targets(V& view, std::span<const KeptView> entries, std::string_view scope, const AtView& at) {
+void targets(V& view, std::span<const KeptView> entries, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
         const std::optional<Id>& t = entries[i].target;
         bool held = !t;
-        for (std::size_t j = 0; j < i && !held; ++j) {
+        for (std::size_t j = 0; j <= i && !held; ++j) {
             held = entries[j].id == *t;
         }
         if (!held) {
-            held = view.held_in(t->view(), scope);
+            held = view.held(t->view());
         }
         if (!held) {
             refuse(at, i, entries[i].id.view(), "target");
@@ -413,7 +414,7 @@ Staged guarded(V& view, const Checked& checked, const Limits& limits, const AtVi
     in_order(scope, lane, now, std::span<const KeptView>(checked.kept), at);
     fresh(view, std::span<const KeptView>(checked.kept), at);
     if (at.op == Operation::append) {
-        targets(view, std::span<const KeptView>(checked.kept), scope, at);
+        targets(view, std::span<const KeptView>(checked.kept), at);
     }
     return staged(view, checked, limits, at);
 }

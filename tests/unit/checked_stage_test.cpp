@@ -11,8 +11,9 @@
 // alone, the chain rules as each line arrives (a line again, a gap), the
 // final view's codes (forgotten_body, body_missing, validator's target,
 // identity and forgotten_target, part 2's before forgotten_body, a whole
-// record standing); head_mismatch apart. The ruled stores' append takes
-// their rules alone, evaluated by the compiler.
+// record standing); head_mismatch apart; a target of another scope or itself
+// at append and import. The ruled stores' append takes their rules alone,
+// evaluated by the compiler.
 
 #include <cstddef>
 #include <cstdint>
@@ -246,6 +247,39 @@ QIVEN3_CASE(store_stage, part2) {
     CHECK_EQ(r->code, std::string("parent"));
     CHECK_EQ(r->index, 0U);
     CHECK_EQ(r->id, std::string(id_of(b)));
+}
+
+// The target's rules the store leaves to checked, at append and import
+// alike: C's target A of another scope, part 2's target; C its own target,
+// part 1's id_mismatch (an id is its header's digest, the target in it).
+QIVEN3_CASE(store_stage, target_rules) {
+    const auto bench = std::make_unique<Bench>(4U << 20U);
+    const Book& book = bench->book;
+    const Stored a = book.made("A", "A", *book.stored("A").content, [](auto& f) { f.scope = "project:other"; });
+    const std::string target = id_of(a);
+    const Stored c = book.made("C", "C", *book.stored("C").content, [&](auto& f) { f.target = target; });
+    const std::vector<Stored> call = {c};
+    const std::vector<EntryView> lines = views(call);
+    const auto checked = checked::check(bench->fake, std::span<const EntryView>(lines), at(Operation::append),
+                                        bench->chars, bench->scratch);
+    fixtures::MemoryView view;
+    hold(view, {a});
+    const std::optional<Refusal> r = refused_admit(view, checked, std::nullopt, bench->chars);
+    REQUIRE(r.has_value());
+    CHECK_EQ(r->code + " " + r->id, "target " + id_of(c));
+    hold(view, {c});
+    const std::optional<Refusal> i = refused([&] {
+        checked::import_entry(view, checked.entries[0].header(), c.content, 0, at(Operation::import_), bench->chars);
+    });
+    REQUIRE(i.has_value());
+    CHECK_EQ(i->code + " " + i->id, "target " + id_of(c));
+    Stored self = c;
+    self.line.replace(self.line.find(target), target.size(), id_of(c));
+    for (const Operation op : {Operation::append, Operation::import_}) {
+        const std::optional<Refusal> p = refused_check(bench->fake, {self}, op, bench->chars);
+        REQUIRE(p.has_value());
+        CHECK_EQ(p->code, std::string("id_mismatch"));
+    }
 }
 
 QIVEN3_CASE(store_stage, maximum) {

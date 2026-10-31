@@ -137,11 +137,11 @@ struct Totals {
 
 // The view's generic reads under the write lock, each planned with no
 // structure built in memory as large as its rows (S4's plan check): a
-// scope's ids of a kind with no target, the ids targeting an id in a
+// scope's ids of a kind, a target or none, the ids targeting an id in a
 // scope, a held line, an id held in a scope, and the scan of entry.line
 // for bytes.
 inline constexpr std::string_view keyed_roots =
-    "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 AND target IS NULL ORDER BY lane, seq";
+    "SELECT id FROM entry WHERE scope = ?1 AND kind = ?2 ORDER BY lane, seq";
 inline constexpr std::string_view record_members =
     "SELECT id FROM entry WHERE target = ?1 AND scope = ?2 ORDER BY rowid";
 inline constexpr std::string_view target_members = "SELECT id FROM entry WHERE target = ?1 ORDER BY rowid";
@@ -153,7 +153,7 @@ inline constexpr std::string_view content_scan = "SELECT EXISTS (SELECT 1 FROM e
 // the view's and the store's own outside a write: a record's line into
 // out, false where none is held; the ids whose target is id, of *scope
 // where given, into out, cleared first, in the order written; f(id) for
-// each id of scope and kind with no target, in (lane, seq) order, until f
+// each id of scope and kind, a target or none, in (lane, seq) order, until f
 // gives true: whether it did, no list held, the statement's cursor walked.
 bool line_of(Connection& c, std::string_view id, String& out, const WhereView& at);
 void targets_of(Connection& c, std::string_view id, const std::string_view* scope, Vector<Id>& out,
@@ -189,8 +189,8 @@ public:
     [[nodiscard]] bool forgotten(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
     // id, false where none is held; the ids whose target is id, in scope
-    // or in every scope; a scope's ids of kind with no target, in (lane,
-    // seq) order; each list into out, cleared first, the targets' in the
+    // or in every scope; a scope's ids of kind, a target or none, in
+    // (lane, seq) order; each list into out, cleared first, the targets' in the
     // order written (rowid); whether a held line holds bytes; whether a
     // record of id is held, in any scope or in scope.
     bool line(std::string_view id, String& out);

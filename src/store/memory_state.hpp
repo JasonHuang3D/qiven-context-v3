@@ -329,8 +329,8 @@ public:
     [[nodiscard]] std::optional<Id> forget_of(std::string_view id);
     // The generic calls, by the keys the store holds: a record's line by
     // id, false where none is held; the ids whose target is id, in scope
-    // or in every scope, in the order written; a scope's ids of kind with
-    // no target, in (lane, seq) order; each list into out, cleared first,
+    // or in every scope, in the order written; a scope's ids of kind, a
+    // target or none, in (lane, seq) order; each list into out, cleared first,
     // on its allocator; whether a held line holds bytes; whether a record
     // of id is held, in any scope or in scope.
     bool line(std::string_view id, String& out);
@@ -361,7 +361,7 @@ public:
             }
             last = std::string_view(d.lanes[next].name);
             for (const std::uint32_t r : d.lanes[next].ids) {
-                if (d.held[r].target == none && std::string_view(d.held[r].kind) == kind && f(d.held[r].id)) {
+                if (std::string_view(d.held[r].kind) == kind && f(d.held[r].id)) {
                     return true;
                 }
             }

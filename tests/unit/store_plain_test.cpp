@@ -20,6 +20,8 @@
 // own export is checked's case). entry_bound: an entry at entry_bytes by
 // append, import and forget committed and moved, a byte past refused.
 // kind_bound: a kind past its bytes refused; its bytes counted, StoreFull.
+// cross_scope_target, self_target: a target in another scope, or itself, held
+// by append and by import alike, committed and moved (checked's to refuse).
 
 #include <array>
 #include <cstddef>
@@ -570,4 +572,21 @@ QIVEN3_CASE(store_plain, kind_bound) {
         on_both(qiven3_ctx, Plan{false, {k}, {}, {}, {}, n == 31 ? "" : "StoreFull  []", false, limits},
                 n == 31 ? Counts{1, 0, 0, 1} : Counts{});
     }
+}
+
+QIVEN3_CASE(store_plain, cross_scope_target) {
+    Given t = note("t1", "one", 1, {}, false, false);
+    t.keys.scope = "other";
+    Given n = note("n2", "two", 1, {}, false, false);
+    n.keys.target = "t1";
+    const std::vector<LaneHead> heads = {lane_head("other", "one", "t1", 1), lane_head("plain", "two", "n2", 1)};
+    on_both(qiven3_ctx, Plan{false, {t, n}, {}, {}, {}, ""}, Counts{2, 0, 0, 2});
+    on_both(qiven3_ctx, Plan{true, {t, n}, heads, {}, {}, ""}, Counts{2, 0, 0, 2});
+}
+
+QIVEN3_CASE(store_plain, self_target) {
+    Given s = note("s1", "one", 1, {}, false, false);
+    s.keys.target = "s1";
+    on_both(qiven3_ctx, Plan{false, {s}, {}, {}, {}, ""}, Counts{1, 0, 0, 1});
+    on_both(qiven3_ctx, Plan{true, {s}, {lane_head("plain", "one", "s1", 1)}, {}, {}, ""}, Counts{1, 0, 0, 1});
 }

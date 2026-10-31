@@ -141,7 +141,7 @@ void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> 
     }
     Held e = make_held(d, line, record, k);
     if (const std::optional<std::string_view> t = k.target) {
-        e.target = find(d, *t);
+        e.target = *t == k.id ? static_cast<std::uint32_t>(at) : find(d, *t);  // itself, as import links it
         for (std::size_t j = rows_.size(); e.target == none && j > 0; --j) {
             if (rows_[j - 1].id.view() == *t) {
                 e.target = static_cast<std::uint32_t>(d.held.size() + j - 1);
@@ -312,7 +312,7 @@ void StateView::keyed(std::string_view scope, std::string_view kind, Vector<Id>&
     const Data& d = *data_;
     for (const std::uint32_t l : lanes_of(scope)) {
         for (const std::uint32_t r : d.lanes[l].ids) {
-            if (d.held[r].target == none && std::string_view(d.held[r].kind) == kind) {
+            if (std::string_view(d.held[r].kind) == kind) {
                 out.push_back(d.held[r].id);
             }
         }

@@ -220,8 +220,8 @@ public:
     // The generic calls, by the keys the store holds, on the connection as
     // header is, outside any write, one statement each: a record's line
     // into line, on its allocator, false where none is held; the ids whose
-    // target is id, of scope, in the order written; a scope's ids of kind
-    // with no target, in (lane, seq) order; each list into out, cleared
+    // target is id, of scope, in the order written; a scope's ids of kind,
+    // a target or none, in (lane, seq) order; each list into out, cleared
     // first, on its allocator. A key past its bound finds none. line names
     // the operation header, the lists scan; the peak 0 once each returns.
     bool line(std::string_view id, String& line) {

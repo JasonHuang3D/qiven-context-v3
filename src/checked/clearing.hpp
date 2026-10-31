@@ -5,7 +5,8 @@
 //
 // cleared(view, scope, content, pattern, at, where): whether a direction
 // record of the scope clears content for pattern at at. The roots are the
-// scope's direction ids with no target, in the store's order (each_keyed);
+// scope's direction ids with no target, in the store's order: each_keyed
+// gives every direction, one with a target in its header skipped;
 // a record's members its root and, by targets, each id of the scope that
 // names a member; each member's header, its body or none and whether it
 // is forgotten; the record folded (entry/fold) at at; its current
@@ -123,6 +124,9 @@ bool clears(V& view, const Id& root, std::string_view scope, std::string_view co
         heads.emplace_back(w);
         if (!view.header(m.view(), heads.back())) {
             incoherent(where, "a direction record's member not held");
+        }
+        if (heads.size() == 1 && heads.back().text(Slot::target)) {
+            return false;  // a direction with a target: no root
         }
         values.emplace_back(w);
         const bool has_body = view.body(m.view(), body);

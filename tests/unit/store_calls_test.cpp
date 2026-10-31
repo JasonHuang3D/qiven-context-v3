@@ -3,7 +3,7 @@
 // a factory, as stores_test.cpp's are: line, targets, keyed and each_keyed
 // on a read-write object, a second one and a read-only one; their order,
 // the store's (targets as written, keyed by lane name then seq, not as
-// written); a scope given and another scope's ids kept out; an id no
+// written, records with a target and without); a scope given and another scope's ids kept out; an id no
 // record targets; an id absent; a forget among the targets; a key one past
 // its bound finding none, never the held key it extends; each_keyed
 // stopping where f gives true, and f's throw leaving the object as it was,
@@ -124,11 +124,11 @@ void answers(qiven3::test::Context& qiven3_ctx, S& store, const std::string& a1,
     CHECK_EQ(targets("B2", qs), std::string());
     CHECK_EQ(targets("Z9", qs), std::string());
     CHECK_EQ(targets("A1", qs), std::string("F"));
-    CHECK_EQ(keyed(qs, "note"), std::string("A1 B1 B2"));
+    CHECK_EQ(keyed(qs, "note"), std::string("A1 A2 B1 B2 BT"));
     CHECK_EQ(keyed(qs, "decision"), std::string("BD"));
-    CHECK_EQ(keyed(qs, "forget"), std::string());
+    CHECK_EQ(keyed(qs, "forget"), std::string("F"));
     CHECK_EQ(keyed(qs, "absent"), std::string());
-    CHECK_EQ(keyed(other_scope, "note"), std::string("T1"));
+    CHECK_EQ(keyed(other_scope, "note"), std::string("T1 T2"));
     CHECK_EQ(keyed("project:none", "note"), std::string());
 }
 
@@ -172,7 +172,7 @@ void bounds_case(qiven3::test::Context& qiven3_ctx, F& f) {
     store->targets(id, scope + "s", out);
     CHECK(out.empty());
     store->keyed(scope, "note", out);
-    CHECK_EQ(joined(out), id);
+    CHECK_EQ(joined(out), id + " M");
     store->keyed(scope + "s", "note", out);
     CHECK(out.empty());
     verified(qiven3_ctx, f, *store, 2);
@@ -207,10 +207,10 @@ void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
     CHECK_EQ(store.peak(), peak);
     seen.clear();
     CHECK(!store.each_keyed(qs, "note", visit("")));
-    CHECK_EQ(seen, std::string("A1 B1 B2 "));
+    CHECK_EQ(seen, std::string("A1 A2 B1 B2 BT "));
     seen.clear();
     CHECK(store.each_keyed(qs, "note", visit("B1")));
-    CHECK_EQ(seen, std::string("A1 B1 "));
+    CHECK_EQ(seen, std::string("A1 A2 B1 "));
 
     // The budget: the caller's arena holds the line's bytes and the lists'
     // room reserved before; the object's peak 0.
@@ -219,7 +219,7 @@ void lend_case(qiven3::test::Context& qiven3_ctx, F& f) {
     const qiven3::memory::Allocator<char> chars(arena);
     String line(chars);
     Vector<Id> out{chars};
-    out.reserve(4);
+    out.reserve(5);
 #if defined(QIVEN3_FAULTS)
     qiven3::memory::Countdown countdown;
     arena.attach(&countdown);

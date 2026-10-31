@@ -10,8 +10,8 @@
 // the ids whose target is it, in the order written, none in another scope
 // or for an id no record targets, and targets(id) the same in every
 // scope; keyed(scope, kind) a scope's ids of a
-// kind with no target, in (lane, seq) order, a revision of the kind left
-// out, none in another scope; contains(bytes) whether a held line holds
+// kind, a target or none, in (lane, seq) order, a revision of the kind
+// among them, none in another scope; contains(bytes) whether a held line holds
 // them. Each list is cleared first. order_memory, order_sqlite: the
 // store's own order with no admit hook, a parent not the lane's head
 // refused parent and a seq not one past it seq, the chain in order
@@ -188,15 +188,15 @@ void calls(qiven3::test::Context& qiven3_ctx, V& view, const Chain& chain, const
     CHECK(out.empty());
 
     view.keyed(qiven_scope, "claim", out);
-    CHECK(ids(out) == ids_of({&a, &b}));
+    CHECK(ids(out) == ids_of({&a, &b, &c}));
     view.keyed(qiven_scope, "direction", out);
     CHECK(ids(out) == ids_of({&d}));
     view.keyed(qiven_scope, "map", out);
-    CHECK(ids(out) == ids_of({&m1}));
+    CHECK(ids(out) == ids_of({&m1, &m2}));
     view.keyed(qiven_scope, "check", out);
     CHECK(out.empty());
     view.keyed(qiven_scope, "accept", out);
-    CHECK(out.empty());
+    CHECK(ids(out) == ids_of({&acc, &acc2}));
     view.keyed("person", "claim", out);
     CHECK(out.empty());
 
