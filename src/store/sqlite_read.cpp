@@ -1,4 +1,4 @@
-// sqlite: the reads, through the connection wrapper (sqlite.hpp): a lane's
+// sqlite: the reads, through the connection wrapper (connection.hpp): a lane's
 // head, heads in one read transaction, an entry's line and body record by
 // id, forgotten, and the scan's cursor over the keys' columns and the line,
 // ending at each lane's length at its start. This file names nothing of the

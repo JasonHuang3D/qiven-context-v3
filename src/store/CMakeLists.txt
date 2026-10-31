@@ -13,6 +13,7 @@
 add_library(qiven3_store STATIC
   codes.hpp
   contract.hpp
+  engine/connection.hpp
   engine/sqlite.cpp
   engine/sqlite.hpp
   errors.cpp

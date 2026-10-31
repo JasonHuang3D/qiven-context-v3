@@ -1,7 +1,7 @@
 // sqlite: the engine's calls, all of them: the engine heap's allocator
 // and its installation with the page cache's slots, Connection and
 // Statement, and the mapping of every failing call by its extended code
-// (sqlite.hpp).
+// (connection.hpp).
 
 #include "store/engine/sqlite.hpp"
 
