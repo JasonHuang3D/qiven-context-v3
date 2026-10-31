@@ -83,11 +83,11 @@ qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
   SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_counts_test.cpp store_exchange_states_test.cpp
   LINK qiven3_faults qiven3_platform_fake qiven3_store)
 
-# The store cases' support: the factory over each store and its tags, its
-# objects given to the case template of a scan's end; the seams, the steps
-# reported, an incoherent row found at open, VACUUM and a checkpoint, the
-# naive file store; the raw-byte scans' patterns and a directory scanned,
-# a SQLite store's among them.
+# The store cases' support, over plain records on the plain factory: the
+# factory over each store and its tags, its objects given to the case
+# template of a scan's end; the seams, the steps reported, an incoherent row
+# found at open, VACUUM and a checkpoint, the naive file store; the raw-byte
+# scans' patterns and a directory scanned, a SQLite store's among them.
 qiven3_add_cases(qiven3_unit_stores LABELS fast fake
   SOURCES stores_test.cpp seams_test.cpp scan_test.cpp
-  LINK qiven3_checked_stores qiven3_seams qiven3_scan qiven3_runner)
+  LINK qiven3_stores qiven3_seams qiven3_scan qiven3_runner)

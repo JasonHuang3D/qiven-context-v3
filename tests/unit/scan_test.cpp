@@ -2,7 +2,8 @@
 // windows among them; a scan over a directory with a subdirectory finding
 // a marker in UTF-8 and in UTF-16LE and a key's hex, each file listed with
 // its size; and a SQLite store's directory scanned while open and after
-// close, the marker held in a body found.
+// close, the marker held in a plain record's body found, the store
+// verified before its close and after a reopen.
 
 #include <filesystem>
 #include <fstream>
@@ -15,14 +16,15 @@
 #include <vector>
 
 #include "runner/runner.hpp"
-#include "support/checked/stores.hpp"
-#include "support/fixtures/stage_book.hpp"
 #include "support/scan/scan.hpp"
+#include "support/stores/records.hpp"
+#include "support/stores/stores.hpp"
 
 namespace {
 
 namespace scan = qiven3::test::scan;
-namespace stores = qiven3::test::ruled;
+namespace stores = qiven3::test::stores;
+namespace records = qiven3::test::records;
 namespace fs = std::filesystem;
 
 void put(const fs::path& path, std::string_view bytes) {
@@ -82,19 +84,23 @@ QIVEN3_CASE(scan, directory) {
 QIVEN3_CASE(scan, store_directory) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
-    const std::vector<qiven3::test::stage_book::Stored> a = {site->book().stored("A")};
-    const std::string content = qiven3::test::stage_book::content_of(a[0]);
+    const std::vector<records::Rec> a = records::chain("project:qiven", "implementer", {"A"});
+    const std::string content = a[0].record.value_or("");
     REQUIRE(content.size() >= 12U);
     const std::vector<scan::Pattern> patterns = scan::marker("content", content.substr(0, 12));
     {
         auto store = f.make();
-        (void)store.append("project:qiven", "implementer", std::nullopt, qiven3::test::stage_book::views(a));
+        (void)store.append("project:qiven", "implementer", std::nullopt, records::views(a));
         const scan::Report open = scan::scan(f.directory(), patterns);
         CHECK(open.lists("store.db"));
         CHECK(!open.hits.empty());
+        CHECK_EQ(store.verify().entries, 1U);
         (void)store.close();
     }
     const scan::Report closed = scan::scan(f.directory(), patterns);
     CHECK(closed.lists("store.db"));
     CHECK(!closed.hits.empty());
+    auto back = f.reopen();
+    CHECK_EQ(back.verify().entries, 1U);
+    (void)back.close();
 }

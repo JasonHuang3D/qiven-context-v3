@@ -7,7 +7,6 @@
 #include <iterator>
 #include <utility>
 
-#include "entry/header.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::test::seams {
@@ -30,10 +29,6 @@ std::string escaped(std::string_view name) {
         }
     }
     return out;
-}
-
-std::string id_of(std::string_view line) {
-    return std::string(entry::header::parse_line(line).value(entry::header::Slot::id));
 }
 
 // Two of a stream's modes combined: one standard library declares openmode
@@ -82,7 +77,7 @@ std::string NaiveStore::append(std::string_view scope, std::string_view lane, st
             out << '\n';
         }
     }
-    std::string last = id_of(entries.back().line);
+    std::string last(entries.back().keys.id);
     std::ofstream(file(scope, lane, ".head"), modes(std::ios::binary, std::ios::trunc)) << last;
     return last;
 }
