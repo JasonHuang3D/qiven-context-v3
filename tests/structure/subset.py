@@ -44,7 +44,7 @@ from tests.structure import layers
 from tests.structure.lexer import lex
 
 SUPPORT = "tests/support/"  # the tests' shared support, in the subset with the libraries
-CXX = (".hpp", ".cpp")
+CXX = layers.CXX
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))
 C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_aligned_free"))
 B20_NAMES = frozenset(("construct_at", "destroy_at"))

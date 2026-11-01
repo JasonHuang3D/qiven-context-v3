@@ -130,6 +130,13 @@ class Check(unittest.TestCase):
         print(f"plant caught: {found}", file=sys.stderr)
         self.assertEqual(found, [expected])
 
+    def test_includes_every_suffix(self):
+        """A file of every C++ suffix has its includes read, a file of another none."""
+        for suffix in loop_modules.CXX_SUFFIXES:
+            self.caught(errors(files={**FILES, f"src/core/x{suffix}": b'#include "gone.hpp"\n'}),
+                        f'include src/core/x{suffix}:1 "gone.hpp": resolves to no tracked file')
+        self.assertEqual(errors(files={**FILES, "src/core/x.txt": b'#include "gone.hpp"\n'}), [])
+
     def test_clean(self):
         self.assertEqual(errors(), [])
 
@@ -215,7 +222,9 @@ class Check(unittest.TestCase):
         reads for the analysed roots, its layers and analysed, holding no list
         of its own."""
         trees = json.loads((loop_modules.ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
-        self.assertEqual(sorted(trees), ["analysed", "included", "layers", "walked"])
+        self.assertEqual(sorted(trees),
+                         ["analysed", "header_suffixes", "included", "layers", "source_suffixes", "walked"])
+        self.assertEqual(loop_modules.CXX_SUFFIXES, (*trees["source_suffixes"], *trees["header_suffixes"]))
         self.assertEqual(loop_modules.TOPS, tuple(trees["layers"]))
         self.assertEqual(loop_modules.TREES, (*trees["walked"], *trees["layers"]))
         self.assertTrue(all(a.split("/", 1)[0] in loop_modules.TREES for a in trees["analysed"]))

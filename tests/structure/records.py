@@ -32,7 +32,8 @@ from collections import namedtuple
 from pathlib import Path
 
 # The trees every check walks, by runpy: run as a script under -I, the checkout is off sys.path.
-TREES = runpy.run_path(str(Path(__file__).resolve().parents[2] / "tools" / "loop_modules.py"))["TREES"]
+MODULES = runpy.run_path(str(Path(__file__).resolve().parents[2] / "tools" / "loop_modules.py"))
+TREES, CXX = MODULES["TREES"], MODULES["CXX_SUFFIXES"]
 VENDORED = "third_party/sqlite/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure
 # build's); oldnames.lib, POSIX names, is not one.
@@ -132,7 +133,7 @@ def digests(root):
     found = {}
     for top in TREES:
         for path in sorted(Path(root, top).rglob("*")):
-            if path.suffix in (".cpp", ".hpp", ".c", ".h") and path.is_file():
+            if path.suffix in CXX and path.is_file():
                 found[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     return found
 

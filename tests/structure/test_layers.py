@@ -17,7 +17,7 @@ from pathlib import Path
 from tests.structure import layers, rules, subset
 
 TREE = layers.of(rules.ROOT)
-CXX = (".hpp", ".cpp", ".c", ".h")
+CXX = layers.CXX
 
 
 def files():

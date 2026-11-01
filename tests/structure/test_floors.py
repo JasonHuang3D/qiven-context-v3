@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive import binaries
-from tools.loop_modules import TREES
+from tools.loop_modules import CXX_SUFFIXES, TREES
 
 ROOT = Path(__file__).resolve().parents[2]
 WINDOWS = sys.platform == "win32"
@@ -27,7 +27,7 @@ FLOOR = {"NTDDI_VERSION": "0x0A000010", "_WIN32_WINNT": "0x0A00", "WINVER": "0x0
 NAMES = "|".join(FLOOR)
 DEFINE = re.compile(rf'(?:^|\s)"?[/-]([DU])\s*"?({NAMES})(?:=([^\s"]*))?(?=["\s]|$)')
 DIRECTIVE = re.compile(rf"^[ \t]*#[ \t]*(define|undef)[ \t]+({NAMES})\b", re.MULTILINE)
-SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".hxx", ".inl", ".rc"}
+SUFFIXES = {*CXX_SUFFIXES, ".rc"}  # .rc, a resource script: read here, and no C++ file
 MACOS = "macos-clang"
 DEPLOYMENT = "15.0"
 
@@ -65,11 +65,11 @@ def source_findings(files):
     return [f"{name}: #{kind} {macro}" for name, text in files for kind, macro in DIRECTIVE.findall(text)]
 
 
-def tree_sources():
+def tree_sources(root=ROOT):
     for top in TREES:  # the trees every check walks, tools/loop_modules.py's
-        for path in sorted((ROOT / top).rglob("*")):
+        for path in sorted((root / top).rglob("*")):
             if path.suffix.lower() in SUFFIXES and path.is_file():
-                yield path.relative_to(ROOT).as_posix(), path.read_bytes().decode("utf-8", "replace")
+                yield path.relative_to(root).as_posix(), path.read_bytes().decode("utf-8", "replace")
 
 
 def preset_findings(text):

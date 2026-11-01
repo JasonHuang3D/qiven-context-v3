@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # The table's reader, by runpy: run as a script under -I, the checkout is off sys.path.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 TREES = tuple(MODULES["TREES"])  # tools/trees.json's walked and layers: every tree the checks walk
+SOURCES, HEADERS, CXX = MODULES["SOURCE_SUFFIXES"], MODULES["HEADER_SUFFIXES"], MODULES["CXX_SUFFIXES"]  # its suffixes
 LINKED = tuple(MODULES["ORDER"])  # the link graph's layers, devkit first
 CORE = LINKED[1:]  # core logic's layers: the link graph's but devkit, layer 0, linked into tests alone
 KIT = MODULES["KIT"]  # the test kit's table files

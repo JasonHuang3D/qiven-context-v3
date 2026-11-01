@@ -2,5 +2,7 @@
   "layers": ["foundation", "kits", "products"],
   "walked": ["src", "tests", "tools", "third_party"],
   "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
-  "included": ["src", "tests", "third_party/sqlite"]
+  "included": ["src", "tests", "third_party/sqlite"],
+  "source_suffixes": [".c", ".cc", ".cpp", ".cxx"],
+  "header_suffixes": [".h", ".hh", ".hpp", ".hxx", ".inc", ".inl", ".ipp", ".tpp"]
 }

@@ -2,7 +2,7 @@
 json_bytes.hpp behind it) is included by canon, log and json's own files
 alone, and log names no scan: core reaches the format's bytes through
 canon, and log writes its lines through json::encode alone. The files read:
-the .hpp and .cpp files of the trees tools/trees.json names, each of a
+the C++ files of the trees tools/trees.json names, each of a
 module of the link graph by the tree's table (tests/structure/layers.py),
 neither under the top-level tests/ nor a vendor's. Each include is read
 from the lexer's tokens and taken as resolved, as the build resolves it
@@ -53,7 +53,7 @@ def findings(root):
     own = {path: name for name in HEADERS if (path := RESOLVE("", name, present, roots, angle=True))}
     out += [(name, 0, "no such header") for name in HEADERS if name not in own.values()]
     for rel in files:
-        if not rel.endswith((".hpp", ".cpp")) or not read(rel, tree):
+        if not rel.endswith(layers.CXX) or not read(rel, tree):
             continue
         tokens, _ = lex(Path(root, rel).read_text(encoding="utf-8"))
         for line, group in itertools.groupby(tokens, key=lambda token: token[2]):
@@ -120,6 +120,12 @@ class Plant(unittest.TestCase):
             ("src/log/reader.cpp", 2, "scan"),
             ("src/store/store.cpp", 2, "include qiven3/json.hpp"),
         ])
+
+    def test_k15_every_suffix(self):
+        """A file of every C++ suffix read; a .txt, in the plant above, left."""
+        for suffix in layers.CXX:
+            self.assertEqual(planted({f"src/store/x{suffix}": '#include "qiven3/json.hpp"\n'}),
+                             [(f"src/store/x{suffix}", 1, "include qiven3/json.hpp")])
 
     def test_k15_resolved(self):
         """The header's three spellings beside it and a relative one from

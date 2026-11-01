@@ -97,7 +97,7 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
           file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}/${name}")
         endif()
         qiven3_analysed("${rel}" read)
-        if(read AND source MATCHES "[.]cpp$")
+        if(read AND source MATCHES "${qiven3_source_suffix}")
           if(NOT "${dir}|${source}" IN_LIST qiven3_optioned)  # once a directory
             list(APPEND qiven3_optioned "${dir}|${source}")
             set_property(SOURCE "${source}" TARGET_DIRECTORY ${target} APPEND PROPERTY COMPILE_OPTIONS
@@ -112,10 +112,7 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
   # The headers under the analysed roots, and each .clang-tidy under the
   # walked trees at any depth, a new one reconfiguring; a source's step
   # depends on the configs of its directory and of each directory above it.
-  set(qiven3_tidy_globs "")
-  foreach(tree IN LISTS qiven3_roots)
-    list(APPEND qiven3_tidy_globs "${PROJECT_SOURCE_DIR}/${tree}/*.hpp")
-  endforeach()
+  qiven3_header_globs("${PROJECT_SOURCE_DIR}" qiven3_tidy_globs ${qiven3_roots})
   file(GLOB_RECURSE qiven3_tidy_inputs CONFIGURE_DEPENDS ${qiven3_tidy_globs})
   # clang-tidy's header filters, from the same trees and rule, under this
   # checkout alone: .clang-tidy names none.

@@ -25,6 +25,13 @@ class Roots(unittest.TestCase):
         self.assertTrue(all(r.split("/", 1)[0] in loop_modules.TREES for r in loop_modules.ROOTS))
         self.assertEqual(loop_modules.include_roots([])[:len(loop_modules.ROOTS)], loop_modules.ROOTS)
 
+    def test_include_of_cxx_file(self):
+        """A module's include/ a root where it holds a file of a C++ suffix, of every one, and no other file."""
+        home, include = "foundation/core/m/module.json", "foundation/core/m/include"
+        for suffix in loop_modules.CXX_SUFFIXES:
+            self.assertEqual(loop_modules.include_roots([home, f"{include}/x{suffix}"]), (*loop_modules.ROOTS, include))
+        self.assertEqual(loop_modules.include_roots([home, f"{include}/README.md"]), loop_modules.ROOTS)
+
 
 class Chosen(unittest.TestCase):
     ctest_labels = ("fake",)

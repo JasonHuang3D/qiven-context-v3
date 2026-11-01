@@ -42,6 +42,9 @@ ROOT = Path(__file__).resolve().parents[1]  # the checkout this file is in
 TREE_FILE = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 TOPS = tuple(TREE_FILE["layers"])  # the trees whose every module.json is a table file
 TREES = (*TREE_FILE["walked"], *TOPS)  # the trees every check that walks the checkout walks
+# The C++ suffixes, named there once too: a source's, a header's, and either; every rule and walker's.
+SOURCE_SUFFIXES, HEADER_SUFFIXES = tuple(TREE_FILE["source_suffixes"]), tuple(TREE_FILE["header_suffixes"])
+CXX_SUFFIXES = SOURCE_SUFFIXES + HEADER_SUFFIXES
 FILE_LAYERS = ("devkit", "core", "system", "services", "kits", "products", "foundation", "tools", "repository")
 KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
     "built": ("name", "layer", "status", "platforms", "contract", "adopted", "parameters", "present"),

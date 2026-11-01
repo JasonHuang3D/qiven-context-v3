@@ -4,19 +4,17 @@
 # Included by the root CMakeLists.txt; run by tests/drive/test_trees_build.py as
 # cmake -P with ROOT (the checkout) and SHOW (what to print).
 
-# The suffixes of a header, each a glob of the header units' rule; the regular
-# expression ending a path in one; the structure checks' C++ lexer, which reads
-# the header names a unit includes.
-set(qiven3_header_suffixes h hh hpp hxx)
-list(JOIN qiven3_header_suffixes "|" qiven3_header_suffix)
-set(qiven3_header_suffix "[.](${qiven3_header_suffix})$")
+# The structure checks' C++ lexer, which reads the header names a unit includes.
 get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../../../tests/structure/lexer.py" ABSOLUTE)
 
-# qiven3_trees(<file>): qiven3_layers, qiven3_walked, qiven3_analysed and
-# qiven3_included, its lists, in the caller's scope.
+# qiven3_trees(<file>): qiven3_layers, qiven3_walked, qiven3_analysed,
+# qiven3_included, and the C++ suffixes qiven3_source_suffixes and
+# qiven3_header_suffixes, its lists, in the caller's scope; with
+# qiven3_source_suffix and qiven3_header_suffix, the regular expressions
+# ending a path in one.
 macro(qiven3_trees file)
   file(READ "${file}" qiven3_trees_text)
-  foreach(qiven3_key IN ITEMS layers walked analysed included)
+  foreach(qiven3_key IN ITEMS layers walked analysed included source_suffixes header_suffixes)
     set(qiven3_${qiven3_key} "")
     string(JSON qiven3_count LENGTH "${qiven3_trees_text}" ${qiven3_key})
     math(EXPR qiven3_last "${qiven3_count} - 1")
@@ -25,7 +23,35 @@ macro(qiven3_trees file)
       list(APPEND qiven3_${qiven3_key} "${qiven3_tree}")
     endforeach()
   endforeach()
+  foreach(qiven3_key IN ITEMS source header)
+    list(JOIN qiven3_${qiven3_key}_suffixes "|" qiven3_${qiven3_key}_suffix)
+    string(REPLACE "." "[.]" qiven3_${qiven3_key}_suffix "(${qiven3_${qiven3_key}_suffix})$")
+  endforeach()
 endmacro()
+
+# qiven3_header_globs(<root> <out> <tree>...): a glob under each tree of root
+# for each header suffix.
+function(qiven3_header_globs root out)
+  set(globs "")
+  foreach(tree IN LISTS ARGN)
+    foreach(suffix IN LISTS qiven3_header_suffixes)
+      list(APPEND globs "${root}/${tree}/*${suffix}")
+    endforeach()
+  endforeach()
+  set(${out} ${globs} PARENT_SCOPE)
+endfunction()
+
+# qiven3_own_source(<root> <stem> <out>): stem, from the root, with the first
+# source suffix it exists under; empty where none does.
+function(qiven3_own_source root stem out)
+  set(${out} "" PARENT_SCOPE)
+  foreach(suffix IN LISTS qiven3_source_suffixes)
+    if(EXISTS "${root}/${stem}${suffix}")
+      set(${out} "${stem}${suffix}" PARENT_SCOPE)
+      return()
+    endif()
+  endforeach()
+endfunction()
 
 # qiven3_under(<path> <tree> <out>): TRUE where path, from the root, lies
 # under tree.
@@ -126,12 +152,13 @@ endfunction()
 
 # qiven3_header_unit(<root> <header> <unit> <own>): the unit in
 # tests/support/headers/ of header, from the root, and the path of the source
-# that is its own besides <name>.cpp beside it (empty where none). Under a
-# layer's tree, the name of its module (the nearest directory above it with a
-# module.json) and _, then its path under the module, include/qiven/<m>/ cut
-# (its own source the module's src/<p>.cpp); under an analysed root outside
-# the layers, the root's last name and _ where the root is no walked tree,
-# then its path under the root; / as _, .cpp for its suffix.
+# that is its own besides <name> under a source suffix beside it (empty where
+# none). Under a layer's tree, the name of its module (the nearest directory
+# above it with a module.json) and _, then its path under the module,
+# include/qiven/<m>/ cut (its own source the module's src/<p> under a source
+# suffix); under an analysed root outside the layers, the root's last name
+# and _ where the root is no walked tree, then its path under the root; / as
+# _, .cpp for its suffix, as every unit is named.
 function(qiven3_header_unit root header unit own)
   set(${own} "" PARENT_SCOPE)
   set(name "")
@@ -153,7 +180,8 @@ function(qiven3_header_unit root header unit own)
     string(LENGTH "${module}/" at)
     string(SUBSTRING "${header}" ${at} -1 inner)
     if(inner MATCHES "^include/qiven/[^/]+/(.+)${qiven3_header_suffix}")
-      set(${own} "${module}/src/${CMAKE_MATCH_1}.cpp" PARENT_SCOPE)
+      qiven3_own_source("${root}" "${module}/src/${CMAKE_MATCH_1}" source)
+      set(${own} "${source}" PARENT_SCOPE)
       set(inner "${CMAKE_MATCH_1}.cpp")
     endif()
     set(name "${name}_${inner}")
@@ -283,12 +311,7 @@ function(qiven3_header_units root out)
     set(depends CONFIGURE_DEPENDS)
   endif()
   file(GLOB units RELATIVE "${root}/tests/support/headers" ${depends} "${root}/tests/support/headers/*.cpp")
-  set(globs "")
-  foreach(tree IN LISTS qiven3_analysed qiven3_layers)
-    foreach(suffix IN LISTS qiven3_header_suffixes)
-      list(APPEND globs "${root}/${tree}/*.${suffix}")
-    endforeach()
-  endforeach()
+  qiven3_header_globs("${root}" globs ${qiven3_analysed} ${qiven3_layers})
   file(GLOB_RECURSE headers RELATIVE "${root}" ${depends} ${globs})
   list(REMOVE_DUPLICATES headers)
   list(SORT headers)
@@ -296,13 +319,15 @@ function(qiven3_header_units root out)
   set(owns "")
   foreach(header IN LISTS headers)
     qiven3_analysed("${header}" read)
-    string(REGEX REPLACE "${qiven3_header_suffix}" ".cpp" beside "${header}")
     if(NOT read)
       continue()
-    elseif(NOT EXISTS "${root}/${beside}")
+    endif()
+    string(REGEX REPLACE "${qiven3_header_suffix}" "" stem "${header}")
+    qiven3_own_source("${root}" "${stem}" beside)
+    if(NOT beside)
       qiven3_header_unit("${root}" "${header}" unit beside)
     endif()
-    if(NOT beside OR NOT EXISTS "${root}/${beside}")
+    if(NOT beside)
       set(beside "-")
     else()
       qiven3_listed("${root}" "${beside}" listed)
@@ -361,10 +386,7 @@ endfunction()
 if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
   qiven3_trees("${ROOT}/tools/trees.json")
   if(SHOW STREQUAL "filters")
-    set(globs "")
-    foreach(tree IN LISTS qiven3_layers qiven3_analysed)  # the root CMakeLists.txt's
-      list(APPEND globs "${ROOT}/${tree}/*.hpp")
-    endforeach()
+    qiven3_header_globs("${ROOT}" globs ${qiven3_layers} ${qiven3_analysed})  # the root CMakeLists.txt's
     file(GLOB_RECURSE headers RELATIVE "${ROOT}" ${globs})
     qiven3_header_filters("${ROOT}" "${headers}" filter exclude)
     message("filter=${filter}")

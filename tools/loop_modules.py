@@ -56,7 +56,6 @@ globals().update((k, v) for k, v in TABLE.items() if k.isupper() or getattr(v, "
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
 ORDER = ("devkit", "core", "system", "services", "kits", "products")  # the link graph's layers, lowest first
 KIT = "foundation/devkit/test/"  # the test kit's table files: the runner, the case main, the faults kit, the scan
-SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
 ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives, and include_roots()'
 VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
@@ -189,10 +188,11 @@ def check_table(table):
 
 
 def include_roots(files):
-    """ROOTS, then each module directory's include/ under TOPS that holds a tracked file."""
+    """ROOTS, then each module directory's include/ under TOPS that holds a tracked C++ file."""
     homes = {f.rpartition("/")[0] for f in files if is_table_file(f) and "/" in f and f.split("/", 1)[0] in TOPS}
     return ROOTS + tuple(sorted({f[:f.index("/include/")] + "/include" for f in files
-                                 if "/include/" in f and f[:f.index("/include/")] in homes}))
+                                 if "/include/" in f and f.endswith(CXX_SUFFIXES)
+                                 and f[:f.index("/include/")] in homes}))
 
 
 def resolve(including, name, tracked, roots=ROOTS, angle=False):
@@ -246,7 +246,7 @@ def check(table, files, read, targets=None, left=None):
 
     tracked, roots = set(files), include_roots(files)
     for f in sorted(files):
-        if not f.endswith(SOURCES) or f not in module:
+        if not f.endswith(CXX_SUFFIXES) or f not in module:
             continue
         data = read(f)
         for match in INCLUDE.finditer(data):

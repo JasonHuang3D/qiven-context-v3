@@ -79,6 +79,7 @@ ROOT = TOOLS.parent
 LSP = runpy.run_path(str(TOOLS / "nav_lsp.py"))  # under -I this directory is off sys.path
 DOOR = runpy.run_path(str(TOOLS / "loop_git.py"))  # git's one door
 QUERY = runpy.run_path(str(TOOLS / "nav_query.py"), init_globals={"LSP": LSP})
+CODE = runpy.run_path(str(TOOLS / "loop_table.py"))["CXX_SUFFIXES"]  # every C and C++ file's suffix
 Refusal, Clangd = LSP["Refusal"], LSP["Clangd"]
 DATABASE = "build/windows-analysis/tidy/compile_commands.json"
 NAV = "build/nav"
@@ -89,7 +90,6 @@ BOUND = 8192  # an envelope's bytes at most
 LIMIT, LIMIT_MAX = 20, 200
 INDEX_WAIT = 3600  # seconds index waits for the background index at most
 LOAD_WAIT = 120  # seconds a query waits for the index's loading at most
-CODE = (".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inc", ".ipp")
 NEXT = {"OK": "", "NO_INDEX": "give --file, or build the index: nav.py index (heavy)"}
 
 

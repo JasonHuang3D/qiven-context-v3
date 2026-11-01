@@ -106,6 +106,10 @@ class TreesBuild(unittest.TestCase):
                             got["exclude"])
             (root / "foundation/core/m/tests/t.hpp").unlink()
             self.assertEqual(shown("filters", root)["exclude"], "")
+            for suffix in TREES["header_suffixes"]:
+                (root / f"foundation/core/m/tests/t{suffix}").write_text("", encoding="utf-8")
+                self.assertNotEqual(shown("filters", root)["exclude"], "", suffix)
+                (root / f"foundation/core/m/tests/t{suffix}").unlink()
 
     def test_globs(self):
         """The table's files under each layer's tree, the Python files under
@@ -204,6 +208,21 @@ class TreesBuild(unittest.TestCase):
             self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp", errors)
             files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
             self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
+
+    def test_every_suffix(self):
+        """A header of every suffix wants a unit; a source of every suffix, beside it or in src/, is its own."""
+        for suffix in TREES["header_suffixes"]:
+            files, _ = scene()
+            files[f"src/m/t{suffix}"] = ""
+            self.assertIn(f"the header-only header src/m/t{suffix} has no unit, tests/support/headers/m_t.cpp",
+                          self.units(files)[2])
+        for suffix in TREES["source_suffixes"]:
+            files, wanted = scene()
+            files |= {"src/m/t.hpp": "", f"src/m/t{suffix}": '#include "t.hpp"\n',
+                      "kits/scene/include/qiven/scene/t.hpp": "", f"kits/scene/src/t{suffix}": '#include "qiven/scene/t.hpp"\n'}
+            files["src/m/CMakeLists.txt"] += f"add_library(t t{suffix})\n"
+            files["kits/scene/CMakeLists.txt"] += f"add_library(t src/t{suffix})\n"
+            self.assertEqual(self.units(files)[:2], (0, wanted), suffix)
 
     def test_own_source_compiled(self):
         """An own source stands in for its header's unit only where the

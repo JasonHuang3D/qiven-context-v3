@@ -201,7 +201,7 @@ CORE_NAMED = frozenset(("qiven_build", "qiven3_sqlite", "qiven3_keys"))
 ADAPTER_HEADERS = frozenset(("src/platform/current.hpp", "src/platform/win/windows.hpp",
                              "tests/support/fake_platform/fake_platform.hpp"))
 LIBRARY_SHAPES = frozenset(("octagon", "doubleoctagon", "tripleoctagon", "pentagon", "hexagon"))
-CXX_SOURCES = (".cpp", ".hpp", ".c", ".h")
+CXX_SOURCES = layers.CXX
 
 
 def under(path, prefixes):
@@ -220,7 +220,7 @@ def match(value, key):
 
 
 def is_instantiation(path):
-    return path is not None and path.endswith(".cpp") and path.rsplit("/", 1)[-1].startswith("instances")
+    return path is not None and path.endswith(layers.SOURCES) and path.rsplit("/", 1)[-1].startswith("instances")
 
 
 def is_core(path, tree):
@@ -301,8 +301,8 @@ def source_rules(root, files, out):
     for rel in files:
         data = (root / rel).read_bytes()
         name = rel.rsplit("/", 1)[-1]
-        if name.endswith((".hpp", ".cpp", ".py", ".cmake")) or name == "CMakeLists.txt":
-            if line_count(data) > 600:
+        if name.endswith((*CXX_SOURCES, ".py", ".cmake")) or name == "CMakeLists.txt":
+            if line_count(data) > 600 and not rel.startswith(layers.VENDORED):
                 out.add("B15", rel, detail=f"{line_count(data)} lines")
         found = B32_BYTES.search(data) if is_text(rel, attributes) else None
         if found:
