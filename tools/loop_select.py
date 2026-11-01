@@ -23,7 +23,9 @@ tools/loop_modules.py, as the run begins.
   A file of the no-test row selects no module. The step runs the tests that
   carry a selected module's label in ctest's own listing
   (--show-only=json-v1), and any test that carries no module's; and, for
-  any change, the tests that read every tracked file (WHOLE).
+  any change, the tests that read every tracked file (WHOLE), the modules'
+  check whole over the checkout among them; and, for a change under a tree
+  READERS names (.github/, of the no-test row), the tests that read it.
 - Every test, when a module selected is the whole build's or the shared
   support's, or a changed file is in no module.
 
@@ -55,7 +57,10 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
     "tests.structure.test_line_endings.LineEndings.test_tree",
     "tests.structure.test_line_endings.LineEndings.test_as_git_reads",
     "tests.structure.test_imports.Python.test_tree", "tests.structure.test_floors.Floors.test_sources",
-    "tests.structure.test_boundaries.Tree.*", "tests.structure.test_imports.Tree.*")
+    "tests.structure.test_boundaries.Tree.*", "tests.structure.test_imports.Tree.*",
+    "tests.drive.test_loop_full_check.FullCheck.test_tree")
+READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
+    ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*")}
 
 
 def shown(names, most=None):
@@ -130,19 +135,22 @@ def choose(table, rows, changed):
     reach = MODULES["reach"](table)
     why = {name: why[name] if name in seeds else "depending on " + shown(reach[name] & seeds)
            for name in now if name in seeds or reach[name] & seeds}
-    return {**why, **{test: "reading every tracked file" for test in WHOLE if changed}}, None
+    read = {test: f"reading {tree}" for tree, tests in READERS.items() if any(p.startswith(tree) for p in changed)
+            for test in tests}
+    return {**why, **read, **{test: "reading every tracked file" for test in WHOLE if changed}}, None
 
 
 def picked(tests, why, names):
     """The step's tests [(name, labels)] that carry a module's label why
-    selects, or no module's, or that why names (WHOLE's); and the line's
-    reasons."""
-    chosen, unlabelled, whole = [], 0, 0
+    selects, or no module's, or that why names (READERS' and WHOLE's); and
+    the line's reasons."""
+    chosen, unlabelled, by_name = [], 0, {}
     for test, labels in tests:
         mine = [label for label in labels if label in names]
         unlabelled += not mine
-        named = any(fnmatch.fnmatchcase(test, pattern) for pattern in why if pattern not in names)
-        whole += named
+        named = next((why[p] for p in why if p not in names and fnmatch.fnmatchcase(test, p)), None)
+        if named:
+            by_name[named] = by_name.get(named, 0) + 1
         if not mine or any(label in why for label in mine) or named:
             chosen.append(test)
     groups = {}
@@ -150,7 +158,8 @@ def picked(tests, why, names):
         if name in names:
             groups.setdefault(reason, []).append(name)
     reasons = [f"{shown(mods)} {reason}" for reason, mods in groups.items()]
-    return chosen, reasons + ([f"{whole} tests reading every tracked file"] if whole else []) + (
+    order = dict.fromkeys(reason for pattern, reason in why.items() if pattern not in names)
+    return chosen, reasons + [f"{by_name[reason]} tests {reason}" for reason in order if reason in by_name] + (
         [f"{unlabelled} labelled with no module"] if unlabelled else [])
 
 

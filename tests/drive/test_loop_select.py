@@ -9,7 +9,7 @@ no module; any change, the tests that read every tracked file, those
 alone of their module; a module's tests' dependencies read as its
 library's; a file of the whole build, of the support or of no module every
 test; on the checkout's table, a file of driver's that app's tests read
-app. Then the record through runs on fakes: a new tree runs every test
+app, and a change under .github/ the tests that read it. Then the record through runs on fakes: a new tree runs every test
 and records it; a run with nothing changed runs none; a change narrows the
 step by --tests-from-file and its line names the modules and why; a
 removed file selects its module; a failed step leaves its record, so that
@@ -231,6 +231,25 @@ class Choose(unittest.TestCase):
         for path in ("tests/drive/binaries.py", "tests/drive/session.py"):
             with self.subTest(path=path):
                 self.assertIsNotNone(SELECT["choose"](table, rows, [path])[1])
+
+    def test_workflows(self):
+        """On the checkout's table, a change under .github/, the no-test
+        row's: no module, the tests that read the workflows and those that
+        read every tracked file; a notes file outside it, those alone."""
+        table = SELECT["MODULES"]["load"]()
+        rows = {m["name"]: m for m in table["modules"]}
+        names = {m["name"] for m in table["modules"]}
+        tests = [("tests.structure.test_triggers.Triggers.test_tree", ["fast", "structure"]),
+                 ("tests.structure.test_triggers.Unpinned.test_planted_workflows", ["fast", "structure"]),
+                 ("tests.drive.test_loop_ci.LoopAgainstCI.test_jobs", ["drive", "tooling"]),
+                 ("tests.structure.test_content.Content.test_tree", ["fast", "structure"]),
+                 ("tests.structure.test_content.Content.test_planted", ["fast", "structure"])]
+        why, every = SELECT["choose"](table, rows, [".github/workflows/ci.yml"])
+        self.assertIsNone(every)
+        self.assertEqual(SELECT["picked"](tests, why, names),
+                         ([t for t, _ in tests[:4]], ["3 tests reading .github/", "1 tests reading every tracked file"]))
+        why, _ = SELECT["choose"](table, rows, ["README.md"])
+        self.assertEqual(SELECT["picked"](tests, why, names)[0], [tests[3][0]])
 
 
 class Record(unittest.TestCase):

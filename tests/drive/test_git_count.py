@@ -1,6 +1,7 @@
 """The loop's tests start git by one door, which counts each start
-(tools/loop_git.py), so that the count is every start: no file of the
-loop's tools or of any test names git's program another way, in any case,
+(tools/loop_git.py), so that the count is every start: no Python file of
+the trees tools/trees.json names (the loop's tools, the tests, the layer
+trees) names git's program another way, in any case,
 by a path, as a plain, prefixed or f-string literal; the product's tests,
 which never import the door, start none. A program held in a variable no
 reading of the source sees: the counting shim, before every Python test
@@ -23,7 +24,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive.test_loop_ci import ROOT, load_loop
-from tools import loop_git
+from tools import loop_git, loop_modules
 
 LOOP = load_loop()
 # The door, this file's counts, which start nothing, B2's rule naming git's literals, and the shim's
@@ -68,10 +69,11 @@ class Door(unittest.TestCase):
 
     def test_one_door(self):
         """No literal names git's program outside the door: every start
-        of git in tools/ and tests/ by a name in the source is the door's,
-        so counted."""
+        of git in the trees every walk takes (tools/trees.json: tools/,
+        tests/ and the layer trees among them) by a name in the source is
+        the door's, so counted."""
         found = []
-        for top in ("tools", "tests"):
+        for top in loop_modules.TREES:
             for path in sorted((ROOT / top).rglob("*.py")):
                 rel = path.relative_to(ROOT).as_posix()
                 if rel not in OWN and "__pycache__" not in rel:

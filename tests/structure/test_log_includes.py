@@ -1,8 +1,9 @@
-"""K15: in src/, json's header (qiven3/json.hpp, and json_bytes.hpp behind
-it) is included by canon, log and json's own files alone, and log names no
-scan: core reaches the format's bytes through canon, and log writes its
-lines through json::encode alone. Over v3's tree, and over a planted tree:
-an include in another module and a scan in log each found, and the allowed
+"""K15: in src/ and the layer trees, json's header (qiven3/json.hpp, and
+json_bytes.hpp behind it) is included by canon, log and json's own files
+alone, and log names no scan: core reaches the format's bytes through
+canon, and log writes its lines through json::encode alone. Over v3's
+tree, and over a planted tree: an include in another module, one under a
+layer tree among them, and a scan in log each found, and the allowed
 includes, a scan in a comment and one in a string passing."""
 
 import re
@@ -12,20 +13,22 @@ from pathlib import Path
 
 from tests.structure.lexer import lex
 from tests.structure import rules
+from tools import loop_modules
 
 HEADERS = ("qiven3/json.hpp", "qiven3/json_bytes.hpp")
 # The files that may include them: canon's, log's and json's own.
 ALLOWED = ("src/qiven3/canon.", "src/log/", "src/qiven3/json.", "src/qiven3/json_bytes.")
 LOG = "src/log/"
 INCLUDE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]')
+# The trees walked: src/, and the layer trees the modules move into (tools/trees.json).
+TOPS = ("src", *loop_modules.TOPS)
 
 
 def findings(root):
     """(file, line, what) for each include of HEADERS outside ALLOWED, and
-    each scan named in log, over the .hpp and .cpp files of root's src/."""
+    each scan named in log, over the .hpp and .cpp files of root's TOPS."""
     out = []
-    src = Path(root, "src")
-    for path in sorted(src.rglob("*")):
+    for path in sorted(p for top in TOPS for p in Path(root, top).rglob("*")):
         if path.suffix not in (".hpp", ".cpp") or not path.is_file():
             continue
         rel = path.relative_to(root).as_posix()
@@ -57,6 +60,7 @@ class Plant(unittest.TestCase):
                                 'const char* s = "scan";\n'),
             "src/qiven3/json.cpp": '#include "qiven3/json.hpp"\n',
             "src/store/notes.txt": '#include "qiven3/json.hpp"\n',
+            "foundation/core/codec/src/codec.cpp": '#include <qiven3/json.hpp>\n',
         }
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
@@ -64,6 +68,7 @@ class Plant(unittest.TestCase):
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_text(text, encoding="utf-8")
             self.assertEqual(findings(root), [
+                ("foundation/core/codec/src/codec.cpp", 1, "include qiven3/json.hpp"),
                 ("src/diag/report.hpp", 1, "include qiven3/json_bytes.hpp"),
                 ("src/log/reader.cpp", 2, "scan"),
                 ("src/store/store.cpp", 2, "include qiven3/json.hpp"),
