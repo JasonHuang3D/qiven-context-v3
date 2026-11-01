@@ -118,8 +118,6 @@ ALLOWED = {
     # and its variants' (src/diag/CMakeLists.txt).
     "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
            "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
-    "B11": ("tests/compat/r",),
-    "B14": ("tests/support/goldens",),
     "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
@@ -170,7 +168,7 @@ STATED = {
 }
 ALLOWANCES = (*subset.CELLS, *STATED)
 EXEMPT = {
-    "B1": (STRUCTURE, "tests/audit/read_audit"),
+    "B1": (STRUCTURE,),
     "B2": (STRUCTURE,),
     "B14": (STRUCTURE,),
 }
@@ -430,7 +428,7 @@ def direct_include(by, path, kind, name, out):
     if rel is not None:
         if under(by, B12_FILES) and under(rel, B12_HEADERS):
             out.add("B12", by, detail=f"includes {rel}")
-        if by.startswith("src/reader/") and under(rel, B13_HEADERS) and not rel.startswith("src/bundle/layout."):
+        if by.startswith("src/reader/") and under(rel, B13_HEADERS):
             out.add("B13", by, detail=f"includes {rel}")
         if rel == "src/qiven3/mapcheck.hpp":
             out.add("B16", by, detail="includes the map check")

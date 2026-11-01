@@ -53,8 +53,8 @@ add_library(qiven3_app_instances STATIC src/app/instances.cpp)
 add_library(qiven3_reader_instances STATIC src/reader/instances.cpp)
 target_link_libraries(qiven3_reader_instances PRIVATE qiven3_platform_win)
 add_library(qiven3_unit_plant STATIC tests/unit/sqlite_text_test.cpp tests/unit/long_test.cpp
-  tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/goldens.cpp
-  tests/support/goldens/write.cpp foundation/devkit/test/runner/src/runner.cpp)
+  tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/write.cpp
+  foundation/devkit/test/runner/src/runner.cpp)
 add_library(qiven3_diag STATIC src/diag/diag_windows.cpp)
 target_link_libraries(qiven3_diag PRIVATE dbghelp)
 """
@@ -162,7 +162,6 @@ PLANTS = {
     "tests/unit/long_test.cpp": "// 601 lines.\n" + "//\n" * 599 + "int long_test() { return 0; }\n",
     "tests/unit/unended_test.cpp": "// 600 lines and one unended.\n" + "//\n" * 599 + "int unended() { return 0; }",
     "tests/unit/edge_test.cpp": "// 600 lines, each ended.\n" + "//\n" * 598 + "int edge() { return 0; }\n",
-    "tests/support/goldens/goldens.cpp": "const char* goldens_registry() { return \"tests/goldens/v1/registry.json\"; }\n",
     "tests/support/goldens/write.cpp": "#include <cstdio>\nvoid* goldens_write() "
         "{ return std::fopen(\"tests/goldens/v1/x\", \"w\"); }\n",
     "foundation/devkit/test/runner/src/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n"
@@ -263,7 +262,7 @@ PLANTED = [
 CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
     "src/platform/win/process.cpp", "src/platform/win/windows.cpp",
-    "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp", "tests/support/goldens/goldens.cpp",
+    "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp",
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
