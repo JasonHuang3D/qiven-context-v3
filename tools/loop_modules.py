@@ -33,7 +33,9 @@ are counted on one line) and, given a configured build tree, its links
 (read from CMake's file API, the codemodel the root CMakeLists.txt asks
 for): a library file's and target's by depends alone, a file and a target
 under tests/ by test_depends too, a module whose every file is under tests/
-its own library. A cycle in depends refused. The layer rule: a row's layer
+its own library; the support layer's rows reached with no edge by test
+code alone (a file under tests/, a target of such files alone), and
+reaching their own dependencies alone. A cycle in depends refused. The layer rule: a row's layer
 its table file's in the tree (devkit, core, system, services, kits,
 products, in that order; tools/ and the repository outside the link graph),
 never its row's word; an edge in depends or test_depends going up, or onto
@@ -42,7 +44,9 @@ the table files under foundation/devkit/test/) up to core, system and
 services, and the exceptions a built table file lists for its own rows
 (from, to, until: what removes it), each refused that names no edge the
 table has or one the rule allows; the support layer outside the test kit
-refused. A module or a dependency the table does not name, or a layer it
+refused; a depends edge onto the test kit refused but the kit's own and
+those of a module whose every file is under tests/, as test code alone
+reaches the kit. A module or a dependency the table does not name, or a layer it
 does not know, refused. One line an error, naming the
 file or the edge, then the count of vendored includes left unresolved; exit
 0 when none, 1 when any, 2 when the check could not run.
@@ -311,13 +315,19 @@ def layer_rule(table):
     A row's layer is its table file's in the tree, never its own word; an
     edge goes down or stays in its layer; the test kit's edges up to core,
     system and services are allowed, as nothing but a test reaches the kit;
-    tools/ and the repository are outside the link graph."""
+    tools/ and the repository are outside the link graph. Test code alone
+    reaches the test kit: a library's edge onto it, in depends, refused but
+    the kit's own and those of a module whose every file is under tests/."""
     homes = table.get("homes", {})
     place = {name: tree_layer(home.rpartition("/")[0]) for name, home in homes.items()}
     kit = {name for name, home in homes.items() if home.startswith(KIT)}
+    tested = {m["name"] for m in table["modules"]
+              if all(p.startswith("tests/") or p.endswith(("README.md", "module.json")) for p in m["paths"])}
 
-    def refused(source, target):
+    def refused(source, target, library=False):
         low, high = place.get(source), place.get(target)
+        if library and target in kit and source not in kit and source not in tested:
+            return "a library on the test kit, which test code alone reaches"
         if low not in ORDER or high is None:  # outside the link graph, or a row of no table file (a test's)
             return None
         if high not in ORDER:
@@ -353,19 +363,20 @@ def check_table(table):
     refused, homes = layer_rule(table), table.get("homes", {})
     excepted = [(e["from"], to) for e in table.get("exceptions", ()) for to in e["to"]]
     edges = {m["name"]: m["depends"] + m.get("test_depends", []) for m in table["modules"]}
+    library = {m["name"]: m["depends"] for m in table["modules"]}
     for m in table["modules"]:
         if m["layer"] not in LAYERS:
             errors.append(f"module {m['name']}: layer {m['layer']} is none of {', '.join(LAYERS)}")
         if m["layer"] == "support" and m["name"] in homes and not homes[m["name"]].startswith(KIT):
             errors.append(f"module {m['name']}: layer support outside the test kit, {KIT}")
         for other in dict.fromkeys(edges[m["name"]]):
-            why = refused(m["name"], other) if other in layer else f"no module {other}"
+            why = refused(m["name"], other, other in m["depends"]) if other in layer else f"no module {other}"
             if why and (other not in layer or (m["name"], other) not in excepted):
                 errors.append(f"edge {m['name']} -> {other}: {why}")
     for source, target in excepted:
         if target not in edges.get(source, ()):
             errors.append(f"exception {source} -> {target}: the table has no such edge")
-        elif not refused(source, target):
+        elif not refused(source, target, target in library[source]):
             errors.append(f"exception {source} -> {target}: the layer rule allows the edge")
     return errors
 
@@ -406,18 +417,22 @@ def check(table, files, read, targets=None, left=None):
     elsewhere = {m["name"] for m in table["modules"]
                  if any(not p.startswith("tests/") and not p.endswith(("README.md", "module.json")) for p in m["paths"])}
 
+    def test_code(f):
+        """A file under the top-level tests/."""
+        return f.startswith("tests/")
+
     def of_tests(f):
-        return f.startswith("tests/") and module.get(f) in elsewhere
+        return test_code(f) and module.get(f) in elsewhere
 
     shared = {m["name"]: set(m["depends"]) for m in table["modules"] if m["layer"] == "support"}
 
-    def covered(source, target, tests):
-        """The shared support is every module's, and reaches its own
-        dependencies alone, not theirs. A library reaches its library's
+    def covered(source, target, tests, code):
+        """The shared support is every module's test code's, and reaches its
+        own dependencies alone, not theirs. A library reaches its library's
         dependencies; its tests, its tests' too."""
         if source in shared:
             return source == target or target in shared[source]
-        return source == target or target in closure[tests].get(source, ()) or target in shared
+        return source == target or target in closure[tests].get(source, ()) or (code and target in shared)
 
     tracked, roots = set(files), include_roots(files)
     for f in sorted(files):
@@ -434,9 +449,9 @@ def check(table, files, read, targets=None, left=None):
                     errors.append(f"include {f}:{line} {shown}: resolves to no tracked file")
                 elif left is not None:
                     left.append(f"{f}:{line} {shown}")
-            elif found in module and not covered(module[f], module[found], of_tests(f)):
+            elif found in module and not covered(module[f], module[found], of_tests(f), test_code(f)):
                 errors.append(f"include {f} -> {found}: module {module[f]} does not depend on {module[found]}")
-    of_target, tests_target = {}, set()
+    of_target, tests_target, code_target = {}, set(), set()
     for name, sources, _ in targets or ():
         mods = sorted({module[s] for s in sources if s in module})
         if len(mods) > 1:
@@ -444,10 +459,12 @@ def check(table, files, read, targets=None, left=None):
         elif mods:
             of_target[name] = mods[0]
             tests_target |= {name} if all(of_tests(s) for s in sources if s in module) else set()
+            code_target |= {name} if all(test_code(s) for s in sources if s in module) else set()
     for name, _, links in targets or ():
         for other in links:
-            if name in of_target and other in of_target and not covered(of_target[name], of_target[other],
-                                                                        name in tests_target):
+            if name not in of_target or other not in of_target:
+                continue
+            if not covered(of_target[name], of_target[other], name in tests_target, name in code_target):
                 errors.append(f"link {name} -> {other}: module {of_target[name]} does not depend on {of_target[other]}")
     return errors
 
