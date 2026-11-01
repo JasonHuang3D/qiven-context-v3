@@ -6,7 +6,9 @@ selection is read from the loop's own table: each ctest step of each
 system's tier 1 job and the steps tier 1 adds, by its test preset's label
 filter or its own -L and -LE. Name filters stay out of the reach: the
 structure tests Windows leaves out by name run in tier 2's own steps, and
-the size rule's step, chosen by name, adds none."""
+the size rule's step, no ctest step, adds none. Any change chooses this
+test (tools/loop_select.py's LABELLED), so that a class left without its
+label fails tier 1 whichever module it is in."""
 
 import json
 import re
@@ -33,7 +35,7 @@ def tier_one_filters(loop, presets):
     for job in table["TIER1"].values():
         for step in [*loop.JOBS[job][2], *table["TIER1_STEPS"].get(job, ())]:
             args = list(step.ci)
-            if args[0] != "ctest" or "-R" in args:  # a step chosen by name, the size rule's, reaches no label
+            if args[0] != "ctest" or "-R" in args:  # a step of no label filter, the size rule's, reaches no label
                 continue
             include = exclude = None
             if "--preset" in args:
@@ -79,5 +81,5 @@ class Reach(unittest.TestCase):
                          if name not in BY_NAME and not reached(filters, set(props.get("LABELS", [])))
                          and not KEPT_OUT & set(props.get("LABELS", [])))
         if missing:
-            self.fail(f"{len(missing)} tests tier 1 cannot select, with no label the table keeps out of it:\n"
-                      + "\n".join(missing))
+            self.fail(f"{len(missing)} tests tier 1 cannot select, with no label the table keeps out of it: "
+                      + ", ".join(missing))  # one line: the loop's answer shows it among the error lines

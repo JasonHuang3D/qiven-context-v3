@@ -222,21 +222,59 @@ class Statuses(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def fail_line(self, tool, code):
+        return self.fail_step(LOOP.Step("step", (tool, "--x"), "test", after=None), code)
+
+    def fail_step(self, step, code):
+        """The FAIL line of the step, its command exiting with code."""
         top = scratch(self)
-        step = LOOP.Step("step", (tool, "--x"), "test", after=None)
+        step = LOOP.Step(step.name, step.ci, "test", after=None)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             counts = LOOP.run_steps(LOOP.Report(LOOP.LINES), "job", [step], "test",
                                     lambda step: [sys.executable, "-I", "-c", f"raise SystemExit({code})"],
                                     top / "logs", top, None)
         self.assertEqual(counts, [0, 1, 0])
-        return [x for x in out.getvalue().splitlines() if x.startswith("job step: FAIL")][0]
+        return [x for x in out.getvalue().splitlines() if x.startswith(f"job {step.name}: FAIL")][0]
 
     def test_ctest_status(self):
         """ctest's 8 by ctest's name; another tool's 8 unnamed."""
         self.assertIn("FAIL, ctest's status: 8 (tests failed): a test failed or timed out, or none ran under "
                       "--no-tests=error, in", self.fail_line("ctest", 8))
         self.assertIn("FAIL, status: 8 unnamed, in", self.fail_line("cmake", 8))
+
+    def test_exit_one_by_its_command(self):
+        """An exit 1 by the command's own words, step by step; the test
+        runner's words on none; another status by the table."""
+        words = {"configure": "cmake's status: 1 (error): the configure failed",
+                 "build": "cmake's status: 1 (error): the build failed",
+                 "fake": "ctest's status: 1 (error): ctest could not run: ",
+                 "clean binaries": "the clean check's status: 1 (error): a binary holds a path",
+                 "size": "the size tests' status: 1 (error): a file past 600 lines, or a case failed"}
+        steps = {s.name: s for s in LOOP.plan("1", "windows", ["windows-msvc"])[0].steps}
+        for name, text in words.items():
+            with self.subTest(step=name):
+                self.assertIn(f"FAIL, {text}", self.fail_step(steps[name], 1))
+        self.assertIn("FAIL, status: 2 unnamed, in", self.fail_step(steps["configure"], 2))
+        self.assertIn("FAIL, status: 3 abort", self.fail_step(steps["size"], 3))
+
+    def test_size_beside_a_failed_configure(self):
+        """The size step, by the interpreter on Windows, runs whatever the
+        steps before it gave."""
+        unit = LOOP.plan("1", "windows", ["windows-msvc"])[0]
+        windows = LOOP.WINDOWS["windows_command"](ROOT, ROOT, sys.executable, {}, (), LOOP.binary_dirs())
+        self.assertEqual(windows(unit, unit.steps[-1])[:2], [sys.executable, "-I"])
+        with contextlib.redirect_stdout(io.StringIO()):
+            counts = LOOP.run_steps(LOOP.Report(LOOP.LINES), "job", unit.steps, "test", lambda s: [
+                sys.executable, "-I", "-c", f"raise SystemExit({int(s.name != 'size')})"], scratch(self), ROOT, None)
+        self.assertEqual(counts, [1, 1, 4])
+
+    def test_every_step_has_its_words(self):
+        """Every step of every job and suite, ctest's apart, has words for
+        its exit 1, so that none falls to the test runner's."""
+        suites = [step for _, steps in LOOP.TABLE["SUITES"].values() for step in steps]
+        for step in [*(s for job in LOOP.JOBS.values() for s in job[2]), *suites, LOOP.TABLE["SIZE"]]:
+            with self.subTest(step=step.ci):
+                self.assertNotIn("a case failed, or a main returned", RUN["status_line"](step, list(step.ci), 1))
 
     def test_ctest_line(self):
         """ctest's table, its unnamed statuses, and a death by a signal or a

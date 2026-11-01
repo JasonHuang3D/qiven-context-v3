@@ -144,6 +144,8 @@ def windows_command(root, logs, python, tools, extra, presets):
             return [python, "-I", str(root / "tools" / "loop_fuzz.py"), *argv[1:]]
         if argv[0] == sys.executable:  # the modules' check failing, run as the step (tools/loop_select.py)
             return [python, *argv[1:]]
+        if argv[0] == "python":  # the size step (tools/loop_jobs.py)
+            return [python, *argv[1:]]
         tail = extra if step.name == "configure" and "ci-analysis" in step.ci else ()
         return [tools[argv[0]], *argv[1:], *tail]
 

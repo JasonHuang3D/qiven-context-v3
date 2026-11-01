@@ -53,6 +53,15 @@ LOOP_WHO = ("qiven3 loop", "loop@localhost")  # the author and committer git_env
 # git_env's settings against git's background work: no automatic maintenance
 # after a command, no automatic gc, and either in the foreground if run.
 QUIET = {"maintenance.auto": "false", "maintenance.autoDetach": "false", "gc.auto": "0", "gc.autoDetach": "false"}
+# What each command but ctest means by its exit 1, by the first words of the
+# step's command as tools/loop_jobs.py writes it: (words, whose, meaning).
+CHECK_STATUS = ("modules-check",)  # the failing modules' check, run in a ctest step's place
+EXIT_ONE = ((CHECK_STATUS, "the modules' check's", "the table and the tree disagree, each error in its log"),
+            (("cmake", "--preset"), "cmake's", "the configure failed"),
+            (("cmake", "--build"), "cmake's", "the build failed"),
+            (("python", "-I", "-m", "unittest"), "the size tests'", "a file past 600 lines, or a case failed"),
+            (("clean-check",), "the clean check's", "a binary holds a path, or its control caught none"),
+            (("fuzz-timed",), "the timed fuzz run's", "a target failed"))
 
 
 class CannotRun(Exception):
@@ -193,10 +202,21 @@ def before(step):
     return () if step.after is None else (step.after,) if isinstance(step.after, str) else tuple(step.after)
 
 
-def ran_ctest(step, argv):
-    """Whether the command run was the ctest step's own: its argv not the
-    failing modules' check run in its place (tools/loop_select.py)."""
-    return step.ci[:1] == ("ctest",) and not any(Path(word).name == "loop_modules.py" for word in argv)
+def ran_check(argv):
+    """Whether the command run was the failing modules' check, run in a
+    ctest step's place (tools/loop_select.py)."""
+    return any(Path(word).name == "loop_modules.py" for word in argv)
+
+
+def status_line(step, argv, status):
+    """A failing step's status in one line: ctest's own by ctest's names;
+    an exit 1 by its command's own words (EXIT_ONE), "<whose> status: 1
+    (error): <meaning>"; any other by tools/status.py's table."""
+    if step.ci[:1] == ("ctest",) and not ran_check(argv):
+        return STATUS["ctest_line"](status)
+    prefix = CHECK_STATUS if ran_check(argv) else step.ci
+    own = next((row[1:] for row in EXIT_ONE if prefix[:len(row[0])] == row[0]), None)
+    return f"{own[0]} status: 1 (error): {own[1]}" if own and status == 1 else STATUS["line"](status)
 
 
 def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, passed=None):
@@ -254,8 +274,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
                 passed(step)
         else:
             counts[1] += 1
-            namer = STATUS["ctest_line" if ran_ctest(step, argv) else "line"]  # ctest's status by ctest's names
-            what = status if isinstance(status, str) else namer(status)
+            what = status if isinstance(status, str) else status_line(step, argv, status)
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
             report.fail(f"{job} {step.name}", log)
     return counts

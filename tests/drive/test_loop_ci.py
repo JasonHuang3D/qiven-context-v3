@@ -319,10 +319,12 @@ class LoopAgainstCI(unittest.TestCase):
         only = (*fast.ci, "-LE", "^fake$")
         # On Windows fast leaves out the structure tests, which read the
         # records of a structure build tier 1 does not run; the size rule's,
-        # which read the tree alone, run in a step of their own.
-        size = (*fast.ci[:5], "-R", "^tests[.]structure[.]test_size[.]")
+        # which read the tree alone, run in a step of their own, by the
+        # interpreter, on no build and after no step.
+        size = ("python", "-I", "-m", "unittest", "discover", "-s", "tests/structure", "-t", ".", "-p", "test_size.py")
         self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*only, "-E", "^tests[.]structure[.]")),
                                                           ("size", size)])
+        self.assertIsNone(msvc[1].after)
         # The structure build and tests stay windows-analysis's, as ci.yml
         # writes them, and no tier 1 job builds a structure tree.
         analysis = self.ci["windows-analysis"][1]

@@ -11,8 +11,9 @@ jobs as below, or build or test of the jobs named:
   configured without --fresh, so that Ninja builds only what changed; then
   its tests, then the tests of the label fast that its fake step does not
   run, on its build, without the structure tests on Windows but the size
-  check, B15, which reads the tree alone. Tier 1 builds no structure tree:
-  the other structure tests run in tier 2's windows-analysis and in tier 3.
+  check, B15, which reads the tree alone, no build and no table, and runs
+  whatever the steps before gave. Tier 1 builds no structure tree: the other
+  structure tests run in tier 2's windows-analysis and in tier 3.
   Workers run tier 1 alone.
 - 2, a unit's gate: every job of the system, each in its own kept tree,
   configured without --fresh, running its tests; on Windows then the
@@ -95,7 +96,10 @@ the debugger cases under gdb. No job runs macOS, here or in CI.
 The answer is plain text: a line a tree and a step with its outcome and
 seconds, a failing step's status named by tools/status.py, a ctest step's
 as ctest's own ("ctest's status: 8 (tests failed)": a test failed or timed
-out, or none ran under --no-tests=error); then, after every step's line,
+out, or none ran under --no-tests=error), any other command's exit 1 by its
+own words ("cmake's status: 1 (error): the configure failed"); a broken
+modules' table fails the first step that checks it, and the later ones do
+not run, each saying so; then, after every step's line,
 for each failing step, its first error lines before its last 30, up to
 10, each with its line number in the log (a compiler's, a linker's or
 clang-tidy's error, MSVC's warning, an error under /WX, ninja's failed

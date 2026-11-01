@@ -7,7 +7,10 @@ tools/loop_modules.py, as the run begins.
 - The check first: each such step runs the modules' check,
   tools/loop_modules.py, on the checkout and the step's tree. An error
   fails the step, which then runs the check as its command, so that its
-  log names each file or edge, and no test.
+  log names each file or edge, and no test. One cause is one FAIL: a later
+  step of the run the check gives the same errors for does not run, its line
+  says why, and its record stays. The size step reads the tree alone and
+  runs all the same (tools/loop_jobs.py).
 - The record. Each tree keeps RECORD: for each ctest step that passed in
   it, each file of the checkout by its blob id as the job's run began (git's
   index, and git hash-object for a file changed or new), and the table's
@@ -24,7 +27,8 @@ tools/loop_modules.py, as the run begins.
   carry a selected module's label in ctest's own listing
   (--show-only=json-v1), and any test that carries no module's; and, for
   any change, the tests that read every tracked file (WHOLE), the modules'
-  check whole over the checkout among them; and, for a change under a tree
+  check whole over the checkout among them, and the test that reads every
+  test's labels (LABELLED); and, for a change under a tree
   READERS names (.github/, of the no-test row), the tests that read it, and
   for a change to tools/trees.json, every test that reads it; for a change
   to the structure checks' lexer, every structure test and the build's tests
@@ -62,6 +66,9 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
     "tests.structure.test_imports.Python.test_tree", "tests.structure.test_floors.Floors.test_sources",
     "tests.structure.test_boundaries.Tree.*", "tests.structure.test_imports.Tree.*",
     "tests.drive.test_loop_full_check.FullCheck.test_tree")
+# The test that reads every test's labels: a change to any file chooses it,
+# so that a test class left without its label fails tier 1 wherever it is.
+LABELLED = ("tests.drive.test_tier_one.Reach.*",)
 READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
     ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*"),
     # The trees every walker, glob and filter reads, the structure rules' scopes among them: every test that reads them.
@@ -147,7 +154,8 @@ def choose(table, rows, changed):
            for name in now if name in seeds or reach[name] & seeds}
     read = {test: f"reading {tree}" for tree, tests in READERS.items() if any(p.startswith(tree) for p in changed)
             for test in tests}
-    return {**why, **read, **{test: "reading every tracked file" for test in WHOLE if changed}}, None
+    return {**why, **read, **{test: "reading every tracked file" for test in WHOLE if changed},
+            **{test: "reading every test's labels" for test in LABELLED if changed}}, None
 
 
 def picked(tests, why, names):
@@ -180,6 +188,7 @@ class Selection:
     def __init__(self, root, ctest, env, git):
         self.root, self.ctest, self.env, self.git = Path(root), ctest, env, git
         self.sources, self.table, self.steps, self.emptied = None, None, {}, {}
+        self.failed_check = None  # the errors of the modules' check that failed a step of this run
 
     def start(self, unit, emptied=None):
         """The checkout's files and the table as the unit's run begins;
@@ -227,7 +236,11 @@ class Selection:
         if not narrow:
             return []
         argv, errors = self.check(tree)
+        if errors and errors == self.failed_check:
+            unit.notes[step.name] = "the modules' check failed before it, with the same errors"
+            return None
         if errors:
+            self.failed_check = errors
             more = f", and {len(errors) - 1} more errors in its log" if len(errors) > 1 else ""
             unit.notes[step.name] = f"the modules' check failed, no test run: {errors[0]}{more}"
             return tuple(argv)

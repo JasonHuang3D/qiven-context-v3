@@ -135,6 +135,8 @@ class Choose(unittest.TestCase):
         names = {m["name"] for m in table["modules"]}
         whole = {test: why.pop(test) for test in SELECT["WHOLE"] if test in why}  # any change's: apart
         self.assertEqual(whole, dict.fromkeys(SELECT["WHOLE"], "reading every tracked file") if changed else {})
+        labelled = {test: why.pop(test) for test in SELECT["LABELLED"] if test in why}
+        self.assertEqual(labelled, dict.fromkeys(SELECT["LABELLED"], "reading every test's labels") if changed else {})
         return SELECT["picked"](listing(), why, names)[0], why
 
     def test_whole(self):
@@ -152,6 +154,20 @@ class Choose(unittest.TestCase):
                 self.assertEqual(chosen, [tests[0][0], tests[2][0], *more])
                 self.assertEqual(reasons[-1], "2 tests reading every tracked file")
         self.assertEqual(SELECT["picked"](tests, SELECT["choose"](TABLE, rows, [])[0], names)[0], [])
+
+    def test_label_check_every_change(self):
+        """A change outside the tooling, a notes file's among them, chooses
+        the test that reads every test's labels, so that a class left
+        without its label fails tier 1 wherever it is."""
+        tests = [("tests.drive.test_tier_one.Reach.test_every_test_reached_or_kept_out", ["fake", "tooling"]),
+                 *listing()]
+        names = {"tooling", *(m["name"] for m in TABLE["modules"])}
+        rows = {m["name"]: m for m in TABLE["modules"]}
+        for changed in (["README.md"], ["src/utc/utc.cpp"]):
+            with self.subTest(changed=changed):
+                chosen, reasons = SELECT["picked"](tests, SELECT["choose"](TABLE, rows, changed)[0], names)
+                self.assertEqual(chosen[0], tests[0][0])
+                self.assertIn("1 tests reading every test's labels", reasons)
 
     def test_module_and_dependents(self):
         """A module's file, or its own .cmake: it and its dependents."""
@@ -344,6 +360,20 @@ class Record(unittest.TestCase):
         self.errors.clear()
         self.failing.clear()
         self.assertIn("2 of 10 tests: utc changed", self.run_tier()[1])
+
+    def test_one_cause_one_fail(self):
+        """The modules' check failing for the steps of one run: the first
+        fails, the next with the same errors does not run and says why;
+        other errors on a later step fail it."""
+        select = SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
+        unit = LOOP.plan("1", "windows", ["windows-msvc"])[0]
+        step = {s.name: s for s in unit.steps}
+        select.check = lambda tree: (["the", "check"], ["file odd.txt: in no module"])
+        self.assertEqual(select.affected(unit, step["fake"], TREE, ["ctest"], True), ("the", "check"))
+        self.assertIsNone(select.affected(unit, step["fast"], TREE, ["ctest"], True))
+        self.assertEqual(unit.notes["fast"], "the modules' check failed before it, with the same errors")
+        select.check = lambda tree: (["the", "check"], ["edge a -> b: foundation depending on product"])
+        self.assertEqual(select.affected(unit, step["fast"], TREE, ["ctest"], True), ("the", "check"))
 
     def test_real_check(self):
         """The check itself, on a tree no configure made: it cannot run, and
