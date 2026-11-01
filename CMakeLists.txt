@@ -46,6 +46,7 @@ foreach(binary IN LISTS qiven3_binaries)
 endforeach()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/binaries.txt" CONTENT "${qiven3_binaries_text}")
 set(qiven3_executables_text "")
+set(qiven3_defined "")
 set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
 while(qiven3_dirs)
   list(POP_FRONT qiven3_dirs dir)
@@ -57,15 +58,24 @@ while(qiven3_dirs)
     if(type STREQUAL "EXECUTABLE")
       string(APPEND qiven3_executables_text "${target}\t$<TARGET_FILE:${target}>\n")
     endif()
+    get_target_property(plant ${target} QIVEN3_PLANT)
+    if(type MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|EXECUTABLE)$" AND NOT plant)
+      list(APPEND qiven3_defined ${target})
+    endif()
   endforeach()
 endwhile()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
 # The targets that take test code's analysis, in every preset's
-# test-targets.txt, which tests/structure/test_exemptions.py holds to its list.
+# test-targets.txt, and beside it defined-targets.txt, every compiled target
+# the preset defines, a plant's aside: tests/structure/test_exemptions.py
+# holds the first to its list, and tells a listed target defined without
+# test code's analysis from one the preset does not define.
 qiven3_test_targets(qiven3_test_targets)
 list(JOIN qiven3_test_targets "\n" qiven3_text)
 file(WRITE "${PROJECT_BINARY_DIR}/test-targets.txt" "${qiven3_text}\n")
+list(JOIN qiven3_defined "\n" qiven3_text)
+file(WRITE "${PROJECT_BINARY_DIR}/defined-targets.txt" "${qiven3_text}\n")
 
 # The analysis preset over the sources the analysis reads, by their paths
 # (qiven3_analysed): those under the analysed roots (tests/child/ holds

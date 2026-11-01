@@ -87,12 +87,19 @@ def findings(root, files):
     return sorted(found)
 
 
-def targets(root, given):
-    """Each (file, detail) where a build gives test code's analysis to a
-    target, by given (its test-targets.txt), that the list's test_code
-    targets do not pin: a test target left out, or a library's. A pinned
-    target the build does not give it is not refused: a preset may lack it
-    (nohal has no qiven3_hal_fake)."""
-    pinned = json.loads((root / LIST).read_text(encoding="utf-8"))["test_code"]["targets"]
-    return [("test-targets.txt", f"{name}: takes test code's analysis, and the list does not pin it")
-            for name in sorted(set(given.read_text(encoding="utf-8").split()) - set(pinned))]
+def targets(root, build):
+    """The pin both ways in a build's tree: (found, absent). Found, each
+    (file, detail): a target the build gives test code's analysis (its
+    test-targets.txt) that the list's test_code targets do not pin, a test
+    target left out or a library's; and a pinned target the build defines
+    (its defined-targets.txt) without that analysis. Absent: the pinned
+    targets the build does not define, which a preset may lack (nohal has
+    no qiven3_hal_fake)."""
+    pinned = set(json.loads((root / LIST).read_text(encoding="utf-8"))["test_code"]["targets"])
+    given = set((build / "test-targets.txt").read_text(encoding="utf-8").split())
+    defined = set((build / "defined-targets.txt").read_text(encoding="utf-8").split())
+    found = [("test-targets.txt", f"{name}: takes test code's analysis, and the list does not pin it")
+             for name in sorted(given - pinned)]
+    found += [("test-targets.txt", f"{name}: pinned, and {build} defines it without test code's analysis")
+              for name in sorted((pinned & defined) - given)]
+    return found, sorted(pinned - defined - given)

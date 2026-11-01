@@ -116,23 +116,37 @@ class Exemptions(unittest.TestCase):
 class TestTargets(unittest.TestCase):
     """The targets the build gives test code's analysis, by its own reader
     (test-targets.txt in QIVEN3_BUILD's tree), are the list's test_code
-    targets: a target left out of the list, or a library's given the scope,
-    is refused; a pinned one a preset lacks is not."""
+    targets: a target left out of the list, a library's given the scope, or
+    a pinned one the build defines without it, is refused; a pinned one a
+    preset does not define (defined-targets.txt) is skipped by its name."""
     ctest_labels = ("fake",)
 
     def test_build(self):
         build = os.environ.get("QIVEN3_BUILD")
         if not build:
             self.skipTest("no QIVEN3_BUILD: run by ctest")
-        self.assertEqual(exemptions.targets(ROOT, Path(build, "test-targets.txt")), [])
+        found, absent = exemptions.targets(ROOT, Path(build))
+        self.assertEqual(found, [])
+        for name in absent:
+            with self.subTest(target=name):
+                self.skipTest(f"{name}: pinned, and {build} does not define it")
+
+    def given(self, build, scoped, defined):
+        Path(build, "test-targets.txt").write_text("\n".join(scoped) + "\n", encoding="utf-8")
+        Path(build, "defined-targets.txt").write_text("\n".join(defined) + "\n", encoding="utf-8")
+        return exemptions.targets(ROOT, Path(build))
 
     def test_planted(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
         with tempfile.TemporaryDirectory() as scratch:
-            given = Path(scratch, "test-targets.txt")
-            given.write_text("\n".join([*pinned, "qiven3_memory"]) + "\n", encoding="utf-8")
-            found = exemptions.targets(ROOT, given)
-            self.assertEqual(len(found), 1, found)
+            found, absent = self.given(scratch, [*pinned, "qiven3_memory"], [*pinned, "qiven3_memory"])
+            self.assertEqual((len(found), absent), (1, []), found)
             self.assertIn("qiven3_memory: takes test code's analysis", found[0][1])
-            given.write_text("\n".join(pinned[1:]) + "\n", encoding="utf-8")
-            self.assertEqual(exemptions.targets(ROOT, given), [])
+            self.assertEqual(self.given(scratch, pinned[1:], pinned[1:]), ([], [pinned[0]]))
+
+    def test_planted_defined(self):
+        pinned = json.loads(real(LIST))["test_code"]["targets"]
+        with tempfile.TemporaryDirectory() as scratch:
+            found, absent = self.given(scratch, pinned[1:], [*pinned, "qiven3_memory"])
+            self.assertEqual((len(found), absent), (1, []), found)
+            self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch)} defines it without", found[0][1])
