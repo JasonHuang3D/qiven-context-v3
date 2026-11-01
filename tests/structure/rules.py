@@ -123,16 +123,21 @@ ALLOWED = {
     "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
-# B1's text, beyond ALLOWED["B1"]: the vendored SQLite's module directory,
-# the build's pin of sqlite3.c's and sqlite3.h's digests, and the read audit,
-# which names sqlite3 to check its absence: its text alone, not B1's include.
-B1_TEXT = ("foundation/system/sqlite/", "foundation/devkit/build/build.cmake", "tests/audit/read_audit")
 # The allowances the text states beyond the rows' cells, (rule, file, what),
 # each with its reason; the subset's cells' are subset.CELLS. A file or a
-# what ending in / is a prefix, and a file ending in . a module's files.
-# B5's what is the header or the import, B6's and B9's the header, B17's
-# the header its include finding names.
+# what ending in / is a prefix, a file ending in . a module's files, and a
+# what a type's its members too. B1's what is the text, B1's include and link
+# rules taking none; B5's the header or the import, B6's and B9's the header,
+# B17's the header its include finding names.
 STATED = {
+    ("B1", "foundation/system/sqlite/README.md", "sqlite3"): "the vendored SQLite's module's page, which names its "
+                                                             "contract, the vendored header",
+    ("B1", "foundation/system/sqlite/module.json", "sqlite3"): "that module's table file, whose contract is the "
+                                                               "vendored header's path",
+    ("B1", "foundation/devkit/build/build.cmake", "sqlite3"): "the build's pin of the vendored source's and header's "
+                                                              "digests, and its language note on that source",
+    ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
+                                                  "its absence: its text alone, and B1's include still refused",
     ("B9", "src/diag/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
                                      "and its report hook",
     ("B9", "src/diag/", "signal.h"): "the diagnostic entry's handlers on Linux",
@@ -219,7 +224,8 @@ def allowed(rule, where, what=None):
 
 
 def match(value, key):
-    return value is not None and (value == key or (key.endswith(("/", ".")) and value.startswith(key)))
+    return value is not None and (value == key or value.startswith(key + "::")
+                                  or (key.endswith(("/", ".")) and value.startswith(key)))
 
 
 def is_instantiation(path):
@@ -313,8 +319,8 @@ def source_rules(root, files, out):
             what = "a lone CR" if found.group() == b"\r" else f"the control byte 0x{found.group()[0]:02x}"
             out.add("B32", rel, detail=f"line {line}: {what}")
         text = data.decode("utf-8", "replace")
-        if layers.walked(rel) and "sqlite3" in text and not under(rel, B1_TEXT):
-            out.add("B1", rel, detail="the text sqlite3")
+        if layers.layered(rel) and "sqlite3" in text:
+            out.add("B1", rel, detail="the text sqlite3", what="sqlite3")
         if not rel.endswith(CXX_SOURCES) or rel == VENDORED:
             continue
         tokens = lex(text)[0]

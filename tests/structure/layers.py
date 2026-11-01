@@ -4,7 +4,8 @@ module's layer, its table file's directory's in the tree (foundation/core/
 gives core, products/ products); and test code, a file under the top-level
 tests/ or under a module directory's tests/. The structure rules read their
 scopes here: core logic (B17) by layer, the safe subset's files (B19 to
-B31) and the log's includes (K15); and the walked trees, tools/trees.json's.
+B31) and the log's includes (K15); the walked trees, tools/trees.json's; and
+B1's text, layered().
 """
 
 import json
@@ -21,11 +22,19 @@ CORE = LINKED[1:]  # core logic's layers: the link graph's but devkit, layer 0, 
 KIT = MODULES["KIT"]  # the test kit's table files
 VENDORED = MODULES["VENDORED"]  # a vendor's sources
 TESTS = "tests/"  # the top-level test tree
+TOOLS = "tools/"  # the tools' tree: no layer's code, whichever row holds its files
 
 
 def walked(rel):
     """Whether rel is under one of the trees every check walks."""
     return any(rel.startswith(tree + "/") for tree in TREES)
+
+
+def layered(rel):
+    """Whether rel is of the layers' code or test code, by where it lies, so
+    that a file of no row and a tool's test stay in, and a module keeps its
+    place as it moves: a walked tree's but the tools' and a vendor's."""
+    return walked(rel) and not rel.startswith((TOOLS, VENDORED))
 
 
 class Layers:

@@ -25,12 +25,12 @@ text's and then the tokens' own:
   std::thread passes when a join is called in its block, whichever thread
   it joins;
 - B25: a function's mutable local static; then an object at namespace
-  scope or a static member whose declaration holds parentheses (an
+  scope or a static member whose first declarator holds parentheses (an
   initializer's, a function pointer's, alignas), or declared after a class
   body's brace;
 - B28: a view in a lambda's capture, or behind a pointer or reference
   member, at any depth of its template arguments; then a member whose
-  declaration holds parentheses;
+  first declarator holds parentheses;
 - B29: a std::unique_lock that locks at construction; SQLite's own waits;
 - B30: none of the text's; then a bare time() call, read as any function's;
 - B31: a library's own abort;
@@ -87,8 +87,9 @@ ALLOWED = {
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares
 # sqlite3_config variadic, the one place its interface needs varargs. B25:
-# the runner's own cases' two state globals, by name. B28: the borrowing
-# types, each with its lifetime rule.
+# the runner's own cases' two state globals, each by its declarator's name,
+# at namespace scope alone. B28: the borrowing types, each with its lifetime
+# rule: Type is a type's members, Type::member that member alone.
 RUNNER_TEST = "foundation/devkit/test/runner/tests/runner_test.cpp"
 CELLS = {
     ("B22", "src/store/engine/", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
@@ -97,8 +98,8 @@ CELLS = {
                                      "that runs the sample reads it",
     ("B25", RUNNER_TEST, "held_slots"): "as reached's: the pool slots a sample case holds past its end, chained, "
                                         "kept reachable under the system heap, which the case that runs it reads",
-    ("B28", "foundation/devkit/test/runner/include/qiven/runner/core.hpp", "Case"): "a case's name, a view of the "
-        "registering macro's string literals, which have static storage and outlive every Case",
+    ("B28", "foundation/devkit/test/runner/include/qiven/runner/core.hpp", "Case::name"): "a case's name, a view of "
+        "the registering macro's string literals, which have static storage and outlive every Case",
     ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
@@ -227,21 +228,24 @@ def opening(head, before):
 
 def statements(tokens):
     """Each declaration at a namespace's or a class's own depth: (scope, name,
-    tokens), the tokens before its initializer."""
-    stack, head = [("namespace", "", False, [])], []
+    tokens), the tokens of its braces' initializers out; a brace's declaration
+    goes on past it to a further declarator's comma."""
+    stack, head = [("namespace", "", False, [], False)], []
     for i, tok in enumerate(tokens):
         value = tok[1]
         scope, name = stack[-1][0], stack[-1][1]
         if tok[0] == "punct" and value == "{":
             kind, inner, declares, keep = opening(head, tokens[i - 1] if i else None)
-            if declares and scope != "other":
-                yield scope, name, head
-            stack.append((kind, inner, keep, head))
+            stack.append((kind, inner, keep, head, declares))
             head = []
         elif tok[0] == "punct" and value == "}":
             if len(stack) > 1:
-                _, _, keep, saved = stack.pop()
+                _, _, keep, saved, declares = stack.pop()
                 head = saved if keep else []
+                if declares and i + 1 < len(tokens) and tokens[i + 1][1] == ",":
+                    head = saved
+                elif declares and stack[-1][0] != "other":
+                    yield stack[-1][0], stack[-1][1], saved
         elif tok[0] == "punct" and value == ";":
             if scope != "other" and head:
                 yield scope, name, head
@@ -270,13 +274,33 @@ def drop_macros(toks):
     return out
 
 
-def before_init(toks):
-    out = []
+def declarators(toks):
+    """A declaration's declarators, each its tokens before its initializer,
+    the first with the declaration's specifiers: split at a comma outside
+    parentheses, brackets and, before an initializer, template arguments. A
+    comma in an initializer's template arguments splits too, which can only
+    add a finding."""
+    parts, part, depth, init = [], [], 0, False
     for tok in toks:
-        if tok[1] == "=":
-            break
-        out.append(tok)
-    return out
+        value = tok[1]
+        if value == "=" and depth == 0:
+            init = True
+        elif value == "," and depth == 0:
+            parts.append(part)
+            part, init = [], False
+        elif not init:
+            part.append(tok)
+        depth += {"(": 1, "[": 1, ")": -1, "]": -1}.get(value, 0)
+        if not init:
+            depth = max(0, depth + {"<": 1, ">": -1, ">>": -2}.get(value, 0))
+    return [*parts, part]
+
+
+def named(toks, depths):
+    """The index of the name a declarator declares: its last identifier
+    before an array's bound or a parenthesis of its own."""
+    end = next((i for i, t in enumerate(toks) if t[1] in ("[", "(") and depths[i] == 0), len(toks))
+    return next((i for i in reversed(range(end)) if toks[i][0] == "id"), 0)
 
 
 def is_const(toks, depths):
@@ -306,28 +330,36 @@ def behind(toks, depths, i):
 
 
 def object_rules(tokens, out):
-    """B25's objects at namespace scope and static data members; B28's view members."""
+    """B25's objects at namespace scope and static data members; B28's view
+    members: a finding for each declarator, the name an allowance matches its
+    own, what a static member never takes, an allowance being a namespace
+    scope object's alone."""
     for scope, name, head in statements(tokens):
-        toks = before_init(drop_macros(strip_head(head)))
-        values = [t[1] for t in toks]
+        parts = declarators(drop_macros(strip_head(head)))
+        toks, values = parts[0], [t[1] for t in parts[0]]
         if not toks or (toks[0][0] != "id" and values[0] != "::") or NOT_OBJECT & set(values):
             continue
-        depths = angle_depths(toks)
         if "(" in values:
             continue
-        if sum(1 for t in toks if t[0] == "id") < 2:
+        if sum(1 for part in parts for t in part if t[0] == "id") < 2:
             continue
-        line = toks[0][2]
-        mutable = not is_const(toks, depths)
-        declared = next(t[1] for t in reversed(toks) if t[0] == "id")  # the object's name
-        if scope == "namespace" and mutable:
-            out("B25", "object", line, "a non-const object at namespace scope", declared)
-        if scope == "class" and "static" in values and mutable:
-            out("B25", "static", line, "a non-const static data member", declared)
-        if scope == "class" and "static" not in values and not name.endswith("View"):
-            views = [i for i, t in enumerate(toks) if t[1] in B28_VIEWS and not behind(toks, depths, i)]
-            if views:
-                out("B28", "", line, f"a {toks[views[0]][1]} member of {name or 'a nameless type'}", name)
+        depths = angle_depths(toks)
+        at = named(toks, depths)
+        specifiers = toks[:next((i for i in range(at) if depths[i] == 0 and values[i] in ("*", "&", "&&")), at)]
+        for part in filter(None, parts):
+            whole = toks if part is toks else [*specifiers, *part]
+            depths = angle_depths(whole)
+            declared, line = whole[named(whole, depths)][1], part[0][2]
+            mutable = not is_const(whole, depths)
+            if scope == "namespace" and mutable:
+                out("B25", "object", line, f"a non-const object at namespace scope, {declared}", declared)
+            if scope == "class" and "static" in values and mutable:
+                out("B25", "static", line, f"a non-const static data member, {declared}")
+            if scope == "class" and "static" not in values and not name.endswith("View"):
+                views = [i for i, t in enumerate(whole) if t[1] in B28_VIEWS and not behind(whole, depths, i)]
+                if views:
+                    out("B28", "", line, f"a {whole[views[0]][1]} member of {name or 'a nameless type'}, {declared}",
+                        f"{name}::{declared}")
 
 
 def is_call(tokens, i):
@@ -493,7 +525,7 @@ def in_scope(rel, tree):
 def check(root, files, add, tree):
     """B18 to B31 but B26 over a tree's files, and B26's configuration;
     add(rule, where, kind, detail, what) takes each finding, what the name
-    an allowance matches: B22's function's, B25's object's, B28's type's;
+    an allowance matches: B22's function's, B25's object's, B28's member's;
     tree, the tree's table (layers.Layers), gives the subset's files and
     test code."""
     config_rules(root, files, add)
