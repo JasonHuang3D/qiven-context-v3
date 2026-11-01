@@ -175,10 +175,14 @@ STATED = {
                                             "CMake never: its log, its environment and the real program's start",
 }
 ALLOWANCES = (*subset.CELLS, *STATED)
+# The directories a rule reads none of, every rule of it, each by prefix with
+# its reason; every other allowance above is by exact path, a prefix ending in
+# / or . or a target's name.
 EXEMPT = {
-    "B1": (STRUCTURE,),
-    "B2": (STRUCTURE,),
-    "B14": (STRUCTURE,),
+    "B1": {STRUCTURE: "the structure checks, which name what they forbid: sqlite3 in B1's text rule, its include "
+                      "and its link, as data and in their cases' scratch files"},
+    "B2": {STRUCTURE: "as B1's: the git names and CreateProcessW B2's rules refuse"},
+    "B14": {STRUCTURE: "as B1's: the goldens path B14's literal rule refuses"},
 }
 # B12: the modules and targets that never reach backup or forgetting.
 B12_FILES = ("src/keys/", "src/store/", "src/entry/", "src/bundle/", "src/reader/", "src/platform/",

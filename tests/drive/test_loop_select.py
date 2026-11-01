@@ -18,7 +18,9 @@ which runs the check and no test, and its line names the error, by
 Windows' command too, the check run by the interpreter; tier 3
 narrows nothing."""
 
+import ast
 import contextlib
+import fnmatch
 import io
 import json
 import os
@@ -76,6 +78,25 @@ FILES = {
     "tools/loop.py": "# loop\n",
     **{path: json.dumps(obj, indent=1) + "\n" for path, obj in LAYOUT.items()},
 }
+
+
+def trees_readers(root):
+    """{test module: its file} of each test module of the checkout at root
+    that reads tools/trees.json, as its own code says: naming it in a string,
+    or importing the table's reader, tools/loop_modules.py, by an import or
+    by its file's name."""
+    found = {}
+    for tree in SELECT["MODULES"]["TREES"]:
+        for path in sorted((root / tree).rglob("test_*.py")):
+            nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
+            strings = [n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+            names = [n.module or "" for n in nodes if isinstance(n, ast.ImportFrom)] + [
+                a.name for n in nodes if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names]
+            if any("trees.json" in s or s.endswith("loop_modules.py") for s in strings) or any(
+                    name.rpartition(".")[2] == "loop_modules" for name in names):
+                rel = path.relative_to(root).as_posix()
+                found[rel.removesuffix(".py").replace("/", ".")] = rel
+    return found
 
 
 def checkout(case):
@@ -268,6 +289,21 @@ class Choose(unittest.TestCase):
         why, _ = SELECT["choose"](table, rows, ["README.md"])
         self.assertEqual(SELECT["picked"](tests, why, names)[0], [tests[3][0]])
 
+    def test_trees_readers(self):
+        """On the checkout's table, a change to tools/trees.json chooses every
+        test module that reads it, directly or through the table's reader, as
+        their own code says (trees_readers), by its name or its module's: a
+        new reader cannot be left out."""
+        table = SELECT["MODULES"]["load"]()
+        why, every = SELECT["choose"](table, {m["name"]: m for m in table["modules"]}, ["tools/trees.json"])
+        self.assertIsNone(every)
+        readers = trees_readers(Path(__file__).resolve().parents[2])
+        self.assertIn("tests.drive.test_wiring", readers)
+        owners = SELECT["MODULES"]["owners"](table, list(readers.values()))
+        left = [name for name, rel in readers.items() if owners[rel][:1] not in ([m] for m in why)
+                and not any(fnmatch.fnmatchcase(f"{name}.Case.test_case", test) for test in why)]
+        self.assertEqual(left, [])
+
 
 class Record(unittest.TestCase):
     """The record through tier 1's steps on fakes: the fake step narrowed
@@ -396,9 +432,10 @@ class Record(unittest.TestCase):
 
     def test_check_status_named(self):
         """The check run in the step's place, unable to run: its status, 2,
-        named as the check's process's, not as ctest's."""
+        named as the check's process's by its own words, not as ctest's."""
         line = self.check_on_windows()[0]
-        self.assertRegex(line, r"^windows-msvc fake: FAIL, status: 2 unnamed, in [0-9.]+ s; the modules' check "
+        self.assertRegex(line, r"^windows-msvc fake: FAIL, the modules' check's status: 2 \(error\): the check could "
+                               r"not run, its error in its log, in [0-9.]+ s; the modules' check "
                                r"failed, no test run: the check could not run: ")
         self.assertNotIn("ctest's status", line)
 

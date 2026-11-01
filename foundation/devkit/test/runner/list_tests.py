@@ -19,8 +19,9 @@ class whose ctest_limit is a whole number of seconds states the watcher's
 limit for its tests, which otherwise their labels give
 (ctest_tests.cmake, beside this file).
 
-A module that does not import, a test in a package with no labels here or
-a file in no module, a limit of another form, or a test directory with no
+A module that does not import, a test the one reader of test code
+(package(), below) says is no test code or puts in a package with no labels
+here, a file in no module, a limit of another form, or a test directory with no
 __init__.py, which discover would pass over, fails the listing, and so the
 build.
 """
@@ -79,6 +80,16 @@ def unpackaged(root, trees):
     return sorted(d for d in found if "__pycache__" not in d.parts and not (d / "__init__.py").is_file())
 
 
+def package(path, modules, homes):
+    """The package whose labels a Python test file at path takes, by the one
+    reader of test code (tools/loop_modules.py's test_path, homes its module
+    directories): the one below tests/, or tests for a file directly in a
+    module's own tests/; None where the reader says it is no test code."""
+    test = modules["test_path"](path, homes)
+    parts = (test or "").split("/")
+    return parts[1] if len(parts) > 2 else "tests" if test and test != path else None
+
+
 def listed(loop, root="."):
     """([(id, labels, serial, limit or None)], [errors]) of the
     tests discover finds in each package of the trees tools/trees.json
@@ -87,6 +98,7 @@ def listed(loop, root="."):
     # The table's one reader, by runpy: under -I tools/ is off sys.path.
     modules = runpy.run_path(str(Path(root) / "tools" / "loop_modules.py"))
     table = modules["load"](root)
+    homes = {home.rpartition("/")[0] for home in table.get("homes", {}).values()}
     loader = unittest.TestLoader()
     suite = unittest.TestSuite(loader.discover(str(package), top_level_dir=str(root))
                                for package in packages(root, modules["TREES"]))
@@ -105,22 +117,20 @@ def listed(loop, root="."):
             continue
         if git and not loop:
             continue
-        # Its package, under tests/ the one below it, elsewhere the one
-        # holding its file.
         parts = name.split(".")
-        package = parts[1] if parts[0] == modules["TESTS"] else parts[-2]
-        if package not in PACKAGE_LABELS or (package == "tests" and parts[0] not in modules["TOPS"]):
-            errors.append(f"{test_id}: the package {package} has no labels")
+        path = "/".join(parts) + ".py"
+        kind = package(path, modules, homes)
+        if kind not in PACKAGE_LABELS:
+            errors.append(f"{test_id}: the package {kind} has no labels" if kind else f"{test_id}: no test code")
             continue
-        module = f"{package}.{parts[-1]}"
-        labels = MODULE_LABELS.get(module, PACKAGE_LABELS[package]) + tuple(getattr(test, "ctest_labels", ()))
+        module = f"{kind}.{parts[-1]}"
+        labels = MODULE_LABELS.get(module, PACKAGE_LABELS[kind]) + tuple(getattr(test, "ctest_labels", ()))
         serial = 1 if getattr(test, "ctest_serial", False) else 0
         limit = getattr(test, "ctest_limit", None)
         if limit is not None and (type(limit) is not int or limit < 1):
             errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
             continue
-        path = "/".join(parts) + ".py"
-        owner = modules["owners"](table, [path])[path]
+        owner =modules["owners"](table, [path])[path]
         if not owner:
             errors.append(f"{test_id}: its file is in no module of the table")
             continue

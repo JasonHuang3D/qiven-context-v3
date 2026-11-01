@@ -71,11 +71,14 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
 LABELLED = ("tests.drive.test_tier_one.Reach.*",)
 READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
     ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*"),
-    # The trees every walker, glob and filter reads, the structure rules' scopes among them: every test that reads them.
+    # The trees every walker, glob and filter reads, the structure rules' scopes among them: every test that reads
+    # them, directly or through the table's reader (tests.drive.test_loop_select's Readers derives them).
     "tools/trees.json": ("tests.structure.*", "tests.drive.test_trees_build.*", "tests.drive.test_nav.*",
                          "tests.drive.test_git_count.*", "tests.drive.test_loop.*", "tests.drive.test_loop_modules.*",
                          "tests.drive.test_loop_rows.*", "tests.drive.test_loop_table.*",
-                         "tests.drive.test_loop_trees.*"),
+                         "tests.drive.test_loop_trees.*", "tests.drive.test_loop_full_check.*",
+                         "tests.drive.test_loop_layers.*", "tests.drive.test_loop_select.*",
+                         "tests.drive.test_wiring.*"),
     # The structure checks' lexer, which the build's header units read their includes by.
     "tests/structure/lexer.py": ("tests.structure.*", "tests.drive.test_trees_build.*")}
 

@@ -230,23 +230,36 @@ class TreesBuild(unittest.TestCase):
 
     def test_own_source_compiled(self):
         """An own source stands in for its header's unit only where the
-        CMakeLists.txt above it lists it, on whichever system: one dropped
-        from its list and left in place, named in a comment, a source
-        property or under another directory, or under no CMakeLists.txt,
-        leaves its header needing one."""
+        CMakeLists.txt above it names it, from that file's directory, alone
+        or after a variable's directory, on whichever system, its comments
+        and source properties (set_source_files_properties and
+        set_property(SOURCE), in either case) stripped. One dropped from its
+        list and left in place, named in a comment, a source property or
+        under another directory, or under no CMakeLists.txt, leaves its
+        header needing one; the refusal names the list read and the name
+        looked for, so a list spelling it from another directory shows."""
         unit = "tests/support/headers/"
         path = "src/m/CMakeLists.txt"
+        listed = "src/m/CMakeLists.txt names neither y.cpp nor ${...}/y.cpp outside its comments and source properties"
         for text in ("add_library(m)\n", "add_library(m) # y.cpp\n", "add_library(m other/y.cpp)\n", None,
-                     'add_library(m)\nset_source_files_properties("${dir}/y.cpp" PROPERTIES COMPILE_OPTIONS -x)\n'):
+                     'add_library(m)\nset_source_files_properties("${dir}/y.cpp" PROPERTIES COMPILE_OPTIONS -x)\n',
+                     'add_library(m)\nSET_SOURCE_FILES_PROPERTIES("${dir}/y.cpp" PROPERTIES COMPILE_OPTIONS -x)\n',
+                     'add_library(m)\nset_property(SOURCE "${dir}/y.cpp" PROPERTY COMPILE_OPTIONS -x)\n',
+                     'add_library(m)\nSet_Property( SOURCE y.cpp PROPERTY COMPILE_OPTIONS -x)\n'):
             files, _ = scene()
             files[path] = text
             files = {name: body for name, body in files.items() if body is not None}
             status, _, errors = self.units(files)
             self.assertNotEqual(status, 0, text)
+            why = listed if text else "no CMakeLists.txt is above it"
             self.assertIn(f"the header-only header src/m/y.hpp has no unit, {unit}m_y.cpp (its own source src/m/y.cpp "
-                          "is in no target's sources)", errors)
+                          f"is not listed: {why})", errors)
             files[f"{unit}m_y.cpp"] = '#include "m/y.hpp"\n'
             self.assertEqual(self.units(files)[:2], (0, sorted([*scene()[1], "m_y.cpp"])), text)
+        files, _ = scene()
+        files["kits/scene/CMakeLists.txt"] = 'set(dir src)\nadd_library(scene src/scene.cpp "${dir}/seen.cpp")\n'
+        self.assertIn("(its own source kits/scene/src/seen.cpp is not listed: kits/scene/CMakeLists.txt names neither "
+                      "src/seen.cpp nor ${...}/src/seen.cpp outside", self.units(files)[2])
 
     def test_discovery(self):
         """The listing discovers in every top package of the walked trees and
@@ -340,6 +353,21 @@ class TreesBuild(unittest.TestCase):
         self.assertEqual(got["foundation/core/memory/src/tests/x.cpp"], "TRUE ")
         self.assertEqual(got["foundation/core/memory/tests/support/x.hpp"], "TRUE tests/support/x.hpp")
         self.assertEqual(got["foundation/core/memory/tests/a/tests/b.cpp"], "FALSE tests/a/tests/b.cpp")
+
+    def test_listing_reader(self):
+        """The listing takes a Python test's package by the one reader: none
+        where the reader says it is no test code, a module's src/tests/ among
+        them; else the package below tests/, as the top-level tree holds it."""
+        paths = {"kits/ai/src/tests/test_x.py": None, "foundation/core/memory/src/tests/test_x.py": None,
+                 "tools/tests/test_x.py": "tests", "tests/test_x.py": None, "tests/drive/test_x.py": "drive",
+                 "foundation/core/memory/tests/test_x.py": "tests",
+                 "foundation/core/memory/tests/structure/test_x.py": "structure"}
+        files = [p.relative_to(ROOT).as_posix() for tree in LOOP["TREES"] for p in (ROOT / tree).rglob("test_*.py")]
+        got = {path: LISTING["package"](path, LOOP, HOMES) for path in [*files, *paths]}
+        self.assertEqual({path: got[path] for path in paths}, paths)
+        self.assertEqual([p for p, kind in got.items() if kind is None and LOOP["test_path"](p, HOMES)],
+                         ["tests/test_x.py"])
+        self.assertEqual([p for p, kind in got.items() if kind and not LOOP["test_path"](p, HOMES)], [])
 
 
 if __name__ == "__main__":

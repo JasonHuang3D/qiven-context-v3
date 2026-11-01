@@ -133,13 +133,19 @@ class Text(unittest.TestCase):
                     "foundation/system/sqlite/notes.md", "tests/audit/read_audit_more.cpp"]))
 
     def test_b1_reasons(self):
-        """Each of B1's text allowances a reason, and the text's what B1's include never takes."""
+        """Each of B1's text allowances a reason, and the text's what B1's include never takes;
+        each directory exempt from a rule, B1's tests/structure/ among them, a reason in the data too."""
         text = [key for key in rules.STATED if key[0] == "B1"]
         self.assertEqual(len(text), 4)
         for key in text:
             with self.subTest(key=key):
                 self.assertTrue(rules.STATED[key])
                 self.assertFalse(rules.allowed("B1", key[1]))
+        self.assertEqual(list(rules.EXEMPT["B1"]), [rules.STRUCTURE])
+        for rule, exempt in rules.EXEMPT.items():
+            for where, reason in exempt.items():
+                with self.subTest(rule=rule, where=where):
+                    self.assertTrue(where.endswith("/") and isinstance(reason, str) and reason)
 
 
 RUNNER_TABLE = layers.module_file("runner", "devkit", [("runner", ["foundation/devkit/test/runner/"])])

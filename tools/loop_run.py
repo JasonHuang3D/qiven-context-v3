@@ -62,6 +62,11 @@ EXIT_ONE = ((CHECK_STATUS, "the modules' check's", "the table and the tree disag
             (("python", "-I", "-m", "unittest"), "the size tests'", "a file past 600 lines, or a case failed"),
             (("clean-check",), "the clean check's", "a binary holds a path, or its control caught none"),
             (("fuzz-timed",), "the timed fuzz run's", "a target failed"))
+# What a command means by its other exits, 2 to 255, where it has words for
+# them: (words, the exit or None for every such exit, whose, meaning). The
+# build passes on its tool's exit, Ninja's 2 for a failed build among them.
+EXIT_OTHER = ((CHECK_STATUS, 2, "the modules' check's", "the check could not run, its error in its log"),
+              (("cmake", "--build"), None, "cmake's", "the build failed, by its build tool's exit"))
 
 
 class CannotRun(Exception):
@@ -211,12 +216,16 @@ def ran_check(argv):
 def status_line(step, argv, status):
     """A failing step's status in one line: ctest's own by ctest's names;
     an exit 1 by its command's own words (EXIT_ONE), "<whose> status: 1
-    (error): <meaning>"; any other by tools/status.py's table."""
+    (error): <meaning>", and an exit 2 to 255 so where EXIT_OTHER has words
+    for it; any other by tools/status.py's table."""
     if step.ci[:1] == ("ctest",) and not ran_check(argv):
         return STATUS["ctest_line"](status)
     prefix = CHECK_STATUS if ran_check(argv) else step.ci
     own = next((row[1:] for row in EXIT_ONE if prefix[:len(row[0])] == row[0]), None)
-    return f"{own[0]} status: 1 (error): {own[1]}" if own and status == 1 else STATUS["line"](status)
+    if own and status == 1:
+        return f"{own[0]} status: 1 (error): {own[1]}"
+    other = next((row[2:] for row in EXIT_OTHER if prefix[:len(row[0])] == row[0] and row[1] in (None, status)), None)
+    return f"{other[0]} status: {status} (error): {other[1]}" if other and 1 < status < 256 else STATUS["line"](status)
 
 
 def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, passed=None):

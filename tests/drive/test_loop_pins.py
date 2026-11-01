@@ -257,6 +257,16 @@ class Statuses(unittest.TestCase):
         self.assertIn("FAIL, status: 2 unnamed, in", self.fail_step(steps["configure"], 2))
         self.assertIn("FAIL, status: 3 abort", self.fail_step(steps["size"], 3))
 
+    def test_build_failure_named(self):
+        """A failed build named whatever its build tool's exit, Ninja's 2
+        among them, a death apart."""
+        build = {s.name: s for s in LOOP.plan("1", "windows", ["windows-msvc"])[0].steps}["build"]
+        for code in (2, 3):
+            with self.subTest(code=code):
+                self.assertIn(f"FAIL, cmake's status: {code} (error): the build failed, by its build tool's exit, in",
+                              self.fail_step(build, code))
+        self.assertEqual(RUN["status_line"](build, list(build.ci), 3221225477), STATUS["line"](3221225477))
+
     def test_size_beside_a_failed_configure(self):
         """The size step, by the interpreter on Windows, runs whatever the
         steps before it gave."""

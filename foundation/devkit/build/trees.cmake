@@ -376,13 +376,38 @@ function(qiven3_includes root sources out)
   set(${out} ${included} PARENT_SCOPE)
 endfunction()
 
+# qiven3_any_case(<word> <out>): a regular expression matching word in either
+# case, as CMake reads a command's name.
+function(qiven3_any_case word out)
+  set(pattern "")
+  string(LENGTH "${word}" length)
+  math(EXPR last "${length} - 1")
+  foreach(at RANGE ${last})
+    string(SUBSTRING "${word}" ${at} 1 char)
+    string(TOUPPER "${char}" upper)
+    string(TOLOWER "${char}" lower)
+    if(upper STREQUAL lower)
+      string(APPEND pattern "${char}")
+    else()
+      string(APPEND pattern "[${upper}${lower}]")
+    endif()
+  endforeach()
+  set(${out} "${pattern}" PARENT_SCOPE)
+endfunction()
+
 # qiven3_listed(<root> <source> <out>): TRUE where the CMakeLists.txt nearest
-# above source, from the root, names it outside its comments and its source
-# properties, as a path from that file's directory, alone or after a
-# variable's directory: a source a target's list holds, on whichever system
-# its branch is taken, which this configure's targets alone cannot tell.
+# above source, from the root, names it as a path from that file's directory,
+# alone or after a variable's directory (}/), once its comments and its source
+# properties are stripped: each set_source_files_properties(...) and each
+# set_property(SOURCE ...), the command in either case. That is a source a
+# target's list holds, on whichever system its branch is taken, which this
+# configure's targets alone cannot tell. Else FALSE, with <out>_in the list
+# read, from the root ("" where no CMakeLists.txt is above it), and <out>_as
+# the name looked for.
 function(qiven3_listed root source out)
   set(${out} FALSE PARENT_SCOPE)
+  set(${out}_in "" PARENT_SCOPE)
+  set(${out}_as "" PARENT_SCOPE)
   get_filename_component(dir "${source}" DIRECTORY)
   while(NOT EXISTS "${root}/${dir}/CMakeLists.txt")
     if(dir STREQUAL "")
@@ -396,12 +421,19 @@ function(qiven3_listed root source out)
   endif()
   file(READ "${file}" text)
   string(REGEX REPLACE "#[^\n]*" "" text "${text}")
-  string(REGEX REPLACE "set_source_files_properties[^)]*[)]" "" text "${text}")
+  qiven3_any_case("set_source_files_properties" properties)
+  qiven3_any_case("set_property" property)
+  qiven3_any_case("SOURCE" keyword)
+  string(REGEX REPLACE "${properties}[^)]*[)]" "" text "${text}")
+  string(REGEX REPLACE "${property}[ \t\r\n]*[(][ \t\r\n]*${keyword}[ \t\r\n][^)]*[)]" "" text "${text}")
   set(name "${source}")
   if(NOT dir STREQUAL "")
     string(LENGTH "${dir}/" at)
     string(SUBSTRING "${source}" ${at} -1 name)
   endif()
+  string(REGEX REPLACE "^/" "" list "${dir}/CMakeLists.txt")
+  set(${out}_in "${list}" PARENT_SCOPE)
+  set(${out}_as "${name}" PARENT_SCOPE)
   string(REGEX REPLACE "([][.^$|()*+?{}\\\\])" "\\\\\\1" name "${name}")
   if("\n${text}\n" MATCHES "([ \t\r\n\"(]|[}]/)${name}[ \t\r\n\")]")
     set(${out} TRUE PARENT_SCOPE)
@@ -443,8 +475,8 @@ function(qiven3_header_units root out)
       set(beside "-")
     else()
       qiven3_listed("${root}" "${beside}" listed)
-      if(NOT listed)  # an own source no target compiles stands in for no unit
-        set(beside "?${beside}")
+      if(NOT listed)  # an own source its list does not name stands in for no unit
+        set(beside "?${beside}|${listed_in}|${listed_as}")
       endif()
     endif()
     list(APPEND reads "${header}")
@@ -461,8 +493,11 @@ function(qiven3_header_units root out)
       continue()
     endif()
     set(not_own "")
-    if(own MATCHES "^[?](.+)")
-      set(not_own " (its own source ${CMAKE_MATCH_1} is in no target's sources)")
+    if(own MATCHES "^[?]([^|]+)[|][|]$")
+      set(not_own " (its own source ${CMAKE_MATCH_1} is not listed: no CMakeLists.txt is above it)")
+    elseif(own MATCHES "^[?]([^|]+)[|]([^|]+)[|](.+)$")
+      string(CONCAT not_own " (its own source ${CMAKE_MATCH_1} is not listed: ${CMAKE_MATCH_2} names neither "
+             "${CMAKE_MATCH_3} nor \${...}/${CMAKE_MATCH_3} outside its comments and source properties)")
     elseif(NOT own STREQUAL "-")
       set(not_own " (its own source ${own} does not include it)")
     endif()
