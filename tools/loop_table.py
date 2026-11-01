@@ -289,5 +289,9 @@ def load(root=ROOT):
 
 
 def holds(pattern, path):
-    """Whether a table's path holds a file: a directory's prefix, or a pattern."""
-    return path.startswith(pattern) if pattern.endswith("/") else fnmatch.fnmatchcase(path, pattern)
+    """Whether a table's path holds a file, or a path the base gave holds a row's: a directory's prefix, or a
+    pattern, matched name by name, so that its * and ? never cross a / (a new directory under it held by none)."""
+    if pattern.endswith("/"):
+        return path.startswith(pattern)
+    names, parts = pattern.split("/"), path.split("/")
+    return len(names) == len(parts) and all(map(fnmatch.fnmatchcase, parts, names))

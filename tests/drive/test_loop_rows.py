@@ -93,6 +93,15 @@ class Rows(unittest.TestCase):
             {"name": "pnew", "layer": "foundation", "depends": [], "test_depends": [], "paths": ["src/pnew/"]}])
         self.caught(held(objects), [moved("pnew", "src/pnew/", "foundation/core/pnew/module.json")])
 
+    def test_a_glob_stops_at_a_slash(self):
+        """A glob the base gave, low's tests/unit/low_*, holds a new name beside it, not a new directory: in
+        the row refused, under the glob in no module."""
+        objects = layout()
+        objects[LOW]["present"][1]["paths"] += ["tests/unit/low_two.cpp", "tests/unit/low_new/"]
+        self.caught(held(objects), [moved("low", "tests/unit/low_new/", LOW)])
+        files = {**FILES, "tests/unit/low_new/deep.cpp": b"\n", "tests/unit/low_two.cpp": b"\n"}
+        self.caught([e for e in errors(files=files) if "low_" in e], ["file tests/unit/low_new/deep.cpp: in no module"])
+
     def test_the_tools_and_tests_rows_held(self):
         """The tooling's tests/ path held by its file; a tools/ path new to it not old, another file's
         refused; the rule the checkout's own, its file needed among the tracked files."""
