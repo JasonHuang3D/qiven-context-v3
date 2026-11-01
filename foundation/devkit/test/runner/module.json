@@ -14,12 +14,13 @@
       "layer": "support",
       "depends": [
         "memory",
+        "log"
+      ],
+      "test_depends": [
         "diag",
         "base",
-        "log",
         "platform"
       ],
-      "test_depends": [],
       "paths": [
         "foundation/devkit/test/runner/",
         "tests/drive/test_runner.py"

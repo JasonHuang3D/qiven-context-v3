@@ -7,7 +7,9 @@ dependencies, a cycle in depends, an edge up by the layers of the rows'
 table files outside the test kit's reach and the table's exceptions, an
 exception naming no edge or one the rule allows, the support layer outside
 the test kit, an edge onto tools/, a library file, target or edge reaching
-the test kit, which test code alone reaches; a module directory's include/
+the test kit, which test code alone reaches, library code including or
+linking test code, a module directory's tests/ test code; a module
+directory's include/
 an include root, an angle qiven/ include read as a quoted one. The table
 read from a synthetic tree of table files (a built file with two rows, one
 with from, a slot, a group): its rows, and each refusal of the files on one
@@ -65,6 +67,9 @@ TARGETS = [
     ("high_cases", ["tests/unit/high_test.cpp"], ["high_lib", "low_lib", "core_lib", "runner_lib"]),
     ("low_cases", ["tests/unit/low_test.cpp"], ["low_lib", "high_lib", "runner_lib"]),
 ]
+
+
+KIT = "foundation/devkit/test/shared/"  # the synthetic test kit's directory
 
 
 def with_row(table_, name, home, depends=()):
@@ -257,8 +262,7 @@ class Check(unittest.TestCase):
         self.assertEqual(loop_modules.check_table(t), [])
 
     def test_the_test_kits_reach(self):
-        """The test kit's edges up to core, system and services allowed, to a
-        kit or a product refused; another devkit row's up refused."""
+        """The test kit's edges up to core to services allowed, higher not; another devkit row's not."""
         t = with_row(table(), "sys", "foundation/system/sys/module.json")
         t["modules"][0]["depends"].append("sys")
         self.assertEqual(loop_modules.check_table(t), [])
@@ -269,15 +273,19 @@ class Check(unittest.TestCase):
         self.caught(loop_modules.check_table(t), "edge tool -> core: up from devkit to core")
 
     def test_the_test_kit_from_test_code_alone(self):
-        """A test file or target reaches the test kit's support with no edge,
-        a library file or target never; a library's depends onto the kit
-        refused, its test_depends not, nor the depends of a module whose
-        every file is under tests/."""
+        """Test code reaches the test kit's support with no edge, library code
+        never; a library's depends onto the kit refused, a test-only module's not."""
         files = {**FILES, "src/core/core.hpp": b'#include "runner/runner.hpp"\n'}
-        self.caught(errors(files=files), "include src/core/core.hpp -> tests/runner/runner.hpp: module core does not "
-                                         "depend on shared")
+        self.caught(errors(files=files), "include src/core/core.hpp -> tests/runner/runner.hpp: library code "
+                                         "including test code")
         linked = [("core_lib", ["src/core/core.hpp"], ["runner_lib"]), *TARGETS[1:]]
-        self.caught(errors(targets=linked), "link core_lib -> runner_lib: module core does not depend on shared")
+        self.caught(errors(targets=linked), "link core_lib -> runner_lib: library code linking test code")
+        t = table()  # the kit's library outside tests/
+        t["modules"][0]["paths"].append(KIT)
+        files = {**FILES, f"{KIT}include/shared/kit.hpp": b"", f"{KIT}module.json": b"{}",
+                 "src/core/core.hpp": b'#include "shared/kit.hpp"\n'}
+        self.caught(errors(t, files), f"include src/core/core.hpp -> {KIT}include/shared/kit.hpp: module core does "
+                                      "not depend on shared")
         t = table()
         t["modules"][2]["depends"].append("shared")
         self.caught(loop_modules.check_table(t), "edge low -> shared: a library on the test kit, which test code "
@@ -288,10 +296,28 @@ class Check(unittest.TestCase):
         t["modules"][-1]["paths"] = ["tests/tool/"]
         self.assertEqual(loop_modules.check_table(t), [])
 
+    def test_a_modules_own_tests(self):
+        """A module directory's tests/ test code, as the top-level tests/ (the
+        support's reaching its test_depends); with no table file there, not."""
+        t = table()
+        t["modules"][2]["paths"].append("foundation/core/low/")
+        t["modules"][0].update(test_depends=["low"], paths=["tests/runner/", KIT])
+        moved = {"foundation/core/low/module.json": b"{}", f"{KIT}module.json": b"{}",
+                 "foundation/core/low/tests/moved_test.cpp": b'#include "high/high.hpp"\n#include "runner/runner.hpp"',
+                 f"{KIT}src/kit.cpp": b'#include "core/core.hpp"\n', f"{KIT}tests/kit_test.cpp": b'#include "low/low.hpp"'}
+        self.assertEqual(errors(t, {**FILES, **moved}), [])
+        del moved["foundation/core/low/module.json"]
+        self.assertEqual(errors(t, {**FILES, **moved}), [
+            "include foundation/core/low/tests/moved_test.cpp -> src/high/high.hpp: module low does not depend on high",
+            "include foundation/core/low/tests/moved_test.cpp -> tests/runner/runner.hpp: library code including "
+            "test code"])
+        moved[f"{KIT}src/kit.cpp"] = b'#include "low/low.hpp"\n'
+        self.assertIn(f"include {KIT}src/kit.cpp -> src/low/low.hpp: module shared does not depend on low",
+                      errors(t, {**FILES, **moved}))
+
     def test_layer_of_the_file_not_the_word(self):
-        """A row's word other than its file's layer: the rule reads the file;
-        the support word outside the test kit refused; an edge onto tools/
-        or the repository refused, theirs not ordered."""
+        """The rule reads a row's file, not its word; the support word outside
+        the test kit refused; an edge onto tools/ refused, theirs not ordered."""
         t = table()
         t["exceptions"] = []
         t["modules"][2]["layer"] = "tooling"
