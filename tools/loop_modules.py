@@ -53,8 +53,11 @@ from pathlib import Path
 GIT = runpy.run_path(str(Path(__file__).resolve().with_name("loop_git.py")))
 
 ROOT = Path(__file__).resolve().parents[1]  # the checkout this file is in
-TOPS = ("foundation", "kits", "products")  # the trees whose every module.json is a table file
-TREES = ("src", "tests", "tools", "third_party", *TOPS)  # the trees every check that walks the checkout walks
+# The trees, named once in tools/trees.json, which the root CMakeLists.txt also reads: its layers and
+# analysed, the roots of the analysis preset's targets.
+TREE_FILE = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
+TOPS = tuple(TREE_FILE["layers"])  # the trees whose every module.json is a table file
+TREES = (*TREE_FILE["walked"], *TOPS)  # the trees every check that walks the checkout walks
 FILE_LAYERS = ("devkit", "core", "system", "services", "kits", "products", "foundation", "tools", "repository")
 KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
     "built": ("name", "layer", "status", "platforms", "contract", "adopted", "parameters", "present"),

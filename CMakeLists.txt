@@ -52,12 +52,28 @@ while(qiven3_dirs)
 endwhile()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
-# The analysis preset over the sources of src/, tests/support/ and
-# tests/child/ (qiven3-child, the Windows adapter's children): /analyze on
-# their targets, then clang-tidy over compile_commands.json, each source its
-# own step after every target is built, by .clang-tidy. A header-only
-# module is read through its unit in tests/support/headers/.
+# The analysis preset over the sources of the analysed roots, read from
+# tools/trees.json, the one place that names the trees (tools/loop_modules.py
+# reads it too): its layers and its analysed (tests/child/ holds qiven3-child,
+# the Windows adapter's children). /analyze on the targets under them, then
+# clang-tidy over compile_commands.json, each source its own step after
+# every target is built, by .clang-tidy. A header-only module is read
+# through its unit in tests/support/headers/.
 if(QIVEN_ANALYZE STREQUAL "analysis")
+  set(qiven3_trees_file "${PROJECT_SOURCE_DIR}/tools/trees.json")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${qiven3_trees_file}")
+  file(READ "${qiven3_trees_file}" qiven3_trees_text)
+  foreach(key IN ITEMS layers walked analysed)
+    set(qiven3_${key} "")
+    string(JSON count LENGTH "${qiven3_trees_text}" ${key})
+    math(EXPR last "${count} - 1")
+    foreach(at RANGE ${last})
+      string(JSON tree GET "${qiven3_trees_text}" ${key} ${at})
+      list(APPEND qiven3_${key} "${tree}")
+    endforeach()
+  endforeach()
+  set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})
+  list(JOIN qiven3_roots "|" qiven3_roots_regex)
   set(qiven3_tidy_targets "")
   set(qiven3_tidy_sources "")
   set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
@@ -75,7 +91,7 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
         continue()
       endif()
       list(APPEND qiven3_tidy_targets ${target})
-      if(NOT rel MATCHES "^(src|tests/support|tests/child)(/|$)")
+      if(NOT rel MATCHES "^(${qiven3_roots_regex})(/|$)")
         continue()
       endif()
       target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${qiven_analysis_options}>")
@@ -89,12 +105,19 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
     endforeach()
   endwhile()
   list(REMOVE_DUPLICATES qiven3_tidy_sources)
-  file(GLOB_RECURSE qiven3_tidy_inputs CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/src/*.hpp" "${PROJECT_SOURCE_DIR}/tests/support/*.hpp")
-  # Each .clang-tidy at any depth, a new one reconfiguring; a source's step
-  # depends on those of its directory and of each directory above it.
-  file(GLOB_RECURSE qiven3_tidy_configs CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/src/*.clang-tidy" "${PROJECT_SOURCE_DIR}/tests/*.clang-tidy")
+  # The headers under the analysed roots, and each .clang-tidy under the
+  # walked trees at any depth, a new one reconfiguring; a source's step
+  # depends on the configs of its directory and of each directory above it.
+  set(qiven3_tidy_globs "")
+  foreach(tree IN LISTS qiven3_roots)
+    list(APPEND qiven3_tidy_globs "${PROJECT_SOURCE_DIR}/${tree}/*.hpp")
+  endforeach()
+  file(GLOB_RECURSE qiven3_tidy_inputs CONFIGURE_DEPENDS ${qiven3_tidy_globs})
+  set(qiven3_tidy_globs "")
+  foreach(tree IN LISTS qiven3_walked qiven3_layers)
+    list(APPEND qiven3_tidy_globs "${PROJECT_SOURCE_DIR}/${tree}/*.clang-tidy")
+  endforeach()
+  file(GLOB_RECURSE qiven3_tidy_configs CONFIGURE_DEPENDS ${qiven3_tidy_globs})
   file(GLOB qiven3_tidy_root CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/*.clang-tidy")
   list(APPEND qiven3_tidy_configs ${qiven3_tidy_root})
   list(FILTER qiven3_tidy_configs INCLUDE REGEX "/[.]clang-tidy$")

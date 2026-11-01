@@ -66,7 +66,7 @@
       "name": "analysis",
       "inherits": "here",
       "displayName": "Static analysis, MSVC: the Core Guidelines checker, then clang-tidy",
-      "description": "/analyze with EspXEngine.dll and analysis.ruleset over v3's own sources; then the target qiven3_tidy runs clang-tidy, by .clang-tidy, over compile_commands.json's sources of src/ and tests/support/",
+      "description": "/analyze with EspXEngine.dll and analysis.ruleset over v3's own sources; then the target qiven3_tidy runs clang-tidy, by .clang-tidy, over compile_commands.json's sources; both over the targets under the analysed roots, tools/trees.json's layers and analysed",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_ANALYZE": "analysis"}
     },
     {

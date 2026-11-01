@@ -25,6 +25,7 @@
         "tools/linux*",
         "tools/loop*",
         "tools/nav*",
+        "tools/trees.json",
         "tools/watch.py",
         "tools/windows-pins.txt",
         "tests/drive/fake_git.py",

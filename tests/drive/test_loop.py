@@ -39,7 +39,7 @@ PLANT = "planted by the loop's case"
 TIMEOUT = 1800
 # The root's build/ alone, not the build module's directory, and each .codegraph and __pycache__.
 COPY_IGNORED = lambda d, _: {".codegraph", "__pycache__", *(["build"] if Path(d).resolve() == ROOT.resolve() else [])}
-LOOP_FILES = sorted(p.name for p in (ROOT / "tools").glob("loop*.py")) + ["status.py"]
+LOOP_FILES = sorted(p.name for p in (ROOT / "tools").glob("loop*.py")) + ["status.py", "trees.json"]
 
 
 def loop_scratch(case):

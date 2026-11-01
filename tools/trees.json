@@ -1,0 +1,5 @@
+{
+  "layers": ["foundation", "kits", "products"],
+  "walked": ["src", "tests", "tools", "third_party"],
+  "analysed": ["src", "tests/support", "tests/child"]
+}

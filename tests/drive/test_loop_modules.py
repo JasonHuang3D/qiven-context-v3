@@ -12,7 +12,8 @@ line: a row's path holding no file or given twice, a layer or a name not
 its directory's, a field of a wrong type or an unknown value, a contract
 naming no tracked file, a README.md line differing from its module.json or
 naming the consumers. The real table is read from the checkout's tree and
-checked for its own errors."""
+checked for its own errors; the trees from tools/trees.json, as the root
+CMakeLists.txt reads them."""
 
 import contextlib
 import copy
@@ -193,6 +194,20 @@ class Check(unittest.TestCase):
         t["modules"][2]["paths"][-1] = "foundation/core/low/include/"
         self.caught(errors(t, files), 'include src/low/low.cpp:1 "low/api.hpp": resolves to no tracked file')
         self.assertTrue(set(loop_modules.TOPS) <= set(loop_modules.TREES))
+
+    def test_trees_named_once(self):
+        """The trees read from tools/trees.json, which the root CMakeLists.txt
+        reads for the analysed roots, its layers and analysed, holding no list
+        of its own."""
+        trees = json.loads((loop_modules.ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(trees), ["analysed", "layers", "walked"])
+        self.assertEqual(loop_modules.TOPS, tuple(trees["layers"]))
+        self.assertEqual(loop_modules.TREES, (*trees["walked"], *trees["layers"]))
+        self.assertTrue(all(a.split("/", 1)[0] in loop_modules.TREES for a in trees["analysed"]))
+        cmake = (loop_modules.ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        self.assertIn('"${PROJECT_SOURCE_DIR}/tools/trees.json"', cmake)
+        self.assertIn("set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})", cmake)
+        self.assertNotIn("tests/support|", cmake)
 
     def test_angle_includes_read(self):
         """A quoted and an angle include of another module's include/qiven/
