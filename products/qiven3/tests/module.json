@@ -43,7 +43,8 @@
         "location",
         "platform",
         "log",
-        "diag"
+        "diag",
+        "faults"
       ],
       "test_depends": [],
       "paths": [

@@ -13,10 +13,13 @@ module.json one. A row's dependencies are its library's (depends) and its
 tests' (test_depends). A table file that does not parse, lacks or adds a
 key for its status, gives a field of a wrong type or a value this check
 does not know, or a layer or a name not its directory's, is refused; so
-are two table files or two rows of one name, a from or an of naming no
-row, a row's path holding no tracked file or given twice, a tracked file
-in a slot's directory, or directly in a group's, but its README.md and
-module.json, a built one's contract naming no tracked file. Each table
+are two table files or two rows of one name, a row not in the table file
+of its name, a from or an of naming no row, a row's path holding no
+tracked file, given twice, or outside its table file's directory but in
+src/, tests/, third_party/, tools/ and a whole-build row's root files, a
+tracked file in a slot's directory, or directly in a group's, but its
+README.md and module.json, a built one's contract naming no tracked file,
+an exception's until blank or its edge listed twice. Each table
 directory's README.md repeats its module.json's fields in one form, each
 line refused that differs: line 1 `# <name>`, line 3 `layer <layer>,
 status <status>`, and a `- **Contract:**`, `- **Parameters:**` and
@@ -31,7 +34,9 @@ and each module directory's include/ under foundation/, kits/ and
 products/; one resolving to none refused but in third_party/, where they
 are counted on one line) and, given a configured build tree, its links
 (read from CMake's file API, the codemodel the root CMakeLists.txt asks
-for): a library file's and target's by depends alone, test code's by
+for, an INTERFACE target's its CMakeLists.txt's when it has no source; the
+build's own not read): a library file's and target's by depends alone,
+its closure stopping at the test kit and at test code alone, test code's by
 test_depends too (a file under tests/, or under the tests/ of a directory
 holding a table file; a target of such files alone), a module whose every
 file is test code its own library; library code including or linking test
@@ -40,18 +45,21 @@ alone, and reaching their own dependencies alone, their library's or their
 tests'. A cycle in depends refused. The layer rule: a row's layer
 its table file's in the tree (devkit, core, system, services, kits,
 products, in that order; tools/ and the repository outside the link graph),
-never its row's word; an edge in depends or test_depends going up, or onto
-a module outside the link graph, refused, but the test kit's (the rows of
-the table files under foundation/devkit/test/) up to core, system and
-services, and the exceptions a built table file lists for its own rows
-(from, to, until: what removes it), each refused that names no edge the
-table has or one the rule allows; the support layer outside the test kit
-refused; a depends edge onto the test kit refused but the kit's own and
-those of a module whose every file is test code, as test code alone
-reaches the kit. A module or a dependency the table does not name, or a
-layer it does not know, refused. One line an error, naming the file or the
-edge, then the count of vendored includes left unresolved; exit
-0 when none, 1 when any, 2 when the check could not run.
+never its row's word; an edge in depends or test_depends going up, from
+one product onto another's, or onto a module outside the link graph,
+refused, but the test kit's (the rows of the table files under
+foundation/devkit/test/) up to core, system and services, and the
+exceptions a built table file lists for its own rows (from, to, until:
+what removes it), each refused that names no edge the table has or one the
+rule allows; the support layer outside the test kit refused; a depends
+edge onto the test kit, or onto a module whose every file is test code
+(its path on to the kit named), refused, with no exception, but the kit's
+own and those of such a module, as test code alone reaches the kit; a
+library linking the kit's target refused. A module or a dependency the
+table does not name, or a layer it does not know, refused. One line an
+error, naming the file or the edge, then the count of vendored includes
+left unresolved; exit 0 when none, 1 when any, 2 when the check could not
+run.
 """
 
 import fnmatch
@@ -89,6 +97,7 @@ SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
 ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives, and include_roots()'
 VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
+OLD = ("src/", "tests/", "third_party/", "tools/")  # the places a row's paths may still lie in, outside its directory
 
 
 def is_table_file(path):
@@ -140,7 +149,7 @@ def fields(where, data, shallow):
                    "built true or false")
     if "exceptions" in data and not (isinstance(data["exceptions"], list) and all(
             isinstance(e, dict) and set(e) == set(EXCEPTION) and isinstance(e["from"], str) and strings(e["to"])
-            and e["to"] and isinstance(e["until"], str) and e["until"] for e in data["exceptions"])):
+            and e["to"] and isinstance(e["until"], str) and e["until"].strip() for e in data["exceptions"])):
         out.append(f"exceptions are not a list of objects of keys {', '.join(EXCEPTION)}, from a string, to a "
                    "list of strings, until words, neither empty")
     if not isinstance(data.get("present", []), list):
@@ -231,6 +240,9 @@ def table_of(texts, files=None, readmes=None):
                 else:
                     errors.append(f"table file {path}: exception from {e['from']} names no row of its file")
             mine = [dict(row, paths=list(row["paths"])) for row in data["present"]]
+            errors += [f"table file {path}: row {row['name']}: path {p} lies outside {where}/" for row in mine
+                       for p in row["paths"] if where and not p.startswith((where + "/", *OLD))
+                       and not ("/" not in p and row["layer"] == "whole-build")]
             if mine:
                 mine[0]["paths"] += own
             else:
@@ -245,6 +257,8 @@ def table_of(texts, files=None, readmes=None):
     for path, row in rows:
         if row["name"] in named:
             errors.append(f"row {row['name']}: in {named[row['name']][0]} and {path}")
+        elif names.get(row["name"], path) != path:
+            errors.append(f"row {row['name']}: in {path}, not in {names[row['name']]}, the table file of its name")
         named.setdefault(row["name"], (path, row))
         errors += [f"row {row['name']}: path {p} twice" for p in sorted(set(row["paths"]))
                    if row["paths"].count(p) > 1]
@@ -305,47 +319,66 @@ def owners(table, files):
     return {f: [m["name"] for m in table["modules"] if any(holds(p, f) for p in m["paths"])] for f in files}
 
 
-def reach(table, keys=("depends", "test_depends")):
+def reach(table, keys=("depends", "test_depends"), stop=frozenset()):
     """{module: every module its dependencies reach, transitively, itself
-    not included}: its library's and its tests', or those keys alone."""
+    not included}: its library's and its tests', or those keys alone; one of stop by one of stop alone."""
     depends = {m["name"]: {o for key in keys for o in m.get(key, ())} for m in table["modules"]}
     closure = {}
     for name in depends:
         seen, stack = set(), list(depends[name])
         while stack:
             other = stack.pop()
-            if other not in seen and other in depends:
+            if other not in seen and other in depends and (name in stop or other not in stop):
                 seen.add(other)
                 stack.extend(depends[other])
         closure[name] = seen - {name}
     return closure
 
 
+def test_alone(table):
+    """The test kit's rows (their table files under KIT) and the rows whose
+    every path is test code, their README.md and module.json apart."""
+    homes = table.get("homes", {})
+    dirs = {home.rpartition("/")[0] for home in homes.values()}
+    return {name for name, home in homes.items() if home.startswith(KIT)}, {
+        m["name"] for m in table["modules"]
+        if m["paths"] and all(under_tests(p, dirs) or p.endswith(("README.md", "module.json")) for p in m["paths"])}
+
+
 def layer_rule(table):
     """refused(source, target): why the layer rule refuses an edge, or None.
-    A row's layer is its table file's in the tree, never its own word; an
-    edge goes down or stays in its layer; the test kit's edges up to core,
-    system and services are allowed, as nothing but a test reaches the kit;
-    tools/ and the repository are outside the link graph. Test code alone
-    reaches the test kit: a library's edge onto it, in depends, refused but
-    the kit's own and those of a module whose every file is test code."""
+    A row's layer is its table file's in the tree, never its own word; an edge goes down or stays in its
+    layer, never from one product onto another's; the test kit's edges up to core, system and services are
+    allowed, as nothing but a test reaches the kit; tools/ and the repository are outside the link graph.
+    Test code alone reaches the test kit: a library's edge, in depends, onto the kit or onto test code
+    alone refused (its path on to the kit named), but the kit's own and test code's."""
     homes = table.get("homes", {})
     place = {name: tree_layer(home.rpartition("/")[0]) for name, home in homes.items()}
-    kit = {name for name, home in homes.items() if home.startswith(KIT)}
-    dirs = {home.rpartition("/")[0] for home in homes.values()}
-    tested = {m["name"] for m in table["modules"]
-              if all(under_tests(p, dirs) or p.endswith(("README.md", "module.json")) for p in m["paths"])}
+    product = {name: home.split("/")[1] for name, home in homes.items() if home.startswith("products/")}
+    kit, tested = test_alone(table)
+    depends = {m["name"]: m["depends"] for m in table["modules"]}
+
+    def onward(start):  # the shortest depends path from start onto the kit, or []
+        paths, seen = [[start]], {start}
+        for path in paths:  # breadth first, each module once
+            paths += [] if path[-1] in kit else [path + [o] for o in depends.get(path[-1], ()) if not seen & {o}]
+            seen |= set(depends.get(path[-1], ()))
+        return next((path for path in paths if path[-1] in kit), [])
 
     def refused(source, target, library=False):
         low, high = place.get(source), place.get(target)
-        if library and target in kit and source not in kit and source not in tested:
-            return "a library on the test kit, which test code alone reaches"
+        if library and target in kit | tested and source not in kit | tested:
+            way = " -> ".join(onward(target))
+            return "a library on the test kit, which test code alone reaches" if target in kit else (
+                f"a library on {target}, test code alone" + (f", onto the test kit by {way}" if way else ""))
         if low not in ORDER or high is None:  # outside the link graph, or a row of no table file (a test's)
             return None
         if high not in ORDER:
             return f"{target} is outside the link graph"
         if ORDER.index(high) > ORDER.index(low) and not (source in kit and high in ORDER[1:4]):
             return f"up from {low} to {high}" + (", past the test kit's reach" if source in kit else "")
+        if low == high == "products" and product[source] != product[target]:
+            return f"a product on another product, {product[target]}"
         return None
 
     return refused
@@ -383,9 +416,11 @@ def check_table(table):
             errors.append(f"module {m['name']}: layer support outside the test kit, {KIT}")
         for other in dict.fromkeys(edges[m["name"]]):
             why = refused(m["name"], other, other in m["depends"]) if other in layer else f"no module {other}"
-            if why and (other not in layer or (m["name"], other) not in excepted):
+            if why and (other not in layer or (m["name"], other) not in excepted or why.startswith("a library on")):
                 errors.append(f"edge {m['name']} -> {other}: {why}")
-    for source, target in excepted:
+    for source, target in dict.fromkeys(excepted):
+        if excepted.count((source, target)) > 1:
+            errors.append(f"exception {source} -> {target}: listed twice")
         if target not in edges.get(source, ()):
             errors.append(f"exception {source} -> {target}: the table has no such edge")
         elif not refused(source, target, target in library[source]):
@@ -423,7 +458,9 @@ def check(table, files, read, targets=None, left=None):
         elif len(names) > 1:
             errors.append(f"file {f}: in modules {', '.join(names)}")
     module = {f: names[0] for f, names in owner.items() if len(names) == 1}
-    closure = {False: reach(table, ("depends",)), True: reach(table)}
+    kit, alone = test_alone(table)  # a library's closure stops at them: test code alone reaches them
+    closure = {False: reach(table, ("depends",), kit | alone), True: reach(table)}
+    whole = {m["name"] for m in table["modules"] if m["layer"] == "whole-build"}  # the build's, linked by all
     homes = {f.rpartition("/")[0] for f in files if is_table_file(f) and "/" in f}
 
     def test_code(f):
@@ -477,10 +514,12 @@ def check(table, files, read, targets=None, left=None):
             code_target |= {name} if all(test_code(s) for s in sources if s in module) else set()
     for name, _, links in targets or ():
         for other in links:
-            if name not in of_target or other not in of_target:
+            if name not in of_target or other not in of_target or of_target[other] in whole:
                 continue
             if name not in code_target and other in code_target:
                 errors.append(f"link {name} -> {other}: library code linking test code")
+            elif name not in code_target and of_target[other] in kit and of_target[name] not in kit | alone:
+                errors.append(f"link {name} -> {other}: a library on the test kit, which test code alone reaches")
             elif not covered(of_target[name], of_target[other], name in tests_target, name in code_target):
                 errors.append(f"link {name} -> {other}: module {of_target[name]} does not depend on {of_target[other]}")
     return errors
@@ -488,15 +527,17 @@ def check(table, files, read, targets=None, left=None):
 
 def codemodel(build, source):
     """[(target, [its tracked sources, relative to source], [the targets it
-    links or depends on])] of a configured build tree's codemodel reply."""
+    links or depends on])] of a configured build tree's codemodel reply; an
+    INTERFACE target too, its sources its own or else its CMakeLists.txt."""
     reply = Path(build) / ".cmake" / "api" / "v1" / "reply"
     indices = sorted(reply.glob("index-*.json"))
     if not indices:
         raise FileNotFoundError(f"{reply}: no codemodel reply; configure the tree first")
     index = json.loads(indices[-1].read_text(encoding="utf-8"))
     model = json.loads((reply / index["reply"]["codemodel-v2"]["jsonFile"]).read_text(encoding="utf-8"))
-    loaded = [json.loads((reply / ref["jsonFile"]).read_text(encoding="utf-8"))
-              for ref in model["configurations"][0]["targets"]]
+    conf = model["configurations"][0]
+    loaded = [t for t in (json.loads((reply / ref["jsonFile"]).read_text(encoding="utf-8"))
+                          for ref in conf["targets"] + conf.get("abstractTargets", [])) if not t.get("imported")]
     names = {t["id"]: t["name"] for t in loaded}
     root = Path(source).resolve()
     rows = []
@@ -508,7 +549,10 @@ def codemodel(build, source):
                 sources.append(path.as_posix())
             elif not s.get("isGenerated") and path.resolve().is_relative_to(root):
                 sources.append(path.resolve().relative_to(root).as_posix())
-        rows.append((t["name"], sources, [names[d["id"]] for d in t.get("dependencies", ())]))
+        if not sources and t["type"] == "INTERFACE_LIBRARY":
+            sources.append(posixpath.normpath(posixpath.join(t["paths"]["source"], "CMakeLists.txt")))
+        links = [*t.get("dependencies", ()), *t.get("linkLibraries", ()), *t.get("interfaceLinkLibraries", ())]
+        rows.append((t["name"], sources, list(dict.fromkeys(names[d["id"]] for d in links if d.get("id") in names))))
     return rows
 
 
