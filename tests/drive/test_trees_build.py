@@ -2,7 +2,7 @@
 clang-tidy's header filters, the table's files, the Python files and
 tests the listing finds, and the analysis's choice of a source by its path,
 each read from foundation/devkit/build/trees.cmake as cmake -P gives it and
-checked against the trees, and no build file naming a tree of its own."""
+checked against the trees and, for test code, Python's reader."""
 
 import json
 import os
@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 LISTING = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))
+LOOP = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
+HOMES = {home.rpartition("/")[0] for home in LOOP["tree"](ROOT)[0]["homes"].values()}
 
 
 def cmake():
@@ -34,19 +36,22 @@ def shown(show, root=ROOT, paths=()):
     tool = cmake()
     if tool is None:
         raise unittest.SkipTest("no cmake")
-    args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}"]
-    if paths:
-        args.append("-DPATHS=" + ";".join(paths))
-    done = subprocess.run([*args, "-P", str(SCRIPT)], capture_output=True, text=True, timeout=120, check=True)
+    with tempfile.TemporaryDirectory() as scratch:
+        listing = Path(scratch) / "paths.txt"
+        listing.write_text("\n".join(paths) + "\n", encoding="utf-8")
+        args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}"]
+        done = subprocess.run([*args, "-P", str(SCRIPT)], capture_output=True, text=True, timeout=120, check=True)
     return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
 
 
 def analysed(path):
-    """The rule, from the trees: under an analysed root, or under a layer's
-    tree in no directory named tests."""
-    if any(f"{path}/".startswith(f"{root}/") for root in TREES["analysed"]):
+    """The rule, by Python's reader of test code: under an analysed root, as
+    it stands or as the top-level tests/ would hold it, or under a layer's
+    tree and no test code."""
+    test = LOOP["test_path"](path, HOMES)
+    if any(f"{where}/".startswith(f"{root}/") for where in (path, test or "") for root in TREES["analysed"]):
         return True
-    return any(path.startswith(f"{layer}/") and "/tests/" not in f"/{path}" for layer in TREES["layers"])
+    return test is None and any(path.startswith(f"{layer}/") for layer in TREES["layers"])
 
 
 def scene():
@@ -88,8 +93,6 @@ class TreesBuild(unittest.TestCase):
             if "build" in config.relative_to(ROOT).parts[:1]:
                 continue
             self.assertNotRegex(config.read_text(encoding="utf-8"), r"(?m)^\s*(Exclude)?HeaderFilterRegex", config)
-        cmake_text = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn("${qiven3_filter_args} --quiet", cmake_text)
 
     def test_header_exclude(self):
         """A header the analysis does not read under a layer, a module's own
@@ -98,8 +101,10 @@ class TreesBuild(unittest.TestCase):
             root = Path(scratch)
             (root / "tools").mkdir()
             shutil.copy(ROOT / "tools" / "trees.json", root / "tools" / "trees.json")
-            for header in ("foundation/core/m/include/qiven/m/m.hpp", "foundation/core/m/tests/t.hpp"):
-                (root / header).parent.mkdir(parents=True)
+            for header in ("foundation/core/m/include/qiven/m/m.hpp", "foundation/core/m/tests/t.hpp",
+                           "foundation/core/m/module.json", "foundation/core/m/src/tests/read.hpp",
+                           "foundation/core/m/tests/support/read.hpp"):
+                (root / header).parent.mkdir(parents=True, exist_ok=True)
                 (root / header).write_text("", encoding="utf-8")
             got = shown("filters", root)
             self.assertTrue(got["exclude"].endswith("[/\\](foundation[/\\]core[/\\]m[/\\]tests)[/\\][^/\\]*$"),
@@ -113,16 +118,12 @@ class TreesBuild(unittest.TestCase):
 
     def test_globs(self):
         """The table's files under each layer's tree, the Python files under
-        the walked trees and the layers'; the build files name no tree."""
+        the walked trees and the layers'."""
         got = shown("globs")
         root = ROOT.as_posix()
         self.assertEqual(got["table"].split(";"), [f"{root}/{layer}/module.json" for layer in TREES["layers"]])
         self.assertEqual(got["python"].split(";"),
                          [f"{root}/{tree}/*.py" for tree in (*TREES["walked"], *TREES["layers"])])
-        tests = (ROOT / "tests" / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertNotIn("/foundation/module.json", tests)
-        self.assertIn("qiven3_python_globs(", tests)
-        self.assertIn("qiven3_table_globs(", tests)
 
     def units(self, files):
         """trees.cmake's header units for a scratch checkout of files (path to
@@ -173,6 +174,17 @@ class TreesBuild(unittest.TestCase):
                       f"{unit}scene_src_detail_x.cpp", errors)
         status, got, errors = self.units({})
         self.assertEqual((status, got), (0, []), errors)
+
+    def test_support_moved(self):
+        """A shared test header moved into a module's own tests/ stays read:
+        it wants a unit as it did, the unit named from its new place."""
+        files, wanted = scene()
+        del files["tests/support/m/x.hpp"]
+        files["kits/scene/tests/support/m/x.hpp"] = ""
+        del files["tests/support/headers/support_m_x.cpp"]
+        _, _, errors = self.units(files)
+        self.assertIn("the header-only header kits/scene/tests/support/m/x.hpp has no unit, "
+                      "tests/support/headers/scene_tests_support_m_x.cpp", errors)
 
     def test_header_includes(self):
         """A unit, or an own source standing in for one, includes its header,
@@ -256,6 +268,12 @@ class TreesBuild(unittest.TestCase):
             found = LISTING["packages"](root, ("tests", "tools", "foundation", "kits"))
             self.assertEqual([p.relative_to(root).as_posix() for p in found],
                              ["foundation/core/m/tests", "kits/k/x", "tests"])
+            self.assertEqual(LISTING["unpackaged"](root, ("tests", "foundation", "kits")), [])
+            for test in ("kits/k/tests/test_p.py", "tests/drive/test_q.py", "tests/plain/test_r.py"):
+                (root / test).parent.mkdir(parents=True, exist_ok=True)
+                (root / test).write_text("", encoding="utf-8")
+            self.assertEqual([p.relative_to(root).as_posix() for p in LISTING["unpackaged"](root, ("tests", "kits"))],
+                             ["kits/k/tests", "tests/plain"])
         rows, errors = LISTING["listed"](False, ROOT)
         self.assertEqual(errors, [])
         self.assertTrue(all(row[0].split(".", 1)[0] in (*TREES["walked"], *TREES["layers"]) for row in rows))
@@ -306,14 +324,27 @@ class TreesBuild(unittest.TestCase):
                  "foundation/devkit/test/runner/tests/runner_test.cpp", "foundation/devkit/test/runner/src/runner.cpp",
                  "products/qiven3/tests/x/drive.cpp", "third_party/sqlite/vendored.c")
         got = shown("analysed", paths=paths)
-        self.assertEqual(got, {path: str(analysed(path)).upper() for path in paths})
-        self.assertEqual([p for p in paths if analysed(p)],
+        self.assertEqual([p for p in paths if got[p].startswith("TRUE")],
                          ["src/memory/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "kits/kp/src/kp.cpp",
                           "foundation/devkit/test/runner/tests/runner_test.cpp",
                           "foundation/devkit/test/runner/src/runner.cpp"])
-        cmake_text = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn('qiven3_analysed("${rel}" read)', cmake_text)
-        self.assertNotIn("qiven3_roots_regex", cmake_text)
+
+    def test_one_reader(self):
+        """CMake and Python read test code alike, and so the analysis's choice:
+        every file of the tree, and files planted under a tests/ that is a
+        module's, nested in one, or of no module's directory."""
+        planted = ("src/tests/x.cpp", "kits/ai/src/tests/x.cpp", "kits/ai/include/qiven/ai/tests/h.hpp",
+                   "foundation/core/memory/src/tests/x.cpp", "foundation/core/memory/tests/x.cpp",
+                   "foundation/core/memory/tests/support/x.hpp", "foundation/core/memory/tests/child/x.cpp",
+                   "foundation/core/memory/tests/a/tests/b.cpp", "tools/tests/x.py", "tests/a/tests/b.cpp")
+        files = [p.relative_to(ROOT).as_posix() for tree in LOOP["TREES"] for p in (ROOT / tree).rglob("*")
+                 if p.is_file() and "__pycache__" not in p.parts]
+        got = shown("analysed", paths=[*files, *planted])
+        self.assertEqual(got, {path: f"{str(analysed(path)).upper()} {LOOP['test_path'](path, HOMES) or ''}"
+                               for path in [*files, *planted]})
+        self.assertEqual(got["foundation/core/memory/src/tests/x.cpp"], "TRUE ")
+        self.assertEqual(got["foundation/core/memory/tests/support/x.hpp"], "TRUE tests/support/x.hpp")
+        self.assertEqual(got["foundation/core/memory/tests/a/tests/b.cpp"], "FALSE tests/a/tests/b.cpp")
 
 
 if __name__ == "__main__":

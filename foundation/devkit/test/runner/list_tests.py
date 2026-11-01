@@ -20,8 +20,9 @@ limit for its tests, which otherwise their labels give
 (ctest_tests.cmake, beside this file).
 
 A module that does not import, a test in a package with no labels here or
-a file in no module, or a limit of another form fails the listing, and so
-the build.
+a file in no module, a limit of another form, or a test directory with no
+__init__.py, which discover would pass over, fails the listing, and so the
+build.
 """
 
 import runpy
@@ -70,6 +71,14 @@ def packages(root, trees):
     return sorted(set(found))
 
 
+def unpackaged(root, trees):
+    """The directories under the trees, from the checkout's root, sorted,
+    holding a file of discover's pattern and no __init__.py: discover would
+    pass over their tests without a word."""
+    found = {path.parent for tree in trees for path in (Path(root) / tree).rglob("test*.py")}
+    return sorted(d for d in found if "__pycache__" not in d.parts and not (d / "__init__.py").is_file())
+
+
 def listed(loop, root="."):
     """([(id, labels, serial, limit or None)], [errors]) of the
     tests discover finds in each package of the trees tools/trees.json
@@ -81,7 +90,8 @@ def listed(loop, root="."):
     loader = unittest.TestLoader()
     suite = unittest.TestSuite(loader.discover(str(package), top_level_dir=str(root))
                                for package in packages(root, modules["TREES"]))
-    rows, errors = [], []
+    rows, errors = [], [f"{d.relative_to(root).as_posix()}: a test directory with no __init__.py"
+                        for d in unpackaged(root, modules["TREES"])]
     for test in walk(suite):
         test_id = test.id()
         error = getattr(test, "_exception", None)
@@ -98,7 +108,7 @@ def listed(loop, root="."):
         # Its package, under tests/ the one below it, elsewhere the one
         # holding its file.
         parts = name.split(".")
-        package = parts[1] if parts[0] == "tests" else parts[-2]
+        package = parts[1] if parts[0] == modules["TESTS"] else parts[-2]
         if package not in PACKAGE_LABELS or (package == "tests" and parts[0] not in modules["TOPS"]):
             errors.append(f"{test_id}: the package {package} has no labels")
             continue

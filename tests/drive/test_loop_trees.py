@@ -38,7 +38,7 @@ class Chosen(unittest.TestCase):
 
     def test_trees_choose_structure(self):
         """On the checkout's table, a change to tools/trees.json: every
-        structure test, the tooling's, and no other module's; the same
+        test that reads it, the tooling's, and no other module's; the same
         structure tests left out of a change elsewhere in tools/."""
         table = SELECT["MODULES"]["load"]()
         rows = {m["name"]: m for m in table["modules"]}
@@ -47,15 +47,17 @@ class Chosen(unittest.TestCase):
                  ("tests.structure.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
                  ("tests.structure.test_boundaries.Plant.test_b17", ["fast", "structure"]),
                  ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
+                 ("tests.drive.test_trees_build.TreesBuild.test_one_reader", ["drive", "fake", "build"]),
+                 ("tests.drive.test_nav.Nav.test_x", ["drive", "tooling"]),
                  ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
         why, every = SELECT["choose"](table, rows, ["tools/trees.json"])
         self.assertIsNone(every)
         self.assertEqual(why["tests.structure.*"], "reading tools/trees.json")
         chosen, reasons = SELECT["picked"](tests, why, names)
-        self.assertEqual(chosen, [t for t, _ in tests[:4]])
-        self.assertIn("3 tests reading tools/trees.json", reasons)
+        self.assertEqual(chosen, [t for t, _ in tests[:6]])
+        self.assertIn("6 tests reading tools/trees.json", reasons)
         why, _ = SELECT["choose"](table, rows, ["tools/watch.py"])
-        self.assertEqual(SELECT["picked"](tests, why, names)[0], [tests[3][0]])
+        self.assertEqual(SELECT["picked"](tests, why, names)[0], [tests[3][0], tests[5][0]])
 
     def test_lexer_chooses_its_readers(self):
         """On the checkout's table, a change to the structure checks' lexer

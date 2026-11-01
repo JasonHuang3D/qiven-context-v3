@@ -8,13 +8,15 @@
 get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../../../tests/structure/lexer.py" ABSOLUTE)
 
 # qiven3_trees(<file>): qiven3_layers, qiven3_walked, qiven3_analysed,
-# qiven3_included, and the C++ suffixes qiven3_source_suffixes and
-# qiven3_header_suffixes, its lists, in the caller's scope; with
+# qiven3_included, qiven3_tables, and the C++ suffixes qiven3_source_suffixes
+# and qiven3_header_suffixes, its lists, in the caller's scope; with
 # qiven3_source_suffix and qiven3_header_suffix, the regular expressions
-# ending a path in one.
+# ending a path in one; qiven3_tests, the top-level test tree; and
+# qiven3_homes, each module directory of the checkout the file is in.
 macro(qiven3_trees file)
   file(READ "${file}" qiven3_trees_text)
-  foreach(qiven3_key IN ITEMS layers walked analysed included source_suffixes header_suffixes)
+  string(JSON qiven3_tests GET "${qiven3_trees_text}" tests)
+  foreach(qiven3_key IN ITEMS layers walked analysed included tables source_suffixes header_suffixes)
     set(qiven3_${qiven3_key} "")
     string(JSON qiven3_count LENGTH "${qiven3_trees_text}" ${qiven3_key})
     math(EXPR qiven3_last "${qiven3_count} - 1")
@@ -27,6 +29,15 @@ macro(qiven3_trees file)
     list(JOIN qiven3_${qiven3_key}_suffixes "|" qiven3_${qiven3_key}_suffix)
     string(REPLACE "." "[.]" qiven3_${qiven3_key}_suffix "(${qiven3_${qiven3_key}_suffix})$")
   endforeach()
+  get_filename_component(qiven3_root "${file}/../.." ABSOLUTE)
+  qiven3_table_globs("${qiven3_root}" qiven3_globs)
+  file(GLOB_RECURSE qiven3_homes RELATIVE "${qiven3_root}" ${qiven3_globs})
+  foreach(qiven3_table IN LISTS qiven3_tables)
+    if(EXISTS "${qiven3_root}/${qiven3_table}")
+      list(APPEND qiven3_homes "${qiven3_table}")
+    endif()
+  endforeach()
+  list(TRANSFORM qiven3_homes REPLACE "/?module[.]json$" "")
 endmacro()
 
 # qiven3_header_globs(<root> <out> <tree>...): a glob under each tree of root
@@ -64,22 +75,50 @@ function(qiven3_under path tree out)
   endif()
 endfunction()
 
+# qiven3_test_path(<path> <out>): the one reader of test code, test_path in
+# tools/loop_modules.py in Python: path, from the root, under the top-level
+# tests/ as it stands; under the tests/ of a module directory as the
+# top-level tree would hold it; any other path, empty.
+function(qiven3_test_path path out)
+  set(${out} "" PARENT_SCOPE)
+  set(from 0)
+  while(TRUE)
+    string(SUBSTRING "/${path}" ${from} -1 rest)
+    string(FIND "${rest}" "/${qiven3_tests}/" at)
+    if(at LESS 0)
+      return()
+    endif()
+    math(EXPR at "${from} + ${at}")
+    string(SUBSTRING "${path}" 0 ${at} home)
+    string(REGEX REPLACE "/$" "" home "${home}")
+    if(at EQUAL 0 OR home IN_LIST qiven3_homes)
+      string(SUBSTRING "${path}" ${at} -1 rest)
+      set(${out} "${rest}" PARENT_SCOPE)
+      return()
+    endif()
+    math(EXPR from "${at} + 1")
+  endwhile()
+endfunction()
+
 # qiven3_analysed(<path> <out>): TRUE where the analysis reads the file at
-# path, from the root: under an analysed root, or under a layer's tree and
-# in no directory named tests there, a module's own tests, which an analysed
-# root names where the analysis reads them.
+# path, from the root: under an analysed root, as it stands or as the
+# top-level tree would hold it, or under a layer's tree and no test code, a
+# module's own tests, which an analysed root names where the analysis reads
+# them.
 function(qiven3_analysed path out)
   set(${out} FALSE PARENT_SCOPE)
+  qiven3_test_path("${path}" test)
   foreach(root IN LISTS qiven3_analysed)
     qiven3_under("${path}" "${root}" under)
-    if(under)
+    qiven3_under("${test}" "${root}" as_test)
+    if(under OR as_test)
       set(${out} TRUE PARENT_SCOPE)
       return()
     endif()
   endforeach()
   foreach(layer IN LISTS qiven3_layers)
     qiven3_under("${path}" "${layer}" under)
-    if(under AND NOT "/${path}" MATCHES "/tests/")
+    if(under AND test STREQUAL "")
       set(${out} TRUE PARENT_SCOPE)
       return()
     endif()
@@ -391,10 +430,12 @@ if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
     qiven3_header_filters("${ROOT}" "${headers}" filter exclude)
     message("filter=${filter}")
     message("exclude=${exclude}")
-  elseif(SHOW STREQUAL "analysed")
-    foreach(path IN LISTS PATHS)
+  elseif(SHOW STREQUAL "analysed")  # for the lines of PATHFILE
+    file(STRINGS "${PATHFILE}" paths)
+    foreach(path IN LISTS paths)
       qiven3_analysed("${path}" read)
-      message("${path}=${read}")
+      qiven3_test_path("${path}" test)
+      message("${path}=${read} ${test}")
     endforeach()
   elseif(SHOW STREQUAL "globs")
     qiven3_table_globs("${ROOT}" table)

@@ -58,16 +58,23 @@ ORDER = ("devkit", "core", "system", "services", "kits", "products")  # the link
 KIT = "foundation/devkit/test/"  # the test kit's table files: the runner, the case main, the faults kit, the scan
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
 ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives, and include_roots()'
-VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
+
+
+def test_path(path, homes=()):
+    """The one reader of test code, trees.cmake's qiven3_test_path in CMake:
+    a path under the top-level tests/ as it stands; under the tests/ of a
+    module directory, one of homes (each holding a table file), as the
+    top-level tree would hold it, so that a file keeps its checks as it
+    moves; any other path, None."""
+    at = 0 if path.startswith(f"{TESTS}/") else path.find(f"/{TESTS}/")
+    while at > 0 and path[:at] not in homes:
+        at = path.find(f"/{TESTS}/", at + 1)
+    return None if at < 0 else path[at + (at > 0):]
 
 
 def under_tests(path, homes=()):
-    """Whether a path is test code: under the top-level tests/, or under the
-    tests/ of a module directory, one of homes (each holding a table file)."""
-    at = 0 if path.startswith("tests/") else path.find("/tests/")
-    while at > 0 and path[:at] not in homes:
-        at = path.find("/tests/", at + 1)
-    return at >= 0
+    """Whether a path is test code."""
+    return test_path(path, homes) is not None
 
 
 def owners(table, files):

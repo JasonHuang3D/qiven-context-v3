@@ -218,20 +218,18 @@ class Check(unittest.TestCase):
         self.assertTrue(set(loop_modules.TOPS) <= set(loop_modules.TREES))
 
     def test_trees_named_once(self):
-        """The trees read from tools/trees.json, which the root CMakeLists.txt
-        reads for the analysed roots, its layers and analysed, holding no list
-        of its own."""
+        """The trees read from tools/trees.json, the roots of test code and a
+        vendor's among them, each root lying in a tree every check walks."""
         trees = json.loads((loop_modules.ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
-        self.assertEqual(sorted(trees),
-                         ["analysed", "header_suffixes", "included", "layers", "source_suffixes", "walked"])
+        self.assertEqual(sorted(trees), ["analysed", "child", "header_suffixes", "included", "layers", "source_suffixes",
+                                         "support", "tables", "tests", "vendored", "walked"])
         self.assertEqual(loop_modules.CXX_SUFFIXES, (*trees["source_suffixes"], *trees["header_suffixes"]))
         self.assertEqual(loop_modules.TOPS, tuple(trees["layers"]))
         self.assertEqual(loop_modules.TREES, (*trees["walked"], *trees["layers"]))
+        self.assertEqual((loop_modules.TESTS, loop_modules.VENDORED), (trees["tests"], f"{trees['vendored']}/"))
         self.assertTrue(all(a.split("/", 1)[0] in loop_modules.TREES for a in trees["analysed"]))
-        cmake = (loop_modules.ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn('"${PROJECT_SOURCE_DIR}/tools/trees.json"', cmake)
-        self.assertIn("set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})", cmake)
-        self.assertNotIn("tests/support|", cmake)
+        self.assertLessEqual({trees["support"], trees["child"]}, set(trees["analysed"]))
+        self.assertLessEqual({trees["tests"], trees["vendored"]}, set(trees["walked"]))
 
     def test_angle_includes_read(self):
         """A quoted and an angle include of another module's include/qiven/

@@ -82,6 +82,27 @@ class Core(unittest.TestCase):
         self.assertEqual([rel for rel in files() if TREE.library(rel) != rel.startswith("src/")
                           and rel.endswith(CXX)], [])
 
+    def test_moved(self):
+        """A file moved into a module's own tests/ keeps its checks: a case
+        meets B9 as in tests/unit/, a shared test file stays in the subset,
+        and a tests/ of no module's directory is a library's still."""
+        def rules_on(by, rel):
+            out = rules.Findings(TREE)
+            rules.direct_include(by, rel, "v3", rel, out)
+            return sorted(f.rule for f in out.found)
+
+        runner = f"{TREE.directory('runner')}include/qiven/runner/runner.hpp"
+        moved = "foundation/core/memory/tests/"
+        for header in (runner, f"{layers.SUPPORT}x.hpp", f"{moved}support/x.hpp", f"{layers.CHILD}x.hpp"):
+            self.assertEqual(rules_on("tests/unit/x_test.cpp", header), [], header)
+            self.assertEqual(rules_on(f"{moved}x_test.cpp", header), [], header)
+        self.assertEqual(rules_on("foundation/core/memory/src/x.cpp", runner), ["B9"])
+        self.assertEqual(rules_on(f"{moved}x_test.cpp", "tests/unit/x.hpp"),
+                         rules_on("tests/unit/x_test.cpp", "tests/unit/x.hpp"))
+        self.assertTrue(subset.in_scope(f"{moved}support/x.hpp", TREE))
+        self.assertFalse(subset.in_scope(f"{moved}x_test.cpp", TREE))
+        self.assertTrue(TREE.library("src/memory/tests/x.cpp"))
+
 
 class Text(unittest.TestCase):
 

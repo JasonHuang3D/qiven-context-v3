@@ -116,10 +116,10 @@ ALLOWED = {
     "B2": ("src/platform/win/process.",),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
-    "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
+    "B5": ("src/platform/win/", layers.CHILD, "qiven3_platform_win", "src/diag/", "qiven3_diag",
            "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
     "B11": ("tests/compat/r",),
-    "B14": ("tests/support/goldens",),
+    "B14": (f"{layers.SUPPORT}goldens",),
     "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
@@ -146,11 +146,11 @@ STATED = {
     ("B9", "src/diag/", "mman.h"): "the diagnostic entry's alternate stack on Linux",
     ("B9", "src/diag/", "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
     ("B9", layers.TESTS, RUNNER): "the runner's public headers, which every case includes",
-    ("B9", layers.TESTS, "tests/support/"): "the test tree's own headers, which its sources include",
-    ("B9", layers.TESTS, "tests/driver/"): "as tests/support/'s",
-    ("B9", layers.TESTS, "tests/child/"): "as tests/support/'s",
+    ("B9", layers.TESTS, layers.SUPPORT): "the test tree's own headers, which its sources include",
+    ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
+    ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
     ("B9", RUNNER, RUNNER): "the runner's own headers",
-    ("B9", RUNNER, "tests/support/"): "the log's journal, which the runner's own cases read",
+    ("B9", RUNNER, layers.SUPPORT): "the log's journal, which the runner's own cases read",
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
@@ -277,7 +277,11 @@ class Findings:
         self.tree = tree or layers.of(ROOT)
 
     def add(self, rule, where, kind="", detail="", what=None, force=False):
-        if force or not (allowed(rule, where, what) or under(where, EXEMPT.get(rule, ()))):
+        """A finding, but where the rule allows it of where or what, as they
+        stand or as the top-level tests/ would hold them."""
+        places = (where, self.tree.as_tests(where))
+        if force or not (any(allowed(rule, w, x) for w in places for x in (what, self.tree.as_tests(what)))
+                         or any(under(w, EXEMPT.get(rule, ())) for w in places)):
             self.found.add(Finding(rule, where, kind, detail))
 
 
@@ -447,7 +451,7 @@ def direct_include(by, path, kind, name, out):
         elif kind == "v3":
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
                   or (rel.endswith("/sqlite3.h") and by.startswith("src/store/engine/"))
-                  or ((out.tree.library(rel) or rel.startswith(layers.TESTS))
+                  or ((out.tree.library(rel) or out.tree.test_code(rel))
                       and not rel.startswith(("src/platform/", "src/hal/"))))
         else:
             ok = False
@@ -518,7 +522,7 @@ def link_rules(records, out):
     owners = {}
     for o in objects:
         owners.setdefault(o.target, set()).add(o.source)
-    child = {t for t, sources in owners.items() if any(under(s, ("tests/child/",)) for s in sources)}
+    child = {t for t, sources in owners.items() if any(under(out.tree.as_tests(s), (layers.CHILD,)) for s in sources)}
     mapcheck = {t for t, sources in owners.items() if any(under(s, ALLOWED["B16"]) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):

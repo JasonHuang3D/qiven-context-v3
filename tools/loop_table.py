@@ -42,6 +42,9 @@ ROOT = Path(__file__).resolve().parents[1]  # the checkout this file is in
 TREE_FILE = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 TOPS = tuple(TREE_FILE["layers"])  # the trees whose every module.json is a table file
 TREES = (*TREE_FILE["walked"], *TOPS)  # the trees every check that walks the checkout walks
+TESTS = TREE_FILE["tests"]  # the top-level test tree, and the name of a module's own
+VENDORED = f"{TREE_FILE['vendored']}/"  # a vendor's source: its unresolved includes counted, not refused
+TABLES = tuple(TREE_FILE["tables"])  # the table files outside the layers' trees
 # The C++ suffixes, named there once too: a source's, a header's, and either; every rule and walker's.
 SOURCE_SUFFIXES, HEADER_SUFFIXES = tuple(TREE_FILE["source_suffixes"]), tuple(TREE_FILE["header_suffixes"])
 CXX_SUFFIXES = SOURCE_SUFFIXES + HEADER_SUFFIXES
@@ -56,7 +59,7 @@ PLATFORMS, KINDS = ("windows",), ("adapter", "module")  # the known values of pl
 MAY_DEPEND = ("devkit", "core", "system", "services", "kits")  # of may_depend
 PARAMETER = ("name", "default", "built")  # a parameter's keys
 EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
-OLD = ("src/", "tests/", "third_party/", "tools/")  # the places a row's paths may still lie in, outside its directory
+OLD = tuple(f"{tree}/" for tree in TREE_FILE["walked"])  # the places a row's paths may still lie in, outside its directory
 BASE = "tools/loop_base.json"  # each table file's rows' old paths at the base commit it names (tools/loop_base.py)
 
 
@@ -80,7 +83,7 @@ def old_rows(texts):
 
 def is_table_file(path):
     """Whether a checkout's path, from its root, is one of the table's files."""
-    return path in ("module.json", "tools/module.json") or (
+    return path in TABLES or (
         path.endswith("/module.json") and path.split("/", 1)[0] in TOPS)
 
 
@@ -89,7 +92,7 @@ def table_files(root):
     root = Path(root)
     found = [p.relative_to(root).as_posix() for top in TOPS if (root / top).is_dir()
              for p in (root / top).rglob("module.json") if p.is_file()]
-    return sorted(found + [p for p in ("module.json", "tools/module.json") if (root / p).is_file()])
+    return sorted(found + [p for p in TABLES if (root / p).is_file()])
 
 
 def strings(value, known=None):

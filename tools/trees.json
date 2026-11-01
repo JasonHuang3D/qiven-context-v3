@@ -3,6 +3,11 @@
   "walked": ["src", "tests", "tools", "third_party"],
   "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
   "included": ["src", "tests", "third_party/sqlite"],
+  "tests": "tests",
+  "support": "tests/support",
+  "child": "tests/child",
+  "vendored": "third_party",
+  "tables": ["module.json", "tools/module.json"],
   "source_suffixes": [".c", ".cc", ".cpp", ".cxx"],
   "header_suffixes": [".h", ".hh", ".hpp", ".hxx", ".inc", ".inl", ".ipp", ".tpp"]
 }

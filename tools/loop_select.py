@@ -26,8 +26,8 @@ tools/loop_modules.py, as the run begins.
   any change, the tests that read every tracked file (WHOLE), the modules'
   check whole over the checkout among them; and, for a change under a tree
   READERS names (.github/, of the no-test row), the tests that read it, and
-  for a change to tools/trees.json, every structure test; for a change to
-  the structure checks' lexer, every structure test and the build's tests
+  for a change to tools/trees.json, every test that reads it; for a change
+  to the structure checks' lexer, every structure test and the build's tests
   of the header units, which read it.
 - Every test, when a module selected is the whole build's or the shared
   support's, or a changed file is in no module.
@@ -64,8 +64,11 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
     "tests.drive.test_loop_full_check.FullCheck.test_tree")
 READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
     ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*"),
-    # The trees every walker, glob and filter reads, the structure rules' scopes among them.
-    "tools/trees.json": ("tests.structure.*",),
+    # The trees every walker, glob and filter reads, the structure rules' scopes among them: every test that reads them.
+    "tools/trees.json": ("tests.structure.*", "tests.drive.test_trees_build.*", "tests.drive.test_nav.*",
+                         "tests.drive.test_git_count.*", "tests.drive.test_loop.*", "tests.drive.test_loop_modules.*",
+                         "tests.drive.test_loop_rows.*", "tests.drive.test_loop_table.*",
+                         "tests.drive.test_loop_trees.*"),
     # The structure checks' lexer, which the build's header units read their includes by.
     "tests/structure/lexer.py": ("tests.structure.*", "tests.drive.test_trees_build.*")}
 

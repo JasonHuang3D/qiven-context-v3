@@ -21,7 +21,9 @@ LINKED = tuple(MODULES["ORDER"])  # the link graph's layers, devkit first
 CORE = LINKED[1:]  # core logic's layers: the link graph's but devkit, layer 0, linked into tests alone
 KIT = MODULES["KIT"]  # the test kit's table files
 VENDORED = MODULES["VENDORED"]  # a vendor's sources
-TESTS = "tests/"  # the top-level test tree
+TESTS = f"{MODULES['TESTS']}/"  # the top-level test tree
+SUPPORT = f"{MODULES['TREE_FILE']['support']}/"  # the tests' shared support, in the subset with the libraries
+CHILD = f"{MODULES['TREE_FILE']['child']}/"  # the test tree's child processes
 TOOLS = "tools/"  # the tools' tree: no layer's code, whichever row holds its files
 
 
@@ -42,7 +44,7 @@ class Layers:
     whether it is test code, each answer kept."""
 
     def __init__(self, table):
-        self.rows = table["modules"]
+        self.table = table
         homes = table["homes"]
         self.place = {name: MODULES["tree_layer"](home.rpartition("/")[0]) for name, home in homes.items()}
         self.homes = {name: home.rpartition("/")[0] + "/" for name, home in homes.items()}
@@ -52,8 +54,7 @@ class Layers:
     def module(self, rel):
         """The name of the first module whose paths hold rel, or None."""
         if rel not in self.owner:
-            self.owner[rel] = next((m["name"] for m in self.rows
-                                    if any(MODULES["holds"](p, rel) for p in m["paths"])), None)
+            self.owner[rel] = next(iter(MODULES["owners"](self.table, [rel])[rel]), None)
         return self.owner[rel]
 
     def layer(self, rel):
@@ -62,6 +63,12 @@ class Layers:
 
     def test_code(self, rel):
         return MODULES["under_tests"](rel, self.dirs)
+
+    def as_tests(self, rel):
+        """rel as the top-level tests/ would hold it: a module's own test
+        file keeps the rules of the tree it moved from. Any other path, or
+        a target's or a header's name, as it stands."""
+        return MODULES["test_path"](rel, self.dirs) or rel if rel is not None else None
 
     def directory(self, name):
         """A module's table file's directory, ending in /."""

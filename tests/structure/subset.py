@@ -43,7 +43,6 @@ from xml.etree import ElementTree
 from tests.structure import layers
 from tests.structure.lexer import lex
 
-SUPPORT = "tests/support/"  # the tests' shared support, in the subset with the libraries
 CXX = layers.CXX
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))
 C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_aligned_free"))
@@ -519,7 +518,7 @@ def in_scope(rel, tree):
     a library's file of core to products, a file of the test kit, or one of
     tests/support/; a vendor's never."""
     return not rel.startswith(layers.VENDORED) and (
-        tree.library(rel) or rel.startswith((layers.KIT, SUPPORT)))
+        tree.library(rel) or rel.startswith(layers.KIT) or tree.as_tests(rel).startswith(layers.SUPPORT))
 
 
 def check(root, files, add, tree):
