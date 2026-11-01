@@ -1,18 +1,35 @@
 """Every table file under the layer rule (tools/loop_table.py and
 tools/loop_modules.py), on the synthetic table and tree: the root
 module.json's rows the repository's own at its root, their edges checked;
-a row's paths in the old places held in its own table file alone, until
-its module moves; a module of test code alone read as test code, its edges
+a row's paths in the old places those its table file gave it at the base,
+or fewer; a module of test code alone read as test code, its edges
 onto the test kit test edges."""
 
-import copy
+import json
 import sys
 import unittest
 
-from tests.drive.test_loop_modules import FILES, TARGETS, errors, from_tree, layout, table, with_row
+from tests.drive.test_loop_modules import FILES, TARGETS, built_file, errors, from_tree, layout, table, with_row
 from tools import loop_modules
 
 FAULTS = "foundation/devkit/test/faults/module.json"  # a synthetic kit row's home, of a layer not support
+LOW = "foundation/core/low/module.json"  # the layout's file of two rows, core first, both of old paths
+
+
+def old_rows(objects):
+    """The base's rows of a tree's table files, {path: object}."""
+    return loop_modules.old_rows({p: json.dumps(o) for p, o in objects.items()})
+
+
+def held(objects, base=None):
+    """table_of()'s errors on objects, the layout's old_rows() the base, or base."""
+    return loop_modules.table_of({p: json.dumps(o) for p, o in objects.items()}, None, None,
+                                 old_rows(layout()) if base is None else base)[1]
+
+
+def moved(row, path, home):
+    """The check's line for a row's path in the old places not given it at the base."""
+    return f"row {row}: path {path} in the old places, in {home}, not given it there at the base"
 
 
 class Rows(unittest.TestCase):
@@ -46,40 +63,56 @@ class Rows(unittest.TestCase):
         self.caught(loop_modules.check_table(t), ["edge px -> high: up from repository to products"])
 
     def test_a_row_in_old_places_moved(self):
-        """core, its paths in src/, the first row of a table file not of its name: moved after another
-        file's first row, or behind its own file's next, refused by the check."""
-        self.caught(from_tree()[1], [])
+        """core, its paths in src/: moved to another file, or a new row of old paths first in its own, refused
+        by the check; low first in its file, or core's paths moved into high's directory with it, not."""
+        self.caught(held(layout()), [])
         objects = layout()
-        objects["products/high/module.json"]["present"].append(objects["foundation/core/low/module.json"][
-            "present"].pop(0))
-        self.caught(from_tree(objects)[1], [
-            "row core: its path src/core/ in the old places, in products/high/module.json, not its own table "
-            "file: the one of its name, or else the one whose first row it is"])
+        objects["products/high/module.json"]["present"].append(objects[LOW]["present"].pop(0))
+        self.caught(held(objects), [moved("core", "src/core/", "products/high/module.json")])
+        objects["products/high/module.json"]["present"][-1]["paths"] = ["products/high/core/"]
+        self.caught(held(objects), [])
         objects = layout()
-        low = objects["foundation/core/low/module.json"]["present"]
-        low.reverse()  # low, of its file's name, first: core no longer first
-        self.caught(from_tree(objects)[1], [
-            "row core: its path src/core/ in the old places, in foundation/core/low/module.json, not its own "
-            "table file: the one of its name, or else the one whose first row it is"])
+        objects[LOW]["present"].reverse()
+        self.caught(held(objects), [])
+        objects[LOW]["present"].insert(0, dict(objects[LOW]["present"][0], name="pg", paths=["src/pg/"]))
+        self.caught(held(objects), [moved("pg", "src/pg/", LOW)])
 
-    def test_shared_rows_until_they_move(self):
-        """A row SHARED names: held in its file while in the old places, refused once it has none there,
-        and refused in another file."""
-        home = "products/qiven3/tests/module.json"
-        driver = {"name": "driver", "layer": "product", "depends": [], "test_depends": [], "paths": ["tests/d/"]}
-        child = dict(driver, name="child", paths=["tests/child/"])
-        objects = {**layout(), "products/qiven3/module.json": copy.deepcopy(layout()["products/high/module.json"])}
-        objects["products/qiven3/module.json"].update(name="qiven3", present=[dict(driver, name="qiven3")])
-        objects[home] = dict(objects["products/high/module.json"], name="tests", present=[driver, child])
+    def test_old_places_frozen(self):
+        """A row's old paths those its file gave it at the base, or fewer: a new one refused, in an old row or
+        a new module's file; one narrowed or dropped, or the row deleted, not; no base, no rule."""
+        objects = layout()
+        objects[LOW]["present"][0]["paths"] += ["src/grow/", "src/core/deeper/"]
+        self.caught(held(objects), [moved("core", "src/grow/", LOW)])
         self.caught(from_tree(objects)[1], [])
-        child["paths"] = ["products/qiven3/tests/child/"]
-        self.caught(from_tree(objects)[1], [
-            "row child: no path left in the old places: its module moved, SHARED holds it no more"])
-        child["paths"] = ["tests/child/"]
-        objects["products/qiven3/module.json"]["present"].append(objects[home]["present"].pop())
-        self.caught(from_tree(objects)[1], [
-            "row child: its path tests/child/ in the old places, in products/qiven3/module.json, not its own "
-            "table file: the one of its name, or else the one whose first row it is"])
+        objects = layout()
+        objects[LOW]["present"][1]["paths"] = ["src/low/x/", "tests/unit/low_one.cpp"]
+        self.caught(held(objects), [])
+        del objects[LOW]["present"][0]
+        self.caught(held(objects), [])
+        objects["foundation/core/pnew/module.json"] = built_file("pnew", "core", [
+            {"name": "pnew", "layer": "foundation", "depends": [], "test_depends": [], "paths": ["src/pnew/"]}])
+        self.caught(held(objects), [moved("pnew", "src/pnew/", "foundation/core/pnew/module.json")])
+
+    def test_the_tools_and_tests_rows_held(self):
+        """The tooling's tests/ path held by its file; a tools/ path new to it not old, another file's
+        refused; the rule the checkout's own, its file needed among the tracked files."""
+        objects = layout()
+        objects["tools/module.json"]["present"][0]["paths"] += ["tests/drive/test_x.py"]
+        base = old_rows(objects)
+        self.assertEqual(base["tools/module.json"], {"tooling": ["tests/drive/test_x.py"]})
+        objects["tools/module.json"]["present"][0]["paths"] += ["tools/y.py", "tests/drive/test_y.py"]
+        objects["products/high/module.json"]["present"][0]["paths"] += ["tools/z.py"]
+        self.caught(held(objects, base), [moved("high", "tools/z.py", "products/high/module.json"),
+                                          moved("tooling", "tests/drive/test_y.py", "tools/module.json")])
+        table_, errors_ = loop_modules.tree(files=[])
+        self.assertEqual(errors_[0], f"{loop_modules.BASE}: not a tracked file: the old places unchecked")
+        real = {p: (loop_modules.ROOT / p).read_text(encoding="utf-8") for p in loop_modules.table_files(
+            loop_modules.ROOT)}
+        rows = json.loads(real["foundation/core/memory/module.json"])
+        rows["present"][0]["paths"].append("src/pgrow/")
+        found = loop_modules.table_of({**real, "foundation/core/memory/module.json": json.dumps(rows)}, None, None,
+                                      json.loads((loop_modules.ROOT / loop_modules.BASE).read_text("utf-8"))["rows"])
+        self.caught(found[1], [moved("memory", "src/pgrow/", "foundation/core/memory/module.json")])
 
     def test_test_code_alone_reaches_the_kit_by_test_edges(self):
         """A module of test code alone: its include and link onto a kit row accepted by test_depends, its
@@ -98,15 +131,12 @@ class Rows(unittest.TestCase):
             "edge probe -> faults: a library on the test kit from test code alone, whose edge onto it is a test edge"])
 
     def test_the_real_rows(self):
-        """The checkout's child and structure, test code alone, on faults by test edges; its SHARED rows its."""
+        """The checkout's child and structure, test code alone, on faults by test edges."""
         table_ = loop_modules.load()
         rows = {m["name"]: m for m in table_["modules"]}
         for name in ("child", "structure"):
             self.assertIn("faults", rows[name]["test_depends"])
             self.assertNotIn("faults", rows[name]["depends"])
-        shared = {f"{home}/module.json": names for home, names in loop_modules.SHARED.items()}
-        self.assertEqual({name: table_["homes"][name] for names in shared.values() for name in names},
-                         {name: home for home, names in shared.items() for name in names})
 
 
 if __name__ == "__main__":

@@ -18,9 +18,10 @@ tracked file, given twice, or outside its table file's directory but in
 src/, tests/, third_party/, tools/ (the old places) and a whole-build
 row's root files, a path of the root module.json's rows not the
 repository's own at its root (whole-build rows alone: a file there or a
-directory of no tree), a row with a path in the old places in a table
-file neither of its name nor whose first row it is, but those SHARED
-names until they move, each then refused, a tracked file in a slot's
+directory of no tree), a row's path in the old places outside its table
+file's directory that its row in that file at the base commit (BASE,
+tools/loop_base.py) neither gave nor holds, so that they only shrink,
+a new module's, a new row's or a moved one's among them, a tracked file in a slot's
 directory, or directly in a group's, but its README.md and module.json,
 a built one's contract naming no tracked file,
 an exception's until blank or its edge listed twice. Each table
@@ -53,9 +54,7 @@ MAY_DEPEND = ("devkit", "core", "system", "services", "kits")  # of may_depend
 PARAMETER = ("name", "default", "built")  # a parameter's keys
 EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
 OLD = ("src/", "tests/", "third_party/", "tools/")  # the places a row's paths may still lie in, outside its directory
-SHARED = {  # the rows with paths in the old places sharing their table file with its own row, until they move
-    "foundation/devkit/test/runner": ("support",), "foundation/services/storage/recordlog": ("keys",),
-    "products/qiven3/tests": ("child", "fuzzing")}
+BASE = "tools/loop_base.json"  # each table file's rows' old paths at the base commit it names (tools/loop_base.py)
 
 
 def root_own(path):
@@ -68,6 +67,13 @@ def old_paths(home, row):
     where = home.rpartition("/")[0]
     return [p for p in row["paths"] if where and p.startswith(OLD) and not p.startswith(where + "/")]
 
+
+def old_rows(texts):
+    """{table file: {row: its old paths}} of the table's files {path: text}, the rows of none left out: BASE's
+    rows, of the files at the base."""
+    found = {path: {row["name"]: old_paths(path, row) for row in json.loads(text).get("present", ())}
+             for path, text in sorted(texts.items())}
+    return {path: {n: p for n, p in rows.items() if p} for path, rows in found.items() if any(rows.values())}
 
 def is_table_file(path):
     """Whether a checkout's path, from its root, is one of the table's files."""
@@ -159,11 +165,12 @@ def readme(data, text):
                   if line.startswith(("- **Consumers:**", "- **Expected consumers:**"))]
 
 
-def table_of(texts, files=None, readmes=None):
+def table_of(texts, files=None, readmes=None, base=None):
     """The table, {"modules": [rows]}, and its errors, from the table's
     files {path: text}; given the tracked files, what a slot's or a group's
     directory holds and a contract checked too; given {path: text} of the
-    table directories' README.md, each checked against its module.json."""
+    table directories' README.md, each checked against its module.json;
+    given the base's old_rows(), each row's old paths held by its own there."""
     errors, rows, names, later, dirs, slots, excepted = [], [], {}, [], [], [], []
     shallow = {}  # a directory's name: the fewest parts of a table file's directory of that name
     for where in (p.rpartition("/")[0] for p in texts if "/" in p):
@@ -230,13 +237,10 @@ def table_of(texts, files=None, readmes=None):
             errors.append(f"row {row['name']}: in {named[row['name']][0]} and {path}")
         elif names.get(row["name"], path) != path:
             errors.append(f"row {row['name']}: in {path}, not in {names[row['name']]}, the table file of its name")
-        elif old_paths(path, row) and path not in (names.get(row["name"]), *row["paths"]) and row["name"] not in (
-                SHARED.get(path.rpartition("/")[0], ())):
-            errors.append(f"row {row['name']}: its path {old_paths(path, row)[0]} in the old places, in {path}, "
-                          "not its own table file: the one of its name, or else the one whose first row it is")
-        elif row["name"] in SHARED.get(path.rpartition("/")[0], ()) and not old_paths(path, row):
-            errors.append(f"row {row['name']}: no path left in the old places: its module moved, "
-                          "SHARED holds it no more")
+        elif base is not None:
+            given = base.get(path, {}).get(row["name"], ())
+            errors += [f"row {row['name']}: path {p} in the old places, in {path}, not given it there at the base"
+                       for p in old_paths(path, row) if not any(holds(q, p) for q in given)]
         named.setdefault(row["name"], (path, row))
         errors += [f"row {row['name']}: path {p} twice" for p in sorted(set(row["paths"]))
                    if row["paths"].count(p) > 1]
@@ -261,12 +265,18 @@ def table_of(texts, files=None, readmes=None):
 
 def tree(root=ROOT, files=None):
     """table_of() over a checkout's table files and, given the tracked
-    files, their directories' tracked README.md."""
+    files, their directories' tracked README.md; and its BASE's rows, a
+    tracked file when the tracked files are given, else refused (a tree
+    without BASE, read with no tracked files, a test's, unchecked so)."""
     root = Path(root)
     paths = table_files(root)
     readmes = {p: (root / p).read_text(encoding="utf-8") for p in (q.replace("module.json", "README.md") for q in paths)
                if files is not None and p in files}
-    return table_of({p: (root / p).read_text(encoding="utf-8") for p in paths}, files, readmes)
+    held = (root / BASE).is_file() and (files is None or BASE in files)
+    base = json.loads((root / BASE).read_text(encoding="utf-8"))["rows"] if held else None
+    table, errors = table_of({p: (root / p).read_text(encoding="utf-8") for p in paths}, files, readmes, base)
+    return table, errors if held or files is None else [f"{BASE}: not a tracked file: the old places unchecked",
+                                                       *errors]
 
 
 def load(root=ROOT):
