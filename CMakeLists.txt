@@ -147,6 +147,8 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
   file(GLOB qiven3_tidy_root CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/*.clang-tidy")
   list(APPEND qiven3_tidy_configs ${qiven3_tidy_root})
   list(FILTER qiven3_tidy_configs INCLUDE REGEX "/[.]clang-tidy$")
+  # The test sources' configurations are composed from them at configure.
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${qiven3_tidy_configs} "${qiven_tidy_test_config}")
   # clang-tidy's copy of the database, without the options clang-cl fails or
   # warns on, written only when it changes (foundation/devkit/build/tidy_database.cmake).
   set(qiven3_tidy_database "${PROJECT_SOURCE_DIR}/foundation/devkit/build/tidy_database.cmake")
@@ -159,14 +161,10 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
     file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
     string(MAKE_C_IDENTIFIER "${rel}" stamp)
     set(stamp "${PROJECT_BINARY_DIR}/tidy/${stamp}.stamp")
-    get_filename_component(source_dir "${source}" DIRECTORY)
     # A generated source takes its directory's configs, given by name: the
     # search up from the build tree finds none when the tree sits outside.
+    qiven3_tidy_dir("${source}" source_dir)
     qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
-    if(generated)
-      file(RELATIVE_PATH in_build "${PROJECT_BINARY_DIR}" "${source_dir}")
-      set(source_dir "${PROJECT_SOURCE_DIR}/${in_build}")
-    endif()
     set(configs "")
     set(nearest "")
     foreach(config IN LISTS qiven3_tidy_configs)
@@ -186,8 +184,11 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
       set(config_arg "--config-file=${nearest}")
     endif()
     if("${source}" IN_LIST qiven3_test_sources)
-      set(config_arg "--config-file=${qiven_tidy_test_config}")
-      list(APPEND configs "${qiven_tidy_test_config}")
+      # Its directory's configs with the test configuration over them, composed
+      # at configure, named by path, in tree and out of tree alike.
+      qiven3_tidy_test_config("${source}" "${qiven_tidy_test_config}" "${QIVEN_CLANG_TIDY}" composed)
+      set(config_arg "--config-file=${composed}")
+      list(APPEND configs "${qiven_tidy_test_config}" "${composed}")
     endif()
     add_custom_command(OUTPUT "${stamp}"
       COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" ${config_arg} ${qiven3_filter_args} --quiet

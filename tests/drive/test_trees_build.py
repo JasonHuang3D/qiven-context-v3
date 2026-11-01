@@ -1,7 +1,7 @@
 """The build's globs and filters take their trees from tools/trees.json:
 clang-tidy's header filters, the table's files, the Python files and
-tests the listing finds, and the analysis's choice of a source by its path,
-each read from foundation/devkit/build/trees.cmake as cmake -P gives it and
+tests the listing finds, the analysis's choice of a source by its path, and
+a test source's clang-tidy configuration, each read from foundation/devkit/build/trees.cmake as cmake -P gives it and
 checked against the trees and, for test code, Python's reader."""
 
 import json
@@ -20,6 +20,7 @@ from tests.structure import layers
 ROOT = Path(__file__).resolve().parents[2]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
+TEST_TIDY = "foundation/devkit/build/analysis-test.clang-tidy"
 LISTING = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))
 LOOP = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 HOMES = {home.rpartition("/")[0] for home in LOOP["tree"](ROOT)[0]["homes"].values()}
@@ -33,7 +34,7 @@ def cmake():
     return shutil.which("cmake")
 
 
-def shown(show, root=ROOT, paths=()):
+def shown(show, root=ROOT, paths=(), defines=()):
     """name=value lines trees.cmake prints for show, as a dict."""
     tool = cmake()
     if tool is None:
@@ -41,7 +42,8 @@ def shown(show, root=ROOT, paths=()):
     with tempfile.TemporaryDirectory() as scratch:
         listing = Path(scratch) / "paths.txt"
         listing.write_text("\n".join(paths) + "\n", encoding="utf-8")
-        args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}"]
+        args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}",
+                *(f"-D{define}" for define in defines)]
         done = subprocess.run([*args, "-P", str(SCRIPT)], capture_output=True, text=True, timeout=120, check=True)
     return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
 
@@ -368,6 +370,40 @@ class TreesBuild(unittest.TestCase):
         self.assertEqual([p for p, kind in got.items() if kind is None and LOOP["test_path"](p, HOMES)],
                          ["tests/test_x.py"])
         self.assertEqual([p for p, kind in got.items() if kind and not LOOP["test_path"](p, HOMES)], [])
+
+    def test_test_config_out_of_tree(self):
+        """A test source generated in a build tree outside the checkout,
+        fixture_files.cpp, takes by the file its clang-tidy step names its
+        directory's configuration in the checkout, the root's, under the test
+        configuration: the root's checks and WarningsAsErrors, where the test
+        configuration alone, searching up from the build tree, finds neither."""
+        llvm = Path(os.environ.get("ProgramFiles", ""), "LLVM", "bin")
+        tidy = shutil.which("clang-tidy") or shutil.which("clang-tidy", path=str(llvm))
+        if tidy is None:
+            self.skipTest("no clang-tidy")
+
+        def dumped(source, *config, flag="--list-checks"):
+            """The checks clang-tidy enables for source, and its WarningsAsErrors line; or the line alone."""
+            def run(option):
+                return subprocess.run([tidy, *config, option, str(source), "--"], capture_output=True, text=True,
+                                      timeout=120, check=True).stdout
+            warnings = [line for line in run("--dump-config").splitlines() if line.startswith("WarningsAsErrors:")]
+            return (sorted(run(flag).split()[2:]), warnings) if flag else warnings
+
+        root = dumped(ROOT / "probe.cpp")
+        self.assertIn("bugprone-use-after-move", root[0])
+        self.assertNotIn(root[1], ([], ["WarningsAsErrors: ''"]))
+        with tempfile.TemporaryDirectory() as build:
+            self.assertFalse(Path(build).resolve().is_relative_to(ROOT))
+            source = Path(build, "tests", "support", "fixtures", "fixture_files.cpp")
+            source.parent.mkdir(parents=True)
+            source.write_text("", encoding="utf-8")
+            got = shown("test-config", paths=[source.as_posix()], defines=(f"BUILD={Path(build).as_posix()}",
+                                                                           f"TIDY={tidy}"))
+            config = got[source.as_posix()]
+            self.assertTrue(config.startswith(Path(build).as_posix() + "/tidy/config/"), config)
+            self.assertEqual(dumped(source, f"--config-file={config}"), root)
+            self.assertEqual(dumped(source, f"--config-file={ROOT / TEST_TIDY}", flag=None), ["WarningsAsErrors: ''"])
 
 
 if __name__ == "__main__":
