@@ -187,6 +187,8 @@ class Check(unittest.TestCase):
         self.caught(errors(t, files, linked), "link high_lib -> low_lib: module high does not depend on low")
         t["modules"].append({"name": "kit", "layer": "foundation", "depends": [], "test_depends": ["core"],
                              "paths": ["tests/kit/"]})
+        self.assertEqual(errors(t, {**files, "tests/kit/kit.cpp": b'#include "core/core.hpp"\n'}, targets), [])
+        t["modules"][-1].update(test_depends=[])  # test code alone: its tests' edges its own
         self.caught(errors(t, {**files, "tests/kit/kit.cpp": b'#include "core/core.hpp"\n'}, targets),
                     "include tests/kit/kit.cpp -> src/core/core.hpp: module kit does not depend on core")
 
@@ -285,8 +287,8 @@ class Check(unittest.TestCase):
                                                  "alone reaches")
         t["modules"][2]["depends"].remove("shared")
         t["modules"][2]["test_depends"].append("shared")
-        t = with_row(t, "tool", "foundation/devkit/structure/module.json", ["shared"])
-        t["modules"][-1]["paths"] = ["tests/tool/"]
+        t = with_row(t, "tool", "foundation/devkit/structure/module.json")
+        t["modules"][-1].update(paths=["tests/tool/"], test_depends=["shared"])  # test code alone: a test edge
         self.assertEqual(loop_modules.check_table(t), [])
 
     def test_a_modules_own_tests(self):

@@ -3,30 +3,7 @@
     py -3.15 -I tools/loop_modules.py SOURCE [BUILD]
     py -3.15 -I tools/loop_modules.py --help
 
-The table is the tree: its files are module.json at the root,
-tools/module.json and each module.json under foundation/, kits/ and
-products/, read in sorted path order. Its rows: each built module's present
-rows, its own README.md and module.json (the root's module.json alone) added
-to its first row, or to the first row its from names when it has none; a
-slot's directory a row of the no-test layer, and a group's README.md and
-module.json one. A row's dependencies are its library's (depends) and its
-tests' (test_depends). A table file that does not parse, lacks or adds a
-key for its status, gives a field of a wrong type or a value this check
-does not know, or a layer or a name not its directory's, is refused; so
-are two table files or two rows of one name, a row not in the table file
-of its name, a from or an of naming no row, a row's path holding no
-tracked file, given twice, or outside its table file's directory but in
-src/, tests/, third_party/, tools/ and a whole-build row's root files, a
-tracked file in a slot's directory, or directly in a group's, but its
-README.md and module.json, a built one's contract naming no tracked file,
-an exception's until blank or its edge listed twice. Each table
-directory's README.md repeats its module.json's fields in one form, each
-line refused that differs: line 1 `# <name>`, line 3 `layer <layer>,
-status <status>`, and a `- **Contract:**`, `- **Parameters:**` and
-`- **May depend on:**` line for each of those keys the file has; a line
-naming the consumers is refused (the table's reverse edges give them).
-
-Each tracked file in one module; each module's dependencies, followed
+The table is read by tools/loop_table.py. Each tracked file in one module; each module's dependencies, followed
 transitively, covering its includes (each #include "..." resolved to the
 tracked file it names, from its directory, and each #include <qiven/...>
 or <qiven3/...> without it, from the build's include directories
@@ -39,12 +16,14 @@ build's own not read): a library file's and target's by depends alone,
 its closure stopping at the test kit and at test code alone, test code's by
 test_depends too (a file under tests/, or under the tests/ of a directory
 holding a table file; a target of such files alone), a module whose every
-file is test code its own library; library code including or linking test
+file is test code, the kit's apart, test code: its edges onto the kit in
+test_depends, a library one refused; library code including or linking test
 code refused; the support layer's rows reached with no edge by test code
 alone, and reaching their own dependencies alone, their library's or their
 tests'. A cycle in depends refused. The layer rule: a row's layer
 its table file's in the tree (devkit, core, system, services, kits,
-products, in that order; tools/ and the repository outside the link graph),
+products, in that order; tools/ outside the link graph, the root's
+whole-build rows below it, depending on none of it),
 never its row's word; an edge in depends or test_depends going up, from
 one product onto another's, or onto a module outside the link graph,
 refused, but the test kit's (the rows of the table files under
@@ -54,7 +33,7 @@ what removes it), each refused that names no edge the table has or one the
 rule allows; the support layer outside the test kit refused; a depends
 edge onto the test kit, or onto a module whose every file is test code
 (its path on to the kit named), refused, with no exception, but the kit's
-own and those of such a module, as test code alone reaches the kit; a
+own and such a module's onto another, as test code alone reaches the kit; a
 library linking the kit's target refused. A module or a dependency the
 table does not name, or a layer it does not know, refused. One line an
 error, naming the file or the edge, then the count of vendored includes
@@ -62,7 +41,6 @@ left unresolved; exit 0 when none, 1 when any, 2 when the check could not
 run.
 """
 
-import fnmatch
 import json
 import posixpath
 import re
@@ -72,237 +50,16 @@ from pathlib import Path
 
 # git's one door (tools/loop_git.py), by runpy: under -I this directory is off sys.path.
 GIT = runpy.run_path(str(Path(__file__).resolve().with_name("loop_git.py")))
-
-ROOT = Path(__file__).resolve().parents[1]  # the checkout this file is in
-# The trees, named once in tools/trees.json, which the root CMakeLists.txt also reads: its layers and
-# analysed, the roots of the analysis preset's targets.
-TREE_FILE = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
-TOPS = tuple(TREE_FILE["layers"])  # the trees whose every module.json is a table file
-TREES = (*TREE_FILE["walked"], *TOPS)  # the trees every check that walks the checkout walks
-FILE_LAYERS = ("devkit", "core", "system", "services", "kits", "products", "foundation", "tools", "repository")
-KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
-    "built": ("name", "layer", "status", "platforms", "contract", "adopted", "parameters", "present"),
-    "slot": ("name", "layer", "status", "kind", "may_depend", "platforms", "adopted", "parameters"),
-    "group": ("name", "layer", "status", "adopted"),
-}
-ROW = ("name", "layer", "depends", "test_depends", "paths")  # a present row's keys
-PLATFORMS, KINDS = ("windows",), ("adapter", "module")  # the known values of platforms and of kind
-MAY_DEPEND = ("devkit", "core", "system", "services", "kits")  # of may_depend
-PARAMETER = ("name", "default", "built")  # a parameter's keys
+# The table's reading (tools/loop_table.py), by runpy too: its constants and functions this file's.
+TABLE = runpy.run_path(str(Path(__file__).resolve().with_name("loop_table.py")))
+globals().update((k, v) for k, v in TABLE.items() if k.isupper() or getattr(v, "__module__", "") == TABLE["__name__"])
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
 ORDER = ("devkit", "core", "system", "services", "kits", "products")  # the link graph's layers, lowest first
 KIT = "foundation/devkit/test/"  # the test kit's table files: the runner, the case main, the faults kit, the scan
-EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
 SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
 ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives, and include_roots()'
 VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
-OLD = ("src/", "tests/", "third_party/", "tools/")  # the places a row's paths may still lie in, outside its directory
-
-
-def is_table_file(path):
-    """Whether a checkout's path, from its root, is one of the table's files."""
-    return path in ("module.json", "tools/module.json") or (
-        path.endswith("/module.json") and path.split("/", 1)[0] in TOPS)
-
-
-def table_files(root):
-    """The table's files under a checkout's root, from it, sorted."""
-    root = Path(root)
-    found = [p.relative_to(root).as_posix() for top in TOPS if (root / top).is_dir()
-             for p in (root / top).rglob("module.json") if p.is_file()]
-    return sorted(found + [p for p in ("module.json", "tools/module.json") if (root / p).is_file()])
-
-
-def strings(value, known=None):
-    """Whether value is a list of strings, each of known, when given."""
-    return isinstance(value, list) and all(isinstance(v, str) and (known is None or v in known) for v in value)
-
-
-def tree_layer(where):
-    """A table file's directory's layer: foundation/<layer>/... gives its
-    layer, kits/ and products/ theirs, the root, foundation/ and tools/
-    their own."""
-    parts = where.split("/")
-    return {"": "repository", "foundation": "foundation", "tools": "tools"}.get(where) or (
-        parts[1] if parts[0] == "foundation" else parts[0])
-
-
-def fields(where, data, shallow):
-    """A table file's fields of a wrong type or an unknown value, and its
-    layer or name not its directory's (tree_layer()); a directory's name its
-    name, but the deeper of two directories of one name takes its parent's
-    as a prefix."""
-    out, parts = [], where.split("/")
-    for key, known in (("platforms", PLATFORMS), ("may_depend", MAY_DEPEND), ("from", None)):
-        if key in data and not strings(data[key], known):
-            out.append(f"{key} {data[key]!r} is not a list of " + (", ".join(known) if known else "strings"))
-    for key, known in (("kind", KINDS), ("of", None), ("name", None), ("layer", None)):
-        if key in data and not (isinstance(data[key], str) and (known is None or data[key] in known)):
-            out.append(f"{key} {data[key]!r} is not " + (f"one of {', '.join(known)}" if known else "a string"))
-    if not isinstance(data.get("contract"), (str, type(None))):
-        out.append(f"contract {data['contract']!r} is not a string or null")
-    if "parameters" in data and not (isinstance(data["parameters"], list) and all(
-            isinstance(p, dict) and set(p) == set(PARAMETER) and isinstance(p["name"], str)
-            and isinstance(p["built"], bool) for p in data["parameters"])):
-        out.append(f"parameters are not a list of objects of keys {', '.join(PARAMETER)}, its name a string, "
-                   "built true or false")
-    if "exceptions" in data and not (isinstance(data["exceptions"], list) and all(
-            isinstance(e, dict) and set(e) == set(EXCEPTION) and isinstance(e["from"], str) and strings(e["to"])
-            and e["to"] and isinstance(e["until"], str) and e["until"].strip() for e in data["exceptions"])):
-        out.append(f"exceptions are not a list of objects of keys {', '.join(EXCEPTION)}, from a string, to a "
-                   "list of strings, until words, neither empty")
-    if not isinstance(data.get("present", []), list):
-        out.append(f"present {data['present']!r} is not a list")
-    elif any(not isinstance(row, dict) or set(row) != set(ROW) for row in data.get("present", [])):
-        out.append(f"a present row lacks or adds a key of {', '.join(ROW)}")
-    else:
-        out += [f"present row {i}: {key} {row[key]!r} is not " + ("a string" if key in ("name", "layer") else
-                                                                  "a list of strings")
-                for i, row in enumerate(data.get("present", [])) for key in ROW
-                if not (isinstance(row[key], str) if key in ("name", "layer") else strings(row[key]))]
-    if out:
-        return out
-    layer = tree_layer(where)
-    name = f"{parts[-2]}_{parts[-1]}" if len(parts) > 1 and where.count("/") > shallow[parts[-1]] else parts[-1]
-    out += [f"layer {data['layer']} is not its directory's, {layer}"] if data["layer"] != layer else []
-    return out + ([f"name {data['name']} is not its directory's, {name}"]
-                  if where not in ("", "tools") and data["name"] != name else [])
-
-
-def readme(data, text):
-    """A README.md's lines that differ from its module.json: line 1 `# name`,
-    line 3 `layer L, status S`; one line of each key it has of contract,
-    parameters (each one not built so marked) and may_depend; a line naming
-    the consumers, which the table's reverse edges give, refused."""
-    lines, out = text.splitlines(), []
-    for n, want in ((1, f"# {data['name']}"), (3, f"layer {data['layer']}, status {data['status']}")):
-        out += [] if lines[n - 1:n] == [want] else [f"line {n} is not '{want}'"]
-    shown = {"Contract": "none" if data.get("contract") is None else f"`{data['contract']}`",
-             "Parameters": "; ".join(f"`{p['name']}`" + ("" if p["built"] else " (not built yet)")
-                                     for p in data.get("parameters", ())) or "none",
-             "May depend on": ", ".join(data.get("may_depend", ())) or "none"}
-    for label, key in (("Contract", "contract"), ("Parameters", "parameters"), ("May depend on", "may_depend")):
-        found = [line for line in lines if line.startswith(f"- **{label}:**")]
-        if key in data and found != [f"- **{label}:** {shown[label]}"]:
-            out.append(f"its {label} line is not '- **{label}:** {shown[label]}'")
-    return out + [f"names its consumers: {line}" for line in lines
-                  if line.startswith(("- **Consumers:**", "- **Expected consumers:**"))]
-
-
-def table_of(texts, files=None, readmes=None):
-    """The table, {"modules": [rows]}, and its errors, from the table's
-    files {path: text}; given the tracked files, what a slot's or a group's
-    directory holds and a contract checked too; given {path: text} of the
-    table directories' README.md, each checked against its module.json."""
-    errors, rows, names, later, dirs, slots, excepted = [], [], {}, [], [], [], []
-    shallow = {}  # a directory's name: the fewest parts of a table file's directory of that name
-    for where in (p.rpartition("/")[0] for p in texts if "/" in p):
-        shallow[where.rpartition("/")[2]] = min(shallow.get(where.rpartition("/")[2], 99), where.count("/"))
-    for path in sorted(texts):
-        where = path.rpartition("/")[0]
-        own = [f"{where}/README.md", f"{where}/module.json"] if where else [path]
-        try:
-            data = json.loads(texts[path])
-        except ValueError as error:
-            errors.append(f"table file {path}: does not parse: {error}")
-            continue
-        status = data.get("status") if isinstance(data, dict) else None
-        if not isinstance(status, str) or status not in KEYS:
-            errors.append(f"table file {path}: " + (f"status {status} is none of {', '.join(KEYS)}"
-                                                    if isinstance(data, dict) else "is not a JSON object"))
-            continue
-        want = set(KEYS[status]) | ({"from"} if status == "built" and data.get("present") == [] else set())
-        lacks, adds = want - set(data), set(data) - want - {"slot": {"of"}, "built": {"exceptions"}}.get(status, set())
-        if lacks or adds:
-            errors.append(f"table file {path}: " + "; ".join(
-                f"{how} {', '.join(sorted(keys))}" for how, keys in (("lacks", lacks), ("adds", adds)) if keys))
-            continue
-        wrong = fields(where, data, shallow)
-        if wrong:
-            errors += [f"table file {path}: {line}" for line in wrong]
-            continue
-        if files is not None and data.get("contract") is not None and data["contract"] not in files:
-            errors.append(f"table file {path}: contract {data['contract']} names no tracked file")
-        doc = f"{where}/README.md" if where else "README.md"
-        errors += [f"readme {doc}: {line}" for line in readme(data, readmes[doc])] if doc in (readmes or {}) else []
-        if "of" in data:
-            slots.append((path, data["of"]))
-        if data["layer"] not in FILE_LAYERS:
-            errors.append(f"table file {path}: layer {data['layer']} is none of {', '.join(FILE_LAYERS)}")
-        if data["name"] in names:
-            errors.append(f"table file {path}: name {data['name']} is {names[data['name']]}'s too")
-        names.setdefault(data["name"], path)
-        if status == "built":
-            for e in data.get("exceptions", ()):
-                if e["from"] in [row["name"] for row in data["present"]]:
-                    excepted.append({**e, "to": list(e["to"])})
-                else:
-                    errors.append(f"table file {path}: exception from {e['from']} names no row of its file")
-            mine = [dict(row, paths=list(row["paths"])) for row in data["present"]]
-            errors += [f"table file {path}: row {row['name']}: path {p} lies outside {where}/" for row in mine
-                       for p in row["paths"] if where and not p.startswith((where + "/", *OLD))
-                       and not ("/" not in p and row["layer"] == "whole-build")]
-            if mine:
-                mine[0]["paths"] += own
-            else:
-                later.append((path, data["from"], own))
-            rows += [(path, row) for row in mine]
-        else:
-            paths = [where + "/"] if status == "slot" else own
-            rows.append((path, {"name": data["name"], "layer": "no-test", "depends": [], "test_depends": [],
-                                "paths": paths}))
-            dirs.append((status, data["name"], where, own))
-    named = {}
-    for path, row in rows:
-        if row["name"] in named:
-            errors.append(f"row {row['name']}: in {named[row['name']][0]} and {path}")
-        elif names.get(row["name"], path) != path:
-            errors.append(f"row {row['name']}: in {path}, not in {names[row['name']]}, the table file of its name")
-        named.setdefault(row["name"], (path, row))
-        errors += [f"row {row['name']}: path {p} twice" for p in sorted(set(row["paths"]))
-                   if row["paths"].count(p) > 1]
-        errors += [f"row {row['name']}: path {p} holds no tracked file" for p in dict.fromkeys(row["paths"])
-                   if files is not None and not any(holds(p, f) for f in files)]
-    errors += [f"table file {path}: of {of} names no row" for path, of in slots if of not in named]
-    for path, names_from, own in later:
-        missing = [name for name in names_from if name not in named]
-        errors += [f"table file {path}: from {name} names no row" for name in missing]
-        if names_from and not missing:
-            named[names_from[0]][1]["paths"] += own
-    for status, name, where, own in dirs:
-        for f in files or ():
-            inside = f.startswith(where + "/") if status == "slot" else f.rpartition("/")[0] == where
-            if inside and f not in own:
-                errors.append(f"{status} {name}: its directory holds {f}")
-    homes = {}  # a row's table file, whose directory gives its layer in the tree
-    for path, row in rows:
-        homes.setdefault(row["name"], path)
-    return {"modules": [row for _, row in rows], "homes": homes, "exceptions": excepted}, errors
-
-
-def tree(root=ROOT, files=None):
-    """table_of() over a checkout's table files and, given the tracked
-    files, their directories' tracked README.md."""
-    root = Path(root)
-    paths = table_files(root)
-    readmes = {p: (root / p).read_text(encoding="utf-8") for p in (q.replace("module.json", "README.md") for q in paths)
-               if files is not None and p in files}
-    return table_of({p: (root / p).read_text(encoding="utf-8") for p in paths}, files, readmes)
-
-
-def load(root=ROOT):
-    """A checkout's table, {"modules": [...]}; ValueError naming its first
-    error, when it has any."""
-    table, errors = tree(root)
-    if errors:
-        raise ValueError(f"the table: {errors[0]}" + (f", and {len(errors) - 1} more" if len(errors) > 1 else ""))
-    return table
-
-
-def holds(pattern, path):
-    """Whether a table's path holds a file: a directory's prefix, or a pattern."""
-    return path.startswith(pattern) if pattern.endswith("/") else fnmatch.fnmatchcase(path, pattern)
 
 
 def under_tests(path, homes=()):
@@ -356,7 +113,8 @@ def layer_rule(table):
     place = {name: tree_layer(home.rpartition("/")[0]) for name, home in homes.items()}
     product = {name: home.split("/")[1] for name, home in homes.items() if home.startswith("products/")}
     kit, tested = test_alone(table)
-    depends = {m["name"]: m["depends"] for m in table["modules"]}
+    depends = {m["name"]: m["depends"] + (m["test_depends"] if m["name"] in tested - kit else [])
+               for m in table["modules"]}  # test code alone onto the kit by its test edges
 
     def onward(start):  # the shortest depends path from start onto the kit, or []
         paths, seen = [[start]], {start}
@@ -371,11 +129,13 @@ def layer_rule(table):
             way = " -> ".join(onward(target))
             return "a library on the test kit, which test code alone reaches" if target in kit else (
                 f"a library on {target}, test code alone" + (f", onto the test kit by {way}" if way else ""))
-        if low not in ORDER or high is None:  # outside the link graph, or a row of no table file (a test's)
+        if library and target in kit and source in tested - kit:  # test code alone: its edges test edges
+            return "a library on the test kit from test code alone, whose edge onto it is a test edge"
+        if low not in ("repository", *ORDER) or high is None:  # tools/, or a row of no table file (a test's)
             return None
         if high not in ORDER:
             return f"{target} is outside the link graph"
-        if ORDER.index(high) > ORDER.index(low) and not (source in kit and high in ORDER[1:4]):
+        if low == "repository" or ORDER.index(high) > ORDER.index(low) and not (source in kit and high in ORDER[1:4]):
             return f"up from {low} to {high}" + (", past the test kit's reach" if source in kit else "")
         if low == high == "products" and product[source] != product[target]:
             return f"a product on another product, {product[target]}"
@@ -467,11 +227,11 @@ def check(table, files, read, targets=None, left=None):
         return under_tests(f, homes)
 
     # A test file is its module's tests' when its module holds files outside test code, its README.md and
-    # module.json apart; a module whose every file is test code is its own library.
+    # module.json apart, or when its every file is test code, the kit's apart, whose edges are test edges.
     elsewhere = {name for f, name in module.items() if not test_code(f) and not f.endswith(("README.md", "module.json"))}
 
     def of_tests(f):
-        return test_code(f) and module.get(f) in elsewhere
+        return test_code(f) and module.get(f) in elsewhere | (alone - kit)
 
     shared = {m["name"]: {False: set(m["depends"]), True: set(m["depends"] + m.get("test_depends", []))}
               for m in table["modules"] if m["layer"] == "support"}
@@ -578,7 +338,7 @@ def run(source, build=None):
 
 def main(argv):
     if argv in (["--help"], ["-h"]):
-        print(__doc__.strip())
+        print(__doc__.strip() + "\n\n" + TABLE["__doc__"].strip())
         return 0
     if len(argv) not in (1, 2):
         print("usage: loop_modules.py SOURCE [BUILD]", file=sys.stderr)

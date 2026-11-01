@@ -43,10 +43,11 @@
         "location",
         "platform",
         "log",
-        "diag",
+        "diag"
+      ],
+      "test_depends": [
         "faults"
       ],
-      "test_depends": [],
       "paths": [
         "tests/child/",
         "tests/unit/child.cmake",

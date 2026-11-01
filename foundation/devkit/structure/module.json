@@ -19,10 +19,11 @@
         "location",
         "app",
         "driver",
-        "child",
+        "child"
+      ],
+      "test_depends": [
         "faults"
       ],
-      "test_depends": [],
       "paths": [
         "tests/structure/",
         "tests/support/headers/"

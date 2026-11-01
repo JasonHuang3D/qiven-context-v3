@@ -48,12 +48,12 @@ ROWS = [
     {"name": "tooling", "layer": "tooling", "depends": [], "paths": ["tools/"]}]
 for _row in ROWS:  # entry's tests on base: the selection reads the union of the two
     _row["test_depends"] = ["base"] if _row["name"] == "entry" else []
-# The table's files: a built file with two rows (base's), one with none and
-# from, a slot, a group.
+# The table's files: a built file with two rows (utc's, base its first row),
+# one with none and from, a slot, a group.
 LAYOUT = {
     "module.json": built_file("repository", "repository", [ROWS[1], ROWS[0]]),
     "foundation/module.json": group_file("foundation", "foundation"),
-    "foundation/core/base/module.json": built_file("base", "core", ROWS[3:5]),
+    "foundation/core/utc/module.json": built_file("utc", "core", ROWS[3:5]),
     "foundation/core/time/module.json": built_file("time", "core", [], **{"from": ["utc"]}),
     "foundation/devkit/test/module.json": built_file("test", "devkit", ROWS[2:3]),
     "kits/ai/module.json": slot_file("ai", "kits"),
@@ -197,7 +197,7 @@ class Choose(unittest.TestCase):
         self.assertEqual(len(tests), 6)
         table = json.loads(json.dumps(TABLE))
         next(m for m in table["modules"] if m["name"] == "utc")["paths"].append("tests/unit/utc_test.cpp")
-        tests, why = self.choose(["foundation/core/base/module.json"], table)
+        tests, why = self.choose(["foundation/core/utc/module.json"], table)
         self.assertEqual(why, {"base": "changed", "utc": "changed in the table", "entry": "depending on base",
                                "write": "depending on base", "tooling": "changed"})
         self.assertEqual(len(tests), 10)

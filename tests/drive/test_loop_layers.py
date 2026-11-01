@@ -33,8 +33,9 @@ class Rule(unittest.TestCase):
         """A library on a module of test code alone, which reaches the kit, is
         refused, its path named; its include of what the kit alone reaches too."""
         t = with_row(with_row(table(), "svc", "foundation/services/svc/module.json"), "pt",
-                     "foundation/core/pt/module.json", ["shared"])
+                     "foundation/core/pt/module.json")
         t["modules"][-2]["paths"], t["modules"][-1]["paths"] = ["src/svc/"], ["foundation/core/pt/tests/"]
+        t["modules"][-1]["test_depends"] = ["shared"]  # test code alone: onto the kit by a test edge
         t["modules"][0]["depends"].append("svc")  # the kit's edge up to services, allowed
         t["modules"][2]["depends"].append("pt")
         files = {**FILES, "src/svc/svc.hpp": b"", "foundation/core/pt/tests/pt_test.cpp": b"",
