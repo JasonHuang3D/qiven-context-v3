@@ -14,7 +14,8 @@ and records it; a run with nothing changed runs none; a change narrows the
 step by --tests-from-file and its line names the modules and why; a
 removed file selects its module; a failed step leaves its record, so that
 its change stays selected; the modules' check failing fails the step,
-which runs the check and no test, and its line names the error; tier 3
+which runs the check and no test, and its line names the error, by
+Windows' command too, the check run by the interpreter; tier 3
 narrows nothing."""
 
 import contextlib
@@ -352,6 +353,31 @@ class Record(unittest.TestCase):
         self.assertTrue(argv[2].endswith("loop_modules.py"), argv)
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("no codemodel reply", errors[0])
+
+    def test_check_fails_on_windows(self):
+        """The check failing under Windows' command: the step runs the check
+        by the interpreter, no tool of the pins, and fails, its line naming
+        the check's error, its log the check's own lines."""
+        unit = LOOP.plan("1", "windows", ["windows-msvc"])[0]
+        unit.select = SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
+        logs = self.root / "build" / "loop"
+        windows = LOOP.WINDOWS["windows_command"](self.root, logs, sys.executable, {}, (), LOOP.binary_dirs())
+
+        def command(unit, step):
+            if step.name == "fake":
+                return windows(unit, step)
+            argv = LOOP.local_argv(unit, step, LOOP.binary_dirs())
+            return None if argv is None else [sys.executable, "-I", "-c", ""]
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            LOOP.drive(LOOP.Report(LOOP.LINES), [unit], self.root, logs, command, dict(os.environ))
+        line = [x for x in out.getvalue().splitlines() if x.startswith("windows-msvc fake:")][0]
+        self.assertIn("fake: FAIL", line)
+        self.assertIn("the modules' check failed, no test run: the check could not run: ", line)
+        self.assertIn("no codemodel reply", line)
+        log = next(logs.rglob("*-fake.log")).read_text(encoding="utf-8", errors="replace")
+        self.assertIn("modules: the check could not run: ", log)
 
     def test_emptied_tree(self):
         """Tier 3 empties the tree and narrows nothing; tier 1 after it,

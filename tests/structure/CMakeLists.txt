@@ -3,7 +3,9 @@
 # /showIncludes, reads each object's symbols and the runtimes' names with
 # dumpbin, the link edges with CMake's --graphviz, and builds and records
 # its planted project (plants.py), into build/<preset>/structure/. The
-# structure tests read those files and start no process.
+# structure tests read those files and start no process. The records'
+# trees are tools/loop_modules.py's, read from tools/trees.json: both
+# are the step's inputs.
 if(NOT MSVC)
   message(FATAL_ERROR "qiven3: QIVEN3_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
 endif()
@@ -47,7 +49,7 @@ add_custom_command(OUTPUT "${qiven3_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN3_DUMPBIN}"
   DEPENDS ${qiven3_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py" "${CMAKE_CURRENT_SOURCE_DIR}/plants.py"
-    "${qiven3_commands}"
+    "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven3_commands}"
   COMMENT "Writing the structure records"
   VERBATIM)
 add_custom_target(qiven3_structure_records ALL DEPENDS "${qiven3_index}")

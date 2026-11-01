@@ -188,6 +188,8 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     qiven3-fault qiven3-fault-import
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${qiven3_runner_dir}/ctest_tests.cmake" "${qiven3_runner_dir}/list_tests.py" ${qiven3_python_files}
+    # the table's reader, which labels each test by its module, and the trees it reads
+    "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/trees.json"
   COMMENT "Listing the C++ cases and the Python tests for CTest"
   VERBATIM)
 add_custom_target(qiven3_ctest_tests ALL DEPENDS "${qiven3_tests_file}")
