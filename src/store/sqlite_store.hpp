@@ -57,6 +57,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -193,7 +194,7 @@ public:
     // (false: forgotten, a forget, or no body; a row lost, StoreCorrupt), each on its allocator.
     void header(std::string_view id, String& line) {
         peak_ = 0;
-        (void)bytes(Operation::header, id, &line, nullptr);
+        std::ignore = bytes(Operation::header, id, &line, nullptr);
     }
     bool body(std::string_view id, String& record) {
         peak_ = 0;
@@ -237,7 +238,7 @@ public:
     }
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
         out.clear();
-        (void)each_keyed(scope, kind, [&out](const Id& id) {
+        std::ignore = each_keyed(scope, kind, [&out](const Id& id) {
             out.push_back(id);
             return false;
         });

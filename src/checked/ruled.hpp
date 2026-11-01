@@ -31,6 +31,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
 #include "checked/reads.hpp"
@@ -178,8 +179,8 @@ public:
                 return counts;
             }
             if (body) {
-                (void)S::body(id.view(), [&](std::string_view line, const std::string_view* held,
-                                             const reads::Chars& chars) {
+                std::ignore = S::body(id.view(), [&](std::string_view line, const std::string_view* held,
+                                                     const reads::Chars& chars) {
                     const Header h = reads::header_of(id.view(), line, chars, at);
                     if (held != nullptr) {
                         reads::check_body(S::platform(), id.view(), *held, h, chars, at);

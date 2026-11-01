@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -62,9 +63,10 @@ int main(int argc, char** argv) {
     // its pages on the heap, outliving it, so that no frame holds them.
     const auto pages = std::make_unique<qiven3::test::Journal::Pages>();
     qiven3::test::Journal journal(*pages, "runner");
+    const std::span<char*> given(argv, static_cast<std::size_t>(argc));
     std::vector<std::string_view> args;
-    for (int i = 1; i < argc; ++i) {
-        args.emplace_back(argv[i]);
+    for (std::size_t i = 1; i < given.size(); ++i) {
+        args.emplace_back(given[i]);
     }
     return qiven::runner::run_main(args, qiven::runner::registry(), std::cout, std::cerr, journal.log(),
                                   &qiven3::test::case_ended);

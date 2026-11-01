@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <tuple>
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
@@ -118,7 +119,7 @@ void WriteView::targets(std::string_view id, Vector<Id>& out) { targets_of(*c_, 
 
 void WriteView::keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
     out.clear();
-    (void)each_keyed(scope, kind, [&out](const Id& id) {
+    std::ignore = each_keyed(scope, kind, [&out](const Id& id) {
         out.push_back(id);
         return false;
     });

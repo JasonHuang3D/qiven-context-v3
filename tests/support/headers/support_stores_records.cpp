@@ -3,8 +3,10 @@
 
 #include "support/stores/records.hpp"
 
+#include <concepts>
+
 namespace qiven3::test::records {
 
-static_assert(sizeof(Rec) > 0);
+static_assert(std::copy_constructible<Rec>);
 
 }  // namespace qiven3::test::records

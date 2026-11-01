@@ -54,6 +54,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -331,14 +332,14 @@ public:
         return look(Operation::header, [&](state::StateView& v) { return v.line(id, line); });
     }
     void targets(std::string_view id, std::string_view scope, Vector<Id>& out) {
-        (void)look(Operation::scan, [&](state::StateView& v) {
+        std::ignore = look(Operation::scan, [&](state::StateView& v) {
             v.targets(id, scope, out);
             return true;
         });
     }
     void keyed(std::string_view scope, std::string_view kind, Vector<Id>& out) {
         out.clear();
-        (void)each_keyed(scope, kind, [&out](const Id& id) {
+        std::ignore = each_keyed(scope, kind, [&out](const Id& id) {
             out.push_back(id);
             return false;
         });

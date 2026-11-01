@@ -119,6 +119,6 @@ struct Held {
     [[nodiscard]] std::size_t in_slots() const { return slots.used * slots.size; }
     [[nodiscard]] std::size_t top() const { return peak + (slots.peak * slots.size); }
 };
-inline Held held(Rig& rig) { return {rig.engine->heap().used(), rig.engine->heap().peak(), rig.engine->slots()}; }
+inline Held held(const Rig& rig) { return {rig.engine->heap().used(), rig.engine->heap().peak(), rig.engine->slots()}; }
 
 }  // namespace qiven3::test::sqlite_rig

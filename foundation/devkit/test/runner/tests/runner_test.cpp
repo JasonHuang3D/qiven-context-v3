@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstring>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -100,7 +101,7 @@ void* held_slots = nullptr;
 void sample_counted_held(Context& qiven_ctx) {
     static_cast<void>(qiven_ctx.counted.arena(4096).allocate(24, 8));
     void* slot = qiven_ctx.counted.pool(32, 4096).allocate();
-    std::memcpy(slot, static_cast<const void*>(&held_slots), sizeof held_slots);
+    std::memcpy(slot, std::as_bytes(std::span(&held_slots, 1)).data(), sizeof held_slots);
     held_slots = slot;
     static_cast<void>(qiven_ctx.counted.arena(64));
 }

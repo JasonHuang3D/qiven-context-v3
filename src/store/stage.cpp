@@ -4,6 +4,8 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <span>
 #include <string_view>
 
 #include "memory/memory.hpp"
@@ -23,7 +25,8 @@ void refuse_full(const AtView& at, std::uint64_t size, std::uint64_t count, cons
 
 void refuse_kind(const AtView& at, std::size_t index) {
     std::array<char, 32> detail{'e', 'n', 't', 'r', 'y', ' '};
-    const std::to_chars_result r = std::to_chars(detail.data() + 6, detail.data() + detail.size(), index);
+    const std::span<char> digits = std::span(detail).subspan<6>();
+    const std::to_chars_result r = std::to_chars(digits.data(), std::to_address(digits.end()), index);
     throw StoreError(Code::forget_kind, name(at.op), at.path,
                      std::string_view(detail.data(), static_cast<std::size_t>(r.ptr - detail.data())));
 }

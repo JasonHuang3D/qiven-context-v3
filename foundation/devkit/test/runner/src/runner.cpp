@@ -83,7 +83,7 @@ int Counted::holding(std::ostream& out) const {
 
 std::size_t Counted::held() const noexcept {
     std::size_t sum = 0;
-    const auto each = [&](const auto& list) {
+    const auto each = [&](const auto& list) noexcept {
         for (const auto& owned : list) {
             sum = qiven3::memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
         }
