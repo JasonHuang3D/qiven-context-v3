@@ -61,6 +61,12 @@ while(qiven3_dirs)
 endwhile()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
+# The targets that take test code's analysis, in every preset's
+# test-targets.txt, which tests/structure/test_exemptions.py holds to its list.
+qiven3_test_targets(qiven3_test_targets)
+list(JOIN qiven3_test_targets "\n" qiven3_text)
+file(WRITE "${PROJECT_BINARY_DIR}/test-targets.txt" "${qiven3_text}\n")
+
 # The analysis preset over the sources the analysis reads, by their paths
 # (qiven3_analysed): those under the analysed roots (tests/child/ holds
 # qiven3-child, the Windows adapter's children) and those under the layers'
@@ -72,6 +78,7 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 if(QIVEN_ANALYZE STREQUAL "analysis")
   set(qiven3_tidy_targets "")
   set(qiven3_tidy_sources "")
+  set(qiven3_test_sources "")
   set(qiven3_optioned "")
   set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
   while(qiven3_dirs)
@@ -87,21 +94,27 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
         continue()
       endif()
       list(APPEND qiven3_tidy_targets ${target})
+      # A target whose own sources are all test code (qiven3_test_target)
+      # takes test code's rule set and, each source's step, its clang-tidy
+      # configuration; test-targets.txt lists those targets (qiven3_test_targets).
+      qiven3_test_target("${dir}" ${target} test_target)
+      set(options ${qiven_analysis_options})
+      if(test_target)
+        set(options ${qiven_analysis_test_options})
+      endif()
       get_target_property(sources ${target} SOURCES)
       foreach(source IN LISTS sources)
+        qiven3_source_path("${dir}" "${source}" rel)
         get_filename_component(source "${source}" ABSOLUTE BASE_DIR "${dir}")
-        file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
-        qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
-        if(generated)  # a generated source sits with its directory's own
-          get_filename_component(name "${source}" NAME)
-          file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}/${name}")
-        endif()
         qiven3_analysed("${rel}" read)
         if(read AND source MATCHES "${qiven3_source_suffix}")
           if(NOT "${dir}|${source}" IN_LIST qiven3_optioned)  # once a directory
             list(APPEND qiven3_optioned "${dir}|${source}")
             set_property(SOURCE "${source}" TARGET_DIRECTORY ${target} APPEND PROPERTY COMPILE_OPTIONS
-              ${qiven_analysis_options})
+              ${options})
+            if(test_target)
+              list(APPEND qiven3_test_sources "${source}")
+            endif()
           endif()
           list(APPEND qiven3_tidy_sources "${source}")
         endif()
@@ -171,6 +184,10 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
     set(config_arg "")
     if(generated AND nearest)
       set(config_arg "--config-file=${nearest}")
+    endif()
+    if("${source}" IN_LIST qiven3_test_sources)
+      set(config_arg "--config-file=${qiven_tidy_test_config}")
+      list(APPEND configs "${qiven_tidy_test_config}")
     endif()
     add_custom_command(OUTPUT "${stamp}"
       COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" ${config_arg} ${qiven3_filter_args} --quiet

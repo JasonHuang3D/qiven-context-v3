@@ -8,11 +8,12 @@ punctuators outside comments and literals, and outside the preprocessor's
 directives, which B27 alone reads; B27 reads comments too. B25's objects and
 B28's members are read by a statement's depth: each brace is a namespace's,
 a class's or another's (a function's, an initializer's, an enum's). B18
-holds in every .hpp and .cpp file; B19 to B31 in those of in_scope(): by
-the tree's table (layers.py), each library's of core to products, the test
-kit's whole and tests/support/, a vendor's apart; test code, the table's
-(the top-level tests/ and a module's tests/), is a test's for B24. What
-tokens cannot see, the analysis
+holds in every .hpp and .cpp file; B27 in every file the analysis reads
+(layers.Layers.analysed); the other rules of B19 to B31 in those of
+in_scope(): by the tree's table (layers.py), each library's of core to
+products, the test kit's whole and tests/support/, a vendor's apart; test
+code, the table's (the top-level tests/ and a module's tests/), is a test's
+for B24. What tokens cannot see, the analysis
 preset's checks read (test_analysis.py). Each rule's blind spots, the
 text's and then the tokens' own:
 - B19: an owning raw pointer or C handle; B20: none of the text's, and
@@ -394,24 +395,37 @@ def joined(tokens, i):
     return False
 
 
-def token_rules(tokens, comments, skip, subset, test, out):
+def silences(rest):
+    """Whether a pragma's tokens turn findings off: warning's disable,
+    suppress or push to level 0, or clang's diagnostic ignored."""
+    words = [word for word in rest if word != "("]
+    if words[:1] == ["warning"]:
+        return bool({"disable", "suppress"} & set(words)) or words[1:4] == ["push", ",", "0"]
+    return words[:3] == ["clang", "diagnostic", "ignored"]
+
+
+def token_rules(tokens, comments, skip, subset, analysed, test, out):
     for text, line in comments:
         words = "".join(c if c.isalnum() or c == "_" else " " for c in text).split()
-        if subset and any(w.startswith("NOLINT") for w in words):
+        if analysed and any(w.startswith("NOLINT") for w in words):
             out("B27", "nolint", line, "NOLINT in a comment")
     for i, (kind, value, line) in enumerate(tokens):
         prev = tokens[i - 1][1] if i else ""
         nxt = tokens[i + 1][1] if i + 1 < len(tokens) else ""
         if line in skip:
-            if subset and value == "pragma" and prev == "#":
+            if analysed and value == "pragma" and prev == "#":
                 rest = [t[1] for t in tokens[i + 1:i + 8] if t[2] == line]
-                if rest[:1] == ["warning"] and {"disable", "suppress"} & set(rest):
-                    out("B27", "pragma", line, "#pragma warning " + " ".join(rest[1:]))
+                if silences(rest):
+                    out("B27", "pragma", line, "#pragma " + " ".join(rest))
             continue
         if kind != "id":
             continue
         if value in B18_NAMES:
             out("B18", "", line, value)
+        if analysed and value == "suppress" and prev == "::" and i >= 2 and tokens[i - 2][1] == "gsl":
+            out("B27", "suppress", line, "gsl::suppress")
+        elif analysed and value in ("__pragma", "_Pragma") and silences([t[1] for t in tokens[i + 1:i + 8]]):
+            out("B27", "pragma", line, value + " turning findings off")
         if not subset:
             continue
         if value == "new":
@@ -445,12 +459,6 @@ def token_rules(tokens, comments, skip, subset, test, out):
                 else "std::thread, where core's threads are std::jthread")
         elif value == "thread_local":
             out("B25", "thread_local", line, "thread_local")
-        elif value == "suppress" and prev == "::" and i >= 2 and tokens[i - 2][1] == "gsl":
-            out("B27", "suppress", line, "gsl::suppress")
-        elif value in ("__pragma", "_Pragma"):
-            rest = [t[1] for t in tokens[i + 1:i + 8]]
-            if "warning" in rest and {"disable", "suppress"} & set(rest):
-                out("B27", "pragma", line, value + " warning")
         elif value in B29_STD and after_std(tokens, i):
             out("B29", "", line, "std::" + value)
         elif value == "lock" and nxt == "(" and i + 2 < len(tokens) and tokens[i + 2][1] == ")" \
@@ -499,7 +507,7 @@ def config_rules(root, files, add):
     for rel in files:
         name = rel.rsplit("/", 1)[-1]
         text = (root / rel).read_bytes().decode("utf-8", "replace")
-        if name == ".clang-tidy":
+        if name.endswith(".clang-tidy"):
             on = tidy_inherits(text)
             for entry in tidy_checks(text):
                 if fnmatchcase(B26_TIDY, entry.lstrip("-")):
@@ -539,6 +547,6 @@ def check(root, files, add, tree):
             add(rule, rel, kind, f"line {line}: {detail}", what)
 
         skip = directive_lines(tokens, text)
-        token_rules(tokens, comments, skip, subset, tree.test_code(rel), out)
+        token_rules(tokens, comments, skip, subset, tree.analysed(rel), tree.test_code(rel), out)
         if subset:
             object_rules([t for t in tokens if t[2] not in skip], out)

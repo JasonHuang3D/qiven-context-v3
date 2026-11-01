@@ -15,6 +15,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.structure import layers
+
 ROOT = Path(__file__).resolve().parents[2]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
@@ -42,16 +44,6 @@ def shown(show, root=ROOT, paths=()):
         args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}"]
         done = subprocess.run([*args, "-P", str(SCRIPT)], capture_output=True, text=True, timeout=120, check=True)
     return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
-
-
-def analysed(path):
-    """The rule, by Python's reader of test code: under an analysed root, as
-    it stands or as the top-level tests/ would hold it, or under a layer's
-    tree and no test code."""
-    test = LOOP["test_path"](path, HOMES)
-    if any(f"{where}/".startswith(f"{root}/") for where in (path, test or "") for root in TREES["analysed"]):
-        return True
-    return test is None and any(path.startswith(f"{layer}/") for layer in TREES["layers"])
 
 
 def scene():
@@ -330,9 +322,12 @@ class TreesBuild(unittest.TestCase):
                           "foundation/devkit/test/runner/src/runner.cpp"])
 
     def test_one_reader(self):
-        """CMake and Python read test code alike, and so the analysis's choice:
-        every file of the tree, and files planted under a tests/ that is a
-        module's, nested in one, or of no module's directory."""
+        """CMake and Python read test code alike, and so the analysis's choice,
+        CMake's qiven3_analysed and the structure checks' (B27's) reader,
+        layers.Layers.analysed: every file of the tree, and files planted
+        under a tests/ that is a module's, nested in one, or of no module's
+        directory."""
+        analysed = layers.of(ROOT).analysed
         planted = ("src/tests/x.cpp", "kits/ai/src/tests/x.cpp", "kits/ai/include/qiven/ai/tests/h.hpp",
                    "foundation/core/memory/src/tests/x.cpp", "foundation/core/memory/tests/x.cpp",
                    "foundation/core/memory/tests/support/x.hpp", "foundation/core/memory/tests/child/x.cpp",

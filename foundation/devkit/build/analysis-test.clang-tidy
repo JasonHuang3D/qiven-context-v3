@@ -1,0 +1,6 @@
+# The configuration of the targets whose sources are all test code, on the
+# configuration of each source's own directory: the build names this file
+# for those sources' steps, and a header takes the source it is compiled
+# through. A check off here is an entry of analysis-exemptions.json with the
+# scope "test code".
+InheritParentConfig: true

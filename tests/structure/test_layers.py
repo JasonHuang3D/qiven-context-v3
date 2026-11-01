@@ -190,6 +190,28 @@ class Subset(unittest.TestCase):
             *(("B25", "src/x/state.cpp", "object", f"line {n}") for n in (1, 2, 3)),
         ]))
 
+    def test_b27_analysed(self):
+        """B27 over every file the analysis reads, beyond the subset's, each
+        form refused; not in test code the analysis does not read."""
+        forms = ("// NOLINTBEGIN\n#pragma warning(disable : 26426)\n#pragma warning(push, 0)\n"
+                 "#pragma warning(push,0)\n#pragma clang diagnostic ignored \"-Wunused\"\n"
+                 "__pragma(warning(push, 0))\n[[gsl::suppress(\"r.11\")]] int a;\n")
+        kinds = ["nolint", "pragma", "pragma", "pragma", "pragma", "pragma", "suppress"]
+        files = ("foundation/devkit/test/runner/src/runner.cpp", "src/x/x.cpp", "tests/child/child.cpp",
+                 "tests/support/s.hpp")
+        root = planted(self, {name: forms for name in (*files, "tests/unit/x_test.cpp", "third_party/v/v.c")})
+        self.assertEqual(sorted((where, kind, detail) for rule, where, kind, detail in subset_findings(root)
+                                if rule == "B27"),
+                         sorted((name, kind, f"line {line}") for name in files
+                                for line, kind in enumerate(kinds, 1)))
+
+    def test_b27_quiet_pragmas(self):
+        """A pragma that turns nothing off is no finding: warning's push and
+        pop, clang's diagnostic push."""
+        root = planted(self, {"src/x/x.cpp": "#pragma warning(push)\n#pragma warning(pop)\n"
+                                             "#pragma clang diagnostic push\n#pragma once\n"})
+        self.assertEqual(subset_findings(root), [])
+
     def test_named_objects(self):
         """B25's finding names its object, which the allowance matches: the
         third global's name, not the two the allowance names."""

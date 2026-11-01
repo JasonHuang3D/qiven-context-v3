@@ -25,6 +25,8 @@ TESTS = f"{MODULES['TESTS']}/"  # the top-level test tree
 SUPPORT = f"{MODULES['TREE_FILE']['support']}/"  # the tests' shared support, in the subset with the libraries
 CHILD = f"{MODULES['TREE_FILE']['child']}/"  # the test tree's child processes
 TOOLS = "tools/"  # the tools' tree: no layer's code, whichever row holds its files
+ANALYSED = tuple(f"{root}/" for root in MODULES["TREE_FILE"]["analysed"])  # the analysis preset's roots
+LAYER_TREES = tuple(f"{layer}/" for layer in MODULES["TREE_FILE"]["layers"])  # the layers' trees
 
 
 def walked(rel):
@@ -63,6 +65,14 @@ class Layers:
 
     def test_code(self, rel):
         return MODULES["under_tests"](rel, self.dirs)
+
+    def analysed(self, rel):
+        """Whether the analysis reads rel, as trees.cmake's qiven3_analysed
+        rules: under an analysed root, as it stands or as the top-level
+        tests/ would hold it, or under a layer's tree and no test code."""
+        test = MODULES["test_path"](rel, self.dirs)
+        return any(where.startswith(root) for where in (rel, test or "") for root in ANALYSED) or (
+            test is None and rel.startswith(LAYER_TREES))
 
     def as_tests(self, rel):
         """rel as the top-level tests/ would hold it: a module's own test

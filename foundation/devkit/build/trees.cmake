@@ -100,6 +100,79 @@ function(qiven3_test_path path out)
   endwhile()
 endfunction()
 
+# qiven3_source_path(<dir> <source> <out>): a source of a target defined in
+# dir, from the root, as qiven3_analysed reads it: a generated one as its
+# directory's own; empty for the diagnostic entry's objects, which every
+# executable takes (qiven_executable) and are none of its own sources.
+function(qiven3_source_path dir source out)
+  set(${out} "" PARENT_SCOPE)
+  if(source MATCHES "^[$]<TARGET_OBJECTS:qiven3_diag_entry[A-Za-z0-9_]*>$")
+    return()
+  endif()
+  get_filename_component(source "${source}" ABSOLUTE BASE_DIR "${dir}")
+  qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
+  if(generated)
+    get_filename_component(name "${source}" NAME)
+    set(source "${dir}/${name}")
+  endif()
+  file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
+  set(${out} "${rel}" PARENT_SCOPE)
+endfunction()
+
+# qiven3_test_target(<dir> <target> <out>): TRUE where target, defined in
+# dir, has own sources, read by qiven3_source_path, and each is test code,
+# but qiven3_headers: its units sit in the tests' tree and stand for every
+# library's headers.
+function(qiven3_test_target dir target out)
+  set(${out} FALSE PARENT_SCOPE)
+  if(target STREQUAL "qiven3_headers")
+    return()
+  endif()
+  set(own FALSE)
+  get_target_property(sources ${target} SOURCES)
+  foreach(source IN LISTS sources)
+    qiven3_source_path("${dir}" "${source}" rel)
+    qiven3_test_path("${rel}" test)
+    if(NOT rel STREQUAL "" AND test STREQUAL "")
+      return()
+    elseif(NOT rel STREQUAL "")
+      set(own TRUE)
+    endif()
+  endforeach()
+  set(${out} ${own} PARENT_SCOPE)
+endfunction()
+
+# qiven3_test_targets(<out>): the project's compiled targets, a plant's
+# (QIVEN3_PLANT) aside, that take test code's analysis: qiven3_test_target's,
+# with a source the analysis reads (qiven3_analysed).
+function(qiven3_test_targets out)
+  set(found "")
+  set(dirs "${PROJECT_SOURCE_DIR}")
+  while(dirs)
+    list(POP_FRONT dirs dir)
+    get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
+    list(APPEND dirs ${subdirs})
+    get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(target IN LISTS targets)
+      get_target_property(type ${target} TYPE)
+      get_target_property(plant ${target} QIVEN3_PLANT)
+      if(type MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|OBJECT_LIBRARY|EXECUTABLE)$" AND NOT plant)
+        qiven3_test_target("${dir}" ${target} test)
+        get_target_property(sources ${target} SOURCES)
+        foreach(source IN LISTS sources)
+          qiven3_source_path("${dir}" "${source}" rel)
+          qiven3_analysed("${rel}" read)
+          if(test AND read AND rel MATCHES "${qiven3_source_suffix}")
+            list(APPEND found ${target})
+            break()
+          endif()
+        endforeach()
+      endif()
+    endforeach()
+  endwhile()
+  set(${out} ${found} PARENT_SCOPE)
+endfunction()
+
 # qiven3_analysed(<path> <out>): TRUE where the analysis reads the file at
 # path, from the root: under an analysed root, as it stands or as the
 # top-level tree would hold it, or under a layer's tree and no test code, a

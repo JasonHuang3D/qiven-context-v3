@@ -386,6 +386,14 @@ elseif(QIVEN_ANALYZE STREQUAL "analysis")
   set(qiven_analysis_options /analyze /analyze:pluginEspXEngine.dll
     "/analyze:ruleset${CMAKE_CURRENT_LIST_DIR}/analysis.ruleset"
     "/analyze:rulesetdirectory${qiven_rule_sets}" /analyze:external- /external:anglebrackets /external:W0)
+  # The targets whose sources are all test code take their own rule set and
+  # clang-tidy configuration, each on the general one (analysis-exemptions.json).
+  # A native path: from a forward-slashed one /analyze cannot find the rule
+  # set's include, C6800, and ignores the rule set.
+  file(TO_NATIVE_PATH "${CMAKE_CURRENT_LIST_DIR}/analysis-test.ruleset" qiven_test_rule_set)
+  string(REPLACE "/analyze:ruleset${CMAKE_CURRENT_LIST_DIR}/analysis.ruleset" "/analyze:ruleset${qiven_test_rule_set}"
+    qiven_analysis_test_options "${qiven_analysis_options}")
+  set(qiven_tidy_test_config "${CMAKE_CURRENT_LIST_DIR}/analysis-test.clang-tidy")
   find_program(QIVEN_CLANG_TIDY clang-tidy HINTS "$ENV{ProgramFiles}/LLVM/bin" REQUIRED)
   execute_process(COMMAND "${QIVEN_CLANG_TIDY}" --version OUTPUT_VARIABLE qiven_tidy_version)
   string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" qiven_tidy_version "${qiven_tidy_version}")
