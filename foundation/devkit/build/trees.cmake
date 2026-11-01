@@ -194,9 +194,9 @@ function(qiven3_includes root sources out)
   elseif(NOT Python3_EXECUTABLE)
     message(FATAL_ERROR "qiven3: no interpreter (Python3_EXECUTABLE) to read the includes of the header units")
   endif()
-  if(NOT CMAKE_SCRIPT_MODE_FILE)
+  if(NOT CMAKE_SCRIPT_MODE_FILE)  # the sources and the lexer that reads them
     list(TRANSFORM sources PREPEND "${root}/" OUTPUT_VARIABLE read)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${read})
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${read} "${qiven3_lexer}")
   endif()
   execute_process(COMMAND "${Python3_EXECUTABLE}" -I "${qiven3_lexer}" ${sources} WORKING_DIRECTORY "${root}"
     OUTPUT_VARIABLE found RESULT_VARIABLE status)
@@ -236,14 +236,47 @@ function(qiven3_includes root sources out)
   set(${out} ${included} PARENT_SCOPE)
 endfunction()
 
+# qiven3_listed(<root> <source> <out>): TRUE where the CMakeLists.txt nearest
+# above source, from the root, names it outside its comments and its source
+# properties, as a path from that file's directory, alone or after a
+# variable's directory: a source a target's list holds, on whichever system
+# its branch is taken, which this configure's targets alone cannot tell.
+function(qiven3_listed root source out)
+  set(${out} FALSE PARENT_SCOPE)
+  get_filename_component(dir "${source}" DIRECTORY)
+  while(NOT EXISTS "${root}/${dir}/CMakeLists.txt")
+    if(dir STREQUAL "")
+      return()
+    endif()
+    get_filename_component(dir "${dir}" DIRECTORY)
+  endwhile()
+  set(file "${root}/${dir}/CMakeLists.txt")
+  if(NOT CMAKE_SCRIPT_MODE_FILE)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${file}")
+  endif()
+  file(READ "${file}" text)
+  string(REGEX REPLACE "#[^\n]*" "" text "${text}")
+  string(REGEX REPLACE "set_source_files_properties[^)]*[)]" "" text "${text}")
+  set(name "${source}")
+  if(NOT dir STREQUAL "")
+    string(LENGTH "${dir}/" at)
+    string(SUBSTRING "${source}" ${at} -1 name)
+  endif()
+  string(REGEX REPLACE "([][.^$|()*+?{}\\\\])" "\\\\\\1" name "${name}")
+  if("\n${text}\n" MATCHES "([ \t\r\n\"(]|[}]/)${name}[ \t\r\n\")]")
+    set(${out} TRUE PARENT_SCOPE)
+  endif()
+endfunction()
+
 # qiven3_header_units(<root> <out>): the units of tests/support/headers/ of
 # the checkout at root, one for each header of a suffix of
 # qiven3_header_suffixes the analysis reads (under an analysed root or a
 # layer's tree) that has no source of its own, so that the analysis reads it
-# whatever includes it: an own source stands in for a unit where it includes
-# its header (qiven3_includes). An error names each such header with no unit,
-# two headers of one unit, a unit no such header wants, and a unit that does
-# not include its header.
+# whatever includes it: an own source stands in for a unit where its target
+# compiles it (qiven3_listed) and it includes its header (qiven3_includes).
+# An error names each such header with no unit, two headers of one unit, a
+# unit no such header wants, and a unit that does not include its header.
+# Every configure with an interpreter runs it (tests/CMakeLists.txt).
 function(qiven3_header_units root out)
   set(depends "")
   if(NOT CMAKE_SCRIPT_MODE_FILE)
@@ -271,12 +304,17 @@ function(qiven3_header_units root out)
     endif()
     if(NOT beside OR NOT EXISTS "${root}/${beside}")
       set(beside "-")
+    else()
+      qiven3_listed("${root}" "${beside}" listed)
+      if(NOT listed)  # an own source no target compiles stands in for no unit
+        set(beside "?${beside}")
+      endif()
     endif()
     list(APPEND reads "${header}")
     list(APPEND owns "${beside}")
   endforeach()
   set(sources ${owns})
-  list(REMOVE_ITEM sources "-")
+  list(FILTER sources EXCLUDE REGEX "^[-?]")
   list(TRANSFORM units PREPEND "tests/support/headers/" OUTPUT_VARIABLE paths)
   qiven3_includes("${root}" "${sources};${paths}" included)
   set(wanted "")
@@ -286,7 +324,9 @@ function(qiven3_header_units root out)
       continue()
     endif()
     set(not_own "")
-    if(NOT own STREQUAL "-")
+    if(own MATCHES "^[?](.+)")
+      set(not_own " (its own source ${CMAKE_MATCH_1} is in no target's sources)")
+    elseif(NOT own STREQUAL "-")
       set(not_own " (its own source ${own} does not include it)")
     endif()
     qiven3_header_unit("${root}" "${header}" unit ignored)

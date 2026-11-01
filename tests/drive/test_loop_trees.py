@@ -50,6 +50,23 @@ class Chosen(unittest.TestCase):
         why, _ = SELECT["choose"](table, rows, ["tools/watch.py"])
         self.assertEqual(SELECT["picked"](tests, why, names)[0], [tests[3][0]])
 
+    def test_lexer_chooses_its_readers(self):
+        """On the checkout's table, a change to the structure checks' lexer
+        alone: every structure test and the build's tests of the header
+        units, which read it, and no other module's."""
+        table = SELECT["MODULES"]["load"]()
+        rows = {m["name"]: m for m in table["modules"]}
+        names = {m["name"] for m in table["modules"]}
+        tests = [("tests.structure.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
+                 ("tests.drive.test_trees_build.TreesBuild.test_header_units", ["fake", "build"]),
+                 ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
+                 ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
+        why, every = SELECT["choose"](table, rows, ["tests/structure/lexer.py"])
+        self.assertIsNone(every)
+        chosen, reasons = SELECT["picked"](tests, why, names)
+        self.assertEqual(chosen, [t for t, _ in tests[:2]])
+        self.assertIn("2 tests reading tests/structure/lexer.py", reasons)
+
 
 if __name__ == "__main__":
     unittest.main()

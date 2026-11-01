@@ -9,11 +9,12 @@
 # taken by no binary.
 #
 # The units, their names and the errors are foundation/devkit/build/trees.cmake's
-# (qiven3_header_units): a unit's name carries its header's module, and
+# (qiven3_header_units), which every configure with an interpreter runs
+# (tests/CMakeLists.txt): a unit's name carries its header's module, and
 # configure fails on such a header with no unit, on two headers of one unit,
 # on a unit no such header wants, and on a unit that does not include its
-# header (an own source that does not include it stands in for none).
-qiven3_header_units("${PROJECT_SOURCE_DIR}" qiven3_header_units)
+# header (an own source that does not include it, or that no target
+# compiles, stands in for none).
 
 add_library(qiven3_headers OBJECT ${qiven3_header_units})
 # faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,

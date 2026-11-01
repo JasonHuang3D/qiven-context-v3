@@ -58,6 +58,8 @@ def scene():
              "kits/scene/src/detail.hpp": "", "kits/scene/src/scene.cpp": "",
              "kits/scene/include/qiven/scene/seen.hpp": "",
              "kits/scene/src/seen.cpp": '#include "qiven/scene/seen.hpp"\n', "kits/scene/include/qiven/scene/only.hpp": "", "kits/scene/tests/case.hpp": "",
+             "kits/scene/CMakeLists.txt": "add_library(scene src/scene.cpp src/seen.cpp)\n",
+             "src/m/CMakeLists.txt": 'if(WIN32)\n  add_library(m "${dir}/y.cpp")\nendif()\n',
              "src/m/x.hpp": "", "src/m/y.hpp": "", "src/m/y.cpp": '#include "y.hpp"\n', "tests/support/m/x.hpp": "",
              "tests/child/c.hpp": "", "tests/driver/d.hpp": ""}
     includes = {"business_src_detail.cpp": "../../../kits/business/src/detail.hpp", "child_c.cpp": "child/c.hpp",
@@ -202,6 +204,26 @@ class TreesBuild(unittest.TestCase):
             self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp", errors)
             files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
             self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
+
+    def test_own_source_compiled(self):
+        """An own source stands in for its header's unit only where the
+        CMakeLists.txt above it lists it, on whichever system: one dropped
+        from its list and left in place, named in a comment, a source
+        property or under another directory, or under no CMakeLists.txt,
+        leaves its header needing one."""
+        unit = "tests/support/headers/"
+        path = "src/m/CMakeLists.txt"
+        for text in ("add_library(m)\n", "add_library(m) # y.cpp\n", "add_library(m other/y.cpp)\n", None,
+                     'add_library(m)\nset_source_files_properties("${dir}/y.cpp" PROPERTIES COMPILE_OPTIONS -x)\n'):
+            files, _ = scene()
+            files[path] = text
+            files = {name: body for name, body in files.items() if body is not None}
+            status, _, errors = self.units(files)
+            self.assertNotEqual(status, 0, text)
+            self.assertIn(f"the header-only header src/m/y.hpp has no unit, {unit}m_y.cpp (its own source src/m/y.cpp "
+                          "is in no target's sources)", errors)
+            files[f"{unit}m_y.cpp"] = '#include "m/y.hpp"\n'
+            self.assertEqual(self.units(files)[:2], (0, sorted([*scene()[1], "m_y.cpp"])), text)
 
     def test_discovery(self):
         """The listing discovers in every top package of the walked trees and

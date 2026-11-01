@@ -105,6 +105,13 @@ add_subdirectory(support/scan)
 if(QIVEN_HAL)
   add_subdirectory(support/fake_hal)
 endif()
+# The header units' rule on every configure with an interpreter, tier 1's
+# among them, not the analysis's alone: a header the analysis reads with no
+# unit fails it (foundation/devkit/build/trees.cmake). The analysis compiles
+# the units it gives.
+if(Python3_EXECUTABLE OR QIVEN_ANALYZE STREQUAL "analysis")
+  qiven3_header_units("${PROJECT_SOURCE_DIR}" qiven3_header_units)
+endif()
 if(QIVEN_ANALYZE STREQUAL "analysis")
   add_subdirectory(support/headers)
 endif()
