@@ -48,7 +48,7 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::stage_book;
 using qiven3::memory::Vector;
 using qiven3::store::Counts;
 using qiven3::store::GuardView;

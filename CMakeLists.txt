@@ -150,16 +150,34 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
     string(MAKE_C_IDENTIFIER "${rel}" stamp)
     set(stamp "${PROJECT_BINARY_DIR}/tidy/${stamp}.stamp")
     get_filename_component(source_dir "${source}" DIRECTORY)
+    # A generated source takes its directory's configs, given by name: the
+    # search up from the build tree finds none when the tree sits outside.
+    qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
+    if(generated)
+      file(RELATIVE_PATH in_build "${PROJECT_BINARY_DIR}" "${source_dir}")
+      set(source_dir "${PROJECT_SOURCE_DIR}/${in_build}")
+    endif()
     set(configs "")
+    set(nearest "")
     foreach(config IN LISTS qiven3_tidy_configs)
       get_filename_component(config_dir "${config}" DIRECTORY)
       string(FIND "${source_dir}/" "${config_dir}/" at)
       if(at EQUAL 0)
         list(APPEND configs "${config}")
+        string(LENGTH "${nearest}" nearest_length)
+        string(LENGTH "${config}" config_length)
+        if(config_length GREATER nearest_length)
+          set(nearest "${config}")
+        endif()
       endif()
     endforeach()
+    set(config_arg "")
+    if(generated AND nearest)
+      set(config_arg "--config-file=${nearest}")
+    endif()
     add_custom_command(OUTPUT "${stamp}"
-      COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" ${qiven3_filter_args} --quiet "${source}"
+      COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" ${config_arg} ${qiven3_filter_args} --quiet
+        "${source}"
       COMMAND "${CMAKE_COMMAND}" -E touch "${stamp}"
       DEPENDS "${source}" "${PROJECT_BINARY_DIR}/tidy/compile_commands.json" ${qiven3_tidy_inputs} ${configs}
       COMMENT "clang-tidy ${rel}" VERBATIM)

@@ -25,7 +25,7 @@
 #include "store/engine/sqlite.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
-using namespace qiven3::test::sqlite_rig;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::sqlite_rig;
 
 namespace {
 

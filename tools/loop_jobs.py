@@ -28,7 +28,7 @@ The tiers' own (tools/loop_tiers.py): TIER1, the one job a system tier 1
 runs, and TIER1_STEPS, the tests of fast's label it adds on that job's own
 build, those its fake step does not run, with no structure build: the
 structure tests run in windows-analysis's own steps (tier 2) and in tier 3's
-full suite; FAST, CI's, the fast test preset's selection, which the tier's
+full suite, but for the size rule's, which reads the tree alone; FAST, CI's, the fast test preset's selection, which the tier's
 own filters narrow; TIER2_STEPS, the step tier 2 adds on a job's build: the
 Windows drive's contract files on windows-msvc's;
 SUITES, tier 3's full suite and fuzz targets, once a system after its jobs;
@@ -173,7 +173,9 @@ FAST_ONLY = Step("fast", (*FAST.ci, "-LE", "^fake$"))
 # read another tree's, stale after a change. They run in windows-analysis's
 # own steps and in tier 3. On Linux the tests that read the records skip.
 FAST_REST = Step("fast", (*FAST_ONLY.ci, "-E", "^tests[.]structure[.]"))
-TIER1_STEPS = {"windows-msvc": (FAST_REST,), "linux-gcc": (FAST_ONLY,)}
+# The size rule's tests read the tree and no record: Windows' tier 1 runs them.
+SIZE = Step("size", (*FAST.ci[:5], "-R", "^tests[.]structure[.]test_size[.]"))
+TIER1_STEPS = {"windows-msvc": (FAST_REST, SIZE), "linux-gcc": (FAST_ONLY,)}
 # Tier 2's step a job, after the job's own: on Windows the Windows drive's
 # contract files on windows-msvc's build, their cases on the adapter over
 # real files and processes, so that a unit's change to the adapter meets them

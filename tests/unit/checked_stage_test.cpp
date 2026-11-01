@@ -45,7 +45,7 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::stage_book;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";

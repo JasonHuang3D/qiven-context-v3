@@ -5,7 +5,8 @@ cannot fall out of the edit loop unseen. Tier 1's
 selection is read from the loop's own table: each ctest step of each
 system's tier 1 job and the steps tier 1 adds, by its test preset's label
 filter or its own -L and -LE. Name filters stay out of the reach: the
-structure tests Windows leaves out by name run in tier 2's own steps."""
+structure tests Windows leaves out by name run in tier 2's own steps, and
+the size rule's step, chosen by name, adds none."""
 
 import json
 import re
@@ -32,7 +33,7 @@ def tier_one_filters(loop, presets):
     for job in table["TIER1"].values():
         for step in [*loop.JOBS[job][2], *table["TIER1_STEPS"].get(job, ())]:
             args = list(step.ci)
-            if args[0] != "ctest":
+            if args[0] != "ctest" or "-R" in args:  # a step chosen by name, the size rule's, reaches no label
                 continue
             include = exclude = None
             if "--preset" in args:

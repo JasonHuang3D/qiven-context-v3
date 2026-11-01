@@ -7,7 +7,7 @@ sanitizers' options, CTest's parallel level and the Linux shell are CI's,
 each job's environment its own, matrix values read, as drive gives it to
 the job's steps; the loop's step limit is CI's least job limit.
 The pins are the loop's alone, as its additions to CI's configure: the
-pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop.py), and on Linux the pinned compilers of the preset's
+pinned tools' option (tier 3 adds a fresh cache, tests/drive/test_loop_tiers.py), and on Linux the pinned compilers of the preset's
 family, each a pin of tools/linux-pins.txt at foundation/devkit/build/build.cmake's
 version, and nothing else: clang takes the system's only GCC. The loop's own jobs, LOCAL, are in no workflow: windows-symbols
 builds release, which keeps its PDBs, and runs fake's selection and then
@@ -318,8 +318,11 @@ class LoopAgainstCI(unittest.TestCase):
         # Fast runs only what fake, on the same build, does not.
         only = (*fast.ci, "-LE", "^fake$")
         # On Windows fast leaves out the structure tests, which read the
-        # records of a structure build tier 1 does not run.
-        self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*only, "-E", "^tests[.]structure[.]"))])
+        # records of a structure build tier 1 does not run; the size rule's,
+        # which read the tree alone, run in a step of their own.
+        size = (*fast.ci[:5], "-R", "^tests[.]structure[.]test_size[.]")
+        self.assertEqual([(s.name, s.ci) for s in msvc], [("fast", (*only, "-E", "^tests[.]structure[.]")),
+                                                          ("size", size)])
         # The structure build and tests stay windows-analysis's, as ci.yml
         # writes them, and no tier 1 job builds a structure tree.
         analysis = self.ci["windows-analysis"][1]

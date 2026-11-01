@@ -21,7 +21,7 @@ GIT_WORK_TREE or GIT_INDEX_FILE pointing elsewhere. And git starts no
 background work under that environment: the settings against it are in
 its command scope and in force over a repository's config that says the
 opposite. The tools' results on git itself, line endings included:
-tests/drive/test_loop.py's test_sync."""
+tests/drive/test_loop_tiers.py's test_sync."""
 
 import os
 import shutil

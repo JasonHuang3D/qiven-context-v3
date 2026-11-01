@@ -8,7 +8,7 @@
 #include "support/faults/faults.hpp"
 #include "support/stores/exchange_bed.hpp"
 
-using namespace qiven3::test::exchange_bed;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::exchange_bed;
 
 namespace {
 

@@ -12,7 +12,7 @@
 #include "store/contract.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
-using namespace qiven3::test::sqlite_bed;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::sqlite_bed;
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {

@@ -23,7 +23,7 @@
 namespace qiven3::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.
 void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range); }
 
-using namespace qiven3::test::sqlite_bed;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::sqlite_bed;
 using qiven3::memory::MemoryError;
 using qiven3::platform::PlatformError;
 using qiven3::store::StoreError;

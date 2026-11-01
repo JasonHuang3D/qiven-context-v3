@@ -34,7 +34,7 @@
 
 namespace {
 
-using namespace qiven3::test::records;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::records;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Arena = qiven3::memory::Arena;
 using Chars = qiven3::memory::Allocator<char>;

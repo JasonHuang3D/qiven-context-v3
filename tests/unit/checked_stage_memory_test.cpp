@@ -49,7 +49,7 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::stage_book;
 using qiven3::memory::MemoryError;
 
 // A case: its entries, the view's, the operation, the expected head, the

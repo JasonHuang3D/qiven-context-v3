@@ -10,9 +10,10 @@ jobs as below, or build or test of the jobs named:
 - 1, the edit loop: one job, windows-msvc or linux-gcc, in its kept tree,
   configured without --fresh, so that Ninja builds only what changed; then
   its tests, then the tests of the label fast that its fake step does not
-  run, on its build, without the structure tests on Windows. Tier 1 builds
-  no structure tree: the structure tests run in tier 2's windows-analysis
-  and in tier 3. Workers run tier 1 alone.
+  run, on its build, without the structure tests on Windows but the size
+  check, B15, which reads the tree alone. Tier 1 builds no structure tree:
+  the other structure tests run in tier 2's windows-analysis and in tier 3.
+  Workers run tier 1 alone.
 - 2, a unit's gate: every job of the system, each in its own kept tree,
   configured without --fresh, running its tests; on Windows then the
   Windows drive's contract files (tests/machine/test_platform_*.py)

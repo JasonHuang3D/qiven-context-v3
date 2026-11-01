@@ -358,6 +358,23 @@ class Record(unittest.TestCase):
         """The check failing under Windows' command: the step runs the check
         by the interpreter, no tool of the pins, and fails, its line naming
         the check's error, its log the check's own lines."""
+        line, log = self.check_on_windows()
+        self.assertIn("fake: FAIL", line)
+        self.assertIn("the modules' check failed, no test run: the check could not run: ", line)
+        self.assertIn("no codemodel reply", line)
+        self.assertIn("modules: the check could not run: ", log)
+
+    def test_check_status_named(self):
+        """The check run in the step's place, unable to run: its status, 2,
+        named as the check's process's, not as ctest's."""
+        line = self.check_on_windows()[0]
+        self.assertRegex(line, r"^windows-msvc fake: FAIL, status: 2 unnamed, in [0-9.]+ s; the modules' check "
+                               r"failed, no test run: the check could not run: ")
+        self.assertNotIn("ctest's status", line)
+
+    def check_on_windows(self):
+        """The fake step under Windows' command, the check failing: its line
+        and its log."""
         unit = LOOP.plan("1", "windows", ["windows-msvc"])[0]
         unit.select = SELECT["Selection"](self.root, "ctest", dict(os.environ), loop_git.which())
         logs = self.root / "build" / "loop"
@@ -373,11 +390,7 @@ class Record(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             LOOP.drive(LOOP.Report(LOOP.LINES), [unit], self.root, logs, command, dict(os.environ))
         line = [x for x in out.getvalue().splitlines() if x.startswith("windows-msvc fake:")][0]
-        self.assertIn("fake: FAIL", line)
-        self.assertIn("the modules' check failed, no test run: the check could not run: ", line)
-        self.assertIn("no codemodel reply", line)
-        log = next(logs.rglob("*-fake.log")).read_text(encoding="utf-8", errors="replace")
-        self.assertIn("modules: the check could not run: ", log)
+        return line, next(logs.rglob("*-fake.log")).read_text(encoding="utf-8", errors="replace")
 
     def test_emptied_tree(self):
         """Tier 3 empties the tree and narrows nothing; tier 1 after it,

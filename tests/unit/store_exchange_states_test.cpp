@@ -43,7 +43,7 @@
 
 namespace {
 
-using namespace qiven3::test::records;  // NOLINT(google-build-using-namespace)
+using namespace qiven3::test::records;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using qiven3::memory::Vector;

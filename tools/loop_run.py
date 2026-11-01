@@ -193,6 +193,12 @@ def before(step):
     return () if step.after is None else (step.after,) if isinstance(step.after, str) else tuple(step.after)
 
 
+def ran_ctest(step, argv):
+    """Whether the command run was the ctest step's own: its argv not the
+    failing modules' check run in its place (tools/loop_select.py)."""
+    return step.ci[:1] == ("ctest",) and not any(Path(word).name == "loop_modules.py" for word in argv)
+
+
 def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, passed=None):
     """Each step of the phase, its line and, on a failure, its tail. command
     maps a step to its argv, or to None for a step left with no test to
@@ -248,7 +254,7 @@ def run_steps(report, job, steps, phase, command, logs, cwd, env, notes=None, pa
                 passed(step)
         else:
             counts[1] += 1
-            namer = STATUS["ctest_line" if step.ci[:1] == ("ctest",) else "line"]  # a ctest step's status is ctest's
+            namer = STATUS["ctest_line" if ran_ctest(step, argv) else "line"]  # ctest's status by ctest's names
             what = status if isinstance(status, str) else namer(status)
             report.line(f"{job} {step.name}: FAIL, {what}, in {seconds(start)}{note}; log {log}", True)
             report.fail(f"{job} {step.name}", log)

@@ -5,7 +5,8 @@ and each step's command in its job's own trees.
   configured without --fresh so that Ninja builds only what changed; its
   tests, then TIER1_STEPS: the tests of fast's label its fake step does not
   run, on its build, with no structure build (the structure tests run in
-  tier 2's windows-analysis and in tier 3); each ctest step narrowed by
+  tier 2's windows-analysis and in tier 3, but for the size rule's, which
+  read the tree alone and run on Windows' build); each ctest step narrowed by
   affected() to the affected tests.
 - Tier 2, a unit's gate: every job of the system in its kept trees, then
   TIER2_STEPS on its job's build (the Windows drive's contract files on
