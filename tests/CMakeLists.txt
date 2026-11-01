@@ -14,13 +14,12 @@ set(qiven3_bin "${PROJECT_BINARY_DIR}/bin")
 #                  [LIMIT <seconds>])
 # The modules of the table, each "<name>|<regex>" of one of its paths: the
 # present rows of each built module.json, the table's files the root's,
-# tools/ one and each under foundation/, kits/ and products/, in sorted path
-# order (tools/loop_modules.py). A path ending in / holds every file under
-# it, any other is a pattern on the whole path, * any run of characters.
+# tools/ one and each under the layers' trees of tools/trees.json, in sorted
+# path order (tools/loop_modules.py). A path ending in / holds every file
+# under it, any other is a pattern on the whole path, * any run of characters.
+qiven3_table_globs("${PROJECT_SOURCE_DIR}" qiven3_table_globs)
 file(GLOB_RECURSE qiven3_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
-     RELATIVE "${PROJECT_SOURCE_DIR}"
-     "${PROJECT_SOURCE_DIR}/foundation/module.json" "${PROJECT_SOURCE_DIR}/kits/module.json"
-     "${PROJECT_SOURCE_DIR}/products/module.json")
+     RELATIVE "${PROJECT_SOURCE_DIR}" ${qiven3_table_globs})
 list(APPEND qiven3_table_files module.json tools/module.json)
 list(SORT qiven3_table_files)
 set(qiven3_module_paths "")
@@ -164,7 +163,9 @@ if(Python3_EXECUTABLE)
   if(QIVEN3_LOOP_TESTS AND NOT QIVEN3_STRUCTURE)
     list(APPEND qiven3_python_args -D "LOOP=ON")
   endif()
-  file(GLOB_RECURSE qiven3_python_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
+  # every tree the listing discovers in (foundation/devkit/test/runner/list_tests.py)
+  qiven3_python_globs("${PROJECT_SOURCE_DIR}" qiven3_python_globs)
+  file(GLOB_RECURSE qiven3_python_files CONFIGURE_DEPENDS ${qiven3_python_globs})
 else()
   message(STATUS "qiven3: no interpreter named; the Python tests are not registered")
 endif()

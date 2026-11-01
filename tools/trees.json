@@ -1,5 +1,6 @@
 {
   "layers": ["foundation", "kits", "products"],
   "walked": ["src", "tests", "tools", "third_party"],
-  "analysed": ["src", "tests/support", "tests/child"]
+  "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
+  "included": ["src", "tests", "third_party/sqlite"]
 }

@@ -25,7 +25,8 @@ tools/loop_modules.py, as the run begins.
   (--show-only=json-v1), and any test that carries no module's; and, for
   any change, the tests that read every tracked file (WHOLE), the modules'
   check whole over the checkout among them; and, for a change under a tree
-  READERS names (.github/, of the no-test row), the tests that read it.
+  READERS names (.github/, of the no-test row), the tests that read it, and
+  for a change to tools/trees.json, every structure test.
 - Every test, when a module selected is the whole build's or the shared
   support's, or a changed file is in no module.
 
@@ -60,7 +61,9 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
     "tests.structure.test_boundaries.Tree.*", "tests.structure.test_imports.Tree.*",
     "tests.drive.test_loop_full_check.FullCheck.test_tree")
 READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
-    ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*")}
+    ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*"),
+    # The trees every walker, glob and filter reads, the structure rules' scopes among them.
+    "tools/trees.json": ("tests.structure.*",)}
 
 
 def shown(names, most=None):

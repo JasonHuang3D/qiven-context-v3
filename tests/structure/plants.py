@@ -173,6 +173,14 @@ PLANTS = {
         "int diag_quiet() { _CrtSetReportMode(0, 0); SymSetOptions(0); return int(SetErrorMode(1)); }\n",
     "tests/unit/own_test.cpp": "#include \"unit/own.hpp\"\n", "tests/unit/own.hpp": "\n",
     "foundation/devkit/test/runner/include/qiven/runner/runner.hpp": "#pragma once\n",
+    # The planted tree's table, which its rules read layers from: src/ a product's, the runner devkit's.
+    "products/plant/module.json": '{"name": "plant", "layer": "products", "status": "built", "platforms": '
+        '["windows"], "contract": null, "adopted": "2026-10-31", "parameters": [], "present": [{"name": '
+        '"plant", "layer": "product", "depends": [], "test_depends": [], "paths": ["src/"]}]}\n',
+    "foundation/devkit/test/runner/module.json": '{"name": "runner", "layer": "devkit", "status": "built", '
+        '"platforms": ["windows"], "contract": null, "adopted": "2026-10-31", "parameters": [], "present": '
+        '[{"name": "runner", "layer": "support", "depends": [], "test_depends": [], "paths": '
+        '["foundation/devkit/test/runner/"]}]}\n',
     "tests/driver/drive.hpp": "#pragma once\n",
     "tests/unit/dbg_test.cpp": "#include <crtdbg.h>\n",
     ".clang-tidy": "Checks: '-*,cppcoreguidelines-*,-cppcoreguidelines-pro-bounds-pointer-arithmetic'\n",

@@ -3,6 +3,15 @@ project(qiven3 LANGUAGES C CXX)
 
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/build.cmake" NO_POLICY_SCOPE)
 
+# The trees, read from tools/trees.json, the one place that names them
+# (tools/loop_modules.py reads it too): its layers, walked and analysed, and
+# the rules the globs and filters take from them (foundation/devkit/build/trees.cmake).
+include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/trees.cmake")
+set(qiven3_trees_file "${PROJECT_SOURCE_DIR}/tools/trees.json")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${qiven3_trees_file}")
+qiven3_trees("${qiven3_trees_file}")
+set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})
+
 # The build's targets and their links, for the modules' check
 # (tools/loop_modules.py, against the table the module.json files give).
 cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
@@ -52,36 +61,23 @@ while(qiven3_dirs)
 endwhile()
 file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_executables_text}")
 
-# The analysis preset over the sources of the analysed roots, read from
-# tools/trees.json, the one place that names the trees (tools/loop_modules.py
-# reads it too): its layers and its analysed (tests/child/ holds qiven3-child,
-# the Windows adapter's children). /analyze on the targets under them, then
-# clang-tidy over compile_commands.json, each source its own step after
-# every target is built, by .clang-tidy. A header-only module is read
-# through its unit in tests/support/headers/.
+# The analysis preset over the sources the analysis reads, by their paths
+# (qiven3_analysed): those under the analysed roots (tests/child/ holds
+# qiven3-child, the Windows adapter's children) and those under the layers'
+# trees outside a module's own tests/, whatever directory defines their
+# target. /analyze on each such source, then clang-tidy over
+# compile_commands.json, each source its own step after every target is
+# built, by .clang-tidy, on the headers of the same trees. A header-only
+# module is read through its unit in tests/support/headers/.
 if(QIVEN_ANALYZE STREQUAL "analysis")
-  set(qiven3_trees_file "${PROJECT_SOURCE_DIR}/tools/trees.json")
-  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${qiven3_trees_file}")
-  file(READ "${qiven3_trees_file}" qiven3_trees_text)
-  foreach(key IN ITEMS layers walked analysed)
-    set(qiven3_${key} "")
-    string(JSON count LENGTH "${qiven3_trees_text}" ${key})
-    math(EXPR last "${count} - 1")
-    foreach(at RANGE ${last})
-      string(JSON tree GET "${qiven3_trees_text}" ${key} ${at})
-      list(APPEND qiven3_${key} "${tree}")
-    endforeach()
-  endforeach()
-  set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})
-  list(JOIN qiven3_roots "|" qiven3_roots_regex)
   set(qiven3_tidy_targets "")
   set(qiven3_tidy_sources "")
+  set(qiven3_optioned "")
   set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
   while(qiven3_dirs)
     list(POP_FRONT qiven3_dirs dir)
     get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
     list(APPEND qiven3_dirs ${subdirs})
-    file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}")
     get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
     foreach(target IN LISTS targets)
       get_target_property(type ${target} TYPE)
@@ -91,14 +87,22 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
         continue()
       endif()
       list(APPEND qiven3_tidy_targets ${target})
-      if(NOT rel MATCHES "^(${qiven3_roots_regex})(/|$)")
-        continue()
-      endif()
-      target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${qiven_analysis_options}>")
       get_target_property(sources ${target} SOURCES)
       foreach(source IN LISTS sources)
         get_filename_component(source "${source}" ABSOLUTE BASE_DIR "${dir}")
-        if(source MATCHES "[.]cpp$")
+        file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
+        qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
+        if(generated)  # a generated source sits with its directory's own
+          get_filename_component(name "${source}" NAME)
+          file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}/${name}")
+        endif()
+        qiven3_analysed("${rel}" read)
+        if(read AND source MATCHES "[.]cpp$")
+          if(NOT "${dir}|${source}" IN_LIST qiven3_optioned)  # once a directory
+            list(APPEND qiven3_optioned "${dir}|${source}")
+            set_property(SOURCE "${source}" TARGET_DIRECTORY ${target} APPEND PROPERTY COMPILE_OPTIONS
+              ${qiven_analysis_options})
+          endif()
           list(APPEND qiven3_tidy_sources "${source}")
         endif()
       endforeach()
@@ -113,6 +117,18 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
     list(APPEND qiven3_tidy_globs "${PROJECT_SOURCE_DIR}/${tree}/*.hpp")
   endforeach()
   file(GLOB_RECURSE qiven3_tidy_inputs CONFIGURE_DEPENDS ${qiven3_tidy_globs})
+  # clang-tidy's header filters, from the same trees and rule, under this
+  # checkout alone: .clang-tidy names none.
+  set(qiven3_headers "")
+  foreach(header IN LISTS qiven3_tidy_inputs)
+    file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${header}")
+    list(APPEND qiven3_headers "${rel}")
+  endforeach()
+  qiven3_header_filters("${PROJECT_SOURCE_DIR}" "${qiven3_headers}" qiven3_filter qiven3_exclude)
+  set(qiven3_filter_args "--header-filter=${qiven3_filter}")
+  if(qiven3_exclude)
+    list(APPEND qiven3_filter_args "--exclude-header-filter=${qiven3_exclude}")
+  endif()
   set(qiven3_tidy_globs "")
   foreach(tree IN LISTS qiven3_walked qiven3_layers)
     list(APPEND qiven3_tidy_globs "${PROJECT_SOURCE_DIR}/${tree}/*.clang-tidy")
@@ -143,7 +159,7 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
       endif()
     endforeach()
     add_custom_command(OUTPUT "${stamp}"
-      COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" --quiet "${source}"
+      COMMAND "${QIVEN_CLANG_TIDY}" -p "${PROJECT_BINARY_DIR}/tidy" ${qiven3_filter_args} --quiet "${source}"
       COMMAND "${CMAKE_COMMAND}" -E touch "${stamp}"
       DEPENDS "${source}" "${PROJECT_BINARY_DIR}/tidy/compile_commands.json" ${qiven3_tidy_inputs} ${configs}
       COMMENT "clang-tidy ${rel}" VERBATIM)

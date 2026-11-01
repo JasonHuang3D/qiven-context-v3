@@ -28,11 +28,15 @@ QIVEN_CASE(demo, exception) {
 }
 
 namespace {
-int* volatile nowhere = nullptr;
+// A null pointer read through a volatile local, which the optimizer keeps.
+int* nowhere() noexcept {
+    int* volatile none = nullptr;
+    return none;
 }
+}  // namespace
 
 QIVEN_CASE(demo, crash) {
-    *nowhere = 1;
+    *nowhere() = 1;
 }
 
 QIVEN_SERIAL_CASE(demo, serial) {

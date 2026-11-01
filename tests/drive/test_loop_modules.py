@@ -220,7 +220,7 @@ class Check(unittest.TestCase):
         reads for the analysed roots, its layers and analysed, holding no list
         of its own."""
         trees = json.loads((loop_modules.ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
-        self.assertEqual(sorted(trees), ["analysed", "layers", "walked"])
+        self.assertEqual(sorted(trees), ["analysed", "included", "layers", "walked"])
         self.assertEqual(loop_modules.TOPS, tuple(trees["layers"]))
         self.assertEqual(loop_modules.TREES, (*trees["walked"], *trees["layers"]))
         self.assertTrue(all(a.split("/", 1)[0] in loop_modules.TREES for a in trees["analysed"]))

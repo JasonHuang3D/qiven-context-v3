@@ -1,5 +1,6 @@
-"""Print each Python test of tests/ for CTest: its id, its labels, serial,
-and its own limit.
+"""Print each Python test of the checkout for CTest, of the packages of the
+trees tools/trees.json walks and of its layers' trees: its id, its labels,
+serial, and its own limit.
 
 Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
 [--loop]. The loop's own tests, of a class whose ctest_git is true, those
@@ -37,6 +38,7 @@ PACKAGE_LABELS = {
     "machine": ("machine",),
     "bench": ("bench",),
     "drill": ("drill",),
+    "tests": ("drive",),  # a module's own tests/ under a layer's tree
 }
 # A module whose labels are its own, in place of its package's: the analysis
 # tools' controls, which run on the analysis build alone.
@@ -56,20 +58,35 @@ def walk(suite):
             yield test
 
 
+def packages(root, trees):
+    """The top packages under the trees, from the checkout's root, sorted:
+    each directory holding an __init__.py whose parent holds none."""
+    found = []
+    for tree in trees:
+        for init in sorted((Path(root) / tree).rglob("__init__.py")):
+            package = init.parent
+            if "__pycache__" not in package.parts and not (package.parent / "__init__.py").is_file():
+                found.append(package)
+    return sorted(set(found))
+
+
 def listed(loop, root="."):
     """([(id, labels, serial, limit or None)], [errors]) of the
-    tests discover finds under tests/ of the checkout's root; the loop's
+    tests discover finds in each package of the trees tools/trees.json
+    walks and of its layers' trees, from the checkout's root; the loop's
     own with loop alone."""
-    loader = unittest.TestLoader()
-    suite = loader.discover(str(Path(root) / "tests"), top_level_dir=str(root))
-    rows, errors = [], []
     # The table's one reader, by runpy: under -I tools/ is off sys.path.
     modules = runpy.run_path(str(Path(root) / "tools" / "loop_modules.py"))
     table = modules["load"](root)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite(loader.discover(str(package), top_level_dir=str(root))
+                               for package in packages(root, modules["TREES"]))
+    rows, errors = [], []
     for test in walk(suite):
         test_id = test.id()
         error = getattr(test, "_exception", None)
-        if error is not None or not test_id.startswith("tests."):
+        name = test_id.rsplit(".", 2)[0]  # the test's module
+        if error is not None or not name.startswith(tuple(f"{tree}." for tree in modules["TREES"])):
             errors.append(f"{test_id}: {error}")
             continue
         git = getattr(test, "ctest_git", False)
@@ -78,18 +95,21 @@ def listed(loop, root="."):
             continue
         if git and not loop:
             continue
-        package = test_id.split(".")[1]
-        if package not in PACKAGE_LABELS:
+        # Its package, under tests/ the one below it, elsewhere the one
+        # holding its file.
+        parts = name.split(".")
+        package = parts[1] if parts[0] == "tests" else parts[-2]
+        if package not in PACKAGE_LABELS or (package == "tests" and parts[0] not in modules["TOPS"]):
             errors.append(f"{test_id}: the package {package} has no labels")
             continue
-        module = ".".join(test_id.split(".")[1:3])
+        module = f"{package}.{parts[-1]}"
         labels = MODULE_LABELS.get(module, PACKAGE_LABELS[package]) + tuple(getattr(test, "ctest_labels", ()))
         serial = 1 if getattr(test, "ctest_serial", False) else 0
         limit = getattr(test, "ctest_limit", None)
         if limit is not None and (type(limit) is not int or limit < 1):
             errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
             continue
-        path = "/".join(test_id.split(".")[:3]) + ".py"
+        path = "/".join(parts) + ".py"
         owner = modules["owners"](table, [path])[path]
         if not owner:
             errors.append(f"{test_id}: its file is in no module of the table")

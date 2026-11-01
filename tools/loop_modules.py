@@ -87,7 +87,7 @@ KIT = "foundation/devkit/test/"  # the test kit's table files: the runner, the c
 EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
 SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
-ROOTS = ("src", "tests", "third_party/sqlite")  # the include directories the build gives, and include_roots()'
+ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives, and include_roots()'
 VENDORED = "third_party/"  # a vendor's source: its unresolved includes counted, not refused
 
 

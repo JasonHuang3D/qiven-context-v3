@@ -8,8 +8,11 @@ punctuators outside comments and literals, and outside the preprocessor's
 directives, which B27 alone reads; B27 reads comments too. B25's objects and
 B28's members are read by a statement's depth: each brace is a namespace's,
 a class's or another's (a function's, an initializer's, an enum's). B18
-holds in every .hpp and .cpp file; B19 to B31 in those of src/ and
-tests/support/, third_party/ apart. What tokens cannot see, the analysis
+holds in every .hpp and .cpp file; B19 to B31 in those of in_scope(): by
+the tree's table (layers.py), each library's of core to products, the test
+kit's whole and tests/support/, a vendor's apart; test code, the table's
+(the top-level tests/ and a module's tests/), is a test's for B24. What
+tokens cannot see, the analysis
 preset's checks read (test_analysis.py). Each rule's blind spots, the
 text's and then the tokens' own:
 - B19: an owning raw pointer or C handle; B20: none of the text's, and
@@ -37,9 +40,10 @@ text's and then the tokens' own:
 from fnmatch import fnmatchcase
 from xml.etree import ElementTree
 
+from tests.structure import layers
 from tests.structure.lexer import lex
 
-SCOPE = ("src/", "tests/support/")
+SUPPORT = "tests/support/"  # the tests' shared support, in the subset with the libraries
 CXX = (".hpp", ".cpp")
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))
 C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_aligned_free"))
@@ -82,10 +86,19 @@ ALLOWED = {
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares
-# sqlite3_config variadic, the one place its interface needs varargs. B28:
-# the borrowing types, each with its lifetime rule.
+# sqlite3_config variadic, the one place its interface needs varargs. B25:
+# the runner's own cases' two state globals, by name. B28: the borrowing
+# types, each with its lifetime rule.
+RUNNER_TEST = "foundation/devkit/test/runner/tests/runner_test.cpp"
 CELLS = {
     ("B22", "src/store/engine/", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
+    ("B25", RUNNER_TEST, "reached"): "whether a sample case went on past its failed REQUIRE: the sample, a plain "
+                                     "case function that takes no state but its Context, sets it, and the case "
+                                     "that runs the sample reads it",
+    ("B25", RUNNER_TEST, "held_slots"): "as reached's: the pool slots a sample case holds past its end, chained, "
+                                        "kept reachable under the system heap, which the case that runs it reads",
+    ("B28", "foundation/devkit/test/runner/include/qiven/runner/core.hpp", "Case"): "a case's name, a view of the "
+        "registering macro's string literals, which have static storage and outlive every Case",
     ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
@@ -306,10 +319,11 @@ def object_rules(tokens, out):
             continue
         line = toks[0][2]
         mutable = not is_const(toks, depths)
+        declared = next(t[1] for t in reversed(toks) if t[0] == "id")  # the object's name
         if scope == "namespace" and mutable:
-            out("B25", "object", line, "a non-const object at namespace scope")
+            out("B25", "object", line, "a non-const object at namespace scope", declared)
         if scope == "class" and "static" in values and mutable:
-            out("B25", "static", line, "a non-const static data member")
+            out("B25", "static", line, "a non-const static data member", declared)
         if scope == "class" and "static" not in values and not name.endswith("View"):
             views = [i for i, t in enumerate(toks) if t[1] in B28_VIEWS and not behind(toks, depths, i)]
             if views:
@@ -468,22 +482,32 @@ def config_rules(root, files, add):
                     add("B26", rel, "ruleset", f"{B26_MSVC} off for every file", None)
 
 
-def check(root, files, add):
+def in_scope(rel, tree):
+    """Whether B19 to B31 hold in rel, by the tree's table (layers.Layers):
+    a library's file of core to products, a file of the test kit, or one of
+    tests/support/; a vendor's never."""
+    return not rel.startswith(layers.VENDORED) and (
+        tree.library(rel) or rel.startswith((layers.KIT, SUPPORT)))
+
+
+def check(root, files, add, tree):
     """B18 to B31 but B26 over a tree's files, and B26's configuration;
     add(rule, where, kind, detail, what) takes each finding, what the name
-    an allowance matches: B22's function's, B28's type's."""
+    an allowance matches: B22's function's, B25's object's, B28's type's;
+    tree, the tree's table (layers.Layers), gives the subset's files and
+    test code."""
     config_rules(root, files, add)
     for rel in files:
         if not rel.endswith(CXX):
             continue
         text = (root / rel).read_bytes().decode("utf-8", "replace")
         tokens, comments = lex(text)
-        subset = rel.startswith(SCOPE)
+        subset = in_scope(rel, tree)
 
         def out(rule, kind, line, detail, what=None, rel=rel):
             add(rule, rel, kind, f"line {line}: {detail}", what)
 
         skip = directive_lines(tokens, text)
-        token_rules(tokens, comments, skip, subset, rel.startswith("tests/"), out)
+        token_rules(tokens, comments, skip, subset, tree.test_code(rel), out)
         if subset:
             object_rules([t for t in tokens if t[2] not in skip], out)

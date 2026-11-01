@@ -133,7 +133,7 @@ if(DEFINED PYTHON)
     if(line STREQUAL "")
       continue()
     endif()
-    if(NOT line MATCHES "^(tests\\.[A-Za-z0-9_.]+)\t([a-z,]+)\t([01])\t([0-9]*)$")
+    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)\t([a-z,]+)\t([01])\t([0-9]*)$")
       message(FATAL_ERROR "the Python listing gave a malformed line: '${line}'")
     endif()
     set(id "${CMAKE_MATCH_1}")
@@ -143,12 +143,29 @@ if(DEFINED PYTHON)
       set(serial TRUE)
     endif()
     set(test_limit "${CMAKE_MATCH_4}")
+    # Its top package, where discover starts: the shortest leading part of
+    # its id that is a directory of the root holding an __init__.py, tests
+    # for a test under tests/.
+    string(REPLACE "." ";" parts "${id}")
+    set(start "")
+    set(prefix "")
+    foreach(part IN LISTS parts)
+      string(APPEND prefix "${part}")
+      if(EXISTS "${SOURCE}/${prefix}/__init__.py")
+        set(start "${prefix}")
+        break()
+      endif()
+      string(APPEND prefix "/")
+    endforeach()
+    if(start STREQUAL "")
+      message(FATAL_ERROR "the Python test ${id} is in no package of the checkout")
+    endif()
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
     # matched whole, so '*<id>' selects that one test. With LOOP each runs
     # behind the counting shim (tools/loop_shim.py), the loop's own, which
     # start git, with --git.
-    set(test_command "${PYTHON}" -I -m unittest discover -s tests -t . -k "*${id}")
+    set(test_command "${PYTHON}" -I -m unittest discover -s "${start}" -t . -k "*${id}")
     if(LOOP)
       set(shim_words "${PYTHON}" -I "${SOURCE}/tools/loop_shim.py")
       if("loop" IN_LIST labels)

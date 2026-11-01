@@ -20,6 +20,9 @@
 #   bugprone-exception-escape asks: the fake's Config, a map's move
 #   allocating in one standard library. exception-escape stays on.
 # A directory's own .clang-tidy turns a check off by file, with its reason.
+# No .clang-tidy names a header filter: the build gives each step its
+# filters, from the trees of tools/trees.json under the checkout
+# (foundation/devkit/build/trees.cmake).
 Checks: >-
   -*,
   bugprone-*,
@@ -35,4 +38,3 @@ Checks: >-
   -cppcoreguidelines-explicit-constructor,
   -bugprone-unsafe-to-allow-exceptions
 WarningsAsErrors: '*'
-HeaderFilterRegex: '.*[/\](src|tests[/\]support|tests[/\]child)[/\].*'

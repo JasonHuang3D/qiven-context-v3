@@ -18,7 +18,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 
-from tests.structure import subset
+from tests.structure import layers, subset
 from tests.structure.lexer import lex
 from tests.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the size, line-end, content and import tests read here too.
@@ -27,6 +27,8 @@ from tests.structure.tree import is_text, line_count, source_files, text_attribu
 ROOT = Path(__file__).resolve().parents[2]
 VENDORED = "third_party/sqlite/sqlite3.c"
 STRUCTURE = "tests/structure/"
+# The runner's directory, from the table: its headers every case includes.
+RUNNER = layers.of(ROOT).directory("runner")
 
 Finding = namedtuple("Finding", "rule where kind detail")
 
@@ -57,7 +59,8 @@ SDK_DIRS = ("um", "shared", "winrt", "cppwinrt")
 
 # B17: core logic's direct includes, copied from the platform's include
 # boundary, which changes first; then sqlite3.h in B1's module alone, and
-# v3's own headers outside src/platform/ and src/hal/, with the contract's.
+# v3's own headers outside src/platform/ and src/hal/, a library's of core
+# to products or the test tree's (layers.py), with the contract's.
 B17_HEADERS = frozenset("""
 algorithm array atomic bit charconv chrono cmath compare concepts condition_variable cstddef cstdint
 cstring deque exception filesystem format fstream functional initializer_list iterator limits map
@@ -120,6 +123,9 @@ ALLOWED = {
     "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
+# B1's text, beyond ALLOWED["B1"]: the vendored SQLite's module directory,
+# and the build's pin of sqlite3.c's and sqlite3.h's digests.
+B1_TEXT = ("foundation/system/sqlite/", "foundation/devkit/build/build.cmake")
 # The allowances the text states beyond the rows' cells, (rule, file, what),
 # each with its reason; the subset's cells' are subset.CELLS. A file or a
 # what ending in / is a prefix, and a file ending in . a module's files.
@@ -133,12 +139,12 @@ STATED = {
     ("B9", "src/diag/", "unistd.h"): "the diagnostic entry's write and _exit on Linux",
     ("B9", "src/diag/", "mman.h"): "the diagnostic entry's alternate stack on Linux",
     ("B9", "src/diag/", "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
-    ("B9", "tests/", "foundation/devkit/test/runner/"): "the runner's public headers, which every case includes",
-    ("B9", "tests/", "tests/support/"): "the test tree's own headers, which its sources include",
-    ("B9", "tests/", "tests/driver/"): "as tests/support/'s",
-    ("B9", "tests/", "tests/child/"): "as tests/support/'s",
-    ("B9", "foundation/devkit/test/runner/", "foundation/devkit/test/runner/"): "the runner's own headers",
-    ("B9", "foundation/devkit/test/runner/", "tests/support/"): "the log's journal, which the runner's own cases read",
+    ("B9", layers.TESTS, RUNNER): "the runner's public headers, which every case includes",
+    ("B9", layers.TESTS, "tests/support/"): "the test tree's own headers, which its sources include",
+    ("B9", layers.TESTS, "tests/driver/"): "as tests/support/'s",
+    ("B9", layers.TESTS, "tests/child/"): "as tests/support/'s",
+    ("B9", RUNNER, RUNNER): "the runner's own headers",
+    ("B9", RUNNER, "tests/support/"): "the log's journal, which the runner's own cases read",
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
@@ -219,9 +225,12 @@ def is_instantiation(path):
     return path is not None and path.endswith(".cpp") and path.rsplit("/", 1)[-1].startswith("instances")
 
 
-def is_core(path):
-    return (path is not None and path.startswith("src/") and not under(path, NOT_CORE)
-            and not is_instantiation(path))
+def is_core(path, tree):
+    """Core logic, by layer in the tree's table: a library's file of a
+    module of core to products (layers.Layers.library()), not devkit's, layer
+    0, nor test code nor a vendor's; the adapters, current, the HAL and the
+    diagnostic entry apart (NOT_CORE), and the instantiation files."""
+    return tree.library(path) and not under(path, NOT_CORE) and not is_instantiation(path)
 
 
 # Reading the records.
@@ -253,8 +262,12 @@ def relative(path, root):
 
 # The checker.
 class Findings:
-    def __init__(self):
+    """The findings over one tree, and that tree's table (layers.Layers),
+    v3's when none is given."""
+
+    def __init__(self, tree=None):
         self.found = set()
+        self.tree = tree or layers.of(ROOT)
 
     def add(self, rule, where, kind="", detail="", what=None, force=False):
         if force or not (allowed(rule, where, what) or under(where, EXEMPT.get(rule, ()))):
@@ -299,7 +312,7 @@ def source_rules(root, files, out):
             what = "a lone CR" if found.group() == b"\r" else f"the control byte 0x{found.group()[0]:02x}"
             out.add("B32", rel, detail=f"line {line}: {what}")
         text = data.decode("utf-8", "replace")
-        if rel.startswith(("src/", "tests/")) and "sqlite3" in text:
+        if layers.walked(rel) and "sqlite3" in text and not under(rel, B1_TEXT):
             out.add("B1", rel, detail="the text sqlite3")
         if not rel.endswith(CXX_SOURCES) or rel == VENDORED:
             continue
@@ -317,7 +330,7 @@ def source_rules(root, files, out):
             if rel.startswith("src/reader/") and value in PLATFORM_WRITES and before in (".", "->") \
                     and after == "(":
                 out.add("B13", rel, detail=f"line {line}: a platform call that writes, {value}")
-            if (is_core(rel) or is_instantiation(rel)) and (
+            if (is_core(rel, out.tree) or is_instantiation(rel)) and (
                     (value in STREAM_MODES and before == "::" and not app_namespace(tokens, i))
                     or value in STREAM_TYPES):
                 out.add("B17", rel, "mode", f"line {line}: a stream's writing mode, {value}")
@@ -329,7 +342,7 @@ def include_rules(records, out):
     for obj in records.objects:
         if obj.vendored:
             continue
-        checked = is_core_object(obj) or is_instantiation(obj.source)
+        checked = is_core_object(obj, out.tree) or is_instantiation(obj.source)
         system = []
         for includer, path, depth in obj.includes:
             kind, name = classify(path, root)
@@ -410,8 +423,8 @@ def direct_include(by, path, kind, name, out):
         out.add("B8", by, detail=f"the network's {name}")
     if kind == "other" and base != "sqlite3.h":
         out.add("B9", by, detail=f"an include from outside, {name}", what=base)
-    if rel is not None and not (rel.startswith("src/") or rel.endswith("/sqlite3.h")):
-        out.add("B9", by, detail=f"an include outside src/, {rel}", what=rel)
+    if rel is not None and not (out.tree.library(rel) or rel.endswith("/sqlite3.h")):
+        out.add("B9", by, detail=f"an include outside a library of core to products, {rel}", what=rel)
     if ".." in path.replace("\\", "/").split("/"):
         out.add("B11", by, detail=f"an include path holding .., {path}")
     if rel is not None:
@@ -421,13 +434,14 @@ def direct_include(by, path, kind, name, out):
             out.add("B13", by, detail=f"includes {rel}")
         if rel == "src/qiven3/mapcheck.hpp":
             out.add("B16", by, detail="includes the map check")
-    if is_core(by) or is_instantiation(by):
+    if is_core(by, out.tree) or is_instantiation(by):
         if kind == "std":
             ok = name in B17_HEADERS
         elif kind == "v3":
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
                   or (rel.endswith("/sqlite3.h") and by.startswith("src/store/engine/"))
-                  or (rel.startswith(("src/", "tests/")) and not rel.startswith(("src/platform/", "src/hal/"))))
+                  or ((out.tree.library(rel) or rel.startswith(layers.TESTS))
+                      and not rel.startswith(("src/platform/", "src/hal/"))))
         else:
             ok = False
         if not ok:
@@ -438,8 +452,8 @@ def strip_imp(name):
     return name[len("__imp_"):] if name.startswith("__imp_") else name
 
 
-def is_core_object(obj):
-    return is_core(obj.source) and obj.target not in NOT_CORE_TARGETS
+def is_core_object(obj, tree):
+    return is_core(obj.source, tree) and obj.target not in NOT_CORE_TARGETS
 
 
 def b17_name(full):
@@ -450,7 +464,7 @@ def b17_name(full):
 
 def name_rules(records, goldens, out):
     objects = records.objects
-    core_defined = set().union(*(o.defined for o in objects if is_core_object(o) or o.vendored))
+    core_defined = set().union(*(o.defined for o in objects if is_core_object(o, out.tree) or o.vendored))
     every_defined = set().union(*(o.defined for o in objects))
     by_target = {}
     for o in objects:
@@ -477,7 +491,7 @@ def name_rules(records, goldens, out):
                 out.add("B8", src, detail=f"an import from the network's libraries, {bare}")
             if src in goldens and (bare in WRITE_NAMES or b17_name(full)):
                 out.add("B14", src, detail=f"a write in a file naming the goldens, {bare}", force=True)
-        if not (is_core_object(obj) or is_instantiation(src)):
+        if not (is_core_object(obj, out.tree) or is_instantiation(src)):
             continue
         known = core_defined | records.runtime
         if is_instantiation(src):
@@ -492,7 +506,7 @@ def name_rules(records, goldens, out):
 
 def link_rules(records, out):
     objects, shapes = records.objects, records.shapes
-    core = {o.target for o in objects if is_core_object(o) and shapes.get(o.target) in LIBRARY_SHAPES}
+    core = {o.target for o in objects if is_core_object(o, out.tree) and shapes.get(o.target) in LIBRARY_SHAPES}
     core = (core | CORE_NAMED) - NOT_CORE_TARGETS
     owners = {}
     for o in objects:
@@ -523,14 +537,15 @@ def link_rules(records, out):
 def check(records, root=None):
     """Every rule over one tree: its findings."""
     root = Path(root or records.root)
-    out = Findings()
+    out = Findings(layers.of(root))
     files = source_files(root)
     goldens = source_rules(root, files, out)
     include_rules(records, out)
     directive_rules(records, root, files, out)
     name_rules(records, goldens, out)
     link_rules(records, out)
-    subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what))
+    subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what),
+                 out.tree)
     return out.found
 
 
