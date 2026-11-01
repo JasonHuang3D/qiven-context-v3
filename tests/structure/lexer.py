@@ -106,3 +106,27 @@ def lex(text):
         tokens.append(("punct", punct, line))
         i += len(punct)
     return tokens, comments
+
+
+def includes(tokens):
+    """The header names of the #include lines, each after its opening " or <."""
+    found = []
+    for at, (kind, value, line) in enumerate(tokens):
+        if kind == "header":
+            found.append('"' + value)
+        elif value == "<" and at >= 2 and tokens[at - 1][1] == "include" and tokens[at - 2][1] == "#" \
+                and tokens[at - 2][2] == line:
+            end = next((j for j in range(at + 1, len(tokens)) if tokens[j][1] == ">" or tokens[j][2] != line),
+                       len(tokens))
+            found.append("<" + "".join(token[1] for token in tokens[at + 1:end]))
+    return found
+
+
+if __name__ == "__main__":
+    # Each file named, one line an include: its path as given, a tab, the name
+    # after its " or <; trees.cmake's header units read it.
+    import sys
+    for path in sys.argv[1:]:
+        with open(path, encoding="utf-8") as source:
+            for name in includes(lex(source.read())[0]):
+                sys.stdout.buffer.write(f"{path}\t{name}\n".encode("utf-8"))

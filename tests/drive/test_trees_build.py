@@ -49,6 +49,24 @@ def analysed(path):
     return any(path.startswith(f"{layer}/") and "/tests/" not in f"/{path}" for layer in TREES["layers"])
 
 
+def scene():
+    """A scratch checkout's files (path to text), each unit and own source
+    including its header, and the units the rule wants of it."""
+    unit = "tests/support/headers/"
+    files = {"kits/module.json": '{"name": "kits"}', "kits/business/module.json": '{"name": "business"}',
+             "kits/scene/module.json": '{"name": "scene"}', "kits/business/src/detail.hpp": "",
+             "kits/scene/src/detail.hpp": "", "kits/scene/src/scene.cpp": "",
+             "kits/scene/include/qiven/scene/seen.hpp": "",
+             "kits/scene/src/seen.cpp": '#include "qiven/scene/seen.hpp"\n', "kits/scene/include/qiven/scene/only.hpp": "", "kits/scene/tests/case.hpp": "",
+             "src/m/x.hpp": "", "src/m/y.hpp": "", "src/m/y.cpp": '#include "y.hpp"\n', "tests/support/m/x.hpp": "",
+             "tests/child/c.hpp": "", "tests/driver/d.hpp": ""}
+    includes = {"business_src_detail.cpp": "../../../kits/business/src/detail.hpp", "child_c.cpp": "child/c.hpp",
+                "m_x.cpp": "m/x.hpp", "scene_only.cpp": "qiven/scene/only.hpp",
+                "scene_src_detail.cpp": "../../../kits/scene/src/detail.hpp", "support_m_x.cpp": "support/m/x.hpp"}
+    files.update({unit + name: f'#include "{header}"\n' for name, header in includes.items()})
+    return files, sorted(includes)
+
+
 class TreesBuild(unittest.TestCase):
     ctest_labels = ("fake",)  # tier 1's fake step runs it
     def test_header_filter(self):
@@ -99,10 +117,91 @@ class TreesBuild(unittest.TestCase):
         self.assertNotIn("/foundation/module.json", tests)
         self.assertIn("qiven3_python_globs(", tests)
         self.assertIn("qiven3_table_globs(", tests)
-        headers = (ROOT / "tests" / "support" / "headers" / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertNotIn('/src/*.hpp"', headers)
-        self.assertIn("foreach(root IN LISTS qiven3_analysed)", headers)
-        self.assertIn("foreach(layer IN LISTS qiven3_layers)", headers)
+
+    def units(self, files):
+        """trees.cmake's header units for a scratch checkout of files (path to
+        text): the exit status, the units and the errors' words."""
+        tool = cmake()
+        if tool is None:
+            raise unittest.SkipTest("no cmake")
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "tools").mkdir()
+            shutil.copy(ROOT / "tools" / "trees.json", root / "tools" / "trees.json")
+            for name, text in files.items():
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_text(text, encoding="utf-8")
+            done = subprocess.run([tool, f"-DROOT={root.as_posix()}", "-DSHOW=units",
+                                   f"-DPython3_EXECUTABLE={sys.executable}", "-P", str(SCRIPT)],
+                                  capture_output=True, text=True, timeout=120)
+        shown_units = [line.split("=", 1)[1] for line in done.stderr.splitlines() if line.startswith("units=")]
+        return done.returncode, sorted(filter(None, "".join(shown_units).split(";"))), " ".join(done.stderr.split())
+
+    def test_header_units(self):
+        """Each header the analysis reads with no source of its own has a unit
+        whose name carries its module, whether or not its module has sources;
+        configure refuses such a header with no unit, two headers of one unit
+        and a unit no such header wants."""
+        unit = "tests/support/headers/"
+        files, wanted = scene()
+        status, got, _ = self.units(files)
+        self.assertEqual((status, got), (0, wanted))
+        del files[unit + "scene_src_detail.cpp"]
+        status, _, errors = self.units(files)
+        self.assertNotEqual(status, 0)
+        self.assertIn(f"the header-only header kits/scene/src/detail.hpp has no unit, {unit}scene_src_detail.cpp",
+                      errors)
+        self.assertNotIn("kits/business/src/detail.hpp", errors)
+        files[unit + "scene_src_detail.cpp"] = '#include "../../../kits/scene/src/detail.hpp"\n'
+        files[unit + "scene_seen.cpp"] = ""
+        status, _, errors = self.units(files)
+        self.assertNotEqual(status, 0)
+        self.assertIn(f"{unit}scene_seen.cpp is no header-only header's unit", errors)
+        del files[unit + "scene_seen.cpp"]
+        files["kits/scene/src/detail/x.hpp"] = ""
+        files["kits/scene/src/detail_x.hpp"] = ""
+        files[unit + "scene_src_detail_x.cpp"] = ""
+        status, _, errors = self.units(files)
+        self.assertNotEqual(status, 0)
+        self.assertIn(f"the headers kits/scene/src/detail/x.hpp and kits/scene/src/detail_x.hpp share the unit "
+                      f"{unit}scene_src_detail_x.cpp", errors)
+        status, got, errors = self.units({})
+        self.assertEqual((status, got), (0, []), errors)
+
+    def test_header_includes(self):
+        """A unit, or an own source standing in for one, includes its header,
+        as the lexer reads it and the include roots resolve it; a header of
+        each suffix of the rule wants a unit."""
+        unit = "tests/support/headers/"
+        for text in ("// nothing\n", '#include "m/y.hpp"\n', '// #include "m/x.hpp"\n'):
+            files, _ = scene()
+            files[unit + "m_x.cpp"] = text
+            status, _, errors = self.units(files)
+            self.assertNotEqual(status, 0, text)
+            self.assertIn(f"the unit {unit}m_x.cpp does not include its header src/m/x.hpp", errors)
+        for text in ("#include <m/x.hpp>\n", '#include "../../../src/m/x.hpp"\n'):
+            files, wanted = scene()
+            files[unit + "m_x.cpp"] = text
+            self.assertEqual(self.units(files)[:2], (0, wanted), text)
+        for own, header, name in (("kits/scene/src/seen.cpp", "kits/scene/include/qiven/scene/seen.hpp", "scene_seen"),
+                                  ("src/m/y.cpp", "src/m/y.hpp", "m_y")):
+            files, wanted = scene()
+            files[own] = "// nothing\n"
+            status, _, errors = self.units(files)
+            self.assertNotEqual(status, 0)
+            self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp (its own source {own} "
+                          "does not include it)", errors)
+            files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
+            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
+        for header, name in (("src/m/t.h", "m_t"), ("kits/scene/src/thing.hxx", "scene_src_thing"),
+                             ("tests/support/m/u.hh", "support_m_u")):
+            files, wanted = scene()
+            files[header] = "template <typename T> T same(T t) { return t; }\n"
+            status, _, errors = self.units(files)
+            self.assertNotEqual(status, 0, header)
+            self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp", errors)
+            files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
+            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
 
     def test_discovery(self):
         """The listing discovers in every top package of the walked trees and

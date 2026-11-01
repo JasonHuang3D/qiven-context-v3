@@ -67,8 +67,8 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 # trees outside a module's own tests/, whatever directory defines their
 # target. /analyze on each such source, then clang-tidy over
 # compile_commands.json, each source its own step after every target is
-# built, by .clang-tidy, on the headers of the same trees. A header-only
-# module is read through its unit in tests/support/headers/.
+# built, by .clang-tidy, on the headers of the same trees. A header with no
+# source of its own is read through its unit in tests/support/headers/.
 if(QIVEN_ANALYZE STREQUAL "analysis")
   set(qiven3_tidy_targets "")
   set(qiven3_tidy_sources "")
