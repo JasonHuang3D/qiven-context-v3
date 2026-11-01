@@ -118,12 +118,15 @@ ALLOWED = {
     # and its variants' (src/diag/CMakeLists.txt).
     "B5": ("src/platform/win/", "tests/child/", "qiven3_platform_win", "src/diag/", "qiven3_diag",
            "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
+    "B11": ("tests/compat/r",),
+    "B14": ("tests/support/goldens",),
     "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
 # B1's text, beyond ALLOWED["B1"]: the vendored SQLite's module directory,
-# and the build's pin of sqlite3.c's and sqlite3.h's digests.
-B1_TEXT = ("foundation/system/sqlite/", "foundation/devkit/build/build.cmake")
+# the build's pin of sqlite3.c's and sqlite3.h's digests, and the read audit,
+# which names sqlite3 to check its absence: its text alone, not B1's include.
+B1_TEXT = ("foundation/system/sqlite/", "foundation/devkit/build/build.cmake", "tests/audit/read_audit")
 # The allowances the text states beyond the rows' cells, (rule, file, what),
 # each with its reason; the subset's cells' are subset.CELLS. A file or a
 # what ending in / is a prefix, and a file ending in . a module's files.
@@ -428,7 +431,7 @@ def direct_include(by, path, kind, name, out):
     if rel is not None:
         if under(by, B12_FILES) and under(rel, B12_HEADERS):
             out.add("B12", by, detail=f"includes {rel}")
-        if by.startswith("src/reader/") and under(rel, B13_HEADERS):
+        if by.startswith("src/reader/") and under(rel, B13_HEADERS) and not rel.startswith("src/bundle/layout."):
             out.add("B13", by, detail=f"includes {rel}")
         if rel == "src/qiven3/mapcheck.hpp":
             out.add("B16", by, detail="includes the map check")

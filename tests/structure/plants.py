@@ -42,7 +42,8 @@ add_library(qiven3_entry STATIC ${entry_sources})
 target_include_directories(qiven3_entry PRIVATE "${outside}")
 target_link_libraries(qiven3_entry PUBLIC qiven3_platform qiven3_sqlite qiven_build)
 add_library(qiven3_secret STATIC src/entry/secret.cpp)
-add_library(qiven3_reader STATIC src/reader/secret_include.cpp src/reader/replace_call.cpp)
+add_library(qiven3_reader STATIC src/reader/secret_include.cpp src/reader/replace_call.cpp
+  src/reader/layout_include.cpp)
 target_link_libraries(qiven3_reader PUBLIC qiven3_store)
 add_library(qiven3_mapcheck STATIC src/qiven3/mapcheck.cpp)
 add_library(qiven3_base STATIC src/qiven3/clean.cpp src/app/main.cpp)
@@ -53,7 +54,8 @@ add_library(qiven3_app_instances STATIC src/app/instances.cpp)
 add_library(qiven3_reader_instances STATIC src/reader/instances.cpp)
 target_link_libraries(qiven3_reader_instances PRIVATE qiven3_platform_win)
 add_library(qiven3_unit_plant STATIC tests/unit/sqlite_text_test.cpp tests/unit/long_test.cpp
-  tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/write.cpp
+  tests/unit/unended_test.cpp tests/unit/edge_test.cpp tests/support/goldens/goldens.cpp
+  tests/support/goldens/write.cpp tests/compat/r1_0/frozen.cpp tests/audit/read_audit_include.cpp
   foundation/devkit/test/runner/src/runner.cpp)
 add_library(qiven3_diag STATIC src/diag/diag_windows.cpp)
 target_link_libraries(qiven3_diag PRIVATE dbghelp)
@@ -138,6 +140,8 @@ PLANTS = {
     "src/entry/secret.cpp": "#include \"entry/secret.hpp\"\nint secret_check() { return 0; }\n",
     "src/reader/secret_include.cpp": "#include \"entry/secret.hpp\"\nint reader_secret() { return secret_check(); }\n",
     "src/reader/replace_call.cpp": "template <class P>\nvoid reader_write(P& p) { p.replace(\"a\", \"b\", 1); }\n",
+    "src/bundle/layout.hpp": "#pragma once\ninline int layout_files() { return 7; }\n",
+    "src/reader/layout_include.cpp": "#include \"bundle/layout.hpp\"\nint reader_layout() { return layout_files(); }\n",
     "src/qiven3/mapcheck.hpp": "#pragma once\nnamespace qiven3 { int marks(); }\n",
     "src/qiven3/mapcheck.cpp": "#include \"qiven3/mapcheck.hpp\"\nconst char* mapcheck_git() "
         "{ return \"rev-parse\"; }\nint qiven3::marks() { return 0; }\n",
@@ -162,8 +166,13 @@ PLANTS = {
     "tests/unit/long_test.cpp": "// 601 lines.\n" + "//\n" * 599 + "int long_test() { return 0; }\n",
     "tests/unit/unended_test.cpp": "// 600 lines and one unended.\n" + "//\n" * 599 + "int unended() { return 0; }",
     "tests/unit/edge_test.cpp": "// 600 lines, each ended.\n" + "//\n" * 598 + "int edge() { return 0; }\n",
+    "tests/support/goldens/goldens.cpp": "const char* goldens_registry() { return \"tests/goldens/v1/registry.json\"; }\n",
     "tests/support/goldens/write.cpp": "#include <cstdio>\nvoid* goldens_write() "
         "{ return std::fopen(\"tests/goldens/v1/x\", \"w\"); }\n",
+    "tests/compat/r1_0/frozen.cpp": "#include \"../../support/plant/support_new.hpp\"\n"
+        "int* frozen_new() { return support_new(); }\n",
+    "tests/audit/read_audit.cpp": "// Names sqlite3 to check its absence.\nint read_audit() { return 0; }\n",
+    "tests/audit/read_audit_include.cpp": "#include \"sqlite3.h\"\nint read_audit_include() { return 0; }\n",
     "foundation/devkit/test/runner/src/runner.cpp": "#include <windows.h>\n#include <crtdbg.h>\n"
         "#include \"support/plant/joined.hpp\"\n#include \"qiven/runner/runner.hpp\"\n#include \"driver/drive.hpp\"\n"
         "int runner_quiet() { _CrtSetReportMode(0, 0); return int(SetErrorMode(1)); }\n",
@@ -220,6 +229,7 @@ PLANTS.update({f"src/entry/crt_{n.lstrip('_')}.cpp": DLLIMPORT + f"int __cdecl {
 PLANTED = [
     ("B1", "src/entry/sqlite_include.cpp", ""), ("B1", "tests/unit/sqlite_text_test.cpp", ""),
     ("B1", "qiven3_entry", ""), ("B1", "src/store/sqlite_open.cpp", ""),
+    ("B1", "tests/audit/read_audit_include.cpp", ""),
     ("B17", "src/store/sqlite_open.cpp", "include"),
     ("B2", "src/entry/git.cpp", ""), ("B2", "src/entry/git_case.cpp", ""), ("B2", "src/store/rev_parse.cpp", ""),
     ("B2", "src/store/create_process.cpp", ""), ("B2", "src/qiven3/mapcheck.cpp", ""),
@@ -262,7 +272,8 @@ PLANTED = [
 CLEAN = [
     "src/qiven3/clean.cpp", "tests/unit/edge_test.cpp", "src/reader/instances.cpp",
     "src/platform/win/process.cpp", "src/platform/win/windows.cpp",
-    "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp",
+    "third_party/sqlite/sqlite3.c", "src/store/engine/sqlite.cpp", "tests/support/goldens/goldens.cpp",
+    "src/reader/layout_include.cpp", "tests/compat/r1_0/frozen.cpp", "tests/audit/read_audit.cpp",
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
     "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
