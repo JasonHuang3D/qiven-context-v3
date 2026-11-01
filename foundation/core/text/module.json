@@ -38,5 +38,14 @@
         "tests/support/fixtures/filled.hpp"
       ]
     }
+  ],
+  "exceptions": [
+    {
+      "from": "base",
+      "to": [
+        "platform"
+      ],
+      "until": "base splits and digest's key moves to the product's format"
+    }
   ]
 }

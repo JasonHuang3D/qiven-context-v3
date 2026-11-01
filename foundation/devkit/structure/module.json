@@ -28,5 +28,20 @@
         "tests/support/headers/"
       ]
     }
+  ],
+  "exceptions": [
+    {
+      "from": "structure",
+      "to": [
+        "store",
+        "checked",
+        "write",
+        "location",
+        "app",
+        "driver",
+        "child"
+      ],
+      "until": "structure splits and its data moves to the product"
+    }
   ]
 }

@@ -33,10 +33,17 @@ are counted on one line) and, given a configured build tree, its links
 (read from CMake's file API, the codemodel the root CMakeLists.txt asks
 for): a library file's and target's by depends alone, a file and a target
 under tests/ by test_depends too, a module whose every file is under tests/
-its own library. A cycle in depends refused; a foundation module depending
-on a product module refused, but the table's listed exceptions; a module or
-a dependency the table does not name, or a layer it does not know, refused.
-One line an error, naming the
+its own library. A cycle in depends refused. The layer rule: a row's layer
+its table file's in the tree (devkit, core, system, services, kits,
+products, in that order; tools/ and the repository outside the link graph),
+never its row's word; an edge in depends or test_depends going up, or onto
+a module outside the link graph, refused, but the test kit's (the rows of
+the table files under foundation/devkit/test/) up to core, system and
+services, and the exceptions a built table file lists for its own rows
+(from, to, until: what removes it), each refused that names no edge the
+table has or one the rule allows; the support layer outside the test kit
+refused. A module or a dependency the table does not name, or a layer it
+does not know, refused. One line an error, naming the
 file or the edge, then the count of vendored includes left unresolved; exit
 0 when none, 1 when any, 2 when the check could not run.
 """
@@ -69,6 +76,9 @@ PLATFORMS, KINDS = ("windows",), ("adapter", "module")  # the known values of pl
 MAY_DEPEND = ("devkit", "core", "system", "services", "kits")  # of may_depend
 PARAMETER = ("name", "default", "built")  # a parameter's keys
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
+ORDER = ("devkit", "core", "system", "services", "kits", "products")  # the link graph's layers, lowest first
+KIT = "foundation/devkit/test/"  # the test kit's table files: the runner, the case main, the faults kit, the scan
+EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
 SOURCES = (".c", ".cpp", ".h", ".hpp")
 INCLUDE = re.compile(rb'^[ \t]*#[ \t]*include[ \t]*(?:"([^"]+)"|<((?:qiven|qiven3)/[^>]+)>)', re.M)  # angle: ours
 ROOTS = ("src", "tests", "third_party/sqlite")  # the include directories the build gives, and include_roots()'
@@ -94,12 +104,20 @@ def strings(value, known=None):
     return isinstance(value, list) and all(isinstance(v, str) and (known is None or v in known) for v in value)
 
 
+def tree_layer(where):
+    """A table file's directory's layer: foundation/<layer>/... gives its
+    layer, kits/ and products/ theirs, the root, foundation/ and tools/
+    their own."""
+    parts = where.split("/")
+    return {"": "repository", "foundation": "foundation", "tools": "tools"}.get(where) or (
+        parts[1] if parts[0] == "foundation" else parts[0])
+
+
 def fields(where, data, shallow):
     """A table file's fields of a wrong type or an unknown value, and its
-    layer or name not its directory's: foundation/<layer>/... gives its
-    layer, kits/ and products/ theirs, the root, foundation/ and tools/
-    their own; a directory's name its name, but the deeper of two
-    directories of one name takes its parent's as a prefix."""
+    layer or name not its directory's (tree_layer()); a directory's name its
+    name, but the deeper of two directories of one name takes its parent's
+    as a prefix."""
     out, parts = [], where.split("/")
     for key, known in (("platforms", PLATFORMS), ("may_depend", MAY_DEPEND), ("from", None)):
         if key in data and not strings(data[key], known):
@@ -114,6 +132,11 @@ def fields(where, data, shallow):
             and isinstance(p["built"], bool) for p in data["parameters"])):
         out.append(f"parameters are not a list of objects of keys {', '.join(PARAMETER)}, its name a string, "
                    "built true or false")
+    if "exceptions" in data and not (isinstance(data["exceptions"], list) and all(
+            isinstance(e, dict) and set(e) == set(EXCEPTION) and isinstance(e["from"], str) and strings(e["to"])
+            and e["to"] and isinstance(e["until"], str) and e["until"] for e in data["exceptions"])):
+        out.append(f"exceptions are not a list of objects of keys {', '.join(EXCEPTION)}, from a string, to a "
+                   "list of strings, until words, neither empty")
     if not isinstance(data.get("present", []), list):
         out.append(f"present {data['present']!r} is not a list")
     elif any(not isinstance(row, dict) or set(row) != set(ROW) for row in data.get("present", [])):
@@ -125,8 +148,7 @@ def fields(where, data, shallow):
                 if not (isinstance(row[key], str) if key in ("name", "layer") else strings(row[key]))]
     if out:
         return out
-    layer = {"": "repository", "foundation": "foundation", "tools": "tools"}.get(where) or (
-        parts[1] if parts[0] == "foundation" else parts[0])
+    layer = tree_layer(where)
     name = f"{parts[-2]}_{parts[-1]}" if len(parts) > 1 and where.count("/") > shallow[parts[-1]] else parts[-1]
     out += [f"layer {data['layer']} is not its directory's, {layer}"] if data["layer"] != layer else []
     return out + ([f"name {data['name']} is not its directory's, {name}"]
@@ -158,7 +180,7 @@ def table_of(texts, files=None, readmes=None):
     files {path: text}; given the tracked files, what a slot's or a group's
     directory holds and a contract checked too; given {path: text} of the
     table directories' README.md, each checked against its module.json."""
-    errors, rows, names, later, dirs, slots = [], [], {}, [], [], []
+    errors, rows, names, later, dirs, slots, excepted = [], [], {}, [], [], [], []
     shallow = {}  # a directory's name: the fewest parts of a table file's directory of that name
     for where in (p.rpartition("/")[0] for p in texts if "/" in p):
         shallow[where.rpartition("/")[2]] = min(shallow.get(where.rpartition("/")[2], 99), where.count("/"))
@@ -176,7 +198,7 @@ def table_of(texts, files=None, readmes=None):
                                                     if isinstance(data, dict) else "is not a JSON object"))
             continue
         want = set(KEYS[status]) | ({"from"} if status == "built" and data.get("present") == [] else set())
-        lacks, adds = want - set(data), set(data) - want - ({"of"} if status == "slot" else set())
+        lacks, adds = want - set(data), set(data) - want - {"slot": {"of"}, "built": {"exceptions"}}.get(status, set())
         if lacks or adds:
             errors.append(f"table file {path}: " + "; ".join(
                 f"{how} {', '.join(sorted(keys))}" for how, keys in (("lacks", lacks), ("adds", adds)) if keys))
@@ -197,6 +219,11 @@ def table_of(texts, files=None, readmes=None):
             errors.append(f"table file {path}: name {data['name']} is {names[data['name']]}'s too")
         names.setdefault(data["name"], path)
         if status == "built":
+            for e in data.get("exceptions", ()):
+                if e["from"] in [row["name"] for row in data["present"]]:
+                    excepted.append({**e, "to": list(e["to"])})
+                else:
+                    errors.append(f"table file {path}: exception from {e['from']} names no row of its file")
             mine = [dict(row, paths=list(row["paths"])) for row in data["present"]]
             if mine:
                 mine[0]["paths"] += own
@@ -228,7 +255,10 @@ def table_of(texts, files=None, readmes=None):
             inside = f.startswith(where + "/") if status == "slot" else f.rpartition("/")[0] == where
             if inside and f not in own:
                 errors.append(f"{status} {name}: its directory holds {f}")
-    return {"modules": [row for _, row in rows]}, errors
+    homes = {}  # a row's table file, whose directory gives its layer in the tree
+    for path, row in rows:
+        homes.setdefault(row["name"], path)
+    return {"modules": [row for _, row in rows], "homes": homes, "exceptions": excepted}, errors
 
 
 def tree(root=ROOT, files=None):
@@ -276,13 +306,34 @@ def reach(table, keys=("depends", "test_depends")):
     return closure
 
 
-def excepted(table, source, target):
-    return any(e["from"] == source and target in e["to"] for e in table.get("exceptions", ()))
+def layer_rule(table):
+    """refused(source, target): why the layer rule refuses an edge, or None.
+    A row's layer is its table file's in the tree, never its own word; an
+    edge goes down or stays in its layer; the test kit's edges up to core,
+    system and services are allowed, as nothing but a test reaches the kit;
+    tools/ and the repository are outside the link graph."""
+    homes = table.get("homes", {})
+    place = {name: tree_layer(home.rpartition("/")[0]) for name, home in homes.items()}
+    kit = {name for name, home in homes.items() if home.startswith(KIT)}
+
+    def refused(source, target):
+        low, high = place.get(source), place.get(target)
+        if low not in ORDER or high is None:  # outside the link graph, or a row of no table file (a test's)
+            return None
+        if high not in ORDER:
+            return f"{target} is outside the link graph"
+        if ORDER.index(high) > ORDER.index(low) and not (source in kit and high in ORDER[1:4]):
+            return f"up from {low} to {high}" + (", past the test kit's reach" if source in kit else "")
+        return None
+
+    return refused
 
 
 def check_table(table):
-    """The errors of the table alone: names, layers, the foundation line, a
-    cycle in depends, named by its modules in order."""
+    """The errors of the table alone: names, layers, a cycle in depends,
+    named by its modules in order; each edge by the layer rule
+    (layer_rule()), but the table's exceptions, each one naming an edge the
+    table has and the rule refuses; the support layer outside the test kit."""
     errors = []
     layer = {m["name"]: m["layer"] for m in table["modules"]}
     state = {}  # a module's walk: 1 while its dependencies are walked, 2 once they are
@@ -299,14 +350,23 @@ def check_table(table):
     for name in sorted(layer):
         if name not in state:
             walk([name])
+    refused, homes = layer_rule(table), table.get("homes", {})
+    excepted = [(e["from"], to) for e in table.get("exceptions", ()) for to in e["to"]]
+    edges = {m["name"]: m["depends"] + m.get("test_depends", []) for m in table["modules"]}
     for m in table["modules"]:
         if m["layer"] not in LAYERS:
             errors.append(f"module {m['name']}: layer {m['layer']} is none of {', '.join(LAYERS)}")
-        for other in dict.fromkeys(m["depends"] + m.get("test_depends", [])):
-            if other not in layer:
-                errors.append(f"edge {m['name']} -> {other}: no module {other}")
-            elif m["layer"] == "foundation" and layer[other] == "product" and not excepted(table, m["name"], other):
-                errors.append(f"edge {m['name']} -> {other}: foundation depending on product")
+        if m["layer"] == "support" and m["name"] in homes and not homes[m["name"]].startswith(KIT):
+            errors.append(f"module {m['name']}: layer support outside the test kit, {KIT}")
+        for other in dict.fromkeys(edges[m["name"]]):
+            why = refused(m["name"], other) if other in layer else f"no module {other}"
+            if why and (other not in layer or (m["name"], other) not in excepted):
+                errors.append(f"edge {m['name']} -> {other}: {why}")
+    for source, target in excepted:
+        if target not in edges.get(source, ()):
+            errors.append(f"exception {source} -> {target}: the table has no such edge")
+        elif not refused(source, target):
+            errors.append(f"exception {source} -> {target}: the layer rule allows the edge")
     return errors
 
 

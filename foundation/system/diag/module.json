@@ -21,5 +21,14 @@
         "src/diag/"
       ]
     }
+  ],
+  "exceptions": [
+    {
+      "from": "diag",
+      "to": [
+        "log"
+      ],
+      "until": "diag moves with the log's ring"
+    }
   ]
 }

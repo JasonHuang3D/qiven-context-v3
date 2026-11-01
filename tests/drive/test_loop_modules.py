@@ -3,8 +3,10 @@ a clean one passes, and each plant is caught, its line naming the file or
 the edge: a file in no module, a file in two, an undeclared include, an
 include resolving to no tracked file (counted, not refused, under
 third_party/), an undeclared link, a library reaching past its library's
-dependencies, a cycle in depends, a foundation module depending on a
-product one outside the table's exceptions; a module directory's include/
+dependencies, a cycle in depends, an edge up by the layers of the rows'
+table files outside the test kit's reach and the table's exceptions, an
+exception naming no edge or one the rule allows, the support layer outside
+the test kit, an edge onto tools/; a module directory's include/
 an include root, an angle qiven/ include read as a quoted one. The table
 read from a synthetic tree of table files (a built file with two rows, one
 with from, a slot, a group): its rows, and each refusal of the files on one
@@ -31,6 +33,8 @@ from tools import loop_modules
 def table():
     return {
         "exceptions": [{"from": "low", "to": ["high"], "until": "a split"}],
+        "homes": {"shared": "foundation/devkit/test/shared/module.json", "core": "foundation/core/low/module.json",
+                  "low": "foundation/core/low/module.json", "high": "products/high/module.json"},
         "modules": [
             {"name": "shared", "layer": "support", "depends": ["core"], "test_depends": [], "paths": ["tests/runner/"]},
             {"name": "core", "layer": "foundation", "depends": [], "test_depends": [], "paths": ["src/core/"]},
@@ -60,6 +64,14 @@ TARGETS = [
     ("high_cases", ["tests/unit/high_test.cpp"], ["high_lib", "low_lib", "core_lib", "runner_lib"]),
     ("low_cases", ["tests/unit/low_test.cpp"], ["low_lib", "high_lib", "runner_lib"]),
 ]
+
+
+def with_row(table_, name, home, depends=()):
+    """table_ and a row of no paths, its home's layer the tree's."""
+    table_["modules"].append({"name": name, "layer": "foundation", "depends": list(depends), "test_depends": [],
+                              "paths": []})
+    table_["homes"][name] = home
+    return table_
 
 
 def errors(table_=None, files=None, targets=TARGETS):
@@ -93,8 +105,10 @@ def layout():
         "foundation/core/low/module.json": built_file("low", "core", rows[1:3]),
         "foundation/core/time/module.json": built_file("time", "core", [], **{"from": ["low"]}),
         "kits/ai/module.json": slot_file("ai", "kits"),
+        "foundation/devkit/test/shared/module.json": built_file("shared", "devkit", rows[:1]),
         "products/high/module.json": built_file("high", "products", rows[3:]),
-        "tools/module.json": built_file("tools", "tools", rows[:1]),
+        "tools/module.json": built_file("tools", "tools", [
+            {"name": "tooling", "layer": "tooling", "depends": [], "test_depends": [], "paths": ["tools/"]}]),
     }
 
 
@@ -228,15 +242,60 @@ class Check(unittest.TestCase):
         files = {**FILES, "src/core/core.hpp": b"#include <vector>\n#include <qiven/gone.hpp>\n"}
         self.caught(errors(files=files), "include src/core/core.hpp:2 <qiven/gone.hpp>: resolves to no tracked file")
 
-    def test_foundation_on_product_outside_the_exception(self):
+    def test_upward_edge_outside_the_exception(self):
+        """An edge up, in test_depends or depends, refused by the layers of
+        the rows' table files; down, or within a layer, not."""
         t = table()
         t["modules"][1]["test_depends"].append("high")
-        self.caught(errors(t), "edge core -> high: foundation depending on product")
+        self.caught(errors(t), "edge core -> high: up from core to products")
+        t = with_row(table(), "sys", "foundation/system/sys/module.json")
+        t["modules"][1]["depends"].append("sys")
+        self.caught(loop_modules.check_table(t), "edge core -> sys: up from core to system")
+        t["modules"][-1]["depends"].append("core")
+        t["modules"][1]["depends"].remove("sys")
+        self.assertEqual(loop_modules.check_table(t), [])
 
-    def test_the_exception_listed(self):
+    def test_the_test_kits_reach(self):
+        """The test kit's edges up to core, system and services allowed, to a
+        kit or a product refused; another devkit row's up refused."""
+        t = with_row(table(), "sys", "foundation/system/sys/module.json")
+        t["modules"][0]["depends"].append("sys")
+        self.assertEqual(loop_modules.check_table(t), [])
+        t["modules"][0]["depends"].append("high")
+        self.caught(loop_modules.check_table(t), "edge shared -> high: up from devkit to products, past the test "
+                                                 "kit's reach")
+        t = with_row(table(), "tool", "foundation/devkit/structure/module.json", ["core"])
+        self.caught(loop_modules.check_table(t), "edge tool -> core: up from devkit to core")
+
+    def test_layer_of_the_file_not_the_word(self):
+        """A row's word other than its file's layer: the rule reads the file;
+        the support word outside the test kit refused; an edge onto tools/
+        or the repository refused, theirs not ordered."""
         t = table()
         t["exceptions"] = []
-        self.caught(errors(t), "edge low -> high: foundation depending on product")
+        t["modules"][2]["layer"] = "tooling"
+        self.caught(loop_modules.check_table(t), "edge low -> high: up from core to products")
+        t = table()
+        t["modules"][1]["layer"] = "support"
+        self.caught(loop_modules.check_table(t), "module core: layer support outside the test kit, "
+                                                 "foundation/devkit/test/")
+        t = with_row(table(), "tooling", "tools/module.json", ["high"])
+        self.assertEqual(loop_modules.check_table(t), [])
+        t["modules"][1]["test_depends"].append("tooling")
+        self.caught(loop_modules.check_table(t), "edge core -> tooling: tooling is outside the link graph")
+
+    def test_the_exception_listed(self):
+        """An exception lifts its edge; one naming no edge of the table, or an
+        edge the rule allows, is refused itself."""
+        t = table()
+        t["exceptions"] = []
+        self.caught(errors(t), "edge low -> high: up from core to products")
+        t = table()
+        t["exceptions"][0]["to"].append("shared")
+        self.caught(loop_modules.check_table(t), "exception low -> shared: the table has no such edge")
+        t = table()
+        t["exceptions"].append({"from": "high", "to": ["low"], "until": "never"})
+        self.caught(loop_modules.check_table(t), "exception high -> low: the layer rule allows the edge")
 
     def test_help_and_usage(self):
         """--help and -h print the usage and exit 0; a wrong count fails, 2."""
@@ -256,6 +315,10 @@ class Check(unittest.TestCase):
         self.assertEqual(errors_, [])
         self.assertEqual(loop_modules.check_table(found), [])
         self.assertEqual(loop_modules.load(), found)
+        # The nine edges the layer rule refuses, named exceptions until what removes them; none added.
+        self.assertEqual([(e["from"], e["to"]) for e in found["exceptions"]], [
+            ("base", ["platform"]), ("structure", ["store", "checked", "write", "location", "app", "driver", "child"]),
+            ("diag", ["log"])])
 
 
 class Tree(unittest.TestCase):
@@ -276,15 +339,17 @@ class Tree(unittest.TestCase):
         self.assertEqual(errors_, [])
         paths = {m["name"]: m["paths"] for m in found["modules"]}
         self.assertEqual([m["name"] for m in found["modules"]],
-                         ["core", "low", "foundation", "ai", "notes", "high", "shared"])
+                         ["core", "low", "shared", "foundation", "ai", "notes", "high", "tooling"])
         self.assertEqual(paths["core"], ["src/core/", *(f"foundation/core/low/{n}" for n in ("README.md", "module.json"))])
         self.assertEqual(paths["low"], ["src/low/", "tests/unit/low_*",
                                         *(f"foundation/core/time/{n}" for n in ("README.md", "module.json"))])
         self.assertEqual(paths["ai"], ["kits/ai/"])
         self.assertEqual(paths["foundation"], ["foundation/README.md", "foundation/module.json"])
         self.assertEqual(paths["notes"], ["README.md", "module.json"])
-        self.assertEqual(paths["shared"], ["tests/runner/", "tools/README.md", "tools/module.json"])
-        self.assertEqual(found["modules"][3]["layer"], "no-test")
+        self.assertEqual(paths["shared"], ["tests/runner/", *(f"foundation/devkit/test/shared/{n}"
+                                                              for n in ("README.md", "module.json"))])
+        self.assertEqual(paths["tooling"], ["tools/", "tools/README.md", "tools/module.json"])
+        self.assertEqual(found["modules"][4]["layer"], "no-test")
         own = [p for path in layout() for p in (path.replace("module.json", "README.md"), path)]
         files = {**FILES, **dict.fromkeys(own, b"")}  # the root's README.md the notes'
         self.assertEqual(loop_modules.check({**found, "exceptions": table()["exceptions"]}, sorted(files),
@@ -339,6 +404,22 @@ class Tree(unittest.TestCase):
         objects = layout()
         objects["kits/ai/module.json"]["of"] = "core"  # an adapter's
         self.assertEqual(from_tree(objects)[1], [])
+
+    def test_exceptions(self):
+        """A built file's exceptions, for its own rows alone, read into the
+        table; a slot's refused; each row's home its table file."""
+        objects = layout()
+        objects["foundation/core/low/module.json"]["exceptions"] = [{"from": "low", "to": ["high"], "until": "a split"}]
+        found, errors_ = from_tree(objects)
+        self.assertEqual(errors_, [])
+        self.assertEqual(found["exceptions"], table()["exceptions"])
+        self.assertEqual(found["homes"]["low"], "foundation/core/low/module.json")
+        self.assertEqual(found["homes"]["shared"], "foundation/devkit/test/shared/module.json")
+        objects["foundation/core/low/module.json"]["exceptions"][0]["from"] = "high"
+        self.caught(objects, "table file foundation/core/low/module.json: exception from high names no row of its file")
+        objects = layout()
+        objects["kits/ai/module.json"]["exceptions"] = []
+        self.caught(objects, "table file kits/ai/module.json: adds exceptions")
 
     def test_layer_and_status(self):
         objects = layout()
@@ -454,6 +535,9 @@ class Tree(unittest.TestCase):
                  "parameters are not a list of objects of keys name, default, built, its name a string, built true "
                  "or false"),
                 ("products/high/module.json", {"present": {}}, "present {} is not a list"),
+                ("products/high/module.json", {"exceptions": [{"from": "high", "to": [], "until": "x"}]},
+                 "exceptions are not a list of objects of keys from, to, until, from a string, to a list of strings, "
+                 "until words, neither empty"),
                 ("products/high/module.json", {"present": [dict(table()["modules"][3], depends="low")]},
                  "present row 0: depends 'low' is not a list of strings"),
                 ("products/high/module.json", {"present": [dict(table()["modules"][3], test_depends="low")]},
