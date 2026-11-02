@@ -18,6 +18,7 @@
       ],
       "paths": [
         "tools/__init__.py",
+        "tools/changed.py",
         "tools/debug*",
         "tools/dumps.py",
         "tools/fuzz_seeds.py",
