@@ -10,21 +10,30 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
     PATH module=M layer=L scopes=S ruleset=R tidy=C tidy_from=F [tidy_file=P]
       [unit=U unit_ruleset=R unit_tidy=C unit_tidy_from=F]
   S: each scope of the commit's own rules taking it (walker, walked, layered,
-  test_code, library, core, subset, k15, analysed). R: each rule set a compile
-  of it names; none for a compile with none, - for no compile. C: its
+  test_code, library, core, subset, k15, analysed). R: each compile of it,
+  by the rule sets it names (joined by |), none for a compile naming none,
+  the compiles sorted and joined by ,; - for no compile. C: its
   clang-tidy step's configuration, path@digest: the file the step names, or
   the nearest .clang-tidy above the source for a step naming none; for a
   file the build composes, composed@digest, P its path, and F what it was
   composed from; - for no step. F: the configurations the step rests on, as
   its build line lists them. A header the build analyses names the unit it
-  compiles through, U, with U's rule set and configuration. Then the build's
+  compiles through, U, as the build's own qiven3_header_units reads it (by
+  loop_listing.cmake; a COMMIT whose build names none is refused), with U's
+  rule set and configuration. Then the build's
   header filters, as lines named cmake:filter and cmake:exclude.
 
 loop_listing.py compare BEFORE AFTER [MAP]
   The lines that differ, BEFORE's paths renamed by MAP first; exit 0 when
   none do. A field named *_file is not compared: the build names it. MAP: a
   move a line, OLD NEW, from the checkout's root; a path ending in / renames
-  what is under it; # starts a comment.
+  what is under it; # starts a comment. A line merge NEW OLD... moves each
+  OLD to NEW as one merge. The map is refused, each move named, exit 1, when
+  an OLD is no path of BEFORE nor a directory above one, when two OLDs with
+  paths or two paths of BEFORE move to one NEW, or when a NEW is a path of
+  BEFORE, or a directory above one, that no move takes away; a NEW a merge
+  line names is not refused so. Each path a merge takes is compared with
+  NEW's line of AFTER, named NEW (from OLD) where NEW takes more than one.
 """
 
 import hashlib
@@ -69,13 +78,14 @@ def rel_of(text, root, build):
 
 
 def rulesets(commands, root, build):
-    """{path: set of rule sets} from the build's compile_commands.json text."""
+    """{path: [rule sets of each compile]} from the build's compile_commands.json
+    text: a compile's rule sets joined by |, none for a compile naming none."""
     found = {}
     for entry in json.loads(commands):
-        named = found.setdefault(rel_of(entry["file"], root, build), set())
-        for ruleset in re.findall(r'/analyze:ruleset(?!directory)\s*("[^"]+"|\S+)', entry["command"]):
-            named.add(rel_of(ruleset, root, build))
-    return found
+        named = sorted({rel_of(ruleset, root, build) for ruleset in
+                        re.findall(r'/analyze:ruleset(?!directory)\s*("[^"]+"|\S+)', entry["command"])})
+        found.setdefault(rel_of(entry["file"], root, build), []).append("|".join(named) or "none")
+    return {path: sorted(compiles) for path, compiles in found.items()}
 
 
 def nearest(rel, root):
@@ -172,8 +182,7 @@ def listing(checkout, commit, scratch):
     trees = str(root / "foundation" / "devkit" / "build" / "trees.cmake")
     analysed = answers(cmake_lines([f"-DROOT={root.as_posix()}", "-DSHOW=analysed",
                                     f"-DPATHFILE={paths.as_posix()}", "-P", trees]))
-    units = answers(cmake_lines([f"-DROOT={root.as_posix()}", f"-DPATHFILE={paths.as_posix()}",
-                                 "-P", str(HERE / "loop_listing.cmake")]))
+    units = answers(cmake_lines([f"-DROOT={root.as_posix()}", "-P", str(HERE / "loop_listing.cmake")]))
     regex = units.pop("ROOT")
     filters = [line.replace(regex, "ROOT") for line in
                cmake_lines([f"-DROOT={root.as_posix()}", "-DSHOW=filters", "-P", trees])]
@@ -187,7 +196,7 @@ def lines_of(scoped, analysed, units, sets, steps, filters, root, build):
     build's answer (TRUE or FALSE first), filters are the build's, the
     checkout's root in them as ROOT."""
     def checks(f):
-        fields = {"ruleset": ",".join(sorted(sets[f])) or "none" if f in sets else NONE}
+        fields = {"ruleset": ",".join(sets[f]) if f in sets else NONE}
         config, rests, at = steps.get(f, (NONE, [], None))
         fields["tidy"] = f"composed@{digest(build / at[len('BUILD/'):])}" if at else with_digest(config, root, build)
         fields["tidy_from"] = ",".join(with_digest(r, root, build) for r in rests) or NONE
@@ -215,41 +224,74 @@ def lines_of(scoped, analysed, units, sets, steps, filters, root, build):
 
 
 def read_map(text):
-    """{old: new} of a rename map's text."""
-    moves = {}
+    """({old: new}, the NEW paths named merges) of a rename map's text."""
+    moves, merged = {}, set()
     for line in text.splitlines():
-        line = line.split("#", 1)[0].strip()
-        if line:
-            old, new = line.split()
-            moves[old] = new
-    return moves
+        words = line.split("#", 1)[0].split()
+        if len(words) > 2 and words[0] == "merge":
+            moves.update(dict.fromkeys(words[2:], words[1]))
+            merged.add(words[1])
+        elif len(words) == 2:
+            moves[words[0]] = words[1]
+        elif words:
+            raise SystemExit(f"loop_listing: a map line is OLD NEW or merge NEW OLD...: {line}")
+    return moves, merged
+
+
+def mover(path, moves):
+    """The OLD of moves taking path: its own, else the longest directory above it; None for none."""
+    under = [old for old in moves if old == path or old.endswith("/") and path.startswith(old)]
+    return max(under, key=len) if under else None
 
 
 def renamed(path, moves):
-    if path in moves:
-        return moves[path]
-    under = [old for old in moves if old.endswith("/") and path.startswith(old)]
-    if not under:
-        return path
-    old = max(under, key=len)
-    return moves[old] + path[len(old):]
+    old = mover(path, moves)
+    return path if old is None else moves[old] + path[len(old):]
+
+
+def refusals(paths, moves, merged):
+    """The moves refused against the earlier listing's paths, each named: an OLD naming none of them; two
+    OLDs with paths, or two paths, taking one NEW; a NEW already among them and staying; unless NEW is merged."""
+    def under(path, at):
+        return path == at or at.endswith("/") and path.startswith(at)
+    out, into, taken = [], {}, {}
+    for old, new in sorted(moves.items()):
+        if not any(under(p, old) for p in paths):
+            out.append(f"refused: {old} is no path of the earlier listing")
+        elif new not in merged:
+            taken.setdefault(new, []).append(old)
+            out.extend(f"refused: {old} moves to {new}, where {p} stays" for p in paths
+                       if under(p, new) and mover(p, moves) is None)
+    out.extend(f"refused: {' and '.join(olds)} move to one path, {new}" for new, olds in taken.items()
+               if len(olds) > 1)
+    for p in paths:
+        into.setdefault(renamed(p, moves), []).append(p)
+    for new, olds in sorted(into.items()):
+        news = {moves[mover(p, moves)] if mover(p, moves) else None for p in olds}  # a path staying: None
+        if len(olds) > 1 and None not in news and not news <= merged:
+            out.append(f"refused: {' and '.join(olds)} become one path, {new}")
+    return out
 
 
 def parse(lines, moves):
-    """{path: {field: value}}, paths and path values renamed by moves."""
+    """{path: [(path before, {field: value})]}, paths and path values renamed by moves."""
     def value(text):
-        return ",".join("@".join([renamed(p, moves), *rest]) for p, *rest in
-                        (item.split("@") for item in text.split(",")))
+        return "".join(part if part in ",|" else "@".join([renamed(part.split("@")[0], moves), *part.split("@")[1:]])
+                       for part in re.split(r"([,|])", text))
     found = {}
     for line in lines:
         path, *fields = line.split()
-        found[renamed(path, moves)] = {k: value(v) for k, v in (field.split("=", 1) for field in fields)
-                                       if not k.endswith("_file")}
+        found.setdefault(renamed(path, moves), []).append(
+            (path, {k: value(v) for k, v in (field.split("=", 1) for field in fields) if not k.endswith("_file")}))
     return found
 
 
-def compare(before, after, moves):
-    """The lines telling how listing after differs from before under moves."""
+def compare(before, after, moves, merged=()):
+    """The lines telling how listing after differs from before under moves,
+    or the moves refused; a path merged compared from each path before."""
+    refused = refusals([line.split()[0] for line in before if line.strip()], moves, set(merged))
+    if refused:
+        return refused
     old, new = parse(before, moves), parse(after, moves={})
     out = []
     for path in sorted(set(old) | set(new)):
@@ -258,8 +300,11 @@ def compare(before, after, moves):
         elif path not in old:
             out.append(f"+ {path} (only after)")
         else:
-            out.extend(f"~ {path} {k}: {old[path].get(k, NONE)} -> {new[path].get(k, NONE)}"
-                       for k in sorted(set(old[path]) | set(new[path])) if old[path].get(k) != new[path].get(k))
+            now = new[path][0][1]
+            for was, then in old[path]:
+                name = path if len(old[path]) == 1 else f"{path} (from {was})"
+                out.extend(f"~ {name} {k}: {then.get(k, NONE)} -> {now.get(k, NONE)}"
+                           for k in sorted(set(then) | set(now)) if then.get(k) != now.get(k))
     return out
 
 
@@ -274,8 +319,8 @@ def main(argv):
         return 0
     if argv[:1] == ["compare"] and len(argv) in (3, 4):
         read = [Path(a).read_text(encoding="utf-8").splitlines() for a in argv[1:3]]
-        moves = read_map(Path(argv[3]).read_text(encoding="utf-8")) if len(argv) == 4 else {}
-        differ = compare(*read, moves)
+        moves, merged = read_map(Path(argv[3]).read_text(encoding="utf-8")) if len(argv) == 4 else ({}, set())
+        differ = compare(*read, moves, merged)
         print("\n".join(differ) if differ else "loop_listing: the listings are equal")
         return 1 if differ else 0
     print(__doc__)

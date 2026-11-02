@@ -1,8 +1,8 @@
 """The listing a move runs before and after (tools/loop_listing.py): its
-reading of a clang-tidy step and of a compile's rule set, the configuration
-a step resolves to, a header by the unit it compiles through, and two
-listings compared with and without a rename map; over fixture inputs in a
-scratch directory, no build needed.
+reading of a clang-tidy step and of each compile's rule sets, the
+configuration a step resolves to, a header by the unit it compiles through,
+and two listings compared with and without a rename map, a map refused and
+a merge named; over fixture inputs in a scratch directory, no build needed.
 """
 
 import contextlib
@@ -89,8 +89,8 @@ class Steps(Fixture):
         self.assertEqual(len(self.steps()), 3)
 
     def test_rule_sets_of_each_compile(self):
-        self.assertEqual(self.rulesets(), {"src/diag/x.cpp": {"foundation/devkit/build/analysis.ruleset"},
-                                           "BUILD/gen/g.cpp": set()})
+        self.assertEqual(self.rulesets(), {"src/diag/x.cpp": ["foundation/devkit/build/analysis.ruleset", "none"],
+                                           "BUILD/gen/g.cpp": ["none"]})
 
 
 class Lines(Fixture):
@@ -114,13 +114,13 @@ class Lines(Fixture):
         root, near = self.digest(".clang-tidy"), self.digest("src/diag/.clang-tidy")
         self.assertEqual(self.lines()["src/diag/x.cpp"],
                          "src/diag/x.cpp module=diag layer=system scopes=walker,walked,analysed"
-                         f" ruleset=foundation/devkit/build/analysis.ruleset tidy=src/diag/.clang-tidy@{near}"
+                         f" ruleset=foundation/devkit/build/analysis.ruleset,none tidy=src/diag/.clang-tidy@{near}"
                          f" tidy_from=.clang-tidy@{root},src/diag/.clang-tidy@{near}")
 
     def test_header_by_its_unit(self):
         line = self.lines()["src/diag/x.hpp"]
         self.assertIn(" ruleset=- tidy=- tidy_from=- unit=src/diag/x.cpp unit_ruleset="
-                      "foundation/devkit/build/analysis.ruleset unit_tidy=src/diag/.clang-tidy@", line)
+                      "foundation/devkit/build/analysis.ruleset,none unit_tidy=src/diag/.clang-tidy@", line)
 
     def test_composed_and_generated(self):
         lines = self.lines()
@@ -163,8 +163,8 @@ class Compare(unittest.TestCase):
             "~ src/qiven3/a.hpp unit_tidy: .clang-tidy@1 -> src/diag/.clang-tidy@2"])
 
     def test_under_a_map_the_configuration_still_differs(self):
-        moves = loop_listing.read_map("# one move\nsrc/qiven3/a.cpp src/diag/a.cpp  # the source\n\n")
-        self.assertEqual(moves, {"src/qiven3/a.cpp": "src/diag/a.cpp"})
+        moves, merged = loop_listing.read_map("# one move\nsrc/qiven3/a.cpp src/diag/a.cpp  # the source\n\n")
+        self.assertEqual((moves, merged), ({"src/qiven3/a.cpp": "src/diag/a.cpp"}, set()))
         self.assertEqual(loop_listing.compare(BEFORE, AFTER, moves), [
             "~ src/diag/a.cpp tidy: .clang-tidy@1 -> src/diag/.clang-tidy@2",
             "~ src/diag/a.cpp tidy_from: .clang-tidy@1 -> .clang-tidy@1,src/diag/.clang-tidy@2",
@@ -172,7 +172,7 @@ class Compare(unittest.TestCase):
 
     def test_a_directory_moved_with_its_configuration(self):
         after = [line.replace("src/qiven3/", "src/new/") for line in BEFORE]
-        moves = loop_listing.read_map("src/qiven3/ src/new/\n")
+        moves, _ = loop_listing.read_map("src/qiven3/ src/new/\n")
         self.assertEqual(loop_listing.compare(BEFORE, after, moves), [])
         self.assertEqual(loop_listing.renamed("src/qiven3x/a.cpp", moves), "src/qiven3x/a.cpp")
 
@@ -188,6 +188,48 @@ class Compare(unittest.TestCase):
                          loop_listing.main(["compare"])]
         self.assertEqual(codes, [0, 1, 2])
         self.assertIn("~ src/diag/a.cpp tidy: .clang-tidy@1 -> src/diag/.clang-tidy@2", shown.getvalue())
+
+    def test_rule_sets_per_compile_renamed(self):
+        before = ["a/x.cpp ruleset=a/r.ruleset,a/r.ruleset|b/s.ruleset,none"]
+        after = ["c/x.cpp ruleset=c/r.ruleset,c/r.ruleset|b/s.ruleset,none"]
+        self.assertEqual(loop_listing.compare(before, after, {"a/": "c/"}), [])
+        self.assertEqual(loop_listing.compare(before, ["c/x.cpp ruleset=c/r.ruleset,c/r.ruleset"], {"a/": "c/"}),
+                         ["~ c/x.cpp ruleset: c/r.ruleset,c/r.ruleset|b/s.ruleset,none -> c/r.ruleset,c/r.ruleset"])
+
+
+MERGING = ["a/CMakeLists.txt module=m", "a/one.cpp module=m", "b/CMakeLists.txt module=m", "b/two.cpp module=m",
+           "c/gone.cpp module=m", "d/kept.cpp module=m tidy=t@1"]
+MERGED = ["x/CMakeLists.txt module=m", "x/one.cpp module=m", "x/two.cpp module=m", "d/kept.cpp module=m tidy=t@1"]
+
+
+class Refused(unittest.TestCase):
+    """A map refused, each move named: an OLD the earlier listing lacks, two
+    OLDs or two paths taking one NEW, a NEW staying in it; accepted where a
+    merge line names NEW, each path merged compared."""
+
+    ctest_labels = ("fake",)
+
+    def test_merging_map_refused(self):
+        moves, merged = loop_listing.read_map("a/ x/\nb/ x/\nc/gone.cpp d/kept.cpp\ne/ y/\n")
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, moves, merged), [
+            "refused: c/gone.cpp moves to d/kept.cpp, where d/kept.cpp stays",
+            "refused: e/ is no path of the earlier listing",
+            "refused: a/ and b/ move to one path, x/",
+            "refused: a/CMakeLists.txt and b/CMakeLists.txt become one path, x/CMakeLists.txt"])
+
+    def test_a_staying_directory_and_two_paths_refused(self):
+        self.assertEqual(loop_listing.compare(MERGING, MERGING, {"b/": "d/"}),
+                         ["refused: b/ moves to d/, where d/kept.cpp stays"])
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, {"a/one.cpp": "x/two.cpp", "b/": "x/"}),
+                         ["refused: a/one.cpp and b/two.cpp become one path, x/two.cpp"])
+
+    def test_merge_named_accepted_and_compared(self):
+        moves, merged = loop_listing.read_map("merge x/ a/ b/\nmerge d/kept.cpp c/gone.cpp\n")
+        self.assertEqual(merged, {"x/", "d/kept.cpp"})
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, moves, merged), [
+            "~ d/kept.cpp (from c/gone.cpp) tidy: - -> t@1"])
+        with self.assertRaises(SystemExit):
+            loop_listing.read_map("a/ x/ y/\n")
 
 
 if __name__ == "__main__":

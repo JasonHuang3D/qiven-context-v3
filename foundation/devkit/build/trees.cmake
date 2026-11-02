@@ -460,6 +460,8 @@ endfunction()
 # compiles it (qiven3_listed) and it includes its header (qiven3_includes).
 # An error names each such header with no unit, two headers of one unit, a
 # unit no such header wants, and a unit that does not include its header.
+# <out>_of: header=unit for each such header, unit the source, from the root,
+# it compiles through (the listing of tools/loop_listing.cmake reads it).
 # Every configure with an interpreter runs it (tests/CMakeLists.txt).
 function(qiven3_header_units root out)
   set(depends "")
@@ -500,8 +502,10 @@ function(qiven3_header_units root out)
   qiven3_includes("${root}" "${sources};${paths}" included)
   set(wanted "")
   set(owners "")
+  set(through "")
   foreach(header own IN ZIP_LISTS reads owns)
     if("${own}|${header}" IN_LIST included)
+      list(APPEND through "${header}=${own}")
       continue()
     endif()
     set(not_own "")
@@ -514,6 +518,7 @@ function(qiven3_header_units root out)
       set(not_own " (its own source ${own} does not include it)")
     endif()
     qiven3_header_unit("${root}" "${header}" unit ignored)
+    list(APPEND through "${header}=tests/support/headers/${unit}")
     list(FIND wanted "${unit}" at)
     if(at GREATER -1)
       list(GET owners ${at} other)
@@ -540,6 +545,7 @@ function(qiven3_header_units root out)
     endif()
   endforeach()
   set(${out} ${taken} PARENT_SCOPE)
+  set(${out}_of "${through}" PARENT_SCOPE)
 endfunction()
 
 if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
