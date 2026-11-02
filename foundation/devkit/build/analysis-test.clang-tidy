@@ -1,7 +1,9 @@
 # The configuration of the targets whose sources are all test code, over
-# the configuration of each source's own directory in the checkout: the
-# build composes the two at configure, as clang-tidy dumps them, into a
-# file of the build tree it names for those sources' steps, and a header
-# takes the source it is compiled through. A check off here is an entry of
-# analysis-exemptions.json with the scope "test code".
+# the configuration of each source's own directory in the checkout. The
+# build composes them at configure (tidy_config.cmake) into a file of the
+# build tree it names for those sources' steps: clang-tidy's dump, its
+# CheckOptions block rebuilt from every entry of the chain of .clang-tidy
+# and this file, as clang-tidy reads it; a file it cannot read stops the
+# configure. A header takes the source it is compiled through. A check off
+# here is an entry of analysis-exemptions.json with the scope "test code".
 InheritParentConfig: true

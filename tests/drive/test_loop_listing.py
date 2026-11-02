@@ -252,12 +252,12 @@ DATA = {"tidy_on": ["bugprone-*"],
 EXEMPT = loop_listing.exempt_lines(DATA)
 TEST_LINE = (f"t/main.cpp module=log layer=services scopes=walked,test_code,analysed ruleset={B}analysis-test.ruleset"
              f" tidy=composed@1 tidy_from=.clang-tidy@2,{B}analysis-test.clang-tidy@3 tidy_file=BUILD/t.clang-tidy")
-MOVED = ("c/src/main.cpp module=case_main layer=devkit scopes=walked,library,analysed"
+MOVED = ("c/src/main.cpp module=case_main layer=devkit scopes=walked,k15,analysed"
          f" ruleset={B}analysis.ruleset tidy=.clang-tidy@2 tidy_from=.clang-tidy@2")
 MOVE = {"t/main.cpp": "c/src/main.cpp"}
 NAMED = [("c/src/main.cpp", "layer", "services", "devkit"), ("c/src/main.cpp", "module", "log", "case_main"),
          ("c/src/main.cpp", "ruleset", B + "analysis-test.ruleset", B + "analysis.ruleset"),
-         ("c/src/main.cpp", "scopes", "walked,test_code,analysed", "walked,library,analysed"),
+         ("c/src/main.cpp", "scopes", "walked,test_code,analysed", "walked,k15,analysed"),
          ("c/src/main.cpp", "tidy", "composed@1", ".clang-tidy@2"),
          ("c/src/main.cpp", "tidy_from", f".clang-tidy@2,{B}analysis-test.clang-tidy@3", ".clang-tidy@2")]
 
