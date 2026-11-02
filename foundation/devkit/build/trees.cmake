@@ -131,28 +131,6 @@ function(qiven3_tidy_dir source out)
   set(${out} "${dir}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_tidy_test_config(<source> <test> <tidy> <out>): the file a test source's
-# clang-tidy step names, in out: its directory's nearest configuration
-# (qiven3_tidy_dir) with test's lines over it, as tidy dumps them, in the build
-# tree's tidy/config/, rewritten only when it changes. Named by path, it rests on
-# no search up from the source's path, which finds none for a source generated
-# in a build tree outside the checkout.
-function(qiven3_tidy_test_config source test tidy out)
-  qiven3_tidy_dir("${source}" dir)
-  get_filename_component(name "${source}" NAME)
-  execute_process(COMMAND "${tidy}" "--config-file=${test}" --dump-config "${dir}/${name}" --
-    OUTPUT_VARIABLE text ERROR_VARIABLE errors RESULT_VARIABLE failed)
-  if(failed OR NOT text MATCHES "\nChecks:")
-    message(FATAL_ERROR "qiven3: ${tidy} gives no configuration for ${dir}/${name}: ${errors}")
-  endif()
-  file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}")
-  string(MAKE_C_IDENTIFIER "${rel}" id)
-  set(config "${PROJECT_BINARY_DIR}/tidy/config/test_${id}.clang-tidy")
-  file(WRITE "${config}.dump" "${text}")
-  file(COPY_FILE "${config}.dump" "${config}" ONLY_IF_DIFFERENT)
-  set(${out} "${config}" PARENT_SCOPE)
-endfunction()
-
 # qiven3_test_target(<dir> <target> <out>): TRUE where target, defined in
 # dir, has own sources, read by qiven3_source_path, and each is test code,
 # but qiven3_headers: its units sit in the tests' tree and stand for every
@@ -587,13 +565,5 @@ if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
   elseif(SHOW STREQUAL "units")
     qiven3_header_units("${ROOT}" units)
     message("units=${units}")
-  elseif(SHOW STREQUAL "test-config")  # for each source of PATHFILE, with BUILD (the build tree) and TIDY
-    set(PROJECT_SOURCE_DIR "${ROOT}")
-    set(PROJECT_BINARY_DIR "${BUILD}")
-    file(STRINGS "${PATHFILE}" paths)
-    foreach(path IN LISTS paths)
-      qiven3_tidy_test_config("${path}" "${ROOT}/foundation/devkit/build/analysis-test.clang-tidy" "${TIDY}" config)
-      message("${path}=${config}")
-    endforeach()
   endif()
 endif()

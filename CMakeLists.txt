@@ -7,6 +7,7 @@ include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/build.cmake" NO_POLICY_SC
 # (tools/loop_modules.py reads it too): its layers, walked and analysed, and
 # the rules the globs and filters take from them (foundation/devkit/build/trees.cmake).
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/trees.cmake")
+include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/tidy_config.cmake")  # a test source's composed configuration
 set(qiven3_trees_file "${PROJECT_SOURCE_DIR}/tools/trees.json")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${qiven3_trees_file}")
 qiven3_trees("${qiven3_trees_file}")

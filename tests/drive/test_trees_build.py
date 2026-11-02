@@ -20,6 +20,7 @@ from tests.structure import layers
 ROOT = Path(__file__).resolve().parents[2]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
+COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"
 TEST_TIDY = "foundation/devkit/build/analysis-test.clang-tidy"
 LISTING = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))
 LOOP = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
@@ -34,8 +35,14 @@ def cmake():
     return shutil.which("cmake")
 
 
-def shown(show, root=ROOT, paths=(), defines=()):
-    """name=value lines trees.cmake prints for show, as a dict."""
+def clang_tidy():
+    """The clang-tidy on PATH, else LLVM's in Program Files; None where neither is."""
+    llvm = Path(os.environ.get("ProgramFiles", ""), "LLVM", "bin")
+    return shutil.which("clang-tidy") or shutil.which("clang-tidy", path=str(llvm))
+
+
+def shown(show, root=ROOT, paths=(), defines=(), script=SCRIPT):
+    """name=value lines trees.cmake (or script) prints for show, as a dict."""
     tool = cmake()
     if tool is None:
         raise unittest.SkipTest("no cmake")
@@ -44,7 +51,7 @@ def shown(show, root=ROOT, paths=(), defines=()):
         listing.write_text("\n".join(paths) + "\n", encoding="utf-8")
         args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}",
                 *(f"-D{define}" for define in defines)]
-        done = subprocess.run([*args, "-P", str(SCRIPT)], capture_output=True, text=True, timeout=120, check=True)
+        done = subprocess.run([*args, "-P", str(script)], capture_output=True, text=True, timeout=120, check=True)
     return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
 
 
@@ -377,8 +384,7 @@ class TreesBuild(unittest.TestCase):
         directory's configuration in the checkout, the root's, under the test
         configuration: the root's checks and WarningsAsErrors, where the test
         configuration alone, searching up from the build tree, finds neither."""
-        llvm = Path(os.environ.get("ProgramFiles", ""), "LLVM", "bin")
-        tidy = shutil.which("clang-tidy") or shutil.which("clang-tidy", path=str(llvm))
+        tidy = clang_tidy()
         if tidy is None:
             self.skipTest("no clang-tidy")
 
@@ -399,11 +405,85 @@ class TreesBuild(unittest.TestCase):
             source.parent.mkdir(parents=True)
             source.write_text("", encoding="utf-8")
             got = shown("test-config", paths=[source.as_posix()], defines=(f"BUILD={Path(build).as_posix()}",
-                                                                           f"TIDY={tidy}"))
+                                                                           f"TIDY={tidy}"), script=COMPOSE)
             config = got[source.as_posix()]
             self.assertTrue(config.startswith(Path(build).as_posix() + "/tidy/config/"), config)
             self.assertEqual(dumped(source, f"--config-file={config}"), root)
             self.assertEqual(dumped(source, f"--config-file={ROOT / TEST_TIDY}", flag=None), ["WarningsAsErrors: ''"])
+
+    def test_test_config_options(self):
+        """The composed configuration keeps every CheckOptions entry of the
+        configurations it reads, in the map form or the list, the later
+        winning on a key, the analyzer's among them, which clang-tidy's dump
+        drops: a scratch checkout's root and test configurations; and the
+        analyzer reads an option kept, Pedantic's finding."""
+        tidy = clang_tidy()
+        if tidy is None:
+            self.skipTest("no clang-tidy")
+        pedantic, pointee = ("clang-analyzer-optin.cplusplus.UninitializedObject:Pedantic",
+                             "clang-analyzer-core.CallAndMessage:ArgPointeeInitializedness")
+        files = {".clang-tidy": ("Checks: '-*,bugprone-assert-side-effect,clang-analyzer-*'\nCheckOptions:\n"
+                                 f"  # the root's\n  bugprone-assert-side-effect.CheckFunctionCalls: false\n"
+                                 f"  {pointee}: true\n  {pedantic}: false\n"),
+                 TEST_TIDY: (f"InheritParentConfig: true\nCheckOptions:\n  - key: {pedantic}\n    value: true\n"
+                             "  - key: bugprone-assert-side-effect.CheckFunctionCalls\n    value: 'true'\n"),
+                 "tests/probe.cpp": ("struct Pair {\n    int first;\n    int second;\n    Pair() {}\n};\n\n"
+                                     "int main() {\n    Pair pair;\n    return sizeof(pair) > 0 ? 1 : 0;\n}\n")}
+        with tempfile.TemporaryDirectory() as scratch:
+            root, build = Path(scratch, "code"), Path(scratch, "build")
+            for path, text in files.items():
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text(text, encoding="utf-8")
+            source = (root / "tests" / "probe.cpp").as_posix()
+            got = shown("test-config", root=root, paths=[source], script=COMPOSE,
+                        defines=(f"BUILD={build.as_posix()}", f"TIDY={tidy}"))
+            config = Path(got[source])
+            text = config.read_text(encoding="utf-8")
+            block = text.split("\nCheckOptions:\n", 1)[1].split("\n")
+            options = dict(line.strip().split(": ", 1) for line in block[:next(
+                i for i, line in enumerate(block) if not line.startswith("  "))])
+            self.assertEqual((options[pedantic], options[pointee]), ("true", "true"))
+            self.assertEqual(options["bugprone-assert-side-effect.CheckFunctionCalls"], "'true'")
+            self.assertNotIn(pedantic, config.with_name(config.name + ".dump").read_text(encoding="utf-8"))
+
+            def found(name):
+                return subprocess.run([tidy, f"--config-file={name}", source, "--"], capture_output=True,
+                                      text=True, timeout=120, check=False).stdout
+            self.assertIn("[clang-analyzer-optin.cplusplus.UninitializedObject", found(config))
+            self.assertNotIn("UninitializedObject", found(config.with_name(config.name + ".dump")))
+
+    def test_steps_name_composed(self):
+        """The analysis preset's build configured in a tree outside the
+        checkout, its build.ninja read: every test source's clang-tidy step,
+        a source of a target the configure's test-targets.txt lists, names
+        its composed configuration in the tree's tidy/config/; no step names
+        the test configuration itself, and no other step a composed one."""
+        tool, tidy = cmake(), clang_tidy()
+        if tool is None or tidy is None or shutil.which("cl") is None:
+            self.skipTest("no cmake, clang-tidy or cl: the analysis preset configures under vcvars")
+
+        def key(path):
+            return os.path.normcase(os.path.normpath(path.replace("$:", ":").replace("$ ", " ")))
+        with tempfile.TemporaryDirectory() as build:
+            self.assertFalse(Path(build).resolve().is_relative_to(ROOT))
+            subprocess.run([tool, "-S", str(ROOT), "--preset", "analysis", "-B", build], capture_output=True,
+                           text=True, timeout=900, check=True)
+            targets = set(Path(build, "test-targets.txt").read_text(encoding="utf-8").split())
+            ninja = Path(build, "build.ninja").read_text(encoding="utf-8")
+            composed = key(Path(build, "tidy", "config").as_posix())
+        compiled = re.findall(r"^build \S+: CXX_COMPILER__(\S+)_unscanned_\w+ (\S+)", ninja, re.M)
+        tests = {key(source) for target, source in compiled if target in targets}
+        steps = {}
+        for line in ninja.splitlines():
+            if "clang-tidy" in line and "--quiet" in line:
+                named = re.findall(r'--config-file=([^"\s]+)', line)
+                steps[key(re.search(r'--quiet\s+("[^"]+"|\S+)', line).group(1).strip('"'))] = named
+        self.assertGreater(len(tests & steps.keys()), 10)
+        for source, named in sorted(steps.items()):
+            self.assertEqual([name for name in named if name.endswith(Path(TEST_TIDY).name)], [], source)
+            in_tree = [name for name in named if key(name).startswith(composed + os.sep)]
+            self.assertEqual(in_tree, named if source in tests else [], (source, named))
+            self.assertEqual(len(in_tree), 1 if source in tests else 0, (source, named))
 
 
 if __name__ == "__main__":
