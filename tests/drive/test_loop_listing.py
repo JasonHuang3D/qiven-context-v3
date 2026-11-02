@@ -232,5 +232,107 @@ class Refused(unittest.TestCase):
             loop_listing.read_map("a/ x/ y/\n")
 
 
+B = "foundation/devkit/build/"  # the checkout's own exemptions name these, which main reads
+DATA = {"rule_sets": {B + "analysis.ruleset": {"includes": ["Native.ruleset"]},
+                      B + "analysis-test.ruleset": {"includes": ["analysis.ruleset"]},
+                      B + "stack.ruleset": {"includes": []}},
+        "test_code": {"clang-tidy": B + "analysis-test.clang-tidy", "msvc": B + "analysis-test.ruleset"},
+        "exemptions": [{"scope": "every file"}, {"scope": "src/diag/"}]}
+TEST_LINE = (f"t/main.cpp module=log layer=services scopes=walked,test_code,analysed ruleset={B}analysis-test.ruleset"
+             f" tidy=composed@1 tidy_from=.clang-tidy@2,{B}analysis-test.clang-tidy@3 tidy_file=BUILD/t.clang-tidy")
+MOVED = ("c/src/main.cpp module=case_main layer=devkit scopes=walked,library,analysed"
+         f" ruleset={B}analysis.ruleset tidy=.clang-tidy@2 tidy_from=.clang-tidy@2")
+MOVE = {"t/main.cpp": "c/src/main.cpp"}
+NAMED = [("c/src/main.cpp", "layer", "services", "devkit"), ("c/src/main.cpp", "module", "log", "case_main"),
+         ("c/src/main.cpp", "ruleset", B + "analysis-test.ruleset", B + "analysis.ruleset"),
+         ("c/src/main.cpp", "scopes", "walked,test_code,analysed", "walked,library,analysed"),
+         ("c/src/main.cpp", "tidy", "composed@1", ".clang-tidy@2"),
+         ("c/src/main.cpp", "tidy_from", f".clang-tidy@2,{B}analysis-test.clang-tidy@3", ".clang-tidy@2")]
+
+
+class Expected(unittest.TestCase):
+    """A move's differences named in a file of expected differences: each
+    named one accepted where it tightens, refused where it loosens though
+    named; a difference not named and a line naming none refused."""
+
+    ctest_labels = ("fake",)
+
+    def compare(self, after, expected, before=(TEST_LINE,)):
+        return loop_listing.compare(list(before), list(after), MOVE, (), expected, DATA)
+
+    def test_named_tightening_accepted(self):
+        self.assertEqual(self.compare([MOVED], NAMED), [])
+
+    def test_unnamed_difference_refused(self):
+        self.assertEqual(self.compare([MOVED], NAMED[1:]), ["~ c/src/main.cpp layer: services -> devkit"])
+        self.assertEqual(loop_listing.compare([TEST_LINE], [MOVED], MOVE)[0],
+                         "~ c/src/main.cpp layer: services -> devkit")
+
+    def test_named_loosening_refused(self):
+        after = "c/tests/main.cpp module=- layer=- scopes=walked ruleset=none tidy=- tidy_from=-"
+        move = {"t/main.cpp": "c/tests/main.cpp"}
+        found = loop_listing.compare([TEST_LINE], [after], move)
+        named = [tuple(line[2:].replace(":", "").replace(" ->", "").split()) for line in found]
+        self.assertEqual(loop_listing.compare([TEST_LINE], [after], move, (), named, DATA), [
+            "refused: c/tests/main.cpp layer: leaves its layer", "refused: c/tests/main.cpp module: leaves its module",
+            "refused: c/tests/main.cpp ruleset: leaves the analysis",
+            "refused: c/tests/main.cpp scopes: leaves analysed",
+            "refused: c/tests/main.cpp tidy: leaves the analysis",
+            "refused: c/tests/main.cpp tidy_from: leaves the analysis"])
+
+    def test_stale_line_refused(self):
+        stale = ("c/src/main.cpp", "unit", "-", "c/src/x.cpp")
+        self.assertEqual(self.compare([MOVED], [*NAMED, stale]),
+                         ["refused: stale, c/src/main.cpp unit - c/src/x.cpp names no difference"])
+
+    def test_each_field_read(self):
+        lib, test = B + "analysis.ruleset", B + "analysis-test.ruleset"
+        tidy, diag = ".clang-tidy@2", "src/diag/.clang-tidy@4"
+        cases = [("line", "listed", "-", "leaves the listing"), ("line", "-", "listed", None),
+                 ("module", "log", "-", "leaves its module"), ("layer", "-", "core", None),
+                 ("unit", "a.cpp", "b.cpp", None),
+                 ("scopes", "walked,core", "walked,test_code", "leaves core, enters test_code"),
+                 ("scopes", "test_code", "walked,library,k15", None),
+                 ("ruleset", f"{test},none", f"{lib},{lib}", None), ("unit_ruleset", f"{lib},{lib}", lib,
+                                                                       "a compile of it is lost"),
+                 ("ruleset", lib, test, "enters the test scope's rule set"),
+                 ("ruleset", lib, B + "stack.ruleset", "enters a rule set narrower than the library's"),
+                 ("ruleset", lib, f"{lib}|x.ruleset", f"is {lib}|x.ruleset, not the library's alone"),
+                 ("tidy", tidy, diag, "enters the exemptions of src/diag/"), ("unit_tidy", diag, tidy, None),
+                 ("tidy", "-", tidy, None), ("tidy", tidy, "-", "leaves the analysis"),
+                 ("tidy", tidy, ".clang-tidy@5", "its configuration's content changes"),
+                 ("tidy", tidy, "composed@1", "is composed@1, not the library's alone"),
+                 ("unit_tidy_from", tidy, f"{tidy},{B}analysis-test.clang-tidy@3",
+                  "enters the test scope's configuration"),
+                 ("value", "a", "b", "value is no field a move may change")]
+        library, narrow = loop_listing.narrower(DATA)
+        self.assertEqual([loop_listing.loosens(f, a, b, library, narrow) for f, a, b, _ in cases],
+                         [c[3] for c in cases])
+
+    def test_file_and_exit_code(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            names = [Path(scratch) / name for name in ("before.txt", "after.txt", "map.txt", "expected.txt", "bad.txt")]
+            for path, text in zip(names, (TEST_LINE, MOVED, "t/main.cpp c/src/main.cpp",
+                                          "# the move\n" + "\n".join(" ".join(n) for n in NAMED), "a b c")):
+                path.write_text(text + "\n", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()) as shown:
+                codes = [loop_listing.main(["compare", *map(str, names[:4])]),
+                         loop_listing.main(["compare", *map(str, names[:3])])]
+            with self.assertRaises(SystemExit):
+                loop_listing.main(["compare", *map(str, names[:3]), str(names[4])])
+        self.assertEqual(codes, [0, 1])
+        self.assertIn("but for 6 named differences, none loosening", shown.getvalue())
+
+    def test_refusals_of_the_map_unchanged(self):
+        moves, merged = loop_listing.read_map("a/ x/\nb/ x/\n")
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, moves, merged, [], DATA)[0],
+                         "refused: a/ and b/ move to one path, x/")
+        moves, merged = loop_listing.read_map("merge x/ a/ b/\nmerge d/kept.cpp c/gone.cpp\n")
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, moves, merged, [], DATA),
+                         ["~ d/kept.cpp (from c/gone.cpp) tidy: - -> t@1"])
+        self.assertEqual(loop_listing.compare(MERGING, MERGED, moves, merged, [("d/kept.cpp", "tidy", "-", "t@1")],
+                                              DATA), ["refused: d/kept.cpp tidy: is t@1, not the library's alone"])
+
+
 if __name__ == "__main__":
     unittest.main()

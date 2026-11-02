@@ -23,7 +23,7 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   rule set and configuration. Then the build's
   header filters, as lines named cmake:filter and cmake:exclude.
 
-loop_listing.py compare BEFORE AFTER [MAP]
+loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
   The lines that differ, BEFORE's paths renamed by MAP first; exit 0 when
   none do. A field named *_file is not compared: the build names it. MAP: a
   move a line, OLD NEW, from the checkout's root; a path ending in / renames
@@ -34,6 +34,26 @@ loop_listing.py compare BEFORE AFTER [MAP]
   BEFORE, or a directory above one, that no move takes away; a NEW a merge
   line names is not refused so. Each path a merge takes is compared with
   NEW's line of AFTER, named NEW (from OLD) where NEW takes more than one.
+  EXPECTED: a line for each difference a move names, PATH FIELD BEFORE
+  AFTER, as the compare prints it (PATH as AFTER names it; FIELD line,
+  BEFORE or AFTER listed, for a path only one listing has); # starts a
+  comment. With it, exit 0 when each difference is named and none loosens;
+  printed and exit 1: each difference not named, each named one loosening
+  (refused: PATH FIELD: why) and each line naming none (stale). A move may
+  tighten, never loosen, by the checkout's analysis-exemptions.json: the
+  library's rule set is the one the test scope's includes; narrower are the
+  test scope's rule set and configuration, every other rule set it lists
+  and each directory scope's .clang-tidy. Each field, named, is
+    line                      loosens: a path leaving the listing; a new one tightens
+    module, layer, unit       loosens: to -; any other change tightens
+    scopes                    loosens: a scope lost but test_code, test_code gained;
+                              tightens: test_code lost, a scope gained
+    ruleset, unit_ruleset     tightens: each compile the library's rule set alone,
+                              no fewer compiles; else loosens (none, narrower, other)
+    tidy, tidy_from, unit_tidy, unit_tidy_from
+                              tightens: the root .clang-tidy alone where another was;
+                              else loosens (-, none, narrower, composed, content changed)
+    value (cmake:filter, cmake:exclude), any other field: loosens
 """
 
 import hashlib
@@ -286,26 +306,88 @@ def parse(lines, moves):
     return found
 
 
-def compare(before, after, moves, merged=()):
-    """The lines telling how listing after differs from before under moves,
-    or the moves refused; a path merged compared from each path before."""
-    refused = refusals([line.split()[0] for line in before if line.strip()], moves, set(merged))
-    if refused:
-        return refused
-    old, new = parse(before, moves), parse(after, moves={})
-    out = []
+def read_expected(text):
+    """The (path, field, before, after) lines of an expected differences' text."""
+    lines = [line.split("#", 1)[0].split() for line in text.splitlines()]
+    for words in lines:
+        if words and len(words) != 4:
+            raise SystemExit(f"loop_listing: an expected line is PATH FIELD BEFORE AFTER: {' '.join(words)}")
+    return [tuple(words) for words in lines if words]
+
+
+def narrower(data):
+    """(the library's rule set, {configuration narrower than the library's: what it is}) of the exemptions' data."""
+    test, sets = data["test_code"], data["rule_sets"]
+    library = next(r for r in sets if Path(r).name in sets[test["msvc"]]["includes"])
+    found = {r: "a rule set narrower than the library's" for r in sets if r != library}
+    found.update({test["msvc"]: "the test scope's rule set", test["clang-tidy"]: "the test scope's configuration"})
+    found.update({e["scope"] + ".clang-tidy": f"the exemptions of {e['scope']}" for e in data["exemptions"]
+                  if e["scope"].endswith("/")})
+    return library, found
+
+
+def loosens(field, then, now, library, narrow):
+    """Why a named difference loosens the checks; None for a tightening."""
+    def each(value):
+        return [part.split("@")[0] for part in re.split(r"[,|]", value) if part != NONE]
+    key = field.removeprefix("unit_")
+    if field == "line":
+        return "leaves the listing" if now == NONE else None
+    if field in ("module", "layer", "unit"):
+        return f"leaves its {field}" if now == NONE else None
+    if field == "scopes":
+        lost, gained = set(each(then)) - set(each(now)), set(each(now)) - set(each(then))
+        why = [f"leaves {s}" for s in sorted(lost - {"test_code"})] + ["enters test_code"] * ("test_code" in gained)
+        return ", ".join(why) or None
+    if key not in ("ruleset", "tidy", "tidy_from"):
+        return f"{field} is no field a move may change"
+    to, fewer = each(now), now == NONE or then != NONE and now.count(",") < then.count(",")
+    if key == "ruleset" and not fewer and set(now.split(",")) == {library}:
+        return None
+    if key != "ruleset" and to == [".clang-tidy"] and each(then) != to:
+        return None
+    if not to or "none" in to or key == "ruleset" and fewer:
+        return "leaves the analysis" if not to or "none" in to else "a compile of it is lost"
+    if to == each(then):
+        return "its configuration's content changes"
+    return next((f"enters {narrow[p]}" for p in to if p in narrow), f"is {now}, not the library's alone")
+
+
+def differences(old, new):
+    """(the line telling it, (path, field, before, after)) for each difference of parsed listings."""
     for path in sorted(set(old) | set(new)):
         if path not in new:
-            out.append(f"- {path} (only before)")
+            yield f"- {path} (only before)", (path, "line", "listed", NONE)
         elif path not in old:
-            out.append(f"+ {path} (only after)")
+            yield f"+ {path} (only after)", (path, "line", NONE, "listed")
         else:
             now = new[path][0][1]
             for was, then in old[path]:
                 name = path if len(old[path]) == 1 else f"{path} (from {was})"
-                out.extend(f"~ {name} {k}: {then.get(k, NONE)} -> {now.get(k, NONE)}"
-                           for k in sorted(set(then) | set(now)) if then.get(k) != now.get(k))
-    return out
+                for k in sorted(set(then) | set(now)):
+                    if then.get(k) != now.get(k):
+                        yield f"~ {name} {k}: {then.get(k, NONE)} -> {now.get(k, NONE)}", \
+                            (path, k, then.get(k, NONE), now.get(k, NONE))
+
+
+def compare(before, after, moves, merged=(), expected=None, data=None):
+    """The lines telling how listing after differs from before under moves,
+    or the moves refused; a path merged compared from each path before.
+    With expected, (path, field, before, after) lines, those lines' differences
+    are left out but each loosening one, by data, the exemptions', and each
+    line naming no difference, both refused."""
+    refused = refusals([line.split()[0] for line in before if line.strip()], moves, set(merged))
+    if refused:
+        return refused
+    found = list(differences(parse(before, moves), parse(after, moves={})))
+    if expected is None:
+        return [text for text, _ in found]
+    library, narrow = narrower(data)
+    named, keys = set(expected), {key for _, key in found}
+    out = [text for text, key in found if key not in named]
+    out.extend(f"refused: {p} {f}: {why}" for p, f, a, b in sorted(named & keys)
+               if (why := loosens(f, a, b, library, narrow)))
+    return out + [f"refused: stale, {' '.join(line)} names no difference" for line in sorted(named - keys)]
 
 
 def main(argv):
@@ -317,11 +399,15 @@ def main(argv):
         Path(argv[4]).write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"loop_listing: {len(lines)} lines in {argv[4]}")
         return 0
-    if argv[:1] == ["compare"] and len(argv) in (3, 4):
+    if argv[:1] == ["compare"] and len(argv) in (3, 4, 5):
         read = [Path(a).read_text(encoding="utf-8").splitlines() for a in argv[1:3]]
-        moves, merged = read_map(Path(argv[3]).read_text(encoding="utf-8")) if len(argv) == 4 else ({}, set())
-        differ = compare(*read, moves, merged)
-        print("\n".join(differ) if differ else "loop_listing: the listings are equal")
+        moves, merged = read_map(Path(argv[3]).read_text(encoding="utf-8")) if len(argv) > 3 else ({}, set())
+        expected = read_expected(Path(argv[4]).read_text(encoding="utf-8")) if len(argv) == 5 else None
+        data = json.loads((HERE.parent / "foundation/devkit/build/analysis-exemptions.json").read_text(
+            encoding="utf-8")) if expected is not None else None
+        differ = compare(*read, moves, merged, expected, data)
+        print("\n".join(differ) if differ else "loop_listing: the listings are equal" if not expected else
+              f"loop_listing: the listings are equal but for {len(expected)} named differences, none loosening")
         return 1 if differ else 0
     print(__doc__)
     return 2
