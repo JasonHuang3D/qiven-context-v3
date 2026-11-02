@@ -10,15 +10,15 @@
 #include <vector>
 
 #include "log/log.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 
 // Lines, each without its '\n'.
 class Lines {
 public:
     explicit Lines(std::string_view bytes) { add(bytes); }
-    explicit Lines(const log::RingView& view) {
+    explicit Lines(const qiven3::log::RingView& view) {
         add(view.older);
         add(view.newer);
     }
@@ -57,13 +57,13 @@ struct Sink {
 };
 
 // The widest event, written to lg.
-void widest(log::Log& lg) noexcept;
+void widest(qiven3::log::Log& lg) noexcept;
 // Its descriptor's bound on its line.
 std::size_t widest_max() noexcept;
 // Its line encoded over arena, as a Log with the largest number writes it:
 // the arena's peak. Past arena's budget, MemoryError budget.
-std::size_t widest_peak(memory::Arena& arena);
+std::size_t widest_peak(qiven::memory::Arena& arena);
 // The static half held: reached only in a binary whose build held it.
 bool constant_held() noexcept;
 
-}  // namespace qiven3::test
+}  // namespace qiven::test

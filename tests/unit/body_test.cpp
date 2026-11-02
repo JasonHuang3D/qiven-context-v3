@@ -22,7 +22,7 @@
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "entry/matcher.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
@@ -36,7 +36,7 @@ namespace header = qiven3::entry::header;
 namespace matcher = qiven3::entry::matcher;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using body::Code;
 using header::Slot;
 using Fake = qiven3::platform::fake::FakePlatform;
@@ -44,7 +44,7 @@ using Body = body::Body<Fake>;
 
 static_assert(sizeof(digest::Key<Fake>) == 32 + sizeof(void*), "a key's size is pinned: its 32 and its platform's");
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(body::Body<Fake, qiven3::memory::Allocator<char>>) == 80,
+static_assert(sizeof(body::Body<Fake, qiven::memory::Allocator<char>>) == 80,
               "the body's size is pinned: its text, 40, and its key, 40");
 #endif
 

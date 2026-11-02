@@ -31,7 +31,7 @@
 #include "entry/header.hpp"
 #include "entry/labels.hpp"
 #include "entry/refs.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
@@ -44,7 +44,7 @@ namespace labels = qiven3::entry::labels;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using labels::Act;
 using labels::Basis;
 using labels::Binding;
@@ -428,8 +428,8 @@ QIVEN_CASE(labels, capacity) {
     try {
         static_cast<void>(labels::label(VersionView{writer, Basis::claimed, {}, {}}, {}));
         CHECK(false);
-    } catch (const qiven3::memory::MemoryError& e) {
-        CHECK(e.code == qiven3::memory::MemoryCode::budget);
+    } catch (const qiven::memory::MemoryError& e) {
+        CHECK(e.code == qiven::memory::MemoryCode::budget);
         std::cout << "labels.capacity: " << e.operation.view() << ": " << e.detail.view() << "\n";
     }
     // A claim's label at the capacity.

@@ -4,12 +4,12 @@
 #include "entry/kinds.hpp"
 
 #include "entry/kinds_identity.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::kinds {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<IdentityView> identity(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
 

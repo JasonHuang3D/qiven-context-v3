@@ -16,17 +16,17 @@
 #include <thread>
 #include <vector>
 
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::memory::Heap;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::Pool;
+using qiven::memory::Heap;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::Pool;
 
 struct alignas(4096) Pages {
     std::array<std::byte, 4096> bytes{};
@@ -92,7 +92,7 @@ QIVEN_CASE(pool, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Pool pool(64, pages->bytes);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     pool.attach(&countdown);
     // The operation takes five slots and gives them back, on success or
     // failure alike.
@@ -114,7 +114,7 @@ QIVEN_CASE(pool, faults) {
         }
     };
     const auto check = [&](std::size_t) { return pool.used() == 0; };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "pool.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);
@@ -272,7 +272,7 @@ QIVEN_CASE(heap, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
     Heap heap(pages->bytes);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     heap.attach(&countdown);
     // As the store maps SQLite's SQLITE_NOMEM: a null block is the budget's
     // error, and what the operation took is given back.
@@ -300,7 +300,7 @@ QIVEN_CASE(heap, faults) {
         }
     };
     const auto check = [&](std::size_t) { return heap.used() == 0; };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "heap.faults", countdown, op, check);
     CHECK_EQ(runs.typed, 5U);
     CHECK_EQ(runs.completed_at, 6U);

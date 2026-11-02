@@ -17,9 +17,9 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
@@ -40,11 +40,11 @@ SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, boo
     }
     SQLiteStore store(platform, read_only, limits, std::move(hooks));
     {
-        memory::Arena arena(store.pages_.bytes());
+        qiven::memory::Arena arena(store.pages_.bytes());
         store.hook(arena);
-        String resolved{memory::Allocator<char>(arena)};
+        String resolved{qiven::memory::Allocator<char>(arena)};
         platform.resolve(path, resolved);
-        store.path_ = memory::Inline<path_bytes>(resolved);
+        store.path_ = qiven::memory::Inline<path_bytes>(resolved);
         const WhereView at = sqlite::site(sqlite::open_name, resolved);
         check(resolved, platform, arena, sqlite::open_name);
         if (sqlite::engine_version() < sqlite::least_version) {
@@ -67,13 +67,13 @@ SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, boo
 template <platform::Platform P, Hooks H, class Rule>
 void SQLiteStore<P, H, Rule>::guard(std::string_view path, P& platform) {
     Pages pages = platform.pages(operation_base);
-    memory::Arena arena(pages.bytes());
+    qiven::memory::Arena arena(pages.bytes());
 #if defined(QIVEN_FAULTS)
     if (sqlite::arenas_countdown() != nullptr) {
         arena.attach(sqlite::arenas_countdown());
     }
 #endif
-    String resolved{memory::Allocator<char>(arena)};
+    String resolved{qiven::memory::Allocator<char>(arena)};
     platform.resolve(path, resolved);
     check(resolved, platform, arena, sqlite::guard_name);
 }
@@ -87,7 +87,7 @@ Written SQLiteStore<P, H, Rule>::write(Operation op, std::string_view scope, std
     std::optional<Pages> extra;
     const std::span<std::byte> span = room(entries, extra);
     const std::size_t half = span.size() / 2;
-    memory::Arena kept(span.first(span.size() - half));
+    qiven::memory::Arena kept(span.first(span.size() - half));
     hook(kept);
     sqlite::ScratchView scratch(span.subspan(span.size() - half), countdown_);
     const Released<A> released(admit);
@@ -155,7 +155,7 @@ template <platform::Platform P, Hooks H, class Rule>
 std::int64_t SQLiteStore<P, H, Rule>::delta(std::uint64_t added, std::uint64_t dropped) {
     constexpr auto most = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
     if (added > most || dropped > most) {
-        throw memory::MemoryError::budget("store/sqlite", most, std::max(added, dropped), 0);
+        throw qiven::memory::MemoryError::budget("store/sqlite", most, std::max(added, dropped), 0);
     }
     return static_cast<std::int64_t>(added) - static_cast<std::int64_t>(dropped);
 }
@@ -166,7 +166,7 @@ std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> en
     const std::optional<std::size_t> lines = given(entries);
     const std::optional<std::size_t> budget = lines ? operation_budget(*lines) : std::nullopt;
     if (!budget) {
-        throw memory::MemoryError::budget("store/sqlite", std::numeric_limits<std::size_t>::max(),
+        throw qiven::memory::MemoryError::budget("store/sqlite", std::numeric_limits<std::size_t>::max(),
                                           entries.size(), 0);
     }
     if (*budget <= operation_base) {
@@ -174,7 +174,7 @@ std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> en
     }
     extra.emplace(platform_->pages(*budget));
     if (extra->bytes().size() < *budget) {
-        memory::fail_fast("store/sqlite: pages short of their request");
+        qiven::memory::fail_fast("store/sqlite: pages short of their request");
     }
     return extra->bytes().first(*budget);
 }

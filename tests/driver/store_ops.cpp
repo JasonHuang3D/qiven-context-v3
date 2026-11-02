@@ -29,7 +29,7 @@
 #include "driver/store_race.hpp"
 #include "driver/store_threads.hpp"
 #include "driver/store_wire.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -40,7 +40,7 @@ namespace {
 
 using Fake = platform::fake::FakePlatform;
 using Result = std::optional<Value>;
-namespace stores = test::ruled;
+namespace stores = qiven::test::ruled;
 using held::id_value;
 using held::keep;
 using held::Kept;
@@ -55,7 +55,7 @@ public:
     using Store = typename F::Store;
     using Scan = decltype(std::declval<Store&>().scan(std::declval<const store::RangeView&>()));
     using Export = decltype(std::declval<Store&>().export_(store::Scopes{}, std::span<const store::AfterView>{}));
-    using Operation = Result (*)(StoreDrive&, memory::Arena&, ArgView);
+    using Operation = Result (*)(StoreDrive&, qiven::memory::Arena&, ArgView);
     using Budget = std::size_t (*)(ArgView);
 
     StoreDrive(Session& session, PlatformDrive<Fake>& platform);
@@ -104,7 +104,7 @@ typename F::Store& object(StoreDrive<F>& d, ArgView request) {
 // The factory's requests.
 
 template <class F>
-Result factory_make(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result factory_make(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const store::Limits given = wire::limits_of(request);
     std::unique_ptr<F> factory;
     if constexpr (F::own == stores::Own::none) {
@@ -128,7 +128,7 @@ Result factory_make(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 }
 
 template <class F, typename F::Store (F::*open)()>
-Result factory_open(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result factory_open(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     F& factory = *named(d.states(), request, "state").object;
     auto made = std::make_unique<typename F::Store>((factory.*open)());
@@ -137,7 +137,7 @@ Result factory_open(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 
 // reopen, a static member on the in-memory factory, which is not durable.
 template <class F>
-Result factory_reopen(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result factory_reopen(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     F& factory = *named(d.states(), request, "state").object;
     auto made = std::make_unique<typename F::Store>(factory.reopen());
@@ -145,7 +145,7 @@ Result factory_reopen(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 }
 
 template <class F>
-Result factory_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result factory_drop(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     (void)named(d.states(), request, "state");
     if (over(d.objects(), state) || over(d.appenders(), state)) {
@@ -157,18 +157,18 @@ Result factory_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 
 // The fixtures' entries (store_fixtures.cpp), from the Site's book.
 template <class F>
-Result fixture_entry(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result fixture_entry(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::fixture_entry(d.site().book(), request);
 }
 template <class F>
-Result fixture_made(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result fixture_made(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::fixture_made(d.site().book(), request);
 }
 
 // The SQLite store's own: its plans and the seam's write on its connection
 // (wire::plans, wire::seam_write), and create over its state's file (S17).
 template <class F, Value (*own)(store::sqlite::Connection&, ArgView)>
-Result own_sqlite([[maybe_unused]] StoreDrive<F>& d, memory::Arena&, [[maybe_unused]] ArgView request) {
+Result own_sqlite([[maybe_unused]] StoreDrive<F>& d, qiven::memory::Arena&, [[maybe_unused]] ArgView request) {
     if constexpr (F::own == stores::Own::sqlite) {
         return own(object(d, request).connection(), request);
     } else {
@@ -176,7 +176,7 @@ Result own_sqlite([[maybe_unused]] StoreDrive<F>& d, memory::Arena&, [[maybe_unu
     }
 }
 template <class F>
-Result factory_create([[maybe_unused]] StoreDrive<F>& d, [[maybe_unused]] memory::Arena& a, ArgView request) {
+Result factory_create([[maybe_unused]] StoreDrive<F>& d, [[maybe_unused]] qiven::memory::Arena& a, ArgView request) {
     if constexpr (F::own == stores::Own::sqlite) {
         return factory_open<F, &F::create>(d, a, request);
     } else {
@@ -185,7 +185,7 @@ Result factory_create([[maybe_unused]] StoreDrive<F>& d, [[maybe_unused]] memory
 }
 
 template <class F>
-Result capabilities(StoreDrive<F>&, memory::Arena&, ArgView) {
+Result capabilities(StoreDrive<F>&, qiven::memory::Arena&, ArgView) {
     constexpr store::Capabilities have = F::Store::capabilities;
     Value out;
     out.set("name", F::name);
@@ -207,7 +207,7 @@ store::Expected expected_of(ArgView request, std::optional<std::string>& held) {
 }
 
 template <class F>
-Result append(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result append(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::string scope = text(request, "scope");
     const std::string lane = text(request, "lane");
     std::optional<std::string> held;
@@ -217,15 +217,15 @@ Result append(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 }
 
 template <class F>
-Result head(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result head(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::optional<store::Head> h = object(d, request).head(text(request, "scope"), text(request, "lane"));
     return h ? Result(wire::head(*h)) : std::nullopt;
 }
 
 template <class F>
-Result heads(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
+Result heads(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     const wire::Ranges ranges(request);
-    store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};
+    store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
     const store::Heads h = object(d, request).heads(ranges.scopes(), rows);
     Value out;
     out.set("rows", wire::rows(rows));
@@ -235,15 +235,15 @@ Result heads(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result header(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    checked::Header h{memory::Allocator<char>(arena)};
+Result header(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
+    checked::Header h{qiven::memory::Allocator<char>(arena)};
     object(d, request).header(text(request, "id"), h);
     return scalar(wire::header_line(h, arena));
 }
 
 template <class F>
-Result body(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    store::String record{memory::Allocator<char>(arena)};
+Result body(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
+    store::String record{qiven::memory::Allocator<char>(arena)};
     if (!object(d, request).body(text(request, "id"), record)) {
         return std::nullopt;
     }
@@ -251,12 +251,12 @@ Result body(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result forgotten(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result forgotten(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return scalar(object(d, request).forgotten(text(request, "id")));
 }
 
 template <class F>
-Result scan(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result scan(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t of = integer(request, "store");
     const std::optional<std::string> scope = request.find("scope") ? std::optional(text(request, "scope")) : std::nullopt;
     const std::optional<std::string> lane = request.find("lane") ? std::optional(text(request, "lane")) : std::nullopt;
@@ -276,14 +276,14 @@ Result scan(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 }
 
 template <class F>
-Result forget(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
+Result forget(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     const std::string scope = text(request, "scope");
     const std::string lane = text(request, "lane");
     std::optional<std::string> held;
     const store::Expected expected = expected_of(request, held);
     const wire::Entries entries(request, "entries");
     const wire::Ranges ranges(request);
-    store::Vector<store::Id> erased{memory::Allocator<store::Id>(arena)};
+    store::Vector<store::Id> erased{qiven::memory::Allocator<store::Id>(arena)};
     Value out = wire::written(object(d, request).forget(scope, lane, expected, entries.views(), ranges.guard(), erased));
     Value ids = array();
     for (const store::Id& id : erased) {
@@ -294,12 +294,12 @@ Result forget(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result purge(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result purge(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::purge(object(d, request).purge());
 }
 
 template <class F>
-Result export_(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result export_(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t of = integer(request, "store");
     const wire::Ranges ranges(request);
     using Export = typename StoreDrive<F>::Export;
@@ -308,9 +308,9 @@ Result export_(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 }
 
 template <class F>
-Result import_(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
+Result import_(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     auto& into = object(d, request);
-    store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};
+    store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
     store::Imported done;
     if (request.find("export")) {
         done = into.import_(*named(d.exports(), request, "export").object, rows);
@@ -326,32 +326,32 @@ Result import_(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result size(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result size(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::sizes(object(d, request).size());
 }
 
 template <class F>
-Result verify(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result verify(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::counts(object(d, request).verify());
 }
 
 template <class F>
-Result close(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result close(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::purge(object(d, request).close());
 }
 
 template <class F>
-Result read_only(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result read_only(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return scalar(static_cast<const typename F::Store&>(object(d, request)).read_only());
 }
 
 template <class F>
-Result limits(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result limits(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return wire::limits(static_cast<const typename F::Store&>(object(d, request)).limits());
 }
 
 template <class F>
-Result store_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result store_drop(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t id = integer(request, "store");
     (void)named(d.objects(), request, "store");
     if (over(d.scans(), id) || over(d.exports(), id)) {
@@ -364,8 +364,8 @@ Result store_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
 // The handles' requests.
 
 template <class F>
-Result scan_next(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    checked::Header h{memory::Allocator<char>(arena)};
+Result scan_next(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
+    checked::Header h{qiven::memory::Allocator<char>(arena)};
     if (!named(d.scans(), request, "scan").object->next(h)) {
         return std::nullopt;
     }
@@ -373,15 +373,15 @@ Result scan_next(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result scan_close(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result scan_close(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     (void)named(d.scans(), request, "scan");
     d.scans().erase(integer(request, "scan"));
     return std::nullopt;
 }
 
 template <class F>
-Result export_heads(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
-    store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};
+Result export_heads(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
+    store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
     const store::Snapshot s = named(d.exports(), request, "export").object->heads(rows);
     Value out;
     out.set("rows", wire::rows(rows));
@@ -391,7 +391,7 @@ Result export_heads(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result export_next(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
+Result export_next(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     store::Line l(arena);
     if (!named(d.exports(), request, "export").object->next(l)) {
         return std::nullopt;
@@ -400,13 +400,13 @@ Result export_next(StoreDrive<F>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class F>
-Result export_close(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result export_close(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     named(d.exports(), request, "export").object->close();
     return std::nullopt;
 }
 
 template <class F>
-Result export_drop(StoreDrive<F>& d, memory::Arena&, ArgView request) {
+Result export_drop(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     (void)named(d.exports(), request, "export");
     d.exports().erase(integer(request, "export"));
     return std::nullopt;
@@ -493,12 +493,12 @@ Value StoreDrive<F>::run(const Entry& entry, ArgView request) {
     static_cast<void>(s);
 #endif
     // "elsewhere": the call on a thread of its own (driver/store_race.hpp).
-    const auto call = [&, other = flag(request, "elsewhere", false)](memory::Arena& arena) {
+    const auto call = [&, other = flag(request, "elsewhere", false)](qiven::memory::Arena& arena) {
         return other ? elsewhere([&] { return entry.operation(*this, arena, request); })
                      : entry.operation(*this, arena, request);
     };
     if (entry.budget == nullptr) {
-        memory::Arena none{std::span<std::byte>{}};
+        qiven::memory::Arena none{std::span<std::byte>{}};
         return ok_reply(call(none));
     }
     const std::size_t bytes = budget(request, entry.budget(request));

@@ -23,7 +23,7 @@
 
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "keys/keys.hpp"
 #include "store/errors.hpp"
 #include "support/stores/records.hpp"
@@ -32,8 +32,8 @@
 
 namespace {
 
-namespace stores = qiven3::test::stores;
-namespace records = qiven3::test::records;
+namespace stores = qiven::test::stores;
+namespace records = qiven::test::records;
 using qiven3::store::Code;
 using qiven3::store::StoreError;
 using records::Rec;
@@ -94,7 +94,7 @@ template <class F>
 void scan_case(qiven::runner::Context& qiven_ctx, F& f) {
     auto store = f.make();
     auto other = f.again();
-    qiven3::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, f.site().chars());
+    qiven::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, f.site().chars());
 }
 
 // One entry of a scope set: one ending in `*` holds the scopes its bytes
@@ -133,7 +133,7 @@ void prefix_case(qiven::runner::Context& qiven_ctx, F& f) {
         {{"project:other", "project:qu*"}, 2},            {{"project:qiven-*"}, 0},
         {{past}, 1},             {{beyond}, 0},           {{}, 0},
     };
-    qiven3::memory::Vector<qiven3::store::LaneHead> rows(f.site().chars());
+    qiven::memory::Vector<qiven3::store::LaneHead> rows(f.site().chars());
     for (const Want& want : wants) {
         const qiven3::store::Scopes set = std::span<const std::string_view>(want.set);
         (void)store->heads(set, rows);
@@ -199,20 +199,20 @@ QIVEN_CASE(stores, sqlite_factory) {
 // bytes) and a scan at the record it was at.
 template <class F>
 void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
-    using Chars = qiven3::memory::Allocator<char>;
+    using Chars = qiven::memory::Allocator<char>;
     constexpr std::size_t most = qiven3::store::operation_base / 4 * 3;
     const std::vector<Rec> a = records::chain(at_scope, at_lane, {"A"});
     const std::string id = records::id_of(a[0]);
     const auto made = std::make_unique<typename F::Store>(f.make());
     typename F::Store& store = *made;
     (void)store.append(at_scope, at_lane, std::nullopt, records::views(a));
-    qiven3::memory::String line(f.site().chars());
-    qiven3::memory::String record(f.site().chars());
+    qiven::memory::String line(f.site().chars());
+    qiven::memory::String record(f.site().chars());
     store.header(id, line);
     const bool has = store.body(id, record);
     CHECK_EQ(has, a[0].record.has_value());
     const auto take = [](const Chars& chars) {
-        qiven3::memory::String room(chars);
+        qiven::memory::String room(chars);
         room.resize(most);
     };
     for (int round = 0; round < 2; ++round) {
@@ -259,7 +259,7 @@ void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
     CHECK_EQ(store.peak(), peak);
     const auto head = store.head(at_scope, at_lane);
     CHECK(head && head->seq == 2 && head->id.view() == records::id_of(b[0]));
-    qiven3::memory::String again(f.site().chars());
+    qiven::memory::String again(f.site().chars());
     store.header(id, again);
     CHECK_EQ(std::string_view(again), std::string_view(line));
 

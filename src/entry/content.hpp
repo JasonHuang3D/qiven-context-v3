@@ -46,8 +46,8 @@
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::content {
@@ -161,7 +161,7 @@ constexpr std::optional<std::size_t> canonical_size(const canon::Basic<B>& v) {
             case json::Kind::array: n = v.count(k) == 0 ? 2 : v.count(k) + 1; break;
             case json::Kind::object: n = v.count(k) == 0 ? 2 : 2 * v.count(k) + 1; break;
         }
-        bytes = memory::add(*bytes, n);
+        bytes = qiven::memory::add(*bytes, n);
     }
     return bytes;
 }
@@ -173,7 +173,7 @@ template <typename A, typename B>
 constexpr std::optional<ContentError> try_check(const header::Header<A>& h, const canon::Basic<B>& content) {
     const std::optional<std::size_t> index = kinds::index_of(h.value(header::Slot::kind));
     if (!index) {
-        memory::fail_fast("content: a kind outside this minor's 22");
+        qiven::memory::fail_fast("content: a kind outside this minor's 22");
     }
     const kinds::Kind& kind = kinds::KINDS.at(*index);
     const std::optional<kinds::Basis> basis = kinds::basis_of(h.value(header::Slot::basis));

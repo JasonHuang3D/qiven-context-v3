@@ -11,7 +11,7 @@
 //              library checks
 //   overflow   unbounded recursion, about 4 KiB a frame
 //   exception  std::out_of_range("plant") out of main
-//   failfast   memory::fail_fast("plant")
+//   failfast   qiven::memory::fail_fast("plant")
 //   out        "out: plant" through diag::Out, twice; exit 0
 //   hang       the main thread and one more, each blocked for ever
 //   watch      a counter written three times, 1, 2 and 3; exit 0
@@ -38,8 +38,8 @@
 #include "diag/diag.hpp"
 #include "diag/out.hpp"
 #include "log/log.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
 
 #ifdef _MSC_VER
 #define QIVEN3_PLANT __declspec(noinline)
@@ -120,7 +120,7 @@ QIVEN3_PLANT int plant_overflow(int depth) {
 
 QIVEN3_PLANT int plant_exception() { throw std::out_of_range("plant"); }
 
-QIVEN3_PLANT int plant_failfast() { qiven3::memory::fail_fast("plant"); }
+QIVEN3_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 
 // Blocks the calling thread for ever.
 [[noreturn]] QIVEN3_PLANT void wait_for_ever() {
@@ -165,7 +165,7 @@ QIVEN3_PLANT int plant_out() {
 
 int main(int argc, char** argv) {
     const std::string_view plant = argc == 2 ? argv[1] : "";
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     qiven3::log::Log lg(arena, qiven3::log::Count(1U), "qiven3-fault");
     const Kept kept(lg);
     for (std::uint64_t i = 0; i < operations; ++i) {

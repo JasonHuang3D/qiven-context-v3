@@ -20,17 +20,17 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/digest.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
 namespace {
 
 namespace digest = qiven3::digest;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::String;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t beside = 4096;  // each operation's budget beside its input
@@ -46,7 +46,7 @@ void finding(std::string_view what) { throw std::logic_error("fuzz/digest: " + s
 // budget the arena's MemoryError, which nothing here catches.
 template <typename Op>
 std::string within(std::size_t input, const Op& op) {
-    const std::optional<std::size_t> budget = qiven3::memory::add(beside, input);
+    const std::optional<std::size_t> budget = qiven::memory::add(beside, input);
     if (!budget) {
         finding("an input past std::size_t");
     }

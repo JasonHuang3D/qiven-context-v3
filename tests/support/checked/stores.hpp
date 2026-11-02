@@ -22,7 +22,7 @@
 #include "support/fixtures/stage_book.hpp"
 #include "support/stores/stores.hpp"
 
-namespace qiven3::test::ruled {
+namespace qiven::test::ruled {
 
 using stores::arena_bytes;
 using stores::Chars;
@@ -53,8 +53,8 @@ private:
 // A Site on the heap, its fake's seed given.
 inline std::unique_ptr<Site> site(std::uint64_t seed = 7) { return std::make_unique<Site>(seed); }
 
-using Memory = stores::MemoryOn<checked::MemoryStore<Fake>, Site>;
-template <store::Hooks H = store::NoHooks>
-using Sqlite = stores::SqliteOn<checked::SQLiteStore<Fake, H>, Site, H>;
+using Memory = stores::MemoryOn<qiven3::checked::MemoryStore<Fake>, Site>;
+template <qiven3::store::Hooks H = qiven3::store::NoHooks>
+using Sqlite = stores::SqliteOn<qiven3::checked::SQLiteStore<Fake, H>, Site, H>;
 
-}  // namespace qiven3::test::ruled
+}  // namespace qiven::test::ruled

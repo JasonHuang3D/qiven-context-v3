@@ -8,7 +8,7 @@
 #include "qiven/runner/runner.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
-using namespace qiven3::test::kept_bed;
+using namespace qiven::test::kept_bed;
 
 // The form, its names, and a file read back: its ids, and a forget's no body.
 QIVEN_CASE(write_kept, form) {

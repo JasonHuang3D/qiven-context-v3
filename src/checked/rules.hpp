@@ -94,7 +94,7 @@
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -108,7 +108,7 @@ namespace header = entry::header;
 namespace secret = entry::secret;
 namespace validator = entry::validator;
 using Slot = header::Slot;
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 using stage::AtView;
 using store::EntryView;
 using store::Expected;
@@ -203,7 +203,7 @@ void secrets(const AtView& at, std::size_t index, const Entry<P>& e, Vector<Hit>
     if (found.empty()) {
         return;
     }
-    const std::optional<std::size_t> room = memory::add(out.size(), found.size());
+    const std::optional<std::size_t> room = qiven::memory::add(out.size(), found.size());
     if (!room) {
         stage::too_large(SIZE_MAX);
     }
@@ -359,7 +359,7 @@ public:
     void admit(V& bytes, std::string_view scope, std::string_view lane, Expected expected,
                std::span<const stage::KeptView> /*kept*/, const AtView& at, const Chars& allocator) {
         if (at.op != Operation::append && at.op != Operation::forget) {
-            memory::fail_fast("stage::admit: an operation but append and forget");
+            qiven::memory::fail_fast("stage::admit: an operation but append and forget");
         }
         reads::ParsedView<V> view(bytes, reads::WhereView{at.op, at.path});
         const std::span<const Entry<P>> entries = entries_ ? std::span<const Entry<P>>(*entries_)
@@ -437,7 +437,7 @@ template <stage::View V, platform::Platform P>
 stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
                     const Checked<P>& checked, const Limits& limits, const AtView& at, const Chars& allocator) {
     if (at.op != Operation::append && at.op != Operation::forget) {
-        memory::fail_fast("stage::admit: an operation but append and forget");
+        qiven::memory::fail_fast("stage::admit: an operation but append and forget");
     }
     const std::span<const Entry<P>> entries(checked.entries);
     detail::settle(view, entries, std::span<const Hit>(checked.hits), at, allocator);

@@ -22,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/win/facts.hpp"
 #include "platform/win/windows.hpp"
 #include "qiven/faults/faults.hpp"
@@ -32,8 +32,8 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace readings = qiven3::platform::win::readings;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using qiven3::platform::Code;
 using qiven3::platform::Facts;
 using qiven3::platform::PlatformError;
@@ -138,7 +138,7 @@ QIVEN_CASE(win_facts_machine, facts_here) {
     Arena arena(pages->bytes);
     const std::array<std::string, 2> paths = {text(scratch.root), "C:\\"};
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown allocations;
+    qiven::memory::Countdown allocations;
     arena.attach(&allocations);
 #endif
     for (const std::string& path : paths) {
@@ -207,7 +207,7 @@ QIVEN_CASE(win_facts_machine, residual_here) {
         texts += past_inline({row.name, row.kept, row.how_long, row.owner_can});
     }
     Arena arena(pages->bytes);
-    qiven3::memory::Countdown allocations;
+    qiven::memory::Countdown allocations;
     arena.attach(&allocations);
     {
         Vector<Row> rows{Allocator<Row>(arena)};
@@ -228,7 +228,7 @@ QIVEN_CASE(win_facts_machine, residual_here) {
             Vector<Row>(Allocator<Row>(arena)).swap(rows);
             platform.residual(paths, rows);
         };
-        const qiven3::test::FaultRuns r = qiven3::test::run_faults<qiven3::memory::MemoryError>(
+        const qiven::test::FaultRuns r = qiven::test::run_faults<qiven::memory::MemoryError>(
             qiven_ctx.log, "win_facts_machine.residual", allocations, fresh,
             [&](std::size_t) {
                 emptied += rows.empty() ? 1 : 0;

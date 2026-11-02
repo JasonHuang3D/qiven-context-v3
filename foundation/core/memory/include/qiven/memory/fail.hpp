@@ -7,7 +7,7 @@
 
 #include <string_view>
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 // Ends the process at once, in every build, by std::terminate(): it
 // allocates and writes nothing. `what` names the invariant; it is kept for
@@ -18,4 +18,4 @@ namespace qiven3::memory {
 // The cause the first fail_fast kept, or empty when none ran.
 [[nodiscard]] std::string_view fail_cause() noexcept;
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

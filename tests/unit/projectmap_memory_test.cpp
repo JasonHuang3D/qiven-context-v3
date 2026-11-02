@@ -18,8 +18,8 @@
 #include "entry/header.hpp"
 #include "entry/projectmap.hpp"
 #include "entry/projectmap_files.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -33,10 +33,10 @@ namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 #define HEX "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -85,7 +85,7 @@ struct Inputs {
     Fake fake{qiven3::platform::fake::Config{}};
     projectmap::Marks<> marks = projectmap::parse_marks(MARKS);
     canon::Basic<> content;
-    qiven3::test::fixtures::MemoryView view;
+    qiven::test::fixtures::MemoryView view;
     Inputs() {
         canon::parse(MAP_CONTENT, content);
         view.put(header::parse_line(CHECK_HEADER), std::nullopt);
@@ -149,7 +149,7 @@ QIVEN_CASE(projectmap, faults) {
     const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
     std::vector<std::byte> pages(1U << 16U);
     for (const Op op : OPS) {
-        qiven3::memory::Countdown countdown;
+        qiven::memory::Countdown countdown;
         std::optional<Arena> arena;
         std::size_t held = 1;
         const auto once = [&] {
@@ -167,8 +167,8 @@ QIVEN_CASE(projectmap, faults) {
             arena->attach(nullptr);
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "projectmap", countdown, once, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "projectmap", countdown, once, empty);
         std::cout << "projectmap.faults: " << label(op) << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, expected(op));

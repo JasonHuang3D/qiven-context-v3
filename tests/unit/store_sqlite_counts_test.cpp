@@ -7,12 +7,12 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
-using namespace qiven3::test::sqlite_bed;
+using namespace qiven::test::sqlite_bed;
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
@@ -71,11 +71,11 @@ QIVEN_CASE(store_sqlite, counts) {
     const auto b = std::make_unique<Bed>();
     std::vector<Step> all = steps();
     pin(all);
-    qiven3::memory::Countdown arenas;
-    qiven3::memory::Countdown heap;
-    qiven3::memory::Countdown calls;
-    qiven3::memory::Countdown caller;
-    qiven3::memory::Countdown platform;
+    qiven::memory::Countdown arenas;
+    qiven::memory::Countdown heap;
+    qiven::memory::Countdown calls;
+    qiven::memory::Countdown caller;
+    qiven::memory::Countdown platform;
     b->engine->heap().attach(&heap);
     sqlite::attach_calls(&calls, &arenas);
     b->call_countdown = &caller;

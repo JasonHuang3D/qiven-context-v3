@@ -22,8 +22,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -45,11 +45,11 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
 using qiven3::store::Vector;
-using qiven3::test::records::chain;
-using qiven3::test::records::forget;
-using qiven3::test::records::owned;
-using qiven3::test::records::Rec;
-using qiven3::test::records::views;
+using qiven::test::records::chain;
+using qiven::test::records::forget;
+using qiven::test::records::owned;
+using qiven::test::records::Rec;
+using qiven::test::records::views;
 
 static_assert(qiven3::store::Export<Export>);
 
@@ -95,8 +95,8 @@ struct Rig {
     Fake fake;
     qiven3::store::Engine<Fake> engine;
     std::vector<std::byte> pages;
-    qiven3::memory::Arena arena;
-    qiven3::memory::Allocator<char> chars;
+    qiven::memory::Arena arena;
+    qiven::memory::Allocator<char> chars;
 };
 
 // The error a call raised, as "Kind code", or "none".
@@ -132,7 +132,7 @@ struct Held {
         line.header.assign(r.line);
         line.has_body = r.record.has_value();
         line.body.assign(r.record.value_or(std::string()));
-        return line.keys.assign(qiven3::test::records::view(r.keys));
+        return line.keys.assign(qiven::test::records::view(r.keys));
     }
 };
 
@@ -141,7 +141,7 @@ std::size_t drain(Export& e, Held* held) {
     std::vector<std::byte> pages(std::size_t{1} << 18U);
     std::size_t n = 0;
     for (;;) {
-        qiven3::memory::Arena arena(pages);
+        qiven::memory::Arena arena(pages);
         Line line(arena);
         if (!e.next(line)) {
             return n;
@@ -161,7 +161,7 @@ std::uintmax_t wal_bytes(const std::string& path) {
 
 // Two lanes, four records and a forget of B in the first, two in the
 // second.
-void fill(Store& store, const qiven3::memory::Allocator<char>& chars) {
+void fill(Store& store, const qiven::memory::Allocator<char>& chars) {
     const std::vector<Rec> mine = chain(held_scope, first_lane, {"A", "B", "D", "ACC"});
     const std::vector<Rec> theirs = chain(held_scope, second_lane, {"C", "M1"});
     const std::vector<Rec> forgets = {forget("E", held_scope, first_lane, 5, "ACC", "B")};

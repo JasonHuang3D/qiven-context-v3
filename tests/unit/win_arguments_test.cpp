@@ -14,7 +14,7 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/win/windows.hpp"
 #include "qiven/runner/runner.hpp"
 
@@ -88,7 +88,7 @@ QIVEN_CASE(win_arguments, faults) {
     const std::wstring name = L"qiven3";
     const std::wstring first = L"location";
     const std::vector<const wchar_t*> wide = {name.c_str(), first.c_str(), nullptr};
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::size_t k = 1;
     for (; k <= 5; ++k) {
         countdown.arm(k);

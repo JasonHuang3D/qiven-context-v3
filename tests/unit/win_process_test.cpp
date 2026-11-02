@@ -23,9 +23,9 @@
 
 namespace {
 
-using namespace qiven3::test::process;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using namespace qiven::test::process;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 
 }  // namespace
 

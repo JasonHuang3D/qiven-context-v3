@@ -66,8 +66,8 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/utc.hpp"
 #include "store/errors.hpp"
@@ -75,7 +75,7 @@
 
 namespace qiven3::location {
 
-using memory::String;
+using qiven::memory::String;
 
 // The text's names: the record, its lock, the store's file.
 inline constexpr std::string_view record_name = "location.json";
@@ -128,7 +128,7 @@ static_assert(sizeof(ArgumentsView) == 40, "ArgumentsView's size is pinned: two 
 struct Hooks {
     std::size_t* peak = nullptr;
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* arenas = nullptr;
+    qiven::memory::Countdown* arenas = nullptr;
 #endif
 };
 
@@ -158,7 +158,7 @@ bool fact_line(Condition condition, const platform::Reading& reading, std::strin
 // A typed error's line, as much as fits in out; the view is out's.
 std::string_view error_line(const store::StoreError& error, std::span<char> out) noexcept;
 std::string_view error_line(const platform::PlatformError& error, std::span<char> out) noexcept;
-std::string_view error_line(const memory::MemoryError& error, std::span<char> out) noexcept;
+std::string_view error_line(const qiven::memory::MemoryError& error, std::span<char> out) noexcept;
 // An exception of the standard library's own (its heap refusing an
 // allocation in its file system reads, for one), and its line.
 std::string_view error_line(const std::exception& error, std::span<char> out) noexcept;

@@ -3,10 +3,10 @@
 
 #include "entry/content_fields.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::content::detail {
 
-template class WalkView<memory::Allocator<char>>;
+template class WalkView<qiven::memory::Allocator<char>>;
 
 }  // namespace qiven3::entry::content::detail

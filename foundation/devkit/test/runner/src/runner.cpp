@@ -8,7 +8,7 @@
 #include <set>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven::runner {
 
@@ -46,18 +46,18 @@ NamerRegistrar::NamerRegistrar(Namer namer) {
     }
 }
 
-qiven3::memory::Arena& Counted::arena(std::size_t bytes) {
-    Owned<qiven3::memory::Arena>& owned = arenas_.emplace_back(bytes);
+qiven::memory::Arena& Counted::arena(std::size_t bytes) {
+    Owned<qiven::memory::Arena>& owned = arenas_.emplace_back(bytes);
     return owned.allocator.emplace(owned.span());
 }
 
-qiven3::memory::Pool& Counted::pool(std::size_t slot, std::size_t bytes) {
-    Owned<qiven3::memory::Pool>& owned = pools_.emplace_back(bytes);
+qiven::memory::Pool& Counted::pool(std::size_t slot, std::size_t bytes) {
+    Owned<qiven::memory::Pool>& owned = pools_.emplace_back(bytes);
     return owned.allocator.emplace(slot, owned.span());
 }
 
-qiven3::memory::Heap& Counted::heap(std::size_t bytes) {
-    Owned<qiven3::memory::Heap>& owned = heaps_.emplace_back(bytes);
+qiven::memory::Heap& Counted::heap(std::size_t bytes) {
+    Owned<qiven::memory::Heap>& owned = heaps_.emplace_back(bytes);
     return owned.allocator.emplace(owned.span());
 }
 
@@ -85,7 +85,7 @@ std::size_t Counted::held() const noexcept {
     std::size_t sum = 0;
     const auto each = [&](const auto& list) noexcept {
         for (const auto& owned : list) {
-            sum = qiven3::memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
+            sum = qiven::memory::add(sum, owned.allocator->used()).value_or(SIZE_MAX);
         }
     };
     each(arenas_);
@@ -124,11 +124,11 @@ int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ende
     } catch (const std::exception& e) {
         ++ctx.failures;
         out << "exception: " << e.what() << "\n";
-    } catch (const qiven3::memory::MemoryError& e) {
+    } catch (const qiven::memory::MemoryError& e) {
         // A plain value with no base: its code's name, the operation that
         // raised it (the allocator) and its detail.
         ++ctx.failures;
-        out << "memory error " << qiven3::memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
+        out << "memory error " << qiven::memory::name(e.code) << " in " << e.operation.view() << ": " << e.detail.view()
             << "\n";
     } catch (...) {
         // Another module's error (a PlatformError, a StoreError) by the

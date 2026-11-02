@@ -13,8 +13,8 @@
 #include <string_view>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -52,8 +52,8 @@ HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, con
         Statement s = c.prepare("SELECT scope, lane, id, seq FROM head ORDER BY scope, lane", at);
         while (s.step(at)) {
             if (in_scopes(scopes, s.text(0))) {
-                rows.push_back(LaneHead{Head{Id::of(s.text(2)), s.integer(3)}, memory::Inline<scope_bytes>(s.text(0)),
-                                        memory::Inline<lane_bytes>(s.text(1))});
+                rows.push_back(LaneHead{Head{Id::of(s.text(2)), s.integer(3)}, qiven::memory::Inline<scope_bytes>(s.text(0)),
+                                        qiven::memory::Inline<lane_bytes>(s.text(1))});
             }
         }
         s = c.prepare("SELECT scope, count(*) FROM entry WHERE kind = 'forget' GROUP BY scope", at);
@@ -73,7 +73,7 @@ HeadsRead heads(Connection& c, const Scopes& scopes, Vector<LaneHead>& rows, con
     return read;
 }
 
-Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record, const WhereView& at) {
+Found find(Connection& c, std::string_view id, qiven::memory::String* line, qiven::memory::String* record, const WhereView& at) {
     Statement s = c.prepare("SELECT e.line, b.record, e.body FROM entry AS e LEFT JOIN body AS b ON b.id = e.id "
                             "WHERE e.id = ?1",
                             at);
@@ -141,13 +141,13 @@ ScanView::ScanView(const Gate& gate, Connection& c, std::span<std::byte> pages, 
       done_((range.scope && range.scope->size() > scope_bytes) || (range.lane && range.lane->size() > lane_bytes)) {
     if (range.scope) {
         scope_.emplace(*range.scope);
-        at_scope_ = memory::Inline<scope_bytes>(*range.scope);
+        at_scope_ = qiven::memory::Inline<scope_bytes>(*range.scope);
     }
     if (range.lane) {
         lane_.emplace(*range.lane);
     }
     if (range.scope && range.lane) {
-        at_lane_ = memory::Inline<lane_bytes>(*range.lane);
+        at_lane_ = qiven::memory::Inline<lane_bytes>(*range.lane);
     }
 }
 
@@ -194,8 +194,8 @@ bool ScanView::fetch(Record& out) {
     out.kind.assign(s.text(5));
     out.line.assign(s.blob(line_column));
     out.id = Id::of(s.text(0));
-    out.scope = memory::Inline<scope_bytes>(s.text(1));
-    out.lane = memory::Inline<lane_bytes>(s.text(2));
+    out.scope = qiven::memory::Inline<scope_bytes>(s.text(1));
+    out.lane = qiven::memory::Inline<lane_bytes>(s.text(2));
     out.seq = s.integer(3);
     out.parent = id(4);
     out.target = id(6);

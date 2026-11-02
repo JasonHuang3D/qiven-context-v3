@@ -12,22 +12,22 @@
 #include <type_traits>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::memory::add;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::Inline;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::mul;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::add;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::Inline;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::mul;
+using qiven::memory::String;
+using qiven::memory::Vector;
 
 constexpr std::size_t top = std::numeric_limits<std::size_t>::max();
 
@@ -75,7 +75,7 @@ QIVEN_CASE(memory, inline_cut) {
 QIVEN_CASE(memory, error_budget) {
     const MemoryError e = MemoryError::budget("arena", 65536, 70000, top);
     CHECK(e.code == MemoryCode::budget);
-    CHECK_EQ(qiven3::memory::name(e.code), "budget");
+    CHECK_EQ(qiven::memory::name(e.code), "budget");
     CHECK_EQ(e.operation.view(), "arena");
     CHECK_EQ(e.detail.view(), "budget 65536, request 70000, held 18446744073709551615");
     static_assert(std::is_nothrow_copy_constructible_v<MemoryError>);
@@ -176,7 +176,7 @@ QIVEN_CASE(memory, container_budget) {
 // lock is taken in a condition, where clang's thread-safety analysis follows
 // try_lock_for's result; each thread is a std::thread joined in place, since
 // libc++ before 20 keeps std::jthread experimental.
-bool taken(qiven3::memory::Mutex& mutex, std::chrono::milliseconds wait) {
+bool taken(qiven::memory::Mutex& mutex, std::chrono::milliseconds wait) {
     if (mutex.try_lock_for(wait)) {
         mutex.unlock();
         return true;
@@ -185,7 +185,7 @@ bool taken(qiven3::memory::Mutex& mutex, std::chrono::milliseconds wait) {
 }
 
 QIVEN_CASE(memory, mutex_deadline) {
-    qiven3::memory::Mutex mutex;
+    qiven::memory::Mutex mutex;
     bool first = false;
     bool other = true;
     if (mutex.try_lock_for(std::chrono::milliseconds(10))) {
@@ -207,7 +207,7 @@ QIVEN_CASE(memory, mutex_deadline) {
 
 QIVEN_CASE(memory, countdown) {
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     CHECK(!countdown.fail());
     countdown.arm(3);
     CHECK(!countdown.fail());
@@ -231,8 +231,8 @@ QIVEN_CASE(memory, countdown) {
 QIVEN_CASE(memory, sizes) {
     std::cout << "Allocator<char> " << sizeof(Allocator<char>) << "\nString " << sizeof(String)
               << "\nVector<int> " << sizeof(Vector<int>) << "\nArena " << sizeof(Arena)
-              << "\nPool " << sizeof(qiven3::memory::Pool) << "\nHeap "
-              << sizeof(qiven3::memory::Heap) << "\nMemoryError " << sizeof(MemoryError)
-              << "\nMutex " << sizeof(qiven3::memory::Mutex) << "\n";
+              << "\nPool " << sizeof(qiven::memory::Pool) << "\nHeap "
+              << sizeof(qiven::memory::Heap) << "\nMemoryError " << sizeof(MemoryError)
+              << "\nMutex " << sizeof(qiven::memory::Mutex) << "\n";
     CHECK_EQ(sizeof(Allocator<char>), 8U);
 }

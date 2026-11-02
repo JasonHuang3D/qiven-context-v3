@@ -3,7 +3,7 @@
 
 #include "support/stores/sqlite_rig.hpp"
 
-namespace qiven3::test::sqlite_rig {
+namespace qiven::test::sqlite_rig {
 
 struct Call {
     void operator()() const {}
@@ -11,4 +11,4 @@ struct Call {
 
 template std::string raised(const Call&);
 
-}  // namespace qiven3::test::sqlite_rig
+}  // namespace qiven::test::sqlite_rig

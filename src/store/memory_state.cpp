@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
@@ -28,8 +28,8 @@ std::size_t run_of(std::span<const Held> rows, std::size_t from, std::uint32_t l
 
 }  // namespace
 
-void exhausted(std::size_t request, const memory::Heap& heap) {
-    throw memory::MemoryError::budget("store/memory", heap.budget(), request, heap.used());
+void exhausted(std::size_t request, const qiven::memory::Heap& heap) {
+    throw qiven::memory::MemoryError::budget("store/memory", heap.budget(), request, heap.used());
 }
 
 void busy(Operation op, std::string_view path) {
@@ -43,9 +43,9 @@ State::State(std::span<std::byte> pages, const Limits& limits) : data_(pages), l
 }
 
 #if defined(QIVEN_FAULTS)
-void attach(State& state, memory::Countdown* countdown) noexcept {
+void attach(State& state, qiven::memory::Countdown* countdown) noexcept {
     if (!state.mutex_.try_lock_for(busy_wait)) {
-        memory::fail_fast("store/memory: the state's lock held past its wait at attach");
+        qiven::memory::fail_fast("store/memory: the state's lock held past its wait at attach");
     }
     state.data_.heap.attach(countdown);
     state.mutex_.unlock();
@@ -83,8 +83,8 @@ void heads_of(const Data& d, const Scopes& scopes, Vector<LaneHead>& rows) {
     rows.clear();
     for (const Lane& l : d.lanes) {
         if (in_scopes(scopes, std::string_view(l.scope))) {
-            rows.push_back(LaneHead{l.head, memory::Inline<scope_bytes>(std::string_view(l.scope)),
-                                    memory::Inline<lane_bytes>(std::string_view(l.name))});
+            rows.push_back(LaneHead{l.head, qiven::memory::Inline<scope_bytes>(std::string_view(l.scope)),
+                                    qiven::memory::Inline<lane_bytes>(std::string_view(l.name))});
         }
     }
     std::sort(rows.begin(), rows.end(), [](const LaneHead& a, const LaneHead& b) {
@@ -109,8 +109,8 @@ void record_of(const Data& d, std::uint32_t i, Record& out) {
     out.kind.assign(std::string_view(e.kind));
     out.line.assign(std::string_view(e.line));
     out.id = e.id;
-    out.scope = memory::Inline<scope_bytes>(std::string_view(l.scope));
-    out.lane = memory::Inline<lane_bytes>(std::string_view(l.name));
+    out.scope = qiven::memory::Inline<scope_bytes>(std::string_view(l.scope));
+    out.lane = qiven::memory::Inline<lane_bytes>(std::string_view(l.name));
     out.seq = e.seq;
     out.parent = e.seq > 1 ? std::optional<Id>(d.held[l.ids[static_cast<std::size_t>(e.seq - 2)]].id) : std::nullopt;
     out.target = e.target != none ? std::optional<Id>(d.held[e.target].id) : std::nullopt;
@@ -137,7 +137,7 @@ Held make_held(Data& d, std::string_view line, std::optional<std::string_view> r
 void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const KeysView& k) {
     const std::size_t at = d.held.size() + rows_.size();
     if (at >= max_entries) {
-        throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
+        throw qiven::memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
     }
     Held e = make_held(d, line, record, k);
     if (const std::optional<std::string_view> t = k.target) {

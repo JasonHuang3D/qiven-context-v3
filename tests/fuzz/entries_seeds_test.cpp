@@ -14,7 +14,7 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "qiven/runner/runner.hpp"
 #include "write/entries.hpp"
 
@@ -55,7 +55,7 @@ constexpr std::array<Seed, 16> seeds = {{
 
 std::string outcome(std::string_view bytes) {
     std::vector<std::byte> pages(std::size_t{24} << 20U);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     try {
         static_cast<void>(we::read(bytes, arena));
         return "ok";

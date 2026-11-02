@@ -9,14 +9,14 @@
 #include <string>
 
 #include "entry/served.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::served {
 
 using Std = std::allocator<char>;
 
 template class detail::Write<std::string>;
-template class detail::Write<memory::String>;
+template class detail::Write<qiven::memory::String>;
 template void block(const header::Header<Std>&, const canon::Basic<Std>&, const State&, const labels::Label&,
                     const std::optional<MapMark>&, std::string&);
 template std::size_t block_cost(const header::Header<Std>&, const canon::Basic<Std>&, const State&,

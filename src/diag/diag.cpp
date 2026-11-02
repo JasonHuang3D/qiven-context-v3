@@ -2,7 +2,7 @@
 
 #include <exception>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3::diag::detail {
 
@@ -78,7 +78,7 @@ std::string_view Line::line() noexcept {
 
 void on_terminate() {
     Line cause;
-    const std::string_view kept = memory::fail_cause();
+    const std::string_view kept = qiven::memory::fail_cause();
     if (!kept.empty()) {
         cause.text("fail-fast: ").text(kept);
         fatal(cause.view(), End::fail_fast);

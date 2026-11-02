@@ -39,8 +39,8 @@
 #include <vector>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -63,10 +63,10 @@ using qiven3::store::Line;
 using qiven3::store::NoAdmit;
 using qiven3::store::Vector;
 using Fake = qiven3::platform::fake::FakePlatform;
-using qiven3::test::records::lane_head;
-using Arena = qiven3::memory::Arena;
-using Chars = qiven3::memory::Allocator<char>;
-using String = qiven3::memory::String;
+using qiven::test::records::lane_head;
+using Arena = qiven::memory::Arena;
+using Chars = qiven::memory::Allocator<char>;
+using String = qiven::memory::String;
 using Store = qiven3::store::SQLiteStore<Fake>;
 using Parent = std::optional<std::string_view>;
 

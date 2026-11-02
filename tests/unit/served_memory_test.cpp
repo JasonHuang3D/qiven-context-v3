@@ -23,8 +23,8 @@
 #include "entry/header.hpp"
 #include "entry/labels.hpp"
 #include "entry/served.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -37,11 +37,11 @@ namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace labels = qiven3::entry::labels;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+namespace fixtures = qiven::test::fixtures;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 
 constexpr served::State SERVED{fold::State{fold::Status::served, 0, 0, fold::none}, 0};
 
@@ -119,7 +119,7 @@ QIVEN_CASE(served, faults) {
     const Held m1 = held(all, "M1");
     std::vector<std::byte> pages(4096);
     for (const bool stub : {false, true}) {
-        qiven3::memory::Countdown countdown;
+        qiven::memory::Countdown countdown;
         std::optional<Arena> arena;
         std::size_t size = 0;
         const auto op = [&] {
@@ -131,9 +131,9 @@ QIVEN_CASE(served, faults) {
             arena->attach(nullptr);
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
-        const qiven3::test::FaultRuns runs =
-            stub ? qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.stub", countdown, op, empty)
-                 : qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.block", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            stub ? qiven::test::run_faults<MemoryError>(qiven_ctx.log, "served.stub", countdown, op, empty)
+                 : qiven::test::run_faults<MemoryError>(qiven_ctx.log, "served.block", countdown, op, empty);
         std::cout << "served.faults: " << (stub ? "stub" : "block") << "'s allocations " << runs.typed
                   << ", completed at " << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, 1U);
@@ -180,7 +180,7 @@ QIVEN_CASE(served, escaped_label_faults) {
                              "reviewer/s70 (transcript)\n";
     std::vector<std::byte> pages(4096);
     for (const bool stub : {false, true}) {
-        qiven3::memory::Countdown countdown;
+        qiven::memory::Countdown countdown;
         std::optional<Arena> arena;
         std::string text;
         const auto op = [&] {
@@ -192,9 +192,9 @@ QIVEN_CASE(served, escaped_label_faults) {
             arena->attach(nullptr);
         };
         const auto empty = [&](std::size_t) { return arena->used() == 0; };
-        const qiven3::test::FaultRuns runs =
-            stub ? qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_stub", countdown, op, empty)
-                 : qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_block", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            stub ? qiven::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_stub", countdown, op, empty)
+                 : qiven::test::run_faults<MemoryError>(qiven_ctx.log, "served.escaped_block", countdown, op, empty);
         std::cout << "served.escaped_label_faults: " << (stub ? "stub" : "block") << "'s allocations " << runs.typed
                   << ", completed at " << runs.completed_at << ", " << text.size() << " bytes\n";
         CHECK_EQ(runs.typed, 1U);

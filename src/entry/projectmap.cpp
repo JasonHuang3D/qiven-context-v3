@@ -6,14 +6,14 @@
 #include "entry/projectmap.hpp"
 
 #include "entry/projectmap_files.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::projectmap {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<FileError> try_parse_registry(std::string_view, Registry<Alloc>&, System);
 template std::optional<FileError> try_parse_marks(std::string_view, Marks<Alloc>&);
-template void marks_bytes(const Marks<Alloc>&, memory::String&);
+template void marks_bytes(const Marks<Alloc>&, qiven::memory::String&);
 
 }  // namespace qiven3::entry::projectmap

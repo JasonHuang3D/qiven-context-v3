@@ -51,7 +51,7 @@
 
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/checked/stores.hpp"
@@ -65,7 +65,7 @@ inline constexpr std::int64_t fill_batch = 100;
 // (store_fill.cpp).
 class Fill {
 public:
-    Fill(const test::stage_book::Book& book, ArgView request, const std::optional<store::Head>& head);
+    Fill(const qiven::test::stage_book::Book& book, ArgView request, const std::optional<store::Head>& head);
     Fill(const Fill&) = delete;
     Fill& operator=(const Fill&) = delete;
     ~Fill() = default;
@@ -76,7 +76,7 @@ public:
     [[nodiscard]] std::int64_t made() const noexcept { return made_; }
 
 private:
-    const test::stage_book::Book* book_;
+    const qiven::test::stage_book::Book* book_;
     std::string scope_, lane_, content_, mark_, writer_;
     std::int64_t count_ = 0;
     std::int64_t first_ = 1;  // the first claim's seq
@@ -90,7 +90,7 @@ private:
 };
 
 template <class Store>
-Value fill(Store& object, const test::stage_book::Book& book, ArgView request) {
+Value fill(Store& object, const qiven::test::stage_book::Book& book, ArgView request) {
     const std::string scope = text(request, "scope");
     const std::string lane = text(request, "lane");
     Fill made(book, request, object.head(scope, lane));
@@ -113,7 +113,7 @@ Value drain(Export& x, const Held& held) {
     const std::size_t before = held();
     std::size_t engine = before;
     for (bool more = true; more;) {
-        memory::Arena arena(pages);
+        qiven::memory::Arena arena(pages);
         store::Line line(arena);
         more = x.next(line);
         most = std::max(most, arena.peak());
@@ -239,35 +239,35 @@ private:
 // The requests, on the drive D's tables (driver/store_held.hpp), its
 // factory D::Factory.
 template <class D>
-std::optional<Value> start_appender(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> start_appender(D& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     auto made = std::make_unique<Appender<typename D::Factory>>(*held::named(d.states(), request, "state").object,
-                                                                 test::ruled::text(d.site().root()), request);
+                                                                 qiven::test::ruled::text(d.site().root()), request);
     return held::id_value("appender", held::keep(d, d.appenders(), std::move(made), state));
 }
 
 template <class D>
-std::optional<Value> release_appender(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> release_appender(D& d, qiven::memory::Arena&, ArgView request) {
     held::named(d.appenders(), request, "appender").object->release();
     return std::nullopt;
 }
 
 template <class D>
-std::optional<Value> join_appender(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> join_appender(D& d, qiven::memory::Arena&, ArgView request) {
     Value out = held::named(d.appenders(), request, "appender").object->join();
     d.appenders().erase(integer(request, "appender"));
     return out;
 }
 
 template <class D>
-std::optional<Value> fill_lane(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> fill_lane(D& d, qiven::memory::Arena&, ArgView request) {
     return wire::fill(*held::named(d.objects(), request, "store").object, d.site().book(), request);
 }
 
 template <class D>
-std::optional<Value> drain_export(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> drain_export(D& d, qiven::memory::Arena&, ArgView request) {
     auto& x = *held::named(d.exports(), request, "export").object;
-    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
+    if constexpr (D::Factory::own == qiven::test::ruled::Own::sqlite) {
         auto& engine = d.site().engine();
         const auto held = [&engine] {
             const store::sqlite::Slots s = engine.slots();

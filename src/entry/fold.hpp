@@ -52,7 +52,7 @@
 
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
 
@@ -178,8 +178,8 @@ constexpr void add(Work& w, std::uint8_t m) noexcept { w.marks = static_cast<std
 constexpr bool has(const Work& w, std::uint8_t m) noexcept { return (w.marks & m) != 0; }
 
 [[noreturn]] inline void too_large(std::size_t entries) {
-    throw memory::MemoryError::budget("fold", max_entries * sizeof(Work),
-                                      memory::mul(entries, sizeof(Work)).value_or(SIZE_MAX), 0);
+    throw qiven::memory::MemoryError::budget("fold", max_entries * sizeof(Work),
+                                      qiven::memory::mul(entries, sizeof(Work)).value_or(SIZE_MAX), 0);
 }
 
 }  // namespace detail
@@ -234,7 +234,7 @@ constexpr State fold(std::span<const ItemView> record, std::string_view now, con
             throw FoldError{Code::order, static_cast<std::uint32_t>(std::min(i, max_entries))};
         }
     }
-    if (n > max_entries || !memory::mul(n, sizeof(detail::Work))) {
+    if (n > max_entries || !qiven::memory::mul(n, sizeof(detail::Work))) {
         detail::too_large(n);
     }
     using Rebound = typename std::allocator_traits<A>::template rebind_alloc<detail::Work>;

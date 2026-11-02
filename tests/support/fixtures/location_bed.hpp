@@ -27,7 +27,7 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
@@ -35,7 +35,7 @@
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
-namespace qiven3::test::location_bed {
+namespace qiven::test::location_bed {
 
 namespace fs = std::filesystem;
 namespace location = qiven3::location;
@@ -43,7 +43,7 @@ namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
 using qiven3::platform::State;
 #if defined(QIVEN_FAULTS)
-using qiven3::memory::Countdown;
+using qiven::memory::Countdown;
 #else
 using Countdown = void;  // nothing counts: run's arenas unused
 #endif
@@ -178,9 +178,9 @@ struct Bed {
     }
     [[nodiscard]] static int expected(Step s) {
         if (s == Step::init_chosen || s == Step::change_left) {
-            return location::refused;
+            return qiven3::location::refused;
         }
-        return s == Step::init_warned ? location::not_accepted : location::recorded;
+        return s == Step::init_warned ? qiven3::location::not_accepted : qiven3::location::recorded;
     }
     // Whether the step writes a record.
     [[nodiscard]] static bool records(Step s) {
@@ -189,7 +189,7 @@ struct Bed {
     // main on the step's arguments, its arena under arenas.
     int run(Step s, Countdown* arenas = nullptr, std::size_t* peak = nullptr) {
         const std::string dir = text(target(s));
-        location::Hooks hooks;
+        qiven3::location::Hooks hooks;
         hooks.peak = peak;
 #if defined(QIVEN_FAULTS)
         hooks.arenas = arenas;
@@ -199,13 +199,13 @@ struct Bed {
         const std::string_view op = s <= Step::init_warned ? "init" : (s == Step::show ? "show" : "change");
         std::array<std::string_view, 3> args = {op, dir, "--accept"};
         const std::size_t n = s == Step::show ? 1 : (s == Step::init_warned ? 2 : 3);
-        return location::main(std::span<const std::string_view>(args.data(), n), *fake, hooks);
+        return qiven3::location::main(std::span<const std::string_view>(args.data(), n), *fake, hooks);
     }
     // The record's state after a run that ended in code: as before, or the
     // step's own at its status 0.
     [[nodiscard]] bool record_held(Step s, int code) const {
         const std::string now = bytes_of(record);
-        if (code == location::recorded && records(s)) {
+        if (code == qiven3::location::recorded && records(s)) {
             return now == record_of(text(target(s)));
         }
         return now == before;
@@ -233,4 +233,4 @@ struct Bed {
     std::string before;
 };
 
-}  // namespace qiven3::test::location_bed
+}  // namespace qiven::test::location_bed

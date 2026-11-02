@@ -31,8 +31,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
@@ -152,8 +152,8 @@ struct Bed {
     // store_dir's dir, or what it raised: the StoreError's code and detail.
     [[nodiscard]] std::string store_dir() const {
         const auto pages = fake->pages(64 * 1024);
-        qiven3::memory::Arena arena(pages.bytes());
-        qiven3::memory::String got{qiven3::memory::Allocator<char>(arena)};
+        qiven::memory::Arena arena(pages.bytes());
+        qiven::memory::String got{qiven::memory::Allocator<char>(arena)};
         try {
             location::store_dir(*fake, got);
         } catch (const qiven3::store::StoreError& e) {
@@ -378,8 +378,8 @@ QIVEN_CASE(location, init) {
     // a control character, an invalid UTF-8 byte.
     for (const std::string& d : {std::string("relative"), text(b->root) + "\x01", text(b->root) + "\xff"}) {
         const auto pages = b->fake->pages(4096);
-        qiven3::memory::Arena arena(pages.bytes());
-        qiven3::memory::String bytes{qiven3::memory::Allocator<char>(arena)};
+        qiven::memory::Arena arena(pages.bytes());
+        qiven::memory::String bytes{qiven::memory::Allocator<char>(arena)};
         std::string got = "none";
         try {
             location::detail::record_bytes(std::chrono::floor<std::chrono::milliseconds>(clock_at), d, "init", bytes);

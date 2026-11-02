@@ -97,6 +97,7 @@ add_subdirectory("${qiven3_runner_dir}" runner)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main" case_main)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults" faults_kit)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/scan" scan)
+add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/memory/tests" memory_tests)
 add_subdirectory(support/fake_platform)
 add_subdirectory(support/fixtures)
 add_subdirectory(support/stores)
@@ -192,7 +193,7 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN3_SKIP_CODE}"
     -D "ADDR2LINE=${CMAKE_ADDR2LINE}"
     -P "${qiven3_runner_dir}/ctest_tests.cmake"
-  DEPENDS ${qiven3_case_binaries} ${qiven3_fuzz_binaries} qiven_runner_demo qiven3_fail_demo qiven3_free_demo
+  DEPENDS ${qiven3_case_binaries} ${qiven3_fuzz_binaries} qiven_runner_demo qiven_memory_fail_demo qiven_memory_free_demo
     qiven3-fault qiven3-fault-import
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${qiven3_runner_dir}/ctest_tests.cmake" "${qiven3_runner_dir}/list_tests.py" ${qiven3_python_files}

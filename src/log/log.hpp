@@ -26,9 +26,9 @@
 #include <utility>
 
 #include "log/ring.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 
 #if !defined(QIVEN_LOG_MIN)
 #if defined(NDEBUG)
@@ -54,7 +54,7 @@ public:
     // so that a noexcept function may take one: it runs at compile time.
     consteval Name(const char* literal) noexcept : text_(literal) {
         if (!valid(text_)) {
-            memory::fail_fast("log::Name: empty, past 64 bytes, or not printable ASCII without a quote or a backslash");
+            qiven::memory::fail_fast("log::Name: empty, past 64 bytes, or not printable ASCII without a quote or a backslash");
         }
     }
     // At most 64 bytes, at least one, each printable ASCII, no '"' or '\'.
@@ -235,7 +235,7 @@ public:
     // Takes the ring's span and the events' pages from arena, which outlives
     // the Log, and writes log.start. Past arena's budget, MemoryError
     // budget, nothing held.
-    Log(memory::Arena& arena, Count number, Name binary);
+    Log(qiven::memory::Arena& arena, Count number, Name binary);
     Log(const Log&) = delete;
     Log& operator=(const Log&) = delete;
     Log(Log&&) = delete;
@@ -275,7 +275,7 @@ public:
 
 #if defined(QIVEN_FAULTS)
     // Each event's allocations ask the countdown first; null detaches it.
-    void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    void attach(qiven::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
 private:
@@ -285,7 +285,7 @@ private:
     void write(Level level, std::string_view event, std::uint64_t op, std::span<const FieldView> fields) noexcept;
     void dropped(std::uint64_t lost) noexcept;
 
-    memory::Arena* parent_;
+    qiven::memory::Arena* parent_;
     std::span<char> ring_storage_;
     std::span<std::byte> pages_;
     Ring ring_;
@@ -296,7 +296,7 @@ private:
     std::size_t peak_ = 0;
     std::chrono::steady_clock::time_point start_;
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown_ = nullptr;
+    qiven::memory::Countdown* countdown_ = nullptr;
 #endif
 };
 
@@ -342,7 +342,7 @@ struct Emit {
     }
     static Log& of(const Op& op) noexcept {
         if (op.log_ == nullptr) {
-            memory::fail_fast("log: an event of an Op ended or moved from");
+            qiven::memory::fail_fast("log: an event of an Op ended or moved from");
         }
         return *op.log_;
     }

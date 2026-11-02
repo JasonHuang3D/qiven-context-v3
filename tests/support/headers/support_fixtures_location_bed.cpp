@@ -3,7 +3,7 @@
 
 #include "support/fixtures/location_bed.hpp"
 
-namespace qiven3::test::location_bed {
+namespace qiven::test::location_bed {
 
 int show_once() {
     Bed bed(Scratch{});
@@ -11,4 +11,4 @@ int show_once() {
     return bed.run(Step::show);
 }
 
-}  // namespace qiven3::test::location_bed
+}  // namespace qiven::test::location_bed

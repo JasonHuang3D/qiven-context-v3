@@ -56,7 +56,7 @@
 #include "entry/projectmap.hpp"
 #include "entry/served.hpp"
 #include "entry/validator.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::projectmap {
@@ -209,7 +209,7 @@ public:
 private:
     [[nodiscard]] constexpr json::Index key(std::size_t i) const {
         if (i >= size()) {
-            memory::fail_fast("projectmap: a registry index past its size");
+            qiven::memory::fail_fast("projectmap: a registry index past its size");
         }
         json::Index k = 1;
         for (std::size_t n = 0; n < i; ++n) {
@@ -220,7 +220,7 @@ private:
     [[nodiscard]] constexpr std::string_view member(std::size_t i, std::string_view field) const {
         const std::optional<json::Index> at = value_.find(key(i) + 1, field);
         if (!at) {
-            memory::fail_fast("projectmap: a registry member without its field");
+            qiven::memory::fail_fast("projectmap: a registry member without its field");
         }
         return value_.text(*at);
     }
@@ -499,17 +499,17 @@ constexpr void marks_bytes(const Marks<A>& marks, S& out) {
     // {"at":"<at>","marks":{ ... },"read":{ ... }} and LF: each mark
     // "<id>":"fresh" 81, each read "<name>":"<commit>" 45 and its name,
     // a comma before each but the first of its list.
-    std::optional<std::size_t> size = memory::mul(marks.size(), 82);
+    std::optional<std::size_t> size = qiven::memory::mul(marks.size(), 82);
     for (std::size_t i = 0; i < marks.read_size() && size; ++i) {
-        size = memory::add(*size, std::size_t{46} + marks.read_row(i).size);
+        size = qiven::memory::add(*size, std::size_t{46} + marks.read_row(i).size);
     }
     std::size_t firsts = 0;
     for (const std::size_t n : {marks.size(), marks.read_size()}) {
         firsts += n > 0 ? 1 : 0;
     }
-    size = size ? memory::add(*size, 7 + utc::at_size + 11 + 10 + 2 + 1 - firsts) : std::nullopt;
+    size = size ? qiven::memory::add(*size, 7 + utc::at_size + 11 + 10 + 2 + 1 - firsts) : std::nullopt;
     if (!size) {
-        throw memory::MemoryError::budget("projectmap", SIZE_MAX, SIZE_MAX, 0);
+        throw qiven::memory::MemoryError::budget("projectmap", SIZE_MAX, SIZE_MAX, 0);
     }
     S text(out.get_allocator());
     text.reserve(*size);

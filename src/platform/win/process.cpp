@@ -30,7 +30,7 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 #include "platform/win/paths.hpp"
 
 namespace qiven3::platform::win {

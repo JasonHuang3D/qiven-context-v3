@@ -5,4 +5,4 @@ add_library(qiven3_hal STATIC
   hal.hpp
 )
 target_include_directories(qiven3_hal PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_hal PUBLIC qiven3_memory PRIVATE qiven_build)
+target_link_libraries(qiven3_hal PUBLIC qiven_memory PRIVATE qiven_build)

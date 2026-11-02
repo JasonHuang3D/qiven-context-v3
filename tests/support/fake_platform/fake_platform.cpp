@@ -10,7 +10,7 @@
 #include <optional>
 #include <system_error>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 // The Guidelines' mark of an owning pointer, an alias of the type: the
 // stream create opens is held by it, as clang-tidy's owning-memory reads.
@@ -527,7 +527,7 @@ void FakePlatform::residual(std::span<const std::string_view> paths, Vector<Row>
     for (const std::string_view path : paths) {
         checked("residual", path);
     }
-    memory::Arena& arena = out.get_allocator().arena();
+    qiven::memory::Arena& arena = out.get_allocator().arena();
     for (const FakeRow& row : config_.residual) {
         Row& made = out.emplace_back(arena);
         set(made.name, row.name);
@@ -554,7 +554,7 @@ void FakePlatform::wipe(std::span<std::byte> bytes) noexcept {
     try {
         record("wipe");
     } catch (...) {
-        memory::fail_fast("fake::FakePlatform::wipe: the record failed");
+        qiven::memory::fail_fast("fake::FakePlatform::wipe: the record failed");
     }
     const std::span<volatile std::byte> kept(bytes.data(), bytes.size());
     for (volatile std::byte& b : kept) {
@@ -576,7 +576,7 @@ FakePages FakePlatform::pages(std::size_t n) {
     if (n == 0) {
         return FakePages();
     }
-    const std::optional<std::size_t> padded = memory::add(n, sizeof(FakePage) - 1);
+    const std::optional<std::size_t> padded = qiven::memory::add(n, sizeof(FakePage) - 1);
     if (!padded) {
         fail(Code::memory, "pages", "a count that cannot be rounded to whole pages");
     }

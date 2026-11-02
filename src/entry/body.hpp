@@ -45,8 +45,8 @@
 #include <utility>
 
 #include "entry/header.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -94,7 +94,7 @@ constexpr bool id_text(std::string_view text) noexcept {
 }
 
 [[noreturn]] inline void too_large(std::size_t request) {
-    throw memory::MemoryError::budget("body", json::max_input, request, 0);
+    throw qiven::memory::MemoryError::budget("body", json::max_input, request, 0);
 }
 
 // A record's parts, viewing its bytes within the call that lent them.
@@ -182,7 +182,7 @@ public:
     [[nodiscard]] constexpr None get_allocator() const noexcept { return {}; }
     constexpr void reserve(std::size_t n) const {
         if (n > bytes_.size()) {
-            memory::fail_fast("body: a digest past 76 bytes");
+            qiven::memory::fail_fast("body: a digest past 76 bytes");
         }
     }
     constexpr void append(std::string_view s) {
@@ -213,7 +213,7 @@ public:
     Body(std::string_view content, std::string_view id, digest::Key<P> key, const A& allocator)
         : text_(allocator), key_(std::move(key)) {
         if (id.size() != id_size) {
-            memory::fail_fast("body: an id not of 71 bytes");
+            qiven::memory::fail_fast("body: an id not of 71 bytes");
         }
         if (content.size() > json::max_input - frame_size) {
             detail::too_large(content.size());
@@ -290,7 +290,7 @@ Body<P, A> parse(P& platform, std::string_view data, const A& allocator = A()) {
         const std::optional<json::Index> id = value.find(0, "id");
         const std::optional<json::Index> key = value.find(0, "key");
         if (!id.has_value() || !key.has_value() || r.id != value.text(id.value()) || r.key != value.text(key.value())) {
-            memory::fail_fast("body: a canonical record's parts not at their places");
+            qiven::memory::fail_fast("body: a canonical record's parts not at their places");
         }
     }
     return Body<P, A>(r.content, r.id, digest::key_from_hex(platform, r.key), allocator);

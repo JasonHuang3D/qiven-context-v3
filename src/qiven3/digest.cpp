@@ -27,14 +27,14 @@ bool same(std::string_view a, std::string_view b) noexcept {
 namespace detail {
 
 void too_large(std::size_t held) {
-    throw memory::MemoryError::budget("digest", std::numeric_limits<std::size_t>::max(),
+    throw qiven::memory::MemoryError::budget("digest", std::numeric_limits<std::size_t>::max(),
                                       std::numeric_limits<std::size_t>::max(), held);
 }
 
 }  // namespace detail
 
-template void frame(std::span<const Field>, memory::String&);
-template void entry_id(std::span<const Field>, memory::String&);
-template void plain(std::string_view, memory::String&);
+template void frame(std::span<const Field>, qiven::memory::String&);
+template void entry_id(std::span<const Field>, qiven::memory::String&);
+template void plain(std::string_view, qiven::memory::String&);
 
 }  // namespace qiven3::digest

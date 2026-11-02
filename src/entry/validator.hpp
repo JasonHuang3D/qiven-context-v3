@@ -83,8 +83,8 @@
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
 #include "keys/keys.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::validator {
@@ -224,8 +224,8 @@ constexpr std::optional<Code> each_reference(const canon::Basic<B>& v, std::stri
 }
 
 [[noreturn]] inline void too_large(std::size_t entries) {
-    throw memory::MemoryError::budget("validator", max_entries * sizeof(std::uint32_t),
-                                      memory::mul(entries, sizeof(std::uint32_t)).value_or(SIZE_MAX), 0);
+    throw qiven::memory::MemoryError::budget("validator", max_entries * sizeof(std::uint32_t),
+                                      qiven::memory::mul(entries, sizeof(std::uint32_t)).value_or(SIZE_MAX), 0);
 }
 
 // One entry of the final view as Appended reads it: its header, and its
@@ -260,7 +260,7 @@ public:
           target_(allocator), reference_(allocator), text_(allocator) {
         if constexpr (!Final) {
             const std::size_t n = entries.size();
-            if (n > max_entries || !memory::mul(n, sizeof(std::uint32_t))) {
+            if (n > max_entries || !qiven::memory::mul(n, sizeof(std::uint32_t))) {
                 too_large(n);
             }
             index_.resize(n);

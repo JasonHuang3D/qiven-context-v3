@@ -19,8 +19,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "write/entries.hpp"
@@ -29,8 +29,8 @@
 namespace {
 
 namespace we = qiven3::write::entries;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 
 constexpr std::size_t budget = std::size_t{8} << 20U;
 
@@ -147,7 +147,7 @@ QIVEN_CASE(write_entries, refusal_gives_back) {
 QIVEN_CASE(write_entries, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     std::optional<we::EntriesError> refused;
     bool done = false;
@@ -166,8 +166,8 @@ QIVEN_CASE(write_entries, faults) {
             arena->attach(nullptr);
             done = true;
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "write_entries.read", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "write_entries.read", countdown, op, empty);
         std::cout << "write_entries.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);

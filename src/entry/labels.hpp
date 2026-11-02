@@ -55,7 +55,7 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/refs.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::labels {
@@ -137,11 +137,11 @@ static_assert(sizeof(Label) == 1004, "Label's size is pinned: its size, two flag
 namespace detail {
 
 [[noreturn]] inline void too_long(std::size_t request) {
-    throw memory::MemoryError::budget("labels", capacity, request, 0);
+    throw qiven::memory::MemoryError::budget("labels", capacity, request, 0);
 }
 
 constexpr void put(Label& l, std::string_view s) {
-    const std::optional<std::size_t> end = memory::add(l.size, s.size());
+    const std::optional<std::size_t> end = qiven::memory::add(l.size, s.size());
     if (!end || *end > capacity) {
         too_long(end.value_or(SIZE_MAX));
     }

@@ -12,24 +12,24 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
-namespace qiven3::test::sqlite_rig {
+namespace qiven::test::sqlite_rig {
 
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
-using qiven3::memory::Arena;
-using qiven3::memory::String;
+using qiven::memory::Arena;
+using qiven::memory::String;
 using qiven3::store::StoreError;
 using qiven3::store::WhereView;
-using Chars = qiven3::memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Engine = qiven3::store::Engine<Fake>;
 
@@ -121,4 +121,4 @@ struct Held {
 };
 inline Held held(const Rig& rig) { return {rig.engine->heap().used(), rig.engine->heap().peak(), rig.engine->slots()}; }
 
-}  // namespace qiven3::test::sqlite_rig
+}  // namespace qiven::test::sqlite_rig

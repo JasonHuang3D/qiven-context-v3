@@ -3,13 +3,13 @@
 
 #include "support/stores/stores.hpp"
 
-namespace qiven3::test::stores {
+namespace qiven::test::stores {
 
-template class MemoryOn<store::MemoryStore<Fake>>;
-template class SqliteOn<store::SQLiteStore<Fake>, Site, store::NoHooks>;
+template class MemoryOn<qiven3::store::MemoryStore<Fake>>;
+template class SqliteOn<qiven3::store::SQLiteStore<Fake>, Site, qiven3::store::NoHooks>;
 template std::optional<std::string> lacking<Memory>(const Needs&);
-template std::optional<std::string> lacking<Sqlite<store::NoHooks>>(const Needs&);
+template std::optional<std::string> lacking<Sqlite<qiven3::store::NoHooks>>(const Needs&);
 template void require<Memory>(const Needs&);
-template void require<Sqlite<store::NoHooks>>(const Needs&);
+template void require<Sqlite<qiven3::store::NoHooks>>(const Needs&);
 
-}  // namespace qiven3::test::stores
+}  // namespace qiven::test::stores

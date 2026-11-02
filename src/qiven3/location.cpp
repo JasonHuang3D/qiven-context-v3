@@ -18,7 +18,7 @@
 #include <system_error>
 
 #include "entry/projectmap_files.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
@@ -30,7 +30,7 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace projectmap = entry::projectmap;
-using Json = canon::Basic<memory::Allocator<char>>;
+using Json = canon::Basic<qiven::memory::Allocator<char>>;
 
 constexpr char separator = projectmap::NATIVE == projectmap::System::windows ? '\\' : '/';
 
@@ -306,10 +306,10 @@ std::string_view error_line(const platform::PlatformError& error, std::span<char
         .line();
 }
 
-std::string_view error_line(const memory::MemoryError& error, std::span<char> out) noexcept {
+std::string_view error_line(const qiven::memory::MemoryError& error, std::span<char> out) noexcept {
     return LineView(out)
         .add("MemoryError ")
-        .add(memory::name(error.code))
+        .add(qiven::memory::name(error.code))
         .add(": ")
         .add(error.operation.view())
         .add("; ")

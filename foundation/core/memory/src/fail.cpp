@@ -1,9 +1,9 @@
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 #include <atomic>
 #include <exception>
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 namespace {
 
@@ -28,4 +28,4 @@ std::string_view fail_cause() noexcept {
     return cause_ready.load(std::memory_order_acquire) ? cause : std::string_view();
 }
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

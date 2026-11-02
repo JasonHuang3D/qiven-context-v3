@@ -45,8 +45,8 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/matcher.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::secret {
@@ -62,7 +62,7 @@ struct Text {
     consteval Text(const char* literal) noexcept {
         const std::string_view s(literal);
         if (s.size() > bytes.size()) {
-            memory::fail_fast("secret::Text: past 239 characters");
+            qiven::memory::fail_fast("secret::Text: past 239 characters");
         }
         for (std::size_t i = 0; i < s.size(); ++i) {
             bytes[i] = s[i];
@@ -125,7 +125,7 @@ constexpr std::string_view name(std::uint8_t pattern) { return PATTERNS.at(patte
 // A hit: the pattern's index in PATTERNS and the string's path, by value.
 struct Hit {
     std::uint8_t pattern = 0;
-    memory::Inline<content::path_size> path;
+    qiven::memory::Inline<content::path_size> path;
 };
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(Hit) == 112, "Hit's size is pinned: its pattern and its path");
@@ -134,7 +134,7 @@ static_assert(sizeof(Hit) == 112, "Hit's size is pinned: its pattern and its pat
 // A header hit refused: the pattern and the field's path; never the value.
 struct SecretError {
     std::uint8_t pattern = 0;
-    memory::Inline<content::path_size> path;
+    qiven::memory::Inline<content::path_size> path;
 };
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(SecretError) == 112, "SecretError's size is pinned: its pattern and its path");
@@ -162,7 +162,7 @@ constexpr Automata<A> compile_all(const A& allocator) {
     Automata<A> out = fresh(allocator, std::make_index_sequence<PATTERNS.size()>{});
     for (std::size_t p = 0; p < PATTERNS.size(); ++p) {
         if (matcher::try_compile(PATTERNS.at(p).text.view(), out.at(p))) {
-            memory::fail_fast("secret: a pinned pattern the matcher refuses");
+            qiven::memory::fail_fast("secret: a pinned pattern the matcher refuses");
         }
     }
     return out;
@@ -183,13 +183,13 @@ constexpr std::optional<std::uint8_t> first(const Automata<A>& automata, std::st
 template <typename H>
 constexpr void push(H& hits, std::uint8_t pattern, std::string_view path) {
     if (hits.size() == hits.capacity()) {
-        const std::optional<std::size_t> room = hits.capacity() == 0 ? first_hits : memory::mul(hits.capacity(), 2);
+        const std::optional<std::size_t> room = hits.capacity() == 0 ? first_hits : qiven::memory::mul(hits.capacity(), 2);
         if (!room) {
-            memory::fail_fast("secret: the hits' room past std::size_t");
+            qiven::memory::fail_fast("secret: the hits' room past std::size_t");
         }
         hits.reserve(*room);
     }
-    hits.push_back(Hit{pattern, memory::Inline<content::path_size>(path)});
+    hits.push_back(Hit{pattern, qiven::memory::Inline<content::path_size>(path)});
 }
 
 // An open container of the content: where it ends, its path's length and
@@ -233,7 +233,7 @@ constexpr void strings(const canon::Basic<B>& value, const Visit& visit) {
             visit(value.text(k), path.view());
         } else if (kind == json::Kind::array || kind == json::Kind::object) {
             if (depth == open.size()) {
-                memory::fail_fast("secret: a value past json's depth");
+                qiven::memory::fail_fast("secret: a value past json's depth");
             }
             open.at(depth) = Level{value.next(k), 0, path.size(), kind == json::Kind::object};
             ++depth;
@@ -261,7 +261,7 @@ constexpr std::optional<SecretError> try_check(const header::Header<A>& h, const
             content::detail::PathText path;
             path.key("header");
             path.key(header::slot_names.at(i));
-            return SecretError{*p, memory::Inline<content::path_size>(path.view())};
+            return SecretError{*p, qiven::memory::Inline<content::path_size>(path.view())};
         }
     }
     std::vector<Hit, H> hits(out.get_allocator());

@@ -8,7 +8,7 @@
 #include <span>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
@@ -32,7 +32,7 @@ void refuse_kind(const AtView& at, std::size_t index) {
 }
 
 void too_large(std::size_t entries) {
-    throw memory::MemoryError::budget("stage", max_call_entries, entries, 0);
+    throw qiven::memory::MemoryError::budget("stage", max_call_entries, entries, 0);
 }
 
 }  // namespace qiven3::store::stage

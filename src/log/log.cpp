@@ -9,12 +9,12 @@ namespace qiven3::log {
 
 namespace {
 
-std::span<char> take_ring(memory::Arena& arena) {
+std::span<char> take_ring(qiven::memory::Arena& arena) {
     return {static_cast<char*>(arena.allocate(Log::ring_bytes, 1)), Log::ring_bytes};
 }
 
 // The events' pages; a failure gives the ring's span back first.
-std::span<std::byte> take_pages(memory::Arena& arena, std::span<char> ring) {
+std::span<std::byte> take_pages(qiven::memory::Arena& arena, std::span<char> ring) {
     try {
         return {static_cast<std::byte*>(arena.allocate(Log::event_bytes, alignof(std::max_align_t))),
                 Log::event_bytes};
@@ -28,7 +28,7 @@ constexpr Name min_name = level_name(minimum);
 
 }  // namespace
 
-Log::Log(memory::Arena& arena, Count number, Name binary)
+Log::Log(qiven::memory::Arena& arena, Count number, Name binary)
     : parent_(&arena),
       ring_storage_(take_ring(arena)),
       pages_(take_pages(arena, ring_storage_)),
@@ -46,13 +46,13 @@ Log::~Log() {
 void Log::write(Level level, std::string_view event, std::uint64_t op, std::span<const FieldView> fields) noexcept {
     const HeadView head{level_name(level).text(), event, number_, op, Millis::since(start_).value()};
     try {
-        memory::Arena arena(pages_);
+        qiven::memory::Arena arena(pages_);
 #if defined(QIVEN_FAULTS)
         arena.attach(countdown_);
 #endif
         bool pushed = false;
         {
-            memory::String line{memory::Allocator<char>(arena)};
+            qiven::memory::String line{qiven::memory::Allocator<char>(arena)};
             encode_line(head, fields, line);
             pushed = line.size() <= max_line_bytes && ring_.push(line);
         }
@@ -60,7 +60,7 @@ void Log::write(Level level, std::string_view event, std::uint64_t op, std::span
         if (!pushed) {
             ++failed_;
         }
-    } catch (const memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         ++failed_;
     }
 }

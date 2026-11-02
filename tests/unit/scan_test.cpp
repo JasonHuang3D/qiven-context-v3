@@ -14,9 +14,9 @@
 
 namespace {
 
-namespace scan = qiven3::test::scan;
-namespace stores = qiven3::test::stores;
-namespace records = qiven3::test::records;
+namespace scan = qiven::test::scan;
+namespace stores = qiven::test::stores;
+namespace records = qiven::test::records;
 
 }  // namespace
 

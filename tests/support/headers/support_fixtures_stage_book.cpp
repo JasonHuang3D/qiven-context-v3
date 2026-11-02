@@ -5,10 +5,10 @@
 
 #include <optional>
 
-namespace qiven3::test::stage_book {
+namespace qiven::test::stage_book {
 
 std::optional<Refusal> refused_nothing() {
     return refused([] {});
 }
 
-}  // namespace qiven3::test::stage_book
+}  // namespace qiven::test::stage_book

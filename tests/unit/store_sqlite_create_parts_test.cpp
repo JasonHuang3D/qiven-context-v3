@@ -15,9 +15,9 @@
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 namespace {
 
@@ -48,8 +48,8 @@ constexpr std::size_t count() {
     return n;
 }
 
-constexpr qiven3::test::FaultParts<count()> cut() {
-    qiven3::test::FaultParts<count()> out{};
+constexpr qiven::test::FaultParts<count()> cut() {
+    qiven::test::FaultParts<count()> out{};
     std::size_t i = 0;
     for (const Stretch& s : stretches) {
         for (std::size_t k = s.from; k <= s.last; k += s.runs) {
@@ -64,8 +64,8 @@ constexpr auto parts = cut();
 static_assert(parts.whole() && parts.from.size() == 127);
 
 void create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("store_sqlite.create_refused", parts.from.size()));
-    qiven3::test::store_sqlite_create_refused(
+    CHECK(qiven::test::registered("store_sqlite.create_refused", parts.from.size()));
+    qiven::test::store_sqlite_create_refused(
         qiven_ctx, {parts.range(i, 0), parts.range(i, 1), parts.range(i, 2), parts.range(i, 3)});
 }
 

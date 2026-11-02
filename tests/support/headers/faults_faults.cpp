@@ -8,13 +8,13 @@
 #include <cstddef>
 
 #include "log/log.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 
-FaultRuns faults_run(log::Log& log, log::Name site, memory::Countdown& countdown, std::size_t& calls) {
-    return run_faults<memory::MemoryError>(
+FaultRuns faults_run(qiven3::log::Log& log, qiven3::log::Name site, qiven::memory::Countdown& countdown, std::size_t& calls) {
+    return run_faults<qiven::memory::MemoryError>(
         log, site, countdown, [&calls] { ++calls; }, [&calls](std::size_t k) { return calls >= k; });
 }
 
-}  // namespace qiven3::test
+}  // namespace qiven::test

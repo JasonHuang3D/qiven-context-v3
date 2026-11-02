@@ -30,11 +30,11 @@
 #include <string>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 
 // A fault point: a pass, by its place in the case's order, and its k.
 struct FaultPoint {
@@ -117,7 +117,7 @@ public:
     // of the countdown, throwing Typed; a run past to disarms the countdown
     // and executes, completing. Each run from from to to is counted.
     template <typename Typed>
-    void enter(memory::Countdown& countdown) {
+    void enter(qiven::memory::Countdown& countdown) {
         ++run_;
         if (run_ < range_.from) {
             for (std::size_t i = 0; i < run_; ++i) {
@@ -162,7 +162,7 @@ private:
 
 #endif
 
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 // A part's case, "<group>.<name>_part<i>", i from 1: fn(qiven_ctx, i - 1).
 #define QIVEN3_FAULT_PART(group, name, i, fn) \

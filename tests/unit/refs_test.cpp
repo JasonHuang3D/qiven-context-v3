@@ -22,7 +22,7 @@ namespace {
 namespace refs = qiven3::entry::refs;
 namespace canon = qiven3::canon;
 namespace json = qiven3::json;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using refs::Code;
 using refs::Field;
 

@@ -28,9 +28,9 @@
 #include "checked/rules.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
@@ -40,20 +40,20 @@
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 
-namespace qiven3::test::stage_book {
+namespace qiven::test::stage_book {
 
 namespace stage = qiven3::store::stage;
 namespace checked = qiven3::checked;
 namespace header = qiven3::entry::header;
 namespace body = qiven3::entry::body;
-namespace fixtures = qiven3::test::fixtures;
-using qiven3::memory::Arena;
+namespace fixtures = qiven::test::fixtures;
+using qiven::memory::Arena;
 using qiven3::store::EntryView;
 using qiven3::store::Kind;
 using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::StoreError;
-using Chars = qiven3::memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Slot = header::Slot;
 
@@ -94,7 +94,7 @@ public:
     [[nodiscard]] std::size_t peak() const noexcept { return peak_; }
     [[nodiscard]] bool leaked() const noexcept { return leaked_; }
 #if defined(QIVEN_FAULTS)
-    void attach(qiven3::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    void attach(qiven::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
 private:
@@ -103,7 +103,7 @@ private:
     std::size_t peak_ = 0;
     bool leaked_ = false;
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown* countdown_ = nullptr;
+    qiven::memory::Countdown* countdown_ = nullptr;
 #endif
 };
 static_assert(stage::Scratch<ScratchPages>);
@@ -127,7 +127,7 @@ inline EntryView keyed(std::string_view line, std::optional<std::string_view> re
     const auto in_line = [line](std::string_view v) {
         const std::size_t at = line.find(v);
         if (at == std::string_view::npos) {
-            qiven3::memory::fail_fast("stage_book::keyed: a value the line does not hold as it is");
+            qiven::memory::fail_fast("stage_book::keyed: a value the line does not hold as it is");
         }
         return line.substr(at, v.size());
     };
@@ -182,8 +182,8 @@ inline qiven3::store::LaneHead lane_head(std::string_view scope, std::string_vie
                                          std::int64_t seq) {
     qiven3::store::LaneHead h;
     h.head = qiven3::store::Head{qiven3::store::Id::of(id), seq};
-    h.scope = qiven3::memory::Inline<qiven3::store::scope_bytes>(scope);
-    h.lane = qiven3::memory::Inline<qiven3::store::lane_bytes>(lane);
+    h.scope = qiven::memory::Inline<qiven3::store::scope_bytes>(scope);
+    h.lane = qiven::memory::Inline<qiven3::store::lane_bytes>(lane);
     return h;
 }
 
@@ -201,7 +201,7 @@ public:
         if (e.content && e.key) {
             const header::Header<> h = header::parse_line(e.header);
             std::string record;
-            body::make(*e.content, digest::key_from_hex(*fake_, *e.key), h.value(Slot::id)).line(record);
+            body::make(*e.content, qiven3::digest::key_from_hex(*fake_, *e.key), h.value(Slot::id)).line(record);
             s.record = std::move(record);
             s.content = std::string(*e.content);
         }
@@ -314,12 +314,12 @@ public:
         change(f);
         std::string digest_text;
         // The digest alone is read: any id of the syntax serves.
-        body::make(content, digest::key_from_hex(*fake_, key), h.value(Slot::id)).content_digest(digest_text);
+        body::make(content, qiven3::digest::key_from_hex(*fake_, key), h.value(Slot::id)).content_digest(digest_text);
         f.content = digest_text;
         const header::Header<> made_header = header::make(f);
         Stored s{std::string(), std::string(), content};
         made_header.line(s.line);
-        body::make(content, digest::key_from_hex(*fake_, key), made_header.value(Slot::id)).line(*s.record);
+        body::make(content, qiven3::digest::key_from_hex(*fake_, key), made_header.value(Slot::id)).line(*s.record);
         return s;
     }
 
@@ -333,20 +333,20 @@ private:
                 return e;
             }
         }
-        memory::fail_fast("stage_book: no fixture of the name");
+        qiven::memory::fail_fast("stage_book: no fixture of the name");
     }
     // A fixture's content, and its key; one without it ends the process.
     [[nodiscard]] std::string_view content_named(std::string_view name) const {
         const fixtures::EntryView e = fixture(name);
         if (!e.content) {
-            memory::fail_fast("stage_book: a fixture without its content");
+            qiven::memory::fail_fast("stage_book: a fixture without its content");
         }
         return *e.content;
     }
     [[nodiscard]] std::string_view key_named(std::string_view name) const {
         const fixtures::EntryView e = fixture(name);
         if (!e.key) {
-            memory::fail_fast("stage_book: a fixture without its key");
+            qiven::memory::fail_fast("stage_book: a fixture without its key");
         }
         return *e.key;
     }
@@ -414,18 +414,18 @@ inline std::optional<Refusal> refused_check(Fake& fake, const std::vector<Stored
                                             const Chars& chars) {
     const std::vector<EntryView> lines = views(list);
     ScratchPages scratch(scratch_bytes);
-    return refused([&] { (void)checked::check(fake, std::span<const EntryView>(lines), at(op), chars, scratch); });
+    return refused([&] { (void)qiven3::checked::check(fake, std::span<const EntryView>(lines), at(op), chars, scratch); });
 }
 
-inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const checked::Checked<Fake>& checked,
+inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const qiven3::checked::Checked<Fake>& checked,
                                             std::optional<std::string_view> expected, const Chars& chars,
                                             const Limits& limits = Limits{}) {
     const std::string_view scope = "project:qiven";
     const std::string_view lane =
         checked.entries.empty() ? std::string_view() : checked.entries[0].header().value(Slot::lane);
     return refused([&] {
-        std::ignore = checked::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
+        std::ignore = qiven3::checked::admit(view, scope, lane, expected, checked, limits, at(Operation::append), chars);
     });
 }
 
-}  // namespace qiven3::test::stage_book
+}  // namespace qiven::test::stage_book

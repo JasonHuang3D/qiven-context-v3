@@ -58,9 +58,9 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/codes.hpp"
@@ -72,7 +72,7 @@
 namespace qiven3::store::sqlite {
 
 // A fresh arena asks the countdown first, where one is given.
-inline void attach_to([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
+inline void attach_to([[maybe_unused]] qiven::memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
 #if defined(QIVEN_FAULTS)
     if (countdown != nullptr) {
         arena.attach(countdown);
@@ -163,7 +163,7 @@ private:
     bool every_ = true;  // no scope set: every lane
     bool in_lane_ = false;
     bool done_ = false;
-    memory::Inline<path_bytes> path_;
+    qiven::memory::Inline<path_bytes> path_;
 };
 
 // The exports a store object made and that are open: closed by its close,
@@ -200,7 +200,7 @@ public:
                  const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown)
         : pages_(platform.pages(Reader::pages_for(scopes, after))) {
         if (pages_.bytes().size() < Reader::pages_for(scopes, after)) {
-            memory::fail_fast("store/exchange: pages short of their request");
+            qiven::memory::fail_fast("store/exchange: pages short of their request");
         }
         reader_.open(owner, pages_.bytes(), file, path, limits, scopes, after, countdown);
     }
@@ -290,7 +290,7 @@ Imported end_import(Connection& c, std::span<const LaneHead> given, Vector<LaneH
     {
         Statement s = c.prepare(final_rows, at);
         for (std::size_t i = 0; s.step(at); ++i) {
-            memory::Arena work(pages);
+            qiven::memory::Arena work(pages);
             attach_to(work, countdown);
             const Chars chars(work);
             const KeysView keys = final_keys(s);
@@ -320,9 +320,9 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     const stage::AtView at{Operation::import_, where.path};
     const std::size_t quarter = import_line_bytes;
     if (pages.size() < 4 * quarter) {
-        memory::fail_fast("store/exchange: an import's pages short of an operation's");
+        qiven::memory::fail_fast("store/exchange: an import's pages short of an operation's");
     }
-    memory::Arena kept(pages.first(quarter));
+    qiven::memory::Arena kept(pages.first(quarter));
     attach_to(kept, countdown);
     Vector<LaneHead> given{Chars(kept)};
     source.heads(given);
@@ -336,7 +336,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
         hooks.begun();
         ImportRows rows(c, where);
         for (std::size_t i = 0;; ++i) {
-            memory::Arena text(pages.subspan(quarter, quarter));
+            qiven::memory::Arena text(pages.subspan(quarter, quarter));
             attach_to(text, countdown);
             Line line(text);
             const bool more = source.next(line);
@@ -344,7 +344,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
             if (!more) {
                 break;
             }
-            memory::Arena work(pages.subspan(2 * quarter));
+            qiven::memory::Arena work(pages.subspan(2 * quarter));
             attach_to(work, countdown);
             const Released<A> held(admit);
             const EntryView in{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt,

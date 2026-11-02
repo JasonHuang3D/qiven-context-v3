@@ -36,7 +36,7 @@ namespace content = qiven3::entry::content;
 namespace canon = qiven3::canon;
 namespace json = qiven3::json;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 
 #define ID "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

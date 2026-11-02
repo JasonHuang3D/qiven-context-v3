@@ -38,7 +38,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3::platform::win {
 namespace {
@@ -108,7 +108,7 @@ struct ChildState {
     void* changed = nullptr;  // auto-reset: a stream grew or ended, or the tree was ended
     void* stop = nullptr;     // manual-reset: set by the destructor, ending the watch
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown = nullptr;
+    qiven::memory::Countdown* countdown = nullptr;
 #endif
     Clock::rep deadline = 0;   // the steady clock's count at the deadline, before the threads
     std::size_t given = 0;     // out's bytes read_line gave
@@ -177,11 +177,11 @@ void watch(ChildState* s) noexcept {
 
 // Delegating, so the destructor closes what a later failure leaves.
 WindowsChild::WindowsChild(const Caps& caps, WindowsFiles& files) : WindowsChild() {
-    const std::optional<std::size_t> out_bytes = memory::add(caps.out, 1);
-    const std::optional<std::size_t> err_bytes = memory::add(caps.err, 1);
+    const std::optional<std::size_t> out_bytes = qiven::memory::add(caps.out, 1);
+    const std::optional<std::size_t> err_bytes = qiven::memory::add(caps.err, 1);
     const std::optional<std::size_t> buffers =
-        out_bytes && err_bytes ? memory::add(*out_bytes, *err_bytes) : std::nullopt;
-    const std::optional<std::size_t> total = buffers ? memory::add(*buffers, sizeof(ChildState)) : std::nullopt;
+        out_bytes && err_bytes ? qiven::memory::add(*out_bytes, *err_bytes) : std::nullopt;
+    const std::optional<std::size_t> total = buffers ? qiven::memory::add(*buffers, sizeof(ChildState)) : std::nullopt;
     if (!total) {
         throw PlatformError(Code::start, "start", "the caps pass the address space");
     }
@@ -262,7 +262,7 @@ WindowsChild::~WindowsChild() {
             try {
                 thread.join();
             } catch (...) {
-                memory::fail_fast("WindowsChild: a thread's join failed");
+                qiven::memory::fail_fast("WindowsChild: a thread's join failed");
             }
         }
     }
@@ -277,7 +277,7 @@ ChildState& WindowsChild::state() const noexcept { return *static_cast<ChildStat
 
 bool WindowsChild::faulted() noexcept {
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown = state().countdown;
+    qiven::memory::Countdown* countdown = state().countdown;
     return countdown != nullptr && countdown->fail();
 #else
     return false;
@@ -321,7 +321,7 @@ bool WindowsChild::changed(Clock::time_point until, std::string_view operation) 
 bool WindowsChild::read_line(Seconds timeout, String& out) {
     out.clear();
     if (pages_.address() == nullptr) {
-        memory::fail_fast("WindowsChild::read_line: a Child with no process");
+        qiven::memory::fail_fast("WindowsChild::read_line: a Child with no process");
     }
     ChildState& s = state();
     const Clock::time_point until = after(timeout);
@@ -354,7 +354,7 @@ bool WindowsChild::read_line(Seconds timeout, String& out) {
 // rest, as a pipe whose reader is gone (232, 109): io.
 void WindowsChild::write(std::string_view bytes) {
     if (pages_.address() == nullptr) {
-        memory::fail_fast("WindowsChild::write: a Child with no process");
+        qiven::memory::fail_fast("WindowsChild::write: a Child with no process");
     }
     ChildState& s = state();
     check("write");
@@ -392,7 +392,7 @@ void WindowsChild::close_input() {
 // deadline, the tree left running: io.
 int WindowsChild::wait(Seconds timeout) {
     if (pages_.address() == nullptr) {
-        memory::fail_fast("WindowsChild::wait: a Child with no process");
+        qiven::memory::fail_fast("WindowsChild::wait: a Child with no process");
     }
     ChildState& s = state();
     check("wait");

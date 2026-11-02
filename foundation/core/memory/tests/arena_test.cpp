@@ -11,19 +11,19 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
+using qiven::memory::Vector;
 
 struct alignas(4096) Pages {
     std::array<std::byte, 4096> bytes{};
@@ -153,7 +153,7 @@ QIVEN_CASE(arena, used_peak) {
 QIVEN_CASE(arena, faults) {
 #if defined(QIVEN_FAULTS)
     const auto pages = std::make_unique<Pages>();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     // Each run is an operation with an arena of its own over the same pages,
     // which the check reads after the run.
     std::optional<Arena> arena;
@@ -183,7 +183,7 @@ QIVEN_CASE(arena, faults) {
             allocator.deallocate(held[i], i + 1);
         }
     };
-    const qiven3::test::FaultRuns raw = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns raw = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "arena.blocks", countdown, blocks, check);
     CHECK_EQ(raw.typed, 5U);
     CHECK_EQ(raw.completed_at, 6U);
@@ -203,7 +203,7 @@ QIVEN_CASE(arena, faults) {
         }
         length = v.size() * v.front().size();
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "arena.strings", countdown, strings, check);
     std::cout << "arena.faults: typed " << runs.typed << ", completed at " << runs.completed_at
               << "\n";

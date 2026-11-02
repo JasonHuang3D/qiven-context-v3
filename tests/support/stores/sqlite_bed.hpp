@@ -31,8 +31,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -40,13 +40,13 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
-namespace qiven3::test::sqlite_bed {
+namespace qiven::test::sqlite_bed {
 
 using records::chain, records::forget, records::id_of, records::Rec, records::views;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::store::EntryView;
 using qiven3::store::GuardView;
 using qiven3::store::Heads;
@@ -54,7 +54,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;
 using qiven3::store::Written;
-using Chars = qiven3::memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Store = qiven3::store::SQLiteStore<Fake>;
 using Engine = qiven3::store::Engine<Fake>;
@@ -164,10 +164,10 @@ struct Bed {
     std::string acc_id;
     std::vector<GuardView> guard;
     std::vector<std::byte> call_pages;
-    std::optional<qiven3::memory::Arena> call;
+    std::optional<qiven::memory::Arena> call;
     std::string kept_db;
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown* call_countdown = nullptr;
+    qiven::memory::Countdown* call_countdown = nullptr;
 #endif
 };
 
@@ -337,4 +337,4 @@ inline std::size_t budget(const Bed& b, const Step& s) {
     return qiven3::store::operation_budget(qiven3::store::given(lines).value_or(0)).value_or(0);
 }
 
-}  // namespace qiven3::test::sqlite_bed
+}  // namespace qiven::test::sqlite_bed

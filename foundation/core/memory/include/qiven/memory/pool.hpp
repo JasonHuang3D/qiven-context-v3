@@ -8,7 +8,7 @@
 // heap, freed at its free, so AddressSanitizer bounds and poisons it; the
 // span still bounds the count of slots, so the counts and the budget are
 // the same as without the option. Without it, under AddressSanitizer, the
-// span is poisoned but for the slots held (memory/poison.hpp): each freed
+// span is poisoned but for the slots held (qiven/memory/poison.hpp): each freed
 // slot, the slots not yet cut, and every heap block's header.
 //
 // Pool: thread: one. Heap: thread: shared; its mutex guards its counts, its
@@ -20,13 +20,13 @@
 #include <cstdint>
 #include <span>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 #if defined(QIVEN_SYSTEM_HEAP)
 #include <unordered_map>
 #endif
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 // Every slot of a pool or a heap starts at a multiple of this.
 inline constexpr std::size_t slot_align = 16;
@@ -129,33 +129,33 @@ private:
         std::array<std::byte, 64> after{};
     };
 
-    void hold() const noexcept QIVEN3_ACQUIRE(mutex_);
-    void* take(std::size_t n) noexcept QIVEN3_REQUIRES(mutex_);
-    void give(void* p) noexcept QIVEN3_REQUIRES(mutex_);
+    void hold() const noexcept QIVEN_ACQUIRE(mutex_);
+    void* take(std::size_t n) noexcept QIVEN_REQUIRES(mutex_);
+    void give(void* p) noexcept QIVEN_REQUIRES(mutex_);
     // A held block's class and its payload's offset in the span (0 under
     // QIVEN_SYSTEM_HEAP), in constant time; any other pointer fails fast.
     struct Block {
         std::size_t cls = 0;
         std::size_t at = 0;
     };
-    Block find(const void* p) const noexcept QIVEN3_REQUIRES(mutex_);
+    Block find(const void* p) const noexcept QIVEN_REQUIRES(mutex_);
 
     mutable Mutex mutex_;
-    Counts counts_ QIVEN3_GUARDED_BY(mutex_);
+    Counts counts_ QIVEN_GUARDED_BY(mutex_);
     std::span<std::byte> pages_;
     // The front of the span not yet cut into slots.
-    std::size_t bump_ QIVEN3_GUARDED_BY(mutex_) = 0;
+    std::size_t bump_ QIVEN_GUARDED_BY(mutex_) = 0;
     // Each class's freed slots: the list's first payload offset, 0 for
     // none, since a header precedes each payload; or, under
     // QIVEN_SYSTEM_HEAP, their count. A slot is a header of slot_align
     // bytes and its class's bytes.
-    std::array<std::size_t, heap_classes> free_ QIVEN3_GUARDED_BY(mutex_){};
+    std::array<std::size_t, heap_classes> free_ QIVEN_GUARDED_BY(mutex_){};
 #if defined(QIVEN_SYSTEM_HEAP)
-    std::unordered_map<const void*, std::size_t> blocks_ QIVEN3_GUARDED_BY(mutex_);
+    std::unordered_map<const void*, std::size_t> blocks_ QIVEN_GUARDED_BY(mutex_);
 #endif
 #if defined(QIVEN_FAULTS)
-    Countdown* countdown_ QIVEN3_GUARDED_BY(mutex_) = nullptr;
+    Countdown* countdown_ QIVEN_GUARDED_BY(mutex_) = nullptr;
 #endif
 };
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

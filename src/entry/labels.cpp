@@ -3,11 +3,11 @@
 
 #include "entry/labels.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::labels {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<VersionView> version_of(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
 template std::optional<CheckView> check_of(const header::Header<Alloc>&, const canon::Basic<Alloc>&, bool, Transcript);

@@ -33,17 +33,17 @@
 namespace {
 
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 namespace json = qiven3::json;
-using qiven3::test::vectors::Context;
-using qiven3::test::vectors::Entry;
-using qiven3::test::vectors::from_hex;
-using qiven3::test::vectors::integer;
-using qiven3::test::vectors::maybe_text;
-using qiven3::test::vectors::size;
-using qiven3::test::vectors::text;
-using qiven3::test::vectors::Value;
-namespace read = qiven3::test::vectors;
+using qiven::test::vectors::Context;
+using qiven::test::vectors::Entry;
+using qiven::test::vectors::from_hex;
+using qiven::test::vectors::integer;
+using qiven::test::vectors::maybe_text;
+using qiven::test::vectors::size;
+using qiven::test::vectors::text;
+using qiven::test::vectors::Value;
+namespace read = qiven::test::vectors;
 
 // A group's members: each by name, and whether each vector carries it.
 struct MemberView {

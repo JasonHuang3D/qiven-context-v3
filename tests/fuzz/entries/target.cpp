@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "entry/kinds.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
@@ -63,12 +63,12 @@ void sites(const we::File& f) {
 void contents(const we::File& f) {
     std::vector<std::byte> pages(std::size_t{1} << 20U);
     for (std::size_t i = 0; i < f.entries().size(); ++i) {
-        qiven3::memory::Arena arena(pages);
+        qiven::memory::Arena arena(pages);
         std::vector<std::string_view> fills;
         for (const we::Site& s : f.sites(f.entries()[i])) {
             fills.push_back(s.hole == we::Hole::piece ? we::detail::stand_digest : we::detail::stand_id);
         }
-        qiven3::json::Value out{qiven3::memory::Allocator<char>(arena)};
+        qiven3::json::Value out{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, fills, out);
         std::string bytes;
         qiven3::json::encode(out, bytes);
@@ -80,7 +80,7 @@ void contents(const we::File& f) {
 
 // The outcome of one read: the refusal's parts, or the entries' kinds.
 std::string read(std::string_view bytes, std::vector<std::byte>& pages) {
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     try {
         const we::File f = we::read(bytes, arena);
         if (arena.used() >= we::detail::work_bytes) {
@@ -101,7 +101,7 @@ std::string read(std::string_view bytes, std::vector<std::byte>& pages) {
         }
         return std::string(we::name(e.code)) + "/" + std::string(we::name(e.why)) + "@" + std::string(e.path.view()) +
                "#" + std::to_string(e.entry);
-    } catch (const qiven3::memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         finding("the arena's budget run out");
     }
     return {};

@@ -21,30 +21,30 @@
 #include <utility>
 #include <vector>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 // The thread-safety attributes, read by clang's -Wthread-safety and empty
 // for gcc and MSVC.
 #if defined(__clang__)
-#define QIVEN3_THREAD_ATTRIBUTE(x) __attribute__((x))
+#define QIVEN_THREAD_ATTRIBUTE(x) __attribute__((x))
 #else
-#define QIVEN3_THREAD_ATTRIBUTE(x)
+#define QIVEN_THREAD_ATTRIBUTE(x)
 #endif
-#define QIVEN3_CAPABILITY(x) QIVEN3_THREAD_ATTRIBUTE(capability(x))
-#define QIVEN3_GUARDED_BY(x) QIVEN3_THREAD_ATTRIBUTE(guarded_by(x))
-#define QIVEN3_REQUIRES(...) QIVEN3_THREAD_ATTRIBUTE(requires_capability(__VA_ARGS__))
-#define QIVEN3_ACQUIRE(...) QIVEN3_THREAD_ATTRIBUTE(acquire_capability(__VA_ARGS__))
-#define QIVEN3_TRY_ACQUIRE(...) QIVEN3_THREAD_ATTRIBUTE(try_acquire_capability(__VA_ARGS__))
-#define QIVEN3_RELEASE(...) QIVEN3_THREAD_ATTRIBUTE(release_capability(__VA_ARGS__))
+#define QIVEN_CAPABILITY(x) QIVEN_THREAD_ATTRIBUTE(capability(x))
+#define QIVEN_GUARDED_BY(x) QIVEN_THREAD_ATTRIBUTE(guarded_by(x))
+#define QIVEN_REQUIRES(...) QIVEN_THREAD_ATTRIBUTE(requires_capability(__VA_ARGS__))
+#define QIVEN_ACQUIRE(...) QIVEN_THREAD_ATTRIBUTE(acquire_capability(__VA_ARGS__))
+#define QIVEN_TRY_ACQUIRE(...) QIVEN_THREAD_ATTRIBUTE(try_acquire_capability(__VA_ARGS__))
+#define QIVEN_RELEASE(...) QIVEN_THREAD_ATTRIBUTE(release_capability(__VA_ARGS__))
 
 // A stateless member takes no space: MSVC ignores the standard spelling.
 #if defined(_MSC_VER)
-#define QIVEN3_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#define QIVEN_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #else
-#define QIVEN3_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#define QIVEN_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 class Arena;
 
@@ -206,7 +206,7 @@ static_assert(sizeof(Vector<int>) == 32, "Vector<T>'s size is pinned");
 
 // The one lock of shared state: a std::timed_mutex locked by try_lock_for
 // alone, so every wait has a deadline. thread: shared.
-class QIVEN3_CAPABILITY("mutex") Mutex {
+class QIVEN_CAPABILITY("mutex") Mutex {
 public:
     Mutex() = default;
     Mutex(const Mutex&) = delete;
@@ -218,17 +218,17 @@ public:
     // The system's lock failing is a broken invariant, never an exception
     // out of a noexcept caller.
     template <typename Rep, typename Period>
-    [[nodiscard]] bool try_lock_for(std::chrono::duration<Rep, Period> wait) noexcept QIVEN3_TRY_ACQUIRE(true) {
+    [[nodiscard]] bool try_lock_for(std::chrono::duration<Rep, Period> wait) noexcept QIVEN_TRY_ACQUIRE(true) {
         try {
             return mutex_.try_lock_for(wait);
         } catch (...) {
-            fail_fast("memory::Mutex: the system's lock failed");
+            fail_fast("qiven::memory::Mutex: the system's lock failed");
         }
     }
-    void unlock() noexcept QIVEN3_RELEASE() { mutex_.unlock(); }
+    void unlock() noexcept QIVEN_RELEASE() { mutex_.unlock(); }
 
 private:
     std::timed_mutex mutex_;
 };
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

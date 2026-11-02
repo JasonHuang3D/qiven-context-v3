@@ -8,9 +8,9 @@
 #include <string_view>
 
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/utf.hpp"
 
 namespace qiven3::write::kept {
@@ -93,7 +93,7 @@ bool parse_head(std::string_view line, Head& head) noexcept {
     if (w == 0 || w > 64) {
         return false;
     }
-    head.writer = memory::Inline<64>(line.substr(0, w));
+    head.writer = qiven::memory::Inline<64>(line.substr(0, w));
     line.remove_prefix(w);
     if (!take(line, R"(","entries":)")) {
         return false;
@@ -119,7 +119,7 @@ std::optional<std::string_view> next_line(std::string_view& rest) noexcept {
     return line;
 }
 
-void append_decimal(memory::String& out, std::uint64_t n) {
+void append_decimal(qiven::memory::String& out, std::uint64_t n) {
     std::array<char, 20> text{};
     std::size_t at = text.size();
     do {
@@ -160,9 +160,9 @@ std::optional<Name> parse_name(std::string_view name) noexcept {
     return std::nullopt;
 }
 
-memory::Inline<32> file_name(std::uint64_t n, Form form) noexcept {
+qiven::memory::Inline<32> file_name(std::uint64_t n, Form form) noexcept {
     if (n > last || form == Form::temporary) {
-        memory::fail_fast("kept: a file name past ten digits or of no kept form");
+        qiven::memory::fail_fast("kept: a file name past ten digits or of no kept form");
     }
     std::array<char, 32> text{};
     for (std::size_t i = digits; i-- > 0;) {
@@ -173,17 +173,17 @@ memory::Inline<32> file_name(std::uint64_t n, Form form) noexcept {
     for (std::size_t i = 0; i < suffix.size(); ++i) {
         text.at(digits + i) = suffix[i];
     }
-    return memory::Inline<32>(std::string_view(text.data(), digits + suffix.size()));
+    return qiven::memory::Inline<32>(std::string_view(text.data(), digits + suffix.size()));
 }
 
-void bytes(const Head& head, std::span<const build::Built> built, memory::String& out) {
+void bytes(const Head& head, std::span<const build::Built> built, qiven::memory::String& out) {
     const std::string_view writer = head.writer.view();
     bool fits = !writer.empty();
     for (const char c : writer) {
         fits = fits && writer_byte(c);
     }
     if (!fits) {
-        memory::fail_fast("kept: a writer outside the writer's syntax");
+        qiven::memory::fail_fast("kept: a writer outside the writer's syntax");
     }
     out.clear();
     std::size_t size = 128 + writer.size();
@@ -205,8 +205,8 @@ void bytes(const Head& head, std::span<const build::Built> built, memory::String
     }
 }
 
-void parse(std::string_view bytes, std::string_view name, memory::Arena& arena, Head& head,
-           memory::Vector<LineView>& lines, Hooks hooks) {
+void parse(std::string_view bytes, std::string_view name, qiven::memory::Arena& arena, Head& head,
+           qiven::memory::Vector<LineView>& lines, Hooks hooks) {
     static_cast<void>(hooks);
     lines.clear();
     head = Head{};
@@ -229,18 +229,18 @@ void parse(std::string_view bytes, std::string_view name, memory::Arena& arena, 
             }
             line.header = *header_line;
             {
-                memory::Arena work_arena(work);  // given back whole at the line's end
+                qiven::memory::Arena work_arena(work);  // given back whole at the line's end
 #if defined(QIVEN_FAULTS)
                 work_arena.attach(hooks.work);
 #endif
                 namespace header = entry::header;
                 try {
-                    const auto h = header::parse_line(line.header, memory::Allocator<char>(work_arena));
+                    const auto h = header::parse_line(line.header, qiven::memory::Allocator<char>(work_arena));
                     const std::optional<std::string_view> id = h.text(header::Slot::id);
                     if (!id || id->empty() || id->size() > 72) {
                         refuse_corrupt(name);
                     }
-                    line.id = memory::Inline<72>(*id);
+                    line.id = qiven::memory::Inline<72>(*id);
                     line.has_body = h.present(header::Slot::content);
                 } catch (const ParseError&) {
                     refuse_corrupt(name);
@@ -261,7 +261,7 @@ void parse(std::string_view bytes, std::string_view name, memory::Arena& arena, 
             refuse_corrupt(name);
         }
     } catch (...) {
-        lines = memory::Vector<LineView>(lines.get_allocator());
+        lines = qiven::memory::Vector<LineView>(lines.get_allocator());
         if (!work.empty()) {
             arena.deallocate(work.data(), work.size());
         }
@@ -272,7 +272,7 @@ void parse(std::string_view bytes, std::string_view name, memory::Arena& arena, 
 
 namespace detail {
 
-void join(std::string_view store, std::string_view name, memory::String& out) {
+void join(std::string_view store, std::string_view name, qiven::memory::String& out) {
     while (!store.empty() && (store.back() == '/' || store.back() == '\\')) {
         store.remove_suffix(1);
     }
@@ -284,9 +284,9 @@ void join(std::string_view store, std::string_view name, memory::String& out) {
     }
 }
 
-std::uint64_t highest(std::span<const memory::String> names) noexcept {
+std::uint64_t highest(std::span<const qiven::memory::String> names) noexcept {
     std::uint64_t top = 0;
-    for (const memory::String& name : names) {
+    for (const qiven::memory::String& name : names) {
         const std::optional<Name> got = parse_name(name);
         if (got && got->n > top) {
             top = got->n;
@@ -295,7 +295,7 @@ std::uint64_t highest(std::span<const memory::String> names) noexcept {
     return top;
 }
 
-memory::Inline<128> at(std::string_view name) noexcept {
+qiven::memory::Inline<128> at(std::string_view name) noexcept {
     std::array<char, 128> text{};
     std::size_t size = 0;
     for (const std::string_view part : {directory, std::string_view(name.empty() ? "" : "/"), name}) {
@@ -305,7 +305,7 @@ memory::Inline<128> at(std::string_view name) noexcept {
             }
         }
     }
-    return memory::Inline<128>(std::string_view(text.data(), size));
+    return qiven::memory::Inline<128>(std::string_view(text.data(), size));
 }
 
 }  // namespace detail

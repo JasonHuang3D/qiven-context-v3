@@ -7,7 +7,7 @@
 
 namespace qiven3::store::sqlite {
 
-template Connection made<platform::fake::FakePlatform>(const memory::String&, platform::fake::FakePlatform&,
+template Connection made<platform::fake::FakePlatform>(const qiven::memory::String&, platform::fake::FakePlatform&,
                                                        const WhereView&, Opened&);
 
 }  // namespace qiven3::store::sqlite

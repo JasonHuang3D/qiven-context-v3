@@ -37,8 +37,8 @@
 #include <vector>
 
 #include "checked/rules.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
@@ -49,8 +49,8 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;
-using qiven3::memory::MemoryError;
+using namespace qiven::test::stage_book;
+using qiven::memory::MemoryError;
 
 // A case: its entries, the view's, the operation, the expected head, the
 // clearing it needs, and the allocations its check and admit take.
@@ -92,11 +92,11 @@ void prepare(fixtures::MemoryView& view, const Case& c, const Book& book) {
 // whole.
 bool run(Fake& fake, fixtures::MemoryView& view, const Case& c, const std::vector<EntryView>& lines,
          const Chars& chars, ScratchPages& scratch) {
-    const checked::Checked<Fake> checked =
-        checked::check(fake, std::span<const EntryView>(lines), at(c.op), chars, scratch);
+    const qiven3::checked::Checked<Fake> checked =
+        qiven3::checked::check(fake, std::span<const EntryView>(lines), at(c.op), chars, scratch);
     const std::optional<std::string_view> expected =
         c.expected ? std::optional<std::string_view>(*c.expected) : std::nullopt;
-    const stage::Staged staged = checked::admit(view, "project:qiven", checked.entries[0].header().value(Slot::lane),
+    const stage::Staged staged = qiven3::checked::admit(view, "project:qiven", checked.entries[0].header().value(Slot::lane),
                                               expected, checked, Limits{}, at(c.op), chars);
     return staged.count == c.call.size();
 }
@@ -139,7 +139,7 @@ QIVEN_CASE(store_stage, faults) {
     Fake fake(qiven3::platform::fake::Config{});
     const Book book(fake);
     std::vector<std::byte> pages(4U << 20U);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     ScratchPages scratch(scratch_bytes);
     scratch.attach(&countdown);
@@ -156,8 +156,8 @@ QIVEN_CASE(store_stage, faults) {
             done = run(fake, view, c, lines, Chars(*arena), scratch);
             arena->attach(nullptr);
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "store_stage.call", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "store_stage.call", countdown, op, empty);
         std::cout << "store_stage.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);

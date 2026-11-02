@@ -22,13 +22,13 @@
 #include <string_view>
 
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store {
 
 using keys::Head, keys::Id, keys::in_scope, keys::in_scopes, keys::KeysView, keys::max_call_entries, keys::Scopes;
-using memory::String, memory::Vector;
+using qiven::memory::String, qiven::memory::Vector;
 
 // The operations, and their names as the text spells them.
 enum class Operation : std::uint8_t {
@@ -132,16 +132,16 @@ constexpr bool over_maximum(std::uint64_t size, std::uint64_t count, const Limit
 // engine's code's name.
 inline constexpr std::size_t reason_bytes = 32;
 struct Purge {
-    memory::Inline<reason_bytes> reason;
+    qiven::memory::Inline<reason_bytes> reason;
     bool done = true;
-    static constexpr Purge pending(std::string_view why) noexcept { return {memory::Inline<reason_bytes>(why), false}; }
+    static constexpr Purge pending(std::string_view why) noexcept { return {qiven::memory::Inline<reason_bytes>(why), false}; }
 };
 
 // A lane's head, with its scope and lane by value.
 struct LaneHead {
     Head head;
-    memory::Inline<scope_bytes> scope;
-    memory::Inline<lane_bytes> lane;
+    qiven::memory::Inline<scope_bytes> scope;
+    qiven::memory::Inline<lane_bytes> lane;
 };
 
 // append's and forget's result: the new head, the size and the count with
@@ -182,7 +182,7 @@ struct Imported {
 inline constexpr std::size_t figure_bytes = 24;
 inline constexpr std::size_t figures_max = 8;
 struct Figure {
-    memory::Inline<figure_bytes> name;
+    qiven::memory::Inline<figure_bytes> name;
     std::uint64_t value = 0;
 };
 struct Sizes {
@@ -198,10 +198,10 @@ inline constexpr std::size_t kind_bytes = 32;
 // A record's keys owned: its ids by value, its scope and lane in place,
 // its kind on the caller's allocator.
 struct Keys {
-    explicit Keys(const memory::Allocator<char>& allocator) noexcept : kind(allocator) {}
+    explicit Keys(const qiven::memory::Allocator<char>& allocator) noexcept : kind(allocator) {}
     Id id;
-    memory::Inline<scope_bytes> scope;
-    memory::Inline<lane_bytes> lane;
+    qiven::memory::Inline<scope_bytes> scope;
+    qiven::memory::Inline<lane_bytes> lane;
     String kind;
     std::int64_t seq = 0;
     std::optional<Id> parent, target;
@@ -227,8 +227,8 @@ struct Keys {
         };
         kind.assign(k.kind);
         id = Id::of(k.id);
-        scope = memory::Inline<scope_bytes>(k.scope);
-        lane = memory::Inline<lane_bytes>(k.lane);
+        scope = qiven::memory::Inline<scope_bytes>(k.scope);
+        lane = qiven::memory::Inline<lane_bytes>(k.lane);
         seq = k.seq;
         parent = of(k.parent);
         target = of(k.target);
@@ -241,9 +241,9 @@ struct Keys {
 // whether a forget targets it, and its keys (an export's the store's, an
 // import's NoAdmit's to give); its text on the caller's arena.
 struct Line {
-    explicit Line(memory::Arena& arena) noexcept
-        : header(memory::Allocator<char>(arena)), body(memory::Allocator<char>(arena)),
-          keys(memory::Allocator<char>(arena)) {}
+    explicit Line(qiven::memory::Arena& arena) noexcept
+        : header(qiven::memory::Allocator<char>(arena)), body(qiven::memory::Allocator<char>(arena)),
+          keys(qiven::memory::Allocator<char>(arena)) {}
     String header;
     String body;
     bool has_body = false;
@@ -261,10 +261,10 @@ struct EntryView {
 // A scan's record: its keys owned and its header line's bytes, on the
 // caller's allocator.
 struct Record {
-    explicit Record(const memory::Allocator<char>& allocator) noexcept : kind(allocator), line(allocator) {}
+    explicit Record(const qiven::memory::Allocator<char>& allocator) noexcept : kind(allocator), line(allocator) {}
     Id id;
-    memory::Inline<scope_bytes> scope;
-    memory::Inline<lane_bytes> lane;
+    qiven::memory::Inline<scope_bytes> scope;
+    qiven::memory::Inline<lane_bytes> lane;
     String kind;
     std::int64_t seq = 0;
     std::optional<Id> parent, target;
@@ -310,8 +310,8 @@ inline constexpr std::size_t entry_bytes = import_line_bytes - kib;
 constexpr std::optional<std::size_t> given(std::span<const EntryView> entries) noexcept {
     std::size_t total = 0;
     for (const EntryView& e : entries) {
-        const std::optional<std::size_t> line = memory::add(total, e.line.size());
-        const std::optional<std::size_t> next = line ? memory::add(*line, e.body ? e.body->size() : 0) : line;
+        const std::optional<std::size_t> line = qiven::memory::add(total, e.line.size());
+        const std::optional<std::size_t> next = line ? qiven::memory::add(*line, e.body ? e.body->size() : 0) : line;
         if (!next) {
             return std::nullopt;
         }
@@ -321,8 +321,8 @@ constexpr std::optional<std::size_t> given(std::span<const EntryView> entries) n
 }
 // An operation's budget for the lines it is given: 1 MiB plus 4 times them.
 constexpr std::optional<std::size_t> operation_budget(std::size_t lines) noexcept {
-    const std::optional<std::size_t> times = memory::mul(lines, lines_factor);
-    return times ? memory::add(operation_base, *times) : times;
+    const std::optional<std::size_t> times = qiven::memory::mul(lines, lines_factor);
+    return times ? qiven::memory::add(operation_base, *times) : times;
 }
 
 // The pinned sizes. The values on 64-bit targets; Line's on x64 with

@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "app/main.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location_impl.hpp"
 #include "wire/wire.hpp"
@@ -44,7 +44,7 @@ int main(int argc, const char* const* argv, Make make) noexcept {
         }
     } catch (const platform::PlatformError&) {
         return unmade;
-    } catch (const memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         return unmade;
     } catch (const std::exception&) {
         return unmade;

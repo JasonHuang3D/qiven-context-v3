@@ -253,7 +253,7 @@ class Windows(Loop):
         pinned.python()
         pinned.windows_tools()
         copy = scratch_copy(self)
-        source = copy / "src" / "memory" / "arena.cpp"
+        source = copy / "foundation" / "core" / "memory" / "src" / "arena.cpp"
         source.write_bytes(source.read_bytes() + f"#error {PLANT}\n".encode())
         status, lines, err = run(copy / "tools" / "loop.py", "build", "windows", "windows-msvc")
         self.assertEqual(status, 1, lines)

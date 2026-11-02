@@ -91,7 +91,7 @@ constexpr void put_string(S& out, std::string_view s) {
 template <typename A, typename S>
 constexpr void encode(const Basic<A>& value, S& out) {
     if (value.empty()) {
-        memory::fail_fast("json::encode: an empty value");
+        qiven::memory::fail_fast("json::encode: an empty value");
     }
     std::size_t bytes = 0;
     std::size_t members = 0;
@@ -558,7 +558,7 @@ private:
 template <typename A>
 constexpr std::optional<ParseCode> try_scan(std::string_view data, std::size_t depth, Basic<A>& out) {
     if (depth > max_depth) {
-        memory::fail_fast("json::scan: a depth past 16");
+        qiven::memory::fail_fast("json::scan: a depth past 16");
     }
     if (data.size() > max_input) {
         too_large(max_input, data.size(), 0);

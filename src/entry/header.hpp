@@ -40,8 +40,8 @@
 #include <utility>
 
 #include "entry/matcher.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven3/utc.hpp"
@@ -150,7 +150,7 @@ constexpr std::size_t index(Slot s) noexcept { return static_cast<std::size_t>(s
 // constructor's call.
 struct PartsView {
     std::array<Form, slot_count> forms{};
-    std::array<std::string_view, slot_count> bytes = memory::each_value<std::string_view, slot_count>();
+    std::array<std::string_view, slot_count> bytes = qiven::memory::each_value<std::string_view, slot_count>();
     std::int64_t seq = 0;
     bool unknown = false;
 };
@@ -179,7 +179,7 @@ constexpr std::optional<std::size_t> slot_of(std::string_view key) noexcept {
 }
 
 [[noreturn]] inline void too_large(std::size_t request) {
-    throw memory::MemoryError::budget("header", json::max_input, request, 0);
+    throw qiven::memory::MemoryError::budget("header", json::max_input, request, 0);
 }
 
 // An id's text, held in place: digest's hex writer writes into it with no
@@ -192,7 +192,7 @@ public:
     [[nodiscard]] constexpr None get_allocator() const noexcept { return {}; }
     constexpr void reserve(std::size_t n) const {
         if (n > bytes_.size()) {
-            memory::fail_fast("header: an id past 71 bytes");
+            qiven::memory::fail_fast("header: an id past 71 bytes");
         }
     }
     constexpr void append(std::string_view s) {
@@ -224,7 +224,7 @@ public:
     constexpr Header(const detail::PartsView& parts, const A& allocator) : text_(allocator) {
         std::size_t total = 0;
         for (const std::string_view b : parts.bytes) {
-            const std::optional<std::size_t> next = memory::add(total, b.size());
+            const std::optional<std::size_t> next = qiven::memory::add(total, b.size());
             if (!next || *next > json::max_input) {
                 detail::too_large(next.value_or(total));
             }
@@ -327,7 +327,7 @@ private:
 };
 
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(Header<memory::Allocator<char>>) == 200,
+static_assert(sizeof(Header<qiven::memory::Allocator<char>>) == 200,
               "the header's size is pinned: its text, 40, the 12 places, 144, seq and the flag");
 #endif
 
@@ -406,7 +406,7 @@ constexpr Header<A> make(const FieldsView& f, const A& allocator = A()) {
     if (f.id) {
         put(Slot::id, f.id, Form::text);
     } else {
-        std::array<digest::Field, field_count> fields = memory::each_value<digest::Field, field_count>();
+        std::array<digest::Field, field_count> fields = qiven::memory::each_value<digest::Field, field_count>();
         for (std::size_t i = 0; i < field_count; ++i) {
             if (parts.forms.at(i) != Form::absent) {
                 fields.at(i) = parts.bytes.at(i);

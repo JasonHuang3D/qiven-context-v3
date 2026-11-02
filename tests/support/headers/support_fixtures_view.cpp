@@ -5,12 +5,12 @@
 
 #include <memory>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
-namespace qiven3::test::fixtures {
+namespace qiven::test::fixtures {
 
 using Std = std::allocator<char>;
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 
 template struct Item<Std>;
 template struct Item<Chars>;
@@ -23,4 +23,4 @@ template bool MemoryView::header(std::string_view, header::Header<Chars>&);
 template bool MemoryView::body(std::string_view, validator::Text<Std>&);
 template bool MemoryView::body(std::string_view, validator::Text<Chars>&);
 
-}  // namespace qiven3::test::fixtures
+}  // namespace qiven::test::fixtures

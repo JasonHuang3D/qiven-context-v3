@@ -22,8 +22,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/pool.hpp"
 
 namespace qiven3::log {
 class Log;
@@ -54,9 +54,9 @@ public:
     Counted& operator=(Counted&&) = delete;
     ~Counted() = default;
 
-    qiven3::memory::Arena& arena(std::size_t bytes);
-    qiven3::memory::Pool& pool(std::size_t slot, std::size_t bytes);
-    qiven3::memory::Heap& heap(std::size_t bytes);
+    qiven::memory::Arena& arena(std::size_t bytes);
+    qiven::memory::Pool& pool(std::size_t slot, std::size_t bytes);
+    qiven::memory::Heap& heap(std::size_t bytes);
     // A line to out for each allocator holding bytes; how many do.
     int holding(std::ostream& out) const;
     // The bytes all of them hold, saturating at SIZE_MAX.
@@ -74,9 +74,9 @@ private:
         std::vector<Page> pages;
         std::optional<A> allocator;  // ended before its pages
     };
-    std::deque<Owned<qiven3::memory::Arena>> arenas_;
-    std::deque<Owned<qiven3::memory::Pool>> pools_;
-    std::deque<Owned<qiven3::memory::Heap>> heaps_;
+    std::deque<Owned<qiven::memory::Arena>> arenas_;
+    std::deque<Owned<qiven::memory::Pool>> pools_;
+    std::deque<Owned<qiven::memory::Heap>> heaps_;
 };
 
 // What a running case reports to: its failed checks, written as they fail,

@@ -10,7 +10,7 @@
 // configuration call pass (B22).
 //
 // EngineHeap is the process's one engine heap: made over pages its maker
-// takes, it routes every allocation of the engine to a memory::Heap
+// takes, it routes every allocation of the engine to a qiven::memory::Heap
 // (SQLITE_CONFIG_MALLOC), its page cache to slots at the back of the
 // pages (SQLITE_CONFIG_PAGECACHE), then the engine's initialize, the build
 // omitting the automatic one; its destructor shuts the engine down. One is
@@ -35,8 +35,8 @@
 #include <span>
 #include <string_view>
 
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "store/codes.hpp"
 
 // The engine's two handle types, by name alone.
@@ -88,13 +88,13 @@ enum class When : std::uint8_t { every, read_write, create };
 
 // A setting, its value as the engine reads it back, as text.
 struct Setting {
-    memory::Inline<16> name;
-    memory::Inline<16> value;
+    qiven::memory::Inline<16> name;
+    qiven::memory::Inline<16> value;
     When when = When::every;
 };
 
 constexpr Setting setting(std::string_view name, std::string_view value, When when = When::every) noexcept {
-    return Setting{memory::Inline<16>(name), memory::Inline<16>(value), when};
+    return Setting{qiven::memory::Inline<16>(name), qiven::memory::Inline<16>(value), when};
 }
 
 // SETTINGS, the table the store applies and a test compares with the
@@ -152,13 +152,13 @@ public:
     EngineHeap& operator=(EngineHeap&&) = delete;
     ~EngineHeap();
 
-    [[nodiscard]] memory::Heap& heap() noexcept { return heap_; }
+    [[nodiscard]] qiven::memory::Heap& heap() noexcept { return heap_; }
     [[nodiscard]] Slots slots() const noexcept;
 
 private:
     std::size_t size_;   // a slot's bytes; 0 when the engine refused to give its header
     std::size_t count_;  // 0 when the pages cannot hold them
-    memory::Heap heap_;  // over the pages before the slots
+    qiven::memory::Heap heap_;  // over the pages before the slots
     std::byte* slots_;   // the first slot
 };
 
@@ -209,7 +209,7 @@ public:
     Connection() noexcept = default;
     // Opens path, which must exist, read-write or read-only, never
     // creating, with the 5 s busy wait; an engine heap must be installed.
-    static Connection open(const memory::String& path, bool read_only, const WhereView& at);
+    static Connection open(const qiven::memory::String& path, bool read_only, const WhereView& at);
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
     Connection(Connection&& other) noexcept;

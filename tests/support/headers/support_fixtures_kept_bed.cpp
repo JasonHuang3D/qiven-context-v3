@@ -8,7 +8,7 @@
 
 #include "support/fixtures/kept_bed.hpp"
 
-namespace qiven3::test::kept_bed {
+namespace qiven::test::kept_bed {
 
 std::uint64_t write_once() {
     const Scratch scratch{fresh};
@@ -23,4 +23,4 @@ std::uint64_t write_once() {
            (refusal([] {}).has_value() ? 1U : 0U) + (fault([] {}).has_value() ? 1U : 0U);
 }
 
-}  // namespace qiven3::test::kept_bed
+}  // namespace qiven::test::kept_bed

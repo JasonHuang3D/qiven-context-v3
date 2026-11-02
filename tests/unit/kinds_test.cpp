@@ -33,7 +33,7 @@ namespace {
 namespace header = qiven3::entry::header;
 namespace kinds = qiven3::entry::kinds;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using kinds::Basis;
 using kinds::Carried;
 using kinds::Common;

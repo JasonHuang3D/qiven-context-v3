@@ -5,11 +5,11 @@
 
 #include "entry/validator.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::validator {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template bool detail::same_identity(const header::Header<Alloc>&, const canon::Basic<Alloc>&,
                                     const header::Header<Alloc>&, const canon::Basic<Alloc>&);

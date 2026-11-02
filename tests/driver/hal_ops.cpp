@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "driver/drive.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 
 namespace qiven3::drive {
 namespace {
@@ -87,9 +87,9 @@ Hal& hal_of(Session& s) {
     return h;
 }
 
-std::string_view view(const memory::String& text) { return std::string_view(text.data(), text.size()); }
+std::string_view view(const qiven::memory::String& text) { return std::string_view(text.data(), text.size()); }
 
-hal::Device device_of(memory::Arena& arena, ArgView value) {
+hal::Device device_of(qiven::memory::Arena& arena, ArgView value) {
     hal::Device d(arena);
     const std::string id = text(value, "id"), back_end = text(value, "back_end"), name = text(value, "name");
     d.id.assign(id.data(), id.size());
@@ -119,7 +119,7 @@ typename HalState<C>::Held& held(HalState<C>& h, ArgView request, std::string_vi
 }
 
 template <hal::Compute C>
-Result facts(HalState<C>& h, memory::Arena& arena, ArgView) {
+Result facts(HalState<C>& h, qiven::memory::Arena& arena, ArgView) {
     hal::Facts f(arena);
     h.computes[0]->facts(f);
     Value value;
@@ -140,7 +140,7 @@ Result facts(HalState<C>& h, memory::Arena& arena, ArgView) {
 }
 
 template <hal::Compute C>
-Result device(HalState<C>& h, memory::Arena& arena, ArgView request) {
+Result device(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     hal::Device d(arena);
     const std::optional<hal::Gap> gap = h.computes[0]->device(text(request, "capability"), d);
     Value value;
@@ -155,7 +155,7 @@ Result device(HalState<C>& h, memory::Arena& arena, ArgView request) {
 }
 
 template <hal::Compute C>
-Result allocate(HalState<C>& h, memory::Arena& arena, ArgView request) {
+Result allocate(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     const std::size_t from = flag(request, "other", false) ? 1 : 0;
     const hal::Device d = device_of(arena, argument(request, "device"));
     auto buffer = h.computes[from]->allocate(d, static_cast<std::uint64_t>(integer(request, "size")));
@@ -169,7 +169,7 @@ std::span<const std::byte> bytes_of(const std::string& data) {
 }
 
 template <hal::Compute C>
-Result upload(HalState<C>& h, memory::Arena&, ArgView request) {
+Result upload(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     const std::string data = from_hex(text(request, "data"));
     h.computes[0]->upload(held(h, request, "buffer").buffer, bytes_of(data));
     return std::nullopt;
@@ -177,7 +177,7 @@ Result upload(HalState<C>& h, memory::Arena&, ArgView request) {
 
 // "size", the span's, is the buffer's when absent.
 template <hal::Compute C>
-Result download(HalState<C>& h, memory::Arena&, ArgView request) {
+Result download(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     const auto& buffer = held(h, request, "buffer").buffer;
     const std::int64_t size = integer(request, "size", static_cast<std::int64_t>(buffer.size()));
     if (size < 0) {
@@ -189,14 +189,14 @@ Result download(HalState<C>& h, memory::Arena&, ArgView request) {
 }
 
 template <hal::Compute C>
-Result free_buffer(HalState<C>& h, memory::Arena&, ArgView request) {
+Result free_buffer(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     held(h, request, "buffer");
     h.buffers.erase(integer(request, "buffer"));
     return std::nullopt;
 }
 
 template <hal::Compute C>
-Result run(HalState<C>& h, memory::Arena& arena, ArgView request) {
+Result run(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     std::vector<typename C::Buffer*> buffers;
     if (const std::optional<ArgView> items = request.find("buffers")) {
         for (const ArgView item : items->as_array("buffers")) {
@@ -230,7 +230,7 @@ Result run(HalState<C>& h, memory::Arena& arena, ArgView request) {
     return std::nullopt;
 }
 
-Result hal_fake(Hal& h, memory::Arena&, ArgView request) {
+Result hal_fake(Hal& h, qiven::memory::Arena&, ArgView request) {
     hal::fake::Config config = base_config();
     config.cpu_threads = static_cast<unsigned>(integer(request, "threads", 1));
     if (const std::optional<ArgView> vectors = request.find("vectors")) {
@@ -273,7 +273,7 @@ Result hal_fake(Hal& h, memory::Arena&, ArgView request) {
     return std::nullopt;
 }
 
-Result hal_counts(Hal& h, memory::Arena&, ArgView) {
+Result hal_counts(Hal& h, qiven::memory::Arena&, ArgView) {
     const hal::fake::Counts& c = h.computes[0]->counts();
     Value value;
     value.set("allocations", static_cast<std::int64_t>(c.allocations));
@@ -283,7 +283,7 @@ Result hal_counts(Hal& h, memory::Arena&, ArgView) {
     return value;
 }
 
-using HalOperation = Result (*)(Hal&, memory::Arena&, ArgView);
+using HalOperation = Result (*)(Hal&, qiven::memory::Arena&, ArgView);
 
 // The operation on the session's HAL, its results in an arena over the
 // HAL's pages: the members' budget, or the request's.
@@ -295,7 +295,7 @@ Result bound(Session& s, ArgView request) {
         h.pages.resize(bytes);
     }
     return on_arena(s, std::span<std::byte>(h.pages).first(bytes),
-                    [&](memory::Arena& arena) { return F(h, arena, request); });
+                    [&](qiven::memory::Arena& arena) { return F(h, arena, request); });
 }
 
 }  // namespace

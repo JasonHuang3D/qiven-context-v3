@@ -19,8 +19,8 @@
 #include "entry/header.hpp"
 #include "entry/matcher.hpp"
 #include "entry/secret.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -32,9 +32,9 @@ namespace header = qiven3::entry::header;
 namespace matcher = qiven3::entry::matcher;
 namespace canon = qiven3::canon;
 namespace json = qiven3::json;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 
 // A case: its lane, its content's strings under "tags", the hits and the
 // allocations its check takes.
@@ -145,7 +145,7 @@ QIVEN_CASE(secret, budget) {
 QIVEN_CASE(secret, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     bool done = false;
     // The value, the automata and the hits given back once the check ends.
@@ -164,8 +164,8 @@ QIVEN_CASE(secret, faults) {
             }
             arena->attach(nullptr);
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "secret.check", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "secret.check", countdown, op, empty);
         std::cout << "secret.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);

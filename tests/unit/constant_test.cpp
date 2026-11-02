@@ -22,7 +22,7 @@
 namespace {
 
 using qiven3::ParseCode;
-using qiven3::test::fixtures::filled;
+using qiven::test::fixtures::filled;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
 namespace json = qiven3::json;

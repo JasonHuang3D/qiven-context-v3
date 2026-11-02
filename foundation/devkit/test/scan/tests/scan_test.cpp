@@ -20,7 +20,7 @@
 
 namespace {
 
-namespace scan = qiven3::test::scan;
+namespace scan = qiven::test::scan;
 namespace fs = std::filesystem;
 
 // A fresh directory under the system's temporary one, removed at its end.

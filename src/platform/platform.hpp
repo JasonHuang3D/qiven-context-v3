@@ -29,13 +29,13 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::platform {
 
 using Seconds = std::chrono::duration<double>;
-using memory::String;
-using memory::Vector;
+using qiven::memory::String;
+using qiven::memory::Vector;
 
 // locked is BitLocker's alone.
 enum class State : std::uint8_t { on, off, locked, unknown };
@@ -43,14 +43,14 @@ enum class State : std::uint8_t { on, off, locked, unknown };
 // The value types own their text on the caller's arena, so each is made
 // with that arena.
 struct Reading {
-    explicit Reading(memory::Arena& arena) : reason(memory::Allocator<char>(arena)) {}
+    explicit Reading(qiven::memory::Arena& arena) : reason(qiven::memory::Allocator<char>(arena)) {}
     State state = State::unknown;
     String reason;
 };
 
 struct Facts {
-    explicit Facts(memory::Arena& arena)
-        : volume(memory::Allocator<char>(arena)), protection(arena), file_history(arena), bitlocker(arena) {}
+    explicit Facts(qiven::memory::Arena& arena)
+        : volume(qiven::memory::Allocator<char>(arena)), protection(arena), file_history(arena), bitlocker(arena) {}
     String volume;
     Reading protection, file_history, bitlocker;
 };
@@ -69,16 +69,16 @@ struct Command {
 };
 
 struct Ran {
-    explicit Ran(memory::Arena& arena) : out(memory::Allocator<char>(arena)), err(memory::Allocator<char>(arena)) {}
+    explicit Ran(qiven::memory::Arena& arena) : out(qiven::memory::Allocator<char>(arena)), err(qiven::memory::Allocator<char>(arena)) {}
     int code = 0;
     String out, err;
 };
 
 struct Row {
-    explicit Row(memory::Arena& arena)
-        : name(memory::Allocator<char>(arena)), applies(memory::Allocator<char>(arena)),
-          kept(memory::Allocator<char>(arena)), how_long(memory::Allocator<char>(arena)),
-          owner_can(memory::Allocator<char>(arena)) {}
+    explicit Row(qiven::memory::Arena& arena)
+        : name(qiven::memory::Allocator<char>(arena)), applies(qiven::memory::Allocator<char>(arena)),
+          kept(qiven::memory::Allocator<char>(arena)), how_long(qiven::memory::Allocator<char>(arena)),
+          owner_can(qiven::memory::Allocator<char>(arena)) {}
     String name, applies, kept, how_long, owner_can;
 };
 
@@ -194,8 +194,8 @@ struct PlatformError {
         : PlatformError(code_, operation_, detail_.view()) {}
 
     Code code;
-    memory::Inline<32> operation;
-    memory::Inline<detail_bytes> detail;
+    qiven::memory::Inline<32> operation;
+    qiven::memory::Inline<detail_bytes> detail;
 };
 
 }  // namespace qiven3::platform

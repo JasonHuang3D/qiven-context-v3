@@ -12,8 +12,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/utf.hpp"
@@ -22,9 +22,9 @@ namespace {
 
 using qiven3::ParseCode;
 using qiven3::ParseError;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 namespace utf = qiven3::utf;
 
 // The UTF-16 units of a valid text, the order RFC 8785 sorts by.
@@ -211,7 +211,7 @@ QIVEN_CASE(utf, decode_budget) {
     Arena& arena = qiven_ctx.counted.arena(budget);
     std::size_t peak = 0;
     {
-        qiven3::memory::Vector<char32_t> out{Allocator<char32_t>(arena)};
+        qiven::memory::Vector<char32_t> out{Allocator<char32_t>(arena)};
         utf::decode(text, out);
         CHECK_EQ(out.size(), 8000U);
         peak = arena.peak();
@@ -222,12 +222,12 @@ QIVEN_CASE(utf, decode_budget) {
     CHECK(peak >= 4 * 8000U);
     // A byte short: MemoryError budget, the vector unchanged.
     Arena& shorter = qiven_ctx.counted.arena(peak - 1);
-    qiven3::memory::Vector<char32_t> out{Allocator<char32_t>(shorter)};
+    qiven::memory::Vector<char32_t> out{Allocator<char32_t>(shorter)};
     bool refused = false;
     try {
         utf::decode(text, out);
     } catch (const MemoryError& e) {
-        refused = e.code == qiven3::memory::MemoryCode::budget;
+        refused = e.code == qiven::memory::MemoryCode::budget;
     }
     CHECK(refused);
     CHECK(out.empty());
@@ -236,18 +236,18 @@ QIVEN_CASE(utf, decode_budget) {
 QIVEN_CASE(utf, decode_faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(65536);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     std::size_t decoded = 0;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     const auto op = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
-        qiven3::memory::Vector<char32_t> out{Allocator<char32_t>(*arena)};
+        qiven::memory::Vector<char32_t> out{Allocator<char32_t>(*arena)};
         utf::decode("caf\xc3\xa9 \xf0\x9d\x84\x9e", out);
         decoded = out.size();
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "utf.decode", countdown, op, check);
     std::cout << "utf.decode_faults: allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 1U);

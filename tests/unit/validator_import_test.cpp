@@ -32,8 +32,8 @@
 
 #include "entry/header.hpp"
 #include "entry/validator.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -46,7 +46,7 @@ namespace {
 namespace validator = qiven3::entry::validator;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using fixtures::MemoryView;
 using validator::Code;
 using Slot = header::Slot;
@@ -283,9 +283,9 @@ static_assert(chain_code(std::array{next(10), on(next(11), L, 8, 10, 6)}) == 10 
 
 namespace {
 
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 using Line = header::Header<Allocator<char>>;
 
 // The fixtures imported whole: each entry held, E's forget of B applied;
@@ -388,7 +388,7 @@ QIVEN_CASE(validator, import_faults) {
     fixtures::load_entries(v);
     std::vector<std::byte> item_pages(1U << 20U);
     std::vector<std::byte> pages(budget_base + 8 * 65536);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     bool done = false;
     // Every buffer and value given back.
@@ -403,8 +403,8 @@ QIVEN_CASE(validator, import_faults) {
             done = !validator::try_final(s.view, i.head, i.content, Allocator<char>(*arena));
             arena->attach(nullptr);
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "validator.try_final", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "validator.try_final", countdown, op, empty);
         std::cout << "validator.import_faults: " << i.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, i.allocations);

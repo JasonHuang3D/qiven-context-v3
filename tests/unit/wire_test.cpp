@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -75,8 +75,8 @@ struct Throwing {
 
 using qiven3::platform::Code;
 using qiven3::platform::PlatformError;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
 
 }  // namespace
 
@@ -250,7 +250,7 @@ QIVEN_CASE(wire, answer_failed) {
 QIVEN_CASE(wire, answer_faults) {
 #if defined(QIVEN_FAULTS)
     const std::string bytes = "the answer\n";
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::size_t k = 1;
     for (; k <= 4; ++k) {
         FakePlatform fake{Config{}};

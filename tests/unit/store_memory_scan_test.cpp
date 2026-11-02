@@ -6,8 +6,8 @@
 #include <memory>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
@@ -29,8 +29,8 @@ struct Rig {
     qiven3::platform::fake::FakePages heap;
     qiven3::store::state::State state;
     std::vector<std::byte> pages;
-    qiven3::memory::Arena arena;
-    qiven3::memory::Allocator<char> chars;
+    qiven::memory::Arena arena;
+    qiven::memory::Allocator<char> chars;
 };
 
 }  // namespace
@@ -39,6 +39,6 @@ QIVEN_CASE(store_memory, scan_at_start) {
     const auto rig = std::make_unique<Rig>();
     Store store(rig->state, rig->fake);
     Store other(rig->state, rig->fake);
-    qiven3::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
-    CHECK(other.verify() == qiven3::test::scan_case::written);
+    qiven::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
+    CHECK(other.verify() == qiven::test::scan_case::written);
 }

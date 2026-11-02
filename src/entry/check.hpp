@@ -41,7 +41,7 @@
 #include "entry/body.hpp"
 #include "entry/content.hpp"
 #include "entry/header.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -89,7 +89,7 @@ public:
     // The body; an entry with none is a fault of the caller's.
     [[nodiscard]] const Body& body() const {
         if (!body_) {
-            memory::fail_fast("check: the body of an entry with none");
+            qiven::memory::fail_fast("check: the body of an entry with none");
         }
         return *body_;
     }
@@ -156,7 +156,7 @@ constexpr std::optional<Fault> try_check(std::string_view line, std::optional<st
     }
     canon::Basic<A> value(allocator);
     if (canon::try_parse(parts.content, value)) {
-        memory::fail_fast("check: a canonical record's content not canonical");
+        qiven::memory::fail_fast("check: a canonical record's content not canonical");
     }
     if (const std::optional<content::ContentError> e = content::try_check(out, value)) {
         return Fault{Part::content, static_cast<std::uint8_t>(e->code), *e};

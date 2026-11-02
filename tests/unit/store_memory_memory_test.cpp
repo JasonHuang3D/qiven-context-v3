@@ -33,8 +33,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
@@ -45,14 +45,14 @@
 
 namespace {
 
-using namespace qiven3::test::records;
+using namespace qiven::test::records;
 namespace state = qiven3::store::state;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Chars = qiven3::memory::Allocator<char>;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using Chars = qiven::memory::Allocator<char>;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::platform::PlatformError;
 using qiven3::store::Counts;
 using qiven3::store::EntryView;
@@ -123,7 +123,7 @@ struct Bed {
     std::vector<std::byte> call_pages;
     std::optional<Arena> call;
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown* call_countdown = nullptr;
+    qiven::memory::Countdown* call_countdown = nullptr;
 #endif
 };
 
@@ -304,10 +304,10 @@ QIVEN_CASE(store_memory, budget) {
 QIVEN_CASE(store_memory, counts) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto b = std::make_unique<Bed>();
-    qiven3::memory::Countdown arenas;
-    qiven3::memory::Countdown heap;
-    qiven3::memory::Countdown caller;
-    qiven3::memory::Countdown platform;
+    qiven::memory::Countdown arenas;
+    qiven::memory::Countdown heap;
+    qiven::memory::Countdown caller;
+    qiven::memory::Countdown platform;
     b->store.attach(&arenas);
     b->other.attach(&arenas);
     state::attach(b->state, &heap);
@@ -376,8 +376,8 @@ void faults_part(qiven::runner::Context& qiven_ctx, std::size_t part) {
         const Chars c = b->caller();
         (void)course.at(i).run(*b, c);
     }
-    qiven3::memory::Countdown countdown;
-    const auto attach = [&](qiven3::memory::Countdown* c) {
+    qiven::memory::Countdown countdown;
+    const auto attach = [&](qiven::memory::Countdown* c) {
         b->store.attach(c);
         b->other.attach(c);
         state::attach(b->state, c);
@@ -434,8 +434,8 @@ void faults_part(qiven::runner::Context& qiven_ctx, std::size_t part) {
             return back && fingerprint(b->store) + " | " + fingerprint(b->other) == before;
         };
         attach(&countdown);
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_memory.step", countdown, op, check);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<Typed>(qiven_ctx.log, "store_memory.step", countdown, op, check);
         attach(nullptr);
         CHECK(done);
         CHECK_EQ(runs.untyped, 0U);

@@ -40,9 +40,9 @@
 #include <string_view>
 
 #include "entry/content_fields.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utf.hpp"
 
@@ -76,9 +76,9 @@ struct EntriesError {
     entry::content::Code fault = entry::content::Code::syntax;
     std::uint32_t limit = 0;
     std::uint32_t value = 0;
-    memory::Inline<128> path{};
+    qiven::memory::Inline<128> path{};
     std::uint32_t entry = none;
-    memory::Inline<64> name{};
+    qiven::memory::Inline<64> name{};
 };
 
 // A string of the file's value by its node; 0 for none.
@@ -120,7 +120,7 @@ struct Reader;
 // work first.
 struct Hooks {
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* work = nullptr;
+    qiven::memory::Countdown* work = nullptr;
 #endif
 };
 
@@ -129,7 +129,7 @@ struct Hooks {
 // fail_fast.
 class File {
 public:
-    explicit File(memory::Arena& arena) noexcept;
+    explicit File(qiven::memory::Arena& arena) noexcept;
 
     [[nodiscard]] std::string_view text(Text t) const noexcept;
     [[nodiscard]] std::string_view writer() const noexcept { return text(writer_); }
@@ -147,21 +147,21 @@ public:
     }
 
 private:
-    friend File read(std::string_view bytes, memory::Arena& arena, Hooks hooks);
+    friend File read(std::string_view bytes, qiven::memory::Arena& arena, Hooks hooks);
     friend struct detail::Reader;
 
     json::Value value_;
     Text writer_ = 0;
     Text scope_ = 0;
     json::Index episode_ = 0;
-    memory::Vector<Entry> entries_;
-    memory::Vector<Piece> pieces_;
-    memory::Vector<Site> sites_;
-    memory::Vector<std::uint32_t> by_name_;  // named entries, by name
+    qiven::memory::Vector<Entry> entries_;
+    qiven::memory::Vector<Piece> pieces_;
+    qiven::memory::Vector<Site> sites_;
+    qiven::memory::Vector<std::uint32_t> by_name_;  // named entries, by name
 };
 
 // The file of bytes, or EntriesError; MemoryError budget past the arena.
-[[nodiscard]] File read(std::string_view bytes, memory::Arena& arena, Hooks hooks = {});
+[[nodiscard]] File read(std::string_view bytes, qiven::memory::Arena& arena, Hooks hooks = {});
 
 // Entry e's content into out, empty, its sites filled in order (a piece
 // reference's piece dropped for its digest) and a slot's episode appended;

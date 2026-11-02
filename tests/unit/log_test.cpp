@@ -14,8 +14,8 @@
 #include "log/catalogue.hpp"
 #include "log/line.hpp"
 #include "log/log.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/case_main/cases.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
@@ -24,13 +24,13 @@ namespace {
 
 namespace qlog = qiven3::log;
 namespace events = qiven3::log::events;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
-using qiven3::test::Lines;
-using qiven3::test::Sink;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
+using qiven::test::Lines;
+using qiven::test::Sink;
 
 constexpr std::size_t log_budget = qlog::Log::ring_bytes + qlog::Log::event_bytes;
 
@@ -165,24 +165,24 @@ QIVEN_CASE(log, budget) {
     // and its arena's peak within the 4 KiB.
     Arena& arena = qiven_ctx.counted.arena(log_budget);
     qlog::Log lg(arena, qlog::Count(qlog::max_number), "qiven3_unit_log");
-    qiven3::test::widest(lg);
+    qiven::test::widest(lg);
     CHECK_EQ(lg.failed(), 0U);
     const Lines lines(lg.ring().lines());
     REQUIRE(lines.size() == 2);
     const std::size_t line = lines.at(1).size();
-    CHECK(line <= qiven3::test::widest_max());
-    CHECK(qiven3::test::widest_max() <= qlog::Log::max_line_bytes);
+    CHECK(line <= qiven::test::widest_max());
+    CHECK(qiven::test::widest_max() <= qlog::Log::max_line_bytes);
     CHECK(lg.peak() <= qlog::Log::event_bytes);
-    std::cout << "log.budget: the widest line " << line << " bytes (at most " << qiven3::test::widest_max()
+    std::cout << "log.budget: the widest line " << line << " bytes (at most " << qiven::test::widest_max()
               << "), its event's peak " << lg.peak() << " of " << qlog::Log::event_bytes << "\n";
     // The same line over its peak less a byte: MemoryError budget, the
     // output unchanged.
-    const std::size_t peak = qiven3::test::widest_peak(qiven_ctx.counted.arena(qlog::Log::event_bytes));
+    const std::size_t peak = qiven::test::widest_peak(qiven_ctx.counted.arena(qlog::Log::event_bytes));
     CHECK(peak <= lg.peak());
     Arena& tight = qiven_ctx.counted.arena(peak - 1);
     bool refused = false;
     try {
-        static_cast<void>(qiven3::test::widest_peak(tight));
+        static_cast<void>(qiven::test::widest_peak(tight));
     } catch (const MemoryError& e) {
         refused = e.code == MemoryCode::budget;
     }
@@ -193,7 +193,7 @@ QIVEN_CASE(log, budget) {
 QIVEN_CASE(log, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(log_budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto make = [&] {
         arena.emplace(pages);
@@ -201,7 +201,7 @@ QIVEN_CASE(log, faults) {
         const qlog::Log lg(*arena, qlog::Count(1U), "qiven3_unit_log");
     };
     const auto check = [&](std::size_t) { return arena->used() == 0; };
-    const qiven3::test::FaultRuns made = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns made = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "log.make", countdown, make, check);
     // The ring's span and the events' pages.
     CHECK_EQ(made.typed, 2U);
@@ -244,5 +244,5 @@ QIVEN_CASE(log, faults) {
 QIVEN_CASE(log, constant) {
     // The static half (unit/log_static.cpp) held if this
     // binary was built; this reports it.
-    CHECK(qiven3::test::constant_held());
+    CHECK(qiven::test::constant_held());
 }

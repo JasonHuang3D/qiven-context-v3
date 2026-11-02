@@ -27,7 +27,7 @@ namespace {
 namespace content = qiven3::entry::content;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using content::Code;
 using content::ContentError;
 

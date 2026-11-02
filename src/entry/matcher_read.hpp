@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "entry/matcher_basic.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::matcher {
 
@@ -363,8 +363,8 @@ private:
     constexpr bool repeat(Fragment& f, std::size_t lo, std::size_t hi, bool unbounded, std::size_t at) noexcept {
         const std::size_t length = static_cast<std::size_t>(f.hi) - static_cast<std::size_t>(f.lo);
         const std::size_t copies = unbounded ? (lo == 0 ? 1 : lo) : hi;
-        const std::optional<std::size_t> extra = memory::mul(copies == 0 ? 0 : copies - 1, length);
-        const std::optional<std::size_t> total = extra ? memory::add(n_, *extra) : std::nullopt;
+        const std::optional<std::size_t> extra = qiven::memory::mul(copies == 0 ? 0 : copies - 1, length);
+        const std::optional<std::size_t> total = extra ? qiven::memory::add(n_, *extra) : std::nullopt;
         if (!total || *total > max_positions) {
             return refuse(Fault::size, at);
         }

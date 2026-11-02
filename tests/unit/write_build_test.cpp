@@ -28,8 +28,8 @@
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -41,7 +41,7 @@ namespace {
 namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
-using qiven3::memory::Arena;
+using qiven::memory::Arena;
 using qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
@@ -165,7 +165,7 @@ Result build(std::string_view bytes, FakeFold& fold, FakePlatform& platform, std
     Result r;
     try {
         const we::File f = we::read(bytes, arena);
-        qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+        qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
         wb::build(f, fold, platform, arena, out);
         for (const wb::Built& b : out) {
             r.built.push_back(Out{std::string(b.line), std::string(b.record), std::string(b.id.view()),

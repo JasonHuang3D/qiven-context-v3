@@ -19,8 +19,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -33,13 +33,13 @@ namespace {
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
 namespace json = qiven3::json;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using digest::Field;
 using fixtures::Code;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Key = digest::Key<Fake>;
 
@@ -309,7 +309,7 @@ QIVEN_CASE(fixtures, load_budget) {
 QIVEN_CASE(fixtures, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget_for(file_bytes));
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     std::size_t entries = 0;
@@ -320,8 +320,8 @@ QIVEN_CASE(fixtures, faults) {
         fixtures::load_entries(v);
         entries = fixtures::entry_count(v);
     };
-    const qiven3::test::FaultRuns loads =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.load", countdown, load, check);
+    const qiven::test::FaultRuns loads =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.load", countdown, load, check);
     std::cout << "fixtures.faults: load's allocations " << loads.typed << ", completed at " << loads.completed_at
               << "\n";
     // canon's four: the scan's nodes, text and keys' check, then the
@@ -348,8 +348,8 @@ QIVEN_CASE(fixtures, faults) {
         read += fixtures::layout(loaded) ? 0U : 1U;
         read += fixtures::mapped(loaded, 1).hex.size();
     };
-    const qiven3::test::FaultRuns accesses =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.access", countdown, access, check);
+    const qiven::test::FaultRuns accesses =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.access", countdown, access, check);
     CHECK_EQ(accesses.typed, 0U);
     CHECK_EQ(accesses.completed_at, 1U);
     CHECK_EQ(read, 12U + 11U + 1U + 150U);
@@ -357,12 +357,12 @@ QIVEN_CASE(fixtures, faults) {
     const auto decode = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
-        qiven3::memory::String out{Allocator<char>(*arena)};
+        qiven::memory::String out{Allocator<char>(*arena)};
         CHECK(fixtures::from_hex(fixtures::mapped(loaded, 0).hex, out));
         bytes = out.size();
     };
-    const qiven3::test::FaultRuns decodes =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.from_hex", countdown, decode, check);
+    const qiven::test::FaultRuns decodes =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "fixtures.from_hex", countdown, decode, check);
     CHECK_EQ(decodes.typed, 1U);
     CHECK_EQ(decodes.completed_at, 2U);
     CHECK_EQ(decodes.untyped, 0U);

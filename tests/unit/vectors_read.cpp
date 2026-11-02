@@ -23,13 +23,13 @@
 #include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
-namespace qiven3::test::vectors {
+namespace qiven::test::vectors {
 
 namespace body = qiven3::entry::body;
 namespace check = qiven3::entry::check;
 namespace content = qiven3::entry::content;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace json = qiven3::json;
@@ -41,8 +41,8 @@ using header::Slot;
 
 // A member's value, of its type, or a fault thrown.
 std::string_view text(const Value& v, std::string_view key) {
-    const std::optional<json::Index> at = v.find(0, key);
-    if (!at || v.kind(*at) != json::Kind::string) {
+    const std::optional<qiven3::json::Index> at = v.find(0, key);
+    if (!at || v.kind(*at) != qiven3::json::Kind::string) {
         throw std::runtime_error("member " + std::string(key) + " not a text");
     }
     return v.text(*at);
@@ -51,8 +51,8 @@ std::optional<std::string_view> maybe_text(const Value& v, std::string_view key)
     return v.find(0, key) ? std::optional<std::string_view>(text(v, key)) : std::nullopt;
 }
 std::int64_t integer(const Value& v, std::string_view key) {
-    const std::optional<json::Index> at = v.find(0, key);
-    if (!at || v.kind(*at) != json::Kind::integer) {
+    const std::optional<qiven3::json::Index> at = v.find(0, key);
+    if (!at || v.kind(*at) != qiven3::json::Kind::integer) {
         throw std::runtime_error("member " + std::string(key) + " not an integer");
     }
     return v.integer(*at);
@@ -109,18 +109,18 @@ std::string checked(Context& c, std::string_view line, std::optional<std::string
 
 std::string framing(Context& /*c*/, const Value& v) {
     std::string decimal;
-    digest::Field field;
-    if (const std::optional<json::Index> at = v.find(0, "value")) {
-        if (v.kind(*at) == json::Kind::integer) {
+    qiven3::digest::Field field;
+    if (const std::optional<qiven3::json::Index> at = v.find(0, "value")) {
+        if (v.kind(*at) == qiven3::json::Kind::integer) {
             decimal = std::to_string(v.integer(*at));
             field = decimal;
         } else {
             field = text(v, "value");
         }
     }
-    const std::array<digest::Field, 1> fields = {field};
+    const std::array<qiven3::digest::Field, 1> fields = {field};
     std::string out;
-    digest::frame(std::span<const digest::Field>(fields), out);
+    qiven3::digest::frame(std::span<const qiven3::digest::Field>(fields), out);
     return same("framed", hex_of(out), text(v, "framed"));
 }
 
@@ -128,12 +128,12 @@ std::string framed_header(Context& /*c*/, const Value& v) {
     const header::Header<> h = header::parse_line(text(v, "header"));
     const auto fields = h.fields();
     std::string out;
-    digest::frame(std::span<const digest::Field>(fields), out);
+    qiven3::digest::frame(std::span<const qiven3::digest::Field>(fields), out);
     if (out.size() != size(v, "size")) {
         return "size: " + std::to_string(out.size());
     }
     std::string id;
-    digest::entry_id(std::span<const digest::Field>(fields), id);
+    qiven3::digest::entry_id(std::span<const qiven3::digest::Field>(fields), id);
     const std::string f = same("framed", hex_of(out), text(v, "framed"));
     return f.empty() ? same("id", id, text(v, "id")) : f;
 }
@@ -141,14 +141,14 @@ std::string framed_header(Context& /*c*/, const Value& v) {
 std::string entry(Context& c, const Value& v) {
     const std::string_view line = text(v, "header");
     Value strict;
-    canon::parse(line, strict);
+    qiven3::canon::parse(line, strict);
     const header::Header<> h = header::parse_line(line);
     const auto fields = h.fields();
-    if (digest::framed_size(std::span<const digest::Field>(fields)) != size(v, "framed_size")) {
+    if (qiven3::digest::framed_size(std::span<const qiven3::digest::Field>(fields)) != size(v, "framed_size")) {
         return "framed_size";
     }
     std::string id;
-    digest::entry_id(std::span<const digest::Field>(fields), id);
+    qiven3::digest::entry_id(std::span<const qiven3::digest::Field>(fields), id);
     if (const std::string f = same("id", id, text(v, "id")); !f.empty() || h.value(Slot::id) != id) {
         return f.empty() ? "the line's id" : f;
     }
@@ -166,17 +166,17 @@ std::string entry(Context& c, const Value& v) {
     }
     const std::string_view text_of = text(v, "content");
     Value parsed;
-    canon::parse(text_of, parsed);
+    qiven3::canon::parse(text_of, parsed);
     if (text_of.size() != size(v, "content_size") || fx->key != key || fx->content != text_of) {
         return "content_size, or not the fixtures' key and content";
     }
     std::string d;
-    digest::keyed(digest::key_from_hex(c.fake, *key), text_of, d);
+    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, *key), text_of, d);
     if (d != h.value(Slot::content)) {
         return "content digest: " + d;
     }
     std::string record;
-    body::make(text_of, digest::key_from_hex(c.fake, *key), id).line(record);
+    body::make(text_of, qiven3::digest::key_from_hex(c.fake, *key), id).line(record);
     if (record != text(v, "body") || record.size() != size(v, "body_size")) {
         return "body: " + record;
     }
@@ -186,52 +186,52 @@ std::string entry(Context& c, const Value& v) {
 std::string content_digest(Context& c, const Value& v) {
     const std::string bytes = from_hex(text(v, "bytes"));
     Value shown;
-    if (canon::try_parse(text(v, "shown"), shown, canon::Syntax{}, canon::Layout::any)) {
+    if (qiven3::canon::try_parse(text(v, "shown"), shown, qiven3::canon::Syntax{}, qiven3::canon::Layout::any)) {
         return "the text shown refused";
     }
     std::string out;
-    canon::canonical(shown, out);
+    qiven3::canon::canonical(shown, out);
     Value strict;
-    canon::parse(bytes, strict);
+    qiven3::canon::parse(bytes, strict);
     if (out != bytes || bytes.size() != size(v, "size")) {
         return "canonical: " + hex_of(out);
     }
     std::string d;
-    digest::keyed(digest::key_from_hex(c.fake, text(v, "key")), bytes, d);
+    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, text(v, "key")), bytes, d);
     return same("digest", d, text(v, "digest"));
 }
 
 std::string evidence(Context& c, const Value& v) {
     const Entry& e = c.entry(text(v, "entry"));
     std::string d;
-    digest::keyed(digest::key_from_hex(c.fake, e.key), from_hex(text(v, "data")), d);
+    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, e.key), from_hex(text(v, "data")), d);
     if (const std::string f = same("digest", d, text(v, "digest")); !f.empty()) {
         return f;
     }
     Value cv;
-    canon::parse(e.content, cv);
+    qiven3::canon::parse(e.content, cv);
     const std::string_view field = text(v, "field");
-    const std::optional<json::Index> at = cv.find(0, field);
+    const std::optional<qiven3::json::Index> at = cv.find(0, field);
     if (!at || (field != "evidence" && field != "message")) {
         return "no field " + std::string(field);
     }
-    json::Index holder = *at;
+    qiven3::json::Index holder = *at;
     if (field == "evidence") {
         holder = fixtures::detail::item(cv, *at, 0);
     }
-    const std::optional<json::Index> held = cv.find(holder, "digest");
+    const std::optional<qiven3::json::Index> held = cv.find(holder, "digest");
     return held ? same("held", cv.text(*held), text(v, "digest")) : "no digest held";
 }
 
 std::string parse(Context& /*c*/, const Value& v) {
-    const std::optional<json::Index> pieces = v.find(0, "bytes");
-    if (!pieces || v.kind(*pieces) != json::Kind::array) {
+    const std::optional<qiven3::json::Index> pieces = v.find(0, "bytes");
+    if (!pieces || v.kind(*pieces) != qiven3::json::Kind::array) {
         return "bytes not a list";
     }
     std::string data;
-    for (json::Index k = *pieces + 1; k < v.next(*pieces); k = v.next(k)) {
-        const std::optional<json::Index> hex = v.find(k, "hex");
-        const std::optional<json::Index> times = v.find(k, "times");
+    for (qiven3::json::Index k = *pieces + 1; k < v.next(*pieces); k = v.next(k)) {
+        const std::optional<qiven3::json::Index> hex = v.find(k, "hex");
+        const std::optional<qiven3::json::Index> times = v.find(k, "times");
         if (v.count(k) != 2 || !hex || !times || v.integer(*times) < 1) {
             return "a piece not of hex and times";
         }
@@ -241,7 +241,7 @@ std::string parse(Context& /*c*/, const Value& v) {
         }
     }
     Value out;
-    const std::optional<qiven3::ParseCode> code = canon::try_parse(data, out);
+    const std::optional<qiven3::ParseCode> code = qiven3::canon::try_parse(data, out);
     return same("code", code ? qiven3::name(*code) : "none", text(v, "code"));
 }
 
@@ -253,7 +253,7 @@ std::string check_line(Context& c, const Value& v) {
 std::string usage(Context& /*c*/, const Value& v) {
     const std::string_view t = text(v, "content");
     Value cv;
-    canon::parse(t, cv);
+    qiven3::canon::parse(t, cv);
     if (t.size() != size(v, "size")) {
         return "size: " + std::to_string(t.size());
     }
@@ -274,14 +274,14 @@ std::string usage(Context& /*c*/, const Value& v) {
         if (field.items == 0) {
             continue;
         }
-        const std::optional<json::Index> at = cv.find(0, field.name.view());
+        const std::optional<qiven3::json::Index> at = cv.find(0, field.name.view());
         if (!at || cv.count(*at) != field.items || size(v, field.name.view()) != field.items) {
             return "a list not at its limit: " + std::string(field.name.view());
         }
         ++lists;
     }
-    const std::optional<json::Index> episode = cv.find(0, "episode");
-    const std::optional<json::Index> truncated = cv.find(0, "truncated");
+    const std::optional<qiven3::json::Index> episode = cv.find(0, "episode");
+    const std::optional<qiven3::json::Index> truncated = cv.find(0, "truncated");
     if (lists != 3 || !episode || !truncated || !cv.boolean(*truncated)) {
         return "not every list, the episode and truncated";
     }
@@ -312,8 +312,8 @@ std::string map(Context& c, const Value& v) {
     const Entry& e = c.entry(text(v, "entry"));
     const header::Header<> h = header::parse_line(e.header);
     Value cv;
-    canon::parse(e.content, cv);
-    const digest::Key<Fake> key = digest::key_from_hex(c.fake, e.key);
+    qiven3::canon::parse(e.content, cv);
+    const qiven3::digest::Key<Fake> key = qiven3::digest::key_from_hex(c.fake, e.key);
     served::Mark mark = served::Mark::unchecked;
     if (integer(v, "version") == 0) {
         if (v.find(0, "digest")) {
@@ -323,7 +323,7 @@ std::string map(Context& c, const Value& v) {
     } else {
         const std::string& bytes = c.file(integer(v, "version"));
         std::string d;
-        digest::keyed(key, bytes, d);
+        qiven3::digest::keyed(key, bytes, d);
         if (const std::string f = same("digest", d, text(v, "digest")); !f.empty()) {
             return f;
         }
@@ -333,8 +333,8 @@ std::string map(Context& c, const Value& v) {
 }
 
 std::string block(Context& c, const Value& v) {
-    const std::optional<json::Index> record = v.find(0, "record");
-    if (!record || v.kind(*record) != json::Kind::array) {
+    const std::optional<qiven3::json::Index> record = v.find(0, "record");
+    if (!record || v.kind(*record) != qiven3::json::Kind::array) {
         return "record not a list";
     }
     const std::size_t n = v.count(*record);
@@ -344,12 +344,12 @@ std::string block(Context& c, const Value& v) {
     heads.reserve(n);
     values.reserve(n);
     std::optional<std::size_t> self;
-    for (json::Index k = *record + 1; k < v.next(*record); k = v.next(k)) {
+    for (qiven3::json::Index k = *record + 1; k < v.next(*record); k = v.next(k)) {
         const Entry& e = c.entry(v.text(k));
         self = e.name == text(v, "entry") ? std::optional<std::size_t>(heads.size()) : self;
         heads.push_back(header::parse_line(e.header));
         values.emplace_back();
-        canon::parse(e.content, values.back());
+        qiven3::canon::parse(e.content, values.back());
     }
     for (std::size_t i = 0; i < n; ++i) {
         items.push_back(fold::item(heads[i], values[i], true));
@@ -371,4 +371,4 @@ std::string block(Context& c, const Value& v) {
     return served::cost(out) == size(v, "cost") ? std::string() : "cost: " + std::to_string(served::cost(out));
 }
 
-}  // namespace qiven3::test::vectors
+}  // namespace qiven::test::vectors

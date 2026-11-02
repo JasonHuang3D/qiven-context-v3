@@ -1,6 +1,6 @@
 #include "hal/hal.hpp"
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3::hal {
 
@@ -54,18 +54,18 @@ std::string_view name(Code code) noexcept {
 
 void Kernels::add(std::string_view name, Reference reference) noexcept {
     if (reference == nullptr) {
-        memory::fail_fast("hal::Kernels::add: a null reference");
+        qiven::memory::fail_fast("hal::Kernels::add: a null reference");
     }
     if (name.empty() || name.size() > kernel_name_bytes) {
-        memory::fail_fast("hal::Kernels::add: a name empty or past kernel_name_bytes");
+        qiven::memory::fail_fast("hal::Kernels::add: a name empty or past kernel_name_bytes");
     }
     if (find(name) != nullptr) {
-        memory::fail_fast("hal::Kernels::add: a name added twice");
+        qiven::memory::fail_fast("hal::Kernels::add: a name added twice");
     }
     if (size_ == entries_.size()) {
-        memory::fail_fast("hal::Kernels::add: a kernel past kernels_max");
+        qiven::memory::fail_fast("hal::Kernels::add: a kernel past kernels_max");
     }
-    entries_[size_] = Entry{memory::Inline<kernel_name_bytes>(name), reference};
+    entries_[size_] = Entry{qiven::memory::Inline<kernel_name_bytes>(name), reference};
     ++size_;
 }
 

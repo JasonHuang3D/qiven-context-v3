@@ -58,9 +58,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
@@ -117,7 +117,7 @@ public:
     template <class Step>
         requires std::invocable<Step&, const Record&, const state::Chars&>
     bool next(Step&& step) {
-        memory::Arena arena(pages_.bytes().first(operation_base));
+        qiven::memory::Arena arena(pages_.bytes().first(operation_base));
 #if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
@@ -189,7 +189,7 @@ public:
     MemoryStore(state::State& s, P& platform, bool read_only = false)
         : state_(&s), platform_(&platform), pages_(platform.pages(operation_base)), gate_(read_only) {
         if (pages_.bytes().size() < operation_base) {
-            memory::fail_fast("store/memory: pages short of their request");
+            qiven::memory::fail_fast("store/memory: pages short of their request");
         }
     }
     MemoryStore(const MemoryStore&) = delete;
@@ -228,7 +228,7 @@ public:
         std::optional<Pages> extra;
         const std::span<std::byte> span = room(state::budget_of(entries), extra);
         const std::size_t half = span.size() / 2;
-        memory::Arena kept(span.first(span.size() - half));
+        qiven::memory::Arena kept(span.first(span.size() - half));
         hook(kept);
         state::ScratchView scratch(span.subspan(span.size() - half), countdown_);
         const Released<std::remove_cvref_t<A>> released(admit);
@@ -372,7 +372,7 @@ public:
         std::optional<Pages> extra;
         const std::span<std::byte> span = room(state::budget_of(entries), extra);
         const std::size_t half = span.size() / 2;
-        memory::Arena kept(span.first(span.size() - half));
+        qiven::memory::Arena kept(span.first(span.size() - half));
         hook(kept);
         state::ScratchView scratch(span.subspan(span.size() - half), countdown_);
         const Released<std::remove_cvref_t<A>> released(admit);
@@ -495,11 +495,11 @@ private:
         }
         extra.emplace(platform_->pages(budget));
         if (extra->bytes().size() < budget) {
-            memory::fail_fast("store/memory: pages short of their request");
+            qiven::memory::fail_fast("store/memory: pages short of their request");
         }
         return extra->bytes().first(budget);
     }
-    void hook([[maybe_unused]] memory::Arena& arena) const noexcept {
+    void hook([[maybe_unused]] qiven::memory::Arena& arena) const noexcept {
 #if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
@@ -511,7 +511,7 @@ private:
     template <class Give>
     bool lend(Operation op, std::string_view id, Give&& give) {
         gate_.enter(op, {});
-        memory::Arena arena(own());
+        qiven::memory::Arena arena(own());
         hook(arena);
         const state::Locked lock(*state_, op, {});
         const bool has = give(held(lock.data(), op, id), state::Chars(arena));
@@ -524,7 +524,7 @@ private:
     template <class Give>
     bool look(Operation op, Give&& give) {
         gate_.enter(op, {});
-        memory::Arena arena(own());
+        qiven::memory::Arena arena(own());
         hook(arena);
         const state::Locked lock(*state_, op, {});
         state::StateView view(lock.data(), state::Chars(arena));

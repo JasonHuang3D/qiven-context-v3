@@ -9,7 +9,7 @@
 #include <string_view>
 
 #include "entry/kinds.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3::write::build::detail {
 
@@ -21,7 +21,7 @@ using entries::Why;
 entries::EntriesError refusal(const File& file, std::size_t e, Code code, Why why) {
     entries::EntriesError r{.code = code, .why = why};
     r.entry = static_cast<std::uint32_t>(e);
-    r.name = memory::Inline<64>(file.text(file.entries()[e].name));
+    r.name = qiven::memory::Inline<64>(file.text(file.entries()[e].name));
     return r;
 }
 
@@ -54,13 +54,13 @@ void walk(const File& file, std::size_t e, json::Index node, entries::detail::Pa
             }
         }
         if (into == at) {
-            memory::fail_fast("write/build: a site outside its entry's content");
+            qiven::memory::fail_fast("write/build: a site outside its entry's content");
         }
         at = into;
     }
 }
 
-void put_size(std::size_t n, memory::String& out) {
+void put_size(std::size_t n, qiven::memory::String& out) {
     std::array<char, 24> digits{};
     const std::to_chars_result r = std::to_chars(digits.data(), std::to_address(digits.end()), n);
     out.append(digits.data(), static_cast<std::size_t>(std::distance(digits.data(), r.ptr)));
@@ -69,7 +69,7 @@ void put_size(std::size_t n, memory::String& out) {
 
 }  // namespace
 
-void identity_key(const entry::kinds::IdentityView& identity, memory::String& out) {
+void identity_key(const entry::kinds::IdentityView& identity, qiven::memory::String& out) {
     out.clear();
     put_size(identity.kind, out);
     for (const std::string_view part : identity.parts) {
@@ -97,7 +97,7 @@ void refuse_target(const File& file, std::size_t e) {
     path.member("entries");
     path.index(e);
     path.member("target");
-    r.path = memory::Inline<128>(path.view());
+    r.path = qiven::memory::Inline<128>(path.view());
     throw r;
 }
 
@@ -115,7 +115,7 @@ void refuse_site(const File& file, std::size_t e, const entries::Site& site) {
             path.member("piece");
         }
     }
-    r.path = memory::Inline<128>(path.view());
+    r.path = qiven::memory::Inline<128>(path.view());
     throw r;
 }
 
@@ -129,7 +129,7 @@ void refuse_content(const File& file, std::size_t e, const entry::content::Conte
     path.index(e);
     path.member(fault.code == entry::content::Code::basis ? "basis" : "content");  // basis: the entry's member
     path.member(fault.path.view());
-    r.path = memory::Inline<128>(path.view());
+    r.path = qiven::memory::Inline<128>(path.view());
     throw r;
 }
 

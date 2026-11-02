@@ -19,8 +19,8 @@
 #include <vector>
 
 #include "entry/content_fields.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
 #include "write/entries.hpp"
@@ -29,7 +29,7 @@
 namespace {
 
 namespace we = qiven3::write::entries;
-using qiven3::memory::Arena;
+using qiven::memory::Arena;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
 
@@ -181,7 +181,7 @@ QIVEN_CASE(write_entries, fills_the_holes) {
         for (const we::Site& s : f.sites(f.entries()[i])) {
             fills.push_back(s.hole == we::Hole::piece ? std::string_view(digest) : std::string_view(id));
         }
-        qiven3::json::Value out{qiven3::memory::Allocator<char>(arena)};
+        qiven3::json::Value out{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, fills, out);
         const std::string text = encoded(out);
         CHECK(text.find("\"piece\"") == std::string::npos);
@@ -194,7 +194,7 @@ QIVEN_CASE(write_entries, fills_the_holes) {
         for (const we::Site& s : f.sites(f.entries()[i])) {
             stand.push_back(s.hole == we::Hole::piece ? we::detail::stand_digest : we::detail::stand_id);
         }
-        qiven3::json::Value standing{qiven3::memory::Allocator<char>(arena)};
+        qiven3::json::Value standing{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, stand, standing);
         CHECK(r.standing_size(f.entries()[i]) == encoded(standing).size());
     }
@@ -397,8 +397,8 @@ QIVEN_CASE(write_entries, arena_too_small) {
     bool budget = false;
     try {
         static_cast<void>(we::read(write_file, arena));
-    } catch (const qiven3::memory::MemoryError& e) {
-        budget = e.code == qiven3::memory::MemoryCode::budget;
+    } catch (const qiven::memory::MemoryError& e) {
+        budget = e.code == qiven::memory::MemoryCode::budget;
     }
     CHECK(budget);
 }

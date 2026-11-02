@@ -35,8 +35,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
@@ -55,14 +55,14 @@ using qiven3::platform::fake::FakePlatform;
 using qiven3::store::Capabilities;
 using qiven3::store::Engine;
 using qiven3::store::EntryView;
-using qiven3::test::records::added;
-using qiven3::test::records::chain;
-using qiven3::test::records::forget;
-using qiven3::test::records::id_of;
-using qiven3::test::records::Rec;
-using qiven3::test::records::views;
-using Arena = qiven3::memory::Arena;
-using Chars = qiven3::memory::Allocator<char>;
+using qiven::test::records::added;
+using qiven::test::records::chain;
+using qiven::test::records::forget;
+using qiven::test::records::id_of;
+using qiven::test::records::Rec;
+using qiven::test::records::views;
+using Arena = qiven::memory::Arena;
+using Chars = qiven::memory::Allocator<char>;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::Vector;
@@ -171,8 +171,8 @@ constexpr WhereView test_at = sqlite::site("test", "scratch");
 // file as no store would.
 void alter(const fs::path& path, std::string_view sql) {
     std::vector<std::byte> bytes(4096);
-    qiven3::memory::Arena arena(bytes);
-    const qiven3::memory::String name(text(path), qiven3::memory::Allocator<char>(arena));
+    qiven::memory::Arena arena(bytes);
+    const qiven::memory::String name(text(path), qiven::memory::Allocator<char>(arena));
     sqlite::Connection c = sqlite::Connection::open(name, false, test_at);
     c.exec(sql, test_at);
 }
@@ -434,14 +434,14 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
     const auto out = std::make_unique<qiven3::store::Record>(chars);  // past a frame's share
-    qiven3::memory::String line(chars);
+    qiven::memory::String line(chars);
     store->header(a, line);
     CHECK_EQ(std::string_view(line), mine[0].line);
     std::string lent;  // the same lent from the store's own pages
     store->header(a, [&lent](std::string_view l, const sqlite::Chars&) { lent = l; });
     CHECK_EQ(lent, mine[0].line);
     CHECK(store->peak() > 0 && store->peak() <= qiven3::store::operation_base);
-    qiven3::memory::String record(chars);
+    qiven::memory::String record(chars);
     CHECK(store->body(a, record) && std::string_view(record) == *mine[0].record);
     CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(*f2), record));
     CHECK(store->forgotten(id_of(theirs[1])) && !store->forgotten(a));

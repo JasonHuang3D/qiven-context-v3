@@ -6,7 +6,7 @@
 
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::check {
 
@@ -27,7 +27,7 @@ void raise(const Fault& fault) {
         case Part::body: throw body::BodyError{static_cast<body::Code>(fault.code)};
         case Part::content: throw fault.error;
     }
-    memory::fail_fast("check: a fault of no part");
+    qiven::memory::fail_fast("check: a fault of no part");
 }
 
 }  // namespace qiven3::entry::check

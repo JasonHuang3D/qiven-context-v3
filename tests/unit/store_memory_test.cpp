@@ -23,8 +23,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -34,10 +34,10 @@
 
 namespace {
 
-using namespace qiven3::test::records;
+using namespace qiven::test::records;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Arena = qiven3::memory::Arena;
-using Chars = qiven3::memory::Allocator<char>;
+using Arena = qiven::memory::Arena;
+using Chars = qiven::memory::Allocator<char>;
 using qiven3::store::Counts;
 using qiven3::store::EntryView;
 using qiven3::store::GuardView;
@@ -52,8 +52,8 @@ using qiven3::store::Line;
 using qiven3::store::MemoryStore;
 using qiven3::store::RangeView;
 using qiven3::store::Written;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using Store = MemoryStore<Fake>;
 using Recs = std::vector<Rec>;
 

@@ -33,7 +33,7 @@ namespace header = qiven3::entry::header;
 namespace served = qiven3::entry::served;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using Fake = qiven3::platform::fake::FakePlatform;
 using served::Mark;
 

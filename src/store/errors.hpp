@@ -27,7 +27,7 @@
 #include <span>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::store {
 
@@ -107,10 +107,10 @@ public:
                                               std::string_view pattern = {}, std::string_view detail = {}) noexcept {
         StoreError e = make(Kind::entry_invalid, 0, operation, path, detail);
         e.index_ = index;
-        e.entry_code_ = memory::Inline<code_bytes>(code);
+        e.entry_code_ = qiven::memory::Inline<code_bytes>(code);
         e.id_ = Id(id);
-        e.field_ = memory::Inline<field_bytes>(field);
-        e.pattern_ = memory::Inline<pattern_bytes>(pattern);
+        e.field_ = qiven::memory::Inline<field_bytes>(field);
+        e.pattern_ = qiven::memory::Inline<pattern_bytes>(pattern);
         return e;
     }
     static constexpr StoreError not_found(std::string_view operation, std::string_view path, std::string_view id,
@@ -160,7 +160,7 @@ public:
     [[nodiscard]] constexpr std::string_view path() const noexcept { return path_.view(); }
     [[nodiscard]] constexpr std::string_view detail() const noexcept { return detail_.view(); }
     // The detail replaced, as a step's error that a later step names more in.
-    constexpr void set_detail(std::string_view text) noexcept { detail_ = memory::Inline<detail_bytes>(text); }
+    constexpr void set_detail(std::string_view text) noexcept { detail_ = qiven::memory::Inline<detail_bytes>(text); }
     [[nodiscard]] constexpr std::string_view scope() const noexcept { return scope_.view(); }
     [[nodiscard]] constexpr std::string_view lane() const noexcept { return lane_.view(); }
     [[nodiscard]] constexpr std::string_view expected() const noexcept { return expected_.view(); }
@@ -177,9 +177,9 @@ public:
     [[nodiscard]] constexpr std::uint64_t max_count() const noexcept { return max_count_; }
 
 private:
-    using Scope = memory::Inline<scope_bytes>;
-    using Lane = memory::Inline<lane_bytes>;
-    using Id = memory::Inline<id_bytes>;
+    using Scope = qiven::memory::Inline<scope_bytes>;
+    using Lane = qiven::memory::Inline<lane_bytes>;
+    using Id = qiven::memory::Inline<id_bytes>;
 
     constexpr StoreError(Kind kind, std::uint8_t code, std::string_view operation, std::string_view path,
                          std::string_view detail) noexcept
@@ -196,15 +196,15 @@ private:
     std::size_t index_ = 0;
     double seconds_ = 0;
     std::uint64_t size_ = 0, count_ = 0, max_size_ = 0, max_count_ = 0;
-    memory::Inline<operation_bytes> operation_;
-    memory::Inline<path_bytes> path_;
-    memory::Inline<detail_bytes> detail_;
+    qiven::memory::Inline<operation_bytes> operation_;
+    qiven::memory::Inline<path_bytes> path_;
+    qiven::memory::Inline<detail_bytes> detail_;
     Scope scope_;
     Lane lane_;
     Id expected_, actual_, id_;
-    memory::Inline<code_bytes> entry_code_;
-    memory::Inline<field_bytes> field_;
-    memory::Inline<pattern_bytes> pattern_;
+    qiven::memory::Inline<code_bytes> entry_code_;
+    qiven::memory::Inline<field_bytes> field_;
+    qiven::memory::Inline<pattern_bytes> pattern_;
 };
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(StoreError) == 1392, "StoreError's size is pinned: its kind and code, five counts, twelve texts");

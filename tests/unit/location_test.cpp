@@ -19,8 +19,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
@@ -133,8 +133,8 @@ QIVEN_CASE(location, smoke) {
     CHECK(fs::exists(scratch.root / "store" / "store.db"));
     {
         const auto pages = fake.pages(64 * 1024);
-        qiven3::memory::Arena arena(pages.bytes());
-        qiven3::memory::String got{qiven3::memory::Allocator<char>(arena)};
+        qiven::memory::Arena arena(pages.bytes());
+        qiven::memory::String got{qiven::memory::Allocator<char>(arena)};
         location::store_dir(fake, got);
         CHECK_EQ(std::string(got), dir);
     }

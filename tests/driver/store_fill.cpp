@@ -35,7 +35,7 @@ std::string at_of(std::int64_t minute) {
 
 }  // namespace
 
-Fill::Fill(const test::stage_book::Book& book, ArgView request, const std::optional<store::Head>& head)
+Fill::Fill(const qiven::test::stage_book::Book& book, ArgView request, const std::optional<store::Head>& head)
     : book_(&book), scope_(text(request, "scope")), lane_(text(request, "lane")), content_(text(request, "content")),
       mark_(text(request, "mark")), writer_(text(request, "writer")), count_(integer(request, "count")),
       minute_(integer(request, "minute", 0)) {
@@ -62,7 +62,7 @@ std::span<const store::EntryView> Fill::next() {
         std::string content = content_;
         content.replace(content.find(mark_), mark_.size(), std::to_string(seq));
         const std::string at = at_of(minute_ + (made_ / 60));
-        test::stage_book::Stored s = book_->made("A", "A", content, [&](header::FieldsView& f) {
+        qiven::test::stage_book::Stored s = book_->made("A", "A", content, [&](header::FieldsView& f) {
             f.scope = scope_;
             f.lane = lane_;
             f.seq = seq;
@@ -80,7 +80,7 @@ std::span<const store::EntryView> Fill::next() {
     return views_;
 }
 
-test::stage_book::Stored claim(const test::stage_book::Book& book, const std::string& scope,
+qiven::test::stage_book::Stored claim(const qiven::test::stage_book::Book& book, const std::string& scope,
                                const std::string& lane, const std::string& writer, const std::string& content,
                                std::int64_t seq, std::optional<std::string_view> parent) {
     const std::string at = at_of(seq / 60);

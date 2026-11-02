@@ -5,10 +5,10 @@
 
 namespace qiven3::json {
 
-template class Basic<memory::Allocator<char>>;
-template class Writer<memory::Allocator<char>>;
+template class Basic<qiven::memory::Allocator<char>>;
+template class Writer<qiven::memory::Allocator<char>>;
 template std::optional<ParseCode> try_scan(std::string_view, std::size_t, Value&);
 template void scan(std::string_view, std::size_t, Value&);
-template void encode(const Value&, memory::String&);
+template void encode(const Value&, qiven::memory::String&);
 
 }  // namespace qiven3::json

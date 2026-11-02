@@ -16,9 +16,9 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "sqlite3.h"
 #include "store/codes.hpp"
 #include "store/errors.hpp"
@@ -29,8 +29,8 @@ namespace {
 
 // The installed heap, which the engine's allocator reaches: the engine's
 // allocator takes no argument, so the heap is the process's one.
-std::atomic<memory::Heap*>& installed() noexcept {
-    static std::atomic<memory::Heap*> heap{nullptr};
+std::atomic<qiven::memory::Heap*>& installed() noexcept {
+    static std::atomic<qiven::memory::Heap*> heap{nullptr};
     return heap;
 }
 
@@ -40,10 +40,10 @@ std::atomic<std::size_t>& refused() noexcept {
     return request;
 }
 
-memory::Heap& heap_or_fail() noexcept {
-    memory::Heap* const heap = installed().load(std::memory_order_acquire);
+qiven::memory::Heap& heap_or_fail() noexcept {
+    qiven::memory::Heap* const heap = installed().load(std::memory_order_acquire);
     if (heap == nullptr) {
-        memory::fail_fast("store/sqlite: the engine called its allocator with no heap installed");
+        qiven::memory::fail_fast("store/sqlite: the engine called its allocator with no heap installed");
     }
     return *heap;
 }
@@ -104,12 +104,12 @@ std::size_t slot_bytes() noexcept {
 // their count or size passes the engine's int.
 std::size_t slot_count(std::span<std::byte> pages, std::size_t connections, std::size_t size) noexcept {
     constexpr auto most = static_cast<std::size_t>(std::numeric_limits<int>::max());
-    const std::optional<std::size_t> each = memory::mul(cache_slots, connections);
-    const std::optional<std::size_t> n = each ? memory::add(*each, slots_reserve) : std::nullopt;
+    const std::optional<std::size_t> each = qiven::memory::mul(cache_slots, connections);
+    const std::optional<std::size_t> n = each ? qiven::memory::add(*each, slots_reserve) : std::nullopt;
     if (!n || size == 0 || size > most || *n > most) {
         return 0;
     }
-    const std::optional<std::size_t> bytes = memory::mul(*n, size);
+    const std::optional<std::size_t> bytes = qiven::memory::mul(*n, size);
     return bytes && *bytes <= pages.size() ? *n : 0;
 }
 
@@ -145,8 +145,8 @@ int extended(sqlite3* db, int rc) noexcept {
 [[noreturn]] void raise_at(sqlite3* db, int rc, const WhereView& at) {
     const int code = extended(db, rc);
     if ((code & 0xFF) == SQLITE_NOMEM || code == SQLITE_IOERR_NOMEM) {
-        const memory::Heap* const heap = installed().load(std::memory_order_acquire);
-        throw memory::MemoryError::budget("store/sqlite", heap != nullptr ? heap->budget() : 0,
+        const qiven::memory::Heap* const heap = installed().load(std::memory_order_acquire);
+        throw qiven::memory::MemoryError::budget("store/sqlite", heap != nullptr ? heap->budget() : 0,
                                           refused().load(std::memory_order_relaxed),
                                           heap != nullptr ? heap->used() : 0);
     }
@@ -236,7 +236,7 @@ EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections)
     : size_(slot_bytes()), count_(slot_count(pages, connections, size_)),
       heap_(pages.first(pages.size() - (size_ * count_))),
       slots_(pages.subspan(pages.size() - (size_ * count_)).data()) {
-    memory::Heap* none = nullptr;
+    qiven::memory::Heap* none = nullptr;
     if (!installed().compare_exchange_strong(none, &heap_, std::memory_order_acq_rel)) {
         throw StoreError(Code::internal, open_name, {}, "an engine heap is installed already");
     }
@@ -274,7 +274,7 @@ EngineHeap::~EngineHeap() {
     release_slots();
     installed().store(nullptr, std::memory_order_release);
     if (heap_.used() != 0) {
-        memory::fail_fast("store/sqlite: the engine heap holds blocks past the engine's end");
+        qiven::memory::fail_fast("store/sqlite: the engine heap holds blocks past the engine's end");
     }
 }
 
@@ -371,7 +371,7 @@ std::string_view Statement::blob(int column) const noexcept { return bytes_of(st
 
 bool Statement::null(int column) const noexcept { return sqlite3_column_type(statement_, column) == SQLITE_NULL; }
 
-Connection Connection::open(const memory::String& path, bool read_only, const WhereView& at) {
+Connection Connection::open(const qiven::memory::String& path, bool read_only, const WhereView& at) {
     if (!engine_ready()) {
         throw StoreError(Code::internal, at.operation, at.path, "no engine heap installed");
     }

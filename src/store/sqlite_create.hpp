@@ -14,7 +14,7 @@
 
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -22,7 +22,7 @@
 namespace qiven3::store::sqlite {
 
 template <platform::Platform P>
-[[nodiscard]] Connection made(const memory::String& resolved, P& platform, const WhereView& at, Opened& opened) {
+[[nodiscard]] Connection made(const qiven::memory::String& resolved, P& platform, const WhereView& at, Opened& opened) {
     const std::string_view directory = directory_of(resolved);
     bool own = false;
     if (!directory.empty() && !is_directory(directory)) {

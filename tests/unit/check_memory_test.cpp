@@ -20,8 +20,8 @@
 #include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -36,10 +36,10 @@ namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+namespace fixtures = qiven::test::fixtures;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 // A case: its fixture, its line, its record or none, and the allocations
@@ -117,7 +117,7 @@ QIVEN_CASE(check, faults) {
     const std::vector<Case> all = cases(fake);
     CHECK_EQ(all.size(), 6U);
     std::vector<std::byte> pages(budget_base + 8 * 65536);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     bool done = false;
     // The entry and every value given back once it is dropped.
@@ -133,8 +133,8 @@ QIVEN_CASE(check, faults) {
             }
             arena->attach(nullptr);
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "check.entry", countdown, op, empty);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<MemoryError>(qiven_ctx.log, "check.entry", countdown, op, empty);
         std::cout << "check.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
         CHECK_EQ(runs.typed, c.allocations);

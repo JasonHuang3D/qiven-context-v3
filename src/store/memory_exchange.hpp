@@ -59,9 +59,9 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -78,14 +78,14 @@ struct Peak {
     std::size_t work = 0;  // each line's or entry's work
     [[nodiscard]] std::size_t sum() const noexcept { return kept + line + work; }
 };
-inline void note(std::size_t& mark, const memory::Arena& arena) noexcept { mark = std::max(mark, arena.peak()); }
+inline void note(std::size_t& mark, const qiven::memory::Arena& arena) noexcept { mark = std::max(mark, arena.peak()); }
 
 // An operation's budget for the lines it is given.
 inline std::size_t budget_of(std::span<const EntryView> entries) {
     const std::optional<std::size_t> lines = given(entries);
     const std::optional<std::size_t> b = lines ? operation_budget(*lines) : std::nullopt;
     if (!b) {
-        throw memory::MemoryError::budget("store/memory", std::numeric_limits<std::size_t>::max(), entries.size(), 0);
+        throw qiven::memory::MemoryError::budget("store/memory", std::numeric_limits<std::size_t>::max(), entries.size(), 0);
     }
     return *b;
 }
@@ -180,9 +180,9 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
     const stage::AtView at{op, {}};
     const std::size_t quarter = import_line_bytes;
     if (pages.size() < 4 * quarter) {
-        memory::fail_fast("store/memory: an import's pages short of an operation's");
+        qiven::memory::fail_fast("store/memory: an import's pages short of an operation's");
     }
-    memory::Arena kept(pages.first(quarter));
+    qiven::memory::Arena kept(pages.first(quarter));
     hook(kept, countdown);
     const Chars keep(kept);
     Vector<LaneHead> given(keep);
@@ -196,7 +196,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
     Rows<Link> links{Allocator<Link>(d.heap)};
     try {
         for (std::size_t i = 0;; ++i) {
-            memory::Arena text(pages.subspan(quarter, quarter));
+            qiven::memory::Arena text(pages.subspan(quarter, quarter));
             hook(text, countdown);
             Line line(text);
             const bool more = source.next(line);
@@ -204,7 +204,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
             if (!more) {
                 break;
             }
-            memory::Arena work(pages.subspan(2 * quarter));
+            qiven::memory::Arena work(pages.subspan(2 * quarter));
             hook(work, countdown);
             const Released<A> done(admit);
             const EntryView in{line.header, line.has_body ? std::optional<std::string_view>(line.body) : std::nullopt,
@@ -227,7 +227,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
         }
         std::size_t linked = 0;
         for (std::uint32_t i = 0; i < d.held.size(); ++i) {
-            memory::Arena work(pages.subspan(2 * quarter));
+            qiven::memory::Arena work(pages.subspan(2 * quarter));
             hook(work, countdown);
             const bool targets = linked < links.size() && links[linked].at == i;
             const KeysView keys = held_keys(

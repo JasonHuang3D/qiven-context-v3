@@ -34,7 +34,7 @@ namespace header = qiven3::entry::header;
 namespace content = qiven3::entry::content;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using check::Fault;
 using check::Part;
 using header::Slot;
@@ -42,7 +42,7 @@ using Fake = qiven3::platform::fake::FakePlatform;
 using Entry = check::Entry<Fake>;
 
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
-static_assert(sizeof(check::Entry<Fake, qiven3::memory::Allocator<char>>) == 288,
+static_assert(sizeof(check::Entry<Fake, qiven::memory::Allocator<char>>) == 288,
               "the entry's size is pinned: its header, 200, and its optional body, 88");
 #endif
 

@@ -17,7 +17,7 @@
 // run compare the tags. A buffer another fake gave, a moved-from or null
 // buffer, a device the fake was not given, a buffer of another device than
 // the run's, a device id given twice, or a fake ending with its buffers live
-// is a caller's mistake: it stops the process through memory::fail_fast.
+// is a caller's mistake: it stops the process through qiven::memory::fail_fast.
 //
 // thread: one
 

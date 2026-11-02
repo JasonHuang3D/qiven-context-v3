@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/win/windows.hpp"
 #include "qiven/runner/runner.hpp"
 
@@ -30,8 +30,8 @@
 namespace {
 
 namespace fs = std::filesystem;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using qiven3::platform::Code;
 using qiven3::platform::Facts;
 using qiven3::platform::PlatformError;
@@ -156,7 +156,7 @@ std::string joined(const std::vector<std::string>& seen) {
 // answered(k) where op answered and "path <call>" where it threw path.
 template <class Op, class Answered>
 std::vector<std::string> sweep(WindowsPlatform& platform, Op op, Answered answered) {
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     platform.attach(&countdown);
     std::vector<std::string> seen;
     for (std::size_t k = 1; k <= 100; ++k) {

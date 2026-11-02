@@ -197,7 +197,7 @@ PLANTS = {
     "src/qiven3/.clang-tidy": "# clang-tidy's defaults beneath, pointer arithmetic's check off\n"
         "Checks: '-bugprone-*'\n",
     "src/platform/.clang-tidy": "InheritParentConfig: true\nChecks: '-bugprone-*'\n",
-    "src/memory/.clang-tidy": "# B26\nChecks: -cppcoreguidelines-pro-bounds-pointer-arithmetic\n",
+    "foundation/core/memory/.clang-tidy": "# B26\nChecks: -cppcoreguidelines-pro-bounds-pointer-arithmetic\n",
     "foundation/devkit/build/analysis.ruleset": '<RuleSet Name="plant"><Rules><Rule Id="C26481" Action="None" /></Rules></RuleSet>\n',
     "../outside/outside.hpp": "#pragma once\ninline int outside() { return 0; }\n",
     # The stated allowances by file and header, the drives' binary streams
@@ -212,9 +212,9 @@ PLANTS = {
     "tests/faults/assert_other.cpp": "#include <crtdbg.h>\nint fault_other() { return 0; }\n",
     "src/diag/out.cpp": "#include <fcntl.h>\nint diag_open_mode() { return O_WRONLY; }\n",
     "src/diag/fcntl_other.cpp": "#include <fcntl.h>\nint diag_other_mode() { return O_RDONLY; }\n",
-    "src/memory/poison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
+    "foundation/core/memory/include/qiven/memory/poison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
         "#include <sanitizer/asan_interface.h>\n#endif\n",
-    "src/memory/unpoison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
+    "foundation/core/memory/include/qiven/memory/unpoison.hpp": "#pragma once\n#if defined(__SANITIZE_ADDRESS__)\n"
         "#include <sanitizer/asan_interface.h>\n#endif\n",
     "src/platform/files.hpp": "#pragma once\n",
     "src/platform/names.hpp": "#pragma once\n#include \"platform/files.hpp\"\n",
@@ -238,7 +238,7 @@ PLANTED = [
     ("B6", "tests/driver/io_other.cpp", ""), ("B9", "tests/driver/io_other.cpp", ""),
     ("B9", "tests/driver/fcntl_other.cpp", ""), ("B9", "tests/faults/assert_other.cpp", ""),
     ("B9", "src/diag/fcntl_other.cpp", ""),
-    ("B9", "src/memory/unpoison.hpp", ""), ("B17", "src/memory/unpoison.hpp", "include"),
+    ("B9", "foundation/core/memory/include/qiven/memory/unpoison.hpp", ""), ("B17", "foundation/core/memory/include/qiven/memory/unpoison.hpp", "include"),
     ("B17", "src/platform/names_other.hpp", "include"),
     ("B7", "src/forget/system.cpp", ""), ("B7", "src/store/create_process.cpp", ""),
     ("B7", "src/entry/shell_execute.cpp", ""), ("B8", "src/entry/winsock.cpp", ""), ("B8", "qiven3_location", ""),
@@ -262,7 +262,7 @@ PLANTED = [
     ("B17", "src/entry/stream_mode.cpp", "mode"), ("B17", "src/entry/ios_app.cpp", "mode"),
     ("B17", "src/entry/other_app.cpp", "mode"), ("B17", "src/app/instances.cpp", "include"),
     ("B17", "src/app/instances.cpp", "name"), ("B17", "qiven3_location", "link"),
-    ("B17", "src/entry/malloc.hpp", "include"), ("B17", "src/memory/new.hpp", "include"),
+    ("B17", "src/entry/malloc.hpp", "include"), ("B17", "foundation/core/memory/include/qiven/memory/new.hpp", "include"),
     *(("B17", f"src/entry/crt_{n.lstrip('_')}.cpp", "name") for n in B17_ADDED),
     ("B26", ".clang-tidy", "tidy"), ("B26", "src/entry/.clang-tidy", "tidy"),
     ("B26", "foundation/devkit/build/analysis.ruleset", "ruleset"),
@@ -276,8 +276,8 @@ CLEAN = [
     "src/reader/layout_include.cpp", "tests/compat/r1_0/frozen.cpp", "tests/audit/read_audit.cpp",
     "qiven3_base", "qiven3_platform_win", "qiven3_sqlite", "src/diag/diag_windows.cpp", "qiven3_diag",
     "src/platform/platform.hpp",
-    "src/hal/hal.hpp", "src/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
-    "src/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp", "src/app/main.cpp",
+    "src/hal/hal.hpp", "foundation/core/memory/.clang-tidy", "src/platform/.clang-tidy", "tests/driver/common.cpp",
+    "foundation/core/memory/include/qiven/memory/poison.hpp", "tests/faults/fault_assert.cpp", "src/diag/out.cpp", "src/app/main.cpp",
     "src/platform/names.hpp", "src/platform/files.hpp",
 ]
 
@@ -336,19 +336,19 @@ SUBSET_PLANTS = {
         "inline void entry_end(void* self) { TerminateProcess(self, 3); }\n",
     "tests/unit/scope_test.hpp": "#pragma once\n#include <cstdlib>\n"
         "inline int* scope_new() { int* p = new int(1); if (!p) { std::abort(); } return p; }\n",
-    "src/memory/arena.hpp": "#pragma once\n#include <cstddef>\n"
+    "foundation/core/memory/include/qiven/memory/arena.hpp": "#pragma once\n#include <cstddef>\n"
         "inline void* arena_block(std::size_t n) { return ::operator new(n, std::align_val_t{64}); }\n"
         "inline void arena_drop(void* p) { ::operator delete(p, std::align_val_t{64}); }\n"
         "class Arena { std::span<std::byte> pages_; };\n",
-    "src/memory/arena.cpp": "#include <new>\n", "src/memory/pool.cpp": "#include <new>\n",
-    "src/memory/new.hpp": "#pragma once\n#include <new>\n",
-    "src/memory/pool.hpp": "#pragma once\n#include <cstddef>\n#include <span>\n"
+    "foundation/core/memory/src/arena.cpp": "#include <new>\n", "foundation/core/memory/src/pool.cpp": "#include <new>\n",
+    "foundation/core/memory/include/qiven/memory/new.hpp": "#pragma once\n#include <new>\n",
+    "foundation/core/memory/include/qiven/memory/pool.hpp": "#pragma once\n#include <cstddef>\n#include <span>\n"
         "class Pool { std::span<std::byte> pages_; };\nclass Heap { std::span<std::byte> pages_; };\n",
-    "src/memory/borrow.hpp": "#pragma once\n#include <span>\nclass Pool { std::span<int> held; };\n",
-    "src/memory/construct.hpp": "#pragma once\n#include <memory>\n"
+    "foundation/core/memory/include/qiven/memory/borrow.hpp": "#pragma once\n#include <span>\nclass Pool { std::span<int> held; };\n",
+    "foundation/core/memory/include/qiven/memory/construct.hpp": "#pragma once\n#include <memory>\n"
         "inline int* memory_place(void* p) { return new (p) int(1); }\n"
         "inline void memory_end(int* p) { std::destroy_at(p); }\n",
-    "src/memory/fail.hpp": "#pragma once\n#include <atomic>\n#include <exception>\n"
+    "foundation/core/memory/include/qiven/memory/fail.hpp": "#pragma once\n#include <atomic>\n#include <exception>\n"
         "std::atomic<const char*> fail_cause{nullptr};\n"
         "[[noreturn]] inline void fail_fast() noexcept { std::terminate(); }\n",
     "src/diag/handlers.hpp": "#pragma once\n#include <windows.h>\n#include <cstdlib>\n"
@@ -399,7 +399,7 @@ SUBSET_PLANTED = [
     ("B25", "src/entry/globals.hpp", "static"),
     ("B27", "src/entry/nolint.hpp", "nolint"), ("B27", "src/entry/nolint.hpp", "pragma"),
     ("B27", "src/entry/nolint.hpp", "suppress"),
-    ("B28", "src/entry/command.hpp", ""), ("B28", "src/memory/borrow.hpp", ""),
+    ("B28", "src/entry/command.hpp", ""), ("B28", "foundation/core/memory/include/qiven/memory/borrow.hpp", ""),
     ("B28", "src/entry/held.hpp", ""), ("B28", "src/entry/wrapped.hpp", ""),
     ("B29", "src/entry/mutex.hpp", ""), ("B29", "src/entry/mutex.hpp", "lock"),
     ("B29", "src/entry/mutex.hpp", "infinite"),
@@ -407,9 +407,9 @@ SUBSET_PLANTED = [
     ("B31", "src/entry/terminate.hpp", ""),
 ]
 SUBSET_CLEAN = [
-    "tests/unit/scope_test.hpp", "src/memory/arena.hpp", "src/memory/construct.hpp", "src/memory/fail.hpp",
-    "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp", "src/memory/arena.cpp", "src/memory/pool.cpp",
-    "src/memory/pool.hpp", "tests/support/plant/joined.hpp", "src/diag/handlers.hpp",
+    "tests/unit/scope_test.hpp", "foundation/core/memory/include/qiven/memory/arena.hpp", "foundation/core/memory/include/qiven/memory/construct.hpp", "foundation/core/memory/include/qiven/memory/fail.hpp",
+    "src/platform/win/clock.hpp", "src/qiven3/subset_clean.hpp", "foundation/core/memory/src/arena.cpp", "foundation/core/memory/src/pool.cpp",
+    "foundation/core/memory/include/qiven/memory/pool.hpp", "tests/support/plant/joined.hpp", "src/diag/handlers.hpp",
 ]
 PLANTS.update(SUBSET_PLANTS)
 PLANTED += SUBSET_PLANTED

@@ -20,7 +20,7 @@
 #include "driver/drive.hpp"
 #include "driver/platform_files.hpp"
 #include "driver/platform_ops.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/platform.hpp"
 
 namespace qiven3::drive::ops {
@@ -78,16 +78,16 @@ decltype(auto) with_command(ArgView request, F&& f) {
 }
 
 template <class P>
-std::optional<Value> start(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> start(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     return with_command(request, [&](const platform::Command& command) {
         return std::optional<Value>(keep(d, d.children(), d.platform().start(command)));
     });
 }
 
 template <class P>
-std::optional<Value> child_read_line(PlatformDrive<P>& d, memory::Arena& arena, ArgView request) {
+std::optional<Value> child_read_line(PlatformDrive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     const auto found = by_id(d.children(), request, "child");
-    memory::String line{memory::Allocator<char>(arena)};
+    qiven::memory::String line{qiven::memory::Allocator<char>(arena)};
     if (!found->second.read_line(deadline(request, "timeout"), line)) {
         return std::nullopt;
     }
@@ -95,31 +95,31 @@ std::optional<Value> child_read_line(PlatformDrive<P>& d, memory::Arena& arena, 
 }
 
 template <class P>
-std::optional<Value> child_write(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> child_write(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     by_id(d.children(), request, "child")->second.write(from_hex(text(request, "data")));
     return std::nullopt;
 }
 
 template <class P>
-std::optional<Value> child_close_input(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> child_close_input(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     by_id(d.children(), request, "child")->second.close_input();
     return std::nullopt;
 }
 
 template <class P>
-std::optional<Value> child_wait(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> child_wait(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const int code = by_id(d.children(), request, "child")->second.wait(deadline(request, "timeout"));
     return scalar(std::int64_t{code});
 }
 
 template <class P>
-std::optional<Value> child_kill(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> child_kill(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     by_id(d.children(), request, "child")->second.kill();
     return std::nullopt;
 }
 
 template <class P>
-std::optional<Value> child_end(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> child_end(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.children().erase(by_id(d.children(), request, "child"));
     return std::nullopt;
 }

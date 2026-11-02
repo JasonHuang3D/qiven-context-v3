@@ -15,8 +15,8 @@
 #include <utility>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -115,8 +115,8 @@ std::span<B> work_of(std::span<B> pages, std::size_t scopes, std::size_t afters)
 }
 
 LaneHead lane_head(const Statement& s) {
-    return LaneHead{Head{Id::of(s.text(2)), s.integer(3)}, memory::Inline<scope_bytes>(s.text(0)),
-                    memory::Inline<lane_bytes>(s.text(1))};
+    return LaneHead{Head{Id::of(s.text(2)), s.integer(3)}, qiven::memory::Inline<scope_bytes>(s.text(0)),
+                    qiven::memory::Inline<lane_bytes>(s.text(1))};
 }
 
 // A statement that returns no row run, then reset for its next.
@@ -139,12 +139,12 @@ void bind_optional(Statement& s, int index, std::optional<std::string_view> text
 
 std::size_t Reader::pages_for(const Scopes& scopes, std::span<const AfterView> after) {
     const std::size_t n = scopes ? scopes->size() : 0;
-    const std::optional<std::size_t> set = memory::mul(n, scope_record);
-    const std::optional<std::size_t> seqs = memory::mul(after.size(), after_record);
-    const std::optional<std::size_t> packed = set && seqs ? memory::add(*set, *seqs) : std::nullopt;
-    const std::optional<std::size_t> all = packed ? memory::add(*packed, operation_base) : std::nullopt;
+    const std::optional<std::size_t> set = qiven::memory::mul(n, scope_record);
+    const std::optional<std::size_t> seqs = qiven::memory::mul(after.size(), after_record);
+    const std::optional<std::size_t> packed = set && seqs ? qiven::memory::add(*set, *seqs) : std::nullopt;
+    const std::optional<std::size_t> all = packed ? qiven::memory::add(*packed, operation_base) : std::nullopt;
     if (!all) {
-        throw memory::MemoryError::budget("store/exchange", std::numeric_limits<std::size_t>::max(), after.size(), 0);
+        throw qiven::memory::MemoryError::budget("store/exchange", std::numeric_limits<std::size_t>::max(), after.size(), 0);
     }
     return *all;
 }
@@ -158,7 +158,7 @@ void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view f
     }
     owner.first_ = this;
     countdown_ = countdown;
-    path_ = memory::Inline<path_bytes>(path);
+    path_ = qiven::memory::Inline<path_bytes>(path);
     every_ = !scopes;
     if (scopes) {
         for (const std::string_view s : *scopes) {
@@ -176,7 +176,7 @@ void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view f
     }
     const WhereView at = site();
     {
-        memory::Arena arena(work_of(pages, scopes_, afters_));
+        qiven::memory::Arena arena(work_of(pages, scopes_, afters_));
         attach_to(arena, countdown_);
         String name{Chars(arena)};
         name.assign(file);

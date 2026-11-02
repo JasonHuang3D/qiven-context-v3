@@ -14,11 +14,11 @@
 
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 #if defined(QIVEN_FAULTS)
 
-namespace qiven3::test {
+namespace qiven::test {
 
 struct FaultRuns {
     // The runs whose failed call ended the operation in the typed error.
@@ -40,7 +40,7 @@ struct FaultRuns {
 // check are taken by value, as a callable called many times: the cases'
 // lambdas capture by reference, so a copy calls on the same state.
 template <typename Error, typename Op, typename Check>
-FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown, Op op, Check check,
+FaultRuns run_faults(qiven3::log::Log& log, qiven3::log::Name site, qiven::memory::Countdown& countdown, Op op, Check check,
                      std::size_t limit = 100000) {
     FaultRuns runs;
     for (std::size_t k = 1; k <= limit; ++k) {
@@ -57,7 +57,7 @@ FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown
         const bool fired = countdown.fired();
         countdown.disarm();
         if (fired) {
-            log::event(log, log::events::fault_injected, log::Count(k), site);
+            qiven3::log::event(log, qiven3::log::events::fault_injected, qiven3::log::Count(k), site);
         }
         if (!check(k)) {
             ++runs.unchecked;
@@ -75,6 +75,6 @@ FaultRuns run_faults(log::Log& log, log::Name site, memory::Countdown& countdown
     return runs;
 }
 
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 #endif

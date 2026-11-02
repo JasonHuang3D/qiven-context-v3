@@ -18,14 +18,14 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
-using namespace qiven3::test::sqlite_rig;
+using namespace qiven::test::sqlite_rig;
 
 namespace {
 
@@ -183,7 +183,7 @@ QIVEN_CASE(store_sqlite, slots_refused) {
     }
 #if defined(QIVEN_FAULTS)
     // The slots' configuration failed: the engine shut down, none kept.
-    qiven3::memory::Countdown calls;
+    qiven::memory::Countdown calls;
     calls.arm(1);
     sqlite::attach_calls(&calls, nullptr);
     refused = raised([&] { const Engine fourth(rig->fake); });

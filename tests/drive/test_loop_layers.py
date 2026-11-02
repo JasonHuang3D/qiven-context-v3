@@ -132,7 +132,7 @@ class Rule(unittest.TestCase):
 
 QIVEN3 = "products/qiven3/"
 OUTSIDE = {  # the rows whose paths still lie in today's places, by their table file's directory
-    "foundation/core/matcher": ["matcher"], "foundation/core/memory": ["memory"], "foundation/core/text": ["base"],
+    "foundation/core/matcher": ["matcher"], "foundation/core/text": ["base"],
     "foundation/devkit/build": ["build"], "foundation/devkit/structure": ["structure"],
     "foundation/devkit/test/faults": ["faults"], "foundation/devkit/test/runner": ["runner", "support"],
     "foundation/services/compute": ["hal"], "foundation/services/log": ["log"],

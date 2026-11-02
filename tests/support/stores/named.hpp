@@ -11,25 +11,25 @@
 #include "qiven/runner/core.hpp"
 #include "store/errors.hpp"
 
-namespace qiven3::test::stores {
+namespace qiven::test::stores {
 
 // A StoreError's code by its kind, as message() names it: StoreError's own
 // code, StoreLocked's cause, StoreCorrupt's or StoreFull's code,
 // EntryInvalid's entry code; empty for a kind with none.
-inline std::string_view store_code(const store::StoreError& e) {
+inline std::string_view store_code(const qiven3::store::StoreError& e) {
     if (const auto code = e.code()) {
-        return store::name(*code);
+        return qiven3::store::name(*code);
     }
     if (const auto cause = e.cause()) {
-        return store::name(*cause);
+        return qiven3::store::name(*cause);
     }
     if (const auto corrupt = e.corrupt()) {
-        return store::name(*corrupt);
+        return qiven3::store::name(*corrupt);
     }
     if (const auto full = e.full()) {
-        return store::name(*full);
+        return qiven3::store::name(*full);
     }
-    return e.kind() == store::Kind::entry_invalid ? e.entry_code() : std::string_view();
+    return e.kind() == qiven3::store::Kind::entry_invalid ? e.entry_code() : std::string_view();
 }
 
 // A StoreError, which has no base: its kind, its kind's code where it has
@@ -37,9 +37,9 @@ inline std::string_view store_code(const store::StoreError& e) {
 inline bool store_named(std::ostream& out) {
     try {
         throw;
-    } catch (const store::StoreError& e) {
+    } catch (const qiven3::store::StoreError& e) {
         const std::string_view code = store_code(e);
-        out << "store error " << store::name(e.kind()) << (code.empty() ? "" : " ") << code << ": " << e.detail()
+        out << "store error " << qiven3::store::name(e.kind()) << (code.empty() ? "" : " ") << code << ": " << e.detail()
             << "\n";
         return true;
     } catch (...) {
@@ -49,4 +49,4 @@ inline bool store_named(std::ostream& out) {
 
 inline const qiven::runner::NamerRegistrar store_namer{&store_named};
 
-}  // namespace qiven3::test::stores
+}  // namespace qiven::test::stores

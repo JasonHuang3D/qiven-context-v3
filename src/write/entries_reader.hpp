@@ -12,8 +12,8 @@
 
 #include "entry/content_fields.hpp"
 #include "entry/matcher.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "write/entries.hpp"
 
@@ -76,7 +76,7 @@ private:
 // A member read by its table: its value's node, or 0, and its key.
 struct Field {
     json::Index at = 0;
-    memory::Inline<16> key{};
+    qiven::memory::Inline<16> key{};
 };
 template <std::size_t N>
 using Table = std::array<std::string_view, N>;
@@ -84,13 +84,13 @@ using Table = std::array<std::string_view, N>;
 // The walk over the value, the file's parts kept as it goes; m borrowed
 // for read's call. The syntaxes are compiled once, over the arena.
 struct Reader {
-    Reader(File& file, memory::Arena& arena);
+    Reader(File& file, qiven::memory::Arena& arena);
 
     File* m;
     const json::Value* v;
     Path path;
     std::uint32_t entry = none;
-    memory::Inline<64> entry_name;
+    qiven::memory::Inline<64> entry_name;
     entry::matcher::Automaton slug;
     entry::matcher::Automaton scope;
     entry::matcher::Automaton writer;
@@ -101,13 +101,13 @@ struct Reader {
     [[noreturn]] void refuse_at(std::string_view key, Why why);
     [[noreturn]] void fault(entry::content::Code code, std::size_t limit, std::size_t value, std::string_view at);
     // The first of by_name_ not before name.
-    [[nodiscard]] memory::Vector<std::uint32_t>::iterator named(std::string_view name) const;
+    [[nodiscard]] qiven::memory::Vector<std::uint32_t>::iterator named(std::string_view name) const;
 
     template <std::size_t N>
     std::array<Field, N> members(json::Index object, const Table<N>& keys) {
         std::array<Field, N> out{};
         for (std::size_t j = 0; j < N; ++j) {
-            out.at(j).key = memory::Inline<16>(keys.at(j));
+            out.at(j).key = qiven::memory::Inline<16>(keys.at(j));
         }
         for (json::Index k = object + 1; k < v->next(object); k = v->next(k + 1)) {
             const std::string_view key = v->text(k);
@@ -140,7 +140,7 @@ struct Reader {
     std::uint32_t piece(std::string_view name) const;
     void pieces_used();
     [[nodiscard]] std::size_t standing_size(const Entry& e) const;
-    void check_contents(memory::Arena& arena, Hooks hooks);
+    void check_contents(qiven::memory::Arena& arena, Hooks hooks);
 };
 
 }  // namespace qiven3::write::entries::detail

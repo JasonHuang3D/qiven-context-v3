@@ -27,7 +27,7 @@ namespace {
 
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 namespace utc = qiven3::utc;
 using header::Code;
 using header::FieldsView;

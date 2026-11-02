@@ -10,8 +10,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
@@ -20,11 +20,11 @@
 #include "store/errors.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
-namespace qiven3::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.
+namespace qiven::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.
 void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range); }
 
-using namespace qiven3::test::sqlite_bed;
-using qiven3::memory::MemoryError;
+using namespace qiven::test::sqlite_bed;
+using qiven::memory::MemoryError;
 using qiven3::platform::PlatformError;
 using qiven3::store::StoreError;
 
@@ -63,7 +63,7 @@ std::string fingerprint(Store* store) {
     }
     try {
         std::vector<std::byte> pages(std::size_t{1} << 20U);
-        qiven3::memory::Arena arena(pages);
+        qiven::memory::Arena arena(pages);
         const Chars chars(arena);
         std::string out;
         Vector<LaneHead> rows(chars);
@@ -99,7 +99,7 @@ struct Tally {    // a step's fault runs' tallies
     std::size_t left = 0;      // a create's refused runs leaving its file
 };
 
-void attach(Bed& b, qiven3::memory::Countdown* c) {
+void attach(Bed& b, qiven::memory::Countdown* c) {
     if (b.store) {
         b.store->attach(c);
     }
@@ -116,15 +116,15 @@ bool injected_io(const StoreError& e) {
 
 // One step's fault runs, those of the part's range; its tallies, and
 // whether each run held.
-bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3::memory::Countdown& countdown,
-                qiven3::test::FaultRange range) {
+bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven::memory::Countdown& countdown,
+                qiven::test::FaultRange range) {
     const std::string before = fingerprint(b.store.get());
     if (s.sort == Sort::write) {
         b.keep();
     }
     const std::size_t lent = b.fake.lent();
     Tally t;
-    qiven3::test::PartRuns part(range);
+    qiven::test::PartRuns part(range);
     bool done = false;
     bool absorbed = false;
     std::string result;
@@ -187,8 +187,8 @@ bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3
         return back && !b.store->connection().in_transaction() && fingerprint(b.store.get()) == before;
     };
     attach(b, &countdown);
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_sqlite.step", countdown, op, check);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<Typed>(qiven_ctx.log, "store_sqlite.step", countdown, op, check);
     attach(b, nullptr);
     for (const std::string& r : results) {
         t.differed += r == result ? 0U : 1U;
@@ -212,9 +212,9 @@ bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3
 
 // The steps in order on one store: those of the case's group ("create", "forget" or "rest", the other
 // steps) faulted, the runs of the part's range alone, the others run once (store_sqlite_parts_test.cpp).
-void qiven3::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range) {
+void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range) {
     const auto b = std::make_unique<Bed>();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     for (const Step& s : steps()) {
         if ((s.name == "create" || s.name == "forget" ? std::string_view(s.name) : "rest") != group) {
             const Chars c = b->caller();
@@ -227,8 +227,8 @@ void qiven3::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, s
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 #else
-void qiven3::test::store_sqlite_fault_steps(qiven::runner::Context& /*qiven_ctx*/, std::string_view /*group*/, FaultRange) {
+void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& /*qiven_ctx*/, std::string_view /*group*/, FaultRange) {
     QIVEN_SKIP(unfaulted);
 }
 #endif
-QIVEN_CASE(store_sqlite, faults) { qiven3::test::store_sqlite_fault_steps(qiven_ctx, "rest", {}); }
+QIVEN_CASE(store_sqlite, faults) { qiven::test::store_sqlite_fault_steps(qiven_ctx, "rest", {}); }

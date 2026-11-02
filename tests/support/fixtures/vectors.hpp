@@ -19,11 +19,11 @@
 #include "qiven3/canon.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
-namespace qiven3::test::vectors {
+namespace qiven::test::vectors {
 
 namespace canon = qiven3::canon;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Value = canon::Basic<>;
+using Value = qiven3::canon::Basic<>;
 
 std::string_view text(const Value& v, std::string_view key);
 std::optional<std::string_view> maybe_text(const Value& v, std::string_view key);
@@ -77,4 +77,4 @@ std::string file(Context& c, const Value& v);
 std::string map(Context& c, const Value& v);
 std::string block(Context& c, const Value& v);
 
-}  // namespace qiven3::test::vectors
+}  // namespace qiven::test::vectors

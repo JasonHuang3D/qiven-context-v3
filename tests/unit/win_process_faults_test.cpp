@@ -27,11 +27,11 @@
 
 namespace {
 
-using namespace qiven3::test::process;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::Countdown;
-using qiven3::memory::MemoryError;
+using namespace qiven::test::process;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::Countdown;
+using qiven::memory::MemoryError;
 using qiven3::platform::Ran;
 
 // "<code> <call>" for a fault's error, as the detail names the call failed

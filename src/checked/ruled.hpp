@@ -35,7 +35,7 @@
 #include <utility>
 
 #include "checked/reads.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 
 namespace qiven3::checked {
@@ -105,7 +105,7 @@ public:
 
 private:
     E e_;
-    memory::Inline<store::path_bytes> path_;  // the store's, copied: an export outlives its store's moves
+    qiven::memory::Inline<store::path_bytes> path_;  // the store's, copied: an export outlives its store's moves
 };
 
 template <class S>

@@ -5,11 +5,11 @@
 
 #include <string>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::utc {
 
-template bool print_at(Millis, memory::String&);
+template bool print_at(Millis, qiven::memory::String&);
 template bool print_at(Millis, std::string&);
 
 }  // namespace qiven3::utc

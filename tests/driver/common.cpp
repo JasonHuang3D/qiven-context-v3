@@ -21,7 +21,7 @@
 #include <utility>
 
 #include "driver/drive.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/current.hpp"
 #include "qiven3/utf.hpp"
 
@@ -370,8 +370,8 @@ Value caught(std::string_view name) {
     } catch (const platform::PlatformError& error) {
         return error_reply(
             typed("platform", platform::name(error.code), error.operation.view(), error.detail.view()));
-    } catch (const memory::MemoryError& error) {
-        return error_reply(typed("memory", memory::name(error.code), error.operation.view(), error.detail.view()));
+    } catch (const qiven::memory::MemoryError& error) {
+        return error_reply(typed("memory", qiven::memory::name(error.code), error.operation.view(), error.detail.view()));
 #if defined(QIVEN3_DRIVE_HAL)
     } catch (const hal::HalError& error) {
         return error_reply(typed("hal", hal::name(error.code), error.operation.view(), error.detail.view()));
@@ -449,7 +449,7 @@ void ready_streams() {
     // diagnostic entry reports.
 #if defined(_WIN32)
     if (_setmode(_fileno(stdin), _O_BINARY) == -1 || _setmode(_fileno(stdout), _O_BINARY) == -1) {
-        memory::fail_fast("the drive's standard streams did not take binary mode");
+        qiven::memory::fail_fast("the drive's standard streams did not take binary mode");
     }
 #endif
 }
@@ -473,7 +473,7 @@ std::size_t send(const Value& reply) {
 namespace {
 
 // The process's Journal's pages, of static storage.
-test::Journal::Pages pages;
+qiven::test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
@@ -528,7 +528,7 @@ bool typed_kind(std::string_view kind) noexcept {
 
 }  // namespace
 
-test::Journal::Pages& journal_pages() noexcept { return pages; }
+qiven::test::Journal::Pages& journal_pages() noexcept { return pages; }
 
 log::Name named(const std::optional<Value>& request) noexcept {
     if (!request) {

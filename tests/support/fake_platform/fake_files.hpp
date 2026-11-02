@@ -101,7 +101,7 @@ public:
     // What the fake keeps: files open, staging directories, locks opened.
     [[nodiscard]] std::size_t kept() const noexcept;
 #if defined(QIVEN_FAULTS)
-    void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    void attach(qiven::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
 #endif
 
 private:
@@ -114,7 +114,7 @@ private:
     std::chrono::milliseconds clock_{0};
     std::unique_ptr<State> state_;
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown_ = nullptr;
+    qiven::memory::Countdown* countdown_ = nullptr;
 #endif
 };
 

@@ -66,8 +66,8 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -96,20 +96,20 @@ concept Fold = requires(F& f, std::string_view s, const entry::kinds::IdentityVi
 
 // An entry built, its texts on the arena.
 struct Built {
-    explicit Built(memory::Arena& arena)
-        : line(memory::Allocator<char>(arena)), record(memory::Allocator<char>(arena)),
-          identity(memory::Allocator<char>(arena)) {}
-    memory::String line;    // the stored header line
-    memory::String record;  // the body record; empty on a forget
-    memory::Inline<72> id{};
-    memory::Inline<72> target{};  // its target's id; empty for a root
-    memory::Inline<32> at{};
-    memory::Inline<64> scope{};
-    memory::Inline<64> lane{};
+    explicit Built(qiven::memory::Arena& arena)
+        : line(qiven::memory::Allocator<char>(arena)), record(qiven::memory::Allocator<char>(arena)),
+          identity(qiven::memory::Allocator<char>(arena)) {}
+    qiven::memory::String line;    // the stored header line
+    qiven::memory::String record;  // the body record; empty on a forget
+    qiven::memory::Inline<72> id{};
+    qiven::memory::Inline<72> target{};  // its target's id; empty for a root
+    qiven::memory::Inline<32> at{};
+    qiven::memory::Inline<64> scope{};
+    qiven::memory::Inline<64> lane{};
     std::int64_t seq = 0;
     bool body = false;
     bool derived = false;     // its target the fold's or the file's current version
-    memory::String identity;  // its record identity's key; empty for none
+    qiven::memory::String identity;  // its record identity's key; empty for none
 };
 
 namespace detail {
@@ -124,13 +124,13 @@ inline constexpr std::size_t work_bytes = entries::detail::work_bytes;
 // A path piece's bytes, read at its first reference and held to the
 // build's end, every reference taking them.
 struct PieceBytes {
-    explicit PieceBytes(memory::Arena& arena) : bytes(memory::Allocator<char>(arena)) {}
-    memory::String bytes;
+    explicit PieceBytes(qiven::memory::Arena& arena) : bytes(qiven::memory::Allocator<char>(arena)) {}
+    qiven::memory::String bytes;
     bool read = false;
 };
 
 // identity's key: the kind, then each part's length and bytes.
-void identity_key(const entry::kinds::IdentityView& identity, memory::String& out);
+void identity_key(const entry::kinds::IdentityView& identity, qiven::memory::String& out);
 // The identity a placeholder names: an item, a lane's checkpoint, a question.
 entry::kinds::IdentityView placeholder_identity(entries::Hole hole, std::string_view key);
 // The refusal for entry e, its field's path: the target, a site's node
@@ -146,21 +146,21 @@ const Built* by_id(std::span<const Built> built, std::string_view scope, std::st
 
 // A version held, the file's first, copied into id and at.
 struct Held {
-    memory::Inline<72> id{};
-    memory::Inline<at_room> at{};
+    qiven::memory::Inline<72> id{};
+    qiven::memory::Inline<at_room> at{};
     std::int64_t seq = 0;
 };
 inline std::optional<Held> held(const Built* b) {
     return b == nullptr ? std::nullopt : std::optional<Held>(Held{b->id, b->at, b->seq});
 }
 inline std::optional<Held> held(const std::optional<VersionView>& v) {
-    return v ? std::optional<Held>(Held{memory::Inline<72>(v->id), memory::Inline<at_room>(v->at), v->seq})
+    return v ? std::optional<Held>(Held{qiven::memory::Inline<72>(v->id), qiven::memory::Inline<at_room>(v->at), v->seq})
              : std::nullopt;
 }
 
 template <Fold F>
 std::optional<Held> current(std::span<const Built> built, F& fold, std::string_view scope,
-                            const entry::kinds::IdentityView& identity, memory::String& key) {
+                            const entry::kinds::IdentityView& identity, qiven::memory::String& key) {
     identity_key(identity, key);
     if (const Built* b = latest(built, scope, key)) {
         return held(b);
@@ -170,25 +170,25 @@ std::optional<Held> current(std::span<const Built> built, F& fold, std::string_v
 
 // Each entry built into out, empty, as build says, its work over pages.
 template <platform::Platform P, Fold F>
-void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, std::span<std::byte> pages,
-                [[maybe_unused]] entries::Hooks hooks, memory::Vector<Built>& out) {
+void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& arena, std::span<std::byte> pages,
+                [[maybe_unused]] entries::Hooks hooks, qiven::memory::Vector<Built>& out) {
     namespace header = entry::header;
     using header::Slot;
     out.reserve(file.entries().size());
     const std::string_view lane = file.import() ? std::string_view("import") : header::role(file.writer());
-    memory::Vector<PieceBytes> paths{memory::Allocator<PieceBytes>(arena)};
+    qiven::memory::Vector<PieceBytes> paths{qiven::memory::Allocator<PieceBytes>(arena)};
     for (std::size_t i = 0; i < file.entries().size(); ++i) {
         const entries::Entry& e = file.entries()[i];
         const std::string_view scope = file.text(e.scope);
         const std::string_view kind = file.text(e.kind);
         const std::span<const Built> before(out.data(), out.size());
-        memory::Arena work_arena(pages);  // given back whole at the entry's end
+        qiven::memory::Arena work_arena(pages);  // given back whole at the entry's end
 #if defined(QIVEN_FAULTS)
         work_arena.attach(hooks.work);
 #endif
-        const memory::Allocator<char> alloc(work_arena);
+        const qiven::memory::Allocator<char> alloc(work_arena);
         digest::Key<P> key = digest::new_key(platform);
-        memory::String work(alloc);
+        qiven::memory::String work(alloc);
 
         // A placeholder's version: @name:'s entry if of this scope, else
         // the current version it names, the file's first.
@@ -207,11 +207,11 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
 
         // The holes, in document order; fills view texts that outlive them.
         const std::span<const entries::Site> sites = file.sites(e);
-        memory::Vector<memory::String> filled{memory::Allocator<memory::String>(work_arena)};
+        qiven::memory::Vector<qiven::memory::String> filled{qiven::memory::Allocator<qiven::memory::String>(work_arena)};
         filled.reserve(sites.size());
         for (const entries::Site& s : sites) {
             filled.emplace_back(alloc);
-            memory::String& fill = filled.back();
+            qiven::memory::String& fill = filled.back();
             if (s.hole == entries::Hole::piece) {
                 const entries::Piece& p = file.pieces()[s.named];
                 if (p.path) {
@@ -241,21 +241,21 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
             }
             fill.assign(resolve(s).id.view());
         }
-        memory::Vector<std::string_view> fills{memory::Allocator<std::string_view>(work_arena)};
+        qiven::memory::Vector<std::string_view> fills{qiven::memory::Allocator<std::string_view>(work_arena)};
         fills.reserve(filled.size());
-        for (const memory::String& f : filled) {
+        for (const qiven::memory::String& f : filled) {
             fills.push_back(f);
         }
         json::Value value{alloc};
         entries::build_content(file, i, fills, value);
-        memory::String content(alloc);
+        qiven::memory::String content(alloc);
         canon::canonical(value, content);
 
         // The target: the file's, held; or the current version of the
         // entry's record identity, if any, its key built in the work span. b's
         // texts are the arena's.
         Built b(arena);
-        memory::String identity(alloc);
+        qiven::memory::String identity(alloc);
         std::optional<detail::Held> target;
         if (e.target_site != entries::none) {
             target = resolve(file.sites()[e.target_site]);
@@ -273,7 +273,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
                                            .writer = file.writer(), .basis = file.text(e.basis),
                                            .at = entries::detail::stand_at, .target = {}, .content = {},
                                            .id = entries::detail::stand_id};
-            const header::Header<memory::Allocator<char>> h = header::make(stand, alloc);
+            const header::Header<qiven::memory::Allocator<char>> h = header::make(stand, alloc);
             if (const std::optional<entry::kinds::IdentityView> id = entry::kinds::identity(h, value)) {
                 target = detail::current(before, fold, scope, *id, identity);
                 b.derived = target.has_value();
@@ -290,7 +290,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
             target ? std::optional<std::string_view>(target->at.view()) : std::nullopt);
         const std::string_view at_text(at.data(), at.size());
         b.body = kind != "forget";
-        memory::String content_digest(alloc);
+        qiven::memory::String content_digest(alloc);
         if (b.body) {
             digest::keyed(key, content, content_digest);
         }
@@ -300,7 +300,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
             .kind = kind, .writer = file.writer(), .basis = file.text(e.basis), .at = at_text,
             .target = target ? std::optional<std::string_view>(target->id.view()) : std::nullopt,
             .content = b.body ? std::optional<std::string_view>(content_digest) : std::nullopt, .id = {}};
-        const header::Header<memory::Allocator<char>> h = header::make(f, alloc);
+        const header::Header<qiven::memory::Allocator<char>> h = header::make(f, alloc);
         if (const std::optional<entry::content::ContentError> c = entry::content::try_check(h, value)) {
             detail::refuse_content(file, i, *c);
         }
@@ -312,16 +312,16 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
         b.identity.assign(identity.data(), identity.size());  // copied out in one allocation
         // The line written in the work span, whose encoder's order is given
         // back with it, then copied out in one allocation.
-        memory::String line(alloc);
+        qiven::memory::String line(alloc);
         h.line(line);
         b.line.assign(line.data(), line.size());  // by its bytes: the allocator stays the arena's
-        b.id = memory::Inline<72>(h.value(Slot::id));
+        b.id = qiven::memory::Inline<72>(h.value(Slot::id));
         if (target) {
             b.target = target->id;
         }
-        b.at = memory::Inline<detail::at_room>(at_text);
-        b.scope = memory::Inline<64>(scope);
-        b.lane = memory::Inline<64>(lane);
+        b.at = qiven::memory::Inline<detail::at_room>(at_text);
+        b.scope = qiven::memory::Inline<64>(scope);
+        b.lane = qiven::memory::Inline<64>(lane);
         b.seq = f.seq;
         if (b.body) {
             entry::body::make(std::string_view(content), std::move(key), h.value(Slot::id), alloc).line(b.record);
@@ -337,7 +337,7 @@ void build_each(const File& file, F& fold, P& platform, memory::Arena& arena, st
 // read's as they come. On any error out is left empty, its memory and the
 // work span given back: no entry of a file refused is built.
 template <platform::Platform P, Fold F>
-void build(const File& file, F& fold, P& platform, memory::Arena& arena, memory::Vector<Built>& out,
+void build(const File& file, F& fold, P& platform, qiven::memory::Arena& arena, qiven::memory::Vector<Built>& out,
            entries::Hooks hooks = {}) {
     out.clear();
     std::span<std::byte> pages;
@@ -347,7 +347,7 @@ void build(const File& file, F& fold, P& platform, memory::Arena& arena, memory:
             detail::work_bytes);
         detail::build_each(file, fold, platform, arena, pages, hooks, out);
     } catch (...) {
-        out = memory::Vector<Built>(out.get_allocator());
+        out = qiven::memory::Vector<Built>(out.get_allocator());
         if (!pages.empty()) {
             arena.deallocate(pages.data(), pages.size());
         }

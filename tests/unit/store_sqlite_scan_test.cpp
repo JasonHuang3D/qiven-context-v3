@@ -16,8 +16,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/sqlite_store.hpp"
@@ -70,8 +70,8 @@ struct Rig {
     Fake fake;
     qiven3::store::Engine<Fake> engine;
     std::vector<std::byte> pages;
-    qiven3::memory::Arena arena;
-    qiven3::memory::Allocator<char> chars;
+    qiven::memory::Arena arena;
+    qiven::memory::Allocator<char> chars;
 };
 
 // Each id's rowid in entry, read through the seam, a space after each.
@@ -79,7 +79,7 @@ std::string rowids(Store& store, const std::vector<std::string>& ids) {
     std::string out;
     for (const std::string& id : ids) {
         const std::optional<std::int64_t> rowid =
-            qiven3::test::seams::read(store, "SELECT rowid FROM entry WHERE id = '" + id + "'");
+            qiven::test::seams::read(store, "SELECT rowid FROM entry WHERE id = '" + id + "'");
         out += (rowid ? std::to_string(*rowid) : std::string("none")) + " ";
     }
     return out;
@@ -92,11 +92,11 @@ QIVEN_CASE(store_sqlite, scan_at_start) {
     const std::string path = text(rig->root / "s" / "store.db");
     Store store = Store::open(path, true, false, rig->fake);
     Store other = Store::open(path, false, false, rig->fake);
-    qiven3::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
+    qiven::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
     CHECK(store.close().done);
     CHECK(other.close().done);
     Store reopened = Store::open(path, false, false, rig->fake);
-    CHECK(reopened.verify() == qiven3::test::scan_case::written);
+    CHECK(reopened.verify() == qiven::test::scan_case::written);
 }
 
 // The scan's bound, rowid at most entry's greatest at its start, holds
@@ -111,9 +111,9 @@ QIVEN_CASE(store_sqlite, scan_at_start) {
 // the rowids close the gap, and E, appended after the scan began, falls
 // under its bound.
 QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
-    using qiven3::test::records::Rec;
-    namespace scan_case = qiven3::test::scan_case;
-    namespace records = qiven3::test::records;
+    using qiven::test::records::Rec;
+    namespace scan_case = qiven::test::scan_case;
+    namespace records = qiven::test::records;
     const auto rig = std::make_unique<Rig>();
     const std::string path = text(rig->root / "v" / "store.db");
     Store store = Store::open(path, true, false, rig->fake);
@@ -125,7 +125,7 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     (void)store.append(scan_case::scope, scan_case::implementer, std::nullopt, records::views(mine));
     (void)store.append(scan_case::scope, scan_case::reviewer, std::nullopt, records::views(theirs));
     (void)store.append(scan_case::scope, "tester", std::nullopt, records::views(tester));
-    CHECK_EQ(qiven3::test::seams::write(store, "UPDATE entry SET rowid = rowid + 1000 WHERE rowid > 1"), 0);
+    CHECK_EQ(qiven::test::seams::write(store, "UPDATE entry SET rowid = rowid + 1000 WHERE rowid > 1"), 0);
     std::vector<std::string> ids;
     for (const std::vector<Rec>* lane : {&mine, &theirs, &tester}) {
         for (const Rec& r : *lane) {
@@ -147,7 +147,7 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     qiven3::store::Vector<qiven3::store::Id> erased(rig->chars);
     CHECK(store.forget(scan_case::scope, scan_case::implementer, acc, records::views(forgets), guard, erased)
               .purge.done);
-    CHECK_EQ(qiven3::test::seams::read(store, "SELECT value FROM meta WHERE name = 'vacuumed'").value_or(-1),
+    CHECK_EQ(qiven::test::seams::read(store, "SELECT value FROM meta WHERE name = 'vacuumed'").value_or(-1),
              std::int64_t{1});
     CHECK_EQ(rowids(store, ids), before);
     CHECK_EQ(scan_case::rest(whole, rig->chars), scan_case::cut({mine[1], mine[2], mine[3]}) +

@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <string>
 
-namespace qiven3::test::fixtures {
+namespace qiven::test::fixtures {
 
 constexpr std::string filled(std::size_t n, char c) {
     std::string text;
@@ -18,4 +18,4 @@ constexpr std::string filled(std::size_t n, char c) {
     return text;
 }
 
-}  // namespace qiven3::test::fixtures
+}  // namespace qiven::test::fixtures

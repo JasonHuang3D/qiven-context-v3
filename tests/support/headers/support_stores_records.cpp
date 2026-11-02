@@ -3,8 +3,8 @@
 
 #include "support/stores/records.hpp"
 
-namespace qiven3::test::records {
+namespace qiven::test::records {
 
 static_assert(sizeof(Rec) != 0);
 
-}  // namespace qiven3::test::records
+}  // namespace qiven::test::records

@@ -33,7 +33,7 @@
 #include <string_view>
 
 #include "entry/header.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::kinds {
@@ -127,7 +127,7 @@ struct Label {
     consteval Label(const char* literal) noexcept {
         const std::string_view s(literal);
         if (s.size() > text.size()) {
-            memory::fail_fast("kinds::Label: past 15 characters");
+            qiven::memory::fail_fast("kinds::Label: past 15 characters");
         }
         for (std::size_t i = 0; i < s.size(); ++i) {
             text[i] = s[i];

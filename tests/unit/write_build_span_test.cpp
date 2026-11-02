@@ -24,8 +24,8 @@
 #include <vector>
 
 #include "entry/kinds.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
@@ -38,7 +38,7 @@ namespace {
 namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
-using qiven3::memory::Arena;
+using qiven::memory::Arena;
 using qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
@@ -56,7 +56,7 @@ static_assert(wb::Fold<EmptyFold>);
 class Changing : public FakePlatform {
 public:
     using FakePlatform::FakePlatform;
-    void read(std::string_view path, qiven3::memory::String& out) {
+    void read(std::string_view path, qiven::memory::String& out) {
         FakePlatform::read(path, out);
         std::ofstream(std::string(path), std::ios::binary) << "changed after its read\n";
     }
@@ -134,7 +134,7 @@ Result build(const std::string& bytes, P& platform, std::size_t arena_bytes = 16
         const we::File f = we::read(bytes, arena);
         const std::size_t peak = arena.peak();
         const std::size_t used = arena.used();
-        qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+        qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
         EmptyFold fold;
         wb::build(f, fold, platform, arena, out);
         r.peak = arena.peak() - peak;

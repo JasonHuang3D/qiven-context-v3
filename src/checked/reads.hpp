@@ -41,7 +41,7 @@
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
@@ -49,7 +49,7 @@
 
 namespace qiven3::checked::reads {
 
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 
 // The read a refusal names: its operation and the store's path.
 struct WhereView {

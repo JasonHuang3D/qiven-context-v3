@@ -38,13 +38,13 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;
+using namespace qiven::test::stage_book;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
-using qiven3::memory::Vector;
-using qiven3::test::ruled::Memory;
-using SQLite = qiven3::test::ruled::Sqlite<>;
+using qiven::memory::Vector;
+using qiven::test::ruled::Memory;
+using SQLite = qiven::test::ruled::Sqlite<>;
 using Store = Memory::Store;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -133,7 +133,7 @@ std::string appending(SQLite::Store& store, std::string_view lane, const std::ve
 // n records on reviewer's lane, n - 1 roots clearing sk-key, then a
 // revision of the last root clearing aws-akia: every root folded, the last
 // with its revision, before the hit passes; append's counted peak.
-std::size_t cleared_peak(qiven::runner::Context& qiven_ctx, qiven3::test::ruled::Site& site, const Book& book,
+std::size_t cleared_peak(qiven::runner::Context& qiven_ctx, qiven::test::ruled::Site& site, const Book& book,
                          std::size_t n) {
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
@@ -165,19 +165,19 @@ std::size_t cleared_peak(qiven::runner::Context& qiven_ctx, qiven3::test::ruled:
 struct Bytes {
     std::string line;
     std::string record;
-    bool header(std::string_view /*id*/, qiven3::memory::String& out) const { return !out.assign(line).empty(); }
-    bool body(std::string_view /*id*/, qiven3::memory::String& out) const { return !out.assign(record).empty(); }
+    bool header(std::string_view /*id*/, qiven::memory::String& out) const { return !out.assign(line).empty(); }
+    bool body(std::string_view /*id*/, qiven::memory::String& out) const { return !out.assign(record).empty(); }
 };
 
 QIVEN_CASE(checked_clearing, parsed_view) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Stored a = site->book().stored("A");
     Bytes bytes{a.line, *a.record};
     qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven3::store::Operation::append, "here"});
     std::vector<std::byte> pages(1U << 20U);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     qiven3::checked::Header h{Chars(arena)};
-    qiven3::memory::String content{Chars(arena)};
+    qiven::memory::String content{Chars(arena)};
     const auto refused_as = [&](std::string_view id) { return corrupt_code([&] { view.header(id, h); }); };
     CHECK(view.header(id_of(a), h) && h.value(Slot::id) == id_of(a));
     CHECK(view.body(id_of(a), content) && std::string_view(content) == *a.content);
@@ -196,7 +196,7 @@ QIVEN_CASE(checked_clearing, parsed_view) {
 // to no bytes: the append's refusal is the record's, the secret's never
 // reached; the ruled read and verify the same, after a reopen too.
 QIVEN_CASE(checked_clearing, sqlite_short_record) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
@@ -207,8 +207,8 @@ QIVEN_CASE(checked_clearing, sqlite_short_record) {
     const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
     CHECK_EQ(appending(*store, reviewer_lane, views(direction)), std::string("none"));
     std::vector<std::byte> pages(1U << 16U);
-    qiven3::memory::Arena arena(pages);
-    qiven3::memory::String record{Chars(arena)};
+    qiven::memory::Arena arena(pages);
+    qiven::memory::String record{Chars(arena)};
     const std::string id = id_of(direction[0]);
     const std::string denied = "incoherent";
     constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
@@ -229,7 +229,7 @@ QIVEN_CASE(checked_clearing, sqlite_short_record) {
 // The writes verified, reopened and moved by the own export; then M1's content
 // one byte off, its frame whole: M2's append refused incoherent, the process alive.
 QIVEN_CASE(checked_clearing, sqlite_bad_content) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     SQLite factory(*site);
     SQLite fresh(*site);
@@ -244,7 +244,7 @@ QIVEN_CASE(checked_clearing, sqlite_bad_content) {
     store = std::make_unique<SQLite::Store>(factory.reopen());
     const auto copy = std::make_unique<SQLite::Store>(fresh.make());
     std::vector<std::byte> pages(1U << 16U);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     Vector<LaneHead> rows{Chars(arena)};
     auto source = store->export_(std::nullopt, {});
     (void)copy->import_(source, rows);
@@ -263,7 +263,7 @@ QIVEN_CASE(checked_clearing, sqlite_bad_content) {
 }
 
 QIVEN_CASE(checked_clearing, memory) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     Memory mine(*site);
     Memory theirs(*site);
@@ -328,7 +328,7 @@ QIVEN_CASE(checked_clearing, memory) {
 // before the next, the append's counted peak the same for 4 records held
 // as for 16, within its budget.
 QIVEN_CASE(checked_clearing, memory_many) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
@@ -365,7 +365,7 @@ QIVEN_CASE(checked_clearing, memory_many) {
 }
 
 QIVEN_CASE(checked_clearing, sqlite_many) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     const std::size_t four = cleared_peak(qiven_ctx, *site, book, 4);
     const std::size_t sixteen = cleared_peak(qiven_ctx, *site, book, 16);
@@ -376,7 +376,7 @@ QIVEN_CASE(checked_clearing, sqlite_many) {
 
 namespace {
 
-namespace stage_book = qiven3::test::stage_book;
+namespace stage_book = qiven::test::stage_book;
 
 template <class F>
 void references_case(qiven::runner::Context& qiven_ctx, F& f, std::string_view name) {
@@ -392,7 +392,7 @@ void references_case(qiven::runner::Context& qiven_ctx, F& f, std::string_view n
                 stage_book::refused([&] { (void)store->append(qiven_scope, "reviewer", std::nullopt, lines); })) {
             refused = r->code + " " + r->field + " " + r->detail;
         }
-    } catch (const qiven3::memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         refused = "MemoryError";
     }
     const std::size_t budget = *qiven3::store::operation_budget(*qiven3::store::given(lines));
@@ -407,13 +407,13 @@ void references_case(qiven::runner::Context& qiven_ctx, F& f, std::string_view n
 }  // namespace
 
 QIVEN_CASE(checked_clearing, memory_references) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     Memory f(*site);
     references_case(qiven_ctx, f, "checked_clearing.memory_references");
 }
 
 QIVEN_CASE(checked_clearing, sqlite_references) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     SQLite f(*site);
     references_case(qiven_ctx, f, "checked_clearing.sqlite_references");
 }

@@ -18,7 +18,7 @@
 
 #include "store/codes.hpp"
 #include "store/engine/sqlite.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/errors.hpp"
 
@@ -370,7 +370,7 @@ void reraise(Refused refused) {
     } catch (StoreError& e) {
         e.set_detail(named(e.detail()).view());
         throw;
-    } catch (memory::MemoryError& e) {
+    } catch (qiven::memory::MemoryError& e) {
         e.detail = decltype(e.detail)(named(e.detail.view()).view());
         throw;
     } catch (platform::PlatformError& e) {
@@ -382,7 +382,7 @@ void reraise(Refused refused) {
 namespace {
 
 // Steps 2 (the connection) to 7.
-Connection connected(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
+Connection connected(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
     Connection c = Connection::open(path, read_only, at);
     if (!create) {
         identify(c, at);
@@ -400,7 +400,7 @@ Connection connected(const memory::String& path, bool create, bool read_only, co
 
 }  // namespace
 
-Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
+Connection connect(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
     return connected(path, create, read_only, at, opened);
 }
 

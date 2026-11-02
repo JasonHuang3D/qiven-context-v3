@@ -183,7 +183,7 @@ public:
     [[nodiscard]] WindowsPages pages(std::size_t n);
 #if defined(QIVEN_FAULTS)
     // The countdown win/files' calls ask first; null for none.
-    void attach(memory::Countdown* countdown) noexcept { files_.attach(countdown); }
+    void attach(qiven::memory::Countdown* countdown) noexcept { files_.attach(countdown); }
     // The trace win/files' retries record their clock into; null for none.
     void trace(ClockTrace* into) noexcept { files_.trace(into); }
 #endif
@@ -254,7 +254,7 @@ public:
     // Converted on the arena: two allocations, the pointers' then the
     // text's, bytes(wide) in all, each a fault point of the arena's; the
     // errors of bytes(), and MemoryError budget past the arena.
-    WindowsArguments(std::span<const wchar_t* const> wide, memory::Arena& arena);
+    WindowsArguments(std::span<const wchar_t* const> wide, qiven::memory::Arena& arena);
     WindowsArguments(const WindowsArguments&) = delete;
     WindowsArguments& operator=(const WindowsArguments&) = delete;
     WindowsArguments(WindowsArguments&&) = delete;
@@ -265,7 +265,7 @@ public:
     [[nodiscard]] const char* const* argv() const noexcept { return static_cast<const char* const*>(pointers_); }
 
 private:
-    memory::Arena* arena_;
+    qiven::memory::Arena* arena_;
     void* pointers_ = nullptr;  // count_ + 1 pointers
     char* text_ = nullptr;
     std::size_t count_ = 0;
@@ -292,7 +292,7 @@ int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses 
 // As run_utf8, the pages' call and the arena's two allocations each asking
 // faults first.
 int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses,
-             memory::Countdown* faults) noexcept;
+             qiven::memory::Countdown* faults) noexcept;
 #endif
 
 }  // namespace qiven3::platform::win

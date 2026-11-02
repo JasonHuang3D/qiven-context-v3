@@ -491,7 +491,7 @@ QIVEN_CASE(win_files_stage, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const fs::path runs = scratch.root / "runs";
     fs::create_directory(runs);
     const std::string dir = text(runs);
@@ -502,8 +502,8 @@ QIVEN_CASE(win_files_stage, faults) {
     };
     platform.attach(&countdown);
     const auto check = [&](qiven3::log::Name site, auto op, std::size_t completed) {
-        const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
+        const qiven::test::FaultRuns r =
+            qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_files_stage.faults: completed at " << r.completed_at << ", typed "
                   << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);

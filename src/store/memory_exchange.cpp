@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory_state.hpp"
@@ -83,7 +83,7 @@ void close_exports(Data& d, std::uint64_t owner) noexcept {
 void import_one(Data& d, const EntryView& line, Rows<Link>& links) {
     const std::size_t at = d.held.size();
     if (at >= max_entries) {
-        throw memory::MemoryError::budget("store/memory", max_entries, at + 1U, at);
+        throw qiven::memory::MemoryError::budget("store/memory", max_entries, at + 1U, at);
     }
     const auto i = static_cast<std::uint32_t>(at);
     std::uint64_t bytes = stage::detail::sum(line.line.size(), 1 + line.keys.kind.size());
@@ -289,8 +289,8 @@ Snapshot MemoryExport::heads(Vector<LaneHead>& rows) {
     for (const Pos& p : lanes_) {
         const Lane& lane = d.lanes[p.lane];
         const Held& e = d.held[lane.ids[p.end - 1U]];
-        rows.push_back(LaneHead{Head{e.id, e.seq}, memory::Inline<scope_bytes>(std::string_view(lane.scope)),
-                                memory::Inline<lane_bytes>(std::string_view(lane.name))});
+        rows.push_back(LaneHead{Head{e.id, e.seq}, qiven::memory::Inline<scope_bytes>(std::string_view(lane.scope)),
+                                qiven::memory::Inline<lane_bytes>(std::string_view(lane.name))});
     }
     return snapshot_;
 }

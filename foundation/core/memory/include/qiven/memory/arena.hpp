@@ -10,7 +10,7 @@
 // bounds and poisons it; the cursor still runs through the span, so the
 // counts and the budget are the same as without the option. Without it,
 // under AddressSanitizer, the span is poisoned but for the blocks held
-// (memory/poison.hpp): its padding, the space past the cursor and each
+// (qiven/memory/poison.hpp): its padding, the space past the cursor and each
 // block given back.
 //
 // thread: one
@@ -18,13 +18,13 @@
 #include <cstddef>
 #include <span>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 #if defined(QIVEN_SYSTEM_HEAP)
 #include <vector>
 #endif
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 class Arena {
 public:
@@ -78,4 +78,4 @@ private:
 static_assert(sizeof(Arena) == 32, "Arena's size is pinned: the span, the cursor and the count");
 #endif
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

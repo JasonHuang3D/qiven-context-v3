@@ -49,7 +49,7 @@ class Chosen(unittest.TestCase):
                  ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
                  ("tests.drive.test_trees_build.TreesBuild.test_one_reader", ["drive", "fake", "build"]),
                  ("tests.drive.test_nav.Nav.test_x", ["drive", "tooling"]),
-                 ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
+                 ("foundation.core.memory.tests.test_free.Free.test_held", ["drive", "memory"])]
         why, every = SELECT["choose"](table, rows, ["tools/trees.json"])
         self.assertIsNone(every)
         self.assertEqual(why["foundation.devkit.structure.*"], "reading tools/trees.json")
@@ -69,7 +69,7 @@ class Chosen(unittest.TestCase):
         tests = [("foundation.devkit.structure.tests.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
                  ("tests.drive.test_trees_build.TreesBuild.test_header_units", ["fake", "build"]),
                  ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
-                 ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
+                 ("foundation.core.memory.tests.test_free.Free.test_held", ["drive", "memory"])]
         why, every = SELECT["choose"](table, rows, ["foundation/devkit/structure/lexer.py"])
         self.assertIsNone(every)
         chosen, reasons = SELECT["picked"](tests, why, names)

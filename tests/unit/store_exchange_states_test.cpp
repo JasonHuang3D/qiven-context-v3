@@ -30,8 +30,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -43,17 +43,17 @@
 
 namespace {
 
-using namespace qiven3::test::records;
+using namespace qiven::test::records;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
-using qiven3::memory::Vector;
+using qiven::memory::Vector;
 using qiven3::store::Counts;
 using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::StoreError;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Arena = qiven3::memory::Arena;
-using Chars = qiven3::memory::Allocator<char>;
+using Arena = qiven::memory::Arena;
+using Chars = qiven::memory::Allocator<char>;
 using Store = qiven3::store::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven3::store::Engine<Fake>;

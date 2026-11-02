@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <system_error>
 
-namespace qiven3::test::scan {
+namespace qiven::test::scan {
 
 namespace {
 
@@ -131,4 +131,4 @@ Report scan(const std::filesystem::path& directory, std::span<const Pattern> pat
     return report;
 }
 
-}  // namespace qiven3::test::scan
+}  // namespace qiven::test::scan

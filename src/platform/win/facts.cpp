@@ -402,7 +402,7 @@ void WindowsPlatform::residual(std::span<const std::string_view> paths, Vector<R
         restore,         readings::kept_by(file_history(files_, b, reason)),
         pagefile(files_), hibernation(files_),
         crash_dumps(files_), unencrypted};
-    memory::Arena& arena = out.get_allocator().arena();
+    qiven::memory::Arena& arena = out.get_allocator().arena();
     try {
         out.reserve(applies.size());
         for (std::size_t i = 0; i < applies.size(); ++i) {

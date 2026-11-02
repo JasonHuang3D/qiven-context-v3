@@ -6,12 +6,12 @@
 #include "platform/files.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
-namespace qiven3::test::nav_fixture {
+namespace qiven::test::nav_fixture {
 
-void publish_three(platform::fake::FakeStaged& first, platform::fake::FakeStaged& second, platform::Seconds deadline) {
+void publish_three(qiven3::platform::fake::FakeStaged& first, qiven3::platform::fake::FakeStaged& second, qiven3::platform::Seconds deadline) {
     first.publish("bag-1", deadline);
     second.publish("bag-2", deadline);
     first.publish("bag-3", deadline);
 }
 
-}  // namespace qiven3::test::nav_fixture
+}  // namespace qiven::test::nav_fixture

@@ -16,8 +16,8 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/matcher.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "write/entries.hpp"
 
@@ -29,8 +29,8 @@ using JKind = json::Kind;
 namespace kinds = entry::kinds;
 namespace header = entry::header;
 
-entry::matcher::Automaton compiled(std::string_view syntax, memory::Arena& arena) {
-    return entry::matcher::compile(syntax, memory::Allocator<char>(arena));
+entry::matcher::Automaton compiled(std::string_view syntax, qiven::memory::Arena& arena) {
+    return entry::matcher::compile(syntax, qiven::memory::Allocator<char>(arena));
 }
 
 // An absolute path: from the root, a drive's or a share's, with no
@@ -90,13 +90,13 @@ std::size_t Path::index(std::size_t i) noexcept {
     return mark;
 }
 
-Reader::Reader(File& file, memory::Arena& arena)
+Reader::Reader(File& file, qiven::memory::Arena& arena)
     : m(&file), v(&file.value_), slug(compiled(entry::content::slug_syntax, arena)),
       scope(compiled(header::scope_syntax, arena)), writer(compiled(header::writer_syntax, arena)),
       id(compiled(header::id_syntax, arena)), lane(compiled(header::lane_syntax, arena)) {}
 
 void Reader::refuse(Why why) const {
-    throw EntriesError{.why = why, .path = memory::Inline<128>(path.view()), .entry = entry, .name = entry_name};
+    throw EntriesError{.why = why, .path = qiven::memory::Inline<128>(path.view()), .entry = entry, .name = entry_name};
 }
 
 void Reader::refuse_at(std::string_view key, Why why) {
@@ -108,10 +108,10 @@ void Reader::fault(entry::content::Code code, std::size_t limit, std::size_t val
     path.member(at);
     const auto clip = [](std::size_t n) { return static_cast<std::uint32_t>(std::min<std::size_t>(n, UINT32_MAX)); };
     throw EntriesError{Code::invalid, Why::content, ParseCode::syntax, code, clip(limit), clip(value),
-                       memory::Inline<128>(path.view()), entry, entry_name};
+                       qiven::memory::Inline<128>(path.view()), entry, entry_name};
 }
 
-memory::Vector<std::uint32_t>::iterator Reader::named(std::string_view name) const {
+qiven::memory::Vector<std::uint32_t>::iterator Reader::named(std::string_view name) const {
     return std::lower_bound(m->by_name_.begin(), m->by_name_.end(), name,
                             [this](std::uint32_t a, std::string_view b) { return m->text(m->entries_[a].name) < b; });
 }
@@ -186,7 +186,7 @@ void Reader::file() {
             entry = static_cast<std::uint32_t>(i);
             read_entry(k);
             entry = none;
-            entry_name = memory::Inline<64>();
+            entry_name = qiven::memory::Inline<64>();
         }
     }
     pieces_used();
@@ -247,7 +247,7 @@ void Reader::read_entry(json::Index object) {
     const auto g = members(object, Table<6>{"name", "scope", "kind", "basis", "target", "content"});
     Entry e;
     e.name = text(g[0], false, name_chars, &slug);
-    entry_name = memory::Inline<64>(m->text(e.name));
+    entry_name = qiven::memory::Inline<64>(m->text(e.name));
     const auto at = named(m->text(e.name));
     if (e.name != 0 && at != m->by_name_.end() && m->text(m->entries_[*at].name) == m->text(e.name)) {
         refuse_at("name", Why::repeated);
@@ -351,9 +351,9 @@ void Reader::reference(json::Index r, bool holes) {
             hole(*n);
         }
     } else if (type == "repo" || type == "transcript" || type == "output") {
-        refused(Field{v->find(r, "digest").value_or(0), memory::Inline<16>("digest")});
+        refused(Field{v->find(r, "digest").value_or(0), qiven::memory::Inline<16>("digest")});
         const json::Index p =
-            node(Field{v->find(r, "piece").value_or(0), memory::Inline<16>("piece")}, JKind::string, true);
+            node(Field{v->find(r, "piece").value_or(0), qiven::memory::Inline<16>("piece")}, JKind::string, true);
         const std::uint32_t named = piece(v->text(p));
         if (named == none) {
             refuse_at("piece", Why::piece);
@@ -430,7 +430,7 @@ std::size_t Reader::standing_size(const Entry& e) const {
     return bytes;
 }
 
-void Reader::check_contents(memory::Arena& arena, [[maybe_unused]] Hooks hooks) {
+void Reader::check_contents(qiven::memory::Arena& arena, [[maybe_unused]] Hooks hooks) {
     const std::span<std::byte> pages(static_cast<std::byte*>(arena.allocate(work_bytes, alignof(std::max_align_t))),
                                      work_bytes);
     try {
@@ -442,25 +442,25 @@ void Reader::check_contents(memory::Arena& arena, [[maybe_unused]] Hooks hooks) 
             path.index(i);
             const std::size_t in_entry = path.member("content");
             entry = static_cast<std::uint32_t>(i);
-            entry_name = memory::Inline<64>(m->text(e.name));
+            entry_name = qiven::memory::Inline<64>(m->text(e.name));
             if (const std::size_t size = standing_size(e); size > kinds::content_limit) {
                 fault(entry::content::Code::too_large, kinds::content_limit, size, {});
             }
-            memory::Arena work(pages);
+            qiven::memory::Arena work(pages);
 #if defined(QIVEN_FAULTS)
             work.attach(hooks.work);
 #endif
-            memory::Vector<std::string_view> fills{memory::Allocator<std::string_view>(work)};
+            qiven::memory::Vector<std::string_view> fills{qiven::memory::Allocator<std::string_view>(work)};
             fills.reserve(e.sites.count);
             for (const Site& site : m->sites(e)) {
                 fills.push_back(site.hole == Hole::piece ? stand_digest : stand_id);
             }
-            json::Value stand{memory::Allocator<char>(work)};
+            json::Value stand{qiven::memory::Allocator<char>(work)};
             build_content(*m, i, fills, stand);
             const header::FieldsView f{.scope = m->text(e.scope), .lane = header::role(by), .parent = {},
                                        .kind = m->text(e.kind), .writer = by, .basis = m->text(e.basis),
                                        .at = stand_at, .target = {}, .content = {}, .id = stand_id};
-            const auto h = header::make(f, memory::Allocator<char>(work));
+            const auto h = header::make(f, qiven::memory::Allocator<char>(work));
             if (const std::optional<entry::content::ContentError> c = entry::content::try_check(h, stand)) {
                 if (c->code == entry::content::Code::basis) {  // the entry's basis member, not its content
                     path.pop(in_entry);

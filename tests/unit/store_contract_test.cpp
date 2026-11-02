@@ -22,8 +22,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
@@ -394,10 +394,10 @@ static_assert(purge_vector());
 // Code bound to the contract alone: each operation once, in the text's
 // order, close last.
 template <store::Store S>
-std::size_t drive(S& s, qiven3::memory::Arena& arena) {
-    const qiven3::memory::Allocator<char> chars(arena);
-    store::Vector<store::LaneHead> rows{qiven3::memory::Allocator<store::LaneHead>(arena)};
-    store::Vector<store::Id> erased{qiven3::memory::Allocator<store::Id>(arena)};
+std::size_t drive(S& s, qiven::memory::Arena& arena) {
+    const qiven::memory::Allocator<char> chars(arena);
+    store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
+    store::Vector<store::Id> erased{qiven::memory::Allocator<store::Id>(arena)};
     store::String record(chars);
     store::String line(chars);
     store::Record scanned(chars);
@@ -432,7 +432,7 @@ std::size_t drive(S& s, qiven3::memory::Arena& arena) {
 // The minimal store through the concept: fifteen answers as given.
 QIVEN_CASE(store_contract, smoke) {
     std::vector<std::byte> pages(16384);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     Minimal<> s(false);
     CHECK_EQ(drive(s, arena), 15U);
     // The hooks run as calls that do nothing; the partial set too.
@@ -508,7 +508,7 @@ QIVEN_CASE(store_contract, gate) {
 // A line takes nothing from the arena until written.
 QIVEN_CASE(store_contract, line) {
     std::vector<std::byte> pages(4096);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     store::Line line(arena);
     CHECK_EQ(arena.used(), 0U);
     line.header.assign(200, 'h');
@@ -523,8 +523,8 @@ QIVEN_CASE(store_contract, line) {
 QIVEN_CASE(store_contract, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
-    qiven3::memory::Countdown countdown;
-    std::optional<qiven3::memory::Arena> arena;
+    qiven::memory::Countdown countdown;
+    std::optional<qiven::memory::Arena> arena;
     std::uint64_t sum = 0;
     const auto op = [&] {
         arena.emplace(pages);
@@ -539,8 +539,8 @@ QIVEN_CASE(store_contract, faults) {
         arena->attach(nullptr);
     };
     const auto empty = [&](std::size_t) { return true; };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_contract.gate", countdown, op, empty);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<StoreError>(qiven_ctx.log, "store_contract.gate", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);

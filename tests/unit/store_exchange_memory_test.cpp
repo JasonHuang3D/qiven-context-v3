@@ -8,7 +8,7 @@
 #include "store/errors.hpp"
 #include "support/stores/exchange_bed.hpp"
 
-using namespace qiven3::test::exchange_bed;
+using namespace qiven::test::exchange_bed;
 
 namespace {
 
@@ -55,7 +55,7 @@ QIVEN_CASE(store_exchange, budget) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
-using qiven3::memory::MemoryError;
+using qiven::memory::MemoryError;
 using qiven3::platform::PlatformError;
 using qiven3::store::Heads;
 using qiven3::store::RangeView;
@@ -107,7 +107,7 @@ struct Tally {  // a step's fault runs' tallies
     std::size_t differed = 0;  // of those, a result not the step's
 };
 
-void attach(Bed& b, qiven3::memory::Countdown* c) {
+void attach(Bed& b, qiven::memory::Countdown* c) {
     b.attached = c;
     b.source->attach(c);
     b.target->attach(c);
@@ -145,7 +145,7 @@ bool held_after(Bed& b, const Step& s, const After& before, bool done) {
 }
 
 // One step's fault runs.
-void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3::memory::Countdown& countdown) {
+void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven::memory::Countdown& countdown) {
     if (s.side == Side::importing) {
         b.empty_target();
     }
@@ -199,8 +199,8 @@ void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3
         return good;
     };
     attach(b, &countdown);
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_exchange.step", countdown, op, check);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<Typed>(qiven_ctx.log, "store_exchange.step", countdown, op, check);
     attach(b, nullptr);
     for (const std::string& r : results) {
         t.differed += r == result ? 0U : 1U;
@@ -218,7 +218,7 @@ void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven3
 }
 void fault_steps(qiven::runner::Context& qiven_ctx, Side side) {
     const auto b = std::make_unique<Bed>();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     for (const Step& s : steps()) {
         if (s.side == side) {
             fault_step(qiven_ctx, *b, s, countdown);

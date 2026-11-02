@@ -67,23 +67,23 @@ void make(std::optional<Fake>& into, const Options& options) {
     into.emplace(std::move(config));
 }
 
-Result set_clock(Drive& d, memory::Arena&, ArgView request) {
+Result set_clock(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_clock(
         std::chrono::sys_time<std::chrono::microseconds>(std::chrono::microseconds(integer(request, "us"))));
     return std::nullopt;
 }
 
-Result set_read_error(Drive& d, memory::Arena&, ArgView request) {
+Result set_read_error(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_read_error(text(request, "path"), text(request, "detail"));
     return std::nullopt;
 }
 
-Result refuse_pages(Drive& d, memory::Arena&, ArgView request) {
+Result refuse_pages(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().refuse_pages(ops::count(request, "at"));
     return std::nullopt;
 }
 
-Result calls(Drive& d, memory::Arena&, ArgView) {
+Result calls(Drive& d, qiven::memory::Arena&, ArgView) {
     Value names = array();
     for (const std::string& call : d.platform().calls()) {
         names.push(scalar(call));
@@ -91,11 +91,11 @@ Result calls(Drive& d, memory::Arena&, ArgView) {
     return names;
 }
 
-Result written(Drive& d, memory::Arena&, ArgView) { return scalar(to_hex(d.platform().written())); }
+Result written(Drive& d, qiven::memory::Arena&, ArgView) { return scalar(to_hex(d.platform().written())); }
 
 std::size_t lent_of(const Fake& fake) { return fake.lent(); }
 
-Result lent(Drive& d, memory::Arena&, ArgView) {
+Result lent(Drive& d, qiven::memory::Arena&, ArgView) {
     return scalar(static_cast<std::int64_t>(d.platform().lent()));
 }
 
@@ -108,13 +108,13 @@ std::uint64_t times(ArgView request, std::string_view key) {
     return n == -1 ? platform::fake::never : static_cast<std::uint64_t>(n);
 }
 
-Result set_busy(Drive& d, memory::Arena&, ArgView request) {
+Result set_busy(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_busy(platform::fake::Busy{times(request, "target"), times(request, "temporary"),
                                                times(request, "publish"), times(request, "lock")});
     return std::nullopt;
 }
 
-Result kept(Drive& d, memory::Arena&, ArgView) {
+Result kept(Drive& d, qiven::memory::Arena&, ArgView) {
     return scalar(static_cast<std::int64_t>(d.platform().files().kept()));
 }
 
@@ -134,7 +134,7 @@ platform::fake::FakeReading reading(ArgView request, std::string_view key) {
     throw RequestError(std::string(key) + ": on, off, locked or unknown");
 }
 
-Result set_facts(Drive& d, memory::Arena&, ArgView request) {
+Result set_facts(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_default_facts(platform::fake::FakeFacts{text(request, "volume"), reading(request, "protection"),
                                                              reading(request, "file_history"),
                                                              reading(request, "bitlocker")});
@@ -154,17 +154,17 @@ Pairs pairs(ArgView request, std::string_view key) {
     return out;
 }
 
-Result set_synced(Drive& d, memory::Arena&, ArgView request) {
+Result set_synced(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_synced(pairs(request, "folders"));
     return std::nullopt;
 }
 
-Result set_links(Drive& d, memory::Arena&, ArgView request) {
+Result set_links(Drive& d, qiven::memory::Arena&, ArgView request) {
     d.platform().set_links(pairs(request, "links"));
     return std::nullopt;
 }
 
-Result set_encoding(Drive& d, memory::Arena&, ArgView request) {
+Result set_encoding(Drive& d, qiven::memory::Arena&, ArgView request) {
     const std::string name = text(request, "encoding");
     if (name != "utf8" && name != "ascii") {
         throw RequestError("encoding: utf8 or ascii");
@@ -173,7 +173,7 @@ Result set_encoding(Drive& d, memory::Arena&, ArgView request) {
     return std::nullopt;
 }
 
-Result location_command(Drive& d, memory::Arena&, ArgView request) {
+Result location_command(Drive& d, qiven::memory::Arena&, ArgView request) {
     const std::vector<std::string> texts = ops::strings(request, "argv");
     const std::vector<std::string_view> argv = ops::views(texts);
     Fake& fake = d.platform();
@@ -195,8 +195,8 @@ Result location_command(Drive& d, memory::Arena&, ArgView request) {
     return value;
 }
 
-Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
-    memory::String dir = ops::string(arena);
+Result store_dir(Drive& d, qiven::memory::Arena& arena, ArgView) {
+    qiven::memory::String dir = ops::string(arena);
     Value value;
     try {
         location::store_dir(d.platform(), dir);
@@ -211,7 +211,7 @@ Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
 // Each program by its whole argv: its "lines" (each given LF), "err",
 // exit "code", whether it "hang"s, the stream it "flood"s, "out" or "err",
 // and what it "echo"es, "cwd" or "env"; the earlier ones dropped.
-Result set_programs(Drive& d, memory::Arena&, ArgView request) {
+Result set_programs(Drive& d, qiven::memory::Arena&, ArgView request) {
     std::map<std::vector<std::string>, platform::fake::Program> programs;
     for (const ArgView item : argument(request, "programs").as_array("programs")) {
         platform::fake::Program program;
@@ -238,7 +238,7 @@ Result set_programs(Drive& d, memory::Arena&, ArgView request) {
 }
 
 // program(name)'s paths, [name, path] each; the earlier ones dropped.
-Result set_found(Drive& d, memory::Arena&, ArgView request) {
+Result set_found(Drive& d, qiven::memory::Arena&, ArgView request) {
     std::map<std::string, std::string, std::less<>> found;
     for (auto& [name, path] : pairs(request, "found")) {
         found.insert_or_assign(std::move(name), std::move(path));

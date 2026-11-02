@@ -7,11 +7,11 @@
 // record or none, its content's digest or none), in the order appended;
 // the ids sorted, for a lookup by id; each lane with its ids in seq order
 // and its head; the size, the count and the forget entries held. Its
-// memory is a memory::Heap over pages its maker takes from the platform
+// memory is a qiven::memory::Heap over pages its maker takes from the platform
 // and keeps for the state's life, its blocks freed in any order, a dropped
 // body's among them; the state's containers take Allocator<T>, one Heap*,
 // which raises MemoryError budget where the heap gives none. One
-// memory::Mutex guards it: Locked holds it for one operation, waiting at
+// qiven::memory::Mutex guards it: Locked holds it for one operation, waiting at
 // most 5 s, past which StoreBusy, and gives the data while it holds it.
 //
 // Batch stages a call's new entries on the heap before any change, a
@@ -51,15 +51,15 @@
 #include <type_traits>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/memory/pool.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store::state {
 
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 
 // No index: an entry with no target, or no forget of it.
 inline constexpr std::uint32_t none = std::numeric_limits<std::uint32_t>::max();
@@ -70,7 +70,7 @@ inline constexpr std::chrono::seconds busy_wait{5};
 
 // The state's heap exhausted, or a request past its type: MemoryError
 // budget, naming the heap's budget and what it holds.
-[[noreturn]] void exhausted(std::size_t request, const memory::Heap& heap);
+[[noreturn]] void exhausted(std::size_t request, const qiven::memory::Heap& heap);
 
 // The allocator of the state's containers: one Heap*. Copies compare equal
 // for one heap and propagate with the container.
@@ -83,13 +83,13 @@ public:
     using propagate_on_container_swap = std::true_type;
     using is_always_equal = std::false_type;
 
-    explicit Allocator(memory::Heap& heap) noexcept : heap_(&heap) {}
+    explicit Allocator(qiven::memory::Heap& heap) noexcept : heap_(&heap) {}
     template <typename U>
     Allocator(const Allocator<U>& other) noexcept : heap_(&other.heap()) {}
 
     [[nodiscard]] T* allocate(std::size_t n) {
-        static_assert(alignof(T) <= memory::slot_align, "a heap block holds no wider alignment");
-        const std::optional<std::size_t> bytes = memory::mul(n, sizeof(T));
+        static_assert(alignof(T) <= qiven::memory::slot_align, "a heap block holds no wider alignment");
+        const std::optional<std::size_t> bytes = qiven::memory::mul(n, sizeof(T));
         void* p = bytes ? heap_->allocate(*bytes) : nullptr;
         if (p == nullptr) {
             exhausted(bytes.value_or(std::numeric_limits<std::size_t>::max()), *heap_);
@@ -97,7 +97,7 @@ public:
         return static_cast<T*>(p);
     }
     void deallocate(T* p, std::size_t /*n*/) noexcept { heap_->free(p); }
-    [[nodiscard]] memory::Heap& heap() const noexcept { return *heap_; }
+    [[nodiscard]] qiven::memory::Heap& heap() const noexcept { return *heap_; }
 
     template <typename U>
     friend bool operator==(const Allocator& a, const Allocator<U>& b) noexcept {
@@ -105,7 +105,7 @@ public:
     }
 
 private:
-    memory::Heap* heap_;
+    qiven::memory::Heap* heap_;
 };
 
 using Bytes = std::basic_string<char, std::char_traits<char>, Allocator<char>>;
@@ -114,7 +114,7 @@ using Rows = std::vector<T, Allocator<T>>;
 
 // An entry held.
 struct Held {
-    explicit Held(memory::Heap& heap) noexcept
+    explicit Held(qiven::memory::Heap& heap) noexcept
         : line(Allocator<char>(heap)), body(Allocator<char>(heap)), kind(Allocator<char>(heap)) {}
     Bytes line;  // the header line, without its LF
     Bytes body;  // the body record, empty with none or once dropped
@@ -131,7 +131,7 @@ struct Held {
 
 // A lane: its scope, its name, its entries' indices in seq order, its head.
 struct Lane {
-    explicit Lane(memory::Heap& heap) noexcept
+    explicit Lane(qiven::memory::Heap& heap) noexcept
         : scope(Allocator<char>(heap)), name(Allocator<char>(heap)), ids(Allocator<std::uint32_t>(heap)) {}
     Bytes scope;
     Bytes name;
@@ -158,7 +158,7 @@ struct Data {
     Data& operator=(Data&&) = delete;
     ~Data() = default;
 
-    memory::Heap heap;
+    qiven::memory::Heap heap;
     Rows<Held> held;
     Rows<std::uint32_t> by_id;  // indices into held, sorted by id
     Rows<Lane> lanes;
@@ -185,17 +185,17 @@ public:
 private:
     friend class Locked;
 #if defined(QIVEN_FAULTS)
-    friend void attach(State& state, memory::Countdown* countdown) noexcept;
+    friend void attach(State& state, qiven::memory::Countdown* countdown) noexcept;
 #endif
 
-    memory::Mutex mutex_;
-    Data data_ QIVEN3_GUARDED_BY(mutex_);
+    qiven::memory::Mutex mutex_;
+    Data data_ QIVEN_GUARDED_BY(mutex_);
     Limits limits_;
 };
 
 #if defined(QIVEN_FAULTS)
 // The state's heap asks the countdown first; null detaches it.
-void attach(State& state, memory::Countdown* countdown) noexcept;
+void attach(State& state, qiven::memory::Countdown* countdown) noexcept;
 #endif
 
 // StoreBusy past the wait.
@@ -205,9 +205,9 @@ void attach(State& state, memory::Countdown* countdown) noexcept;
 struct Unbounded {};
 
 // The state's lock for one operation, and its data while held.
-class QIVEN3_THREAD_ATTRIBUTE(scoped_lockable) Locked {
+class QIVEN_THREAD_ATTRIBUTE(scoped_lockable) Locked {
 public:
-    Locked(State& state, Operation op, std::string_view path) QIVEN3_ACQUIRE(state.mutex_)
+    Locked(State& state, Operation op, std::string_view path) QIVEN_ACQUIRE(state.mutex_)
         : mutex_(&state.mutex_) {
         if (!state.mutex_.try_lock_for(busy_wait)) {
             busy(op, path);
@@ -215,7 +215,7 @@ public:
         data_ = &state.data_;
     }
     // Waits as long as the lock is held: an export's release at its end.
-    Locked(State& state, Unbounded /*wait*/) noexcept QIVEN3_ACQUIRE(state.mutex_)
+    Locked(State& state, Unbounded /*wait*/) noexcept QIVEN_ACQUIRE(state.mutex_)
         : mutex_(&state.mutex_) {
         while (!state.mutex_.try_lock_for(busy_wait)) {
         }
@@ -225,12 +225,12 @@ public:
     Locked& operator=(const Locked&) = delete;
     Locked(Locked&&) = delete;
     Locked& operator=(Locked&&) = delete;
-    ~Locked() QIVEN3_RELEASE() { mutex_->unlock(); }
+    ~Locked() QIVEN_RELEASE() { mutex_->unlock(); }
 
     [[nodiscard]] Data& data() const noexcept { return *data_; }
 
 private:
-    memory::Mutex* mutex_;
+    qiven::memory::Mutex* mutex_;
     Data* data_ = nullptr;
 };
 
@@ -277,13 +277,13 @@ private:
 
 // The failing countdown under QIVEN_FAULTS; elsewhere a type never made.
 #if defined(QIVEN_FAULTS)
-using Countdown = memory::Countdown;
+using Countdown = qiven::memory::Countdown;
 #else
 struct Countdown {};
 #endif
 
 // An arena asks the countdown first, where one is given.
-inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
+inline void hook([[maybe_unused]] qiven::memory::Arena& arena, [[maybe_unused]] Countdown* countdown) noexcept {
 #if defined(QIVEN_FAULTS)
     if (countdown != nullptr) {
         arena.attach(countdown);
@@ -296,7 +296,7 @@ inline void hook([[maybe_unused]] memory::Arena& arena, [[maybe_unused]] Countdo
 class ScratchView {
 public:
     ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
-    memory::Arena& operator()() {
+    qiven::memory::Arena& operator()() {
         if (arena_) {
             peak_ = std::max(peak_, arena_->peak());
         }
@@ -310,7 +310,7 @@ public:
 
 private:
     std::span<std::byte> pages_;
-    std::optional<memory::Arena> arena_;
+    std::optional<qiven::memory::Arena> arena_;
     Countdown* countdown_;
     std::size_t peak_ = 0;
 };

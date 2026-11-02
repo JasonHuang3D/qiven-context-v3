@@ -4,17 +4,17 @@
 
 #include "entry/served.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::served {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template void block(const header::Header<Alloc>&, const canon::Basic<Alloc>&, const State&, const labels::Label&,
-                    const std::optional<MapMark>&, memory::String&);
+                    const std::optional<MapMark>&, qiven::memory::String&);
 template std::size_t block_cost(const header::Header<Alloc>&, const canon::Basic<Alloc>&, const State&,
                                 const labels::Label&, const std::optional<MapMark>&);
 template void stub(const header::Header<Alloc>&, const canon::Basic<Alloc>&, const State&, const labels::Label&,
-                   const std::optional<MapMark>&, memory::String&);
+                   const std::optional<MapMark>&, qiven::memory::String&);
 
 }  // namespace qiven3::entry::served

@@ -166,9 +166,9 @@ public:
     void read(std::string_view path, String& out);
 
 #if defined(QIVEN_FAULTS)
-    void attach(memory::Countdown* countdown) noexcept { countdown_ = countdown; }
+    void attach(qiven::memory::Countdown* countdown) noexcept { countdown_ = countdown; }
     // The countdown, which a started Child's calls ask too.
-    [[nodiscard]] memory::Countdown* countdown() const noexcept { return countdown_; }
+    [[nodiscard]] qiven::memory::Countdown* countdown() const noexcept { return countdown_; }
     // The trace elapsed() and pause() record into; null for none.
     void trace(ClockTrace* into) noexcept { trace_ = into; }
 #endif
@@ -214,7 +214,7 @@ private:
 
     WindowsPlatform* platform_;
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown_ = nullptr;
+    qiven::memory::Countdown* countdown_ = nullptr;
     ClockTrace* trace_ = nullptr;
 #endif
     std::array<Slot, files::open_bound> slots_{};

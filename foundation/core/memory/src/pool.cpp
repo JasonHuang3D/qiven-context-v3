@@ -1,4 +1,4 @@
-#include "memory/pool.hpp"
+#include "qiven/memory/pool.hpp"
 
 #include <cstring>
 #include <functional>
@@ -6,8 +6,8 @@
 #include <new>
 #include <optional>
 
-#include "memory/fail.hpp"
-#include "memory/poison.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/poison.hpp"
 
 // A block is an offset into the span, indexed through it. A pointer given
 // back is found in constant time from its offset in the span: placed inside
@@ -16,7 +16,7 @@
 // alone may use. std::less is the address order on every target v3 builds
 // for, so a pointer it places inside the span is one of the span's.
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 namespace {
 
@@ -340,4 +340,4 @@ Heap::Block Heap::find(const void* p) const noexcept {
 #endif
 }
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

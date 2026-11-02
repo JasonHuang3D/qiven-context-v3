@@ -35,8 +35,8 @@ using projectmap::FileCode;
 using projectmap::FileError;
 using projectmap::System;
 using qiven3::ParseCode;
-using qiven3::test::fixtures::filled;
-using qiven3::test::fixtures::MemoryView;
+using qiven::test::fixtures::filled;
+using qiven::test::fixtures::MemoryView;
 
 #define HEX "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 #define ID_A "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

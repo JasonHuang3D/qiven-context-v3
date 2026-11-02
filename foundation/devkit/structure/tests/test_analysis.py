@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-TEMPLATE = "src/memory/arena.cpp"
+TEMPLATE = "foundation/core/memory/src/arena.cpp"
 
 # Each rule's plants, each a file, and the names each tool must report:
 # clang-tidy's checks, MSVC's warnings. Under /WX, /analyze stops at a

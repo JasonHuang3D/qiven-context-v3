@@ -9,7 +9,7 @@
 #include <string_view>
 
 #include "log/log.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "qiven/case_main/cases.hpp"
 #include "qiven/runner/runner.hpp"
 
@@ -34,12 +34,12 @@ struct InfoControl {
 }  // namespace
 
 QIVEN_CASE(log, k13_levels) {
-    qiven3::memory::Arena& arena = qiven_ctx.counted.arena(qlog::Log::ring_bytes + qlog::Log::event_bytes);
+    qiven::memory::Arena& arena = qiven_ctx.counted.arena(qlog::Log::ring_bytes + qlog::Log::event_bytes);
     const std::size_t lines = [&] {
         qlog::Log lg(arena, qlog::Count(1U), "qiven3_unit_log");
         qlog::event(lg, TraceOnly{}, qlog::Count(1U));
         qlog::event(lg, InfoControl{}, qlog::Count(2U));
-        return qiven3::test::Lines(lg.ring().lines()).size();
+        return qiven::test::Lines(lg.ring().lines()).size();
     }();
     // log.start, the control, and the trace event where the minimum takes it.
     CHECK_EQ(lines, qlog::minimum == qlog::Level::trace ? 3U : 2U);

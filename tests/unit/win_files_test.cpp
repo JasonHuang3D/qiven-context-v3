@@ -21,7 +21,7 @@
 #include <system_error>
 #include <utility>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/win/windows.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
@@ -29,9 +29,9 @@
 namespace {
 
 namespace fs = std::filesystem;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 using qiven3::platform::Code;
 using qiven3::platform::PlatformError;
 using qiven3::platform::Seconds;
@@ -255,7 +255,7 @@ QIVEN_CASE(win_files, read_memory) {
     WindowsPlatform platform(std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
-    qiven3::memory::Countdown allocations;
+    qiven::memory::Countdown allocations;
     arena.attach(&allocations);
     const fs::path big = scratch.root / "big.bin";
     const fs::path small = scratch.root / "small.bin";
@@ -368,7 +368,7 @@ QIVEN_CASE(win_files, replace_held) {
     const fs::path target = scratch.root / "map-marks.json";
     write_bytes(target, "old");
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     platform.attach(&countdown);
     ClockTrace held_trace;
     ClockTrace zero_trace;
@@ -479,7 +479,7 @@ QIVEN_CASE(win_files, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     const fs::path target = scratch.root / "record.json";
@@ -494,8 +494,8 @@ QIVEN_CASE(win_files, faults) {
     };
     platform.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
-        const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
+        const qiven::test::FaultRuns r =
+            qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_files.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);

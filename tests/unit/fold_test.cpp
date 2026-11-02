@@ -30,7 +30,7 @@ namespace {
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using fold::ItemView;
 using fold::Method;
 using fold::Result;

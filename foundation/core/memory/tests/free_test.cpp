@@ -2,7 +2,7 @@
 // pool's span and of a heap class's (the first, the last, an interior one,
 // then the rest in a mixed order), over spans 64 times apart, each freed
 // block serving again; and a heap of mixed classes freed the same way.
-// tests/drive/test_free.py runs the wrong pointers, which end the process.
+// foundation/core/memory/tests/test_free.py runs the wrong pointers, which end the process.
 
 #include <algorithm>
 #include <array>
@@ -12,13 +12,13 @@
 #include <span>
 #include <vector>
 
-#include "memory/pool.hpp"
+#include "qiven/memory/pool.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::memory::Heap;
-using qiven3::memory::Pool;
+using qiven::memory::Heap;
+using qiven::memory::Pool;
 
 struct alignas(4096) Page {
     std::array<std::byte, 4096> bytes{};

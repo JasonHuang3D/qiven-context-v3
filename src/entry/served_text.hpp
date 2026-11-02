@@ -22,7 +22,7 @@
 #include <optional>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 
 namespace qiven3::entry::served {
@@ -45,14 +45,14 @@ constexpr std::size_t cost(std::string_view text) noexcept {
 namespace detail {
 
 [[noreturn]] inline void too_large(std::size_t request) {
-    throw memory::MemoryError::budget("served", json::max_input, request, 0);
+    throw qiven::memory::MemoryError::budget("served", json::max_input, request, 0);
 }
 
 // The bytes and UTF-16 units written, each sum checked.
 class Measure {
 public:
     constexpr void append(std::string_view s) {
-        const std::optional<std::size_t> b = memory::add(bytes_, s.size());
+        const std::optional<std::size_t> b = qiven::memory::add(bytes_, s.size());
         if (!b || *b > json::max_input) {
             too_large(b.value_or(json::max_input + 1));
         }

@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/files.hpp"
 #include "platform/names.hpp"
 #include "qiven/faults/faults.hpp"
@@ -32,11 +32,11 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace files = qiven3::platform::files;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::platform::Code;
 using qiven3::platform::PlatformError;
 using qiven3::platform::Seconds;
@@ -319,7 +319,7 @@ QIVEN_CASE(files_names, faults) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
     FakeFiles& system = fake.files();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     Vector<String> names{Allocator<String>(arena)};
@@ -330,8 +330,8 @@ QIVEN_CASE(files_names, faults) {
         return (names.empty() || names.size() == 3) && fs::exists(scratch.root / "1.pending") && system.kept() == 0;
     };
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed, auto typed) {
-        const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<decltype(typed)>(qiven_ctx.log, site, countdown, op, clean);
+        const qiven::test::FaultRuns r =
+            qiven::test::run_faults<decltype(typed)>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         if (completed != 0) {
             CHECK_EQ(r.completed_at, completed);
@@ -363,7 +363,7 @@ QIVEN_CASE(files_names, faults) {
     runs("files_names.list_memory", [&] {
         names = Vector<String>{Allocator<String>(arena)};
         files::list(system, root, names);
-    }, 0, MemoryError(qiven3::memory::MemoryCode::budget, "", ""));
+    }, 0, MemoryError(qiven::memory::MemoryCode::budget, "", ""));
     arena.attach(nullptr);
     CHECK_EQ(joined(names), std::string("1.pending|2.pending|a-long-name-past-the-small-string.json"));
 #else

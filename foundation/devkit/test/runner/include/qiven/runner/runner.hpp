@@ -13,15 +13,15 @@
 #include "log/log.hpp"
 #include "qiven/runner/core.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 
 // The event case.end in log: the case's name, its outcome "pass", "fail" or
 // "skip" by status, its milliseconds since start and held, the bytes its
 // allocators held. The main's Ended, which runner_test gives run_case.
-void case_ended(log::Log& log, const qiven::runner::Case& c, int status,
+void case_ended(qiven3::log::Log& log, const qiven::runner::Case& c, int status,
                 std::chrono::steady_clock::time_point start, std::size_t held);
 
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 #define QIVEN_CAT2(a, b) a##b
 #define QIVEN_CAT(a, b) QIVEN_CAT2(a, b)

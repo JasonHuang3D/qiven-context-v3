@@ -14,9 +14,9 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::platform::win {
 namespace {
@@ -70,7 +70,7 @@ std::size_t WindowsArguments::bytes(std::span<const wchar_t* const> wide) {
     return (wide.size() + 1) * sizeof(char*) + text;
 }
 
-WindowsArguments::WindowsArguments(std::span<const wchar_t* const> wide, memory::Arena& arena)
+WindowsArguments::WindowsArguments(std::span<const wchar_t* const> wide, qiven::memory::Arena& arena)
     : arena_(&arena), count_(wide.size()) {
     const std::size_t total = bytes(wide);
     const std::size_t pointers = (count_ + 1) * sizeof(char*);
@@ -87,7 +87,7 @@ WindowsArguments::WindowsArguments(std::span<const wchar_t* const> wide, memory:
         for (std::size_t i = 0; i < count_; ++i) {
             const std::size_t n = utf8(i, view(wide, i), rest.first(rest.size() - 1));
             if (n >= rest.size()) {
-                memory::fail_fast("arguments: a conversion past its measure");
+                qiven::memory::fail_fast("arguments: a conversion past its measure");
             }
             rest[n] = '\0';
             argv[i] = rest.data();
@@ -112,7 +112,7 @@ WindowsArguments::~WindowsArguments() {
 namespace {
 
 #if defined(QIVEN_FAULTS)
-using Faults = memory::Countdown*;
+using Faults = qiven::memory::Countdown*;
 #else
 using Faults = std::nullptr_t;
 #endif
@@ -141,7 +141,7 @@ int run(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statu
         static_cast<void>(faults);
 #endif
         const WindowsPages pages = take_pages(n);
-        memory::Arena arena(pages.bytes().first(n));
+        qiven::memory::Arena arena(pages.bytes().first(n));
 #if defined(QIVEN_FAULTS)
         arena.attach(faults);
 #endif
@@ -149,7 +149,7 @@ int run(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statu
         return entry(arguments.argc(), arguments.argv());
     } catch (const PlatformError& e) {
         return e.code == Code::memory ? statuses.faulted : statuses.refused;
-    } catch (const memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         return statuses.faulted;
     } catch (const std::bad_alloc&) {
         return statuses.faulted;
@@ -166,7 +166,7 @@ int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses 
 
 #if defined(QIVEN_FAULTS)
 int run_utf8(int argc, const wchar_t* const* wide, Utf8Main entry, Utf8Statuses statuses,
-             memory::Countdown* faults) noexcept {
+             qiven::memory::Countdown* faults) noexcept {
     return run(argc, wide, entry, statuses, faults);
 }
 #endif

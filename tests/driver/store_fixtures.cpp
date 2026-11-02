@@ -29,10 +29,10 @@ using Slot = header::Slot;
 void named(std::string_view name) {
     static const std::vector<std::string> names = [] {
         json::Basic<std::allocator<char>> value;
-        test::fixtures::load_entries(value);
+        qiven::test::fixtures::load_entries(value);
         std::vector<std::string> out;
-        for (std::size_t i = 0; i < test::fixtures::entry_count(value); ++i) {
-            out.emplace_back(test::fixtures::entry(value, i).name);
+        for (std::size_t i = 0; i < qiven::test::fixtures::entry_count(value); ++i) {
+            out.emplace_back(qiven::test::fixtures::entry(value, i).name);
         }
         return out;
     }();
@@ -41,7 +41,7 @@ void named(std::string_view name) {
     }
 }
 
-Value entry_value(const test::stage_book::Stored& s) {
+Value entry_value(const qiven::test::stage_book::Stored& s) {
     Value out;
     out.set("line", to_hex(s.line));
     if (s.record) {
@@ -117,17 +117,17 @@ struct Changes {
 
 }  // namespace
 
-Value fixture_entry(const test::stage_book::Book& book, ArgView request) {
+Value fixture_entry(const qiven::test::stage_book::Book& book, ArgView request) {
     const std::string name = text(request, "name");
     named(name);
     return entry_value(book.stored(name));
 }
 
-Value fixture_made(const test::stage_book::Book& book, ArgView request) {
+Value fixture_made(const qiven::test::stage_book::Book& book, ArgView request) {
     const std::string like = text(request, "like");
     named(like);
     const Changes changes(request);
-    const test::stage_book::Stored base = book.stored(like);
+    const qiven::test::stage_book::Stored base = book.stored(like);
     if (changes.removes("content")) {
         // A header with no content and no body, as a forget's: its fields
         // read off the fixture's line, changed, the id computed.
@@ -143,7 +143,7 @@ Value fixture_made(const test::stage_book::Book& book, ArgView request) {
         f.at = h.value(Slot::at);
         f.target = h.text(Slot::target);
         changes.apply(f);
-        test::stage_book::Stored s;
+        qiven::test::stage_book::Stored s;
         header::make(f).line(s.line);
         return entry_value(s);
     }

@@ -33,8 +33,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/exchange.hpp"
@@ -42,15 +42,15 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
-namespace qiven3::test::exchange_bed {
+namespace qiven::test::exchange_bed {
 
 using records::Rec, records::views;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Chars = qiven3::memory::Allocator<char>;
-using qiven3::memory::Arena;
-using qiven3::memory::Vector;
+using Chars = qiven::memory::Allocator<char>;
+using qiven::memory::Arena;
+using qiven::memory::Vector;
 using qiven3::store::AfterView;
 using qiven3::store::Counts;
 using qiven3::store::GuardView;
@@ -223,8 +223,8 @@ struct Bed {
     std::optional<Arena> call;
     std::size_t heads_left = 0;  // the caller's heads after a refused import
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown* call_countdown = nullptr;
-    qiven3::memory::Countdown* attached = nullptr;  // the stores' arenas'
+    qiven::memory::Countdown* call_countdown = nullptr;
+    qiven::memory::Countdown* attached = nullptr;  // the stores' arenas'
 #endif
 };
 
@@ -296,4 +296,4 @@ inline std::vector<Step> steps() {
     return out;
 }
 
-}  // namespace qiven3::test::exchange_bed
+}  // namespace qiven::test::exchange_bed

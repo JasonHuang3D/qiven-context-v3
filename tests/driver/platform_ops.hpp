@@ -36,7 +36,7 @@
 #include <utility>
 
 #include "driver/drive.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/platform.hpp"
 
 namespace qiven3::drive {
@@ -49,7 +49,7 @@ public:
     using Sink = decltype(std::declval<Staged&>().open(std::string_view{}));
     using Lock = decltype(std::declval<P&>().lock(std::string_view{}, platform::Seconds{}));
     using Child = decltype(std::declval<P&>().start(std::declval<const platform::Command&>()));
-    using Operation = std::optional<Value> (*)(PlatformDrive&, memory::Arena&, ArgView);
+    using Operation = std::optional<Value> (*)(PlatformDrive&, qiven::memory::Arena&, ArgView);
     // The operation's stated budget for this request, in bytes.
     using Budget = std::size_t (*)(ArgView);
     // Makes the adapter in place from the options.

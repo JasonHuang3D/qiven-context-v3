@@ -7,9 +7,9 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "write/entries_reader.hpp"
 
@@ -25,16 +25,16 @@ std::string_view name(Why why) noexcept {
     return names.at(static_cast<std::size_t>(why));
 }
 
-File::File(memory::Arena& arena) noexcept
-    : value_(memory::Allocator<char>(arena)), entries_(memory::Allocator<Entry>(arena)),
-      pieces_(memory::Allocator<Piece>(arena)), sites_(memory::Allocator<Site>(arena)),
-      by_name_(memory::Allocator<std::uint32_t>(arena)) {}
+File::File(qiven::memory::Arena& arena) noexcept
+    : value_(qiven::memory::Allocator<char>(arena)), entries_(qiven::memory::Allocator<Entry>(arena)),
+      pieces_(qiven::memory::Allocator<Piece>(arena)), sites_(qiven::memory::Allocator<Site>(arena)),
+      by_name_(qiven::memory::Allocator<std::uint32_t>(arena)) {}
 
 std::string_view File::text(Text t) const noexcept { return t == 0 ? std::string_view{} : value_.text(t); }
 
 std::span<const Site> File::sites(const Entry& e) const {
     if (e.sites.first > sites_.size() || e.sites.count > sites_.size() - e.sites.first) {
-        memory::fail_fast("write/entries: a span past its sites");
+        qiven::memory::fail_fast("write/entries: a span past its sites");
     }
     return std::span<const Site>(sites_).subspan(e.sites.first, e.sites.count);
 }
@@ -43,10 +43,10 @@ void build_content(const File& file, std::size_t e, std::span<const std::string_
     const Entry& entry = file.entries()[e];
     const std::span<const Site> sites = file.sites(entry);
     if (fills.size() != sites.size()) {
-        memory::fail_fast("write/entries: a fill count other than the sites'");
+        qiven::memory::fail_fast("write/entries: a fill count other than the sites'");
     }
     const json::Value& v = file.value();
-    json::Writer<memory::Allocator<char>> w(out);
+    json::Writer<qiven::memory::Allocator<char>> w(out);
     struct Frame {
         json::Index end = 0;
         bool object = false;
@@ -108,7 +108,7 @@ void build_content(const File& file, std::size_t e, std::span<const std::string_
     close(end);
 }
 
-File read(std::string_view bytes, memory::Arena& arena, Hooks hooks) {
+File read(std::string_view bytes, qiven::memory::Arena& arena, Hooks hooks) {
     if (bytes.size() > max_bytes) {
         throw EntriesError{.why = Why::too_large};
     }

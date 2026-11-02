@@ -28,8 +28,8 @@
 #include <vector>
 
 #include "entry/kinds.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -42,8 +42,8 @@ namespace {
 namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 using qiven3::platform::fake::FakePlatform;
 
 // The reader's work span, the builder's, and the file's room.
@@ -148,7 +148,7 @@ void build(std::string_view bytes, Arena& arena, FakePlatform& platform, Attach 
     left = Left{};
     const we::File file = we::read(bytes, arena);
     const std::size_t file_held = arena.used();
-    qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+    qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
     OneQuestion fold;
     attach();
     try {
@@ -213,7 +213,7 @@ QIVEN_CASE(write_build, budget) {
             const we::File f = we::read(*bytes, arena);
             const std::size_t file_held = arena.used();
             {
-                qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+                qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
                 OneQuestion fold;
                 const std::size_t before = arena.peak();
                 wb::build(f, fold, platform, arena, out);
@@ -240,7 +240,7 @@ QIVEN_CASE(write_build, budget) {
 QIVEN_CASE(write_build, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const Scratch scratch;
     const std::string path_file = path_file_of(scratch);
@@ -259,7 +259,7 @@ QIVEN_CASE(write_build, faults) {
             build(*c.bytes, *arena, platform, [&] { arena->attach(&countdown); }, [&] { arena->attach(nullptr); },
                   left, we::Hooks{&countdown});
         };
-        const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
             qiven_ctx.log, "write_build.build", countdown, op, [&](std::size_t) { return left.clean; });
         std::cout << "write_build.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << "\n";
@@ -282,7 +282,7 @@ QIVEN_CASE(write_build, platform_faults) {
     const std::string bytes = path_file_of(scratch);
     FakePlatform platform(config(scratch.root.generic_string()));
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     Left left;
     std::size_t refusals = 0;
@@ -306,7 +306,7 @@ QIVEN_CASE(write_build, platform_faults) {
             throw Failed{};
         }
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<Failed>(
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<Failed>(
         qiven_ctx.log, "write_build.platform", countdown, op,
         [&](std::size_t) { return left.clean && platform.calls().back() == "wipe"; });
     std::cout << "write_build.faults: the platform's calls failed " << runs.typed << ", completed at "

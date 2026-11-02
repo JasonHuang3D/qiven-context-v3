@@ -101,7 +101,7 @@ class Tree(unittest.TestCase):
 class Plant(unittest.TestCase):
     def test_k15_caught(self):
         self.assertEqual(planted({
-            "src/store/store.cpp": '#include "memory/memory.hpp"\n#include "qiven3/json.hpp"\n',
+            "src/store/store.cpp": '#include "qiven/memory/memory.hpp"\n#include "qiven3/json.hpp"\n',
             "src/diag/report.hpp": '#  include <qiven3/json_bytes.hpp>\n',
             "src/log/reader.cpp": '#include "log/log.hpp"\nvoid f() { json::scan(text, 16, v); }\n',
             "src/qiven3/canon.cpp": '#include "qiven3/json.hpp"\n',

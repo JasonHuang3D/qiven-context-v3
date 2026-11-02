@@ -11,7 +11,7 @@
 #include <string>
 
 #include "log/log.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/case_main/cases.hpp"
 #include "qiven/case_main/journal.hpp"
@@ -34,9 +34,9 @@ constexpr qiven3::log::Name sample_case = "sample.case";
 class Logged {
 public:
     explicit Logged(Context& ctx)
-        : log(ctx.counted.arena(qiven3::test::Journal::bytes), qiven3::log::Count(2U), "runner-test") {}
+        : log(ctx.counted.arena(qiven::test::Journal::bytes), qiven3::log::Count(2U), "runner-test") {}
     // Its lines, oldest first.
-    [[nodiscard]] qiven3::test::Lines lines() const { return qiven3::test::Lines(log.ring().since(log.ring().first())); }
+    [[nodiscard]] qiven::test::Lines lines() const { return qiven::test::Lines(log.ring().since(log.ring().first())); }
     qiven3::log::Log log;
 };
 
@@ -52,8 +52,8 @@ Ran run(Context& ctx, qiven::runner::CaseFn fn) {
     std::ostringstream out;
     Logged logged(ctx);
     const int status = qiven::runner::run_case(Case{sample_case.text(), &sample_case, fn, false}, out, logged.log,
-                                              &qiven3::test::case_ended);
-    const qiven3::test::Lines lines = logged.lines();
+                                              &qiven::test::case_ended);
+    const qiven::test::Lines lines = logged.lines();
     return Ran{status, out.str(), lines.at(lines.size() - 1)};
 }
 
@@ -81,13 +81,13 @@ void sample_require_stops(Context& qiven_ctx) {
 void sample_check_eq(Context& qiven_ctx) { CHECK_EQ(std::string("ab"), std::string("ac")); }
 
 void sample_counted_none_held(Context& qiven_ctx) {
-    qiven3::memory::Arena& arena = qiven_ctx.counted.arena(4096);
-    const qiven3::memory::String text("a text past the string's own small buffer",
-                                      qiven3::memory::Allocator<char>(arena));
+    qiven::memory::Arena& arena = qiven_ctx.counted.arena(4096);
+    const qiven::memory::String text("a text past the string's own small buffer",
+                                      qiven::memory::Allocator<char>(arena));
     CHECK(arena.used() > 0);
-    qiven3::memory::Pool& pool = qiven_ctx.counted.pool(32, 4096);
+    qiven::memory::Pool& pool = qiven_ctx.counted.pool(32, 4096);
     pool.free(pool.allocate());
-    qiven3::memory::Heap& heap = qiven_ctx.counted.heap(8192);
+    qiven::memory::Heap& heap = qiven_ctx.counted.heap(8192);
     heap.free(heap.allocate(100));
 }
 
@@ -179,7 +179,7 @@ QIVEN_CASE(runner, platform_error_named) {
 QIVEN_CASE(runner, memory_error_named) {
     // A MemoryError has no base: its code's name, its operation and its
     // detail are named, and the case is counted failed.
-    const Ran r = run(qiven_ctx, [](Context&) { throw qiven3::memory::MemoryError::budget("arena", 64, 80, 16); });
+    const Ran r = run(qiven_ctx, [](Context&) { throw qiven::memory::MemoryError::budget("arena", 64, 80, 16); });
     CHECK_EQ(r.status, qiven::runner::exit_fail);
     CHECK(holds(r.out, "memory error budget in arena: budget 64, request 80, held 16\n"));
     CHECK(!holds(r.out, "unknown type"));

@@ -20,7 +20,7 @@ std::string_view name(Code code) noexcept {
 
 namespace detail {
 
-void at_file(Code code, std::string_view member) { throw Refusal{code, memory::Inline<128>(member)}; }
+void at_file(Code code, std::string_view member) { throw Refusal{code, qiven::memory::Inline<128>(member)}; }
 
 void at_entry(Code code, const entries::File& file, std::size_t e, std::string_view member, std::string_view field,
               std::size_t item) {
@@ -32,8 +32,8 @@ void at_entry(Code code, const entries::File& file, std::size_t e, std::string_v
     if (item != entries::none) {
         path.index(item);
     }
-    throw Refusal{code, memory::Inline<128>(path.view()), static_cast<std::uint32_t>(e),
-                  memory::Inline<64>(file.text(file.entries()[e].name))};
+    throw Refusal{code, qiven::memory::Inline<128>(path.view()), static_cast<std::uint32_t>(e),
+                  qiven::memory::Inline<64>(file.text(file.entries()[e].name))};
 }
 
 namespace {

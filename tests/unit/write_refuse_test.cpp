@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "entry/kinds.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -34,7 +34,7 @@ namespace {
 namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace wr = qiven3::write::refuse;
-using qiven3::memory::Arena;
+using qiven::memory::Arena;
 using qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
@@ -222,7 +222,7 @@ std::string run(const std::string& bytes, FakeFold& fold) {
     };
     try {
         const we::File f = we::read(bytes, arena);
-        qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+        qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
         wb::build(f, fold, platform, arena, out);
         wr::write(f, std::span<const wb::Built>(out.data(), out.size()), fold);
         return "ok";
@@ -462,13 +462,13 @@ QIVEN_CASE(write_refuse, allocates_nothing) {
     // Read and built first; then the countdown on the arena, each of its
     // allocations failed in turn over a pass and a refusal: none is made.
     FakePlatform platform(config());
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     for (const std::string& bytes : {file_of(claim + ", " + item("core")), file_of(retire(direction))}) {
         std::vector<std::byte> pages(16 * mib);
         Arena arena(pages);
         FakeFold fold;
         const we::File f = we::read(bytes, arena);
-        qiven3::memory::Vector<wb::Built> out{qiven3::memory::Allocator<wb::Built>(arena)};
+        qiven::memory::Vector<wb::Built> out{qiven::memory::Allocator<wb::Built>(arena)};
         wb::build(f, fold, platform, arena, out);
         std::optional<wr::Code> refused;
         const auto op = [&] {
@@ -480,7 +480,7 @@ QIVEN_CASE(write_refuse, allocates_nothing) {
             }
         };
         arena.attach(&countdown);
-        const qiven3::test::FaultRuns runs = qiven3::test::run_faults<qiven3::memory::MemoryError>(
+        const qiven::test::FaultRuns runs = qiven::test::run_faults<qiven::memory::MemoryError>(
             qiven_ctx.log, "write_refuse.write", countdown, op, [](std::size_t) { return true; });
         arena.attach(nullptr);
         CHECK_EQ(runs.typed, 0U);

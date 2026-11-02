@@ -17,9 +17,9 @@
 
 namespace {
 
-using namespace qiven3::test::process;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using namespace qiven::test::process;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using qiven3::platform::Ran;
 
 // Whether text holds word whole: no word character ([A-Za-z0-9_], a

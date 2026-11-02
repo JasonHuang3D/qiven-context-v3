@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::matcher {
 
@@ -106,7 +106,7 @@ public:
     // compile did not fill is a caller's mistake: fail_fast.
     [[nodiscard]] constexpr bool hit(std::string_view text) const {
         if (!compiled()) {
-            memory::fail_fast("matcher.hit: an automaton compile did not fill");
+            qiven::memory::fail_fast("matcher.hit: an automaton compile did not fill");
         }
         if (nullable_ && (!whole_ || text.empty())) {
             return true;
@@ -171,7 +171,7 @@ private:
     bool lookbehind_ = false;
 };
 
-using Automaton = Basic<memory::Allocator<char>>;
+using Automaton = Basic<qiven::memory::Allocator<char>>;
 
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
 static_assert(sizeof(Automaton) == 72, "the automaton's size is pinned: its words, 32, the lookbehind, 32, the rest");

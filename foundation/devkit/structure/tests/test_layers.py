@@ -18,6 +18,8 @@ from foundation.devkit.structure import layers, rules, subset
 
 TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
+# Where core logic was read: src/, and memory's library code, in src/ until its move.
+OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/")
 
 
 def files():
@@ -25,8 +27,8 @@ def files():
 
 
 def was_core(rel):
-    """Core logic as it was read, src/ its literal root."""
-    return rel.startswith("src/") and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
+    """Core logic as it was read, src/ its literal root, memory's code at its new place."""
+    return rel.startswith(OLD_SRC) and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
 
 
 def planted(case, plants):
@@ -56,7 +58,7 @@ class Core(unittest.TestCase):
         self.assertEqual([rel for rel in held if not rules.is_core(rel, TREE)], [])
 
     def test_outside(self):
-        """No file outside src/ is core logic today: the runner, devkit's,
+        """No file outside src/ and memory's code is core logic today: the runner, devkit's,
         the vendored SQLite, system's, and test code are outside it."""
         self.assertEqual([rel for rel in files() if rel.endswith(CXX) and rules.is_core(rel, TREE)
                           and not was_core(rel)], [])
@@ -64,22 +66,22 @@ class Core(unittest.TestCase):
         self.assertGreaterEqual(len(runner), 4)
         self.assertEqual(TREE.layer(runner[0]), "devkit")
         self.assertEqual(TREE.layer("third_party/sqlite/sqlite3.c"), "system")
-        for rel in (*runner, "third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h", "tests/unit/arena_test.cpp"):
+        for rel in (*runner, "third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h", "foundation/core/memory/tests/arena_test.cpp"):
             with self.subTest(rel=rel):
                 self.assertFalse(rules.is_core(rel, TREE))
-        self.assertTrue(rules.is_core("src/memory/arena.cpp", TREE))
-        self.assertEqual(TREE.layer("src/memory/arena.cpp"), "core")
+        self.assertTrue(rules.is_core("foundation/core/memory/src/arena.cpp", TREE))
+        self.assertEqual(TREE.layer("foundation/core/memory/src/arena.cpp"), "core")
 
     def test_test_code(self):
         """Test code, the table's: the top-level tests/ and a module's tests/."""
-        self.assertTrue(TREE.test_code("tests/unit/arena_test.cpp"))
+        self.assertTrue(TREE.test_code("foundation/core/memory/tests/arena_test.cpp"))
         self.assertTrue(TREE.test_code(rules.RUNNER + "tests/runner_test.cpp"))
         self.assertFalse(TREE.test_code(rules.RUNNER + "src/runner.cpp"))
-        self.assertFalse(TREE.test_code("src/memory/arena.cpp"))
+        self.assertFalse(TREE.test_code("foundation/core/memory/src/arena.cpp"))
 
     def test_b9_libraries(self):
         """B9's own headers: a library's of core to products, as src/ was."""
-        self.assertEqual([rel for rel in files() if TREE.library(rel) != rel.startswith("src/")
+        self.assertEqual([rel for rel in files() if TREE.library(rel) != rel.startswith(OLD_SRC)
                           and rel.endswith(CXX)], [])
 
     def test_moved(self):
@@ -96,12 +98,12 @@ class Core(unittest.TestCase):
         for header in (runner, f"{layers.SUPPORT}x.hpp", f"{moved}support/x.hpp", f"{layers.CHILD}x.hpp"):
             self.assertEqual(rules_on("tests/unit/x_test.cpp", header), [], header)
             self.assertEqual(rules_on(f"{moved}x_test.cpp", header), [], header)
-        self.assertEqual(rules_on("foundation/core/memory/src/x.cpp", runner), ["B9"])
+        self.assertEqual(rules_on("foundation/core/memory/src/x.cpp", runner), ["B17", "B9"])
         self.assertEqual(rules_on(f"{moved}x_test.cpp", "tests/unit/x.hpp"),
                          rules_on("tests/unit/x_test.cpp", "tests/unit/x.hpp"))
         self.assertTrue(subset.in_scope(f"{moved}support/x.hpp", TREE))
         self.assertFalse(subset.in_scope(f"{moved}x_test.cpp", TREE))
-        self.assertTrue(TREE.library("src/memory/tests/x.cpp"))
+        self.assertTrue(TREE.library("src/store/tests/x.cpp"))
 
 
 class Text(unittest.TestCase):
@@ -161,8 +163,8 @@ class Subset(unittest.TestCase):
         tests/support/, and a vendor's, not."""
         for rel, held in ((rules.RUNNER + "src/runner.cpp", True),
                           (rules.RUNNER + "include/qiven/runner/core.hpp", True),
-                          (rules.RUNNER + "tests/runner_test.cpp", True), ("src/memory/arena.hpp", True),
-                          ("tests/support/goldens/goldens.hpp", True), ("tests/unit/arena_test.cpp", False),
+                          (rules.RUNNER + "tests/runner_test.cpp", True), ("foundation/core/memory/include/qiven/memory/arena.hpp", True),
+                          ("tests/support/goldens/goldens.hpp", True), ("foundation/core/memory/tests/arena_test.cpp", False),
                           ("tests/child/child.hpp", False), ("third_party/sqlite/sqlite3.h", False),
                           ("tools/git_shim.c", False)):
             with self.subTest(rel=rel):

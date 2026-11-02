@@ -1,4 +1,4 @@
-// The frees that end the process, run as processes by tests/drive/test_free.py;
+// The frees that end the process, run as processes by foundation/core/memory/tests/test_free.py;
 // never CTest tests themselves. free.*: a wrong pointer given back to a pool
 // or a heap, another allocator's, a block's interior (a heap's with a copied
 // header too), one past the last block or past the span, or a block given
@@ -7,7 +7,7 @@
 // instead. asan.*: a touch of a freed block, of a heap block's header, of an
 // arena's block after the arena's end, past its cursor or in its padding,
 // which AddressSanitizer reports, the blocks the system heap's under
-// QIVEN_SYSTEM_HEAP, or poisoned in the span (memory/poison.hpp); each
+// QIVEN_SYSTEM_HEAP, or poisoned in the span (qiven/memory/poison.hpp); each
 // skipped where no tool would see it. A case that ends prints "not caught";
 // one that passes its wrong free prints "past the wrong free" first.
 
@@ -20,16 +20,16 @@
 #include <span>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/poison.hpp"
-#include "memory/pool.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/poison.hpp"
+#include "qiven/memory/pool.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::memory::Arena;
-using qiven3::memory::Heap;
-using qiven3::memory::Pool;
+using qiven::memory::Arena;
+using qiven::memory::Heap;
+using qiven::memory::Pool;
 
 struct alignas(4096) Page {
     std::array<std::byte, 4096> bytes{};
@@ -52,7 +52,7 @@ void not_caught() {
 
 // Whether AddressSanitizer sees a touch of v3's blocks: on the system heap,
 // or poisoned in the span.
-#if defined(QIVEN_SYSTEM_HEAP) || QIVEN3_POISONING
+#if defined(QIVEN_SYSTEM_HEAP) || QIVEN_POISONING
 #define QIVEN3_SEEN 1
 #else
 #define QIVEN3_SEEN 0
@@ -218,7 +218,7 @@ QIVEN_CASE(asan, heap_use_after_free) {
 
 QIVEN_CASE(asan, heap_header) {
     // The first block's header, the span's first 16 bytes, its payload after.
-#if QIVEN3_POISONING
+#if QIVEN_POISONING
     const auto pages = std::make_unique<Page>();
     Heap heap(pages->bytes);
     void* p = heap.allocate(100);

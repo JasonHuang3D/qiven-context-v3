@@ -11,8 +11,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::drive::wire {
 namespace {
@@ -115,8 +115,8 @@ Value sizes(const store::Sizes& s) {
     return out;
 }
 
-std::string header_line(const checked::Header& header, memory::Arena& arena) {
-    memory::String out{memory::Allocator<char>(arena)};
+std::string header_line(const checked::Header& header, qiven::memory::Arena& arena) {
+    qiven::memory::String out{qiven::memory::Allocator<char>(arena)};
     header.line(out);
     return to_hex(std::string_view(out.data(), out.size()));
 }
@@ -250,8 +250,8 @@ Given::Given(ArgView request) {
     for (const ArgView item : argument(request, "heads").as_array("heads")) {
         store::LaneHead row;
         row.head = store::Head{store::Id::of(text(item, "id")), integer(item, "seq")};
-        row.scope = memory::Inline<store::scope_bytes>(text(item, "scope"));
-        row.lane = memory::Inline<store::lane_bytes>(text(item, "lane"));
+        row.scope = qiven::memory::Inline<store::scope_bytes>(text(item, "scope"));
+        row.lane = qiven::memory::Inline<store::lane_bytes>(text(item, "lane"));
         heads_.push_back(row);
     }
     for (const ArgView item : argument(request, "lines").as_array("lines")) {
@@ -281,7 +281,7 @@ std::size_t lines_budget(ArgView request, std::string_view key) {
     std::size_t bytes = 0;
     if (const std::optional<ArgView> list = request.find(key)) {
         for (const ArgView item : list->as_array(key)) {
-            bytes = memory::add(bytes, memory::add(half(item, "line"), half(item, "body")).value_or(SIZE_MAX))
+            bytes = qiven::memory::add(bytes, qiven::memory::add(half(item, "line"), half(item, "body")).value_or(SIZE_MAX))
                         .value_or(SIZE_MAX);
         }
     }

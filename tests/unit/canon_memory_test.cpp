@@ -11,19 +11,19 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 
 namespace {
 
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 namespace canon = qiven3::canon;
 
 std::string repeat(std::string_view s, std::size_t n) {
@@ -122,7 +122,7 @@ QIVEN_CASE(canon, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::string text = mixed();
     std::vector<std::byte> pages(budget_for(text.size()));
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     std::size_t nodes = 0;
@@ -133,8 +133,8 @@ QIVEN_CASE(canon, faults) {
         canon::parse(text, v);
         nodes = v.size();
     };
-    const qiven3::test::FaultRuns parses =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "canon.parse", countdown, parse, check);
+    const qiven::test::FaultRuns parses =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "canon.parse", countdown, parse, check);
     std::cout << "canon.faults: parse's allocations " << parses.typed << ", completed at " << parses.completed_at
               << "\n";
     // The scan's nodes, text and keys' check, then the comparison's sorted
@@ -155,8 +155,8 @@ QIVEN_CASE(canon, faults) {
         canon::canonical(value, out);
         bytes = out.size();
     };
-    const qiven3::test::FaultRuns writes =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "canon.canonical", countdown, write, check);
+    const qiven::test::FaultRuns writes =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "canon.canonical", countdown, write, check);
     std::cout << "canon.faults: canonical's allocations " << writes.typed << ", completed at "
               << writes.completed_at << "\n";
     // The sorted members and the bytes.

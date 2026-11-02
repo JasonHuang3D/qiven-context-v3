@@ -15,8 +15,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
@@ -268,8 +268,8 @@ QIVEN_CASE(store_codes, line) {
 QIVEN_CASE(store_codes, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
-    qiven3::memory::Countdown countdown;
-    std::optional<qiven3::memory::Arena> arena;
+    qiven::memory::Countdown countdown;
+    std::optional<qiven::memory::Arena> arena;
     std::size_t mapped = 0;
     const auto op = [&] {
         arena.emplace(pages);
@@ -285,8 +285,8 @@ QIVEN_CASE(store_codes, faults) {
         arena->attach(nullptr);
     };
     const auto empty = [&](std::size_t) { return true; };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_codes.map", countdown, op, empty);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<StoreError>(qiven_ctx.log, "store_codes.map", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);

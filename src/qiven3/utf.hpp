@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3 {
 
@@ -189,7 +189,7 @@ constexpr void append(S& out, char32_t point) {
         put(0x80U | ((point >> 6U) & 0x3FU));
         put(0x80U | (point & 0x3FU));
     } else {
-        memory::fail_fast("utf::append: a code point past U+10FFFF");
+        qiven::memory::fail_fast("utf::append: a code point past U+10FFFF");
     }
 }
 

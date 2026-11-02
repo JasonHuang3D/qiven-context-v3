@@ -24,13 +24,13 @@
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range);
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 namespace {
 
-constexpr qiven3::test::FaultParts<25> create_parts{{{
+constexpr qiven::test::FaultParts<25> create_parts{{{
     {0, 1},                                  // 3.8 s
     {0, 101}, {0, 126}, {0, 151}, {0, 176},  // 10.8, 12.2, 14.6, 14.9 s
     {0, 201}, {0, 226}, {0, 251}, {0, 276},  // 17.4, 17.1, 17.3, 19.1 s
@@ -40,7 +40,7 @@ constexpr qiven3::test::FaultParts<25> create_parts{{{
     {0, 601}, {0, 634}, {0, 667},            // 46.2 s
     {0, 701}, {0, 718}, {0, 735},            // 53.6 s
 }}};
-constexpr qiven3::test::FaultParts<35> forget_parts{{{
+constexpr qiven::test::FaultParts<35> forget_parts{{{
     {0, 1},                                  // 4.3 s
     {0, 101}, {0, 167}, {0, 184},            // 39.7 s
     {0, 201}, {0, 218}, {0, 235},            // 42.5 s
@@ -56,13 +56,13 @@ constexpr qiven3::test::FaultParts<35> forget_parts{{{
 static_assert(create_parts.whole() && forget_parts.whole());
 
 void create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("store_sqlite.faults_create", create_parts.from.size()));
-    qiven3::test::store_sqlite_fault_steps(qiven_ctx, "create", create_parts.range(i, 0));
+    CHECK(qiven::test::registered("store_sqlite.faults_create", create_parts.from.size()));
+    qiven::test::store_sqlite_fault_steps(qiven_ctx, "create", create_parts.range(i, 0));
 }
 
 void forget_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("store_sqlite.faults_forget", forget_parts.from.size()));
-    qiven3::test::store_sqlite_fault_steps(qiven_ctx, "forget", forget_parts.range(i, 0));
+    CHECK(qiven::test::registered("store_sqlite.faults_forget", forget_parts.from.size()));
+    qiven::test::store_sqlite_fault_steps(qiven_ctx, "forget", forget_parts.range(i, 0));
 }
 
 }  // namespace

@@ -15,7 +15,7 @@
 // never an error; HalError is a failed operation. A caller's mistake (a
 // device or buffer this compute did not give, a null buffer, a name added
 // twice to Kernels, a null reference) is a broken invariant: it stops the
-// process through memory::fail_fast.
+// process through qiven::memory::fail_fast.
 //
 // thread: none (the contract); each back end states its own.
 
@@ -29,7 +29,7 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::hal {
 
@@ -47,18 +47,18 @@ std::string_view name(Vector vector) noexcept;
 // A device a back end finds, its text on the caller's arena; back_end is
 // "cpu" for the CPU.
 struct Device {
-    explicit Device(memory::Arena& arena)
-        : id(memory::Allocator<char>(arena)), back_end(memory::Allocator<char>(arena)),
-          name(memory::Allocator<char>(arena)) {}
-    memory::String id, back_end, name;
+    explicit Device(qiven::memory::Arena& arena)
+        : id(qiven::memory::Allocator<char>(arena)), back_end(qiven::memory::Allocator<char>(arena)),
+          name(qiven::memory::Allocator<char>(arena)) {}
+    qiven::memory::String id, back_end, name;
     std::uint64_t memory = 0;
 };
 
 struct Facts {
-    explicit Facts(memory::Arena& arena) : devices(memory::Allocator<Device>(arena)) {}
+    explicit Facts(qiven::memory::Arena& arena) : devices(qiven::memory::Allocator<Device>(arena)) {}
     unsigned cpu_threads = 0;
     Vectors vectors;  // those the CPU has and the system enables
-    memory::Vector<Device> devices;
+    qiven::memory::Vector<Device> devices;
 };
 
 enum class Reason : std::uint8_t { no_device, no_driver, not_built, not_pinned };
@@ -129,7 +129,7 @@ public:
 
 private:
     struct Entry {
-        memory::Inline<kernel_name_bytes> name;
+        qiven::memory::Inline<kernel_name_bytes> name;
         Reference reference = nullptr;
     };
     std::array<Entry, kernels_max> entries_{};
@@ -152,8 +152,8 @@ struct HalError {
         : code(code_), operation(operation_), detail(detail_) {}
 
     Code code;
-    memory::Inline<32> operation;
-    memory::Inline<detail_bytes> detail;
+    qiven::memory::Inline<32> operation;
+    qiven::memory::Inline<detail_bytes> detail;
 };
 
 // The pinned sizes: on a 64-bit system; the containers' on x64 with MSVC's

@@ -72,7 +72,7 @@ std::size_t arguments_budget(ArgView request) {
     return platform::win::WindowsArguments::bytes(pointers(wide_arguments(request)));
 }
 
-Result arguments(Drive&, memory::Arena& arena, ArgView request) {
+Result arguments(Drive&, qiven::memory::Arena& arena, ArgView request) {
     const std::vector<std::wstring> wide = wide_arguments(request);
     const std::vector<const wchar_t*> given = pointers(wide);
     const platform::win::WindowsArguments converted(given, arena);
@@ -88,8 +88,8 @@ Result arguments(Drive&, memory::Arena& arena, ArgView request) {
     return value;
 }
 
-Result store_dir(Drive& d, memory::Arena& arena, ArgView) {
-    memory::String dir = ops::string(arena);
+Result store_dir(Drive& d, qiven::memory::Arena& arena, ArgView) {
+    qiven::memory::String dir = ops::string(arena);
     Value value;
     try {
         location::store_dir(d.platform(), dir);

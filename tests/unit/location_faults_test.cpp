@@ -22,8 +22,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
@@ -33,7 +33,7 @@
 #include "wire/wire.hpp"
 
 namespace {
-using namespace qiven3::test::location_bed;
+using namespace qiven::test::location_bed;
 }  // namespace
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
@@ -68,14 +68,14 @@ bool unwritten_held(const Bed& b, Step s, std::size_t from) {
     for (std::size_t i = from; i < calls.size(); ++i) {
         replaced = replaced || calls[i] == "replace";
     }
-    return b.record_held(s, replaced ? location::recorded : location::refused);
+    return b.record_held(s, replaced ? qiven3::location::recorded : qiven3::location::refused);
 }
 
 // One step, each call of kind failed in turn, the runs of the part's range
 // r executing (qiven/faults/parts.hpp's PartRuns).
-void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::test::FaultRange r) {
+void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven::test::FaultRange r) {
     Countdown c;
-    qiven3::test::PartRuns part(r);
+    qiven::test::PartRuns part(r);
     const std::size_t lent = b.fake->lent();
     Tally t;
     int code = 0;
@@ -106,8 +106,8 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::
             }
             return;
         }
-        if (code == location::refused || code == Bed::expected(s) ||
-            (code == wire::failed && kind == Kind::platform)) {
+        if (code == qiven3::location::refused || code == Bed::expected(s) ||
+            (code == qiven3::wire::failed && kind == Kind::platform)) {
             throw Typed{};
         }
         throw Untyped{};
@@ -117,18 +117,18 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::
             return true;
         }
         // No step's own status is the wire's.
-        const bool unwritten = fired && code == wire::failed;
+        const bool unwritten = fired && code == qiven3::wire::failed;
         bool held = b.fake->lent() == lent && b.config_clean() &&
                     (unwritten ? unwritten_held(b, s, from) : b.record_held(s, code));
         if (unwritten) {
             ++t.unwritten;  // no next run: the record stands as the run left it
-        } else if (fired && code == location::refused && Bed::expected(s) != location::refused) {
+        } else if (fired && code == qiven3::location::refused && Bed::expected(s) != qiven3::location::refused) {
             ++t.refused;
             const int again = b.run(s);
             t.next += again == Bed::expected(s) ? 1U : 0U;
             held = held && again == Bed::expected(s) && b.record_held(s, again) && b.fake->lent() == lent;
         } else if (fired) {
-            ++(code == location::refused ? t.refused : t.kept);
+            ++(code == qiven3::location::refused ? t.refused : t.kept);
         }
         if (!held) {
             std::cout << "location.faults: " << name_of(s) << ", " << kind_names.at(static_cast<std::size_t>(kind))
@@ -136,7 +136,7 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::
         }
         return held;
     };
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<Typed>(qiven_ctx.log, "location.main", c, op, check, 5000);
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<Typed>(qiven_ctx.log, "location.main", c, op, check, 5000);
     attach(nullptr);
     std::cout << "location.faults: " << name_of(s) << ", " << kind_names.at(static_cast<std::size_t>(kind)) << ": "
               << runs.typed << " runs, completed at " << runs.completed_at << " (executing " << r.from << " to "
@@ -157,14 +157,14 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::
 // reaches pass after, the one past them.
 template <std::size_t N>
 bool passes(qiven::runner::Context& qiven_ctx, std::span<const Step> chosen, std::span<const Kind> kinds,
-            const qiven3::test::FaultParts<N>& parts, std::size_t i) {
+            const qiven::test::FaultParts<N>& parts, std::size_t i) {
     const auto b = std::make_unique<Bed>(Scratch{});
     for (std::size_t k = 0; k < kinds.size(); ++k) {
         if (kinds[k] == Kind::heap) {
             b->engine.emplace(*b->fake, 1);
         }
         for (std::size_t s = 0; s < chosen.size(); ++s) {
-            const qiven3::test::FaultRange r = parts.range(i, (k * chosen.size()) + s);
+            const qiven::test::FaultRange r = parts.range(i, (k * chosen.size()) + s);
             if (!r.none()) {
                 pass(qiven_ctx, *b, chosen[s], kinds[k], r);
             }
@@ -186,7 +186,7 @@ void store_dir_faults(qiven::runner::Context& qiven_ctx, Bed& b) {
         bool fired = false;
         std::string got;
         const auto op = [&] {
-            qiven3::memory::Arena arena(pages);
+            qiven::memory::Arena arena(pages);
             got.clear();
             if (on_arena) {
                 arena.attach(&c);
@@ -194,14 +194,14 @@ void store_dir_faults(qiven::runner::Context& qiven_ctx, Bed& b) {
                 b.fake->attach(&c);
             }
             try {
-                qiven3::memory::String out{qiven3::memory::Allocator<char>(arena)};
-                location::store_dir(*b.fake, out);
+                qiven::memory::String out{qiven::memory::Allocator<char>(arena)};
+                qiven3::location::store_dir(*b.fake, out);
                 got = std::string(out);
             } catch (const qiven3::store::StoreError&) {
                 got = "StoreError";
             } catch (const qiven3::platform::PlatformError&) {
                 got = "PlatformError";
-            } catch (const qiven3::memory::MemoryError&) {
+            } catch (const qiven::memory::MemoryError&) {
                 got = "MemoryError";
             }
             b.fake->attach(nullptr);
@@ -218,8 +218,8 @@ void store_dir_faults(qiven::runner::Context& qiven_ctx, Bed& b) {
             return used == 0 && b.fake->lent() == 0 && bytes_of(b.record) == b.before &&
                    (fired || got == text(b.held));
         };
-        const qiven3::test::FaultRuns runs =
-            qiven3::test::run_faults<Typed>(qiven_ctx.log, "location.store_dir", c, op, check, 1000);
+        const qiven::test::FaultRuns runs =
+            qiven::test::run_faults<Typed>(qiven_ctx.log, "location.store_dir", c, op, check, 1000);
         std::cout << "location.faults: store_dir, " << (on_arena ? "caller arena allocation" : "platform call") << ": "
                   << runs.typed << " runs, completed at " << runs.completed_at << "; untyped " << runs.untyped
                   << ", unchecked " << runs.unchecked << "\n";
@@ -245,10 +245,10 @@ constexpr std::array<Kind, 1> heap_kind = {Kind::heap};
 // store_dir's (pass 20). init's create under the engine heap: 41 k a stretch, the last to its completing run
 // (652 on Windows, 640 on Linux). A stretch a CI Windows job ran in over 20 s (its slowest seconds beside it)
 // is cut in even parts, each taking 20 s or under there.
-constexpr qiven3::test::FaultParts<6> init_parts{{{{0, 1}, {4, 1}, {12, 1}, {12, 34}, {12, 67}, {13, 1}}}};
-constexpr qiven3::test::FaultParts<9> change_parts{
+constexpr qiven::test::FaultParts<6> init_parts{{{{0, 1}, {4, 1}, {12, 1}, {12, 34}, {12, 67}, {13, 1}}}};
+constexpr qiven::test::FaultParts<9> change_parts{
     {{{0, 1}, {5, 1}, {8, 1}, {17, 1}, {17, 34}, {17, 67}, {17, 78}, {17, 89}, {18, 1}}}};  // 17, 67: 46.0 s
-constexpr qiven3::test::FaultParts<23> heap_create_parts{{{
+constexpr qiven::test::FaultParts<23> heap_create_parts{{{
     {0, 1}, {0, 22},                           // 27.7 s
     {0, 42}, {0, 83},                          // 14.3, 19.2 s
     {0, 124}, {0, 145},                        // 20.4 s
@@ -262,18 +262,18 @@ constexpr qiven3::test::FaultParts<23> heap_create_parts{{{
 static_assert(init_parts.whole() && change_parts.whole() && heap_create_parts.whole());
 
 void init_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("location.faults_init", init_parts.from.size()));
+    CHECK(qiven::test::registered("location.faults_init", init_parts.from.size()));
     passes(qiven_ctx, init_steps, own_kinds, init_parts, i);
 }
 void change_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("location.faults_change", change_parts.from.size()));
+    CHECK(qiven::test::registered("location.faults_change", change_parts.from.size()));
     if (passes(qiven_ctx, change_steps, own_kinds, change_parts, i)) {
         const auto b = std::make_unique<Bed>(Scratch{});
         store_dir_faults(qiven_ctx, *b);
     }
 }
 void heap_create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
-    CHECK(qiven3::test::registered("location.faults_heap_create", heap_create_parts.from.size()));
+    CHECK(qiven::test::registered("location.faults_heap_create", heap_create_parts.from.size()));
     passes(qiven_ctx, heap_create, heap_kind, heap_create_parts, i);
 }
 
@@ -312,7 +312,7 @@ std::size_t unwritten_runs(qiven::runner::Context& qiven_ctx, Bed& b, Step s) {
             c.arm(k);
             const int code = b.run(s);
             b.fake->attach(nullptr);
-            hit = c.fired() && code == wire::failed && b.fake->calls().size() == at + i + 1 &&
+            hit = c.fired() && code == qiven3::wire::failed && b.fake->calls().size() == at + i + 1 &&
                   b.fake->calls().back() == "standard_output";
             c.disarm();
         }
@@ -338,7 +338,7 @@ QIVEN_CASE(location, unwritten) {
     std::cout << "location.unwritten: " << step_names.size() << " steps, " << lines << " lines' writes failed\n";
 }
 
-QIVEN_CASE(location, faults_heap_open) { passes(qiven_ctx, heap_open, heap_kind, qiven3::test::FaultParts<1>{}, 0); }
+QIVEN_CASE(location, faults_heap_open) { passes(qiven_ctx, heap_open, heap_kind, qiven::test::FaultParts<1>{}, 0); }
 #else
 namespace {
 constexpr std::string_view unfaulted = "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";

@@ -17,8 +17,8 @@
 
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -29,11 +29,11 @@ namespace {
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using fold::ItemView;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 
 constexpr std::string_view NOW = "2026-10-18T00:00:00.000Z";
 
@@ -113,7 +113,7 @@ QIVEN_CASE(fold, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Chain c = chain(3);
     std::vector<std::byte> pages(1024);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     std::optional<fold::State> s;
     const auto op = [&] {
@@ -123,8 +123,8 @@ QIVEN_CASE(fold, faults) {
         arena->attach(nullptr);
     };
     const auto empty = [&](std::size_t) { return arena->used() == 0; };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "fold.fold", countdown, op, empty);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "fold.fold", countdown, op, empty);
     std::cout << "fold.faults: fold's allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 1U);
     CHECK_EQ(runs.completed_at, 2U);

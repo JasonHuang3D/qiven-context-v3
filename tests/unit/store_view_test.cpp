@@ -27,8 +27,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -49,14 +49,14 @@ using qiven3::store::Id;
 using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::Vector;
-using qiven3::test::records::id_of;
-using qiven3::test::records::Rec;
-using qiven3::test::records::rec;
-using qiven3::test::records::targeting;
-using qiven3::test::records::views;
-using Arena = qiven3::memory::Arena;
+using qiven::test::records::id_of;
+using qiven::test::records::Rec;
+using qiven::test::records::rec;
+using qiven::test::records::targeting;
+using qiven::test::records::views;
+using Arena = qiven::memory::Arena;
 using Fake = qiven3::platform::fake::FakePlatform;
-using Chars = qiven3::memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
@@ -148,7 +148,7 @@ void calls(qiven::runner::Context& qiven_ctx, V& view, const Chain& chain, const
     const Rec& acc2 = chain.theirs[3];
     const std::string none = "sha256:" + std::string(64, '0');
 
-    qiven3::memory::String line(chars);
+    qiven::memory::String line(chars);
     CHECK(view.line(id_of(a), line) && std::string_view(line) == a.line);
     CHECK(view.line(id_of(acc2), line) && std::string_view(line) == acc2.line);
     CHECK(!view.line(none, line));
@@ -242,14 +242,14 @@ void work(qiven::runner::Context& qiven_ctx, V& view, const S& scratch, const Ch
     {
         const Chars w = view.work();
         CHECK(&w.arena() != &chars.arena());
-        qiven3::memory::String s(w);
+        qiven::memory::String s(w);
         s.assign(200, 'x');
     }
     const std::size_t peak = scratch.peak();
     CHECK(peak >= 200U);
     {
         const Chars w = view.work();
-        qiven3::memory::String s(w);
+        qiven::memory::String s(w);
         s.assign(100, 'x');
     }
     CHECK_EQ(scratch.peak(), peak);
@@ -283,7 +283,7 @@ constexpr qiven3::store::Counts ordered{3, 3, 0, 1};
 template <class S>
 void order(qiven::runner::Context& qiven_ctx, S& store) {
     using qiven3::store::NoAdmit;
-    const std::vector<Rec> chain = qiven3::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
+    const std::vector<Rec> chain = qiven::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
     const std::vector<Rec> skip_first = {chain[1]};
     const std::vector<Rec> skip_second = {chain[0], chain[2]};
     const std::vector<Rec> late = {rec("A", qiven_scope, "implementer", 2)};

@@ -8,9 +8,9 @@
 #include <cstddef>
 
 #include "log/log.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 
 namespace {
 constexpr FaultParts<3> parts{{{{0, 1}, {0, 41}, {1, 1}}}};
@@ -27,7 +27,7 @@ namespace {
 struct Refused {};
 }  // namespace
 
-bool parts_run(log::Log& log, log::Name site, memory::Countdown& countdown, std::size_t& calls) {
+bool parts_run(qiven3::log::Log& log, qiven3::log::Name site, qiven::memory::Countdown& countdown, std::size_t& calls) {
     PartRuns part(parts.range(1, 0));
     const FaultRuns runs = run_faults<Refused>(
         log, site, countdown,
@@ -40,4 +40,4 @@ bool parts_run(log::Log& log, log::Name site, memory::Countdown& countdown, std:
 }
 #endif
 
-}  // namespace qiven3::test
+}  // namespace qiven::test

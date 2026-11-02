@@ -8,11 +8,11 @@
 #include <span>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::body {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 namespace detail {
 
@@ -23,7 +23,7 @@ struct PutNone {
 }  // namespace
 
 template std::optional<Code> layout(const json::Basic<Alloc>&);
-template void write(std::string_view, std::string_view, const PutNone&, memory::String&);
+template void write(std::string_view, std::string_view, const PutNone&, qiven::memory::String&);
 
 }  // namespace detail
 

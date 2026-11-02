@@ -20,8 +20,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
@@ -254,8 +254,8 @@ QIVEN_CASE(store_errors, thrown) {
 QIVEN_CASE(store_errors, faults) {
 #if defined(QIVEN_FAULTS)
     std::vector<std::byte> pages(4096);
-    qiven3::memory::Countdown countdown;
-    std::optional<qiven3::memory::Arena> arena;
+    qiven::memory::Countdown countdown;
+    std::optional<qiven::memory::Arena> arena;
     std::size_t written = 0;
     const auto op = [&] {
         arena.emplace(pages);
@@ -267,8 +267,8 @@ QIVEN_CASE(store_errors, faults) {
         arena->attach(nullptr);
     };
     const auto empty = [&](std::size_t) { return true; };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<StoreError>(qiven_ctx.log, "store_errors.message", countdown, op, empty);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<StoreError>(qiven_ctx.log, "store_errors.message", countdown, op, empty);
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);
     CHECK_EQ(runs.untyped, 0U);

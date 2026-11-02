@@ -12,8 +12,8 @@
 #include <span>
 #include <string_view>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "store/errors.hpp"
@@ -50,7 +50,7 @@ int report(P& platform, const E& error, int status) noexcept {
 // The command arena's peak to hooks.peak at the run's end.
 class Measure {
 public:
-    Measure(const memory::Arena& arena, std::size_t* peak) noexcept : arena_(&arena), peak_(peak) {}
+    Measure(const qiven::memory::Arena& arena, std::size_t* peak) noexcept : arena_(&arena), peak_(peak) {}
     Measure(const Measure&) = delete;
     Measure& operator=(const Measure&) = delete;
     Measure(Measure&&) = delete;
@@ -62,7 +62,7 @@ public:
     }
 
 private:
-    const memory::Arena* arena_;
+    const qiven::memory::Arena* arena_;
     std::size_t* peak_;
 };
 
@@ -80,10 +80,10 @@ void read_record(P& platform, std::string_view path, std::string_view op, String
 
 // The drive check on dir: one line per condition; true where any warns.
 template <platform::Platform P>
-bool check_drive(P& platform, std::string_view dir, memory::Arena& arena) {
+bool check_drive(P& platform, std::string_view dir, qiven::memory::Arena& arena) {
     platform::Facts facts(arena);
     platform.facts(dir, facts);
-    String line{memory::Allocator<char>(arena)};
+    String line{qiven::memory::Allocator<char>(arena)};
     bool warned = false;
     const std::array<const platform::Reading*, 3> readings = {&facts.protection, &facts.file_history,
                                                               &facts.bitlocker};
@@ -96,9 +96,9 @@ bool check_drive(P& platform, std::string_view dir, memory::Arena& arena) {
 
 // Whether a and b, both resolved, are one directory: equal after normcase.
 template <platform::Platform P>
-bool same(P& platform, std::string_view a, std::string_view b, memory::Arena& arena) {
-    String x{memory::Allocator<char>(arena)};
-    String y{memory::Allocator<char>(arena)};
+bool same(P& platform, std::string_view a, std::string_view b, qiven::memory::Arena& arena) {
+    String x{qiven::memory::Allocator<char>(arena)};
+    String y{qiven::memory::Allocator<char>(arena)};
     platform.normcase(a, x);
     platform.normcase(b, y);
     return x == y;
@@ -107,13 +107,13 @@ bool same(P& platform, std::string_view a, std::string_view b, memory::Arena& ar
 // The store at dir opened as it is, or, where its file is missing, created;
 // then closed. The engine's heap made for it where none is installed.
 template <platform::Platform P>
-void open_or_create(P& platform, std::string_view dir, memory::Arena& arena) {
+void open_or_create(P& platform, std::string_view dir, qiven::memory::Arena& arena) {
     using Store = store::SQLiteStore<P>;
     std::optional<store::Engine<P>> engine;
     if (!store::sqlite::engine_ready()) {
         engine.emplace(platform, 1);
     }
-    String file{memory::Allocator<char>(arena)};
+    String file{qiven::memory::Allocator<char>(arena)};
     join(dir, store_name, file);
     bool missing = false;
     try {
@@ -135,15 +135,15 @@ void open_or_create(P& platform, std::string_view dir, memory::Arena& arena) {
 // written, a line not composed leaves it recorded, and a line not written
 // ends with wire::failed, the record standing.
 template <platform::Platform P>
-int print_recorded(P& platform, std::string_view record, std::string_view dir, memory::Arena& arena) noexcept {
+int print_recorded(P& platform, std::string_view record, std::string_view dir, qiven::memory::Arena& arena) noexcept {
     if (wire::answer(platform, record, recorded) != recorded) {
         return wire::failed;
     }
     try {
-        String line{memory::Allocator<char>(arena)};
+        String line{qiven::memory::Allocator<char>(arena)};
         line.append(recorded_prefix()).append(dir).push_back('\n');
         return wire::answer(platform, line, recorded);
-    } catch (const memory::MemoryError&) {
+    } catch (const qiven::memory::MemoryError&) {
         return recorded;  // the line not composed; the record stands
     }
 }
@@ -152,12 +152,12 @@ int print_recorded(P& platform, std::string_view record, std::string_view dir, m
 template <platform::Platform P>
 int run(P& platform, const ArgumentsView& args, const Hooks& hooks) {
     auto pages = platform.pages(budget);
-    memory::Arena arena(pages.bytes());
+    qiven::memory::Arena arena(pages.bytes());
     const Measure measure(arena, hooks.peak);
 #if defined(QIVEN_FAULTS)
     arena.attach(hooks.arenas);
 #endif
-    const memory::Allocator<char> on(arena);
+    const qiven::memory::Allocator<char> on(arena);
     const std::string_view op = name(args.command);
     String config{on};
     platform.config_dir(true, config);
@@ -216,7 +216,7 @@ int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks
         return detail::report(platform, e, refused);
     } catch (const platform::PlatformError& e) {
         return detail::report(platform, e, refused);
-    } catch (const memory::MemoryError& e) {
+    } catch (const qiven::memory::MemoryError& e) {
         return detail::report(platform, e, refused);
     } catch (const std::exception& e) {
         return detail::report(platform, e, refused);
@@ -225,7 +225,7 @@ int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks
 
 template <platform::Platform P>
 void store_dir(P& platform, String& out) {
-    const memory::Allocator<char> on = out.get_allocator();
+    const qiven::memory::Allocator<char> on = out.get_allocator();
     String config{on};
     platform.config_dir(false, config);
     String path{on};

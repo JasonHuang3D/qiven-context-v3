@@ -14,8 +14,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
@@ -23,10 +23,10 @@
 namespace {
 
 namespace fs = std::filesystem;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 using qiven3::platform::Code;
 using qiven3::platform::Command;
 using qiven3::platform::PlatformError;
@@ -159,7 +159,7 @@ QIVEN_CASE(fake_process, read_line_kept) {
         CHECK(!child.read_line(five, line));
     }
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::size_t k = 1;
     for (; k <= 8; ++k) {
         auto again = fake.start(command);

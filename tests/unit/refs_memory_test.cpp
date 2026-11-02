@@ -18,8 +18,8 @@
 
 #include "entry/matcher.hpp"
 #include "entry/refs.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -28,9 +28,9 @@ namespace {
 
 namespace refs = qiven3::entry::refs;
 namespace canon = qiven3::canon;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 
 #define DIGEST "hmac-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -95,12 +95,12 @@ QIVEN_CASE(refs, budget) {
 QIVEN_CASE(refs, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     bool done = false;
     // The value and every compile given back once the operation ends.
     const auto empty = [&](std::size_t) { return arena->used() == 0; };
-    const auto report = [&](std::string_view op, const qiven3::test::FaultRuns& runs, std::size_t want) {
+    const auto report = [&](std::string_view op, const qiven::test::FaultRuns& runs, std::size_t want) {
         std::cout << "refs.faults: " << op << "'s allocations " << runs.typed << ", completed at " << runs.completed_at
                   << "\n";
         CHECK_EQ(runs.typed, want);
@@ -119,7 +119,7 @@ QIVEN_CASE(refs, faults) {
             done = !refs::try_check_reference(v).has_value();
             arena->attach(nullptr);
         };
-        report(c.name, qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_reference", countdown, op, empty),
+        report(c.name, qiven::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_reference", countdown, op, empty),
                c.allocations);
     }
     for (const auto& [subject, want] : {std::pair<std::string_view, std::size_t>{"repo:qiven/src/x.py#f", 2},
@@ -130,7 +130,7 @@ QIVEN_CASE(refs, faults) {
             done = refs::check_subject(subject, Allocator<char>(*arena));
             arena->attach(nullptr);
         };
-        report(subject, qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_subject", countdown, op, empty),
+        report(subject, qiven::test::run_faults<MemoryError>(qiven_ctx.log, "refs.check_subject", countdown, op, empty),
                want);
     }
     arena.reset();

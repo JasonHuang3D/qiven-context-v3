@@ -29,7 +29,7 @@
 #include "entry/header.hpp"
 #include "entry/validator.hpp"
 
-namespace qiven3::test::fixtures {
+namespace qiven::test::fixtures {
 
 namespace header = qiven3::entry::header;
 namespace validator = qiven3::entry::validator;
@@ -234,4 +234,4 @@ private:
     std::uint64_t count_ = 0;
 };
 
-}  // namespace qiven3::test::fixtures
+}  // namespace qiven::test::fixtures

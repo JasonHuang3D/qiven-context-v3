@@ -353,13 +353,13 @@ class TreesBuild(unittest.TestCase):
     def test_analysis_choice(self):
         """The analysis chooses a source by its path, by the trees' rule, not
         by the directory that defines its target."""
-        paths = ("src/memory/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "tests/unit/arena_test.cpp",
+        paths = ("foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "foundation/core/memory/tests/arena_test.cpp",
                  "tests/driver/driver.cpp", "foundation/core/memory/tests/arena_test.cpp", "kits/kp/src/kp.cpp",
                  "foundation/devkit/test/runner/tests/runner_test.cpp", "foundation/devkit/test/runner/src/runner.cpp",
                  "products/qiven3/tests/x/drive.cpp", "third_party/sqlite/vendored.c")
         got = shown("analysed", paths=paths)
         self.assertEqual([p for p in paths if got[p].startswith("TRUE")],
-                         ["src/memory/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "kits/kp/src/kp.cpp",
+                         ["foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "kits/kp/src/kp.cpp",
                           "foundation/devkit/test/runner/tests/runner_test.cpp",
                           "foundation/devkit/test/runner/src/runner.cpp"])
 

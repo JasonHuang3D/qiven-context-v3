@@ -20,7 +20,7 @@
 #include <system_error>
 #include <utility>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/files.hpp"
 #include "platform/win/files.hpp"
 #include "platform/win/windows.hpp"
@@ -31,10 +31,10 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace files = qiven3::platform::files;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::platform::Code;
 using qiven3::platform::PlatformError;
 using qiven3::platform::Seconds;
@@ -243,7 +243,7 @@ QIVEN_CASE(win_names, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     Vector<String> names{Allocator<String>(arena)};
@@ -256,8 +256,8 @@ QIVEN_CASE(win_names, faults) {
     };
     platform.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
-        const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
+        const qiven::test::FaultRuns r =
+            qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);

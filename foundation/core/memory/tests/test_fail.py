@@ -1,4 +1,4 @@
-"""fail_fast ends the process at once: qiven3_fail_demo's one case, run as a
+"""fail_fast ends the process at once: qiven_memory_fail_demo's one case, run as a
 process, exits with the fail-fast's status, 0xC0000409 on Windows and
 SIGABRT elsewhere, its standard output holding nothing after, and the
 diagnostic entry's report on standard error naming the kept cause first."""
@@ -9,7 +9,7 @@ import unittest
 
 from tests.drive import binaries
 
-DEMO = "qiven3_fail_demo"
+DEMO = "qiven_memory_fail_demo"
 
 
 class FailFast(unittest.TestCase):

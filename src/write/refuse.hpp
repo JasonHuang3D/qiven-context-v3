@@ -61,8 +61,8 @@
 #include <string_view>
 
 #include "entry/header.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
@@ -83,9 +83,9 @@ std::string_view name(Code code) noexcept;
 // file's own fields.
 struct Refusal {
     Code code = Code::slot;
-    memory::Inline<128> path{};
+    qiven::memory::Inline<128> path{};
     std::uint32_t entry = entries::none;
-    memory::Inline<64> name{};
+    qiven::memory::Inline<64> name{};
 };
 
 // The roles a session's slot may take [proposal: a new role is added here
@@ -111,7 +111,7 @@ concept Fold = requires(F& f, std::string_view s) {
 namespace detail {
 
 // An item id held across the fold's calls.
-using Id = memory::Inline<64>;
+using Id = qiven::memory::Inline<64>;
 
 // The refusal at the file's member, or at entries[e]'s member, below it
 // field and below that the item'th of field's array (none for none).
@@ -269,7 +269,7 @@ void cycle(const entries::File& file, F& fold, std::string_view scope, std::size
 template <Fold F>
 void write(const entries::File& file, std::span<const build::Built> built, F& fold) {
     if (built.size() != file.entries().size()) {
-        memory::fail_fast("refuse: built entries other than the file's");
+        qiven::memory::fail_fast("refuse: built entries other than the file's");
     }
     slot(file, fold);
     person_scope(file);

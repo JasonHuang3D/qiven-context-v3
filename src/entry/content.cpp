@@ -3,11 +3,11 @@
 
 #include "entry/content.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::content {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<ContentError> try_check(const header::Header<Alloc>&, const canon::Basic<Alloc>&);
 template void check(const header::Header<Alloc>&, const canon::Basic<Alloc>&);

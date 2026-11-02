@@ -32,8 +32,8 @@
 #include "qiven/runner/runner.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
-using namespace qiven3::test::kept_bed;
-using qiven3::memory::MemoryError;
+using namespace qiven::test::kept_bed;
+using qiven::memory::MemoryError;
 
 #if defined(QIVEN_FAULTS)
 namespace {
@@ -103,7 +103,7 @@ struct Bed {
         }
     }
     // The run's operation on the run's arena, countdown attached to it.
-    void operate(Op op, qiven3::memory::Countdown* countdown) {
+    void operate(Op op, qiven::memory::Countdown* countdown) {
         run.emplace(pages);
         run->attach(countdown);
         if (op == Op::import) {
@@ -199,7 +199,7 @@ struct Case {
 QIVEN_CASE(write_kept_memory, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const auto bed = std::make_unique<Bed>();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     bed->hooks.work = &countdown;
     for (const Case c : {Case{"a write", Op::write, grown(44, 42, 37)},
                          Case{"a refused write", Op::refused, grown(44, 42, 37)},
@@ -213,7 +213,7 @@ QIVEN_CASE(write_kept_memory, faults) {
                 refused += c.op == Op::refused && r.code == rc::Code::head_conflict ? 1U : 0U;
             }
         };
-        const qiven3::test::FaultRuns runs = qiven3::test::run_faults<MemoryError>(
+        const qiven::test::FaultRuns runs = qiven::test::run_faults<MemoryError>(
             qiven_ctx.log, "write_kept.write", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
         std::cout << "write_kept_memory.faults: " << c.name << "'s allocations " << runs.typed << ", completed at "
                   << runs.completed_at << ", untyped " << runs.untyped << ", unchecked " << runs.unchecked << "\n";
@@ -232,7 +232,7 @@ QIVEN_CASE(write_kept_memory, faults) {
 QIVEN_CASE(write_kept_memory, platform_faults) {
 #if defined(QIVEN_FAULTS)
     const auto bed = std::make_unique<Bed>();
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     // Each call's fault points: the fake's and its files', the refusal's
     // removal's two dropped.
     for (const Case c : {Case{"a write", Op::write, 24}, Case{"a refused write", Op::refused, 22},
@@ -253,7 +253,7 @@ QIVEN_CASE(write_kept_memory, platform_faults) {
             }
             bed->fake.attach(nullptr);
         };
-        const qiven3::test::FaultRuns runs = qiven3::test::run_faults<PlatformError>(
+        const qiven::test::FaultRuns runs = qiven::test::run_faults<PlatformError>(
             qiven_ctx.log, "write_kept.platform", countdown, op, [&](std::size_t) { return bed->settled(c.op); });
         std::cout << "write_kept_memory.platform_faults: " << c.name << "'s calls failed " << runs.typed
                   << ", completed at " << runs.completed_at << ", untyped " << runs.untyped << ", unchecked "

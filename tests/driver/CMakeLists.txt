@@ -16,7 +16,7 @@ add_library(qiven3_drive_common STATIC
 target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests"
   "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
 # The request loop holds the process's log, kept for the entry's report.
-target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven3_memory qiven3_base qiven3_log qiven3_diag
+target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven_memory qiven3_base qiven3_log qiven3_diag
   PRIVATE qiven_build qiven3_platform_current)
 if(QIVEN_HAL)
   target_sources(qiven3_drive_common PRIVATE hal_ops.cpp hal_ops.hpp)

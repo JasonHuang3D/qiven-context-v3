@@ -4,7 +4,7 @@
 #include <optional>
 #include <string_view>
 
-namespace qiven3::test::fixtures {
+namespace qiven::test::fixtures {
 
 // fixture_files.cpp's, which configure writes: how many files, and each
 // one's name and bytes, of tests/fixtures/ and of tests/vectors/.
@@ -30,7 +30,7 @@ std::size_t file_count() noexcept { return generated::count(); }
 
 std::string_view file_name(std::size_t i) noexcept {
     if (i >= generated::count()) {
-        memory::fail_fast("fixtures: a file past the count");
+        qiven::memory::fail_fast("fixtures: a file past the count");
     }
     return generated::name(i);
 }
@@ -48,9 +48,9 @@ std::size_t vector_file_count() noexcept { return generated::vector_count(); }
 
 std::string_view vector_file_name(std::size_t i) noexcept {
     if (i >= generated::vector_count()) {
-        memory::fail_fast("fixtures: a vectors file past the count");
+        qiven::memory::fail_fast("fixtures: a vectors file past the count");
     }
     return generated::vector_name(i);
 }
 
-}  // namespace qiven3::test::fixtures
+}  // namespace qiven::test::fixtures

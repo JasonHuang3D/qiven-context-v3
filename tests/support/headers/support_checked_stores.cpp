@@ -4,13 +4,13 @@
 
 #include "support/checked/stores.hpp"
 
-namespace qiven3::test::stores {
+namespace qiven::test::stores {
 
-template class MemoryOn<checked::MemoryStore<Fake>, ruled::Site>;
-template class SqliteOn<checked::SQLiteStore<Fake>, ruled::Site, store::NoHooks>;
+template class MemoryOn<qiven3::checked::MemoryStore<Fake>, ruled::Site>;
+template class SqliteOn<qiven3::checked::SQLiteStore<Fake>, ruled::Site, qiven3::store::NoHooks>;
 template std::optional<std::string> lacking<ruled::Memory>(const Needs&);
-template std::optional<std::string> lacking<ruled::Sqlite<store::NoHooks>>(const Needs&);
+template std::optional<std::string> lacking<ruled::Sqlite<qiven3::store::NoHooks>>(const Needs&);
 template void require<ruled::Memory>(const Needs&);
-template void require<ruled::Sqlite<store::NoHooks>>(const Needs&);
+template void require<ruled::Sqlite<qiven3::store::NoHooks>>(const Needs&);
 
-}  // namespace qiven3::test::stores
+}  // namespace qiven::test::stores

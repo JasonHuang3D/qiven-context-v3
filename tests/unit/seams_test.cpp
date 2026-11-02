@@ -22,9 +22,9 @@
 
 namespace {
 
-namespace seams = qiven3::test::seams;
-namespace stores = qiven3::test::stores;
-namespace records = qiven3::test::records;
+namespace seams = qiven::test::seams;
+namespace stores = qiven::test::stores;
+namespace records = qiven::test::records;
 using qiven3::store::Kind;
 using qiven3::store::StoreError;
 

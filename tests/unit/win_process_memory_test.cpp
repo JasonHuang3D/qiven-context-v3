@@ -67,9 +67,9 @@ void operator delete(void* p, std::align_val_t) noexcept {
 
 namespace {
 
-using namespace qiven3::test::process;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using namespace qiven::test::process;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using qiven3::platform::Ran;
 
 #if defined(QIVEN_SYSTEM_HEAP)

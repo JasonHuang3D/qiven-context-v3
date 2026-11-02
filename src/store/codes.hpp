@@ -31,7 +31,7 @@
 #include <cstdint>
 #include <string_view>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store {
@@ -39,9 +39,9 @@ namespace qiven3::store {
 // A code and its name, as the engine's header spells it, held by value.
 struct Result {
     int code = 0;
-    memory::Inline<32> name;
+    qiven::memory::Inline<32> name;
 };
-constexpr Result result(int code, std::string_view name) noexcept { return Result{code, memory::Inline<32>(name)}; }
+constexpr Result result(int code, std::string_view name) noexcept { return Result{code, qiven::memory::Inline<32>(name)}; }
 
 // The pinned engine's 113 result codes, by number.
 inline constexpr std::array<Result, 113> results = {

@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-namespace qiven3::test::fixtures {
+namespace qiven::test::fixtures {
 
 // A fixture's piece: a literal and its count.
 struct PieceView {
@@ -131,4 +131,4 @@ inline std::string text(const RecipeView& r) {
     return out;
 }
 
-}  // namespace qiven3::test::fixtures
+}  // namespace qiven::test::fixtures

@@ -70,7 +70,7 @@
 
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/platform.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven3/json.hpp"
@@ -108,8 +108,8 @@ struct Metered {
 // The countdowns a request's "fault" arms: its arena's allocations, or the
 // fake platform's calls. thread: one.
 struct Faults {
-    memory::Countdown allocation, platform;
-    memory::Countdown* armed = nullptr;
+    qiven::memory::Countdown allocation, platform;
+    qiven::memory::Countdown* armed = nullptr;
     std::size_t k = 0;
 };
 #endif
@@ -227,12 +227,12 @@ Value finish(Session& session, Value reply, std::size_t held);
 // the allocation countdown.
 template <class F>
 std::optional<Value> on_arena(Session& session, std::span<std::byte> pages, F&& f) {
-    memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
 #if defined(QIVEN_FAULTS)
     arena.attach(&session.faults().allocation);
 #endif
     struct Note {
-        Note(Metered& m, memory::Arena& a) noexcept : metered(m), arena(a) {}
+        Note(Metered& m, qiven::memory::Arena& a) noexcept : metered(m), arena(a) {}
         Note(const Note&) = delete;
         Note& operator=(const Note&) = delete;
         ~Note() {
@@ -242,7 +242,7 @@ std::optional<Value> on_arena(Session& session, std::span<std::byte> pages, F&& 
             metered.left = arena.used();
         }
         Metered& metered;
-        memory::Arena& arena;
+        qiven::memory::Arena& arena;
     };
     const Note note{session.metered(), arena};
     return f(arena);
@@ -275,7 +275,7 @@ std::size_t send(const Value& reply);
 // The log's halves: the pages of the process's Journal; a request's name,
 // its "op" picked from the drive's names, else "unknown", as for no request;
 // and a reply's events, op ended.
-test::Journal::Pages& journal_pages() noexcept;
+qiven::test::Journal::Pages& journal_pages() noexcept;
 log::Name named(const std::optional<Value>& request) noexcept;
 void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept;
 
@@ -284,7 +284,7 @@ void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept;
 template <class Drive>
 int loop(Drive& drive) {
     ready_streams();
-    test::Journal journal(journal_pages(), "drive");
+    qiven::test::Journal journal(journal_pages(), "drive");
     std::string line;
     while (next_line(line)) {
         std::optional<Value> request;

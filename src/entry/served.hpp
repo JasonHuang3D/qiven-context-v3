@@ -58,7 +58,7 @@
 #include "entry/kinds.hpp"
 #include "entry/labels.hpp"
 #include "entry/served_text.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
 

@@ -19,7 +19,7 @@
 
 #include "diag/diag.hpp"
 #include "diag/signal.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 namespace qiven3::diag {
 
@@ -99,13 +99,13 @@ void install() noexcept {
 
 void keep(const log::Ring& ring) noexcept {
     if (!detail::keep_ring(ring)) {
-        memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
+        qiven::memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
     }
 }
 
 void drop(const log::Ring& ring) noexcept {
     if (!detail::drop_ring(ring)) {
-        memory::fail_fast("diag::drop: a ring not kept");
+        qiven::memory::fail_fast("diag::drop: a ring not kept");
     }
 }
 

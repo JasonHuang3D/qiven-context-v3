@@ -395,7 +395,7 @@ QIVEN_CASE(files, stage_insert) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     auto stage = fake.stage(text(scratch.root));
     const std::string before = listing(scratch.root);
     const std::size_t kept = fake.files().kept();
@@ -447,7 +447,7 @@ QIVEN_CASE(files, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
     FakePlatform fake(scratch.config());
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const std::string root = text(scratch.root);
     const fs::path target = scratch.root / "record.json";
     write_bytes(target, "old");
@@ -458,8 +458,8 @@ QIVEN_CASE(files, faults) {
     };
     fake.attach(&countdown);
     const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
-        const qiven3::test::FaultRuns r =
-            qiven3::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
+        const qiven::test::FaultRuns r =
+            qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";
         CHECK_EQ(r.completed_at, completed);
         CHECK_EQ(r.typed, completed - 1);

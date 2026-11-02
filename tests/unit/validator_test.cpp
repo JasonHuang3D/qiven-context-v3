@@ -33,7 +33,7 @@ namespace {
 namespace validator = qiven3::entry::validator;
 namespace header = qiven3::entry::header;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using fixtures::Item;
 using fixtures::MemoryView;
 using validator::Code;

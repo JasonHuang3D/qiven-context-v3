@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace qiven3::test::scan {
+namespace qiven::test::scan {
 
 struct Pattern {
     std::string name;
@@ -61,4 +61,4 @@ struct Report {
 
 Report scan(const std::filesystem::path& directory, std::span<const Pattern> patterns);
 
-}  // namespace qiven3::test::scan
+}  // namespace qiven::test::scan

@@ -11,8 +11,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/json.hpp"
@@ -22,9 +22,9 @@ namespace {
 
 using qiven3::ParseCode;
 using qiven3::ParseError;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 namespace json = qiven3::json;
 namespace utf = qiven3::utf;
 using Std = json::Basic<>;

@@ -57,14 +57,14 @@ constexpr std::array<std::string_view, ${vector_count}> vector_views = {
 ${vector_views}};
 }  // namespace
 
-namespace qiven3::test::fixtures::generated {
+namespace qiven::test::fixtures::generated {
 std::size_t count() noexcept { return ${file_count}; }
 std::string_view name(std::size_t i) noexcept { return names[i]; }
 std::string_view data(std::size_t i) noexcept { return views[i]; }
 std::size_t vector_count() noexcept { return ${vector_count}; }
 std::string_view vector_name(std::size_t i) noexcept { return vector_names[i]; }
 std::string_view vector_data(std::size_t i) noexcept { return vector_views[i]; }
-}  // namespace qiven3::test::fixtures::generated
+}  // namespace qiven::test::fixtures::generated
 ")
 
 # Its sources are the entry's; the headers beside them each stand for the

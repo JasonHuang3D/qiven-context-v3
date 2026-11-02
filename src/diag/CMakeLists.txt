@@ -1,11 +1,11 @@
 # The diagnostic entry: qiven3_diag, the install, the report and Out, and
 # qiven3_diag_entry, the entry point and the first initializer, an object
 # that qiven_executable gives every binary. Not core logic: it includes the
-# system's headers, links dbghelp on Windows, and links qiven3_memory alone
+# system's headers, links dbghelp on Windows, and links qiven_memory alone
 # of v3's targets.
 #
 # qiven3_diag_targets(<suffix> <memory target>) makes both targets, named
-# with the suffix, over the memory target given: "" over qiven3_memory, and
+# with the suffix, over the memory target given: "" over qiven_memory, and
 # the variants of the binaries built on another runtime or another memory.
 function(qiven3_diag_targets suffix memory)
   set(dir "${PROJECT_SOURCE_DIR}/src/diag")
@@ -42,7 +42,7 @@ function(qiven3_diag_targets suffix memory)
   endif()
 endfunction()
 
-qiven3_diag_targets("" qiven3_memory)
+qiven3_diag_targets("" qiven_memory)
 
 # qiven3_diag_entry_wide: the entry again for a binary whose entry is
 # wmain, the product's on Windows (qiven_executable's WIDE), starting the

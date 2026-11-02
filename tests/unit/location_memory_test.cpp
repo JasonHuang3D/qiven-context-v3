@@ -14,8 +14,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/location.hpp"
@@ -23,7 +23,7 @@
 #include "support/fixtures/location_bed.hpp"
 
 namespace {
-using namespace qiven3::test::location_bed;
+using namespace qiven::test::location_bed;
 }  // namespace
 
 QIVEN_CASE(location, budget) {
@@ -33,9 +33,9 @@ QIVEN_CASE(location, budget) {
         std::size_t peak = 0;
         const int code = b->run(s, nullptr, &peak);
         std::cout << "location.budget: " << name_of(s) << ": exit " << code << ", peak " << peak << " of "
-                  << location::budget << " bytes; pages lent after " << b->fake->lent() << "\n";
+                  << qiven3::location::budget << " bytes; pages lent after " << b->fake->lent() << "\n";
         CHECK_EQ(code, Bed::expected(s));
-        CHECK(peak > 0 && peak <= location::budget);
+        CHECK(peak > 0 && peak <= qiven3::location::budget);
         CHECK_EQ(b->fake->lent(), std::size_t{0});
         CHECK(b->record_held(s, code));
     }
@@ -43,10 +43,10 @@ QIVEN_CASE(location, budget) {
     // the dir, each at most twice its length with its terminator.
     b->prepare(Step::show);
     std::vector<std::byte> pages(std::size_t{1} << 16U);
-    qiven3::memory::Arena arena(pages);
+    qiven::memory::Arena arena(pages);
     {
-        qiven3::memory::String got{qiven3::memory::Allocator<char>(arena)};
-        location::store_dir(*b->fake, got);
+        qiven::memory::String got{qiven::memory::Allocator<char>(arena)};
+        qiven3::location::store_dir(*b->fake, got);
         CHECK_EQ(std::string(got), text(b->held));
     }
     const std::size_t lengths = text(b->config_dir).size() + text(b->record).size() + b->before.size() +

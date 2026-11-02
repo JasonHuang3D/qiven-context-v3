@@ -163,14 +163,14 @@ class TestTargets(unittest.TestCase):
     def test_planted(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
         with tempfile.TemporaryDirectory() as scratch:
-            found, absent = self.given(scratch, [*pinned, "qiven3_memory"], [*pinned, "qiven3_memory"])
+            found, absent = self.given(scratch, [*pinned, "qiven_memory"], [*pinned, "qiven_memory"])
             self.assertEqual((len(found), absent), (1, []), found)
-            self.assertIn("qiven3_memory: takes test code's analysis", found[0][1])
+            self.assertIn("qiven_memory: takes test code's analysis", found[0][1])
 
     def test_planted_defined(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
         with tempfile.TemporaryDirectory() as scratch:
-            found, absent = self.given(scratch, pinned[1:], [*pinned, "qiven3_memory"])
+            found, absent = self.given(scratch, pinned[1:], [*pinned, "qiven_memory"])
             self.assertEqual((len(found), absent), (1, []), found)
             self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch, 'tree')} defines it without", found[0][1])
 
@@ -229,7 +229,7 @@ class TestTargets(unittest.TestCase):
         CMakePresets.json does not configure, one hidden, or no reason, is
         refused."""
         pinned = json.loads(real(LIST))["test_code"]["targets"]
-        for change in ({"target": "qiven3_memory"}, {"preset": "nohall"}, {"preset": "ci"}, {"preset": "base"},
+        for change in ({"target": "qiven_memory"}, {"preset": "nohall"}, {"preset": "ci"}, {"preset": "base"},
                        {"reason": " "}):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as scratch:
                 data = json.loads(real(LIST))

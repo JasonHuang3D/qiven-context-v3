@@ -32,7 +32,7 @@
 #include "driver/drive.hpp"
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
@@ -43,12 +43,12 @@
 namespace qiven3::drive {
 
 // path, UTF-8 and relative, under the Site's root.
-inline std::string under_site(const test::ruled::Site& site, std::string_view path) {
+inline std::string under_site(const qiven::test::ruled::Site& site, std::string_view path) {
     std::u8string given;
     for (const char c : path) {
         given.push_back(static_cast<char8_t>(c));
     }
-    return test::ruled::text(site.root() / std::filesystem::path(given));
+    return qiven::test::ruled::text(site.root() / std::filesystem::path(given));
 }
 
 #if defined(QIVEN_FAULTS)
@@ -108,16 +108,16 @@ public:
 
 private:
     Site* site_;
-    std::array<memory::Countdown, 4> counts_{};
+    std::array<qiven::memory::Countdown, 4> counts_{};
     std::array<bool, 4> armed_{};
 };
 #endif
 
 template <class D>
-std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unused]] ArgView request) {
-    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
+std::optional<Value> open_at([[maybe_unused]] D& d, qiven::memory::Arena&, [[maybe_unused]] ArgView request) {
+    if constexpr (D::Factory::own == qiven::test::ruled::Own::sqlite) {
         using Store = typename D::Store;
-        test::ruled::Site& site = d.site();
+        qiven::test::ruled::Site& site = d.site();
         const std::string path = under_site(site, text(request, "path"));
         const bool create = flag(request, "create", false);
         const bool read_only = flag(request, "read_only", false);
@@ -125,7 +125,7 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
         // open, and under QIVEN_FAULTS its pages taken before any countdown.
         static_cast<void>(site.engine());
 #if defined(QIVEN_FAULTS)
-        Refusals<test::ruled::Site> refusals(site, request);
+        Refusals<qiven::test::ruled::Site> refusals(site, request);
 #else
         if (request.find("refuse")) {
             throw RequestError("not applicable: built without QIVEN_FAULTS, so no refusal");
@@ -152,13 +152,13 @@ std::optional<Value> open_at([[maybe_unused]] D& d, memory::Arena&, [[maybe_unus
 }
 
 template <class D>
-std::optional<Value> import_undeferred([[maybe_unused]] D& d, [[maybe_unused]] memory::Arena& arena,
+std::optional<Value> import_undeferred([[maybe_unused]] D& d, [[maybe_unused]] qiven::memory::Arena& arena,
                                        [[maybe_unused]] ArgView request) {
-    if constexpr (D::Factory::own == test::ruled::Own::sqlite) {
-        using Undeferred = checked::SQLiteStore<test::ruled::Fake, test::seams::NoDeferral>;
+    if constexpr (D::Factory::own == qiven::test::ruled::Own::sqlite) {
+        using Undeferred = checked::SQLiteStore<qiven::test::ruled::Fake, qiven::test::seams::NoDeferral>;
         const auto& factory = *held::named(d.states(), request, "state").object;
         Undeferred into = Undeferred::open(factory.path(), false, false, d.site().fake());
-        store::Vector<store::LaneHead> rows{memory::Allocator<store::LaneHead>(arena)};
+        store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
         store::Imported done;
         if (request.find("export")) {
             done = into.import_(*held::named(d.exports(), request, "export").object, rows);

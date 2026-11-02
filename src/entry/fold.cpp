@@ -3,11 +3,11 @@
 
 #include "entry/fold.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::fold {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template State fold(std::span<const ItemView>, std::string_view, const Alloc&);
 template ItemView item(const header::Header<Alloc>&, const canon::Basic<Alloc>&, bool);

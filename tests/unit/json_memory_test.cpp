@@ -10,19 +10,19 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/json.hpp"
 
 namespace {
 
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 namespace json = qiven3::json;
 
 std::string repeat(std::string_view s, std::size_t n) {
@@ -119,7 +119,7 @@ QIVEN_CASE(json, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::string text = mixed();
     std::vector<std::byte> pages(budget_for(text.size()));
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     std::size_t nodes = 0;
@@ -130,7 +130,7 @@ QIVEN_CASE(json, faults) {
         json::scan(text, 16, v);
         nodes = v.size();
     };
-    const qiven3::test::FaultRuns scans = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns scans = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "json.scan", countdown, scan, check);
     std::cout << "json.faults: scan's allocations " << scans.typed << ", completed at " << scans.completed_at << "\n";
     // The nodes, the text and the keys' check, one allocation each.
@@ -150,7 +150,7 @@ QIVEN_CASE(json, faults) {
         json::encode(value, out);
         bytes = out.size();
     };
-    const qiven3::test::FaultRuns encodes = qiven3::test::run_faults<MemoryError>(
+    const qiven::test::FaultRuns encodes = qiven::test::run_faults<MemoryError>(
         qiven_ctx.log, "json.encode", countdown, encode, check);
     std::cout << "json.faults: encode's allocations " << encodes.typed << ", completed at " << encodes.completed_at
               << "\n";

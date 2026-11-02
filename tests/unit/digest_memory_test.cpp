@@ -15,8 +15,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/digest.hpp"
@@ -26,11 +26,11 @@ namespace {
 
 namespace digest = qiven3::digest;
 using digest::Field;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
-using qiven3::memory::String;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
+using qiven::memory::String;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t budget_for(std::size_t input) { return 4096 + input; }
@@ -121,11 +121,11 @@ QIVEN_CASE(digest, faults) {
     Fake fake{qiven3::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, fixture_key());
     std::vector<std::byte> pages(budget_for(header.bytes()));
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     const auto runs = [&](qiven3::log::Name site, auto write) {
-        const qiven3::test::FaultRuns r = qiven3::test::run_faults<MemoryError>(
+        const qiven::test::FaultRuns r = qiven::test::run_faults<MemoryError>(
             qiven_ctx.log, site, countdown,
             [&] {
                 arena.emplace(pages);
@@ -148,7 +148,7 @@ QIVEN_CASE(digest, faults) {
 
     // new_key's platform calls: the draw fails, its bytes wiped after.
     fake.attach(&countdown);
-    const qiven3::test::FaultRuns draws = qiven3::test::run_faults<qiven3::platform::PlatformError>(
+    const qiven::test::FaultRuns draws = qiven::test::run_faults<qiven3::platform::PlatformError>(
         qiven_ctx.log, "digest.new_key", countdown, [&] { const digest::Key<Fake> k = digest::new_key(fake); },
         [&](std::size_t) { return fake.calls().back() == "wipe"; });
     fake.attach(nullptr);

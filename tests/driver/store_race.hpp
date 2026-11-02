@@ -40,7 +40,7 @@
 
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/checked/stores.hpp"
@@ -51,7 +51,7 @@ namespace qiven3::drive::wire {
 
 // A claim like the fixture A on (scope, lane) at seq after parent, its
 // content and writer given, at seq / 60 minutes (store_fill.cpp).
-test::stage_book::Stored claim(const test::stage_book::Book& book, const std::string& scope,
+qiven::test::stage_book::Stored claim(const qiven::test::stage_book::Book& book, const std::string& scope,
                                const std::string& lane, const std::string& writer, const std::string& content,
                                std::int64_t seq, std::optional<std::string_view> parent);
 
@@ -167,7 +167,7 @@ private:
             platform::fake::Config config;
             config.root = root_;
             const auto fake = std::make_unique<platform::fake::FakePlatform>(config);
-            const auto book = std::make_unique<test::stage_book::Book>(*fake);
+            const auto book = std::make_unique<qiven::test::stage_book::Book>(*fake);
             std::unique_ptr<typename F::Store> object;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
@@ -197,7 +197,7 @@ private:
 
     // One success: the head read, the claim after it appended expecting it,
     // again after each HeadConflict or StoreBusy.
-    void append(Racer& r, typename F::Store& object, const test::stage_book::Book& book,
+    void append(Racer& r, typename F::Store& object, const qiven::test::stage_book::Book& book,
                 const std::string& content) {
         for (;;) {
             try {
@@ -206,7 +206,7 @@ private:
                 if (head) {
                     parent = std::string(head->id.view());
                 }
-                const test::stage_book::Stored s =
+                const qiven::test::stage_book::Stored s =
                     wire::claim(book, scope_, r.lane, r.writer, content, head ? head->seq + 1 : 1, parent);
                 const store::EntryView entry{s.line, s.record ? std::optional<std::string_view>(*s.record)
                                                               : std::nullopt};
@@ -239,9 +239,9 @@ private:
 };
 
 template <class D>
-std::optional<Value> race(D& d, memory::Arena&, ArgView request) {
+std::optional<Value> race(D& d, qiven::memory::Arena&, ArgView request) {
     const auto made = std::make_unique<Race<typename D::Factory>>(
-        *held::named(d.states(), request, "state").object, test::ruled::text(d.site().root()), request);
+        *held::named(d.states(), request, "state").object, qiven::test::ruled::text(d.site().root()), request);
     return made->run();
 }
 

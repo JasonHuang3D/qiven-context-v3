@@ -5,11 +5,11 @@
 
 #include <optional>
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::secret {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<SecretError> try_check(const header::Header<Alloc>&, const canon::Basic<Alloc>&,
                                               Hits<Alloc>&);

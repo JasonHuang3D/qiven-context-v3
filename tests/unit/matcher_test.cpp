@@ -16,8 +16,8 @@
 
 #include "entry/matcher.hpp"
 #include "entry/secret.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fixtures/patterns.hpp"
@@ -26,12 +26,12 @@ namespace {
 
 namespace matcher = qiven3::entry::matcher;
 namespace secret = qiven3::entry::secret;
-namespace fixtures = qiven3::test::fixtures;
+namespace fixtures = qiven::test::fixtures;
 using matcher::Fault;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryCode;
-using qiven3::memory::MemoryError;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryCode;
+using qiven::memory::MemoryError;
 
 constexpr bool hits(std::string_view pattern, std::string_view text) {
     return matcher::hit(matcher::compile(pattern), text);
@@ -197,7 +197,7 @@ QIVEN_CASE(matcher, compile_budget) {
 QIVEN_CASE(matcher, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     std::vector<std::byte> pages(matcher::compile_budget + 4096);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     bool compiled = false;
@@ -207,8 +207,8 @@ QIVEN_CASE(matcher, faults) {
         const matcher::Automaton a = matcher::compile(patterns()[9], Allocator<char>(*arena));
         compiled = a.compiled() && matcher::hit(a, "Authorization: Bearer " + rep("a", 8));
     };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "matcher.compile", countdown, compile, check);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "matcher.compile", countdown, compile, check);
     std::cout << "matcher.faults: compile's allocations " << runs.typed << ", completed at " << runs.completed_at
               << "\n";
     // The scratch, then the automaton's words.

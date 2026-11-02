@@ -18,7 +18,7 @@
 
 #include "diag/diag.hpp"
 #include "diag/events.hpp"
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 
 #if !defined(_M_X64)
 #error "diag_windows.cpp walks x64 stacks alone"
@@ -424,13 +424,13 @@ void start_dump_thread() noexcept {
 
 void keep(const log::Ring& ring) noexcept {
     if (!detail::hold(rings, ring)) {
-        memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
+        qiven::memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
     }
 }
 
 void drop(const log::Ring& ring) noexcept {
     if (!detail::release(rings, ring)) {
-        memory::fail_fast("diag::drop: a ring not kept");
+        qiven::memory::fail_fast("diag::drop: a ring not kept");
     }
 }
 

@@ -35,8 +35,8 @@
 #include "entry/header.hpp"
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -48,15 +48,15 @@
 
 namespace {
 
-using namespace qiven3::test::stage_book;
-using qiven3::memory::Vector;
+using namespace qiven::test::stage_book;
+using qiven::memory::Vector;
 using qiven3::store::Counts;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::store::Written;
-using Memory = qiven3::test::ruled::Memory;
-using SQLite = qiven3::test::ruled::Sqlite<>;
+using Memory = qiven::test::ruled::Memory;
+using SQLite = qiven::test::ruled::Sqlite<>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
@@ -218,7 +218,7 @@ void whole_record(qiven::runner::Context& qiven_ctx, F& factory, const Book& boo
 
 // Each on memory and on SQLite.
 QIVEN_CASE(checked_reads, secret_hit) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     Memory memory(*site);
     secret_hit(qiven_ctx, memory, site->book());
     SQLite sqlite(*site);
@@ -226,7 +226,7 @@ QIVEN_CASE(checked_reads, secret_hit) {
 }
 
 QIVEN_CASE(checked_reads, whole_record) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     Memory memory(*site);
     whole_record(qiven_ctx, memory, site->book());
     SQLite sqlite(*site);
@@ -234,7 +234,7 @@ QIVEN_CASE(checked_reads, whole_record) {
 }
 
 QIVEN_CASE(checked_reads, own_export) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     for (const bool held : {false, true}) {
         Memory memory(*site);
         own_export(qiven_ctx, memory, site->book(), held);
@@ -247,7 +247,7 @@ namespace {
 
 namespace state = qiven3::store::state;
 using qiven3::checked::Header;
-using qiven3::memory::String;
+using qiven::memory::String;
 using qiven3::store::Head;
 using Store = qiven3::checked::MemoryStore<Fake>;
 
@@ -345,7 +345,7 @@ QIVEN_CASE(checked_reads, corrupt) {
 // line, the ruled scan's incoherent; A's line B's, id_mismatch at the
 // header read and the scan.
 QIVEN_CASE(checked_reads, sqlite_corrupt) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     SQLite factory(*site);
     const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
     std::vector<std::byte> pages(std::size_t{1} << 17U);
@@ -376,7 +376,7 @@ QIVEN_CASE(checked_reads, sqlite_corrupt) {
 // Each of A's columns altered beside its line, in SQLite: the ruled scan
 // StoreCorrupt incoherent; then put back, A's header read again.
 QIVEN_CASE(checked_reads, sqlite_columns) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     SQLite factory(*site);
     const auto store = std::make_unique<SQLite::Store>(factory.make());  // past a frame's share
     const std::vector<Stored> mine = {site->book().stored("A"), site->book().stored("B")};
@@ -513,7 +513,7 @@ std::size_t drain(E& e, Held& held) {
 // one lane, C and M1 on another, exported and held; the heads given short
 // of the lines': head_mismatch, nothing left.
 QIVEN_CASE(checked_reads, head_mismatch) {
-    const auto site = qiven3::test::ruled::site();
+    const auto site = qiven::test::ruled::site();
     const Book& book = site->book();
     SQLite from(*site);
     const auto source = std::make_unique<SQLite::Store>(from.make());

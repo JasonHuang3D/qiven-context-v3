@@ -12,8 +12,8 @@
 #include <string_view>
 #include <tuple>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -57,7 +57,7 @@ void inserted(Connection& c, Statement& s, std::string_view scope, std::string_v
 
 }  // namespace
 
-memory::Arena& ScratchView::operator()() {
+qiven::memory::Arena& ScratchView::operator()() {
     if (arena_) {
         peak_ = std::max(peak_, arena_->peak());
     }
@@ -284,7 +284,7 @@ std::string_view raise_meta(std::string_view name, std::int64_t value, std::arra
 
 void figures(Connection& c, Sizes& out, const WhereView& at) {
     const auto add = [&out](std::string_view name, std::uint64_t value) {
-        out.detail.at(out.figures) = Figure{memory::Inline<figure_bytes>(name), value};
+        out.detail.at(out.figures) = Figure{qiven::memory::Inline<figure_bytes>(name), value};
         ++out.figures;
     };
     add("page_size", static_cast<std::uint64_t>(c.integer("PRAGMA page_size", at)));

@@ -55,8 +55,8 @@
 #include <utility>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
@@ -65,21 +65,21 @@
 #include "support/fake_platform/fake_platform.hpp"
 #include "support/stores/named.hpp"
 
-namespace qiven3::test::stores {
+namespace qiven::test::stores {
 
-using Fake = platform::fake::FakePlatform;
-using Chars = memory::Allocator<char>;
+using Fake = qiven3::platform::fake::FakePlatform;
+using Chars = qiven::memory::Allocator<char>;
 
 // The tags. own names the one implementation whose layout or settings a
 // case reads (S16 (c), S17, S18, S19, S24, S28).
 enum class Own : std::uint8_t { none, sqlite };
 struct Needs {
-    store::Capabilities capabilities{};
+    qiven3::store::Capabilities capabilities{};
     Own own = Own::none;
 };
 constexpr Needs operator|(const Needs& a, const Needs& b) noexcept {
-    const store::Capabilities& x = a.capabilities;
-    const store::Capabilities& y = b.capabilities;
+    const qiven3::store::Capabilities& x = a.capabilities;
+    const qiven3::store::Capabilities& y = b.capabilities;
     return Needs{{x.durable || y.durable, x.files || y.files, x.processes || y.processes},
                  a.own != Own::none ? a.own : b.own};
 }
@@ -92,7 +92,7 @@ inline constexpr Needs own_sqlite{{}, Own::sqlite};
 // The reason a store of factory F cannot run a case needing n, or none.
 template <class F>
 std::optional<std::string> lacking(const Needs& n) {
-    constexpr store::Capabilities have = F::Store::capabilities;
+    constexpr qiven3::store::Capabilities have = F::Store::capabilities;
     std::string why;
     const auto lack = [&why](bool needed, bool held, std::string_view tag) {
         if (needed && !held) {
@@ -155,7 +155,7 @@ public:
     [[nodiscard]] const Chars& chars() const noexcept { return chars_; }
     [[nodiscard]] const std::filesystem::path& root() const noexcept { return root_; }
     // The engine heap, made at the first call and kept past every store.
-    store::Engine<Fake>& engine() {
+    qiven3::store::Engine<Fake>& engine() {
         if (!engine_) {
             engine_.emplace(fake_);
         }
@@ -178,8 +178,8 @@ private:
         std::filesystem::create_directories(root);
         return root;
     }
-    static platform::fake::Config config(const std::filesystem::path& root, std::uint64_t seed) {
-        platform::fake::Config c;
+    static qiven3::platform::fake::Config config(const std::filesystem::path& root, std::uint64_t seed) {
+        qiven3::platform::fake::Config c;
         c.root = text(root);
         c.seed = seed;
         // A folder the fake reports synced, as a client's under %OneDrive%
@@ -190,9 +190,9 @@ private:
 
     std::filesystem::path root_;
     Fake fake_;
-    std::optional<store::Engine<Fake>> engine_;  // after the fake, whose pages it holds
+    std::optional<qiven3::store::Engine<Fake>> engine_;  // after the fake, whose pages it holds
     std::vector<std::byte> pages_;
-    memory::Arena arena_;
+    qiven::memory::Arena arena_;
     Chars chars_;
     unsigned made_ = 0;
 };
@@ -216,12 +216,12 @@ public:
 
     [[nodiscard]] T& site() noexcept { return *site_; }
     // make() once a factory: a second call is a case's error.
-    Store make(const store::Limits& limits = store::Limits{}) {
+    Store make(const qiven3::store::Limits& limits = qiven3::store::Limits{}) {
         if (state_) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
         pages_.emplace(site_->fake().pages(heap_));
-        state_ = std::make_unique<store::state::State>(pages_->bytes(), limits);
+        state_ = std::make_unique<qiven3::store::state::State>(pages_->bytes(), limits);
         return Store(*state_, site_->fake());
     }
     Store again() { return Store(state(), site_->fake()); }
@@ -231,7 +231,7 @@ public:
     [[noreturn]] static Store reopen() { throw qiven::runner::Skip{"not applicable: the memory store is not durable"}; }
 
 private:
-    store::state::State& state() {
+    qiven3::store::state::State& state() {
         if (!state_) {
             throw std::logic_error("stores: no state made yet");
         }
@@ -240,14 +240,14 @@ private:
 
     T* site_;
     std::size_t heap_;
-    std::optional<platform::fake::FakePages> pages_;  // before the state made over them
-    std::unique_ptr<store::state::State> state_;
+    std::optional<qiven3::platform::fake::FakePages> pages_;  // before the state made over them
+    std::unique_ptr<qiven3::store::state::State> state_;
 };
 
 // The SQLite store, its hooks H (a seam's, seams.hpp) given to each object:
 // its file store.db in a directory of its own under the Site's root. S is
 // the store's type with those hooks, T the Site's.
-template <class S, class T, store::Hooks H>
+template <class S, class T, qiven3::store::Hooks H>
 class SqliteOn {
 public:
     using Store = S;
@@ -257,7 +257,7 @@ public:
     explicit SqliteOn(T& site, H hooks = H{}) : site_(&site), hooks_(std::move(hooks)) { (void)site.engine(); }
 
     [[nodiscard]] T& site() noexcept { return *site_; }
-    Store make(const store::Limits& limits = store::Limits{}) {
+    Store make(const qiven3::store::Limits& limits = qiven3::store::Limits{}) {
         if (!path_.empty()) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
@@ -286,12 +286,12 @@ private:
     H hooks_;
     std::filesystem::path directory_;
     std::string path_;
-    store::Limits limits_{};
+    qiven3::store::Limits limits_{};
 };
 
 // The plain stores, with no admit hook.
-using Memory = MemoryOn<store::MemoryStore<Fake>>;
-template <store::Hooks H = store::NoHooks>
-using Sqlite = SqliteOn<store::SQLiteStore<Fake, H>, Site, H>;
+using Memory = MemoryOn<qiven3::store::MemoryStore<Fake>>;
+template <qiven3::store::Hooks H = qiven3::store::NoHooks>
+using Sqlite = SqliteOn<qiven3::store::SQLiteStore<Fake, H>, Site, H>;
 
-}  // namespace qiven3::test::stores
+}  // namespace qiven::test::stores

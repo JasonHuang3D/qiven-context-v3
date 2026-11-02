@@ -22,8 +22,8 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/connection.hpp"
@@ -88,7 +88,7 @@ inline constexpr Refused directory_refused = 1U << 4U;
 // Steps 2 (the connection) to 7 on a file presence() passed, or that
 // create made (sqlite_create.hpp's made, which undoes a refused one); the
 // connection closed as a step's error leaves.
-[[nodiscard]] Connection connect(const memory::String& path, bool create, bool read_only, const WhereView& at,
+[[nodiscard]] Connection connect(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at,
                                  Opened& opened);
 
 // A file's size in bytes, the path's UTF-8 bytes and a suffix after them
@@ -97,9 +97,9 @@ inline constexpr Refused directory_refused = 1U << 4U;
 [[nodiscard]] std::optional<std::uint64_t> file_bytes(std::string_view path, std::string_view suffix = {});
 
 // The writes (sqlite_write.cpp), through the wrapper.
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 #if defined(QIVEN_FAULTS)
-using Countdown = memory::Countdown;
+using Countdown = qiven::memory::Countdown;
 // The process's two countdowns: calls, which each engine call the wrapper
 // maps asks first, a failed one taking SQLITE_IOERR as its result, the
 // engine not called; and arenas, which a store object made while it is
@@ -117,13 +117,13 @@ struct Countdown {};
 class ScratchView {
 public:
     ScratchView(std::span<std::byte> pages, Countdown* countdown) noexcept : pages_(pages), countdown_(countdown) {}
-    memory::Arena& operator()();
+    qiven::memory::Arena& operator()();
     // The greatest high-water mark of its arenas so far.
     [[nodiscard]] std::size_t peak() const noexcept;
 
 private:
     std::span<std::byte> pages_;
-    std::optional<memory::Arena> arena_;
+    std::optional<qiven::memory::Arena> arena_;
     [[maybe_unused]] Countdown* countdown_;
     std::size_t peak_ = 0;
 };
@@ -271,7 +271,7 @@ struct HeadsRead {
 // An entry by id: its line's bytes into line and its record's into record, each where given, on its allocator; body
 // where it has a body row. A record asked of a body key with no row and no forget is StoreCorrupt incoherent.
 enum class Found : std::uint8_t { absent, entry, body };
-[[nodiscard]] Found find(Connection& c, std::string_view id, memory::String* line, memory::String* record,
+[[nodiscard]] Found find(Connection& c, std::string_view id, qiven::memory::String* line, qiven::memory::String* record,
                          const WhereView& at);
 // Whether a forget targets id; none is id, NotFound.
 [[nodiscard]] bool forgotten(Connection& c, std::string_view id, const WhereView& at);
@@ -311,7 +311,7 @@ public:
     template <class Step>
         requires std::invocable<Step&, const Record&, const Chars&>
     bool next(Step&& step) {
-        memory::Arena arena(pages_);
+        qiven::memory::Arena arena(pages_);
 #if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
@@ -346,11 +346,11 @@ private:
     std::span<std::byte> pages_;
     [[maybe_unused]] Countdown* countdown_;
     std::string_view path_;
-    std::optional<memory::Inline<scope_bytes>> scope_;
-    std::optional<memory::Inline<lane_bytes>> lane_;
+    std::optional<qiven::memory::Inline<scope_bytes>> scope_;
+    std::optional<qiven::memory::Inline<lane_bytes>> lane_;
     std::int64_t after_;
-    memory::Inline<scope_bytes> at_scope_;
-    memory::Inline<lane_bytes> at_lane_;
+    qiven::memory::Inline<scope_bytes> at_scope_;
+    qiven::memory::Inline<lane_bytes> at_lane_;
     std::int64_t at_seq_ = std::numeric_limits<std::int64_t>::min();
     std::int64_t last_ = 0;  // the greatest rowid of entry at the scan's start
     bool done_ = false;

@@ -32,8 +32,8 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 
 namespace qiven3::digest {
@@ -221,9 +221,9 @@ constexpr Bytes hmac(std::string_view key, std::string_view data) noexcept {
 constexpr std::size_t framed_size(std::span<const Field> fields) {
     std::size_t total = 0;
     for (const Field& field : fields) {
-        std::optional<std::size_t> next = memory::add(total, 8U);
+        std::optional<std::size_t> next = qiven::memory::add(total, 8U);
         if (next && field) {
-            next = memory::add(*next, field->size());
+            next = qiven::memory::add(*next, field->size());
         }
         if (!next) {
             detail::too_large(total);
@@ -347,7 +347,7 @@ void key_hex(const Key<P>& key, std::span<char, 2 * bytes> out) noexcept {
 template <platform::Platform P>
 Key<P> key_from_hex(P& platform, std::string_view hex) noexcept {
     if (!key_text(hex)) {
-        memory::fail_fast("digest: key_from_hex given text that is no key's");
+        qiven::memory::fail_fast("digest: key_from_hex given text that is no key's");
     }
     const auto nibble = [](char c) noexcept {
         return static_cast<unsigned>(c <= '9' ? c - '0' : c - 'a' + 10);

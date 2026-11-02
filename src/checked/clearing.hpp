@@ -39,7 +39,7 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/validator.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -47,7 +47,7 @@
 
 namespace qiven3::checked::clearing {
 
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 using keys::Id;
 using store::Vector;
 

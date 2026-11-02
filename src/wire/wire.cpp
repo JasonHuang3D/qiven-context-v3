@@ -5,14 +5,14 @@
 #include <span>
 #include <string_view>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven3/utf.hpp"
 
 namespace qiven3::wire {
 
 std::string_view RequestView::operator[](std::size_t i) const noexcept {
     if (i >= arguments_.size()) {
-        memory::fail_fast("wire: an argument past the request's");
+        qiven::memory::fail_fast("wire: an argument past the request's");
     }
     return std::string_view(arguments_[i]);
 }

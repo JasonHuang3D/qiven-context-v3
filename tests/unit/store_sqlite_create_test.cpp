@@ -31,8 +31,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
@@ -43,9 +43,9 @@
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
-namespace qiven3::test {
+namespace qiven::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
-}  // namespace qiven3::test
+}  // namespace qiven::test
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
@@ -54,8 +54,8 @@ namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
 using Fake = qiven3::platform::fake::FakePlatform;
 using Store = qiven3::store::SQLiteStore<Fake>;
-using qiven3::memory::Countdown;
-using qiven3::memory::MemoryError;
+using qiven::memory::Countdown;
+using qiven::memory::MemoryError;
 using qiven3::platform::PlatformError;
 using qiven3::store::StoreError;
 
@@ -175,8 +175,8 @@ Bounds measure(Rig& rig, Kind kind) {
     fs::create_directories(rig.dir, error);
     rig.fake.create(rig.path, false);
     std::vector<std::byte> pages(std::size_t{1} << 16U);
-    qiven3::memory::Arena arena(pages);
-    const qiven3::memory::String path(rig.path, qiven3::memory::Allocator<char>(arena));
+    qiven::memory::Arena arena(pages);
+    const qiven::memory::String path(rig.path, qiven::memory::Allocator<char>(arena));
     const qiven3::store::WhereView at = sqlite::site(sqlite::open_name, rig.path);
     Bounds b;
     Countdown c;
@@ -220,9 +220,9 @@ std::string_view step_of(Kind kind, const Bounds& b, std::size_t at) {
 
 // One pass: each call of kind refused in turn, the runs of the part's
 // range r executing (qiven/faults/parts.hpp's PartRuns).
-void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven3::test::FaultRange r) {
+void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven::test::FaultRange r) {
     const Bounds b = measure(rig, kind);
-    qiven3::test::PartRuns part(r);
+    qiven::test::PartRuns part(r);
     std::map<std::string, std::size_t> by_step;
     std::map<std::string, std::size_t> raised;
     std::size_t left = 0;
@@ -283,7 +283,7 @@ void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven3::test::
         return held;
     };
     attach(rig, kind, &c);
-    const qiven3::test::FaultRuns runs = qiven3::test::run_faults<Typed>(qiven_ctx.log, "store_sqlite.create", c, op, check);
+    const qiven::test::FaultRuns runs = qiven::test::run_faults<Typed>(qiven_ctx.log, "store_sqlite.create", c, op, check);
     attach(rig, kind, nullptr);
     std::cout << "store_sqlite.create_refused: " << kind_names.at(static_cast<std::size_t>(kind)) << ": "
               << runs.typed << " runs refused, completed at " << runs.completed_at << " (executing " << r.from
@@ -328,7 +328,7 @@ void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven3::test::
 // One part of create_refused: the passes in order, the platform's calls,
 // the arena's allocations, the engine calls, the engine heap's allocations,
 // each over the part's range of it.
-void qiven3::test::store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges) {
+void qiven::test::store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges) {
     constexpr std::array<Kind, 4> kinds = {Kind::platform, Kind::arena, Kind::call, Kind::heap};
     const auto rig = std::make_unique<Rig>();
     for (std::size_t p = 0; p < kinds.size(); ++p) {
@@ -435,7 +435,7 @@ QIVEN_CASE(store_sqlite, create_unremoved) {
     CHECK_EQ(rig->create(), std::string("made"));
 }
 #else
-void qiven3::test::store_sqlite_create_refused(qiven::runner::Context& /*qiven_ctx*/,
+void qiven::test::store_sqlite_create_refused(qiven::runner::Context& /*qiven_ctx*/,
                                                const std::array<FaultRange, 4>& /*ranges*/) {
     QIVEN_SKIP("not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers");
 }

@@ -19,8 +19,8 @@
 #include "entry/header.hpp"
 #include "entry/labels.hpp"
 #include "entry/refs.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
@@ -31,10 +31,10 @@ namespace {
 namespace header = qiven3::entry::header;
 namespace labels = qiven3::entry::labels;
 namespace canon = qiven3::canon;
-namespace fixtures = qiven3::test::fixtures;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::MemoryError;
+namespace fixtures = qiven::test::fixtures;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::MemoryError;
 
 constexpr std::size_t budget = 1048576;
 
@@ -143,7 +143,7 @@ QIVEN_CASE(labels, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const std::vector<Stored> all = stored();
     std::vector<std::byte> pages(budget);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     std::vector<labels::CheckView> checks;
     checks.reserve(all.size());
@@ -156,8 +156,8 @@ QIVEN_CASE(labels, faults) {
         arena->attach(nullptr);
     };
     const auto empty = [&](std::size_t) { return true; };
-    const qiven3::test::FaultRuns runs =
-        qiven3::test::run_faults<MemoryError>(qiven_ctx.log, "labels.label", countdown, op, empty);
+    const qiven::test::FaultRuns runs =
+        qiven::test::run_faults<MemoryError>(qiven_ctx.log, "labels.label", countdown, op, empty);
     std::cout << "labels.faults: label's allocations " << runs.typed << ", completed at " << runs.completed_at << "\n";
     CHECK_EQ(runs.typed, 0U);
     CHECK_EQ(runs.completed_at, 1U);

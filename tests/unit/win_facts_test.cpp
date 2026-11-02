@@ -18,7 +18,7 @@
 #include <tuple>
 #include <utility>
 
-#include "memory/arena.hpp"
+#include "qiven/memory/arena.hpp"
 #include "platform/win/facts.hpp"
 #include "platform/win/windows.hpp"
 #include "qiven/runner/runner.hpp"
@@ -26,8 +26,8 @@
 namespace {
 
 namespace readings = qiven3::platform::win::readings;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using qiven3::platform::Code;
 using qiven3::platform::Detail;
 using qiven3::platform::Facts;
@@ -240,7 +240,7 @@ QIVEN_CASE(win_facts, refusals) {
 QIVEN_CASE(win_facts, first_fault) {
 #if defined(QIVEN_FAULTS)
     WindowsPlatform platform(std::nullopt);
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     platform.attach(&countdown);

@@ -26,8 +26,8 @@
 #include "entry/check.hpp"
 #include "entry/content.hpp"
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 
@@ -37,8 +37,8 @@ namespace check = qiven3::entry::check;
 namespace canon = qiven3::canon;
 using qiven3::ParseCode;
 using qiven3::ParseError;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 constexpr std::size_t budget_base = 262144;  // the entry's checks' budget beside 8 times the input

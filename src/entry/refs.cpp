@@ -3,11 +3,11 @@
 
 #include "entry/refs.hpp"
 
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
 namespace qiven3::entry::refs {
 
-using Alloc = memory::Allocator<char>;
+using Alloc = qiven::memory::Allocator<char>;
 
 template std::optional<RefError> try_check_reference(const canon::Basic<Alloc>&, json::Index);
 template void check_reference(const canon::Basic<Alloc>&, json::Index);

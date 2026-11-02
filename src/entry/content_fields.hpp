@@ -46,8 +46,8 @@
 #include "entry/kinds.hpp"
 #include "entry/matcher.hpp"
 #include "entry/refs.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
 #include "qiven3/utf.hpp"
@@ -84,7 +84,7 @@ struct ContentError {
     Code code = Code::syntax;
     std::uint32_t limit = 0;
     std::uint32_t value = 0;
-    memory::Inline<path_size> path;
+    qiven::memory::Inline<path_size> path;
 };
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(ContentError) == 120, "ContentError's size is pinned: its code, two counts and its path");
@@ -213,7 +213,7 @@ public:
     // A fault at the path at hand, kept if its code is earlier.
     constexpr void fault(Code c, std::size_t limit = 0, std::size_t measured = 0) {
         if (can_improve(c)) {
-            best_ = ContentError{c, narrow(limit), narrow(measured), memory::Inline<path_size>(path_.view())};
+            best_ = ContentError{c, narrow(limit), narrow(measured), qiven::memory::Inline<path_size>(path_.view())};
         }
     }
     // A fault at a key under the path at hand.
@@ -456,7 +456,7 @@ private:
                     return match(static_cast<Syntax>(i), text);
                 }
             }
-            memory::fail_fast("content: a reference's syntax outside the walk's");
+            qiven::memory::fail_fast("content: a reference's syntax outside the walk's");
         };
     }
 

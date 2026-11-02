@@ -72,17 +72,17 @@ NOT_OBJECT = frozenset(("using", "typedef", "concept", "class", "struct", "enum"
 
 # Where each rule allows what it finds, by path prefix.
 ALLOWED = {
-    "B19": ("src/memory/arena.", "src/memory/pool."),
-    "B20": ("src/memory/",),
+    "B19": ("foundation/core/memory/include/qiven/memory/arena.", "foundation/core/memory/src/arena.", "foundation/core/memory/include/qiven/memory/pool.", "foundation/core/memory/src/pool."),
+    "B20": ("foundation/core/memory/",),
     # The diagnostic entry's dump thread, which lives as long as the process.
     "B24": ("src/diag/",),
     # The entry's handlers' state, and memory/fail's kept cause, which the
     # terminate handler reads with nothing allocated.
-    "B25": ("src/diag/", "src/memory/fail."),
+    "B25": ("src/diag/", "foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail."),
     "B30": ("src/platform/win/",),
     # memory/fail's fail-fast, and the diagnostic entry, which ends a broken
     # process itself after its report: B31's two homes.
-    "B31": ("src/memory/fail.", "src/diag/"),
+    "B31": ("foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail.", "src/diag/"),
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares
@@ -104,11 +104,11 @@ CELLS = {
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
     ("B28", "src/hal/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",
-    ("B28", "src/memory/arena.hpp", "Arena"): "the span of pages its owner lends, a platform Pages value that "
+    ("B28", "foundation/core/memory/include/qiven/memory/arena.hpp", "Arena"): "the span of pages its owner lends, a platform Pages value that "
                                               "outlives the arena, which ends before its pages; memory sits "
                                               "below the platform and cannot hold that type",
-    ("B28", "src/memory/pool.hpp", "Pool"): "as Arena's",
-    ("B28", "src/memory/pool.hpp", "Heap"): "as Arena's",
+    ("B28", "foundation/core/memory/include/qiven/memory/pool.hpp", "Pool"): "as Arena's",
+    ("B28", "foundation/core/memory/include/qiven/memory/pool.hpp", "Heap"): "as Arena's",
     ("B28", "src/log/log.hpp", "Name"): "a literal's text, which lasts as long as the process: a Name is made in "
                                         "constant evaluation alone",
     ("B28", "src/log/ring.hpp", "Ring"): "the span its Log takes from its binary's arena, which outlives the Log, "
@@ -119,7 +119,7 @@ CELLS = {
 # B26's modules, each with its own cases or fuzzed, where the analysis
 # configuration may turn pointer arithmetic off; a directory's .clang-tidy
 # serves a module that is a directory, memory alone.
-B26_MODULES = ("src/memory/", "src/qiven3/digest.", "src/entry/matcher.", "src/qiven3/canon.", "src/qiven3/json.")
+B26_MODULES = ("foundation/core/memory/", "src/qiven3/digest.", "src/entry/matcher.", "src/qiven3/canon.", "src/qiven3/json.")
 B26_TIDY = "cppcoreguidelines-pro-bounds-pointer-arithmetic"
 B26_MSVC = "C26481"
 
@@ -256,7 +256,7 @@ def statements(tokens):
 
 def drop_macros(toks):
     """A statement without its macros' calls: a name of capitals, digits and _
-    before (, with its arguments, as QIVEN3_GUARDED_BY(m)."""
+    before (, with its arguments, as QIVEN_GUARDED_BY(m)."""
     out, i = [], 0
     while i < len(toks):
         kind, value, _ = toks[i]

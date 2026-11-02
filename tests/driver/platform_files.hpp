@@ -46,25 +46,25 @@ Value keep(PlatformDrive<P>& d, Map& map, H&& handle) {
 }
 
 template <class P>
-std::optional<Value> stage(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> stage(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     return keep(d, d.staged(), d.platform().stage(given_path(request, "path")));
 }
 
 template <class P>
-std::optional<Value> staged_open(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> staged_open(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto staged = by_id(d.staged(), request, "staging directory");
     return keep(d, d.sinks(), staged->second.open(given_path(request, "path")));
 }
 
 template <class P>
-std::optional<Value> sink_write(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> sink_write(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     by_id(d.sinks(), request, "file")->second.write(from_hex(text(request, "data")));
     return std::nullopt;
 }
 
 // The file closed and its handle ended, also when the close is refused.
 template <class P>
-std::optional<Value> sink_close(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> sink_close(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto found = by_id(d.sinks(), request, "file");
     typename PlatformDrive<P>::Sink sink = std::move(found->second);
     d.sinks().erase(found);
@@ -73,7 +73,7 @@ std::optional<Value> sink_close(PlatformDrive<P>& d, memory::Arena&, ArgView req
 }
 
 template <class P>
-std::optional<Value> publish(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> publish(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto found = by_id(d.staged(), request, "staging directory");
     found->second.publish(text(request, "name"), deadline(request, "deadline"));
     d.staged().erase(found);
@@ -81,7 +81,7 @@ std::optional<Value> publish(PlatformDrive<P>& d, memory::Arena&, ArgView reques
 }
 
 template <class P>
-std::optional<Value> discard(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> discard(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto found = by_id(d.staged(), request, "staging directory");
     found->second.discard();
     d.staged().erase(found);
@@ -89,12 +89,12 @@ std::optional<Value> discard(PlatformDrive<P>& d, memory::Arena&, ArgView reques
 }
 
 template <class P>
-std::optional<Value> lock(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> lock(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     return keep(d, d.locks(), d.platform().lock(text(request, "path"), deadline(request, "deadline")));
 }
 
 template <class P>
-std::optional<Value> lock_release(PlatformDrive<P>& d, memory::Arena&, ArgView request) {
+std::optional<Value> lock_release(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto found = by_id(d.locks(), request, "lock");
     found->second.release();
     d.locks().erase(found);

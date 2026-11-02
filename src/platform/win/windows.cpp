@@ -473,7 +473,7 @@ WindowsPages take_pages(std::size_t n) {
     SYSTEM_INFO info{};
     GetSystemInfo(&info);
     const std::size_t page = info.dwPageSize;
-    const std::optional<std::size_t> padded = memory::add(n, page - 1);
+    const std::optional<std::size_t> padded = qiven::memory::add(n, page - 1);
     if (!padded) {
         fail(Code::memory, "pages", Detail("a count that cannot be rounded to whole pages: ").number(n));
     }

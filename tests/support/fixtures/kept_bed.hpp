@@ -20,25 +20,25 @@
 #include <vector>
 
 #include "entry/header.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "support/fake_platform/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/kept.hpp"
 #include "write/refuse.hpp"
 
-namespace qiven3::test::kept_bed {
+namespace qiven::test::kept_bed {
 
 
 namespace fs = std::filesystem;
 namespace kept = qiven3::write::kept;
 namespace header = qiven3::entry::header;
-using qiven3::memory::Allocator;
-using qiven3::memory::Arena;
-using qiven3::memory::Inline;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+using qiven::memory::Allocator;
+using qiven::memory::Arena;
+using qiven::memory::Inline;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::platform::Code;
 using qiven3::platform::PlatformError;
 using qiven3::platform::fake::Busy;
@@ -203,4 +203,4 @@ inline std::size_t count(const std::vector<std::string>& calls, std::string_view
 
 inline constexpr std::size_t mib = std::size_t{1} << 20U;
 
-}  // namespace qiven3::test::kept_bed
+}  // namespace qiven::test::kept_bed

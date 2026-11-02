@@ -1,6 +1,6 @@
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 namespace {
 
@@ -54,4 +54,4 @@ MemoryError MemoryError::budget(std::string_view operation, std::size_t budget,
     return MemoryError(MemoryCode::budget, operation, std::string_view(text.data(), at));
 }
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

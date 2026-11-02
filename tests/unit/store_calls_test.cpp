@@ -24,8 +24,8 @@
 #include <vector>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -34,10 +34,10 @@
 
 namespace {
 
-namespace stores = qiven3::test::stores;
-namespace records = qiven3::test::records;
-using qiven3::memory::String;
-using qiven3::memory::Vector;
+namespace stores = qiven::test::stores;
+namespace records = qiven::test::records;
+using qiven::memory::String;
+using qiven::memory::Vector;
 using qiven3::store::GuardView;
 using qiven3::store::Id;
 using records::Rec;
@@ -80,7 +80,7 @@ std::string joined(const Vector<Id>& ids) {
 // lane a of qs: A1, A2 (targets B1), then F, a forget of A1; lane a of
 // other_scope: T1, T2 (targets T1). Nine entries; A1's line kept.
 template <class S>
-std::string fill(S& store, const qiven3::memory::Allocator<char>& chars) {
+std::string fill(S& store, const qiven::memory::Allocator<char>& chars) {
     const std::vector<Rec> b = {records::rec("B1", qs, "b", 1), records::rec("B2", qs, "b", 2, "B1"),
                                 records::targeting(records::rec("BT", qs, "b", 3, "B2"), "B1"),
                                 records::rec("BD", qs, "b", 4, "BT", "decision")};
@@ -101,7 +101,7 @@ std::string fill(S& store, const qiven3::memory::Allocator<char>& chars) {
 // Each call's answer on one object, its lists cleared first.
 template <class S>
 void answers(qiven::runner::Context& qiven_ctx, S& store, const std::string& a1,
-             const qiven3::memory::Allocator<char>& chars) {
+             const qiven::memory::Allocator<char>& chars) {
     String line(chars);
     line.assign("stale");
     CHECK(store.line("A1", line));
@@ -215,13 +215,13 @@ void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
     // The budget: the caller's arena holds the line's bytes and the lists'
     // room reserved before; the object's peak 0.
     std::vector<std::byte> pages(std::size_t{64} << 10U);
-    qiven3::memory::Arena arena(pages);
-    const qiven3::memory::Allocator<char> chars(arena);
+    qiven::memory::Arena arena(pages);
+    const qiven::memory::Allocator<char> chars(arena);
     String line(chars);
     Vector<Id> out{chars};
     out.reserve(5);
 #if defined(QIVEN_FAULTS)
-    qiven3::memory::Countdown countdown;
+    qiven::memory::Countdown countdown;
     arena.attach(&countdown);
     countdown.disarm();
 #endif

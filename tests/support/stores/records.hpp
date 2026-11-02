@@ -32,11 +32,11 @@
 #include <vector>
 
 #include "keys/keys.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
-namespace qiven3::test::records {
+namespace qiven::test::records {
 
 // A record's keys, owned.
 struct Keys {
@@ -54,11 +54,11 @@ struct Rec {
 };
 
 // The keys' view, over k's bytes.
-inline store::KeysView view(const Keys& k) {
+inline qiven3::store::KeysView view(const Keys& k) {
     const auto opt = [](const std::optional<std::string>& s) {
         return s ? std::optional<std::string_view>(*s) : std::nullopt;
     };
-    return store::KeysView{k.id, k.scope, k.lane, k.kind, k.seq, opt(k.parent), opt(k.target), k.body};
+    return qiven3::store::KeysView{k.id, k.scope, k.lane, k.kind, k.seq, opt(k.parent), opt(k.target), k.body};
 }
 
 // The opaque line of k: `rec:<id>` and each key's text.
@@ -120,11 +120,11 @@ inline Rec big(std::string_view id, std::string_view scope, std::string_view lan
 
 // Views of held records with their keys: a temporary list is refused, as
 // its views would dangle.
-std::vector<store::EntryView> views(std::vector<Rec>&& list) = delete;
-inline std::vector<store::EntryView> views(const std::vector<Rec>& list) {
-    std::vector<store::EntryView> out;
+std::vector<qiven3::store::EntryView> views(std::vector<Rec>&& list) = delete;
+inline std::vector<qiven3::store::EntryView> views(const std::vector<Rec>& list) {
+    std::vector<qiven3::store::EntryView> out;
     for (const Rec& r : list) {
-        out.push_back(store::EntryView{r.line, r.record ? std::optional<std::string_view>(*r.record) : std::nullopt,
+        out.push_back(qiven3::store::EntryView{r.line, r.record ? std::optional<std::string_view>(*r.record) : std::nullopt,
                                        view(r.keys)});
     }
     return out;
@@ -140,8 +140,8 @@ inline std::uint64_t added(const std::vector<Rec>& list) {
     return n;
 }
 
-inline Rec owned(const store::Line& line) {
-    const store::KeysView k = line.keys.view();
+inline Rec owned(const qiven3::store::Line& line) {
+    const qiven3::store::KeysView k = line.keys.view();
     const auto opt = [](const std::optional<std::string_view>& s) {
         return s ? std::optional<std::string>(*s) : std::nullopt;
     };
@@ -153,19 +153,19 @@ inline Rec owned(const store::Line& line) {
 inline const std::string& id_of(const Rec& r) { return r.keys.id; }
 inline std::int64_t seq_of(const Rec& r) { return r.keys.seq; }
 
-inline store::LaneHead lane_head(std::string_view scope, std::string_view lane, std::string_view id,
+inline qiven3::store::LaneHead lane_head(std::string_view scope, std::string_view lane, std::string_view id,
                                  std::int64_t seq) {
-    store::LaneHead h;
-    h.head = store::Head{store::Id::of(id), seq};
-    h.scope = memory::Inline<store::scope_bytes>(scope);
-    h.lane = memory::Inline<store::lane_bytes>(lane);
+    qiven3::store::LaneHead h;
+    h.head = qiven3::store::Head{qiven3::store::Id::of(id), seq};
+    h.scope = qiven::memory::Inline<qiven3::store::scope_bytes>(scope);
+    h.lane = qiven::memory::Inline<qiven3::store::lane_bytes>(lane);
     return h;
 }
 
 // What a StoreError f raised gives: its kind, its code (the store's, a
 // full's or the entry's), its detail and its index; none if f returned.
 struct Refusal {
-    store::Kind kind = store::Kind::store_error;
+    qiven3::store::Kind kind = qiven3::store::Kind::store_error;
     std::string code;
     std::string detail;
     std::size_t index = 0;
@@ -175,13 +175,13 @@ template <class F>
 std::optional<Refusal> refused(const F& f) {
     try {
         f();
-    } catch (const store::StoreError& e) {
+    } catch (const qiven3::store::StoreError& e) {
         Refusal r;
         r.kind = e.kind();
-        if (const std::optional<store::Code> code = e.code()) {
-            r.code = store::name(*code);
-        } else if (const std::optional<store::Full> full = e.full()) {
-            r.code = store::name(*full);
+        if (const std::optional<qiven3::store::Code> code = e.code()) {
+            r.code = qiven3::store::name(*code);
+        } else if (const std::optional<qiven3::store::Full> full = e.full()) {
+            r.code = qiven3::store::name(*full);
         } else {
             r.code = e.entry_code();
         }
@@ -192,4 +192,4 @@ std::optional<Refusal> refused(const F& f) {
     return std::nullopt;
 }
 
-}  // namespace qiven3::test::records
+}  // namespace qiven::test::records

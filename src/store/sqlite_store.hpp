@@ -61,9 +61,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/codes.hpp"
@@ -95,7 +95,7 @@ public:
     Engine& operator=(Engine&&) = delete;
     ~Engine() = default;
 
-    [[nodiscard]] memory::Heap& heap() noexcept { return heap_.heap(); }
+    [[nodiscard]] qiven::memory::Heap& heap() noexcept { return heap_.heap(); }
     [[nodiscard]] sqlite::Slots slots() const noexcept { return heap_.slots(); }
 
 private:
@@ -105,9 +105,9 @@ private:
         if (sqlite::engine_ready()) {
             throw StoreError(Code::internal, sqlite::open_name, {}, "an engine heap is installed already");
         }
-        const std::optional<std::size_t> n = memory::mul(engine_budget, connections);
+        const std::optional<std::size_t> n = qiven::memory::mul(engine_budget, connections);
         if (!n || connections == 0) {
-            throw memory::MemoryError::budget("store/sqlite", engine_budget, connections, 0);
+            throw qiven::memory::MemoryError::budget("store/sqlite", engine_budget, connections, 0);
         }
         return *n;
     }
@@ -351,7 +351,7 @@ private:
         : platform_(&platform), pages_(platform.pages(operation_base)), gate_(read_only), limits_(limits),
           hooks_(std::move(hooks)) {
         if (pages_.bytes().size() < operation_base) {
-            memory::fail_fast("store/sqlite: pages short of their request");
+            qiven::memory::fail_fast("store/sqlite: pages short of their request");
         }
 #if defined(QIVEN_FAULTS)
         countdown_ = sqlite::arenas_countdown();
@@ -359,11 +359,11 @@ private:
     }
 
     // The guard on a resolved path, its strings on arena.
-    static void check(std::string_view resolved, P& platform, memory::Arena& arena, std::string_view op) {
+    static void check(std::string_view resolved, P& platform, qiven::memory::Arena& arena, std::string_view op) {
         if (sqlite::in_checkout(resolved)) {
             throw StoreError(Code::location, op, resolved, "checkout");
         }
-        String client{memory::Allocator<char>(arena)};
+        String client{qiven::memory::Allocator<char>(arena)};
         if (platform.synced(resolved, client)) {
             throw StoreError(Code::location, op, resolved, "synced");
         }
@@ -382,7 +382,7 @@ private:
     // object's own where they hold it, else pages the call takes.
     std::span<std::byte> room(std::span<const EntryView> entries, std::optional<Pages>& extra);
 
-    void hook([[maybe_unused]] memory::Arena& arena) const noexcept {
+    void hook([[maybe_unused]] qiven::memory::Arena& arena) const noexcept {
 #if defined(QIVEN_FAULTS)
         if (countdown_ != nullptr) {
             arena.attach(countdown_);
@@ -408,7 +408,7 @@ private:
     // A lent read's bytes on an arena to give; the peak once give returns.
     template <class Give>
     bool lend(Operation op, std::string_view id, Give&& give) {
-        memory::Arena arena(pages_.bytes().first(operation_base));
+        qiven::memory::Arena arena(pages_.bytes().first(operation_base));
         hook(arena);
         const sqlite::Chars chars(arena);
         String line(chars);
@@ -433,7 +433,7 @@ private:
     Pages pages_;
     Gate gate_;
     Limits limits_;
-    memory::Inline<path_bytes> path_;
+    qiven::memory::Inline<path_bytes> path_;
     sqlite::Connection connection_;
     sqlite::Opened opened_;
     Purge purge_;
@@ -441,7 +441,7 @@ private:
     [[maybe_unused]] sqlite::Countdown* countdown_ = nullptr;
     std::size_t peak_ = 0;
     sqlite::Exports exports_;  // after the connection: ends first
-    QIVEN3_NO_UNIQUE_ADDRESS H hooks_;
+    QIVEN_NO_UNIQUE_ADDRESS H hooks_;
 };
 
 }  // namespace qiven3::store

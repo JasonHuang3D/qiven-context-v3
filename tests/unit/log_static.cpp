@@ -14,7 +14,7 @@
 #include "log/catalogue.hpp"
 #include "log/line.hpp"
 #include "log/log.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/case_main/cases.hpp"
 
 namespace {
@@ -28,7 +28,7 @@ concept Emits = requires(qlog::Log& lg, const F& f) { qlog::event(lg, events::op
 
 static_assert(Emits<qlog::Name>);
 static_assert(!Emits<std::string_view>);
-static_assert(!Emits<qiven3::memory::String>);
+static_assert(!Emits<qiven::memory::String>);
 static_assert(!Emits<std::string>);
 static_assert(!Emits<const char*>);
 static_assert(!Emits<qlog::Count>);
@@ -113,19 +113,19 @@ static_assert(qlog::max_line<Widest>() <= qlog::Log::max_line_bytes);
 
 }  // namespace
 
-namespace qiven3::test {
+namespace qiven::test {
 
 void widest(qlog::Log& lg) noexcept { qlog::event(lg, Widest{}, wide, wide, wide, wide, wide, wide, wide, wide); }
 
 std::size_t widest_max() noexcept { return qlog::max_line<Widest>(); }
 
-std::size_t widest_peak(memory::Arena& arena) {
+std::size_t widest_peak(qiven::memory::Arena& arena) {
     std::array<qlog::FieldView, 8> fields{};
     for (std::size_t i = 0; i < fields.size(); ++i) {
         fields.at(i) = qlog::field(Widest::keys.at(i), wide);
     }
     {
-        memory::String out{memory::Allocator<char>(arena)};
+        qiven::memory::String out{qiven::memory::Allocator<char>(arena)};
         qlog::encode_line(qlog::HeadView{"info", Widest::name, qlog::max_number, 0, 0}, fields, out);
     }
     return arena.peak();
@@ -133,4 +133,4 @@ std::size_t widest_peak(memory::Arena& arena) {
 
 bool constant_held() noexcept { return true; }
 
-}  // namespace qiven3::test
+}  // namespace qiven::test

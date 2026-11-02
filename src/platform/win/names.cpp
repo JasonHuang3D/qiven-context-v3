@@ -59,7 +59,7 @@ files::Error WindowsFiles::list_names(std::string_view directory, Vector<String>
         return GetLastError();
     }
     const Found closed(find);  // on every way out, an allocation's MemoryError among them
-    const memory::Allocator<char> arena(names.get_allocator());
+    const qiven::memory::Allocator<char> arena(names.get_allocator());
     for (;;) {
         const std::span<const wchar_t> held(found.cFileName);
         const wchar_t* name = held.data();

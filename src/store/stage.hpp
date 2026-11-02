@@ -75,16 +75,16 @@
 #include <utility>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store::stage {
 
-using Chars = memory::Allocator<char>;
+using Chars = qiven::memory::Allocator<char>;
 
 // The call a refusal names: its operation and the store's path.
 using store::AtView;
@@ -94,8 +94,8 @@ using store::AtView;
 // hook's until its release).
 struct KeptView {
     Id id;
-    memory::Inline<scope_bytes> scope;
-    memory::Inline<lane_bytes> lane;
+    qiven::memory::Inline<scope_bytes> scope;
+    qiven::memory::Inline<lane_bytes> lane;
     std::string_view kind;
     std::int64_t seq = 0;
     std::optional<Id> parent, target;
@@ -139,7 +139,7 @@ concept View = requires(const V& v) {
 // one's blocks all given back.
 template <class S>
 concept Scratch = requires(S& s) {
-    { s() } -> std::same_as<memory::Arena&>;
+    { s() } -> std::same_as<qiven::memory::Arena&>;
 };
 
 // What the store holds of an import's entry once every line is in, for
@@ -232,8 +232,8 @@ inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index
     }
     KeptView out;
     out.id = Id::of(k.id);
-    out.scope = memory::Inline<scope_bytes>(k.scope);
-    out.lane = memory::Inline<lane_bytes>(k.lane);
+    out.scope = qiven::memory::Inline<scope_bytes>(k.scope);
+    out.lane = qiven::memory::Inline<lane_bytes>(k.lane);
     out.kind = k.kind;
     out.seq = k.seq;
     if (k.parent) {
@@ -262,7 +262,7 @@ template <platform::Platform P, Scratch S, class A>
 Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator, S& scratch,
              A& admit) {
     if (at.op != Operation::append && at.op != Operation::forget && at.op != Operation::import_) {
-        memory::fail_fast("stage::check: an operation that takes no entries");
+        qiven::memory::fail_fast("stage::check: an operation that takes no entries");
     }
     if (lines.size() > max_call_entries) {
         too_large(lines.size());

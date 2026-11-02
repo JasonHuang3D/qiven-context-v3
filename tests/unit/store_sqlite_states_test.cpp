@@ -23,8 +23,8 @@
 #include <system_error>
 #include <vector>
 
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -33,17 +33,17 @@
 #include "support/stores/records.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
-using namespace qiven3::test::sqlite_rig;
+using namespace qiven::test::sqlite_rig;
 
 namespace {
 
-using qiven3::memory::Vector;
+using qiven::memory::Vector;
 using qiven3::store::EntryView;
 using qiven3::store::GuardView;
-using qiven3::test::records::chain;
-using qiven3::test::records::id_of;
-using qiven3::test::records::Rec;
-using qiven3::test::records::views;
+using qiven::test::records::chain;
+using qiven::test::records::id_of;
+using qiven::test::records::Rec;
+using qiven::test::records::views;
 using qiven3::store::Id;
 using qiven3::store::LaneHead;
 using qiven3::store::RangeView;
@@ -64,7 +64,7 @@ std::string bytes_of(const fs::path& path) {
 struct Course {
     Course()
         : lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})), first{lane[0], lane[1], lane[2]},
-          acc{lane[3]}, e{qiven3::test::records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")},
+          acc{lane[3]}, e{qiven::test::records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")},
           again{lane[0]}, first_lines(views(first)), acc_lines(views(acc)),
           e_lines(views(e)), again_lines(views(again)), acc_id(id_of(acc[0])), e_id(id_of(e[0])),
           guard{GuardView{qiven_scope, implementer_lane, acc_id}} {}
@@ -257,9 +257,9 @@ QIVEN_CASE(store_sqlite, second_engine) {
     const std::string installed = "StoreError internal: an engine heap is installed already";
 #if defined(QIVEN_FAULTS)
     // The platform's calls, the engine's and the installed heap's allocations counted, none failed.
-    qiven3::memory::Countdown platform;
-    qiven3::memory::Countdown engine;
-    qiven3::memory::Countdown heap;
+    qiven::memory::Countdown platform;
+    qiven::memory::Countdown engine;
+    qiven::memory::Countdown heap;
     rig->fake.attach(&platform);
     sqlite::attach_calls(&engine, nullptr);
     rig->engine->heap().attach(&heap);

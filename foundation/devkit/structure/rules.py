@@ -152,14 +152,14 @@ STATED = {
     ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
     ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
     ("B9", KIT, KIT): "the test kit's headers, which its modules and their own cases include",
-    ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
+    ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
-    ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
-    ("B9", "src/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
+    ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
+    ("B9", "foundation/core/memory/include/qiven/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
                                                          "memory's allocators hold, "
                                                          "sanitizer/asan_interface.h, included under the "
                                                          "sanitizer alone",
-    ("B17", "src/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
+    ("B17", "foundation/core/memory/include/qiven/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
     ("B17", "src/platform/names.hpp", "src/platform/files.hpp"): "files.hpp's list, remove and rename, moved "
                                                                  "out of it for the 600-line bound; included "
                                                                  "only by the adapter, the fakes and their "
@@ -208,7 +208,7 @@ NOT_CORE_TARGETS = frozenset(("qiven3_platform_win", "qiven3_platform_current", 
                               # memory, the base and the log again on the debug runtime, for
                               # qiven3-fault-crtdbg alone: their objects name that runtime, which the
                               # records do not read; the release copies are read.
-                              "qiven3_memory_crtdbg", "qiven3_base_crtdbg", "qiven3_log_crtdbg"))
+                              "qiven_memory_crtdbg", "qiven3_base_crtdbg", "qiven3_log_crtdbg"))
 CORE_NAMED = frozenset(("qiven_build", "qiven3_sqlite", "qiven3_keys"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("src/platform/current.hpp", "src/platform/win/windows.hpp",

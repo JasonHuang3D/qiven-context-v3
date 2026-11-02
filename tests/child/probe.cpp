@@ -35,8 +35,8 @@
 #include "child/child.hpp"
 #include "entry/matcher.hpp"
 #include "entry/refs.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utf.hpp"
 
@@ -109,7 +109,7 @@ int match() {
     // back to the span, so each pattern takes at most compile_budget of it.
     const std::size_t count = static_cast<std::size_t>(std::count(line.begin(), line.end(), ' ')) + 1;
     std::vector<std::byte> span(count * entry::matcher::compile_budget);
-    memory::Arena arena{std::span<std::byte>(span)};
+    qiven::memory::Arena arena{std::span<std::byte>(span)};
     std::vector<entry::matcher::Automaton> automata;
     automata.reserve(count);
     std::size_t start = 0;
@@ -118,7 +118,7 @@ int match() {
         if (!unhex(std::string_view(line).substr(start, end - start), bytes)) {
             return malformed("a pattern that is not hex");
         }
-        automata.emplace_back(memory::Allocator<char>(arena));
+        automata.emplace_back(qiven::memory::Allocator<char>(arena));
         if (const std::optional<entry::matcher::PatternError> fault =
                 entry::matcher::try_compile(bytes, automata.back())) {
             std::cout << "fault " << automata.size() - 1 << " " << fault_name(fault->code) << " " << fault->at << "\n";
@@ -154,12 +154,12 @@ int parse() {
         if (span.size() < budget) {
             span.resize(budget);
         }
-        memory::Arena arena(std::span<std::byte>(span).first(budget));
-        json::Value value{memory::Allocator<char>(arena)};
+        qiven::memory::Arena arena(std::span<std::byte>(span).first(budget));
+        json::Value value{qiven::memory::Allocator<char>(arena)};
         try {
             const std::optional<ParseCode> code = canon::try_parse(bytes, value);
             std::cout << (code ? name(*code) : std::string_view("accepted")) << "\n";
-        } catch (const memory::MemoryError&) {
+        } catch (const qiven::memory::MemoryError&) {
             std::cout << "memory\n";
         }
     }
@@ -181,8 +181,8 @@ int refs() {
         if (!unhex(line, bytes)) {
             return malformed("a string that is not hex");
         }
-        memory::Arena arena{std::span<std::byte>(span)};
-        const bool subject = entry::refs::check_subject(bytes, memory::Allocator<char>(arena));
+        qiven::memory::Arena arena{std::span<std::byte>(span)};
+        const bool subject = entry::refs::check_subject(bytes, qiven::memory::Allocator<char>(arena));
         std::cout << (one_space(bytes) ? '1' : '0') << (entry::refs::check_path(bytes) ? '1' : '0')
                   << (entry::refs::check_name(bytes) ? '1' : '0') << (subject ? '1' : '0') << "\n";
     }

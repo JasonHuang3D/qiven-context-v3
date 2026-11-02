@@ -20,7 +20,7 @@
 #include "qiven/runner/runner.hpp"
 #include "support/fixtures/kept_bed.hpp"
 
-using namespace qiven3::test::kept_bed;
+using namespace qiven::test::kept_bed;
 
 namespace {
 

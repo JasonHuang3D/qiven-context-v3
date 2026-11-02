@@ -6,10 +6,10 @@
 
 #include "support/fixtures/win_process_case.hpp"
 
-namespace qiven3::test::process {
+namespace qiven::test::process {
 
 template Thrown thrown<void (*)()>(void (*&&)());
 
-}  // namespace qiven3::test::process
+}  // namespace qiven::test::process
 
 #endif

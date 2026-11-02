@@ -27,7 +27,7 @@
 #include <string_view>
 #include <utility>
 
-#include "memory/fail.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven3/json.hpp"
 #include "qiven3/utf.hpp"
 
@@ -158,7 +158,7 @@ constexpr std::optional<ParseCode> walk(const json::Basic<A>& value, const K& ru
         case json::Kind::array:
         case json::Kind::object:
             if (open == json::max_depth) {
-                memory::fail_fast("canon: a value past 16 levels");
+                qiven::memory::fail_fast("canon: a value past 16 levels");
             }
             holders.at(open) = member ? value.text(k - 1) : std::string_view{};
             levels.at(open) = Level{value.next(k), value.kind(k) == json::Kind::object, true};

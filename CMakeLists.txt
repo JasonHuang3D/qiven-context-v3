@@ -19,7 +19,7 @@ cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
 
 enable_testing()
 add_subdirectory(third_party/sqlite)
-add_subdirectory(src/memory)
+add_subdirectory(foundation/core/memory)
 add_subdirectory(src/diag)
 add_subdirectory(src/qiven3)
 add_subdirectory(src/keys)

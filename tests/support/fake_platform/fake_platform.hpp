@@ -247,7 +247,7 @@ public:
     // Each call but wipe, noexcept by the contract, asks the countdown
     // first and, when it fires, fails as io, pages as memory; null
     // detaches it.
-    void attach(memory::Countdown* countdown) noexcept {
+    void attach(qiven::memory::Countdown* countdown) noexcept {
         countdown_ = countdown;
         files_.attach(countdown);
     }
@@ -269,7 +269,7 @@ private:
     std::size_t refuse_at_ = 0;
     FakeFiles files_;
 #if defined(QIVEN_FAULTS)
-    memory::Countdown* countdown_ = nullptr;
+    qiven::memory::Countdown* countdown_ = nullptr;
 #endif
 };
 

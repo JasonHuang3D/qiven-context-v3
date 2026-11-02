@@ -1,5 +1,5 @@
 """A wrong free ends the process, and a touch of what an allocator holds is
-AddressSanitizer's report: qiven3_free_demo's cases, each run as a process.
+AddressSanitizer's report: qiven_memory_free_demo's cases, each run as a process.
 
 A wrong pointer given back to a pool or a heap fails fast, with the
 fail-fast's status, 0xC0000409 on Windows and SIGABRT elsewhere, writing
@@ -12,10 +12,10 @@ its runtime's status 1.
 
 Under AddressSanitizer with QIVEN_SYSTEM_HEAP, the build holds memory's
 code a second time without it, its blocks in the span and poisoned but for
-what is handed out: qiven3_free_demo_poisoned, whose wrong frees fail fast
+what is handed out: qiven_memory_free_demo_poisoned, whose wrong frees fail fast
 and whose touches of a freed slot, a heap block's header, the arena's space
 past its cursor and its padding are each the sanitizer's use-after-poison;
-and qiven3_unit_memory_poisoned, memory's cases on it, each of which passes
+and qiven_memory_test_poisoned, memory's cases on it, each of which passes
 there.
 """
 
@@ -27,10 +27,10 @@ from tests import SKIP_CODE
 from tests.drive import binaries
 from tests.drive.session import build_option
 
-DEMO = "qiven3_free_demo"
-POISONED_DEMO = "qiven3_free_demo_poisoned"
-CASES = "qiven3_unit_memory"
-POISONED_CASES = "qiven3_unit_memory_poisoned"
+DEMO = "qiven_memory_free_demo"
+POISONED_DEMO = "qiven_memory_free_demo_poisoned"
+CASES = "qiven_memory_test"
+POISONED_CASES = "qiven_memory_test_poisoned"
 
 # How a demo's blocks sit: on the system heap under AddressSanitizer, in the
 # span poisoned under it, on the system heap with no tool, in the span with

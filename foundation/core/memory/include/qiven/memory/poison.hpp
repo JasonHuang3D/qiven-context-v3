@@ -19,37 +19,37 @@
 #include <span>
 
 #if defined(__SANITIZE_ADDRESS__)
-#define QIVEN3_ASAN 1
+#define QIVEN_ASAN 1
 #elif defined(__has_feature)
 #if __has_feature(address_sanitizer)
-#define QIVEN3_ASAN 1
+#define QIVEN_ASAN 1
 #endif
 #endif
 
-#if defined(QIVEN3_ASAN) && !defined(QIVEN_SYSTEM_HEAP)
-#define QIVEN3_POISONING 1
+#if defined(QIVEN_ASAN) && !defined(QIVEN_SYSTEM_HEAP)
+#define QIVEN_POISONING 1
 #include <sanitizer/asan_interface.h>
-#define QIVEN3_POISON(p, n) ASAN_POISON_MEMORY_REGION((p), (n))
-#define QIVEN3_UNPOISON(p, n) ASAN_UNPOISON_MEMORY_REGION((p), (n))
+#define QIVEN_POISON(p, n) ASAN_POISON_MEMORY_REGION((p), (n))
+#define QIVEN_UNPOISON(p, n) ASAN_UNPOISON_MEMORY_REGION((p), (n))
 #else
-#define QIVEN3_POISONING 0
-#define QIVEN3_POISON(p, n)
-#define QIVEN3_UNPOISON(p, n)
+#define QIVEN_POISONING 0
+#define QIVEN_POISON(p, n)
+#define QIVEN_UNPOISON(p, n)
 #endif
 
-namespace qiven3::memory {
+namespace qiven::memory {
 
 // Whether the allocators poison what they hold, in this build.
-inline constexpr bool poisoning = QIVEN3_POISONING != 0;
+inline constexpr bool poisoning = QIVEN_POISONING != 0;
 
 // Marks bytes the allocator holds and has not handed out.
 inline void poison([[maybe_unused]] std::span<std::byte> bytes) noexcept {
-    QIVEN3_POISON(bytes.data(), bytes.size());
+    QIVEN_POISON(bytes.data(), bytes.size());
 }
 
 // Marks bytes it hands out, or gives back to their owner.
 inline void unpoison([[maybe_unused]] std::span<std::byte> bytes) noexcept {
-    QIVEN3_UNPOISON(bytes.data(), bytes.size());
+    QIVEN_UNPOISON(bytes.data(), bytes.size());
 }
 
-}  // namespace qiven3::memory
+}  // namespace qiven::memory

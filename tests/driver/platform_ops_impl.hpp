@@ -22,9 +22,9 @@ namespace ops {
 
 using Result = std::optional<Value>;
 
-inline memory::String string(memory::Arena& arena) { return memory::String(memory::Allocator<char>(arena)); }
+inline qiven::memory::String string(qiven::memory::Arena& arena) { return qiven::memory::String(qiven::memory::Allocator<char>(arena)); }
 
-inline std::string copy(const memory::String& text) { return std::string(text.data(), text.size()); }
+inline std::string copy(const qiven::memory::String& text) { return std::string(text.data(), text.size()); }
 
 inline std::string state_name(platform::State state) {
     switch (state) {
@@ -84,33 +84,33 @@ template <class P>
 using Drive = PlatformDrive<P>;
 
 template <class P>
-Result name(Drive<P>& d, memory::Arena&, ArgView) {
+Result name(Drive<P>& d, qiven::memory::Arena&, ArgView) {
     return scalar(d.platform().name());
 }
 
 template <class P>
-Result config_dir(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result config_dir(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     d.platform().config_dir(flag(request, "create", false), out);
     return scalar(copy(out));
 }
 
 template <class P>
-Result resolve(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result resolve(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     d.platform().resolve(given_path(request, "path"), out);
     return scalar(copy(out));
 }
 
 template <class P>
-Result normcase(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result normcase(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     d.platform().normcase(text(request, "path"), out);
     return scalar(copy(out));
 }
 
 template <class P>
-Result facts(Drive<P>& d, memory::Arena& arena, ArgView request) {
+Result facts(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     platform::Facts f(arena);
     d.platform().facts(text(request, "path"), f);
     Value value;
@@ -122,32 +122,32 @@ Result facts(Drive<P>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class P>
-Result synced(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result synced(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     return d.platform().synced(text(request, "path"), out) ? Result(scalar(copy(out))) : std::nullopt;
 }
 
 template <class P>
-Result replace(Drive<P>& d, memory::Arena&, ArgView request) {
+Result replace(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.platform().replace(given_path(request, "path"), from_hex(text(request, "data")),
                          deadline(request, "deadline"));
     return std::nullopt;
 }
 
 template <class P>
-Result create(Drive<P>& d, memory::Arena&, ArgView request) {
+Result create(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.platform().create(text(request, "path"), flag(request, "directory", false));
     return std::nullopt;
 }
 
 template <class P>
-Result remove_directory(Drive<P>& d, memory::Arena&, ArgView request) {
+Result remove_directory(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     return scalar(d.platform().remove_directory(text(request, "path")));
 }
 
 template <class P>
-Result list(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::Vector<platform::String> names{memory::Allocator<platform::String>(arena)};
+Result list(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::Vector<platform::String> names{qiven::memory::Allocator<platform::String>(arena)};
     d.platform().list(text(request, "path"), names);
     Value out = array();
     for (const platform::String& name : names) {
@@ -157,34 +157,34 @@ Result list(Drive<P>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class P>
-Result remove(Drive<P>& d, memory::Arena&, ArgView request) {
+Result remove(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.platform().remove(text(request, "path"));
     return std::nullopt;
 }
 
 template <class P>
-Result rename(Drive<P>& d, memory::Arena&, ArgView request) {
+Result rename(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.platform().rename(text(request, "path"), text(request, "name"), deadline(request, "deadline"));
     return std::nullopt;
 }
 
 template <class P>
-Result read(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result read(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     d.platform().read(text(request, "path"), out);
     return scalar(to_hex(out));
 }
 
 template <class P>
-Result program(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String out = string(arena);
+Result program(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String out = string(arena);
     d.platform().program(text(request, "name"), out);
     return scalar(copy(out));
 }
 
 // run's command, start's (driver/platform_child.hpp), and its "data".
 template <class P>
-Result run(Drive<P>& d, memory::Arena& arena, ArgView request) {
+Result run(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     const std::string data = request.find("data") ? from_hex(text(request, "data")) : std::string();
     platform::Ran ran(arena);
     with_command(request, [&](const platform::Command& command) { d.platform().run(command, data, ran); });
@@ -196,8 +196,8 @@ Result run(Drive<P>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class P>
-Result code_page(Drive<P>& d, memory::Arena& arena, ArgView) {
-    memory::String out = string(arena);
+Result code_page(Drive<P>& d, qiven::memory::Arena& arena, ArgView) {
+    qiven::memory::String out = string(arena);
     d.platform().code_page(out);
     return scalar(copy(out));
 }
@@ -205,7 +205,7 @@ Result code_page(Drive<P>& d, memory::Arena& arena, ArgView) {
 // The text through stdout(): on the Windows adapter, the drive's own
 // standard output, before this request's reply.
 template <class P>
-Result standard_output(Drive<P>& d, memory::Arena&, ArgView request) {
+Result standard_output(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     const std::string utf8 = text(request, "text");
     std::cout << std::flush;
     d.platform().standard_output().write(utf8);
@@ -213,10 +213,10 @@ Result standard_output(Drive<P>& d, memory::Arena&, ArgView request) {
 }
 
 template <class P>
-Result residual(Drive<P>& d, memory::Arena& arena, ArgView request) {
+Result residual(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     const std::vector<std::string> paths = strings(request, "paths");
     const std::vector<std::string_view> path_views = views(paths);
-    memory::Vector<platform::Row> rows{memory::Allocator<platform::Row>(arena)};
+    qiven::memory::Vector<platform::Row> rows{qiven::memory::Allocator<platform::Row>(arena)};
     d.platform().residual(path_views, rows);
     Value out = array();
     for (const platform::Row& row : rows) {
@@ -232,22 +232,22 @@ Result residual(Drive<P>& d, memory::Arena& arena, ArgView request) {
 }
 
 template <class P>
-Result random_bytes(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String bytes(count(request, "n"), '\0', memory::Allocator<char>(arena));
+Result random_bytes(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String bytes(count(request, "n"), '\0', qiven::memory::Allocator<char>(arena));
     d.platform().random_bytes(std::as_writable_bytes(std::span<char>(bytes)));
     return scalar(to_hex(bytes));
 }
 
 // wipe of n bytes the drive filled with 0xa5: the bytes read back after.
 template <class P>
-Result wipe(Drive<P>& d, memory::Arena& arena, ArgView request) {
-    memory::String bytes(count(request, "n"), static_cast<char>(0xa5), memory::Allocator<char>(arena));
+Result wipe(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
+    qiven::memory::String bytes(count(request, "n"), static_cast<char>(0xa5), qiven::memory::Allocator<char>(arena));
     d.platform().wipe(std::as_writable_bytes(std::span<char>(bytes)));
     return scalar(to_hex(bytes));
 }
 
 template <class P>
-Result now(Drive<P>& d, memory::Arena&, ArgView) {
+Result now(Drive<P>& d, qiven::memory::Arena&, ArgView) {
     const auto t = d.platform().now();
     Value value;
     value.set("ms", static_cast<std::int64_t>(t.time_since_epoch().count()));
@@ -257,7 +257,7 @@ Result now(Drive<P>& d, memory::Arena&, ArgView) {
 
 // pages(n), held by its id: its size and whether each byte is zero.
 template <class P>
-Result pages(Drive<P>& d, memory::Arena&, ArgView request) {
+Result pages(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     auto taken = d.platform().pages(count(request, "n"));
     Value value = pages_value(taken);
     const std::int64_t id = d.next_id();
@@ -276,12 +276,12 @@ auto& held(Drive<P>& d, ArgView request) {
 }
 
 template <class P>
-Result pages_check(Drive<P>& d, memory::Arena&, ArgView request) {
+Result pages_check(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     return pages_value(held(d, request).second);
 }
 
 template <class P>
-Result pages_free(Drive<P>& d, memory::Arena&, ArgView request) {
+Result pages_free(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
     d.held().erase(held(d, request).first);
     return std::nullopt;
 }
@@ -292,7 +292,7 @@ inline std::size_t member(ArgView) { return member_budget; }
 
 inline std::size_t none(ArgView) { return 0; }
 
-inline std::size_t sum(std::size_t a, std::size_t b) { return memory::add(a, b).value_or(SIZE_MAX); }
+inline std::size_t sum(std::size_t a, std::size_t b) { return qiven::memory::add(a, b).value_or(SIZE_MAX); }
 
 inline std::size_t read_budget(ArgView request) {
     return request.find("size") ? sum(member_budget, count(request, "size")) : member_budget;
@@ -306,7 +306,7 @@ inline std::size_t run_budget(ArgView request) {
 #if defined(QIVEN_FAULTS)
 // The adapter's fault points, which every adapter the drive serves has.
 template <class P>
-concept Faulted = requires(P& p, memory::Countdown* countdown) { p.attach(countdown); };
+concept Faulted = requires(P& p, qiven::memory::Countdown* countdown) { p.attach(countdown); };
 #endif
 
 }  // namespace ops
@@ -393,7 +393,7 @@ Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     p.attach(&session_.faults().platform);
 #endif
     if (entry.budget == nullptr) {
-        memory::Arena none{std::span<std::byte>{}};
+        qiven::memory::Arena none{std::span<std::byte>{}};
         return ok_reply(entry.operation(*this, none, request));
     }
     const std::size_t bytes = budget(request, entry.budget(request));
@@ -403,7 +403,7 @@ Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     }
     const std::span<std::byte> span = pages ? pages->bytes().first(bytes) : std::span<std::byte>{};
     return ok_reply(on_arena(session_, span,
-                             [&](memory::Arena& arena) { return entry.operation(*this, arena, request); }));
+                             [&](qiven::memory::Arena& arena) { return entry.operation(*this, arena, request); }));
 }
 
 template <platform::Platform P>

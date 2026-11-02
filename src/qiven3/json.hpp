@@ -25,8 +25,8 @@
 #include <string_view>
 #include <vector>
 
-#include "memory/fail.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven3/utf.hpp"
 
 namespace qiven3::json {
@@ -76,7 +76,7 @@ private:
 static_assert(sizeof(Node) == 8, "Node's size is pinned: one word");
 
 [[noreturn]] inline void too_large(std::size_t limit, std::size_t request, std::size_t held) {
-    throw memory::MemoryError::budget("json", limit, request, held);
+    throw qiven::memory::MemoryError::budget("json", limit, request, held);
 }
 
 template <typename A>
@@ -114,7 +114,7 @@ public:
     [[nodiscard]] constexpr std::size_t count(Index i = 0) const {
         const Node n = nodes_.at(i);
         if (n.kind() != Kind::array && n.kind() != Kind::object) {
-            memory::fail_fast("json: a count of no container");
+            qiven::memory::fail_fast("json: a count of no container");
         }
         return n.low();
     }
@@ -183,7 +183,7 @@ private:
     [[nodiscard]] constexpr Node at(Index i, Kind kind) const {
         const Node n = nodes_.at(i);
         if (n.kind() != kind) {
-            memory::fail_fast("json: a node read as another kind");
+            qiven::memory::fail_fast("json: a node read as another kind");
         }
         return n;
     }
@@ -201,7 +201,7 @@ private:
             put(Node::of(kind));
         }
         if (nodes_.front().kind() != kind) {
-            memory::fail_fast("json: an append to a root of another kind");
+            qiven::memory::fail_fast("json: an append to a root of another kind");
         }
     }
     constexpr void close_root() {
@@ -227,7 +227,7 @@ private:
     template <typename C>
     constexpr void append(const Basic<C>& other, std::size_t levels) {
         if (other.empty() || levels + other.depth() > max_depth) {
-            memory::fail_fast("json: an empty value, or one past 16 levels, appended");
+            qiven::memory::fail_fast("json: an empty value, or one past 16 levels, appended");
         }
         if (other.size() > max_nodes - nodes_.size()) {
             too_large(max_nodes, other.size(), nodes_.size());
@@ -256,7 +256,7 @@ class Writer {
 public:
     constexpr explicit Writer(Basic<A>& value) : value_(&value) {
         if (!value.empty()) {
-            memory::fail_fast("json::Writer: a value not empty");
+            qiven::memory::fail_fast("json::Writer: a value not empty");
         }
     }
     constexpr void null() { scalar(Node::of(Kind::null)); }
@@ -283,7 +283,7 @@ public:
     constexpr void end() { scalar(Node::of(Kind::string, start_, value_->text_.size() - start_)); }
     constexpr void open(Kind kind) {
         if (open_ == max_depth) {
-            memory::fail_fast("json::Writer: a 17th level");
+            qiven::memory::fail_fast("json::Writer: a 17th level");
         }
         scalar(Node::of(kind));
         starts_.at(open_) = static_cast<Index>(value_->nodes_.size() - 1);
@@ -292,7 +292,7 @@ public:
     }
     constexpr void close() {
         if (open_ == 0) {
-            memory::fail_fast("json::Writer: a close with no level open");
+            qiven::memory::fail_fast("json::Writer: a close with no level open");
         }
         --open_;
         Node& n = value_->nodes_.at(starts_.at(open_));
@@ -340,7 +340,7 @@ constexpr Basic<A> Basic<A>::of(const T& scalar) const {
     return one;
 }
 
-using Value = Basic<memory::Allocator<char>>;
+using Value = Basic<qiven::memory::Allocator<char>>;
 
 }  // namespace qiven3::json
 

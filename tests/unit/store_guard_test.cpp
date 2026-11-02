@@ -40,8 +40,8 @@
 #include <vector>
 
 #include "keys/keys.hpp"
-#include "memory/arena.hpp"
-#include "memory/memory.hpp"
+#include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -55,7 +55,7 @@
 namespace {
 
 namespace fs = std::filesystem;
-namespace records = qiven3::test::records;
+namespace records = qiven::test::records;
 namespace state = qiven3::store::state;
 using qiven3::store::Engine;
 using qiven3::store::EntryView;
@@ -73,8 +73,8 @@ using records::Rec;
 using records::rec;
 using records::seq_of;
 using records::views;
-using Arena = qiven3::memory::Arena;
-using Chars = qiven3::memory::Allocator<char>;
+using Arena = qiven::memory::Arena;
+using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven3::platform::fake::FakePlatform;
 
 constexpr std::string_view qs = "project:qiven";
