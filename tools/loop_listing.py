@@ -7,12 +7,16 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   by the caller's cmake and compiler, then OUT: a line for each file walked,
   analysed or given a rule set or a clang-tidy step, sources generated in the
   build tree as BUILD/<path>:
-    PATH module=M layer=L scopes=S ruleset=R tidy=C tidy_from=F [tidy_file=P]
-      [unit=U unit_ruleset=R unit_tidy=C unit_tidy_from=F]
+    PATH module=M layer=L scopes=S ruleset=R [external=E] tidy=C tidy_from=F
+      [tidy_file=P] [unit=U unit_ruleset=R [unit_external=E] unit_tidy=C
+      unit_tidy_from=F]
   S: each scope of the commit's own rules taking it (walker, walked, layered,
   test_code, library, core, subset, k15, analysed). R: each compile of it,
   by the rule sets it names (joined by |), none for a compile naming none,
-  the compiles sorted and joined by ,; - for no compile. C: its
+  the compiles sorted and joined by ,; - for no compile. E: as R, the
+  directories inside the checkout each compile takes as external
+  (/external:I, -external:I, -isystem, -imsvc), each ending in /; left out
+  where no compile takes one. C: its
   clang-tidy step's configuration, path@digest: the file the step names, or
   the nearest .clang-tidy above the source for a step naming none; for a
   file the build composes, composed@digest, P its path, and F what it was
@@ -21,39 +25,22 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   compiles through, U, as the build's own qiven3_header_units reads it (by
   loop_listing.cmake; a COMMIT whose build names none is refused), with U's
   rule set and configuration. Then the build's
-  header filters, as lines named cmake:filter and cmake:exclude.
+  header filters, as lines named cmake:filter and cmake:exclude; for each
+  rule set a compile names, ruleset:PATH digest=D, D covering it and each
+  rule set it includes, an include's path read as that include's digest, so
+  that a rename alone keeps D (an include is read beside the rule set, then
+  in the compile's /analyze:rulesetdirectory; one unread refuses the
+  listing); and the commit's analysis-exemptions.json, whole, a sorted line
+  for each entry: exempt:check:TOOL:CHECK:SCOPE, exempt:target:T,
+  exempt:not_defined:PRESET:T, exempt:rule_set:R includes=PATHS,
+  exempt:test_code:KEY and exempt:KEY value=V, their other fields beside
+  them, spaces, # and % written as %20, %23 and %25. A COMMIT without that
+  file is refused: its listing could judge no compare. COMMIT's tree must be
+  of this listing's time: a tree whose tests/structure/layers.py has no
+  read, or whose table the structure refuses, is refused with the error.
 
 loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
-  The lines that differ, BEFORE's paths renamed by MAP first; exit 0 when
-  none do. A field named *_file is not compared: the build names it. MAP: a
-  move a line, OLD NEW, from the checkout's root; a path ending in / renames
-  what is under it; # starts a comment. A line merge NEW OLD... moves each
-  OLD to NEW as one merge. The map is refused, each move named, exit 1, when
-  an OLD is no path of BEFORE nor a directory above one, when two OLDs with
-  paths or two paths of BEFORE move to one NEW, or when a NEW is a path of
-  BEFORE, or a directory above one, that no move takes away; a NEW a merge
-  line names is not refused so. Each path a merge takes is compared with
-  NEW's line of AFTER, named NEW (from OLD) where NEW takes more than one.
-  EXPECTED: a line for each difference a move names, PATH FIELD BEFORE
-  AFTER, as the compare prints it (PATH as AFTER names it; FIELD line,
-  BEFORE or AFTER listed, for a path only one listing has); # starts a
-  comment. With it, exit 0 when each difference is named and none loosens;
-  printed and exit 1: each difference not named, each named one loosening
-  (refused: PATH FIELD: why) and each line naming none (stale). A move may
-  tighten, never loosen, by the checkout's analysis-exemptions.json: the
-  library's rule set is the one the test scope's includes; narrower are the
-  test scope's rule set and configuration, every other rule set it lists
-  and each directory scope's .clang-tidy. Each field, named, is
-    line                      loosens: a path leaving the listing; a new one tightens
-    module, layer, unit       loosens: to -; any other change tightens
-    scopes                    loosens: a scope lost but test_code, test_code gained;
-                              tightens: test_code lost, a scope gained
-    ruleset, unit_ruleset     tightens: each compile the library's rule set alone,
-                              no fewer compiles; else loosens (none, narrower, other)
-    tidy, tidy_from, unit_tidy, unit_tidy_from
-                              tightens: the root .clang-tidy alone where another was;
-                              else loosens (-, none, narrower, composed, content changed)
-    value (cmake:filter, cmake:exclude), any other field: loosens
+  tools/loop_listing_compare.py: two listings compared.
 """
 
 import hashlib
@@ -65,12 +52,15 @@ import runpy
 import subprocess
 import sys
 import tarfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from xml.etree import ElementTree
 
 HERE = Path(__file__).resolve().parent
 GIT = runpy.run_path(str(HERE / "loop_git.py"))  # git's one door, by runpy: under -I this directory is off sys.path
-NONE = "-"
+COMPARE = runpy.run_path(str(HERE / "loop_listing_compare.py"))  # the compare, by runpy too
+NONE = COMPARE["NONE"]
 SCOPES = ("walker", "walked", "layered", "test_code", "library", "core", "subset", "k15")
+EXTERNAL = ("/external:I", "-external:I", "-isystem", "/imsvc", "-imsvc")  # a compile's external directories
 
 
 def digest(path):
@@ -97,15 +87,103 @@ def rel_of(text, root, build):
     return "OUTSIDE/" + path.as_posix()
 
 
-def rulesets(commands, root, build):
-    """{path: [rule sets of each compile]} from the build's compile_commands.json
-    text: a compile's rule sets joined by |, none for a compile naming none."""
+def flagged(command, flags):
+    """What follows each of flags in a compile's command: the rest of its word, or the next word."""
+    found, each = [], iter(re.findall(r'(?:\\"|[^\s"]|"[^"]*")+', command))
+    for word in each:
+        word = word.replace('"', "")
+        flag = next((f for f in flags if word.startswith(f)), None)
+        if flag:
+            found.append(word[len(flag):] or next(each, "").replace('"', ""))
+    return found
+
+
+def rule_files(command):
+    """(the rule sets a compile names, the rule-set directories it names)."""
+    named = flagged(command, ("/analyze:ruleset",))
+    return ([r for r in named if not r.startswith("directory")],
+            [r.removeprefix("directory") for r in named if r.startswith("directory")])
+
+
+def each_compile(commands, root, build, named):
+    """{path: [what named finds in each compile]} from compile_commands.json's
+    text: a compile's joined by |, none for a compile naming none."""
     found = {}
     for entry in json.loads(commands):
-        named = sorted({rel_of(ruleset, root, build) for ruleset in
-                        re.findall(r'/analyze:ruleset(?!directory)\s*("[^"]+"|\S+)', entry["command"])})
-        found.setdefault(rel_of(entry["file"], root, build), []).append("|".join(named) or "none")
+        found.setdefault(rel_of(entry["file"], root, build), []).append("|".join(named(entry["command"])) or "none")
     return {path: sorted(compiles) for path, compiles in found.items()}
+
+
+def rulesets(commands, root, build):
+    """{path: [rule sets of each compile]}."""
+    return each_compile(commands, root, build, lambda command: sorted(
+        {rel_of(ruleset, root, build) for ruleset in rule_files(command)[0]}))
+
+
+def externals(commands, root, build):
+    """{path: [repository directories each compile takes as external]}, each
+    ending in /: a directory outside the checkout stays out, and a file with
+    none."""
+    def inside(command):
+        rels = {rel_of(where, root, build) for where in flagged(command, EXTERNAL)}
+        return sorted(coded(rel) + "/" for rel in rels if not rel.startswith(("BUILD/", "OUTSIDE/")))
+    return {path: compiles for path, compiles in each_compile(commands, root, build, inside).items()
+            if set(compiles) != {"none"}}
+
+
+def ruleset_digest(path, dirs):
+    """A rule set's digest: its parsed content, each include's path read as
+    that include's digest. It is read at path or, by its name, from dirs; one
+    that cannot be read refuses the listing."""
+    path = next((p for p in (path, *(Path(d) / path.name for d in dirs)) if p.is_file()), path)
+    try:
+        rules = ElementTree.fromstring(path.read_bytes())
+    except (OSError, ElementTree.ParseError) as error:
+        raise SystemExit(f"loop_listing: a rule set cannot be read: {path}: {error}") from error
+    for include in rules.iter("Include"):
+        include.set("Path", ruleset_digest(path.parent / include.get("Path", ""), dirs))
+    return hashlib.sha256(ElementTree.tostring(rules)).hexdigest()[:12]
+
+
+def ruleset_lines(commands, root, build):
+    """A sorted line for each rule set a compile names, with its digest."""
+    found = {}
+    for entry in json.loads(commands):
+        named, dirs = rule_files(entry["command"])
+        for ruleset in named:
+            found.setdefault(rel_of(ruleset, root, build), ruleset_digest(build / ruleset, dirs))
+    return [f"ruleset:{rel} digest={value}" for rel, value in sorted(found.items())]
+
+
+def coded(text):
+    """text as one word of a listing's line."""
+    return text.replace("%", "%25").replace(" ", "%20").replace("#", "%23")
+
+
+def exempt_lines(data):
+    """The exemptions' data, whole, a sorted line for each entry (see the
+    module's text): an include the data lists as a repository path."""
+    def rest(entry, *taken):
+        return "".join(f" {k}={flat(v)}" for k, v in sorted(entry.items()) if k not in taken)
+
+    def flat(value):
+        return coded(value if isinstance(value, str) else json.dumps(value, sort_keys=True, separators=(",", ":")))
+
+    def include(ruleset, name):
+        at = (PurePosixPath(ruleset).parent / name).as_posix()
+        return at if at in sets else name
+
+    data = dict(data)
+    sets, test, checks = data.pop("rule_sets"), dict(data.pop("test_code")), data.pop("exemptions")
+    out = [f"exempt:check:{e['tool']}:{e['check']}:{coded(e['scope'])}{rest(e, 'tool', 'check', 'scope')}"
+           for e in checks]
+    out.extend(f"exempt:target:{target}" for target in test.pop("targets"))
+    out.extend(f"exempt:not_defined:{e['preset']}:{e['target']}{rest(e, 'preset', 'target')}"
+               for e in test.pop("not_defined"))
+    out.extend(f"exempt:rule_set:{ruleset} includes={','.join(include(ruleset, i) for i in entry['includes'])}"
+               f"{rest(entry, 'includes')}" for ruleset, entry in sets.items())
+    out.extend(f"exempt:test_code:{key} value={flat(value)}" for key, value in test.items())
+    return sorted([*out, *(f"exempt:{key} value={flat(value)}" for key, value in data.items())])
 
 
 def nearest(rel, root):
@@ -150,9 +228,19 @@ def with_digest(rel, root, build):
     return f"{rel}@{digest(path)}"
 
 
+def ran(command, log=None, **how):
+    """command's run; failed, it refuses the listing with its own text."""
+    done = subprocess.run(command, capture_output=True, text=True, errors="replace", **how)
+    if log:
+        Path(log).write_text(done.stdout + done.stderr, encoding="utf-8")
+    if done.returncode:
+        raise SystemExit(f"loop_listing: {Path(command[0]).name} failed, exit {done.returncode}: {' '.join(command)}\n"
+                         f"{done.stdout}{done.stderr}")
+    return done
+
+
 def cmake_lines(args):
-    done = subprocess.run(["cmake", f"-DPython3_EXECUTABLE={sys.executable}", *args],
-                          capture_output=True, text=True, check=True)
+    done = ran(["cmake", f"-DPython3_EXECUTABLE={sys.executable}", *args])
     return [line for line in done.stderr.splitlines() if line]
 
 
@@ -161,22 +249,23 @@ def answers(lines):
 
 
 def scopes(tree, paths):
-    """{path: (module, layer, scopes)} by tree's own structure rules, read in
-    a child that imports them from tree."""
+    """{files: {path: (module, layer, scopes)}, exemptions: the list's path} by
+    tree's own structure rules, read in a child that imports them from tree."""
     env = dict(os.environ, PYTHONPATH=str(tree))
-    done = subprocess.run([sys.executable, "-P", __file__, "scopes", str(tree), str(paths)], env=env,
-                          capture_output=True, text=True, check=True)
-    return json.loads(done.stdout)
+    return json.loads(ran([sys.executable, "-P", __file__, "scopes", str(tree), str(paths)], env=env).stdout)
 
 
 def child_scopes(tree, paths):
-    from tests.structure import layers, rules, subset, test_log_includes
-    from tests.structure.tree import source_files
+    from tests.structure import layers  # alone first: the rest read the table as they load, refused or not
     root = Path(tree).resolve()
     if not Path(layers.__file__).resolve().is_relative_to(root):
         raise SystemExit(f"loop_listing: the structure rules read are not {root}'s")
+    table, errors = layers.read(root)
+    if errors:
+        raise SystemExit("loop_listing: the structure refuses this tree's table:\n" + "\n".join(map(str, errors)))
+    from tests.structure import exemptions, rules, subset, test_log_includes
+    from tests.structure.tree import source_files
     walker = set(source_files(root))
-    table = layers.of(root)
     found = {}
     for f in sorted(set(Path(paths).read_text(encoding="utf-8").splitlines()) | walker):
         cxx = f.endswith(subset.CXX)
@@ -184,7 +273,7 @@ def child_scopes(tree, paths):
                  rules.is_core(f, table), cxx and subset.in_scope(f, table),
                  cxx and f.endswith((".hpp", ".cpp")) and bool(test_log_includes.read(f, table)))
         found[f] = (table.module(f), table.layer(f), [name for name, on in zip(SCOPES, taken) if on])
-    print(json.dumps(found))
+    print(json.dumps({"files": found, "exemptions": exemptions.LIST}))
 
 
 def listing(checkout, commit, scratch):
@@ -196,9 +285,11 @@ def listing(checkout, commit, scratch):
     files = committed_tree(checkout, commit, root)
     paths = scratch / "paths.txt"
     paths.write_text("\n".join(files) + "\n", encoding="utf-8")
-    with (scratch / "configure.log").open("w", encoding="utf-8") as log:
-        subprocess.run(["cmake", "-S", str(root), "--preset", "analysis", "-B", str(build)], stdout=log,
-                       stderr=subprocess.STDOUT, check=True)
+    scoped = scopes(root, paths)
+    if scoped["exemptions"] not in files:
+        raise SystemExit(f"loop_listing: {commit} has no {scoped['exemptions']}, which a compare judges by")
+    data = json.loads((root / scoped["exemptions"]).read_text(encoding="utf-8"))
+    ran(["cmake", "-S", str(root), "--preset", "analysis", "-B", str(build)], log=scratch / "configure.log")
     trees = str(root / "foundation" / "devkit" / "build" / "trees.cmake")
     analysed = answers(cmake_lines([f"-DROOT={root.as_posix()}", "-DSHOW=analysed",
                                     f"-DPATHFILE={paths.as_posix()}", "-P", trees]))
@@ -206,17 +297,21 @@ def listing(checkout, commit, scratch):
     regex = units.pop("ROOT")
     filters = [line.replace(regex, "ROOT") for line in
                cmake_lines([f"-DROOT={root.as_posix()}", "-DSHOW=filters", "-P", trees])]
-    sets = rulesets((build / "compile_commands.json").read_text(encoding="utf-8"), root, build)
+    commands = (build / "compile_commands.json").read_text(encoding="utf-8")
+    sets = rulesets(commands, root, build)
     steps = tidy_steps((build / "build.ninja").read_text(encoding="utf-8", errors="replace"), root, build)
-    return lines_of(scopes(root, paths), analysed, units, sets, steps, filters, root, build)
+    return [*lines_of(scoped["files"], analysed, units, sets, steps, filters, root, build,
+                      externals(commands, root, build)), *ruleset_lines(commands, root, build), *exempt_lines(data)]
 
 
-def lines_of(scoped, analysed, units, sets, steps, filters, root, build):
-    """The listing's lines from what was read; analysed maps a path to the
+def lines_of(scoped, analysed, units, sets, steps, filters, root, build, external=()):
+    """The file and filter lines from what was read; analysed maps a path to the
     build's answer (TRUE or FALSE first), filters are the build's, the
     checkout's root in them as ROOT."""
     def checks(f):
         fields = {"ruleset": ",".join(sets[f]) if f in sets else NONE}
+        if f in external:
+            fields["external"] = ",".join(external[f])
         config, rests, at = steps.get(f, (NONE, [], None))
         fields["tidy"] = f"composed@{digest(build / at[len('BUILD/'):])}" if at else with_digest(config, root, build)
         fields["tidy_from"] = ",".join(with_digest(r, root, build) for r in rests) or NONE
@@ -243,153 +338,6 @@ def lines_of(scoped, analysed, units, sets, steps, filters, root, build):
     return out
 
 
-def read_map(text):
-    """({old: new}, the NEW paths named merges) of a rename map's text."""
-    moves, merged = {}, set()
-    for line in text.splitlines():
-        words = line.split("#", 1)[0].split()
-        if len(words) > 2 and words[0] == "merge":
-            moves.update(dict.fromkeys(words[2:], words[1]))
-            merged.add(words[1])
-        elif len(words) == 2:
-            moves[words[0]] = words[1]
-        elif words:
-            raise SystemExit(f"loop_listing: a map line is OLD NEW or merge NEW OLD...: {line}")
-    return moves, merged
-
-
-def mover(path, moves):
-    """The OLD of moves taking path: its own, else the longest directory above it; None for none."""
-    under = [old for old in moves if old == path or old.endswith("/") and path.startswith(old)]
-    return max(under, key=len) if under else None
-
-
-def renamed(path, moves):
-    old = mover(path, moves)
-    return path if old is None else moves[old] + path[len(old):]
-
-
-def refusals(paths, moves, merged):
-    """The moves refused against the earlier listing's paths, each named: an OLD naming none of them; two
-    OLDs with paths, or two paths, taking one NEW; a NEW already among them and staying; unless NEW is merged."""
-    def under(path, at):
-        return path == at or at.endswith("/") and path.startswith(at)
-    out, into, taken = [], {}, {}
-    for old, new in sorted(moves.items()):
-        if not any(under(p, old) for p in paths):
-            out.append(f"refused: {old} is no path of the earlier listing")
-        elif new not in merged:
-            taken.setdefault(new, []).append(old)
-            out.extend(f"refused: {old} moves to {new}, where {p} stays" for p in paths
-                       if under(p, new) and mover(p, moves) is None)
-    out.extend(f"refused: {' and '.join(olds)} move to one path, {new}" for new, olds in taken.items()
-               if len(olds) > 1)
-    for p in paths:
-        into.setdefault(renamed(p, moves), []).append(p)
-    for new, olds in sorted(into.items()):
-        news = {moves[mover(p, moves)] if mover(p, moves) else None for p in olds}  # a path staying: None
-        if len(olds) > 1 and None not in news and not news <= merged:
-            out.append(f"refused: {' and '.join(olds)} become one path, {new}")
-    return out
-
-
-def parse(lines, moves):
-    """{path: [(path before, {field: value})]}, paths and path values renamed by moves."""
-    def value(text):
-        return "".join(part if part in ",|" else "@".join([renamed(part.split("@")[0], moves), *part.split("@")[1:]])
-                       for part in re.split(r"([,|])", text))
-    found = {}
-    for line in lines:
-        path, *fields = line.split()
-        found.setdefault(renamed(path, moves), []).append(
-            (path, {k: value(v) for k, v in (field.split("=", 1) for field in fields) if not k.endswith("_file")}))
-    return found
-
-
-def read_expected(text):
-    """The (path, field, before, after) lines of an expected differences' text."""
-    lines = [line.split("#", 1)[0].split() for line in text.splitlines()]
-    for words in lines:
-        if words and len(words) != 4:
-            raise SystemExit(f"loop_listing: an expected line is PATH FIELD BEFORE AFTER: {' '.join(words)}")
-    return [tuple(words) for words in lines if words]
-
-
-def narrower(data):
-    """(the library's rule set, {configuration narrower than the library's: what it is}) of the exemptions' data."""
-    test, sets = data["test_code"], data["rule_sets"]
-    library = next(r for r in sets if Path(r).name in sets[test["msvc"]]["includes"])
-    found = {r: "a rule set narrower than the library's" for r in sets if r != library}
-    found.update({test["msvc"]: "the test scope's rule set", test["clang-tidy"]: "the test scope's configuration"})
-    found.update({e["scope"] + ".clang-tidy": f"the exemptions of {e['scope']}" for e in data["exemptions"]
-                  if e["scope"].endswith("/")})
-    return library, found
-
-
-def loosens(field, then, now, library, narrow):
-    """Why a named difference loosens the checks; None for a tightening."""
-    def each(value):
-        return [part.split("@")[0] for part in re.split(r"[,|]", value) if part != NONE]
-    key = field.removeprefix("unit_")
-    if field == "line":
-        return "leaves the listing" if now == NONE else None
-    if field in ("module", "layer", "unit"):
-        return f"leaves its {field}" if now == NONE else None
-    if field == "scopes":
-        lost, gained = set(each(then)) - set(each(now)), set(each(now)) - set(each(then))
-        why = [f"leaves {s}" for s in sorted(lost - {"test_code"})] + ["enters test_code"] * ("test_code" in gained)
-        return ", ".join(why) or None
-    if key not in ("ruleset", "tidy", "tidy_from"):
-        return f"{field} is no field a move may change"
-    to, fewer = each(now), now == NONE or then != NONE and now.count(",") < then.count(",")
-    if key == "ruleset" and not fewer and set(now.split(",")) == {library}:
-        return None
-    if key != "ruleset" and to == [".clang-tidy"] and each(then) != to:
-        return None
-    if not to or "none" in to or key == "ruleset" and fewer:
-        return "leaves the analysis" if not to or "none" in to else "a compile of it is lost"
-    if to == each(then):
-        return "its configuration's content changes"
-    return next((f"enters {narrow[p]}" for p in to if p in narrow), f"is {now}, not the library's alone")
-
-
-def differences(old, new):
-    """(the line telling it, (path, field, before, after)) for each difference of parsed listings."""
-    for path in sorted(set(old) | set(new)):
-        if path not in new:
-            yield f"- {path} (only before)", (path, "line", "listed", NONE)
-        elif path not in old:
-            yield f"+ {path} (only after)", (path, "line", NONE, "listed")
-        else:
-            now = new[path][0][1]
-            for was, then in old[path]:
-                name = path if len(old[path]) == 1 else f"{path} (from {was})"
-                for k in sorted(set(then) | set(now)):
-                    if then.get(k) != now.get(k):
-                        yield f"~ {name} {k}: {then.get(k, NONE)} -> {now.get(k, NONE)}", \
-                            (path, k, then.get(k, NONE), now.get(k, NONE))
-
-
-def compare(before, after, moves, merged=(), expected=None, data=None):
-    """The lines telling how listing after differs from before under moves,
-    or the moves refused; a path merged compared from each path before.
-    With expected, (path, field, before, after) lines, those lines' differences
-    are left out but each loosening one, by data, the exemptions', and each
-    line naming no difference, both refused."""
-    refused = refusals([line.split()[0] for line in before if line.strip()], moves, set(merged))
-    if refused:
-        return refused
-    found = list(differences(parse(before, moves), parse(after, moves={})))
-    if expected is None:
-        return [text for text, _ in found]
-    library, narrow = narrower(data)
-    named, keys = set(expected), {key for _, key in found}
-    out = [text for text, key in found if key not in named]
-    out.extend(f"refused: {p} {f}: {why}" for p, f, a, b in sorted(named & keys)
-               if (why := loosens(f, a, b, library, narrow)))
-    return out + [f"refused: stale, {' '.join(line)} names no difference" for line in sorted(named - keys)]
-
-
 def main(argv):
     if argv[:1] == ["scopes"] and len(argv) == 3:
         child_scopes(*argv[1:])
@@ -400,16 +348,9 @@ def main(argv):
         print(f"loop_listing: {len(lines)} lines in {argv[4]}")
         return 0
     if argv[:1] == ["compare"] and len(argv) in (3, 4, 5):
-        read = [Path(a).read_text(encoding="utf-8").splitlines() for a in argv[1:3]]
-        moves, merged = read_map(Path(argv[3]).read_text(encoding="utf-8")) if len(argv) > 3 else ({}, set())
-        expected = read_expected(Path(argv[4]).read_text(encoding="utf-8")) if len(argv) == 5 else None
-        data = json.loads((HERE.parent / "foundation/devkit/build/analysis-exemptions.json").read_text(
-            encoding="utf-8")) if expected is not None else None
-        differ = compare(*read, moves, merged, expected, data)
-        print("\n".join(differ) if differ else "loop_listing: the listings are equal" if not expected else
-              f"loop_listing: the listings are equal but for {len(expected)} named differences, none loosening")
-        return 1 if differ else 0
+        return COMPARE["main"](argv[1:])
     print(__doc__)
+    print(COMPARE["__doc__"])
     return 2
 
 

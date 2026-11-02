@@ -103,6 +103,12 @@ def of(root):
     return _READ[root]
 
 
+def read(root):
+    """(the Layers of a tree's own table, the errors its table holds), for a
+    reader that must refuse what of() reads on."""
+    return of(root), MODULES["tree"](Path(root).resolve())[1]
+
+
 def module_file(name, layer, present):
     """A minimal built table file's text, for a planted tree: its name and
     layer, its directory's, and its present rows [(name, paths)]."""
