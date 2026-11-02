@@ -14,12 +14,14 @@
       "layer": "support",
       "depends": [
         "memory",
-        "log"
+        "log",
+        "base"
       ],
       "test_depends": [
         "diag",
         "base",
-        "platform"
+        "platform",
+        "case_main"
       ],
       "paths": [
         "foundation/devkit/test/runner/",

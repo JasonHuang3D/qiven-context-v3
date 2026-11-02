@@ -12,7 +12,7 @@
   "test_code": {
     "clang-tidy": "foundation/devkit/build/analysis-test.clang-tidy",
     "msvc": "foundation/devkit/build/analysis-test.ruleset",
-    "targets": ["qiven3-child", "qiven3_case_main", "qiven3_fixtures", "qiven3_hal_fake", "qiven3_platform_fake",
+    "targets": ["qiven3-child", "qiven3_fixtures", "qiven3_hal_fake", "qiven3_platform_fake",
       "qiven3_scan", "qiven3_seams", "qiven3_test_headers", "qiven_runner_demo", "qiven_runner_test"],
     "not_defined": [{"preset": "nohal", "target": "qiven3_hal_fake",
       "reason": "The preset turns QIVEN_HAL off, which builds no HAL fake."},

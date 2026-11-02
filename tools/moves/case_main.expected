@@ -1,0 +1,46 @@
+# The case main's move, read against the commit before it. Its files leave the test scope for the library's
+# checks: the analysis's rule set and the root's .clang-tidy, in place of the test scope's (ruleset, options' rule
+# set, tidy, tidy_from, and the same of the two headers' units); test_code lost and k15 gained. They leave the
+# log module, in the services layer, for the case_main module, in the devkit layer; library and core follow the
+# layer. The exemptions' test_code target line is gone. The move's own map and expected file are new.
+exempt:target:qiven_case_main line listed -
+tools/moves/case_main.expected line - listed
+tools/moves/case_main.map line - listed
+foundation/devkit/test/case_main/CMakeLists.txt layer services devkit
+foundation/devkit/test/case_main/CMakeLists.txt module log case_main
+foundation/devkit/test/case_main/CMakeLists.txt scopes walker,walked,layered,test_code,analysed walker,walked,layered,analysed
+foundation/devkit/test/case_main/README.md layer services devkit
+foundation/devkit/test/case_main/README.md module log case_main
+foundation/devkit/test/case_main/README.md scopes walker,walked,layered,library,core,analysed walker,walked,layered,analysed
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp layer services devkit
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp module log case_main
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp scopes walker,walked,layered,test_code,subset,analysed walker,walked,layered,subset,k15,analysed
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp unit_options /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis-test.ruleset|/analyze:external-|/external:W0 /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis.ruleset|/analyze:external-|/external:W0
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp unit_ruleset foundation/devkit/build/analysis-test.ruleset foundation/devkit/build/analysis.ruleset
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp unit_tidy composed@0bd44220ed2e .clang-tidy@0cf38ee674cb
+foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp unit_tidy_from .clang-tidy@0cf38ee674cb,foundation/devkit/build/analysis-test.clang-tidy@02f3ca280755 .clang-tidy@0cf38ee674cb
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp layer services devkit
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp module log case_main
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp scopes walker,walked,layered,test_code,subset,analysed walker,walked,layered,subset,k15,analysed
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp unit_options /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis-test.ruleset|/analyze:external-|/external:W0 /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis.ruleset|/analyze:external-|/external:W0
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp unit_ruleset foundation/devkit/build/analysis-test.ruleset foundation/devkit/build/analysis.ruleset
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp unit_tidy composed@0bd44220ed2e .clang-tidy@0cf38ee674cb
+foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp unit_tidy_from .clang-tidy@0cf38ee674cb,foundation/devkit/build/analysis-test.clang-tidy@02f3ca280755 .clang-tidy@0cf38ee674cb
+foundation/devkit/test/case_main/module.json layer services devkit
+foundation/devkit/test/case_main/module.json module log case_main
+foundation/devkit/test/case_main/module.json scopes walker,walked,layered,library,core,analysed walker,walked,layered,analysed
+foundation/devkit/test/case_main/src/main.cpp layer services devkit
+foundation/devkit/test/case_main/src/main.cpp module log case_main
+foundation/devkit/test/case_main/src/main.cpp options /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis-test.ruleset|/analyze:external-|/external:W0 /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis.ruleset|/analyze:external-|/external:W0
+foundation/devkit/test/case_main/src/main.cpp ruleset foundation/devkit/build/analysis-test.ruleset foundation/devkit/build/analysis.ruleset
+foundation/devkit/test/case_main/src/main.cpp scopes walker,walked,layered,test_code,subset,analysed walker,walked,layered,subset,k15,analysed
+foundation/devkit/test/case_main/src/main.cpp tidy composed@0bd44220ed2e .clang-tidy@0cf38ee674cb
+foundation/devkit/test/case_main/src/main.cpp tidy_from .clang-tidy@0cf38ee674cb,foundation/devkit/build/analysis-test.clang-tidy@02f3ca280755 .clang-tidy@0cf38ee674cb
+tests/support/headers/case_main_cases.cpp options /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis-test.ruleset|/analyze:external-|/external:W0 /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis.ruleset|/analyze:external-|/external:W0
+tests/support/headers/case_main_cases.cpp ruleset foundation/devkit/build/analysis-test.ruleset foundation/devkit/build/analysis.ruleset
+tests/support/headers/case_main_cases.cpp tidy composed@0bd44220ed2e .clang-tidy@0cf38ee674cb
+tests/support/headers/case_main_cases.cpp tidy_from .clang-tidy@0cf38ee674cb,foundation/devkit/build/analysis-test.clang-tidy@02f3ca280755 .clang-tidy@0cf38ee674cb
+tests/support/headers/case_main_journal.cpp options /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis-test.ruleset|/analyze:external-|/external:W0 /W4|/WX|/analyze|/analyze:pluginEspXEngine.dll|/analyze:rulesetfoundation/devkit/build/analysis.ruleset|/analyze:external-|/external:W0
+tests/support/headers/case_main_journal.cpp ruleset foundation/devkit/build/analysis-test.ruleset foundation/devkit/build/analysis.ruleset
+tests/support/headers/case_main_journal.cpp tidy composed@0bd44220ed2e .clang-tidy@0cf38ee674cb
+tests/support/headers/case_main_journal.cpp tidy_from .clang-tidy@0cf38ee674cb,foundation/devkit/build/analysis-test.clang-tidy@02f3ca280755 .clang-tidy@0cf38ee674cb

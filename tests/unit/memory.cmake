@@ -7,10 +7,10 @@ qiven3_add_cases(qiven3_unit_memory LABELS fast fake
   SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp
   LINK qiven3_faults)
 
-qiven_executable(qiven3_fail_demo SOURCES fail_demo.cpp LINK qiven3_case_main)
+qiven_executable(qiven3_fail_demo SOURCES fail_demo.cpp LINK qiven_case_main)
 
 # The frees that end the process, which tests/drive/test_free.py runs.
-qiven_executable(qiven3_free_demo SOURCES free_demo.cpp LINK qiven3_case_main)
+qiven_executable(qiven3_free_demo SOURCES free_demo.cpp LINK qiven_case_main)
 
 # Under AddressSanitizer with QIVEN_SYSTEM_HEAP, memory's own code, the
 # runner over it, memory's cases and the frees' demo are built a second time
@@ -41,13 +41,16 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   endforeach()
 
   add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/src/runner.cpp"
-    "${PROJECT_SOURCE_DIR}/tests/support/log/main.cpp")
+    "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/src/main.cpp")
   target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/include"
-    "${PROJECT_SOURCE_DIR}/tests")
+    "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
   target_link_libraries(qiven3_runner_poisoned PUBLIC qiven3_memory_poisoned qiven3_log_poisoned
     PRIVATE qiven_build qiven3_diag_poisoned qiven3_platform_poisoned)
   qiven_executable(qiven3_unit_memory_poisoned
     SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
+  # The faults' header by its path, as qiven3_faults gives it, without that
+  # target's second copy of memory.
+  target_include_directories(qiven3_unit_memory_poisoned PRIVATE "${PROJECT_SOURCE_DIR}/tests")
   qiven_executable(qiven3_free_demo_poisoned SOURCES free_demo.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
   set_target_properties(qiven3_memory_poisoned qiven3_base_poisoned qiven3_log_poisoned qiven3_platform_poisoned
     qiven3_runner_poisoned qiven3_unit_memory_poisoned

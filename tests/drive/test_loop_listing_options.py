@@ -7,7 +7,7 @@ told as such; over fixture inputs in a scratch directory, no build needed.
 import json
 import unittest
 
-from tests.drive.test_loop_listing import EXEMPT, FILE, LIB, Fixture
+from tests.drive.test_loop_listing import EXEMPT, FILE, LIB, TEST, Fixture
 from tools import loop_listing, loop_listing_compare
 
 OTHERS = "/nologo /DWIN32 -std:c17 /Fothird_party\\x.obj /Fdx.pdb /FS /EHsc /permissive- /utf-8"
@@ -48,7 +48,8 @@ class Spelled(Fixture):
 
 class Judged(unittest.TestCase):
     """Any change of a file's options refused though named, told as a drop
-    or a weakening; equal under a rename map."""
+    or a weakening, but the rule set's path alone, which its ruleset field
+    judges; equal under a rename map."""
 
     ctest_labels = ("fake",)
     BASE = f"{FILE} options=/W4|/WX"
@@ -99,6 +100,31 @@ class Judged(unittest.TestCase):
                                                                                                     "t/r.ruleset"))
         self.assertEqual(loop_listing_compare.compare([*before, *EXEMPT], [*after, *EXEMPT],
                                                       {"s/r.ruleset": "t/r.ruleset"}), [])
+
+    def swapped(self, then, now, named=("ruleset", "options"), beside=""):
+        """The compare of the rule set's path swapped then to now, in its field and its place among the options."""
+        before, after = (f"{FILE.replace(LIB, at)} options=/W4|/analyze:ruleset{at}" for at in (then, now))
+        after += beside
+        field = {f: [line.split(f" {f}=")[1].split()[0] for line in (before, after)] for f in named}
+        return loop_listing_compare.compare([before, *EXEMPT], [after, *EXEMPT], {}, (),
+                                            [("s/a.cpp", f, *field[f]) for f in named])
+
+    def test_the_rule_set_swapped_to_the_librarys_with_its_field_named(self):
+        self.assertEqual(self.swapped(TEST, LIB), [])
+
+    def test_the_rule_set_swapped_its_field_unnamed(self):
+        self.assertEqual(self.swapped(TEST, LIB, named=("options",)), [
+            f"~ s/a.cpp ruleset: {TEST} -> {LIB}",
+            "refused: s/a.cpp options: its rule set's path changes, and no tightening of its ruleset field is named"])
+
+    def test_the_rule_set_swapped_to_the_tests(self):
+        self.assertEqual(self.swapped(LIB, TEST), [
+            "refused: s/a.cpp options: its rule set's path changes, and no tightening of its ruleset field is named",
+            "refused: s/a.cpp ruleset: enters the test scope's rule set"])
+
+    def test_the_rule_set_swapped_and_another_option_changed(self):
+        self.assertEqual(self.swapped(TEST, LIB, beside="|/WX"), [
+            f"refused: s/a.cpp options: drops /analyze:ruleset{TEST}; adds /WX, /analyze:ruleset{LIB}"])
 
     def test_a_listing_with_itself_is_equal(self):
         self.assertEqual(loop_listing_compare.compare([self.BASE, *EXEMPT], [self.BASE, *EXEMPT], {}), [])

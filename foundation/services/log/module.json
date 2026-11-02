@@ -37,7 +37,6 @@
       ],
       "paths": [
         "src/log/",
-        "tests/support/log/",
         "tests/unit/log.cmake",
         "tests/unit/log_*",
         "tests/unit/ring_test.cpp",

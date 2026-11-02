@@ -70,7 +70,7 @@ function(qiven3_module_of path out)
 endfunction()
 
 # A case binary: its sources, linked with the log's main and the runner
-# (support/log); each case a CTest test labelled cxx, LABELS and its
+# (qiven_case_main); each case a CTest test labelled cxx, LABELS and its
 # module's name (its first source's module), under the watcher's limit by
 # its labels, or LIMIT where the binary states its own
 # (the runner's ctest_tests.cmake).
@@ -79,7 +79,7 @@ function(qiven3_add_cases target)
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven3_add_cases(${target}): no SOURCES")
   endif()
-  set(links qiven3_case_main ${arg_LINK})
+  set(links qiven_case_main ${arg_LINK})
   qiven_executable(${target} SOURCES ${arg_SOURCES} LINK ${links})
   list(GET arg_SOURCES 0 first)
   cmake_path(ABSOLUTE_PATH first BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
@@ -94,7 +94,7 @@ endfunction()
 
 set(qiven3_runner_dir "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner")
 add_subdirectory("${qiven3_runner_dir}" runner)
-add_subdirectory(support/log)
+add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main" case_main)
 add_subdirectory(support/faults)
 add_subdirectory(support/fake_platform)
 add_subdirectory(support/fixtures)

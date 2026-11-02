@@ -2,7 +2,7 @@
 
 layer services, status built
 
-- **Awaiting a split:** three parts leave: the drive's events (`drive.request`, `drive.reply` in `src/log/catalogue.hpp`) for qiven3's own catalogue; the ring (`src/log/ring.hpp`, the crash buffer diag's handler reads) for `foundation/system/diag`; the case main in its row (`tests/support/log/`, the main of every case binary) for devkit's `case_main` module
+- **Awaiting a split:** two parts leave: the drive's events (`drive.request`, `drive.reply` in `src/log/catalogue.hpp`) for qiven3's own catalogue; the ring (`src/log/ring.hpp`, the crash buffer diag's handler reads) for `foundation/system/diag`
 - **Holds:** levelled JSON lines into a crash ring, events by descriptor of a catalogue, operations' ids, the drain
 - **Never holds:** run-time text in a line; a product's events but the drive's two, until they leave
 - **Contract:** `src/log/log.hpp`

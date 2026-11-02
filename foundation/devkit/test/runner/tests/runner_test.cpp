@@ -13,9 +13,9 @@
 #include "log/log.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "qiven/case_main/cases.hpp"
+#include "qiven/case_main/journal.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/log/cases.hpp"
-#include "support/log/journal.hpp"
 
 namespace {
 

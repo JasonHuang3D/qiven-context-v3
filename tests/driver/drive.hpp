@@ -35,7 +35,7 @@
 // reply's "fault" gives the calls counted and whether the K-th came.
 // Built without it, "fault" is refused, "not applicable:".
 //
-// Each request is an operation of the drive's log (support/log/journal.hpp),
+// Each request is an operation of the drive's log (qiven/case_main/journal.hpp),
 // named from the drive's table of operations, else "unknown":
 // drive.request with its bytes, error.typed for a typed error, drive.reply
 // with its status ("ok" or the error's kind) and bytes, and op.end with its
@@ -72,8 +72,8 @@
 #include "log/log.hpp"
 #include "memory/arena.hpp"
 #include "platform/platform.hpp"
+#include "qiven/case_main/journal.hpp"
 #include "qiven3/json.hpp"
-#include "support/log/journal.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "driver/hal_ops.hpp"

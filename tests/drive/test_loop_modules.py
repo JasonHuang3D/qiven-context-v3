@@ -8,7 +8,8 @@ table files outside the test kit's reach and the table's exceptions, an
 exception naming no edge or one the rule allows, the support layer outside
 the test kit, an edge onto tools/, a library file, target or edge reaching
 the test kit, which test code alone reaches, library code including or
-linking test code, a module directory's tests/ test code; a module
+linking test code, a module directory's tests/ test code, its include of
+another module's test code but the kit's, a fake's or its own; a module
 directory's include/
 an include root, an angle qiven/ include read as a quoted one. The real
 table is read from the checkout's tree and checked for its own errors; the
@@ -316,6 +317,25 @@ class Check(unittest.TestCase):
         moved[f"{KIT}src/kit.cpp"] = b'#include "low/low.hpp"\n'
         self.assertIn(f"include {KIT}src/kit.cpp -> src/low/low.hpp: module shared does not depend on low",
                       errors(t, {**FILES, **moved}))
+
+    def test_a_modules_tests_onto_another_modules_tests(self):
+        """A module directory's own tests/ including another module's test
+        code refused, but the test kit's, a fake's and its own module's; the
+        top-level tests/ as it stands."""
+        t = table()
+        t["modules"][2]["paths"].append("foundation/core/low/")
+        t["modules"][3]["paths"].append("tests/fake_high/")
+        own = {"foundation/core/low/module.json": b"{}", "foundation/core/low/tests/helper.hpp": b"",
+               "tests/unit/high_util.hpp": b"", "tests/unit/low_util.hpp": b"", "tests/fake_high/fake.hpp": b"",
+               "tests/unit/low_test.cpp": b'#include "low/low.hpp"\n#include "unit/high_util.hpp"\n'}
+        allowed = (b'#include "helper.hpp"\n#include "unit/low_util.hpp"\n#include "runner/runner.hpp"\n'
+                   b'#include "fake_high/fake.hpp"\n')
+        files = {**FILES, **own, "foundation/core/low/tests/moved_test.cpp": allowed}
+        self.assertEqual(errors(t, files), [])
+        files["foundation/core/low/tests/moved_test.cpp"] = allowed + b'#include "unit/high_util.hpp"\n'
+        self.caught(errors(t, files), "include foundation/core/low/tests/moved_test.cpp -> tests/unit/high_util.hpp: "
+                                      "module low's tests including module high's test code, not the test kit's or "
+                                      "a fake's")
 
     def test_layer_of_the_file_not_the_word(self):
         """The rule reads a row's file, not its word; the support word outside

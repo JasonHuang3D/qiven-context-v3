@@ -8,8 +8,22 @@
   "contract": null,
   "adopted": "2026-10-31",
   "parameters": [],
-  "present": [],
-  "from": [
-    "log"
+  "present": [
+    {
+      "name": "case_main",
+      "layer": "support",
+      "depends": [
+        "memory",
+        "log",
+        "base",
+        "diag",
+        "platform",
+        "runner"
+      ],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/test/case_main/"
+      ]
+    }
   ]
 }

@@ -29,6 +29,8 @@ VENDORED = "third_party/sqlite/sqlite3.c"
 STRUCTURE = "tests/structure/"
 # The runner's directory, from the table: its headers every case includes.
 RUNNER = layers.of(ROOT).directory("runner")
+# The case main's directory: the main every case binary links, and its log's headers.
+CASE_MAIN = layers.of(ROOT).directory("case_main")
 
 Finding = namedtuple("Finding", "rule where kind detail")
 
@@ -150,7 +152,10 @@ STATED = {
     ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
     ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
     ("B9", RUNNER, RUNNER): "the runner's own headers",
-    ("B9", RUNNER, layers.SUPPORT): "the log's journal, which the runner's own cases read",
+    ("B9", RUNNER, CASE_MAIN): "the log's journal, which the runner's own cases read",
+    ("B9", layers.TESTS, CASE_MAIN): "the case main's headers, which the log's cases and the drives include",
+    ("B9", CASE_MAIN, CASE_MAIN): "the case main's own headers",
+    ("B9", CASE_MAIN, RUNNER): "the runner's headers, over which the case main runs the cases",
     ("B17", "src/memory/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "src/memory/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",

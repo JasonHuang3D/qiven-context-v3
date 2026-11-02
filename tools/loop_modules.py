@@ -18,8 +18,10 @@ test_depends too (a file under tests/, or under the tests/ of a directory
 holding a table file; a target of such files alone), a module whose every
 file is test code, the kit's apart, test code: its edges onto the kit in
 test_depends, a library one refused; library code including or linking test
-code refused; the support layer's rows reached with no edge by test code
-alone, and reaching their own dependencies alone, their library's or their
+code refused; test code under a module directory's own tests/ including
+another module's test code refused, but the test kit's and a fake's (a file
+under a directory named fake or fake_*); the support layer's rows reached
+with no edge by test code alone, and reaching their own dependencies alone, their library's or their
 tests'. A cycle in depends refused. The layer rule: a row's layer
 its table file's in the tree (devkit, core, system, services, kits,
 products, in that order; tools/ outside the link graph, the root's
@@ -75,6 +77,11 @@ def test_path(path, homes=()):
 def under_tests(path, homes=()):
     """Whether a path is test code."""
     return test_path(path, homes) is not None
+
+
+def fake(path):
+    """Whether a path lies under a directory named fake or fake_*: a fake's."""
+    return any(part == "fake" or part.startswith("fake_") for part in path.split("/")[:-1])
 
 
 def owners(table, files):
@@ -268,6 +275,10 @@ def check(table, files, read, targets=None, left=None):
                     left.append(f"{f}:{line} {shown}")
             elif found in module and not test_code(f) and test_code(found):
                 errors.append(f"include {f} -> {found}: library code including test code")
+            elif (found in module and test_code(f) and not f.startswith(f"{TESTS}/") and test_code(found)
+                  and module[found] not in kit | {module[f]} and not fake(found)):
+                errors.append(f"include {f} -> {found}: module {module[f]}'s tests including module "
+                              f"{module[found]}'s test code, not the test kit's or a fake's")
             elif found in module and not covered(module[f], module[found], of_tests(f), test_code(f)):
                 errors.append(f"include {f} -> {found}: module {module[f]} does not depend on {module[found]}")
     of_target, tests_target, code_target = {}, set(), set()

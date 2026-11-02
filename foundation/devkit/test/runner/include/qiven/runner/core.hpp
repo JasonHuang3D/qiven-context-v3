@@ -6,7 +6,7 @@
 // --run NAME, the case's result its exit status. Each case is its own CTest
 // test. A case takes v3's allocators from its context, qiven_ctx.counted,
 // which counts them after it (Counted). The process's log is the main's
-// (support/log/main.cpp): the runner hands it to the cases and gives each
+// (qiven_case_main's main.cpp): the runner hands it to the cases and gives each
 // case's end to the main's Ended, knowing neither the log's type nor its
 // events.
 
@@ -50,6 +50,8 @@ public:
     Counted() = default;
     Counted(const Counted&) = delete;
     Counted& operator=(const Counted&) = delete;
+    Counted(Counted&&) = delete;
+    Counted& operator=(Counted&&) = delete;
     ~Counted() = default;
 
     qiven3::memory::Arena& arena(std::size_t bytes);

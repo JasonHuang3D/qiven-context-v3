@@ -11,7 +11,10 @@ add_library(qiven3_drive_common STATIC
   platform_child.hpp
   platform_files.hpp
 )
-target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests")
+# The request loop's log is the case main's header (qiven/case_main/journal.hpp),
+# taken by its path alone: a drive has its own main.
+target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests"
+  "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
 # The request loop holds the process's log, kept for the entry's report.
 target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven3_memory qiven3_base qiven3_log qiven3_diag
   PRIVATE qiven_build qiven3_platform_current)

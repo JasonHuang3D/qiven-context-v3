@@ -45,7 +45,10 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
     options, unit_options     loosens: any change, told as each option dropped, each
                               added that weakens (/w, /W0 to /W3, /WX-, /wd, /wo,
                               /w1 to /w4, /Wv, /external:W0 to W3, /analyze-, an
-                              /analyze:...-), each other added, or its order
+                              /analyze:...-), each other added, or its order; but
+                              a change of a rule set's path alone, in its place,
+                              tightens when its ruleset field's change is named and
+                              tightens, else loosens
     digest (ruleset:PATH)     loosens: a rule set's content changed
     line of ruleset:PATH      loosens: a rule set new or gone
     line of exempt:...        loosens: an entry added, or a check's scope grown;
@@ -63,6 +66,7 @@ NONE = "-"
 SECTION = re.compile(r"ruleset:|exempt:(?:[^:]+:)*")  # a line's key before its path or target
 OF_LAYER = frozenset(("library", "core"))  # scopes the structure's layers decide; a listing carries no such data
 PATHED = ("/analyze:rulesetdirectory", "-analyze:rulesetdirectory", "/analyze:ruleset", "-analyze:ruleset")
+RULE_SET_PATH = re.compile(f"({'|'.join(map(re.escape, PATHED))})[^,|]*")  # an option naming a rule set's path
 WEAKER = re.compile(r"[/-](?:w|W[0-3]|WX-|w[o1-4]\d+|wd\d+|Wv(?::\S*)?|external:W[0-3]|analyze-|analyze:\S*-)")
 
 
@@ -205,8 +209,12 @@ def layer_named(old, lines):
             if (p, then.get("layer")) in changed}
 
 
-def judged(key, field, then, now, old, table, layered=()):
-    """Why a named difference is refused; None for a tightening."""
+def judged(key, field, then, now, old, table, layered=(), ruled=()):
+    """Why a named difference is refused; None for a tightening; ruled: the
+    (path, field) of each ruleset field's named change that tightens."""
+    if field.removeprefix("unit_") == "options" and RULE_SET_PATH.sub(r"\1", then) == RULE_SET_PATH.sub(r"\1", now):
+        return None if (key, field.replace("options", "ruleset")) in ruled else \
+            "its rule set's path changes, and no tightening of its ruleset field is named"
     if field == "line" and key.startswith("exempt:"):
         return exempt_line(key, now, old)
     if field == "line" and key.startswith("ruleset:") and then == NONE:
@@ -299,8 +307,10 @@ def compare(before, after, moves, merged=(), expected=None):
     named, keys = set(expected), {key for _, key in found}
     layered = layer_named(old, named & keys)
     out = [text for text, key in found if key not in named]
+    ruled = {(p, f) for p, f, a, b in named & keys
+             if f.removeprefix("unit_") == "ruleset" and not judged(p, f, a, b, old, table, layered)}
     out.extend(f"refused: {p} {f}: {why}" for p, f, a, b in sorted(named & keys)
-               if (why := judged(p, f, a, b, old, table, layered)))
+               if (why := judged(p, f, a, b, old, table, layered, ruled)))
     return out + [f"refused: stale, {' '.join(line)} names no difference" for line in sorted(named - keys)]
 
 
