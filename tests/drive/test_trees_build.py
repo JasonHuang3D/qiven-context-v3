@@ -562,8 +562,7 @@ class TreesBuild(unittest.TestCase):
             for source, config in tests.items():
                 base = key(build) if source.startswith(key(build) + os.sep) else key(str(ROOT))
                 homes.setdefault(config, set()).add(os.path.relpath(os.path.dirname(source), base))
-        through = shown("", script=ROOT / "tools" / "loop_listing.cmake",
-                        defines=(f"Python3_EXECUTABLE={Path(sys.executable).as_posix()}",))
+        through = shown("through", defines=(f"Python3_EXECUTABLE={Path(sys.executable).as_posix()}",))
         wanted = {Path(unit).name: "qiven3_test_headers" if LOOP["test_path"](header, HOMES) else "qiven3_headers"
                   for header, unit in through.items() if unit.startswith("tests/support/headers/")}
         self.assertEqual({Path(source).name: target for target, source in compiled

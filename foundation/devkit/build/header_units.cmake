@@ -1,8 +1,8 @@
 # The header units: for each header the analysis reads with no source of its
 # own, the unit of tests/support/headers/ it compiles through, and the rule's
 # errors. Included by trees.cmake, whose functions and trees it reads, so
-# whatever includes trees.cmake (tools/loop_listing.cmake, the root
-# CMakeLists.txt) has qiven3_header_units.
+# whatever includes trees.cmake (the root CMakeLists.txt, trees.cmake's own
+# SHOW=units and SHOW=through) has qiven3_header_units.
 
 # The structure checks' C++ lexer, which reads the header names a unit includes.
 get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexer.py" ABSOLUTE)
@@ -194,7 +194,7 @@ endfunction()
 # An error names each such header with no unit, two headers of one unit, a
 # unit no such header wants, and a unit that does not include its header.
 # <out>_of: header=unit for each such header, unit the source, from the root,
-# it compiles through (the listing of tools/loop_listing.cmake reads it).
+# it compiles through (trees.cmake's SHOW=through prints it).
 # Every configure with an interpreter runs it (tests/CMakeLists.txt).
 function(qiven3_header_units root out)
   set(depends "")

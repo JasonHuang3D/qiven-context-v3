@@ -1,9 +1,0 @@
-# The case main's move: the four files of tests/support/log/ into foundation/devkit/test/case_main/, the two
-# headers' units renamed, and the target renamed.
-tests/support/log/main.cpp foundation/devkit/test/case_main/src/main.cpp
-tests/support/log/CMakeLists.txt foundation/devkit/test/case_main/CMakeLists.txt
-tests/support/log/cases.hpp foundation/devkit/test/case_main/include/qiven/case_main/cases.hpp
-tests/support/log/journal.hpp foundation/devkit/test/case_main/include/qiven/case_main/journal.hpp
-tests/support/headers/support_log_cases.cpp tests/support/headers/case_main_cases.cpp
-tests/support/headers/support_log_journal.cpp tests/support/headers/case_main_journal.cpp
-qiven3_case_main qiven_case_main
