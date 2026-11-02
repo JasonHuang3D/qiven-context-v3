@@ -26,7 +26,10 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
     line                      loosens: a path leaving the listing; a new one tightens
     module, layer, unit       loosens: to -; any other change tightens
     scopes                    loosens: a scope lost but test_code, test_code gained;
-                              tightens: test_code lost, a scope gained
+                              tightens: test_code lost, a scope gained; library and
+                              core follow the file's layer alone: either lost, its
+                              layer's difference named too, neither loosens nor
+                              tightens
     ruleset, unit_ruleset     tightens: each compile the library's rule set alone,
                               no fewer compiles; else loosens (none, narrower, other)
     tidy, tidy_from, unit_tidy, unit_tidy_from
@@ -49,6 +52,7 @@ from pathlib import Path
 
 NONE = "-"
 SECTION = re.compile(r"ruleset:|exempt:(?:[^:]+:)*")  # a line's key before its path or target
+OF_LAYER = frozenset(("library", "core"))  # scopes the structure's layers decide; a listing carries no such data
 
 
 def read_map(text):
@@ -172,17 +176,24 @@ def exempt_line(key, now, old):
     return "an exemption's scope grown" if had else "an exemption added"
 
 
-def judged(key, field, then, now, old, table):
+def layer_named(old, lines):
+    """(path, scopes) of each file of the parsed earlier listing whose layer's difference is among lines."""
+    changed = {(p, was) for p, field, was, _ in lines if field == "layer"}
+    return {(p, then.get("scopes")) for p, rows in old.items() for _, then in rows
+            if (p, then.get("layer")) in changed}
+
+
+def judged(key, field, then, now, old, table, layered=()):
     """Why a named difference is refused; None for a tightening."""
     if field == "line" and key.startswith("exempt:"):
         return exempt_line(key, now, old)
     if field == "line" and key.startswith("ruleset:") and then == NONE:
         return "a rule set no compile took"
-    return loosens(field, then, now, *table)
+    return loosens(field, then, now, *table, OF_LAYER if field == "scopes" and (key, then) in layered else ())
 
 
-def loosens(field, then, now, library, narrow):
-    """Why a named difference loosens the checks; None for a tightening."""
+def loosens(field, then, now, library, narrow, follows=()):
+    """Why a named difference loosens the checks; None for a tightening; a scope of follows may be lost."""
     def each(value):
         return [part.split("@")[0] for part in re.split(r"[,|]", value) if part != NONE]
     key = field.removeprefix("unit_")
@@ -192,7 +203,8 @@ def loosens(field, then, now, library, narrow):
         return f"leaves its {field}" if now == NONE else None
     if field == "scopes":
         lost, gained = set(each(then)) - set(each(now)), set(each(now)) - set(each(then))
-        why = [f"leaves {s}" for s in sorted(lost - {"test_code"})] + ["enters test_code"] * ("test_code" in gained)
+        why = [f"leaves {s}" for s in sorted(lost - {"test_code", *follows})]
+        why += ["enters test_code"] * ("test_code" in gained)
         return ", ".join(why) or None
     if field == "reason":
         return None
@@ -248,9 +260,10 @@ def compare(before, after, moves, merged=(), expected=None):
         return [text for text, _ in found]
     table = narrower(table_of(old))
     named, keys = set(expected), {key for _, key in found}
+    layered = layer_named(old, named & keys)
     out = [text for text, key in found if key not in named]
     out.extend(f"refused: {p} {f}: {why}" for p, f, a, b in sorted(named & keys)
-               if (why := judged(p, f, a, b, old, table)))
+               if (why := judged(p, f, a, b, old, table, layered)))
     return out + [f"refused: stale, {' '.join(line)} names no difference" for line in sorted(named - keys)]
 
 
