@@ -13,7 +13,15 @@
       "name": "scan",
       "layer": "support",
       "depends": [],
-      "test_depends": [],
+      "test_depends": [
+        "memory",
+        "base",
+        "log",
+        "platform",
+        "diag",
+        "runner",
+        "case_main"
+      ],
       "paths": [
         "foundation/devkit/test/scan/"
       ]

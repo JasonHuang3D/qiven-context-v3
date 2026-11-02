@@ -2,7 +2,7 @@
 
 layer core, status built
 
-- **Awaiting its move:** its header's unit for the analysis, `tests/support/headers/memory_poison.cpp` (over `qiven/memory/poison.hpp`, a path of structure's row), stays under `tests/support/headers/`, the one directory the header-unit rule of devkit/build (`foundation/devkit/build/header_units.cmake`) names units in, until that rule's change takes it.
+- **Awaiting the analysis:** its header's unit for the analysis, `tests/support/headers/memory_poison.cpp` (over `qiven/memory/poison.hpp`, a path of structure's row), stays under `tests/support/headers/` until the analysis is taken up after the foundation's reconstruction; its place is settled then, with `poison.hpp`'s, public today for that unit alone and private once the unit is memory's.
 - **Holds:** the target `qiven_memory`: the allocator type and containers over an arena, pools, the budget's error, bounded text, the lock, checked sizes, and the failing countdown under `QIVEN_FAULTS`; its own tests (`tests/`): the cases of memory, arena, pool and its frees, the demos of fail_fast and of the frees that end the process, and their drives
 - **Never holds:** a system call, I/O, or a product's concept
 - **Contract:** `foundation/core/memory/include/qiven/memory/memory.hpp`

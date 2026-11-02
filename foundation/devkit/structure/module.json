@@ -41,7 +41,7 @@
         "driver",
         "child"
       ],
-      "until": "each header unit under tests/support/headers/ goes to its header's module when that module is rebuilt"
+      "until": "the analysis is taken up after the foundation's reconstruction, which settles the place of the header units under tests/support/headers/ and of poison.hpp"
     }
   ]
 }
