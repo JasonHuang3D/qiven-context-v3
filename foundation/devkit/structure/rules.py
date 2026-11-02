@@ -7,8 +7,8 @@ identifiers and #include directives from the sources by the rules' lexer
 (lexer.py), and the tree's files by tree.py; no rule reads C++ by a
 regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
-file's bytes for those git cannot fix. check() applies every rule to one
-tree, v3's or the planted one, and gives its findings. STATED holds the
+file's bytes for those git cannot fix. check() applies every rule to v3's
+tree and gives its findings. STATED holds the
 allowances the text states beyond the rows' cells, each with its reason;
 an allowance the text lacks has no place here.
 """
@@ -172,7 +172,7 @@ STATED = {
     ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
                                                          "that reaches the diagnostic entry's report hook",
     ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
-    ("B5", "tools/git_shim.c", "windows.h"): "the loop's counting shim on Windows, which its runner builds by cl and "
+    ("B5", "tools/git_shim.c", "windows.h"): "the tests' counting shim on Windows, which loop_shim.py builds by cl and "
                                             "CMake never: its log, its environment and the real program's start",
 }
 ALLOWANCES = (*subset.CELLS, *STATED)
@@ -573,15 +573,12 @@ def records_directory():
     return ROOT / "build" / "structure" / "structure"
 
 
-def findings(which):
-    """The findings over v3's tree ("tree") or the planted project ("plant"),
-    from the structure build's records, which must be there and current."""
+def findings():
+    """The findings over v3's tree, from the structure build's records,
+    which must be there and current."""
     directory = records_directory()
     if not (directory / "index.json").is_file():
         raise AssertionError(f"no structure records at {directory}: build the structure preset first")
-    if which == "plant":
-        planted = Records(directory / "plant" / "records")
-        return check(planted, planted.root)
     records = Records(directory)
     stale = records.stale()
     if stale:

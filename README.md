@@ -41,7 +41,7 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   Linux on the `ubuntu-24.04` image, Windows on the runners'
   latest images, each with its own tools, CPython's current release by
   `actions/setup-python`, each job printing its image and its tools'
-  versions; the pins stay in the local loop (`tools/loop.py`).
+  versions; the pins stay in the developer presets.
 - Test presets select by label: `full`, `fast`, `structure`, `asan`,
   `fuzz`, `bench`, `drill`, `analysis` and `debugger` (the cases that drive
   a debugger, never CI's); and, for CI, `fake` (the cases on the fakes) and
@@ -52,7 +52,7 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython
   3.15.0. Run them from a shell that `vcvars64.bat -vcvars_ver=14.44.35207`
-  has set up. CI's presets leave the option off; the loop sets it on them.
+  has set up. CI's presets leave the option off.
 - Name the interpreter by the environment variable `QIVEN3_PYTHON`, or in an
   untracked `CMakeUserPresets.json` by a preset that inherits one of these
   and sets the cache variable `Python3_EXECUTABLE`. No machine path is ever

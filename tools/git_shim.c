@@ -5,7 +5,7 @@
    the same arguments and the same standard handles, and exits with its
    status. A start with either variable unset, or that cannot log, exits 125
    with a line on standard error, so that no start goes uncounted. Not a
-   part of the product: the loop's own tool, never built by CMake. */
+   part of the product: the tests' own tool, never built by CMake. */
 #include <windows.h>
 
 static int fail(const char* text) {

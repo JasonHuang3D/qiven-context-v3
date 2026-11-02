@@ -106,8 +106,8 @@ add_subdirectory(support/seams)
 if(QIVEN_HAL)
   add_subdirectory(support/fake_hal)
 endif()
-# The header units' rule on every configure with an interpreter, tier 1's
-# among them, not the analysis's alone: a header the analysis reads with no
+# The header units' rule on every configure with an interpreter, not the
+# analysis's alone: a header the analysis reads with no
 # unit fails it (foundation/devkit/build/header_units.cmake). The analysis compiles
 # the units it gives.
 if(Python3_EXECUTABLE OR QIVEN_ANALYZE STREQUAL "analysis")
@@ -157,13 +157,11 @@ endforeach()
 set(qiven3_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
 file(GENERATE OUTPUT "${qiven3_inputs_file}" CONTENT "${qiven3_inputs}")
 
-# The loop's own tests, those that start git, registered on one build a
-# system (CMakePresets.json: ci-windows and linux-gcc), every Python test
-# there behind the counting shim, so that the git they start is started in
-# one step a run (tests/drive/test_git_shim.py); never on a tree of the
-# structure records, a second tree of a job whose structure step would
-# run the loop's structure test again.
-option(QIVEN3_LOOP_TESTS "Register the loop's own tests, every Python test behind the counting shim" OFF)
+# The git tests, those that start git, registered on one build a system
+# (CMakePresets.json: ci-windows and linux-gcc), every Python test there
+# behind the counting shim (tools/loop_shim.py), so that a test of no such
+# class that starts git fails; never on a tree of the structure records.
+option(QIVEN3_LOOP_TESTS "Register the git tests, every Python test behind the counting shim" OFF)
 set(qiven3_python_args "")
 set(qiven3_python_files "")
 if(Python3_EXECUTABLE)

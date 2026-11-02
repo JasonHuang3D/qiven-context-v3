@@ -73,7 +73,7 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 # holds the first to its list, and tells a listed target defined without
 # test code's analysis from one the preset does not define. Which preset,
 # preset.txt says, from the base preset's QIVEN3_PRESET, each preset's own
-# name: a tree's directory is the loop job's, or CI's shared one. A configure
+# name: a tree's directory may be any, CI's shared one among them. A configure
 # with no preset records none.
 qiven3_test_targets(qiven3_test_targets)
 list(JOIN qiven3_test_targets "\n" qiven3_text)

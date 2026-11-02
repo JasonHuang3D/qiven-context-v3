@@ -21,8 +21,8 @@ qiven3_add_cases(qiven3_unit_fake_process LABELS fast fake
 # directory under the job's temporary directory, and list, remove and
 # rename with each system error they meet measured (win_names_test.cpp);
 # read's allocation counted; each Win32 call failed in turn. fast and fake:
-# they need no processes, machine fact or debugger, so every Windows job's
-# fake step and CI's run them, as tier 1's fast step does.
+# they need no processes, machine fact or debugger, so every Windows
+# build's fake selection and CI's run them, as the fast one does.
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_files LABELS fast fake
     SOURCES win_files_test.cpp win_names_test.cpp

@@ -202,7 +202,8 @@ def database_dir(root):
     path = Path(root) / DATABASE
     if not path.is_file():
         raise Refusal("not_ready", "DATABASE_ABSENT", f"no stripped database: {DATABASE}",
-                      "build the analysis preset: py -3.15 -I tools/loop.py build windows windows-analysis")
+                      "build the analysis preset there: cmake --preset analysis -B build/windows-analysis, "
+                      "then cmake --build build/windows-analysis")
     return path.parent
 
 

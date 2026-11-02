@@ -261,7 +261,7 @@
     {
       "name": "debugger",
       "inherits": "here",
-      "displayName": "The cases that drive cdb or gdb, the loop's alone, never CI's",
+      "displayName": "The cases that drive cdb or gdb, run here alone, never CI's",
       "configurePreset": "release",
       "filter": {"include": {"label": "^debugger$"}},
       "execution": {"noTestsAction": "error"}

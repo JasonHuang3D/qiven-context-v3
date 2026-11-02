@@ -2,8 +2,7 @@
 places at the base commit (tools/loop_table.py's old_rows), kept in
 tools/loop_base.json beside the commit it names, its one naming, so that
 the modules' check reads them with no git, on a clone too shallow to hold
-the commit too (CI's). tests/drive/test_loop_base.py refuses a file that
-differs from the commit.
+the commit too (CI's).
 
 - rows_at(root, commit): old_rows() of the table's files at commit in
   root's repository, read through tools/loop_git.py's run, two git
@@ -16,7 +15,6 @@ differs from the commit.
 
 Run as python -I tools/loop_base.py [COMMIT]: the file written again from
 the commit it names, or from COMMIT, then named there by its full hash.
-The base moves only with the hash test_loop_base.py pins.
 """
 
 import json

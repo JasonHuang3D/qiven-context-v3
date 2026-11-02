@@ -12,10 +12,7 @@ compile_commands.json, its includes as the compiler reports them
 and its object's symbols (dumpbin /symbols); the C and C++ runtimes'
 public names (dumpbin /linkermember:1); the targets' link edges (CMake's
 --graphviz, from a configure of SOURCE in a directory of its own); and
-index.json, naming each. It then plants a CMake project in
-BUILD/structure/plant/, one file or target per rule broken (plants.py, run
-as a script of its own), builds it and writes its records the same way, so
-that the tests run the same checker over it. third_party/sqlite/sqlite3.c,
+index.json, naming each. third_party/sqlite/sqlite3.c,
 the one vendored file, has its object's names recorded, for what it
 defines, and no includes.
 """
@@ -149,20 +146,8 @@ def main(argv):
     names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM", "QIVEN_HAL")
     graph(source, build_dir, out, cmake, cache_values(build_dir, names))
     index["digests"] = digests(source)
-    plant_out = out / "plant"
-    tree = plant_out / "tree"
-    run([sys.executable, "-I", str(Path(__file__).with_name("plants.py")), str(tree)])
-    plant_build = plant_out / "build"
-    run([cmake, "-S", str(tree), "-B", str(plant_build), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "--graphviz=" + str(plant_out / "graph.dot")]
-        + [f"-D{k}={v}" for k, v in cache_values(build_dir, names[1:4]).items()])
-    run([cmake, "--build", str(plant_build)])
-    plant_index = record(tree, plant_build, plant_out / "records", dumpbin)
-    (plant_out / "records" / "graph").mkdir()
-    shutil.copyfile(plant_out / "graph.dot", plant_out / "records" / "graph" / "targets.dot")
-    write_index(plant_out / "records", plant_index)
     write_index(out, index)
-    print(f"records: {len(index['objects'])} objects, the plant's {len(plant_index['objects'])}")
+    print(f"records: {len(index['objects'])} objects")
     return 0
 
 

@@ -1,5 +1,5 @@
-"""The structure method's own tests: each rule held to the tree and to its
-planted findings, run from the root as
+"""The structure method's own tests: each rule held to the tree, run from
+the root as
 
     python -I -m unittest discover -s foundation/devkit/structure -t . -k '*<test id>'
 

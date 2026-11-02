@@ -96,7 +96,7 @@ def scene():
 
 
 class TreesBuild(unittest.TestCase):
-    ctest_labels = ("fake",)  # tier 1's fake step runs it
+    ctest_labels = ("fake",)  # the fake selection runs it
     def test_header_filter(self):
         """The header filter is the analysed roots' and the layers' trees
         under this checkout alone, either separator; no .clang-tidy names one;

@@ -1,5 +1,5 @@
 """Exit statuses by name: the one table the watcher (tools/watch.py), the
-drives (tests/drive/binaries.py) and the loop (tools/loop.py) name a
+drives (tests/drive/binaries.py) and the runner (tools/changed.py) name a
 status by, never as a bare number.
 
 A status is named in one line, "status: <value> <name>: <meaning>". A

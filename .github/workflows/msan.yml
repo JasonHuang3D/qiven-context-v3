@@ -22,8 +22,7 @@
 name: msan
 
 # By manual dispatch alone: never a pull request, a tag or a push to a
-# branch, never a schedule; the loop runs each job of its system before
-# (tools/loop.py).
+# branch, never a schedule.
 on:
   workflow_dispatch:
 

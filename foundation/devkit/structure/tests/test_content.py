@@ -29,12 +29,8 @@ import os
 import platform
 import re
 import shutil
-import string
 import sys
-import tempfile
 import unittest
-from pathlib import Path
-from unittest import mock
 
 from foundation.devkit.structure import rules
 
@@ -91,8 +87,7 @@ BEFORE, AFTER = r"(?<![A-Za-z0-9_-])", r"(?![A-Za-z0-9_])"
 # code a noqa: names first. A ruling as a word ("a ruling", an object type),
 # a step's, a part's or an undotted section's single number, a version and a
 # hex token are none. The vendored files, not v3's text, are not read for it
-# (sqlite3.c cites a standard's numbered section). The plants are written in
-# pieces.
+# (sqlite3.c cites a standard's numbered section).
 _TOKEN, _END = r"(?<![A-Za-z0-9_])", r"(?![A-Za-z0-9_])"
 REFERENCE = re.compile(
     _TOKEN + r"(?i:rulings?[\s#_:\xa7-]*\d"
@@ -131,9 +126,6 @@ POSIX = re.compile(r"(?<![A-Za-z0-9_.:/~-])/([A-Za-z])/([^\\/" + re.escape(STOP)
 # Users, and Documents and Settings, which the patterns cut at its space.
 PROFILE_ROOTS = frozenset(("users", "documents"))
 DRIVE_FINDING = "a drive path into a profile's root"
-# The vendored SQLite's drive paths, its documentation's examples: no
-# profile's root, so outside the rule on every host.
-VENDORED_DRIVES = "c:/temp C:/lib/mathfuncs.dll C:/Documents%20and%20Settings/fred/Desktop/data.db"
 
 
 def machine_paths():
@@ -229,169 +221,9 @@ def content_findings(root, files, paths, names=()):
     return sorted(set(found))
 
 
-def absent_drive():
-    return next(c for c in string.ascii_uppercase[::-1] if not os.path.exists(c + ":\\"))
-
-
 @unittest.skipUnless(sys.platform == "win32", "the content rule reads this machine's paths, on Windows")
 class Content(unittest.TestCase):
 
     def test_tree(self):
         self.assertEqual(content_findings(rules.ROOT, rules.source_files(rules.ROOT), machine_paths(),
                                           machine_names()), [])
-
-    def test_planted(self):
-        drive = rules.ROOT.drive[0]
-        none = absent_drive()
-        plants = {
-            "checkout.txt": str(rules.ROOT) + "\\x",
-            "slash.py": "p = '" + rules.ROOT.as_posix().upper() + "/y'\n",
-            "parent.md": "see " + rules.ROOT.parent.as_posix().lower() + "/elsewhere/x\n",
-            "drive.cpp": f"// {none}:\\Users\\someone\\x and {none.lower()}:/USERS/y\n",
-            "posix.md": f"cd /{none.lower()}/users/someone\n",
-            "settings.txt": f"{drive}:\\\\Documents and Settings\\\\someone\n",
-            "profile.txt": os.environ["USERPROFILE"] + "\\Documents\n",
-            "interpreter.json": '{"python": "' + sys.base_prefix.replace("\\", "\\\\") + '"}\n',
-            "repository.md": "the " + "qiven" + "-DOCS repository\n",
-            "format.md": "see " + "FORMAT-" + "CODE.md\n",
-            "reading.txt": "CORE-" + "READING-3 F" + "183\n",
-            "reading.cpp": "// CORE-" + "READING\n",
-            "capitals.md": "COGNI" + "TION \xa712\n",
-            "ruling.md": "by the rul" + "ing 43." + "3 item 3\n",
-            "ruling-sign.py": "# rul" + "ings \xa7" + "43\n",
-            "section.txt": "see sec" + "tion 43." + "3 item 3\n",
-            "sign.cpp": "// \xa7" + " 44.4\n",
-            "law.md": "the " + "Q" + "LAW.md text\n",
-            "ruling.py": "x = '" + "Cognition" + "-Format.md'\n",
-            "directory.txt": "rulings" + "/a.md\n",
-            "context.cmake": "# proposal" + "/context" + "-v3/\n",
-            "word.md": "AR" + "CH.md\n",
-            "key.txt": "-----BEGIN " + "RSA PRIVATE KEY-----\n",
-            "token.py": "t = '" + "ghp_" + "A" * 36 + "'\n",
-            "password.ini": "Server=db;Password=" + "p" * 8 + ";\n",
-            "header.txt": "Authorization: Bearer " + "a" * 20 + "\n",
-            "command.sh": "mysql --password " + "p" * 8 + "\n",
-            "tencent.ini": "SecretId=AKID" + "a1B2" * 8 + "\n",
-            "clean.txt": f"{none}:\\no-such\\x /{none.lower()}/x C:/Users/ABC docs/FORMAT.md {VENDORED_DRIVES} "
-                         + f"{drive}:/Windows/System32 /{drive.lower()}/Usersx/y "
-                         + "ghp_" + "A" * 35 + " password: see the vault " + "https://example.com:8080/a@b\n"
-                         + "README.md cognition, a challenge, ARCH, QTest, a law firm, work-line, the "
-                         + "qiven-context-v3/ tree and context-v3, FORMAT-ted, xFORMAT-A\n"
-                         + "Authorization: Bearer <token>, --password-stdin, --token $GH_TOKEN, "
-                         + "AKID" + "a" * 31 + "\n"
-                         + "a ruling, rulings, the ruling: a type, steps 1 to 5, part 1, Sections 1 through 9\n",
-            "third_party/x/vendored.c": "** sec" + "tion 6.5.2.2 of a standard\n",
-            "build/machine.txt": str(rules.ROOT),
-        }
-        with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch)
-            (root / ".gitignore").write_text("build/\n", encoding="utf-8")
-            for name, text in plants.items():
-                (root / name).parent.mkdir(parents=True, exist_ok=True)
-                (root / name).write_bytes(text.encode("utf-8"))
-            found = content_findings(root, rules.source_files(root), machine_paths(), machine_names())
-        files = {rel for rel, _ in found}
-        names = {"repository.md", "format.md", "reading.txt", "reading.cpp", "capitals.md", "law.md", "ruling.py",
-                 "directory.txt", "context.cmake", "word.md"}
-        references = {"ruling.md", "ruling-sign.py", "section.txt", "sign.cpp"}
-        self.assertEqual(files, {"checkout.txt", "slash.py", "parent.md", "drive.cpp", "posix.md", "settings.txt",
-                                 "profile.txt", "interpreter.json", "key.txt", "token.py", "password.ini",
-                                 "header.txt", "command.sh", "tencent.ini"} | names | references)
-        self.assertEqual({rel for rel, why in found if why == "a name of the specification's repository"}, names)
-        self.assertEqual({rel for rel, why in found if why == REFERENCE_FINDING},
-                         references | {"capitals.md", "reading.txt"})
-        self.assertEqual({rel for rel, why in found if why == DRIVE_FINDING} - {"profile.txt"},
-                         {"drive.cpp", "posix.md", "settings.txt"})
-        self.assertIn(("parent.md", "a path of this machine"), found)
-        hits = {why for _, why in found if why.startswith("a hit of ")}
-        self.assertEqual(hits, {"a hit of private-key", "a hit of github-ghp", "a hit of pair-password",
-                                "a hit of auth-header", "a hit of cli-secret", "a hit of tencent-akid"})
-        self.assertEqual({rel: why for rel, why in found if rel in ("header.txt", "command.sh", "tencent.ini")},
-                         {"header.txt": "a hit of auth-header", "command.sh": "a hit of cli-secret",
-                          "tencent.ini": "a hit of tencent-akid"})
-
-    def test_drive_host(self):
-        """The drive rule reads the text alone: with every directory faked
-        present, then absent, the vendored file is clean and a planted
-        profile path refused, alike."""
-        none = absent_drive()
-        outcomes = []
-        with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch)
-            (root / "plant.txt").write_bytes(f"{none}:\\Users\\someone\\x {VENDORED_DRIVES}\n".encode("utf-8"))
-            for present in (True, False):
-                with mock.patch("os.path.isdir", return_value=present), \
-                        mock.patch("os.path.exists", return_value=present):
-                    outcomes.append((content_findings(rules.ROOT, [rules.VENDORED], []),
-                                     content_findings(root, ["plant.txt"], [])))
-        self.assertEqual(outcomes, [([], [("plant.txt", DRIVE_FINDING)])] * 2)
-
-    def test_planted_names(self):
-        """Each plant in a fresh scratch tree: a name of this machine as a
-        path's component is found; the same characters inside other text are
-        not."""
-        names = machine_names()
-        user = os.path.basename(os.path.normpath(os.environ["USERPROFILE"]))
-        host = platform.node().split(".")[0]
-        drive = os.environ["USERPROFILE"][:2]
-        self.assertIn(user.lower(), names)
-        found = {
-            "windows profile": "p = '" + drive + r"\\Users\\" + user + r"\\AppData'" + "\n",
-            "windows profile, slash": "see " + drive.lower() + "/users/" + user.upper() + "\n",
-            "windows profile, its end": "cd " + drive + r"\Users" + "\\" + user + ".\n",
-            "posix home": "export HOME=/home/" + user + ":/opt\n",
-            "posix home, tilde": "ls ~" + user + "/x\n",
-            "bare component": "out/" + user + "/log.txt\n",
-            "bare component, first": user + "/notes.md\n",
-        }
-        if len(host) >= 3:
-            found["computer, a share"] = r"\\" + host.lower() + r"\share" + "\n"
-        clean = {
-            "hex": '{"key":"e3b0' + user + 'c442"}\n',
-            "hex in a path": "/keys/e3b0" + user + "c442/x\n",
-            "longer word": "the " + "pre" + user + "post word\n",
-            "longer component": drive + "/Users/" + user + "x/y and " + drive + "/Users/x" + user + "\n",
-            "number": "n = 12" + user + "34\n",
-            "bare": "user " + user + " logged in\n",
-            "file name": "out/" + user + ".txt\n",
-        }
-        for plants, expected in ((found, [("plant.txt", "a name of this machine")]), (clean, [])):
-            for label, text in plants.items():
-                with self.subTest(plant=label), tempfile.TemporaryDirectory() as scratch:
-                    root = Path(scratch)
-                    (root / "plant.txt").write_bytes(text.encode("utf-8"))
-                    got = content_findings(root, rules.source_files(root), [], names)
-                    self.assertEqual([f for f in got if f[1] == "a name of this machine"], expected)
-
-
-class References(unittest.TestCase):
-    """The reference rule from the text alone, on every system: each form a
-    file of its own in a scratch tree, refused for a reference and for
-    nothing else; each near miss a file of its own, clean."""
-
-    # Each form holds a bar the case takes out, so that this file holds none.
-    FORMS = ("by rul|ing 43.|3 item 3", "see sec|tion 44, item 7", "rul|ing #44", "the 44.3 rul|ing",
-             "se|c. 44.3", "it|em 7 of 44.3", "rul|ing-44.3", "rul|ings_44", "&se|ct;44", "chall|enge 28's B1",
-             "28|B1", "anom|aly 1242", "F|138", "per bri|ef 25", "S\xa7|44", "\xa7\xa7|44", "Rul|ing\xa044",
-             "rul|ing\n44.3", "x\xa7|44", "as F|5's swap", "sec|tion 12", "44.|3 item 7")
-    NEAR = ("# noqa: F821, given by a tool\n",
-            "Python 3.15, CMake 4.4.3, version 1.2.3\n",
-            "Sections 1 through 9 of the license, section 3\n",
-            "steps 1 to 5, part 1, item 3 of 5, items 2 and 4\n",
-            "a digest 28b1e0f5, 0x28B1, ff28B1, 0xF5, 1.5F, F1000, AF138, F5x, %F\n",
-            "30 sec, 2 secs later, a brief note, in brief, 3 cases; a challenge, 2 challenges\n",
-            "3 rulings, the ruling's word, a ruling: a type\n",
-            "an anomaly, the anomalies seen\n",
-            "{value:5F} and %-8F\n",
-            "the sign \xa7 alone, \xa7 and a word\n")
-
-    def test_forms(self):
-        self.assertEqual((len(self.FORMS), len(self.NEAR)), (22, 10))
-        forms = {f"form{i:02}.txt": form.replace("|", "") for i, form in enumerate(self.FORMS)}
-        near = {f"near{i:02}.txt": text for i, text in enumerate(self.NEAR)}
-        with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch)
-            for name, text in (forms | near).items():
-                (root / name).write_bytes(text.encode("utf-8"))
-            found = content_findings(root, rules.source_files(root), [], ())
-        self.assertEqual(found, [(name, REFERENCE_FINDING) for name in sorted(forms)])

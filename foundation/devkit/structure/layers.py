@@ -8,7 +8,6 @@ B31) and the log's includes (K15); the walked trees, tools/trees.json's; and
 B1's text, layered().
 """
 
-import json
 import runpy
 from pathlib import Path
 
@@ -107,13 +106,3 @@ def read(root):
     """(the Layers of a tree's own table, the errors its table holds), for a
     reader that must refuse what of() reads on."""
     return of(root), MODULES["tree"](Path(root).resolve())[1]
-
-
-def module_file(name, layer, present):
-    """A minimal built table file's text, for a planted tree: its name and
-    layer, its directory's, and its present rows [(name, paths)]."""
-    return json.dumps({
-        "name": name, "layer": layer, "status": "built", "platforms": ["windows"], "contract": None,
-        "adopted": "2026-10-31", "parameters": [],
-        "present": [{"name": row, "layer": "foundation", "depends": [], "test_depends": [], "paths": paths}
-                    for row, paths in present]}, indent=2) + "\n"

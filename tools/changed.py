@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TREE = "build/ci-windows"
 RECORD = ROOT / TREE / "changed.json"
-VCVARS_VER = "14.44.35207"  # tools/loop_windows.py's toolset, the tree's
+VCVARS_VER = "14.44.35207"  # the toolset, the tree's
 # Under -I this directory is off sys.path: the map, git's door and the statuses by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 DOOR = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's door, by its file: no literal names git
@@ -50,7 +50,7 @@ def named(env, name):
 
 
 def vcvars_env():
-    """The environment vcvars64.bat sets up (tools/loop_windows.py's), QIVEN3_PYTHON this interpreter."""
+    """The environment vcvars64.bat sets up, QIVEN3_PYTHON this interpreter."""
     vcvars = os.environ.get("QIVEN3_VCVARS")
     if not vcvars:
         where = Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"

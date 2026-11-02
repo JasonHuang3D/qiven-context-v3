@@ -1,6 +1,5 @@
 """The safe subset's token rules, B18 to B31 but B26, as data, and their
-checker, which rules.py's check() runs over each tree, v3's and the planted
-one; and B26's half that reads no C++: the analysis configuration turns
+checker, which rules.py's check() runs over v3's tree; and B26's half that reads no C++: the analysis configuration turns
 pointer arithmetic off in B26's modules alone.
 
 Each rule reads the tokens of rules.py's lexer: keywords, identifiers and

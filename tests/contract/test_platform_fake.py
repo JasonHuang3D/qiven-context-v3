@@ -63,7 +63,7 @@ class FakeMachine(FakeBinding, PlatformMachine, PlatformForms, PlatformRestMachi
 
 
 class FakeMachineSkips(unittest.TestCase):
-    """FakeMachine's cases P17, P18, P21 and P22 run here, in tier 1: each
+    """FakeMachine's cases P17, P18, P21 and P22 run here, under fake: each
     not applicable, by its reason, reaching no member."""
     ctest_labels = ("fake",)
 

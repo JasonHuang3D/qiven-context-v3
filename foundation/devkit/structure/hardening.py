@@ -11,8 +11,8 @@ from its ELF64 bytes by the standard library alone, no tool.
   symbol table, __stack_chk_fail and glibc's __*_chk functions, read
   through the section headers' SHT_DYNSYM and its string table.
 
-Each field's place in the file is given too (segments, entries, notes),
-which the case's controls edit in a copy. foundation/devkit/structure/tests/test_hardening.py
+Each field's place in the file is given too (segments, entries, notes).
+foundation/devkit/structure/tests/test_hardening.py
 holds each binary of a build to them. Run as a script it prints what a
 binary holds, one a line.
 """

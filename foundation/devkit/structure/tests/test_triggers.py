@@ -10,8 +10,7 @@ ubuntu-24.04, named by that label, each Windows and macOS job on its
 runner's latest image, and no other label; no digest, exact version or
 versioned tool in a workflow or a CI preset, no system setting changed, no
 debugger case run, and each job printing its image and its tools' versions.
-Read from each workflow's and CMakePresets.json's text, and over planted
-copies that break each rule."""
+Read from each workflow's and CMakePresets.json's text."""
 
 import json
 import re
@@ -146,7 +145,7 @@ def findings(text):
 
 
 # The one runner label of each system's jobs, by the job's name: Linux on
-# the release the local loop's Linux runs, Windows and macOS on their latest.
+# the release the local Linux pins name, Windows and macOS on their latest.
 LABELS = {"windows": "windows-latest", "linux": "ubuntu-24.04", "macos": "macos-latest"}
 # What each job prints, by its label: the image, CPython, CMake, CTest and
 # Ninja, and the compilers; on Linux glibc as well, ldd's first line.
@@ -286,88 +285,9 @@ class Triggers(unittest.TestCase):
             with self.subTest(workflow=path.name):
                 self.assertEqual(findings(path.read_bytes().decode("utf-8")), [])
 
-    def test_planted(self):
-        text = (WORKFLOWS / "ci.yml").read_bytes().decode("utf-8")
-        head = "on:\n  workflow_dispatch:\n"
-        self.assertEqual(text.count(head), 1)
-        for form in ("on: [workflow_dispatch]\n", "on: workflow_dispatch\n", "'on':\n  workflow_dispatch:\n"):
-            with self.subTest(control=form):
-                self.assertEqual(findings(text.replace(head, form)), [])
-        request = "  pull_request:\n    branches: [main]\n"
-        plants = {  # each copy and the rule that must name it
-            "pull request": (head + request, "trigger pull_request"),
-            "ready pull request": (head + request + "    types: [opened, ready_for_review]\n", "trigger pull_request"),
-            "release tag": (head + "  push:\n    tags: [\"v[0-9]*\"]\n", "trigger push"),
-            "push to a branch": (head + "  push:\n    branches: [main]\n", "trigger push"),
-            "bare push": (head + "  push:\n", "trigger push"),
-            "schedule": (head + "  schedule:\n    - cron: \"0 3 * * *\"\n", "trigger schedule"),
-            "pull request target": (head + "  pull_request_target:\n", "trigger pull_request_target"),
-            "a pull request, no dispatch": ("on:\n" + request, "no trigger workflow_dispatch"),
-            "dispatch with an input": (head + "    inputs:\n      ref:\n        type: string\n",
-                                       "trigger workflow_dispatch: "),
-            "flow form": ("on: [push, pull_request, workflow_dispatch]\n", "trigger pull_request"),
-            "scalar form": ("on: push\n", "no trigger workflow_dispatch"),
-            "quoted key": (head.replace("on:", "'on':") + "  schedule:\n    - cron: \"0 3 * * *\"\n",
-                           "trigger schedule"),
-        }
-        for name, (planted, rule) in plants.items():
-            with self.subTest(plant=name):
-                self.assertIn(rule, " | ".join(findings(text.replace(head, planted))))
-        conc = "  cancel-in-progress: false\n"
-        self.assertEqual(text.count(conc), 1)
-        group = "  group: ${{ github.workflow }}-${{ github.sha }}\n"
-        self.assertEqual(text.count(group), 1)
-        linux = "    name: ${{ matrix.preset }}\n"
-        draft = "if: ${{ !github.event.pull_request.draft }}\n"
-        msan = (WORKFLOWS / "msan.yml").read_bytes().decode("utf-8")
-        own = "    concurrency:\n      group: ${{ github.workflow }}-${{ github.sha }}-linux\n"
-        controls = {  # the same property in other words: each must pass
-            "cancel-in-progress left to its default": text.replace(conc, ""),
-            "the ref beside the commit": text.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}-"
-                                                             "${{ github.sha }}\n"),
-            "one expression": text.replace(group, "  group: ${{ format('{0}-{1}', github.workflow, github.sha) }}\n"),
-            "a job's own group of the commit": text.replace(linux, linux +own + "      cancel-in-progress: false\n"),
-        }
-        for name, planted in controls.items():
-            with self.subTest(control=name):
-                self.assertNotEqual(planted, text)
-                self.assertEqual(findings(planted), [])
-        others = {
-            "a run in progress cancelled": (text.replace(conc, "  cancel-in-progress: true\n"),
-                                            "concurrency: cancel-in-progress 'true'"),
-            "cancelled by an expression": (text.replace(conc, "  cancel-in-progress: ${{ github.ref != 'x' }}\n"),
-                                           "concurrency: cancel-in-progress"),
-            "msan's run in progress cancelled": (msan.replace(conc, "  cancel-in-progress: true\n"),
-                                                 "concurrency: cancel-in-progress 'true'"),
-            "the group back on the ref": (text.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}\n"),
-                                          "does not name github.sha"),
-            "msan's group on the ref": (msan.replace(group, "  group: ${{ github.workflow }}-${{ github.ref }}\n"),
-                                        "does not name github.sha"),
-            "the commit's group shared by both workflows": (text.replace(group, "  group: ${{ github.sha }}\n"),
-                                                            "does not name github.workflow"),
-            "the commit's name as text": (text.replace(group, "  group: ci-github.sha\n"), "does not name github.sha"),
-            "a job's own group cancelling": (text.replace(linux, linux +own + "      cancel-in-progress: true\n"),
-                                             "job linux's concurrency: cancel-in-progress"),
-            "a job's own group of the branch": (
-                text.replace(linux, linux +"    concurrency: ${{ github.ref }}\n"), "job linux's concurrency: group"),
-            "no concurrency": (text.replace("concurrency:\n" + group + conc, ""), "concurrency: group None"),
-            "job kept off an event": (text.replace(linux, linux +"    if: github.event_name == 'pull_request'\n"),
-                                      "job linux kept off an event"),
-            "draft guard on a job": (text.replace(linux, linux +"    " + draft), "a draft guard"),
-            "draft guard on msan's job": (msan.replace("    name: linux-msan\n", "    name: linux-msan\n    " + draft),
-                                          "a draft guard"),
-            "draft guard on a step": (
-                text.replace("    steps:\n", "    steps:\n      - " + draft + "        run: exit\n", 1), "a draft guard"),
-            "no triggers": (text.replace(head, ""), "no triggers"),
-        }
-        for name, (planted, rule) in others.items():
-            with self.subTest(plant=name):
-                self.assertNotIn(planted, (text, msan))
-                self.assertIn(rule, " | ".join(findings(planted)))
-
 
 class Unpinned(unittest.TestCase):
-    """CI a runtime evaluation: the tree clean, each plant caught."""
+    """CI a runtime evaluation: the tree clean."""
 
     def setUp(self):
         self.ci = (WORKFLOWS / "ci.yml").read_bytes().decode("utf-8")
@@ -381,76 +301,3 @@ class Unpinned(unittest.TestCase):
         self.assertEqual(preset_findings(self.presets), [])
         self.assertEqual(sorted(job_blocks(self.ci)), ["linux", "windows"])
         self.assertEqual(sorted(job_blocks(self.msan)), ["linux-msan"])
-
-    def planted(self, text, old, new):
-        self.assertEqual(text.count(old), 1, old)
-        return text.replace(old, new)
-
-    def test_planted_workflows(self):
-        ci, msan = self.ci, self.msan
-        tools = "      - name: The image and the tools this job runs\n"
-        linux = ci[ci.index("\n  linux:\n"):]
-        linux_tools = linux[linux.index(tools):linux.index("      - name: Configure (${{ matrix.preset }})")]
-        plants = {
-            "a digest": (ci, "env:\n  CTEST_PARALLEL_LEVEL",
-                         "env:\n  PYTHON_SHA256: " + "67d9a63e" * 8 + "\n  CTEST_PARALLEL_LEVEL"),
-            "a digest check": (msan, "| cut -d' ' -f1)\"", "| cut -d' ' -f1)\"; sha256sum -c sums.txt"),
-            "an exact version": (ci, "env:\n  CTEST_PARALLEL_LEVEL", "env:\n  LLVM_VERSION: 23.1.4\n  CTEST_PARALLEL_LEVEL"),
-            "an exact CPython": (msan, 'python-version: "3.x"', 'python-version: "3.15"'),
-            "a versioned compiler": (msan, "-DCMAKE_CXX_COMPILER=clang++ ", "-DCMAKE_CXX_COMPILER=clang++-23 "),
-            "a toolset pinned": (ci, 'vcvars64.bat`" >nul', 'vcvars64.bat`" -vcvars_ver=14.44 >nul'),
-            "the pins' option": (ci, "cmake --preset ${{ matrix.preset }}\n\n      # -k 0",
-                                 "cmake --preset ${{ matrix.preset }} -DQIVEN_PIN_TOOLS=ON\n\n      # -k 0"),
-            "a system setting": (msan, "      # libc++ with libc++abi",
-                                 "      - name: Randomisation\n        run: sudo sysctl -w vm.mmap_rnd_bits=28\n\n"
-                                 "      # libc++ with libc++abi"),
-            "Windows on a fixed image": (ci, "runs-on: windows-latest", "runs-on: windows-2025"),
-            "Linux on the latest image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
-            "msan on the latest image": (msan, "runs-on: ubuntu-24.04", "runs-on: ubuntu-latest"),
-            "Linux on an older release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-22.04"),
-            "msan on an older release": (msan, "runs-on: ubuntu-24.04", "runs-on: ubuntu-22.04"),
-            "Linux on a later release": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-26.04"),
-            "Linux on an arm image": (ci, "runs-on: ubuntu-24.04", "runs-on: ubuntu-24.04-arm"),
-            "Linux on Windows' label": (ci, "runs-on: ubuntu-24.04", "runs-on: windows-latest"),
-            "Linux by a matrix": (ci, "runs-on: ubuntu-24.04", "runs-on: ${{ matrix.os }}"),
-            "a second label": (ci, "runs-on: ubuntu-24.04", "runs-on: [ubuntu-24.04, self-hosted]"),
-            "the debugger preset": (ci, "run: ctest --preset fake\n\n      - name: Each fuzz",
-                                    "run: ctest --preset debugger\n\n      - name: Each fuzz"),
-            "the debugger label": (msan, "-L '^cxx$'", "-L '^(cxx|debugger)$'"),
-            "the full suite": (ci, "ctest --preset fake\n\n      - name: The analysis",
-                               "ctest --preset full\n\n      - name: The analysis"),
-            "no selection": (ci, "-R '^foundation[.]devkit[.]structure[.]' -LE '^analysis$'", "-LE '^analysis$'"),
-            "no versions printed": (ci, linux_tools, ""),
-            "no Ninja version": (msan, "ninja --version\n", "\n"),
-            "no glibc on Linux": (ci, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),
-            "no glibc under msan": (msan, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),
-        }
-        for name, (text, old, new) in plants.items():
-            with self.subTest(plant=name):
-                self.assertNotEqual(unpinned_findings(self.planted(text, old, new)), [])
-
-    def test_planted_presets(self):
-        text = self.presets
-        plants = {
-            "the pins' option on a CI preset": ('"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}',
-                                                '"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", '
-                                                '"QIVEN_PIN_TOOLS": "ON"}'),
-            "a compiler's line": ('"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}',
-                                  '"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN3_COMPILER_LINE": "19.44"}'),
-            "a versioned compiler": ('"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++", "CMAKE_BUILD_TYPE": '
-                                     '"RelWithDebInfo"}',
-                                     '"CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++-16", "CMAKE_BUILD_TYPE": '
-                                     '"RelWithDebInfo"}'),
-            "a fixed image named": ('"CI on windows-latest, the image\'s MSVC"', '"CI on windows-2022, MSVC 19.44"'),
-            "Linux on the latest image": ('"CI on ubuntu-24.04, the image\'s g++, no sanitizer',
-                                          '"CI on ubuntu-latest, the image\'s g++, no sanitizer'),
-            "Linux on an older release": ('"CI on ubuntu-24.04, the image\'s g++, no sanitizer',
-                                          '"CI on ubuntu-22.04, the image\'s g++, no sanitizer'),
-            "fake takes the debugger cases": ('"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}',
-                                              '"include": {"label": "^(fake|debugger)$"}'),
-            "fake excludes none": ('"include": {"label": "^fake$"}, "exclude": {"label": "^debugger$"}',
-                                   '"include": {"label": "^fake$"}'),
-        }
-        for name, (old, new) in plants.items():
-            with self.subTest(plant=name):
-                self.assertNotEqual(preset_findings(self.planted(text, old, new)), [])

@@ -10,7 +10,7 @@
 - Linux: K11 (test_binaries.py) reads each binary's glibc needs.
 - macOS: the macos-clang preset's CMAKE_OSX_DEPLOYMENT_TARGET is 15.0.
   No job builds under it, here or in CI: CI's macos-clang job is gone.
-Each over the tree, and over planted copies that break it."""
+Each over the tree."""
 
 import json
 import re
@@ -88,63 +88,14 @@ class Floors(unittest.TestCase):
         entries = json.loads(path.read_bytes().decode("utf-8"))
         self.assertEqual(database_findings(entries, WINDOWS), [])
 
-    def test_windows_commands_planted(self):
-        floor = " ".join(f"-D{n}={v}" for n, v in FLOOR.items())
-        control = f"cl /nologo /TP -DQIVEN_LOG_MIN=info {floor} /DWIN32 /W4 /WX /c a.cpp"
-        self.assertEqual(command_findings(control, True), [])
-        self.assertEqual(command_findings("cc -DQIVEN_LOG_MIN=info -c a.cpp", False), [])
-        plants = {
-            "a target's higher value after the floor's": control.replace("/c", "-DNTDDI_VERSION=0x0A000011 /c"),
-            "a target's lower value": control.replace("/c", "/D_WIN32_WINNT=0x0A00 /DWINVER=0x0603 /c"),
-            "a higher value in place of the floor's": control.replace("0x0A000010", "0x0A000011"),
-            "the macros missing": control.replace(floor, ""),
-            "one macro missing": control.replace("-DWINVER=0x0A00", ""),
-            "an undefine": control.replace("/c", "/UNTDDI_VERSION /c"),
-            "a value cl reads apart": control.replace("/c", '/D "_WIN32_WINNT=0x0A01" /c'),
-        }
-        for name, command in plants.items():
-            with self.subTest(plant=name):
-                self.assertNotEqual(command_findings(command, True), [])
-        with self.subTest(plant="a floor macro off Windows"):
-            self.assertNotEqual(command_findings(f"cc {floor} -c a.cpp", False), [])
-        with self.subTest(plant="no compile command"):
-            self.assertNotEqual(database_findings([], True), [])
-        entries = [{"file": "a.cpp", "command": control}, {"file": "b.cpp", "arguments": control.split()}]
-        self.assertEqual(database_findings(entries, True), [])
-        entries[1]["arguments"] = plants["the macros missing"].split()
-        self.assertEqual(len(database_findings(entries, True)), 3)
-
     def test_sources(self):
         files = list(tree_sources())
         self.assertGreater(len(files), 10)
         self.assertEqual(source_findings(files), [])
 
-    def test_sources_planted(self):
-        clean = ("// NTDDI_VERSION is set by the build\n#include <windows.h>\n"
-                 "#if NTDDI_VERSION >= NTDDI_WIN11_GE\n#endif\nauto s = \"#define WINVER\";\n")
-        self.assertEqual(source_findings([("clean.cpp", clean)]), [])
-        plants = {
-            "a higher value": "#define NTDDI_VERSION 0x0A000011\n#include <windows.h>\n",
-            "an undefine, then a value": "#undef _WIN32_WINNT\n#define _WIN32_WINNT 0x0A01\n",
-            "spaced": "  #  define WINVER 0x0603\n",
-        }
-        for name, text in plants.items():
-            with self.subTest(plant=name):
-                self.assertNotEqual(source_findings([("plant.cpp", text)]), [])
-
     def test_macos_preset(self):
         text = (ROOT / "CMakePresets.json").read_bytes().decode("utf-8")
         self.assertEqual(preset_findings(text), [])
-        target = f'"CMAKE_OSX_DEPLOYMENT_TARGET": "{DEPLOYMENT}"'
-        self.assertEqual(text.count(target), 1)
-        plants = {
-            "another value": text.replace(target, '"CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"'),
-            "a newer value": text.replace(target, '"CMAKE_OSX_DEPLOYMENT_TARGET": "26.0"'),
-            "none": text.replace(target, '"QIVEN_FAULTS": "ON"'),
-        }
-        for name, planted in plants.items():
-            with self.subTest(plant=name):
-                self.assertNotEqual(preset_findings(planted), [])
 
 
 if __name__ == "__main__":

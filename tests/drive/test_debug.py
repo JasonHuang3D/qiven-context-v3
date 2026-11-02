@@ -20,7 +20,7 @@ Under a sanitizer, whose runtime takes the process's faults, they are
 skipped too.
 
 Every case here drives the debugger: the label debugger, never fake, so
-the loop runs them and CI never does.
+the debugger preset runs them and CI never does.
 """
 
 import re

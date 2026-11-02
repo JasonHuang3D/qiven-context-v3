@@ -4,22 +4,20 @@ by the toolset's cl, on Windows; tools/git_shim.sh on Linux) stands first
 on PATH under git's program name, logs each start and runs the real git,
 PATH's before the shim. foundation/devkit/test/runner/ctest_tests.cmake runs every Python
 test so on the build QIVEN3_LOOP_TESTS names, one a system, whose fake
-step is the loop's one step a run that starts git.
+selection is the one that starts git.
 
 Usage: python -I tools/loop_shim.py [--git] -- COMMAND...
 
 The test's door counts in a directory of the run's own; then its starts,
 the shim's or the door's, the more, are added to the count the
-environment names (tools/loop_git.py's carried), the enclosing step's, so
-that the step's count is its real starts. The run fails (status 1) when
+environment names (tools/loop_git.py's carried), the enclosing one's, so
+that its count is its real starts. The run fails (status 1) when
 the shim's starts differ from the door's, a start past the door, by a name
 built at run time or a shell's line; or, without --git, when the test
-starts git at all: a test that starts git is the loop's own (a class's
-ctest_git, foundation/devkit/test/runner/list_tests.py), listed on that build alone, so
-that no test that starts git runs in a second step of a run. Else its
-status is the test's. A start by an absolute path passes the shim: the
-guard's, by the source (tests/drive/test_git_count.py), the stated limit.
-A run within another's (tests/drive/test_git_shim.py's) runs the enclosing
+starts git at all: a test that starts git is a git test (a class's
+ctest_git, foundation/devkit/test/runner/list_tests.py), listed on that build alone. Else its
+status is the test's. A start by an absolute path passes the shim, a
+stated limit. A run within another's runs the enclosing
 shim's real git, never a shim, and adds its log's lines to that shim's.
 A real git in any git-shim directory, whichever run's or build's, is a
 shim, which would run itself: the run is refused before it starts any.
@@ -125,7 +123,7 @@ def main(argv):
     if len(lines) != door:
         faults.append(f"the shim's {len(lines)} starts against the door's {door}: a start past the door")
     if lines and not git:
-        faults.append(f"{len(lines)} starts of git by a test that is not the loop's own (ctest_git), which "
+        faults.append(f"{len(lines)} starts of git by a test that is not a git test (ctest_git), which "
                       "every build lists")
     if faults:
         print("loop_shim: " + "; ".join(faults) + "\n" + "\n".join(lines[-SHOWN:]), file=sys.stderr)

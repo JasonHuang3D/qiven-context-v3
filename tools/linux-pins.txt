@@ -1,8 +1,7 @@
-# The Linux toolchain of the local loop, on WSL2's Ubuntu 24.04 LTS: one pin
+# The local Linux toolchain, on WSL2's Ubuntu 24.04 LTS: one pin
 # a line, KIND NAME VERSION SHA256 SOURCE, or removed NAME for a package that
-# must be absent, which tools/linux_pins.py checks against the installed
-# tools (see its text for each kind). A prefix/ source
-# is under the install prefix the check is given; path/ is found on PATH.
+# must be absent; tools/debuggers.py reads gdb's. A prefix/ source
+# is under the install prefix; path/ is found on PATH.
 # A trailing comment says where a digest comes from: published (the
 # release's own digest list), github-asset-digest (the release asset's digest
 # as GitHub gives it), observed (taken from the file here; for a download,
@@ -24,7 +23,7 @@
 # The compilers' hold: every installed package of the source packages
 # gcc-13 and llvm-toolchain-18 is held (apt-mark hold), and no other package
 # is, so that the compilers move by a deliberate re-pin alone and the
-# system's updates stay on; tools/linux_pins.py checks it.
+# system's updates stay on.
 
 # The release archives, each kept in the prefix's downloads.
 download cmake 4.4.3 d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-linux-x86_64.tar.gz  # published
@@ -100,8 +99,8 @@ deb m4 1.4.19-4build1 30ea715845a1863abd55d11e47ab91513130bf347852d4cdeae69e9d98
 deb make 4.3-4.1build2 1fe6a815b56c7b6e9ce4086a363f09444bbd0a0d30e230c453d0b78e44b57a99 ubuntu:noble/main
 deb rpcsvc-proto 1.4.2-0ubuntu7 7eb710fe148d224c159ddec1ceb0ba53ead52a80a6793dcdae1474acf20d8f71 ubuntu:noble/main
 
-# binutils, the system's own packages, installed with it, not downloaded for
-# the loop: each digest is the archive index's for the installed version, as
+# binutils, the system's own packages, installed with it, not downloaded:
+# each digest is the archive index's for the installed version, as
 # apt's lists give it. The builds run ld (both compilers link by /usr/bin/ld),
 # as (GCC's assembler), ar and ranlib (CMake's static libraries); K18 runs nm,
 # the watcher addr2line. binutils holds those names on PATH,

@@ -3,10 +3,10 @@ trees tools/trees.json walks and of its layers' trees: its id, its labels,
 serial, and its own limit.
 
 Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
-[--loop]. The loop's own tests, of a class whose ctest_git is true, those
+[--loop]. The git tests, of a class whose ctest_git is true, those
 that start git, are listed with --loop alone, which one build a system
 gives (QIVEN3_LOOP_TESTS), labelled loop and fake alone, so that the git
-they start is started in one step a run, that build's fake step; there
+they start is started in that build's fake selection alone; there
 every Python test runs behind the counting shim (tools/loop_shim.py),
 which fails a test of no such class that starts git. Each
 line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
@@ -14,8 +14,8 @@ test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
 its class names in ctest_labels, then the name of the
 module of the table its file is in (the tree's module.json files, read by
-tools/loop_modules.py), by which the loop selects it
-(tools/loop_select.py); a class whose ctest_serial is true runs alone; a
+tools/loop_modules.py), by which the runner selects it
+(tools/changed.py); a class whose ctest_serial is true runs alone; a
 class whose ctest_limit is a whole number of seconds states the watcher's
 limit for its tests, which otherwise their labels give
 (ctest_tests.cmake, beside this file).
@@ -48,8 +48,8 @@ PACKAGE_LABELS = {
 MODULE_LABELS = {
     "foundation.devkit.structure.tests.test_analysis": ("analysis",),
 }
-# The labels of the loop's own tests, in place of any other: the fake step
-# selects them, no other step of the loop's build.
+# The labels of the git tests, in place of any other: the fake selection
+# takes them, no other of their build's.
 GIT_LABELS = ("loop", "fake")
 
 
@@ -94,8 +94,8 @@ def package(path, modules, homes):
 def listed(loop, root="."):
     """([(id, labels, serial, limit or None)], [errors]) of the
     tests discover finds in each package of the trees tools/trees.json
-    walks and of its layers' trees, from the checkout's root; the loop's
-    own with loop alone."""
+    walks and of its layers' trees, from the checkout's root; the git
+    tests with loop alone."""
     # The table's one reader, by runpy: under -I tools/ is off sys.path.
     modules = runpy.run_path(str(Path(root) / "tools" / "loop_modules.py"))
     table = modules["load"](root)

@@ -163,7 +163,7 @@ class Registered(unittest.TestCase):
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
                 labels = set(props["LABELS"])
-                self.assertEqual(len(labels & MODULES), 1, labels)  # its module's, by which the loop selects it
+                self.assertEqual(len(labels & MODULES), 1, labels)  # its module's, by which the runner selects it
                 labels -= MODULES - LABELS
                 self.assertLessEqual(labels, LABELS)
                 self.assertEqual(len(labels & {"cxx", "py"}), 1)
@@ -177,7 +177,7 @@ class Registered(unittest.TestCase):
                 self.assertEqual(int(watched[6]), limit)
                 self.assertEqual(float(props["TIMEOUT"]), limit + AFTER_LIMIT)
                 if "py" in labels:
-                    # On the loop's build, behind the counting shim, the loop's own with --git.
+                    # On the git tests' build, behind the counting shim, the git tests with --git.
                     behind = len(command) > 2 and Path(command[2]) == SHIM
                     shims.add(behind)
                     if behind:
@@ -232,7 +232,7 @@ class Registered(unittest.TestCase):
             "debugger": labelled(tests, "debugger"),
         }
         self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
-        # The debugger cases, the loop's alone, never fake, CI's.
+        # The debugger cases, the debugger preset's alone, never fake, CI's.
         self.assertIn("tests.drive.test_hang.HangStacks.test_K8_hang", expected["debugger"])
         self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])

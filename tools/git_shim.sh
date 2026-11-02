@@ -4,7 +4,7 @@
 # arguments, to the file QIVEN3_SHIM_LOG names, then runs the program
 # QIVEN3_SHIM_REAL names in its place. A start with either variable unset,
 # or that cannot log, exits 125 with a line on standard error, so that no
-# start goes uncounted. Not a part of the product: the loop's own tool.
+# start goes uncounted. Not a part of the product: the tests' own tool.
 if [ -z "$QIVEN3_SHIM_LOG" ] || [ -z "$QIVEN3_SHIM_REAL" ]; then
     echo "shim: QIVEN3_SHIM_LOG or QIVEN3_SHIM_REAL unset" >&2
     exit 125

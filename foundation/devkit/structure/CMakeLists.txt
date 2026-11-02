@@ -1,8 +1,8 @@
 # The structure records (QIVEN3_STRUCTURE, the structure preset): after
 # every target is built, records.py reruns each compile command with
 # /showIncludes, reads each object's symbols and the runtimes' names with
-# dumpbin, the link edges with CMake's --graphviz, and builds and records
-# its planted project (plants.py), into build/<preset>/structure/. The
+# dumpbin and the link edges with CMake's --graphviz, into
+# build/<preset>/structure/. The
 # structure tests read those files and start no process. The records'
 # trees are tools/loop_modules.py's, read from tools/trees.json: both,
 # and tools/loop_git.py and tools/loop_table.py the reader loads, are the
@@ -49,7 +49,7 @@ set(qiven3_index "${PROJECT_BINARY_DIR}/structure/index.json")
 add_custom_command(OUTPUT "${qiven3_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN3_DUMPBIN}"
-  DEPENDS ${qiven3_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py" "${CMAKE_CURRENT_SOURCE_DIR}/plants.py"
+  DEPENDS ${qiven3_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/loop_git.py"
     "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
     "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven3_commands}"

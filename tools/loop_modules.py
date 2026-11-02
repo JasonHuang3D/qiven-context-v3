@@ -335,7 +335,7 @@ def codemodel(build, source):
 
 
 def tracked(source):
-    """The checkout's tracked files, by the loop's git door."""
+    """The checkout's tracked files, by git's door."""
     git = GIT["which"]()
     if git is None:
         raise FileNotFoundError("no git")

@@ -13,14 +13,14 @@
 # job block.
 #
 # CI is a runtime evaluation, unpinned: Linux on the ubuntu-24.04 image, the
-# release the local loop's Linux runs, Windows on the runner's latest
+# release the local Linux pins name, Windows on the runner's latest
 # image, each with its own tools, a tool an image lacks at its
 # current release. No step
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
-# local pins (CMakeLists.txt's QIVEN3_PIN_ versions; Windows' tools in
-# tools/loop_windows.py; Linux's in tools/linux-pins.txt, checked by
-# tools/linux_pins.py), never fixed by a pin here.
+# local pins (CMakeLists.txt's QIVEN3_PIN_ versions; the Windows toolset in
+# tools/changed.py; the debuggers' in tools/windows-pins.txt and
+# tools/linux-pins.txt), never fixed by a pin here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit
 # SHA of its own repository, its tag in a comment. No secret is read.
@@ -28,8 +28,7 @@
 name: ci
 
 # By manual dispatch alone: never a pull request, a tag or a push to a
-# branch, never a schedule; the loop runs each job of its system before
-# (tools/loop.py).
+# branch, never a schedule.
 on:
   workflow_dispatch:
 

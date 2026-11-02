@@ -3,7 +3,7 @@
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # ADDR2LINE where the build found one, PYTHON when the Python tests are
-# registered, LOOP when the loop's own tests are too (list_tests.py --loop)
+# registered, LOOP when the git tests are too (list_tests.py --loop)
 # and every Python test runs behind the counting shim, and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
@@ -163,7 +163,7 @@ if(DEFINED PYTHON)
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
     # matched whole, so '*<id>' selects that one test. With LOOP each runs
-    # behind the counting shim (tools/loop_shim.py), the loop's own, which
+    # behind the counting shim (tools/loop_shim.py), the git tests, which
     # start git, with --git.
     set(test_command "${PYTHON}" -I -m unittest discover -s "${start}" -t . -k "*${id}")
     if(LOOP)

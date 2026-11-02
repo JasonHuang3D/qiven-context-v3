@@ -1,10 +1,7 @@
 """The modules' check whole over the real checkout, as tools/loop_modules.py
-runs it before tier 1's and tier 2's narrowed steps: the table files, each
-table directory's README.md, each contract, each tracked file's module,
-each include edge and, given the build tree ctest names (QIVEN3_BUILD),
-each link edge by its codemodel. A test, so that tier 1 runs it whole: it
-reads every tracked file, so that a change to any file chooses it
-(tools/loop_select.py's WHOLE)."""
+runs it: the table files, each table directory's README.md, each contract,
+each tracked file's module, each include edge and, given the build tree
+ctest names (QIVEN3_BUILD), each link edge by its codemodel."""
 
 import os
 import unittest
@@ -13,7 +10,7 @@ from tools import loop_modules
 
 
 class FullCheck(unittest.TestCase):
-    ctest_git = True  # starts git: listed on the loop's build alone (foundation/devkit/test/runner/list_tests.py)
+    ctest_git = True  # starts git: listed on the git tests' build alone (foundation/devkit/test/runner/list_tests.py)
 
     def test_tree(self):
         """No error over the checkout and, under ctest, its build tree; the
