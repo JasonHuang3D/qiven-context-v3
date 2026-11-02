@@ -1,8 +1,9 @@
 """B5 to B11 over every object, target and source file of the build, read
 from the structure build's records, and over the planted project, each
 plant reported; and the Python sources held to the standard library, read
-by ast: no module outside it but the test tree's own and the structure
-method's, no importlib and no change of sys.path."""
+by ast: no module outside it but the test tree's own, the structure
+method's and the runner's Python half, no importlib and no change of
+sys.path."""
 
 import ast
 import sys
@@ -15,12 +16,13 @@ from foundation.devkit.structure.tests.test_boundaries import WINDOWS, caught, h
 
 RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
 METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree and tools/
+RUNNER = "foundation.devkit.test.runner"  # the runner's Python half, the skip of a unittest run
 
 
 def python_findings(root, files):
     """(file, what) for each import outside the standard library, the
-    test tree, tools/ and the structure method's own package, each importlib
-    and each change of sys.path."""
+    test tree, tools/, the structure method's own package and the runner's
+    Python half, each importlib and each change of sys.path."""
     found = []
     for rel in files:
         if not rel.endswith(".py"):
@@ -35,7 +37,7 @@ def python_findings(root, files):
                 names = []
             for name in names:
                 top = name.split(".")[0]
-                own = name == METHOD or name.startswith(METHOD + ".")
+                own = any(name == p or name.startswith(p + ".") for p in (METHOD, RUNNER))
                 if top == "importlib" or (top not in sys.stdlib_module_names and top not in ("tests", "tools")
                                           and not own):
                     found.append((rel, name))

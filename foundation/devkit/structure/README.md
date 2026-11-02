@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-- **Awaiting a split:** its product data (qiven3's paths, lists, plants and cells, in `rules.py`, `exemptions.py` and `plants.py`) leaves for `products/qiven3`, and with it its row's edges to qiven3's modules
+- **Awaiting a split:** its product data (qiven3's paths, lists, plants and cells, in `rules.py`, `exemptions.py` and `plants.py`) leaves for `products/qiven3`; its row's edges to qiven3's modules are its header units' (`tests/support/headers/`), and each header unit goes to its header's module when that module is rebuilt, its edge with it
 - **Holds:** the structure method in Python: the lexer, the records, planting, the subset check, the rules for any code, and the content check; the header units
 - **Never holds:** a product's own paths, lists, plants or cells as the method's code
 - **Contract:** none

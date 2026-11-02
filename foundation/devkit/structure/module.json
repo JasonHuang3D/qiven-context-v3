@@ -41,7 +41,7 @@
         "driver",
         "child"
       ],
-      "until": "structure splits and its data moves to the product"
+      "until": "each header unit under tests/support/headers/ goes to its header's module when that module is rebuilt"
     }
   ]
 }
