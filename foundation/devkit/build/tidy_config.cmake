@@ -5,16 +5,36 @@
 # (clang-tidy) and PATHFILE, it prints each source's composed file, as
 # tests/drive/test_trees_build.py reads it.
 
-# qiven3_tidy_chain(<dir> <test> <out>): the configurations clang-tidy reads
+# qiven3_tidy_inherits(<file> <tidy> <out>): TRUE where file inherits from the
+# directory above it, as tidy itself reads its InheritParentConfig, in every
+# form: tidy's dump of file over a probe's configuration shows the probe's
+# check. A file tidy cannot read, which a run would skip with only a line on
+# stderr, stops the configure.
+function(qiven3_tidy_inherits file tidy out)
+  set(probe "${PROJECT_BINARY_DIR}/tidy/inherit")
+  file(WRITE "${probe}/.clang-tidy" "Checks: qiven3-inherited\n")
+  execute_process(COMMAND "${tidy}" "--config-file=${file}" --dump-config "${probe}/probe.cpp" --
+    OUTPUT_VARIABLE text ERROR_VARIABLE errors RESULT_VARIABLE failed)
+  if(failed OR NOT errors STREQUAL "" OR NOT text MATCHES "\nChecks:")
+    message(FATAL_ERROR "qiven3: ${tidy} does not read ${file}: ${errors}")
+  endif()
+  set(inherits FALSE)
+  if(text MATCHES "qiven3-inherited")
+    set(inherits TRUE)
+  endif()
+  set(${out} "${inherits}" PARENT_SCOPE)
+endfunction()
+
+# qiven3_tidy_chain(<dir> <test> <tidy> <out>): the configurations tidy reads
 # for a source of dir under test, the first read first: dir's nearest
 # .clang-tidy in the checkout and its parents' while each inherits
-# (InheritParentConfig), the root's first, then test.
-function(qiven3_tidy_chain dir test out)
+# (qiven3_tidy_inherits), the root's first, then test.
+function(qiven3_tidy_chain dir test tidy out)
   set(chain "${test}")
   set(file "${test}")
   set(done FALSE)
   while(file)
-    file(STRINGS "${file}" inherit REGEX "^InheritParentConfig:[ \t]*true[ \t]*(#.*)?$")
+    qiven3_tidy_inherits("${file}" "${tidy}" inherit)
     set(file "")
     while(inherit AND NOT file AND NOT done)
       if(EXISTS "${dir}/.clang-tidy")
@@ -126,7 +146,7 @@ function(qiven3_tidy_test_config source test tidy out)
   string(MAKE_C_IDENTIFIER "${rel}" id)
   set(config "${PROJECT_BINARY_DIR}/tidy/config/test_${id}.clang-tidy")
   file(WRITE "${config}.dump" "${text}")
-  qiven3_tidy_chain("${dir}" "${test}" chain)
+  qiven3_tidy_chain("${dir}" "${test}" "${tidy}" chain)
   qiven3_tidy_options("${config}.dump" text ${chain})
   file(WRITE "${config}.composed" "${text}")
   file(COPY_FILE "${config}.composed" "${config}" ONLY_IF_DIFFERENT)

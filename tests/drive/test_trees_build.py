@@ -55,6 +55,26 @@ def shown(show, root=ROOT, paths=(), defines=(), script=SCRIPT):
     return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
 
 
+def compose(scratch, files, tidy, sources):
+    """Each of sources' composed configuration as tidy_config.cmake gives it, a
+    Path, in a checkout of files (path to text) under scratch."""
+    root, build = Path(scratch, "code"), Path(scratch, "build")
+    for path, text in files.items():
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        (root / path).write_text(text, encoding="utf-8")
+    paths = [(root / source).as_posix() for source in sources]
+    got = shown("test-config", root=root, paths=paths, script=COMPOSE,
+                defines=(f"BUILD={build.as_posix()}", f"TIDY={tidy}"))
+    return [Path(got[path]) for path in paths]
+
+
+def composed_options(config):
+    """The CheckOptions block of a composed configuration, as a dict."""
+    block = config.read_text(encoding="utf-8").split("\nCheckOptions:\n", 1)[1].split("\n")
+    return dict(line.strip().split(": ", 1) for line in block[:next(
+        i for i, line in enumerate(block) if not line.startswith("  "))])
+
+
 def scene():
     """A scratch checkout's files (path to text), each unit and own source
     including its header, and the units the rule wants of it."""
@@ -430,18 +450,9 @@ class TreesBuild(unittest.TestCase):
                  "tests/probe.cpp": ("struct Pair {\n    int first;\n    int second;\n    Pair() {}\n};\n\n"
                                      "int main() {\n    Pair pair;\n    return sizeof(pair) > 0 ? 1 : 0;\n}\n")}
         with tempfile.TemporaryDirectory() as scratch:
-            root, build = Path(scratch, "code"), Path(scratch, "build")
-            for path, text in files.items():
-                (root / path).parent.mkdir(parents=True, exist_ok=True)
-                (root / path).write_text(text, encoding="utf-8")
-            source = (root / "tests" / "probe.cpp").as_posix()
-            got = shown("test-config", root=root, paths=[source], script=COMPOSE,
-                        defines=(f"BUILD={build.as_posix()}", f"TIDY={tidy}"))
-            config = Path(got[source])
-            text = config.read_text(encoding="utf-8")
-            block = text.split("\nCheckOptions:\n", 1)[1].split("\n")
-            options = dict(line.strip().split(": ", 1) for line in block[:next(
-                i for i, line in enumerate(block) if not line.startswith("  "))])
+            config = compose(scratch, files, tidy, ["tests/probe.cpp"])[0]
+            source = Path(scratch, "code", "tests", "probe.cpp").as_posix()
+            options = composed_options(config)
             self.assertEqual((options[pedantic], options[pointee]), ("true", "true"))
             self.assertEqual(options["bugprone-assert-side-effect.CheckFunctionCalls"], "'true'")
             self.assertNotIn(pedantic, config.with_name(config.name + ".dump").read_text(encoding="utf-8"))
@@ -452,12 +463,78 @@ class TreesBuild(unittest.TestCase):
             self.assertIn("[clang-analyzer-optin.cplusplus.UninitializedObject", found(config))
             self.assertNotIn("UninitializedObject", found(config.with_name(config.name + ".dump")))
 
+    def test_test_config_directories(self):
+        """A source's composed configuration keeps its own directory's
+        CheckOptions entries, over its parents' and under the test's, up the
+        chain until a directory does not inherit; each directory its own file."""
+        tidy = clang_tidy()
+        if tidy is None:
+            self.skipTest("no clang-tidy")
+        checks = "Checks: '-*,bugprone-assert-side-effect'\n"
+        files = {".clang-tidy": f"{checks}CheckOptions:\n  root.own: 1\n  every.level: root\n",
+                 "tests/.clang-tidy": ("InheritParentConfig: true\nCheckOptions:\n  tests.own: 2\n"
+                                       "  every.level: tests\n"),
+                 "tests/deep/.clang-tidy": ("InheritParentConfig: True\nCheckOptions:\n  - key: deep.own\n"
+                                            "    value: 3\n  - key: every.level\n    value: deep\n"),
+                 "tests/apart/.clang-tidy": f"InheritParentConfig: false\n{checks}CheckOptions:\n  apart.own: 4\n",
+                 TEST_TIDY: "InheritParentConfig: true\nCheckOptions:\n  test.own: 5\n"}
+        sources = ["tests/one.cpp", "tests/deep/one.cpp", "tests/deep/two.cpp", "tests/apart/one.cpp"]
+        with tempfile.TemporaryDirectory() as scratch:
+            top, deep, deep_too, apart = compose(scratch, files, tidy, sources)
+            kept = [{key: value for key, value in composed_options(config).items()
+                     if not key.startswith("bugprone-")} for config in (top, deep, apart)]
+        self.assertEqual(kept, [{"root.own": "1", "tests.own": "2", "every.level": "tests", "test.own": "5"},
+                                {"root.own": "1", "tests.own": "2", "deep.own": "3", "every.level": "deep",
+                                 "test.own": "5"},
+                                {"apart.own": "4", "test.own": "5"}])
+        self.assertEqual(deep, deep_too)
+        self.assertEqual(len({top, deep, apart}), 3)
+
+    def test_inherit_forms(self):
+        """InheritParentConfig is read as clang-tidy reads it, each form it
+        takes: the composition holds the parent's entries where clang-tidy's
+        own dump shows the parent's checks. A file it cannot read, which a
+        run skips with a line on stderr, stops the configure, naming the file."""
+        tidy = clang_tidy()
+        if tidy is None:
+            self.skipTest("no clang-tidy")
+        root = "Checks: '-*,bugprone-assert-side-effect,bugprone-dangling-handle'\nCheckOptions:\n  parent.own: 1\n"
+        own = "Checks: 'bugprone-assert-side-effect'\nCheckOptions:\n  own.entry: 1\n"
+        taken = {f"InheritParentConfig: {form}\n{own}": True
+                 for form in ("true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON", "y", "Y", "'true'",
+                              '"True"', "'yes'", "!!bool true", "!!str on", "&anchor True", "True # a comment")}
+        taken.update({f"InheritParentConfig: {form}\n{own}": False
+                      for form in ("false", "False", "FALSE", "no", "No", "NO", "off", "Off", "OFF", "n", "N",
+                                   "'false'", '"No"', "!!bool false", "False # a comment")})
+        taken.update({f"{form}{own}": True
+                      for form in ("'InheritParentConfig': True\n", '"Inherit\\x50arentConfig": True\n',
+                                   "InheritParentConfig : True\n", "InheritParentConfig:\n  True\n",
+                                   "---\nInheritParentConfig: True\n")})
+        taken["{InheritParentConfig: True, Checks: 'bugprone-assert-side-effect'}\n"] = True
+        taken[own] = False
+        files = {".clang-tidy": root, TEST_TIDY: "InheritParentConfig: true\n"}
+        files.update({f"tests/f{i}/.clang-tidy": text for i, text in enumerate(taken)})
+        with tempfile.TemporaryDirectory() as scratch:
+            configs = compose(scratch, files, tidy, [f"tests/f{i}/x.cpp" for i in range(len(taken))])
+            read = [("bugprone-dangling-handle" in config.with_name(config.name + ".dump").read_text(encoding="utf-8"),
+                     "parent.own" in composed_options(config)) for config in configs]
+        self.assertEqual(dict(zip(taken, read)), {text: (want, want) for text, want in taken.items()})
+        for text in ("InheritParentConfig: tRuE\n", "InheritParentConfig: 1\n", "InheritParentConfig: ~\n",
+                     "InheritParentConfig:true\n", "InheritParentConfig:\n", "inheritparentconfig: true\n"):
+            with self.subTest(text), tempfile.TemporaryDirectory() as scratch:
+                with self.assertRaises(subprocess.CalledProcessError) as stopped:
+                    compose(scratch, {**files, "tests/.clang-tidy": text + own}, tidy, ["tests/x.cpp"])
+                self.assertIn(f"{Path(scratch, 'code', 'tests').as_posix()}/.clang-tidy", stopped.exception.stderr)
+
     def test_steps_name_composed(self):
         """The analysis preset's build configured in a tree outside the
-        checkout, its build.ninja read: every test source's clang-tidy step,
-        a source of a target the configure's test-targets.txt lists, names
-        its composed configuration in the tree's tidy/config/; no step names
-        the test configuration itself, and no other step a composed one."""
+        checkout, its build.ninja read: each source the compile statements
+        give a target of the configure's test-targets.txt has a clang-tidy
+        step, and that step names the composed configuration the build
+        derives for the source's own directory (tidy_config.cmake's own
+        answer), one file for each directory and each directory one file;
+        no step names the test configuration itself, and no other step a
+        composed one. The list comes from the compile statements, not the steps."""
         tool, tidy = cmake(), clang_tidy()
         if tool is None or tidy is None or shutil.which("cl") is None:
             self.skipTest("no cmake, clang-tidy or cl: the analysis preset configures under vcvars")
@@ -471,19 +548,34 @@ class TreesBuild(unittest.TestCase):
             targets = set(Path(build, "test-targets.txt").read_text(encoding="utf-8").split())
             ninja = Path(build, "build.ninja").read_text(encoding="utf-8")
             composed = key(Path(build, "tidy", "config").as_posix())
-        compiled = re.findall(r"^build \S+: CXX_COMPILER__(\S+)_unscanned_\w+ (\S+)", ninja, re.M)
-        tests = {key(source) for target, source in compiled if target in targets}
+            compiled = re.findall(r"^build (?:\$ |\S)+: C(?:XX)?_COMPILER__(\S+)_(?:un)?scanned_\w+ ((?:\$ |\S)+)",
+                                  ninja, re.M)
+            listed = sorted({Path(source.replace("$:", ":").replace("$ ", " ")).as_posix()
+                             for target, source in compiled if target in targets})
+            tests = {key(source): key(config) for source, config in shown(
+                "test-config", paths=listed, script=COMPOSE,
+                defines=(f"BUILD={Path(build).as_posix()}", f"TIDY={tidy}")).items()}
+            homes = {}
+            for source, config in tests.items():
+                base = key(build) if source.startswith(key(build) + os.sep) else key(str(ROOT))
+                homes.setdefault(config, set()).add(os.path.relpath(os.path.dirname(source), base))
         steps = {}
         for line in ninja.splitlines():
             if "clang-tidy" in line and "--quiet" in line:
                 named = re.findall(r'--config-file=([^"\s]+)', line)
                 steps[key(re.search(r'--quiet\s+("[^"]+"|\S+)', line).group(1).strip('"'))] = named
-        self.assertGreater(len(tests & steps.keys()), 10)
+        self.assertGreater(len(tests), 10)
+        self.assertEqual(sorted(tests.keys() - steps.keys()), [])
+        self.assertEqual({config: dirs for config, dirs in homes.items() if len(dirs) != 1}, {})
+        self.assertEqual(sum(map(len, homes.values())), len(set().union(*homes.values())))
+        self.assertGreater(len(homes), 1)
+        self.assertEqual([config for config in homes if not config.startswith(composed + os.sep)], [])
         for source, named in sorted(steps.items()):
             self.assertEqual([name for name in named if name.endswith(Path(TEST_TIDY).name)], [], source)
-            in_tree = [name for name in named if key(name).startswith(composed + os.sep)]
-            self.assertEqual(in_tree, named if source in tests else [], (source, named))
-            self.assertEqual(len(in_tree), 1 if source in tests else 0, (source, named))
+            if source in tests:
+                self.assertEqual([key(name) for name in named], [tests[source]], source)
+            else:
+                self.assertEqual([name for name in named if key(name).startswith(composed + os.sep)], [], source)
 
 
 if __name__ == "__main__":
