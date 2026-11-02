@@ -118,7 +118,8 @@ class TestTargets(unittest.TestCase):
     (test-targets.txt in QIVEN3_BUILD's tree), are the list's test_code
     targets: a target left out of the list, a library's given the scope, or
     a pinned one the build defines without it, is refused; a pinned one a
-    preset does not define (defined-targets.txt) is skipped by its name."""
+    preset does not define (defined-targets.txt) is skipped by its name only
+    where the list's not_defined names that preset and that target."""
     ctest_labels = ("fake",)
 
     def test_build(self):
@@ -131,10 +132,12 @@ class TestTargets(unittest.TestCase):
             with self.subTest(target=name):
                 self.skipTest(f"{name}: pinned, and {build} does not define it")
 
-    def given(self, build, scoped, defined):
-        Path(build, "test-targets.txt").write_text("\n".join(scoped) + "\n", encoding="utf-8")
-        Path(build, "defined-targets.txt").write_text("\n".join(defined) + "\n", encoding="utf-8")
-        return exemptions.targets(ROOT, Path(build))
+    def given(self, scratch, scoped, defined, preset="release", root=ROOT):
+        build = Path(scratch, preset)
+        build.mkdir(exist_ok=True)
+        (build / "test-targets.txt").write_text("\n".join(scoped) + "\n", encoding="utf-8")
+        (build / "defined-targets.txt").write_text("\n".join(defined) + "\n", encoding="utf-8")
+        return exemptions.targets(root, build)
 
     def test_planted(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
@@ -142,11 +145,41 @@ class TestTargets(unittest.TestCase):
             found, absent = self.given(scratch, [*pinned, "qiven3_memory"], [*pinned, "qiven3_memory"])
             self.assertEqual((len(found), absent), (1, []), found)
             self.assertIn("qiven3_memory: takes test code's analysis", found[0][1])
-            self.assertEqual(self.given(scratch, pinned[1:], pinned[1:]), ([], [pinned[0]]))
 
     def test_planted_defined(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
         with tempfile.TemporaryDirectory() as scratch:
             found, absent = self.given(scratch, pinned[1:], [*pinned, "qiven3_memory"])
             self.assertEqual((len(found), absent), (1, []), found)
-            self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch)} defines it without", found[0][1])
+            self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch, 'release')} defines it without", found[0][1])
+
+    def test_skipped_by_name(self):
+        """nohal's qiven3_hal_fake, the list's entry, is skipped; a pinned
+        target another preset or nohal itself leaves undefined is refused,
+        naming it and the preset, and so is a listed one nohal defines."""
+        pinned = json.loads(real(LIST))["test_code"]["targets"]
+        rest = [name for name in pinned if name != "qiven3_hal_fake"]
+        with tempfile.TemporaryDirectory() as scratch:
+            self.assertEqual(self.given(scratch, rest, rest, "nohal"), ([], ["qiven3_hal_fake"]))
+            for preset, kept, absent, words in (("release", rest, [], "qiven3_hal_fake: pinned"),
+                                                ("nohal", rest[1:], ["qiven3_hal_fake"], f"{rest[0]}: pinned"),
+                                                ("nohal", pinned, [], "qiven3_hal_fake: listed as not defined")):
+                with self.subTest(preset=preset, words=words):
+                    found, skipped = self.given(scratch, kept, kept, preset)
+                    self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], absent), found)
+                    self.assertIn(words, found[0][1])
+                    self.assertIn(preset, found[0][1])
+
+    def test_stale_entry(self):
+        """An entry naming a target the list does not pin, a preset
+        CMakePresets.json does not configure, or no reason, is refused."""
+        pinned = json.loads(real(LIST))["test_code"]["targets"]
+        for change in ({"target": "qiven3_memory"}, {"preset": "nohall"}, {"reason": " "}):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as scratch:
+                data = json.loads(real(LIST))
+                data["test_code"]["not_defined"][0].update(change)
+                write(Path(scratch), LIST, json.dumps(data))
+                shutil.copyfile(ROOT / "CMakePresets.json", Path(scratch, "CMakePresets.json"))
+                found, _ = self.given(scratch, pinned, pinned, root=Path(scratch))
+                self.assertEqual([rel for rel, _ in found], [LIST], found)
+                self.assertIn(next(iter(change.values())), found[0][1])

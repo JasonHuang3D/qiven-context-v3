@@ -92,14 +92,26 @@ def targets(root, build):
     (file, detail): a target the build gives test code's analysis (its
     test-targets.txt) that the list's test_code targets do not pin, a test
     target left out or a library's; and a pinned target the build defines
-    (its defined-targets.txt) without that analysis. Absent: the pinned
-    targets the build does not define, which a preset may lack (nohal has
-    no qiven3_hal_fake)."""
-    pinned = set(json.loads((root / LIST).read_text(encoding="utf-8"))["test_code"]["targets"])
+    (its defined-targets.txt) without that analysis, or does not define with
+    no entry of the list's not_defined naming the tree's preset (its
+    directory's name, as binaryDir gives it) and that target. Absent: the
+    pinned targets not defined that an entry names so, skipped.
+    An entry naming no pinned target, no configure preset or no reason, or
+    a target its preset's tree defines, is found too."""
+    code = json.loads((root / LIST).read_text(encoding="utf-8"))["test_code"]
+    pinned, preset, listed = set(code["targets"]), build.name, code["not_defined"]
     given = set((build / "test-targets.txt").read_text(encoding="utf-8").split())
     defined = set((build / "defined-targets.txt").read_text(encoding="utf-8").split())
     found = [("test-targets.txt", f"{name}: takes test code's analysis, and the list does not pin it")
              for name in sorted(given - pinned)]
     found += [("test-targets.txt", f"{name}: pinned, and {build} defines it without test code's analysis")
               for name in sorted((pinned & defined) - given)]
-    return found, sorted(pinned - defined - given)
+    presets = {item["name"] for item in json.loads((root / "CMakePresets.json").read_text())["configurePresets"]}
+    found += [(LIST, f"{entry}: names no pinned target, no configure preset, or no reason") for entry in listed
+              if entry["target"] not in pinned or entry["preset"] not in presets or not entry["reason"].strip()]
+    skipped, absent = {entry["target"] for entry in listed if entry["preset"] == preset}, pinned - defined - given
+    found += [("defined-targets.txt", f"{name}: listed as not defined by {preset}, and {build} defines it")
+              for name in sorted(skipped & defined)]
+    found += [("defined-targets.txt", f"{name}: pinned, and {build} (preset {preset}) does not define it, unlisted")
+              for name in sorted(absent - skipped)]
+    return found, sorted(absent & skipped)
