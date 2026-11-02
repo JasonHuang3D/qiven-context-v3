@@ -26,9 +26,10 @@ tools/loop_modules.py, as the run begins.
   A file of the no-test row selects no module. The step runs the tests that
   carry a selected module's label in ctest's own listing
   (--show-only=json-v1), and any test that carries no module's; and, for
-  any change, the tests that read every tracked file (WHOLE), the modules'
-  check whole over the checkout among them, and the test that reads every
-  test's labels (LABELLED); and, for a change under a tree
+  any change, the tests that read every tracked file or every test module
+  (WHOLE), the modules' check whole over the checkout among them, and the
+  test that reads every test's labels (LABELLED); and, for a change under a
+  tree
   READERS names (.github/, of the no-test row), the tests that read it, and
   for a change to tools/trees.json, every test that reads it; for a change
   to the structure checks' lexer, every structure test and the build's tests
@@ -65,20 +66,24 @@ WHOLE = (  # the tests that read every tracked file, by ctest's names: a change 
     "tests.structure.test_line_endings.LineEndings.test_as_git_reads",
     "tests.structure.test_imports.Python.test_tree", "tests.structure.test_floors.Floors.test_sources",
     "tests.structure.test_boundaries.Tree.*", "tests.structure.test_imports.Tree.*",
-    "tests.drive.test_loop_full_check.FullCheck.test_tree")
+    "tests.drive.test_loop_full_check.FullCheck.test_tree",
+    # They read every test module: a change that adds a test runs what would refuse it.
+    "tests.drive.test_loop_select.Choose.test_trees_readers",
+    "tests.drive.test_trees_build.TreesBuild.test_listing_reader")
 # The test that reads every test's labels: a change to any file chooses it,
 # so that a test class left without its label fails tier 1 wherever it is.
 LABELLED = ("tests.drive.test_tier_one.Reach.*",)
 READERS = {  # the tests that read a tree outside every module's tests, by ctest's names: a change under it chooses them
     ".github/": ("tests.structure.test_triggers.*", "tests.drive.test_loop_ci.*"),
     # The trees every walker, glob and filter reads, the structure rules' scopes among them: every test that reads
-    # them, directly or through the table's reader (tests.drive.test_loop_select's Readers derives them).
+    # them, by their own code or through what they import or run (tests.drive.test_loop_select's trees_readers
+    # derives them).
     "tools/trees.json": ("tests.structure.*", "tests.drive.test_trees_build.*", "tests.drive.test_nav.*",
                          "tests.drive.test_git_count.*", "tests.drive.test_loop.*", "tests.drive.test_loop_modules.*",
                          "tests.drive.test_loop_rows.*", "tests.drive.test_loop_table.*",
                          "tests.drive.test_loop_trees.*", "tests.drive.test_loop_full_check.*",
                          "tests.drive.test_loop_layers.*", "tests.drive.test_loop_select.*",
-                         "tests.drive.test_wiring.*"),
+                         "tests.drive.test_wiring.*", "tests.drive.test_differential.*"),
     # The structure checks' lexer, which the build's header units read their includes by.
     "tests/structure/lexer.py": ("tests.structure.*", "tests.drive.test_trees_build.*")}
 

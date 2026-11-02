@@ -5,8 +5,8 @@ module depending on it, transitively; a new file its module and theirs; a
 tools/ file the tooling alone; a change to a table file (the tree's
 module.json files) the tooling, the module whose file it is and each
 module whose row changed, with their dependents; a file of the no-test row
-no module; any change, the tests that read every tracked file, those
-alone of their module; a module's tests' dependencies read as its
+no module; any change, the tests that read every tracked file or every
+test module, those alone of their module; a module's tests' dependencies read as its
 library's; a file of the whole build, of the support or of no module every
 test; on the checkout's table, a file of driver's that app's tests read
 app, and a change under .github/ the tests that read it. Then the record through runs on fakes: a new tree runs every test
@@ -24,6 +24,7 @@ import fnmatch
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -80,23 +81,46 @@ FILES = {
 }
 
 
+def reached(path, root, by_name):
+    """The files the code of the Python file at path loads, starts or reads,
+    docstrings no code: by an import, or by a string naming the file, whole
+    from the root or by its name alone (a run_path's last part, a child's
+    argv); by_name, {name: [paths]}."""
+    nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
+    docs = {id(first.value) for n in nodes if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef))
+            for first in n.body[:1] if isinstance(first, ast.Expr)}
+    named = [name for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs
+             for name in re.findall(r"[\w./-]+\.py\b|trees\.json", n.value)]
+    stems = [root / a.name.replace(".", "/") for n in nodes if isinstance(n, ast.Import) for a in n.names]
+    for node in (n for n in nodes if isinstance(n, ast.ImportFrom)):
+        package = root / node.module.replace(".", "/")
+        stems += [package, *(package / a.name for a in node.names)]
+    return ({file for stem in stems for file in (stem.with_suffix(".py"), stem / "__init__.py") if file.is_file()}
+            | {file for name in named for file in by_name.get(Path(name).name, [])
+               if (root / name).is_file() <= (file == root / name)})
+
+
 def trees_readers(root):
     """{test module: its file} of each test module of the checkout at root
-    that reads tools/trees.json, as its own code says: naming it in a string,
-    or importing the table's reader, tools/loop_modules.py, by an import or
-    by its file's name."""
-    found = {}
-    for tree in SELECT["MODULES"]["TREES"]:
-        for path in sorted((root / tree).rglob("test_*.py")):
-            nodes = list(ast.walk(ast.parse(path.read_text(encoding="utf-8"))))
-            strings = [n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str)]
-            names = [n.module or "" for n in nodes if isinstance(n, ast.ImportFrom)] + [
-                a.name for n in nodes if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names]
-            if any("trees.json" in s or s.endswith("loop_modules.py") for s in strings) or any(
-                    name.rpartition(".")[2] == "loop_modules" for name in names):
-                rel = path.relative_to(root).as_posix()
-                found[rel.removesuffix(".py").replace("/", ".")] = rel
-    return found
+    that reads tools/trees.json: its own code naming the file, or reaching
+    one that does (reached), through the tools', the structure tests' or any
+    other Python file."""
+    every = [p for tree in SELECT["MODULES"]["TREES"] for p in sorted((root / tree).rglob("*.py"))]
+    by_name = {"trees.json": [root / "tools" / "trees.json"]}
+    for path in every:
+        by_name.setdefault(path.name, []).append(path)
+    tests = [p for p in every if p.name.startswith("test_")]
+    edges, waiting = {}, list(tests)
+    while waiting:
+        path = waiting.pop()
+        if path.suffix == ".py" and path not in edges:
+            edges[path] = reached(path, root, by_name)
+            waiting += edges[path]
+    readers = set(by_name["trees.json"])
+    while new := {path for path, files in edges.items() if path not in readers and readers & files}:
+        readers |= new
+    return {rel.removesuffix(".py").replace("/", "."): rel
+            for rel in (p.relative_to(root).as_posix() for p in tests if p in readers)}
 
 
 def checkout(case):
@@ -291,18 +315,36 @@ class Choose(unittest.TestCase):
 
     def test_trees_readers(self):
         """On the checkout's table, a change to tools/trees.json chooses every
-        test module that reads it, directly or through the table's reader, as
-        their own code says (trees_readers), by its name or its module's: a
-        new reader cannot be left out."""
+        test module that reads it, by its own code or through what it imports
+        or runs (trees_readers), by its name or its module's: a new reader
+        cannot be left out, and this test runs on any change."""
         table = SELECT["MODULES"]["load"]()
         why, every = SELECT["choose"](table, {m["name"]: m for m in table["modules"]}, ["tools/trees.json"])
         self.assertIsNone(every)
         readers = trees_readers(Path(__file__).resolve().parents[2])
-        self.assertIn("tests.drive.test_wiring", readers)
+        self.assertLessEqual({"tests.drive.test_wiring", "tests.drive.test_differential"}, set(readers))
         owners = SELECT["MODULES"]["owners"](table, list(readers.values()))
         left = [name for name, rel in readers.items() if owners[rel][:1] not in ([m] for m in why)
                 and not any(fnmatch.fnmatchcase(f"{name}.Case.test_case", test) for test in why)]
         self.assertEqual(left, [])
+
+    def test_readers_closure(self):
+        """The derivation on a scratch tree: a reader by its own string, by
+        an import in a function through a run_path's last part, by a child's
+        argv; none by a docstring, or in a cycle reaching no reader."""
+        root = Path(tempfile.mkdtemp(prefix="qiven3-loop-readers-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        for rel, text in {"tools/table.py": "TREES = ROOT / 'tools' / 'trees.json'\n",
+                          "tests/structure/layers.py": "TABLE = ROOT / 'tools' / 'table.py'\n",
+                          "tests/drive/test_own.py": "NAME = 'tools/trees.json'\n",
+                          "tests/drive/test_deep.py": "def f():\n    from tests.structure import layers\n",
+                          "tests/drive/test_child.py": "ARGV = ['-I', 'tools/table.py', '--help']\n",
+                          "tests/drive/test_doc.py": "'''tools/trees.json, tools/table.py'''\n",
+                          "tests/drive/test_cycle.py": "from tests.drive import test_ring\n",
+                          "tests/drive/test_ring.py": "from tests.drive import test_cycle\n"}.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(text, encoding="utf-8")
+        self.assertEqual(sorted(trees_readers(root)), [f"tests.drive.test_{n}" for n in ("child", "deep", "own")])
 
 
 class Record(unittest.TestCase):
