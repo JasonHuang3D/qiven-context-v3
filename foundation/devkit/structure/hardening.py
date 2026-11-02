@@ -12,7 +12,7 @@ from its ELF64 bytes by the standard library alone, no tool.
   through the section headers' SHT_DYNSYM and its string table.
 
 Each field's place in the file is given too (segments, entries, notes),
-which the case's controls edit in a copy. tests/structure/test_hardening.py
+which the case's controls edit in a copy. foundation/devkit/structure/tests/test_hardening.py
 holds each binary of a build to them. Run as a script it prints what a
 binary holds, one a line.
 """
@@ -22,7 +22,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from tests.structure.imports import Unreadable, cstring, unpack
+from foundation.devkit.structure.imports import Unreadable, cstring, unpack
 
 ET_DYN = 3
 PT_DYNAMIC, PT_NOTE, PT_GNU_RELRO = 2, 4, 0x6474E552

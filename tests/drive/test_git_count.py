@@ -29,7 +29,8 @@ from tools import loop_git, loop_modules
 LOOP = load_loop()
 # The door, this file's counts, which start nothing, B2's rule naming git's literals, and the shim's
 # runner, which names the shim's file by git's program and finds the real git before the shim.
-OWN = ("tools/loop_git.py", "tests/drive/test_git_count.py", "tests/structure/rules.py", "tools/loop_shim.py")
+OWN = ("tools/loop_git.py", "tests/drive/test_git_count.py", "foundation/devkit/structure/rules.py",
+       "tools/loop_shim.py")
 # git's program in any case, alone, by an absolute path, or as git.exe by any
 # path; a relative directory (".config/git") is none. A shell's command line
 # ("git status"), as messages read, is left to the shim.

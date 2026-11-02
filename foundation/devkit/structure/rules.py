@@ -18,15 +18,15 @@ import re
 from collections import namedtuple
 from pathlib import Path
 
-from tests.structure import layers, subset
-from tests.structure.lexer import lex
-from tests.structure.records import Records, command_include_dirs
+from foundation.devkit.structure import layers, subset
+from foundation.devkit.structure.lexer import lex
+from foundation.devkit.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the size, line-end, content and import tests read here too.
-from tests.structure.tree import is_text, line_count, source_files, text_attributes
+from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 VENDORED = "third_party/sqlite/sqlite3.c"
-STRUCTURE = "tests/structure/"
+STRUCTURE = "foundation/devkit/structure/"
 # The runner's directory, from the table: its headers every case includes.
 RUNNER = layers.of(ROOT).directory("runner")
 # The test kit's directory: the runner, the case main and the kit's other modules, whose headers cases include.

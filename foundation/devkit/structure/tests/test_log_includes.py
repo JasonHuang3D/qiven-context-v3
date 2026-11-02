@@ -3,7 +3,7 @@ json_bytes.hpp behind it) is included by canon, log and json's own files
 alone, and log names no scan: core reaches the format's bytes through
 canon, and log writes its lines through json::encode alone. The files read:
 the C++ files of the trees tools/trees.json names, each of a
-module of the link graph by the tree's table (tests/structure/layers.py),
+module of the link graph by the tree's table (foundation/devkit/structure/layers.py),
 neither under the top-level tests/ nor a vendor's. Each include is read
 from the lexer's tokens and taken as resolved, as the build resolves it
 (tools/loop_modules.py's resolve): a quoted name from the including file's
@@ -21,8 +21,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure.lexer import includes, lex
-from tests.structure import layers, rules
+from foundation.devkit.structure.lexer import includes, lex
+from foundation.devkit.structure import layers, rules
 
 HEADERS = ("qiven3/json.hpp", "qiven3/json_bytes.hpp")
 # The files that may include them, by the table's modules: the log's, and canon's and json's own files in

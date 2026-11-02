@@ -21,7 +21,7 @@ from pathlib import Path
 from tests.drive import binaries
 from tools.loop_modules import CXX_SUFFIXES, TREES
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 WINDOWS = sys.platform == "win32"
 FLOOR = {"NTDDI_VERSION": "0x0A000010", "_WIN32_WINNT": "0x0A00", "WINVER": "0x0A00"}
 NAMES = "|".join(FLOOR)

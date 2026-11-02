@@ -41,8 +41,8 @@ text's and then the tokens' own:
 from fnmatch import fnmatchcase
 from xml.etree import ElementTree
 
-from tests.structure import layers
-from tests.structure.lexer import lex
+from foundation.devkit.structure import layers
+from foundation.devkit.structure.lexer import lex
 
 CXX = layers.CXX
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))

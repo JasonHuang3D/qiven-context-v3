@@ -4,7 +4,7 @@ and the exemptions, which must pass (CLEAN). Standard library only.
 
 records.py runs it, as
 
-    python -I tests/structure/plants.py TREE
+    python -I foundation/devkit/structure/plants.py TREE
 
 which writes the project into TREE, after clearing TREE's parent; records.py
 then builds it and writes its records there. The tests read PLANTED and

@@ -27,7 +27,7 @@ import time
 import unittest
 
 from tests.drive import binaries
-from tests.structure.test_content import PATTERNS
+from foundation.devkit.structure.tests.test_content import PATTERNS
 
 CHILD = "qiven3-child"
 LONGEST = 10_000

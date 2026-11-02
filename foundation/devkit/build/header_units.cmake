@@ -5,7 +5,7 @@
 # CMakeLists.txt) has qiven3_header_units.
 
 # The structure checks' C++ lexer, which reads the header names a unit includes.
-get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../../../tests/structure/lexer.py" ABSOLUTE)
+get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexer.py" ABSOLUTE)
 
 # qiven3_header_unit(<root> <header> <unit> <own>): the unit in
 # tests/support/headers/ of header, from the root, and the path of the source

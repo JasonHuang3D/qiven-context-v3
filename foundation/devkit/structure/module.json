@@ -12,7 +12,9 @@
     {
       "name": "structure",
       "layer": "tooling",
-      "depends": [
+      "depends": [],
+      "test_depends": [
+        "faults",
         "store",
         "checked",
         "write",
@@ -21,11 +23,8 @@
         "driver",
         "child"
       ],
-      "test_depends": [
-        "faults"
-      ],
       "paths": [
-        "tests/structure/",
+        "foundation/devkit/structure/",
         "tests/support/headers/"
       ]
     }

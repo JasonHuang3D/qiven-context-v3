@@ -93,7 +93,8 @@ def structure_steps():
                                          "-DQIVEN3_STRUCTURE=ON"), local=(PIN,), after=None),
             Step("structure build", ("cmake", "--build", "build/ci-structure"), after="structure configure"),
             Step("structure tests", ("ctest", "--test-dir", "build/ci-structure", "--output-on-failure",
-                                     "--no-tests=error", "-R", "^tests[.]structure[.]", "-LE", "^analysis$"),
+                                     "--no-tests=error", "-R", "^foundation[.]devkit[.]structure[.]",
+                                     "-LE", "^analysis$"),
                  after="structure build")]
 
 
@@ -172,12 +173,12 @@ FAST_ONLY = Step("fast", (*FAST.ci, "-LE", "^fake$"))
 # structure build writes, which tier 1 does not build, so that they would
 # read another tree's, stale after a change. They run in windows-analysis's
 # own steps and in tier 3. On Linux the tests that read the records skip.
-FAST_REST = Step("fast", (*FAST_ONLY.ci, "-E", "^tests[.]structure[.]"))
+FAST_REST = Step("fast", (*FAST_ONLY.ci, "-E", "^foundation[.]devkit[.]structure[.]"))
 # The size rule's tests read the tree alone: no record, no build, no table.
 # Windows' tier 1 runs them by the interpreter, whatever the steps before it
 # gave, so that a file past the bound shows beside a broken table.
-SIZE = Step("size", ("python", "-I", "-m", "unittest", "discover", "-s", "tests/structure", "-t", ".",
-                     "-p", "test_size.py"), after=None)
+SIZE = Step("size", ("python", "-I", "-m", "unittest", "discover", "-s", "foundation/devkit/structure/tests",
+                     "-t", ".", "-p", "test_size.py"), after=None)
 TIER1_STEPS = {"windows-msvc": (FAST_REST, SIZE), "linux-gcc": (FAST_ONLY,)}
 # Tier 2's step a job, after the job's own: on Windows the Windows drive's
 # contract files on windows-msvc's build, their cases on the adapter over

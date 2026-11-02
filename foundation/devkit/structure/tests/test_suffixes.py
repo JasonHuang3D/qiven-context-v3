@@ -8,9 +8,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.structure import layers, records, rules
-from tests.structure.test_floors import tree_sources
-from tests.structure.test_layers import PLANT_TABLE, planted, subset_findings
+from foundation.devkit.structure import layers, records, rules
+from foundation.devkit.structure.tests.test_floors import tree_sources
+from foundation.devkit.structure.tests.test_layers import PLANT_TABLE, planted, subset_findings
 
 SNAPSHOT = runpy.run_path(str(rules.ROOT / "tools" / "nav.py"))["snapshot"]
 CODE = sorted(f"src/x{suffix}" for suffix in layers.CXX)

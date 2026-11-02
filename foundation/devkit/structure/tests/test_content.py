@@ -36,7 +36,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.structure import rules
+from foundation.devkit.structure import rules
 
 # The secret check's twelve patterns, in its table's order, each written as
 # the table writes it.

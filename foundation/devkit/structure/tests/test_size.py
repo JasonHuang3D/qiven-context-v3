@@ -12,8 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import layers
-from tests.structure.tree import line_count, source_files
+from foundation.devkit.structure import layers
+from foundation.devkit.structure.tree import line_count, source_files
 
 BOUND = 600
 PLANTS = {

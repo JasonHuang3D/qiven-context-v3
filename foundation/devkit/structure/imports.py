@@ -10,7 +10,7 @@ standard library alone, no tool; and the lists they must be on.
   PT_LOAD, each Vernaux's name in DT_STRTAB, none of glibc's past the
   floor's GLIBC_2.39, Ubuntu 24.04's.
 
-tests/structure/test_binaries.py holds every binary of a build to its
+foundation/devkit/structure/tests/test_binaries.py holds every binary of a build to its
 system's list or its preset's residual; tools/watch.py names, on a failed
 load, each import found nowhere. Run as a script it prints a binary's
 imports, one a line.

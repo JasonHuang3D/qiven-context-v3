@@ -4,7 +4,7 @@ walks, tools/loop_modules.py's.
 
 Run after every target is built, as
 
-    python -I tests/structure/records.py SOURCE BUILD CMAKE DUMPBIN
+    python -I foundation/devkit/structure/records.py SOURCE BUILD CMAKE DUMPBIN
 
 it writes BUILD/structure/: for each compile command of
 compile_commands.json, its includes as the compiler reports them
@@ -32,7 +32,7 @@ from collections import namedtuple
 from pathlib import Path
 
 # The trees every check walks, by runpy: run as a script under -I, the checkout is off sys.path.
-MODULES = runpy.run_path(str(Path(__file__).resolve().parents[2] / "tools" / "loop_modules.py"))
+MODULES = runpy.run_path(str(Path(__file__).resolve().parents[3] / "tools" / "loop_modules.py"))
 TREES, CXX = MODULES["TREES"], MODULES["CXX_SUFFIXES"]
 VENDORED = "third_party/sqlite/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure

@@ -43,16 +43,16 @@ class Chosen(unittest.TestCase):
         table = SELECT["MODULES"]["load"]()
         rows = {m["name"]: m for m in table["modules"]}
         names = {m["name"] for m in table["modules"]}
-        tests = [("tests.structure.test_layers.Subset.test_scope", ["fast", "structure"]),
-                 ("tests.structure.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
-                 ("tests.structure.test_boundaries.Plant.test_b17", ["fast", "structure"]),
+        tests = [("foundation.devkit.structure.tests.test_layers.Subset.test_scope", ["fast", "structure"]),
+                 ("foundation.devkit.structure.tests.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
+                 ("foundation.devkit.structure.tests.test_boundaries.Plant.test_b17", ["fast", "structure"]),
                  ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
                  ("tests.drive.test_trees_build.TreesBuild.test_one_reader", ["drive", "fake", "build"]),
                  ("tests.drive.test_nav.Nav.test_x", ["drive", "tooling"]),
                  ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
         why, every = SELECT["choose"](table, rows, ["tools/trees.json"])
         self.assertIsNone(every)
-        self.assertEqual(why["tests.structure.*"], "reading tools/trees.json")
+        self.assertEqual(why["foundation.devkit.structure.*"], "reading tools/trees.json")
         chosen, reasons = SELECT["picked"](tests, why, names)
         self.assertEqual(chosen, [t for t, _ in tests[:6]])
         self.assertIn("6 tests reading tools/trees.json", reasons)
@@ -66,15 +66,15 @@ class Chosen(unittest.TestCase):
         table = SELECT["MODULES"]["load"]()
         rows = {m["name"]: m for m in table["modules"]}
         names = {m["name"] for m in table["modules"]}
-        tests = [("tests.structure.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
+        tests = [("foundation.devkit.structure.tests.test_log_includes.Plant.test_k15_caught", ["fast", "structure"]),
                  ("tests.drive.test_trees_build.TreesBuild.test_header_units", ["fake", "build"]),
                  ("tests.drive.test_loop_trees.Roots.test_included", ["drive", "tooling"]),
                  ("tests.drive.test_free.Free.test_held", ["drive", "memory"])]
-        why, every = SELECT["choose"](table, rows, ["tests/structure/lexer.py"])
+        why, every = SELECT["choose"](table, rows, ["foundation/devkit/structure/lexer.py"])
         self.assertIsNone(every)
         chosen, reasons = SELECT["picked"](tests, why, names)
         self.assertEqual(chosen, [t for t, _ in tests[:2]])
-        self.assertIn("2 tests reading tests/structure/lexer.py", reasons)
+        self.assertIn("2 tests reading foundation/devkit/structure/lexer.py", reasons)
 
 
 if __name__ == "__main__":

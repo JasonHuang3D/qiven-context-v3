@@ -20,7 +20,7 @@ fault the drives run, it runs the case and names how it ended.
 - Then one line on standard error names the status by tools/status.py's
   table, "status: <value> <name>: <meaning>". On a library missing at
   load (0xC0000135, or 127) no code of the binary ran, so it names, by
-  tests/structure/imports.py's reader, each library the binary imports
+  foundation/devkit/structure/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
 - It exits with the case's status, a signal on Linux as 128 plus its
   number.
@@ -61,7 +61,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
-IMPORTS = runpy.run_path(str(ROOT / "tests" / "structure" / "imports.py"))
+IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
 WINDOWS = sys.platform == "win32"
 # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, as the entry sets.
 ERROR_MODE = 0x0001 | 0x0002 | 0x8000

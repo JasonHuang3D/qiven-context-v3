@@ -219,7 +219,7 @@
       "inherits": "here",
       "displayName": "The structure tests, on the structure build, whose records they read",
       "configurePreset": "structure",
-      "filter": {"include": {"name": "^tests[.]structure[.]"}, "exclude": {"label": "^analysis$"}},
+      "filter": {"include": {"name": "^foundation[.]devkit[.]structure[.]"}, "exclude": {"label": "^analysis$"}},
       "execution": {"noTestsAction": "error"}
     },
     {

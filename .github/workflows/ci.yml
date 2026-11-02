@@ -195,7 +195,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           cmake --preset ci-windows -B build/ci-structure -DQIVEN3_STRUCTURE=ON
           cmake --build build/ci-structure
-          ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^tests[.]structure[.]' -LE '^analysis$'
+          ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^foundation[.]devkit[.]structure[.]' -LE '^analysis$'
 
   linux:
     name: ${{ matrix.preset }}

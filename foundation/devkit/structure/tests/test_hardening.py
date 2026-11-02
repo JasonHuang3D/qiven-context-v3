@@ -1,5 +1,5 @@
 """K19: what the build's hardening leaves in each Linux binary of the build's
-binaries.txt, read by tests/structure/hardening.py from its bytes, beside
+binaries.txt, read by foundation/devkit/structure/hardening.py from its bytes, beside
 K11's imports, in the same jobs:
 - PIE: ET_DYN with DF_1_PIE;
 - relro and now: PT_GNU_RELRO, with DF_BIND_NOW or DF_1_NOW;
@@ -30,9 +30,9 @@ import sys
 import unittest
 
 from tests.drive.session import build_option
-from tests.structure import hardening
-from tests.structure.imports import Unreadable
-from tests.structure.test_binaries import listed
+from foundation.devkit.structure import hardening
+from foundation.devkit.structure.imports import Unreadable
+from foundation.devkit.structure.tests.test_binaries import listed
 
 LINUX = sys.platform.startswith("linux")
 CLANG = "Clang"

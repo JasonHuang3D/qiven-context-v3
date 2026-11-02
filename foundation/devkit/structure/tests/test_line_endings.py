@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 from tests.drive.own_git import git_env
-from tests.structure import rules
+from foundation.devkit.structure import rules
 from tools import loop_git
 
 # The plants by their bytes: (name, bytes, the finding or None).

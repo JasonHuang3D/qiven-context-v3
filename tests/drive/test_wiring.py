@@ -21,8 +21,8 @@ SHIM = binaries.ROOT / "tools" / "loop_shim.py"
 # The structure tests start no process and read no machine fact: fast, and
 # not drive; but the analysis tools' controls, which run the tools on the
 # analysis build: analysis alone. Every other Python test drives a binary.
-STRUCTURE = "tests.structure."
-ANALYSIS = "tests.structure.test_analysis."
+STRUCTURE = "foundation.devkit.structure."
+ANALYSIS = "foundation.devkit.structure.tests.test_analysis."
 SAMPLE = "tests.drive.samples."
 SELECT = "tests.drive.test_wiring.Select."
 # The Windows adapter's own file cases, on Windows alone.
@@ -49,16 +49,24 @@ def serial(name):
     target's run, and each Python test whose class sets ctest_serial."""
     if name == "runner.registry_holds_self" or name.startswith(FUZZ):
         return True
-    if not name.startswith("tests."):
+    if not name.startswith(("tests.", STRUCTURE)):
         return False
     test = next(iter(unittest.defaultTestLoader.loadTestsFromName(name)))
     return bool(getattr(test, "ctest_serial", False))
 
 
+def top_package(name):
+    """Where discover starts for a Python test: the shortest leading part of
+    its id that is a directory of the root holding an __init__.py."""
+    parts = name.split(".")
+    return next("/".join(parts[:n]) for n in range(1, len(parts))
+                if (binaries.ROOT.joinpath(*parts[:n]) / "__init__.py").is_file())
+
+
 def limit_of(name, labels, command, cases):
     """A test's limit: its own, a Python test's class's ctest_limit or a C++
     case's binary's LIMIT (`cases`, case_limits()'s), else its labels'."""
-    if name.startswith("tests."):
+    if name.startswith(("tests.", STRUCTURE)):
         own = getattr(next(iter(unittest.defaultTestLoader.loadTestsFromName(name))), "ctest_limit", None)
     else:
         own = cases.get(Path(command[0]).resolve())
@@ -179,7 +187,7 @@ class Registered(unittest.TestCase):
                         command = command[3 + len(flags):]
                     self.assertEqual(
                         command[1:],
-                        ["-I", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-k", "*" + name],
+                        ["-I", "-m", "unittest", "discover", "-s", top_package(name), "-t", ".", "-k", "*" + name],
                     )
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
                     if "loop" in labels:

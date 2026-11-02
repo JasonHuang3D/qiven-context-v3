@@ -1,6 +1,6 @@
 """K11: each binary of the build's binaries.txt imports only its system's
 libraries, Windows' API sets among Windows' own, or its preset's residual,
-read by tests/structure/imports.py
+read by foundation/devkit/structure/imports.py
 from its bytes; on Linux it names its loader, holds no run path, and needs
 no glibc symbol version past the floor's, GLIBC_2.39. The controls:
 qiven3-fault-import, which imports the test tree's own library, is caught;
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from tests.drive import binaries
 from tests.drive.session import build_option
-from tests.structure import imports
+from foundation.devkit.structure import imports
 
 WINDOWS = sys.platform == "win32"
 SYSTEM = "windows" if WINDOWS else "linux"

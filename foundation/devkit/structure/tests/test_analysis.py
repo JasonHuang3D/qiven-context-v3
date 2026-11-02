@@ -24,7 +24,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 TEMPLATE = "src/memory/arena.cpp"
 
 # Each rule's plants, each a file, and the names each tool must report:

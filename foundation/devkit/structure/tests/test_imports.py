@@ -1,8 +1,8 @@
 """B5 to B11 over every object, target and source file of the build, read
 from the structure build's records, and over the planted project, each
 plant reported; and the Python sources held to the standard library, read
-by ast: no module outside it but the test tree's own, no importlib and no
-change of sys.path."""
+by ast: no module outside it but the test tree's own and the structure
+method's, no importlib and no change of sys.path."""
 
 import ast
 import sys
@@ -10,15 +10,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import rules
-from tests.structure.test_boundaries import WINDOWS, caught, holds
+from foundation.devkit.structure import rules
+from foundation.devkit.structure.tests.test_boundaries import WINDOWS, caught, holds
 
 RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
+METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree and tools/
 
 
 def python_findings(root, files):
     """(file, what) for each import outside the standard library, the
-    test tree and tools/, each importlib and each change of sys.path."""
+    test tree, tools/ and the structure method's own package, each importlib
+    and each change of sys.path."""
     found = []
     for rel in files:
         if not rel.endswith(".py"):
@@ -33,7 +35,9 @@ def python_findings(root, files):
                 names = []
             for name in names:
                 top = name.split(".")[0]
-                if top == "importlib" or (top not in sys.stdlib_module_names and top not in ("tests", "tools")):
+                own = name == METHOD or name.startswith(METHOD + ".")
+                if top == "importlib" or (top not in sys.stdlib_module_names and top not in ("tests", "tools")
+                                          and not own):
                     found.append((rel, name))
             if isinstance(node, ast.Attribute) and node.attr == "path" and isinstance(node.value, ast.Name) \
                     and node.value.id == "sys" and not isinstance(node.ctx, ast.Load):
@@ -72,6 +76,7 @@ class Python(unittest.TestCase):
             "importer.py": "import importlib\n",
             "path_insert.py": "import sys\nsys.path.insert(0, 'x')\n",
             "path_set.py": "import sys\nsys.path = []\n",
+            "method.py": "from foundation.devkit.structure import rules\nimport foundation.devkit.structured\n",
             "clean.py": "import os\nimport sys\nfrom tests.drive import binaries\nfrom tools import loop\n"
                         "from . import x\n"
                         "s = 'import numpy'\nprint(sys.path[0], os.sep)\n",
@@ -82,6 +87,7 @@ class Python(unittest.TestCase):
                 (root / name).write_text(text, encoding="utf-8")
             found = python_findings(root, rules.source_files(root))
         self.assertEqual(sorted(found), [
-            ("dotted.py", "yaml.loader"), ("importer.py", "importlib"), ("outside.py", "numpy"),
+            ("dotted.py", "yaml.loader"), ("importer.py", "importlib"), ("method.py", "foundation.devkit.structured"),
+            ("outside.py", "numpy"),
             ("path_insert.py", "sys.path.insert"), ("path_set.py", "sys.path set"),
         ])

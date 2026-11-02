@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import exemptions, rules
+from foundation.devkit.structure import exemptions, rules
 
 ROOT = rules.ROOT
 LIST = exemptions.LIST

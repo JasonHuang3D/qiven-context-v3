@@ -187,9 +187,9 @@ class Choose(unittest.TestCase):
     def test_whole(self):
         """Any change, a notes file's or a table file's among them, chooses
         the tests that read every tracked file, those alone of their module."""
-        tests = [("tests.structure.test_content.Content.test_tree", ["fake", "structure"]),
-                 ("tests.structure.test_content.Content.test_planted", ["fake", "structure"]),
-                 ("tests.structure.test_boundaries.Tree.test_b1", ["fake", "structure"]), *listing()]
+        tests = [("foundation.devkit.structure.tests.test_content.Content.test_tree", ["fake", "structure"]),
+                 ("foundation.devkit.structure.tests.test_content.Content.test_planted", ["fake", "structure"]),
+                 ("foundation.devkit.structure.tests.test_boundaries.Tree.test_b1", ["fake", "structure"]), *listing()]
         names = {"structure", *(m["name"] for m in TABLE["modules"])}
         rows = {m["name"]: m for m in TABLE["modules"]}
         for changed, more in ((["README.md"], []), (["kits/ai/README.md"], []),
@@ -301,11 +301,12 @@ class Choose(unittest.TestCase):
         table = SELECT["MODULES"]["load"]()
         rows = {m["name"]: m for m in table["modules"]}
         names = {m["name"] for m in table["modules"]}
-        tests = [("tests.structure.test_triggers.Triggers.test_tree", ["fast", "structure"]),
-                 ("tests.structure.test_triggers.Unpinned.test_planted_workflows", ["fast", "structure"]),
+        tests = [("foundation.devkit.structure.tests.test_triggers.Triggers.test_tree", ["fast", "structure"]),
+                 ("foundation.devkit.structure.tests.test_triggers.Unpinned.test_planted_workflows",
+                  ["fast", "structure"]),
                  ("tests.drive.test_loop_ci.LoopAgainstCI.test_jobs", ["drive", "tooling"]),
-                 ("tests.structure.test_content.Content.test_tree", ["fast", "structure"]),
-                 ("tests.structure.test_content.Content.test_planted", ["fast", "structure"])]
+                 ("foundation.devkit.structure.tests.test_content.Content.test_tree", ["fast", "structure"]),
+                 ("foundation.devkit.structure.tests.test_content.Content.test_planted", ["fast", "structure"])]
         why, every = SELECT["choose"](table, rows, [".github/workflows/ci.yml"])
         self.assertIsNone(every)
         self.assertEqual(SELECT["picked"](tests, why, names),
@@ -335,9 +336,9 @@ class Choose(unittest.TestCase):
         root = Path(tempfile.mkdtemp(prefix="qiven3-loop-readers-"))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
         for rel, text in {"tools/table.py": "TREES = ROOT / 'tools' / 'trees.json'\n",
-                          "tests/structure/layers.py": "TABLE = ROOT / 'tools' / 'table.py'\n",
+                          "foundation/devkit/structure/layers.py": "TABLE = ROOT / 'tools' / 'table.py'\n",
                           "tests/drive/test_own.py": "NAME = 'tools/trees.json'\n",
-                          "tests/drive/test_deep.py": "def f():\n    from tests.structure import layers\n",
+                          "tests/drive/test_deep.py": "def f():\n    from foundation.devkit.structure import layers\n",
                           "tests/drive/test_child.py": "ARGV = ['-I', 'tools/table.py', '--help']\n",
                           "tests/drive/test_doc.py": "'''tools/trees.json, tools/table.py'''\n",
                           "tests/drive/test_cycle.py": "from tests.drive import test_ring\n",

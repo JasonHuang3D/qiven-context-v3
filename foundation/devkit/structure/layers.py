@@ -12,7 +12,7 @@ import json
 import runpy
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 # The table's reader, by runpy: run as a script under -I, the checkout is off sys.path.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 TREES = tuple(MODULES["TREES"])  # tools/trees.json's walked and layers: every tree the checks walk

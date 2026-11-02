@@ -18,7 +18,7 @@ import re
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 WORKFLOWS = ROOT / ".github" / "workflows"
 EVENTS = {"workflow_dispatch": {}}
 EVENT_GUARD = re.compile(r"github\.event\.pull_request|\.draft\b")
@@ -162,7 +162,7 @@ PINNING = re.compile(r"sha256sum\s+(-c|--check)|shasum\b.*\s-c\b|Get-FileHash|ce
 SETTING = re.compile(r"\bsysctl\b|/proc/sys/|\breg(\.exe)?\s+add\b|\b(Set|New)-ItemProperty\b|\bbcdedit\b|"
                      r"\bdefaults\s+write\b|\bpowercfg\b|\bSet-MpPreference\b|\bupdate-alternatives\b")
 CTEST_PRESETS = {"fake", "ci-analysis"}
-STRUCTURE_ONLY = "^tests[.]structure[.]"
+STRUCTURE_ONLY = "^foundation[.]devkit[.]structure[.]"
 
 
 def job_blocks(text):
@@ -419,7 +419,7 @@ class Unpinned(unittest.TestCase):
             "the debugger label": (msan, "-L '^cxx$'", "-L '^(cxx|debugger)$'"),
             "the full suite": (ci, "ctest --preset fake\n\n      - name: The analysis",
                                "ctest --preset full\n\n      - name: The analysis"),
-            "no selection": (ci, "-R '^tests[.]structure[.]' -LE '^analysis$'", "-LE '^analysis$'"),
+            "no selection": (ci, "-R '^foundation[.]devkit[.]structure[.]' -LE '^analysis$'", "-LE '^analysis$'"),
             "no versions printed": (ci, linux_tools, ""),
             "no Ninja version": (msan, "ninja --version\n", "\n"),
             "no glibc on Linux": (ci, '          echo "glibc: $(ldd --version | sed -n 1p)"\n', ""),

@@ -10,8 +10,9 @@ they start is started in one step a run, that build's fake step; there
 every Python test runs behind the counting shim (tools/loop_shim.py),
 which fails a test of no such class that starts git. Each
 line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
-test's labels are its package's, or its module's where MODULE_LABELS names
-it, below, and those its class names in ctest_labels, then the name of the
+test's labels are its package's, by its whole name where PACKAGE_LABELS
+names it so, or its module's where MODULE_LABELS names it, below, and those
+its class names in ctest_labels, then the name of the
 module of the table its file is in (the tree's module.json files, read by
 tools/loop_modules.py), by which the loop selects it
 (tools/loop_select.py); a class whose ctest_serial is true runs alone; a
@@ -35,17 +36,17 @@ from pathlib import Path
 PACKAGE_LABELS = {
     "drive": ("drive",),
     "contract": ("drive",),
-    "structure": ("fast",),
     "slow": ("slow",),
     "machine": ("machine",),
     "bench": ("bench",),
     "drill": ("drill",),
     "tests": ("drive",),  # a module's own tests/ under a layer's tree
+    "foundation.devkit.structure.tests": ("fast",),  # by its whole name: the structure method's own tests/
 }
-# A module whose labels are its own, in place of its package's: the analysis
-# tools' controls, which run on the analysis build alone.
+# A module, by its whole name, whose labels are its own, in place of its
+# package's: the analysis tools' controls, which run on the analysis build alone.
 MODULE_LABELS = {
-    "structure.test_analysis": ("analysis",),
+    "foundation.devkit.structure.tests.test_analysis": ("analysis",),
 }
 # The labels of the loop's own tests, in place of any other: the fake step
 # selects them, no other step of the loop's build.
@@ -123,8 +124,8 @@ def listed(loop, root="."):
         if kind not in PACKAGE_LABELS:
             errors.append(f"{test_id}: the package {kind} has no labels" if kind else f"{test_id}: no test code")
             continue
-        module = f"{kind}.{parts[-1]}"
-        labels = MODULE_LABELS.get(module, PACKAGE_LABELS[kind]) + tuple(getattr(test, "ctest_labels", ()))
+        own = PACKAGE_LABELS.get(name.rpartition(".")[0], PACKAGE_LABELS[kind])
+        labels = MODULE_LABELS.get(name, own) + tuple(getattr(test, "ctest_labels", ()))
         serial = 1 if getattr(test, "ctest_serial", False) else 0
         limit = getattr(test, "ctest_limit", None)
         if limit is not None and (type(limit) is not int or limit < 1):

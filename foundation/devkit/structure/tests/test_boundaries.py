@@ -9,7 +9,7 @@ the analysis tests read the rest (test_analysis.py)."""
 import sys
 import unittest
 
-from tests.structure import plants, rules
+from foundation.devkit.structure import plants, rules
 
 RULES = ("B1", "B2", "B12", "B13", "B14", "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23", "B24", "B25",
          "B26", "B27", "B28", "B29", "B30", "B31")

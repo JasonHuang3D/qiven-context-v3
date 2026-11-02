@@ -1,7 +1,7 @@
 """964: each library on a link line once. Apple's linker warns that it
 ignores a library named twice on one link line, and the macOS build's links
 make their warnings errors, so such a line fails there. The build's own
-link lines, read from its build.ninja by tests/structure/links.py, hold no
+link lines, read from its build.ninja by foundation/devkit/structure/links.py, hold no
 library twice, on every system the build runs on: no job builds macOS
 now, and Windows' and Linux's builds stand for it. Every link
 the build has is read; the five that failed on macOS must be among them.
@@ -14,7 +14,7 @@ refused; lines naming each once, flags twice among them, pass."""
 import unittest
 
 from tests.drive import binaries
-from tests.structure import links
+from foundation.devkit.structure import links
 
 # The links that failed on macOS, by their targets' names.
 FIVE = ("qiven3_unit_matcher", "qiven3_unit_store_errors", "qiven3_unit_stores", "qiven3-child",

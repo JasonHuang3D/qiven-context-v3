@@ -69,7 +69,7 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 
 # The targets that take test code's analysis, in every preset's
 # test-targets.txt, and beside it defined-targets.txt, every compiled target
-# the preset defines, a plant's aside: tests/structure/test_exemptions.py
+# the preset defines, a plant's aside: foundation/devkit/structure/tests/test_exemptions.py
 # holds the first to its list, and tells a listed target defined without
 # test code's analysis from one the preset does not define. Which preset,
 # preset.txt says, from the base preset's QIVEN3_PRESET, each preset's own

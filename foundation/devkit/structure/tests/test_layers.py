@@ -14,7 +14,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import layers, rules, subset
+from foundation.devkit.structure import layers, rules, subset
 
 TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
@@ -126,7 +126,8 @@ class Text(unittest.TestCase):
             "foundation/system/sqlite/module.json": "{\"contract\": \"sqlite3.h\"}\n",
             "foundation/devkit/build/build.cmake": said, "tests/audit/read_audit.cpp": said,
             "src/store/engine/sqlite.cpp": said, "third_party/sqlite/sqlite3.h": said, "third_party/other/x.c": said,
-            "tools/probe.py": said, "tools/status.py": said, "tests/structure/x.py": said, "README.md": said}),
+            "tools/probe.py": said, "tools/status.py": said, "foundation/devkit/structure/x.py": said,
+            "README.md": said}),
             sorted(["foundation/core/memory/sqlite_name.hpp", "foundation/devkit/build/other.cmake",
                     "kits/ai/notes.md", "products/qiven3/x.cpp", "src/x/x.cpp", "tests/unit/x_test.cpp",
                     "tests/drive/test_loop_x.py", "foundation/system/sqlite/tests/x_test.cpp",
@@ -134,7 +135,7 @@ class Text(unittest.TestCase):
 
     def test_b1_reasons(self):
         """Each of B1's text allowances a reason, and the text's what B1's include never takes;
-        each directory exempt from a rule, B1's tests/structure/ among them, a reason in the data too."""
+        each directory exempt from a rule, B1's foundation/devkit/structure/ among them, a reason in the data too."""
         text = [key for key in rules.STATED if key[0] == "B1"]
         self.assertEqual(len(text), 4)
         for key in text:

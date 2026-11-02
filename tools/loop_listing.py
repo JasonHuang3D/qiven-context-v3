@@ -50,7 +50,8 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   exempt:test_code:KEY and exempt:KEY value=V, their other fields beside
   them, spaces, # and % written as %20, %23 and %25. A COMMIT without that
   file is refused: its listing could judge no compare. COMMIT's tree must be
-  of this listing's time: a tree whose tests/structure/layers.py has no
+  of this listing's time: a tree whose structure layers.py (in
+  foundation/devkit/structure/, or tests/structure/ before its move) has no
   read, or whose table the structure refuses, is refused with the error.
 
 loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
@@ -335,15 +336,27 @@ def scopes(tree, paths):
 
 
 def child_scopes(tree, paths):
-    from tests.structure import layers  # alone first: the rest read the table as they load, refused or not
+    # The structure method's package in tree: foundation.devkit.structure, its tests under its tests/, or, in a tree
+    # before its move, tests.structure, its tests beside it. Its layers alone first: the rest read the table as they
+    # load, refused or not.
+    moved = (Path(tree) / "foundation" / "devkit" / "structure" / "layers.py").is_file()
+    if moved:
+        from foundation.devkit.structure import layers
+    else:
+        from tests.structure import layers
     root = Path(tree).resolve()
     if not Path(layers.__file__).resolve().is_relative_to(root):
         raise SystemExit(f"loop_listing: the structure rules read are not {root}'s")
     table, errors = layers.read(root)
     if errors:
         raise SystemExit("loop_listing: the structure refuses this tree's table:\n" + "\n".join(map(str, errors)))
-    from tests.structure import exemptions, rules, subset, test_log_includes
-    from tests.structure.tree import source_files
+    if moved:
+        from foundation.devkit.structure import exemptions, rules, subset
+        from foundation.devkit.structure.tests import test_log_includes
+        from foundation.devkit.structure.tree import source_files
+    else:
+        from tests.structure import exemptions, rules, subset, test_log_includes
+        from tests.structure.tree import source_files
     walker = set(source_files(root))
     found = {}
     for f in sorted(set(Path(paths).read_text(encoding="utf-8").splitlines()) | walker):

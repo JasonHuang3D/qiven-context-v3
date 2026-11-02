@@ -16,7 +16,7 @@ command line turns off is not.
 import json
 from xml.etree import ElementTree
 
-from tests.structure import subset
+from foundation.devkit.structure import subset
 
 LIST = "foundation/devkit/build/analysis-exemptions.json"
 EVERY, TEST = "every file", "test code"

@@ -15,7 +15,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import layers
+from foundation.devkit.structure import layers
 
 ROOT = Path(__file__).resolve().parents[2]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))

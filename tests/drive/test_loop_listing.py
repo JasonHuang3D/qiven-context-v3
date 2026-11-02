@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.structure import layers
+from foundation.devkit.structure import layers
 from tools import loop_listing, loop_listing_compare
 
 
@@ -567,7 +567,7 @@ class Refusing(unittest.TestCase):
             self.assertTrue(errors)
 
     def test_a_refused_table_refuses_the_listing(self):
-        root = Path(layers.__file__).resolve().parents[2]
+        root = Path(layers.__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as scratch:
             paths = Path(scratch) / "paths.txt"
             paths.write_text("a.cpp\n", encoding="utf-8")

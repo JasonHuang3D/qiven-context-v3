@@ -49,7 +49,7 @@ SHIM = ROOT / "tools" / "loop_shim.py"
 # exempts but the door, with the programs their calls may start.
 STARTS = re.compile(r"(?:subprocess|multiprocessing|pty)\.\w+|os\.(?:system|popen|exec\w*|spawn\w*|posix_spawn\w*|"
                     r"startfile|fork\w*)")
-STARTING_NO_GIT = {"tests/drive/test_git_count.py": set(), "tests/structure/rules.py": set(),
+STARTING_NO_GIT = {"tests/drive/test_git_count.py": set(), "foundation/devkit/structure/rules.py": set(),
                    "tools/loop_shim.py": {"cl", "command"}}
 # CMake's false constants, in any case, but NOTFOUND's suffix, in its case.
 FALSE = {"", "0", "N", "NO", "OFF", "FALSE", "IGNORE"}

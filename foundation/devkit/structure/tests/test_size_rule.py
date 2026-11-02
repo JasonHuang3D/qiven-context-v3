@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.structure import rules
-from tests.structure.test_size import PAST, write_plants
+from foundation.devkit.structure import rules
+from foundation.devkit.structure.tests.test_size import PAST, write_plants
 
 
 class Rule(unittest.TestCase):

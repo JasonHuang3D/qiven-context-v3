@@ -27,7 +27,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Headers, not named modules: no module dependency scan.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # The C runtime linked statically, so that a binary imports the system's
-# libraries alone (tests/structure/imports.py); libFuzzer needs the DLL.
+# libraries alone (foundation/devkit/structure/imports.py); libFuzzer needs the DLL.
 if(QIVEN_SANITIZE MATCHES "fuzzer")
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 else()
@@ -88,7 +88,7 @@ set(QIVEN_PIN_PYTHON 3.15.0)
 message(STATUS "qiven3: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "qiven3: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 # The C++ compiler's id in the cache, where K11 reads it: clang's sanitizer
-# runtimes, not gcc's, link a residual (tests/structure/imports.py).
+# runtimes, not gcc's, link a residual (foundation/devkit/structure/imports.py).
 set(QIVEN_CXX_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}" CACHE INTERNAL "the C++ compiler's CMake id")
 
 if(QIVEN_PIN_TOOLS)
@@ -278,10 +278,10 @@ endif()
 #   sdkddkver.h names NTDDI_WIN11_GE and _WIN32_WINNT_WIN10, so that a newer
 #   SDK hides what it declares past 24H2. Configure reads them under the
 #   build's flags, each set before sdkddkver.h, since its defaults may
-#   match; tests/structure/test_floors.py holds every compile command and
+#   match; foundation/devkit/structure/tests/test_floors.py holds every compile command and
 #   source to them.
 # - Linux: no binary needs a glibc symbol version past GLIBC_2.39, which K11
-#   reads (tests/structure/test_binaries.py).
+#   reads (foundation/devkit/structure/tests/test_binaries.py).
 # - macOS: the deployment target 15.0, from the macos-clang preset, and a
 #   call newer than it an error.
 if(WIN32)
@@ -443,7 +443,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 # (src/diag/CMakeLists.txt), for a binary on another runtime or memory.
 # WIDE, for a binary whose entry is wmain on Windows (the product's), takes
 # the entry's wide variant there.
-# Each library is on the link line once (tests/structure/test_links.py):
+# Each library is on the link line once (foundation/devkit/structure/tests/test_links.py):
 # CMake keeps a binary's own list in its order, puts what they link after
 # it, and names a library again when one after it links it. So LINK names
 # a target before none that links it, and qiven3_diag, last, follows each
