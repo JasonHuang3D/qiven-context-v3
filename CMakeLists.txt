@@ -71,12 +71,20 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven3_e
 # test-targets.txt, and beside it defined-targets.txt, every compiled target
 # the preset defines, a plant's aside: tests/structure/test_exemptions.py
 # holds the first to its list, and tells a listed target defined without
-# test code's analysis from one the preset does not define.
+# test code's analysis from one the preset does not define. Which preset,
+# preset.txt says, from the base preset's QIVEN3_PRESET, each preset's own
+# name: a tree's directory is the loop job's, or CI's shared one. A configure
+# with no preset records none.
 qiven3_test_targets(qiven3_test_targets)
 list(JOIN qiven3_test_targets "\n" qiven3_text)
 file(WRITE "${PROJECT_BINARY_DIR}/test-targets.txt" "${qiven3_text}\n")
 list(JOIN qiven3_defined "\n" qiven3_text)
 file(WRITE "${PROJECT_BINARY_DIR}/defined-targets.txt" "${qiven3_text}\n")
+if(DEFINED QIVEN3_PRESET)
+  file(WRITE "${PROJECT_BINARY_DIR}/preset.txt" "${QIVEN3_PRESET}\n")
+else()
+  file(REMOVE "${PROJECT_BINARY_DIR}/preset.txt")
+endif()
 
 # The analysis preset over the sources the analysis reads, by their paths
 # (qiven3_analysed): those under the analysed roots (tests/child/ holds

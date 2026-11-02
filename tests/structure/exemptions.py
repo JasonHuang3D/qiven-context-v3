@@ -87,31 +87,44 @@ def findings(root, files):
     return sorted(found)
 
 
+def recorded(build):
+    """The preset a build's tree says it was configured by (its preset.txt),
+    or None: a configure with no preset records none."""
+    path = build / "preset.txt"
+    return path.read_text(encoding="utf-8").strip() or None if path.is_file() else None
+
+
 def targets(root, build):
     """The pin both ways in a build's tree: (found, absent). Found, each
     (file, detail): a target the build gives test code's analysis (its
     test-targets.txt) that the list's test_code targets do not pin, a test
     target left out or a library's; and a pinned target the build defines
     (its defined-targets.txt) without that analysis, or does not define with
-    no entry of the list's not_defined naming the tree's preset (its
-    directory's name, as binaryDir gives it) and that target. Absent: the
-    pinned targets not defined that an entry names so, skipped.
-    An entry naming no pinned target, no configure preset or no reason, or
-    a target its preset's tree defines, is found too."""
+    no entry of the list's not_defined naming that target and the preset the
+    tree records (recorded(), never its directory's name). A tree recording
+    none has no entry, so each pinned target it does not define is found;
+    one defining them all needs none. Absent: the pinned targets not defined
+    that an entry names so, skipped.
+    An entry naming no pinned target, no preset one can configure (one
+    hidden or not there) or no reason, or a target its preset's tree
+    defines, is found too."""
     code = json.loads((root / LIST).read_text(encoding="utf-8"))["test_code"]
-    pinned, preset, listed = set(code["targets"]), build.name, code["not_defined"]
+    pinned, preset, listed = set(code["targets"]), recorded(build), code["not_defined"]
     given = set((build / "test-targets.txt").read_text(encoding="utf-8").split())
     defined = set((build / "defined-targets.txt").read_text(encoding="utf-8").split())
     found = [("test-targets.txt", f"{name}: takes test code's analysis, and the list does not pin it")
              for name in sorted(given - pinned)]
     found += [("test-targets.txt", f"{name}: pinned, and {build} defines it without test code's analysis")
               for name in sorted((pinned & defined) - given)]
-    presets = {item["name"] for item in json.loads((root / "CMakePresets.json").read_text())["configurePresets"]}
-    found += [(LIST, f"{entry}: names no pinned target, no configure preset, or no reason") for entry in listed
+    presets = {item["name"] for item in json.loads((root / "CMakePresets.json").read_text())["configurePresets"]
+               if not item.get("hidden")}
+    found += [(LIST, f"{entry}: names no pinned target, no preset one can configure, or no reason") for entry in listed
               if entry["target"] not in pinned or entry["preset"] not in presets or not entry["reason"].strip()]
-    skipped, absent = {entry["target"] for entry in listed if entry["preset"] == preset}, pinned - defined - given
+    skipped = {entry["target"] for entry in listed if preset and entry["preset"] == preset}
+    absent = pinned - defined - given
     found += [("defined-targets.txt", f"{name}: listed as not defined by {preset}, and {build} defines it")
               for name in sorted(skipped & defined)]
-    found += [("defined-targets.txt", f"{name}: pinned, and {build} (preset {preset}) does not define it, unlisted")
+    named = f"preset {preset}" if preset else "no preset recorded in its preset.txt, so no entry can name it"
+    found += [("defined-targets.txt", f"{name}: pinned, and {build} ({named}) does not define it, unlisted")
               for name in sorted(absent - skipped)]
     return found, sorted(absent & skipped)

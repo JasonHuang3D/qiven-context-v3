@@ -119,7 +119,8 @@ class TestTargets(unittest.TestCase):
     targets: a target left out of the list, a library's given the scope, or
     a pinned one the build defines without it, is refused; a pinned one a
     preset does not define (defined-targets.txt) is skipped by its name only
-    where the list's not_defined names that preset and that target."""
+    where the list's not_defined names that target and the preset the tree
+    records (preset.txt), whatever its directory is called."""
     ctest_labels = ("fake",)
 
     def test_build(self):
@@ -132,12 +133,32 @@ class TestTargets(unittest.TestCase):
             with self.subTest(target=name):
                 self.skipTest(f"{name}: pinned, and {build} does not define it")
 
-    def given(self, scratch, scoped, defined, preset="release", root=ROOT):
-        build = Path(scratch, preset)
+    def given(self, scratch, scoped, defined, preset="release", root=ROOT, directory=None):
+        """The pin over a tree whose configure recorded preset, None for
+        none, in the directory named directory, by default a neutral name."""
+        build = Path(scratch, directory or "tree")
         build.mkdir(exist_ok=True)
         (build / "test-targets.txt").write_text("\n".join(scoped) + "\n", encoding="utf-8")
         (build / "defined-targets.txt").write_text("\n".join(defined) + "\n", encoding="utf-8")
+        (build / "preset.txt").unlink(missing_ok=True)
+        if preset is not None:
+            (build / "preset.txt").write_text(preset + "\n", encoding="utf-8")
         return exemptions.targets(root, build)
+
+    def test_every_preset_records_its_name(self):
+        """The base preset alone states QIVEN3_PRESET, as the preset's own
+        name, and every preset one can configure inherits from it."""
+        presets = {item["name"]: item for item in json.loads(real("CMakePresets.json"))["configurePresets"]}
+
+        def reaches_base(name):
+            parents = presets[name].get("inherits", [])
+            parents = [parents] if isinstance(parents, str) else parents
+            return name == "base" or any(reaches_base(parent) for parent in parents)
+
+        stating = {name: item["cacheVariables"]["QIVEN3_PRESET"] for name, item in presets.items()
+                   if "QIVEN3_PRESET" in item.get("cacheVariables", {})}
+        self.assertEqual(stating, {"base": "${presetName}"})
+        self.assertEqual([name for name in presets if not reaches_base(name)], [])
 
     def test_planted(self):
         pinned = json.loads(real(LIST))["test_code"]["targets"]
@@ -151,7 +172,7 @@ class TestTargets(unittest.TestCase):
         with tempfile.TemporaryDirectory() as scratch:
             found, absent = self.given(scratch, pinned[1:], [*pinned, "qiven3_memory"])
             self.assertEqual((len(found), absent), (1, []), found)
-            self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch, 'release')} defines it without", found[0][1])
+            self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch, 'tree')} defines it without", found[0][1])
 
     def test_skipped_by_name(self):
         """nohal's qiven3_hal_fake, the list's entry, is skipped; a pinned
@@ -170,11 +191,42 @@ class TestTargets(unittest.TestCase):
                     self.assertIn(words, found[0][1])
                     self.assertIn(preset, found[0][1])
 
+    def test_directory_name_is_not_the_preset(self):
+        """A release tree in a directory named nohal is refused, and says
+        release; a nohal tree in another directory skips; a tree of CI's
+        shared directory reads as its own preset."""
+        pinned = json.loads(real(LIST))["test_code"]["targets"]
+        rest = [name for name in pinned if name != "qiven3_hal_fake"]
+        with tempfile.TemporaryDirectory() as scratch:
+            self.assertEqual(self.given(scratch, rest, rest, "nohal", directory="windows-msvc"),
+                             ([], ["qiven3_hal_fake"]))
+            for preset, directory in (("release", "nohal"), ("ci-windows", "ci")):
+                with self.subTest(preset=preset, directory=directory):
+                    found, skipped = self.given(scratch, rest, rest, preset, directory=directory)
+                    self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], []), found)
+                    self.assertIn(f"(preset {preset})", found[0][1])
+
+    def test_no_record(self):
+        """A tree with no preset.txt, or an empty one, skips nothing: each
+        pinned target it does not define is refused, naming the tree, even
+        in a directory named nohal; defining them all, it passes."""
+        pinned = json.loads(real(LIST))["test_code"]["targets"]
+        rest = [name for name in pinned if name != "qiven3_hal_fake"]
+        with tempfile.TemporaryDirectory() as scratch:
+            self.assertEqual(self.given(scratch, pinned, pinned, None), ([], []))
+            for preset in (None, ""):
+                with self.subTest(preset=preset):
+                    found, skipped = self.given(scratch, rest, rest, preset, directory="nohal")
+                    self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], []), found)
+                    self.assertIn(f"{Path(scratch, 'nohal')} (no preset recorded", found[0][1])
+
     def test_stale_entry(self):
         """An entry naming a target the list does not pin, a preset
-        CMakePresets.json does not configure, or no reason, is refused."""
+        CMakePresets.json does not configure, one hidden, or no reason, is
+        refused."""
         pinned = json.loads(real(LIST))["test_code"]["targets"]
-        for change in ({"target": "qiven3_memory"}, {"preset": "nohall"}, {"reason": " "}):
+        for change in ({"target": "qiven3_memory"}, {"preset": "nohall"}, {"preset": "ci"}, {"preset": "base"},
+                       {"reason": " "}):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as scratch:
                 data = json.loads(real(LIST))
                 data["test_code"]["not_defined"][0].update(change)
