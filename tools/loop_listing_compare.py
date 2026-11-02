@@ -32,7 +32,8 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
     tidy, tidy_from, unit_tidy, unit_tidy_from
                               tightens: the root .clang-tidy alone where another was;
                               else loosens (-, none, narrower, composed, content changed)
-    external, unit_external   loosens: a path newly external; a path gone tightens
+    external, unit_external   loosens: a path, a file taken by angle brackets or an
+                              /external:env: newly external; a path gone tightens
     digest (ruleset:PATH)     loosens: a rule set's content changed
     line of ruleset:PATH      loosens: a rule set new or gone
     line of exempt:...        loosens: an entry added, or a check's scope grown;

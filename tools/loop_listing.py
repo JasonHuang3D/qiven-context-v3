@@ -15,8 +15,15 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   by the rule sets it names (joined by |), none for a compile naming none,
   the compiles sorted and joined by ,; - for no compile. E: as R, the
   directories inside the checkout each compile takes as external
-  (/external:I, -external:I, -isystem, -imsvc), each ending in /; left out
-  where no compile takes one. C: its
+  (/external:I, -external:I, -isystem, -imsvc), each ending in /; each
+  repository file a compile with /external:anglebrackets reaches by an angle
+  include, or through a file so reached, walked from its source through
+  every include found, active or not, by the compile's own search: /I and
+  external directories in its order, a quoted include first beside its
+  includer and those above it (a file in the build tree or outside the
+  checkout stays out); and each
+  /external:env:VAR as spelled; left out where no compile takes one. A
+  header's own external read is its unit's, unit_external. C: its
   clang-tidy step's configuration, path@digest: the file the step names, or
   the nearest .clang-tidy above the source for a step naming none; for a
   file the build composes, composed@digest, P its path, and F what it was
@@ -26,10 +33,11 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   loop_listing.cmake; a COMMIT whose build names none is refused), with U's
   rule set and configuration. Then the build's
   header filters, as lines named cmake:filter and cmake:exclude; for each
-  rule set a compile names, ruleset:PATH digest=D, D covering it and each
-  rule set it includes, an include's path read as that include's digest, so
-  that a rename alone keeps D (an include is read beside the rule set, then
-  in the compile's /analyze:rulesetdirectory; one unread refuses the
+  rule set a compile or the exemptions' data names, ruleset:PATH digest=D, D
+  covering it and each rule set it includes, an include's path read as that
+  include's digest, so that a rename alone keeps D (an include is read beside
+  the rule set, then in the compile's /analyze:rulesetdirectory, or any
+  compile's for a rule set no compile names; one unread refuses the
   listing); and the commit's analysis-exemptions.json, whole, a sorted line
   for each entry: exempt:check:TOOL:CHECK:SCOPE, exempt:target:T,
   exempt:not_defined:PRESET:T, exempt:rule_set:R includes=PATHS,
@@ -43,6 +51,7 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
   tools/loop_listing_compare.py: two listings compared.
 """
 
+import functools
 import hashlib
 import io
 import json
@@ -61,6 +70,9 @@ COMPARE = runpy.run_path(str(HERE / "loop_listing_compare.py"))  # the compare, 
 NONE = COMPARE["NONE"]
 SCOPES = ("walker", "walked", "layered", "test_code", "library", "core", "subset", "k15")
 EXTERNAL = ("/external:I", "-external:I", "-isystem", "/imsvc", "-imsvc")  # a compile's external directories
+ENVIRONMENT = ("/external:env:", "-external:env:")  # each kept as spelled: what it names is the machine's
+ANGLED = re.compile(r"(?:^|\s)[/-]external:anglebrackets(?=\s|$)")  # a compile taking an angle include as external
+DIRECTIVE = re.compile(r'^[ \t]*#[ \t]*include[ \t]*(?:<([^>\n]+)>|"([^"\n]+)")', re.M)
 
 
 def digest(path):
@@ -110,23 +122,60 @@ def each_compile(commands, root, build, named):
     text: a compile's joined by |, none for a compile naming none."""
     found = {}
     for entry in json.loads(commands):
-        found.setdefault(rel_of(entry["file"], root, build), []).append("|".join(named(entry["command"])) or "none")
+        found.setdefault(rel_of(entry["file"], root, build), []).append("|".join(named(entry)) or "none")
     return {path: sorted(compiles) for path, compiles in found.items()}
 
 
 def rulesets(commands, root, build):
     """{path: [rule sets of each compile]}."""
-    return each_compile(commands, root, build, lambda command: sorted(
-        {rel_of(ruleset, root, build) for ruleset in rule_files(command)[0]}))
+    return each_compile(commands, root, build, lambda entry: sorted(
+        {rel_of(ruleset, root, build) for ruleset in rule_files(entry["command"])[0]}))
+
+
+def angle_included(source, dirs, directives, there):
+    """The files a compile of source with include directories dirs takes as
+    external by angle brackets: each it reaches by an angle include, at any
+    depth, and each such a file includes, by quotes too, as cl takes them,
+    found as cl finds them: a quoted one beside its includer, then beside those
+    above it, then in dirs; an angle one in dirs alone. A file reached either
+    way counts, whichever comes first. A source the configure has not made
+    reads as none."""
+    found, seen = set(), set()
+
+    def walk(path, stack, taken):
+        stack = (os.path.dirname(path), *stack)
+        for angle, quoted in directives(path):
+            near = () if angle else stack
+            paths = (os.path.normpath(os.path.join(d, angle or quoted)) for d in (*near, *dirs))
+            at, under = next(filter(there, paths), None), taken or bool(angle)
+            if at and under:
+                found.add(at)
+            if at and (at, under) not in seen:
+                seen.add((at, under))
+                walk(at, stack, under)
+    if there(source):
+        walk(source, (), False)
+    return found
 
 
 def externals(commands, root, build):
-    """{path: [repository directories each compile takes as external]}, each
-    ending in /: a directory outside the checkout stays out, and a file with
+    """{path: [what each compile takes as external]}: its repository
+    directories, each ending in /, the repository files it reaches by an angle
+    include under /external:anglebrackets, and its /external:env: as spelled.
+    A directory or a file outside the checkout stays out, and a file with
     none."""
-    def inside(command):
-        rels = {rel_of(where, root, build) for where in flagged(command, EXTERNAL)}
-        return sorted(coded(rel) + "/" for rel in rels if not rel.startswith(("BUILD/", "OUTSIDE/")))
+    directives = functools.cache(lambda path: DIRECTIVE.findall(Path(path).read_text("utf-8", "replace")))
+    there = functools.cache(os.path.isfile)
+
+    def inside(entry):
+        command = entry["command"]
+        paths = [rel_of(where, root, build) + "/" for where in flagged(command, EXTERNAL)]
+        if ANGLED.search(command):
+            dirs = [str(build / where) for where in flagged(command, ("/I", "-I", *EXTERNAL))]
+            paths += [rel_of(at, root, build) for at in angle_included(
+                os.path.normpath(build / entry["file"]), dirs, directives, there)]
+        spelled = [flag + name for flag in ENVIRONMENT for name in flagged(command, (flag,))]
+        return sorted({coded(p) for p in (*paths, *spelled) if not p.startswith(("BUILD/", "OUTSIDE/"))})
     return {path: compiles for path, compiles in each_compile(commands, root, build, inside).items()
             if set(compiles) != {"none"}}
 
@@ -145,13 +194,17 @@ def ruleset_digest(path, dirs):
     return hashlib.sha256(ElementTree.tostring(rules)).hexdigest()[:12]
 
 
-def ruleset_lines(commands, root, build):
-    """A sorted line for each rule set a compile names, with its digest."""
-    found = {}
+def ruleset_lines(commands, root, build, listed=()):
+    """A sorted line for each rule set a compile names, and each of listed, the
+    repository paths the exemptions' data names, with its digest."""
+    found, every = {}, {}
     for entry in json.loads(commands):
         named, dirs = rule_files(entry["command"])
+        every.update(dict.fromkeys(dirs))
         for ruleset in named:
             found.setdefault(rel_of(ruleset, root, build), ruleset_digest(build / ruleset, dirs))
+    for rel in listed:
+        found.setdefault(rel, ruleset_digest(root / rel, every))
     return [f"ruleset:{rel} digest={value}" for rel, value in sorted(found.items())]
 
 
@@ -301,7 +354,8 @@ def listing(checkout, commit, scratch):
     sets = rulesets(commands, root, build)
     steps = tidy_steps((build / "build.ninja").read_text(encoding="utf-8", errors="replace"), root, build)
     return [*lines_of(scoped["files"], analysed, units, sets, steps, filters, root, build,
-                      externals(commands, root, build)), *ruleset_lines(commands, root, build), *exempt_lines(data)]
+                      externals(commands, root, build)), *ruleset_lines(commands, root, build, data["rule_sets"]),
+            *exempt_lines(data)]
 
 
 def lines_of(scoped, analysed, units, sets, steps, filters, root, build, external=()):
