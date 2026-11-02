@@ -1,6 +1,6 @@
 // store/sqlite's fault runs of the create and of the forget
 // (sqlite_bed.hpp's course of steps), each in parts by its k
-// (support/faults/parts.hpp), each part within 30 s on every job:
+// (qiven/faults/parts.hpp), each part within 30 s on every job:
 // faults_create_part1 to _part25 and faults_forget_part1 to _part35. The
 // parts' first k, a row a stretch: the create's 100 k a stretch, the last
 // to its completing run (750 on Windows, 740 on Linux); the forget's 100 k
@@ -21,8 +21,8 @@
 #include <cstddef>
 #include <string_view>
 
+#include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/faults/parts.hpp"
 
 namespace qiven3::test {
 void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range);

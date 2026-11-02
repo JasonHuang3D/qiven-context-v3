@@ -42,10 +42,10 @@ add_library(qiven3_headers OBJECT ${qiven3_library_units})
 add_library(qiven3_test_headers OBJECT ${qiven3_test_units})
 # faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,
 # where the build does not.
-set_source_files_properties(support_faults_faults.cpp PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
+set_source_files_properties(faults_faults.cpp PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
 foreach(target IN ITEMS qiven3_headers qiven3_test_headers)
   target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/tests")
-  target_link_libraries(${target} PRIVATE qiven3_checked qiven3_store qiven3_platform_fake qiven3_fixtures qiven3_faults
+  target_link_libraries(${target} PRIVATE qiven3_checked qiven3_store qiven3_platform_fake qiven3_fixtures qiven_faults
     qiven3_log qiven3_diag qiven_runner qiven_case_main qiven_build)
 endforeach()
 list(LENGTH qiven3_library_units qiven3_count)

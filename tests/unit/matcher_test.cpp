@@ -18,8 +18,8 @@
 #include "entry/secret.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/faults/faults.hpp"
 #include "support/fixtures/patterns.hpp"
 
 namespace {

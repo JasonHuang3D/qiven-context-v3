@@ -1,5 +1,5 @@
 // store/sqlite's refused create (store_sqlite_create_test.cpp), its fault
-// runs in parts (support/faults/parts.hpp): create_refused_part1 to
+// runs in parts (qiven/faults/parts.hpp): create_refused_part1 to
 // _part127. A run costs about the same at any point of any pass: the create
 // refused there, the check that nothing is left, a second create and the
 // directory's removal, all on files. A part is its runs, six at most, so
@@ -12,8 +12,8 @@
 #include <array>
 #include <cstddef>
 
+#include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/faults/parts.hpp"
 
 namespace qiven3::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);

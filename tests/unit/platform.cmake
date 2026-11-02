@@ -6,7 +6,7 @@
 # their arena; each system and platform call failed in turn.
 qiven3_add_cases(qiven3_unit_files LABELS fast fake
   SOURCES files_test.cpp files_names_test.cpp
-  LINK qiven3_faults qiven3_platform_fake)
+  LINK qiven_faults qiven3_platform_fake)
 
 # The fake's processes held to their contract: start and run refusing a
 # relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
@@ -26,7 +26,7 @@ qiven3_add_cases(qiven3_unit_fake_process LABELS fast fake
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_files LABELS fast fake
     SOURCES win_files_test.cpp win_names_test.cpp
-    LINK qiven3_faults qiven3_platform_win)
+    LINK qiven_faults qiven3_platform_win)
 endif()
 
 # win/files' stage on the Windows adapter, on Windows alone, as win_files':
@@ -36,7 +36,7 @@ endif()
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_files_stage LABELS fast fake
     SOURCES win_files_stage_test.cpp win_files_stage_memory_test.cpp
-    LINK qiven3_faults qiven3_platform_win)
+    LINK qiven_faults qiven3_platform_win)
 endif()
 
 # win/arguments' run_utf8, wmain's body, on Windows alone: the program's
@@ -55,7 +55,7 @@ endif()
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_facts LABELS fast fake
     SOURCES win_facts_test.cpp
-    LINK qiven3_faults qiven3_platform_win)
+    LINK qiven_faults qiven3_platform_win)
 endif()
 
 # win/facts' cases on this machine's facts: facts, residual and synced read
@@ -65,5 +65,5 @@ endif()
 if(WIN32)
   qiven3_add_cases(qiven3_unit_win_facts_machine LABELS machine
     SOURCES win_facts_machine_test.cpp win_facts_faults_test.cpp
-    LINK qiven3_faults qiven3_platform_win)
+    LINK qiven_faults qiven3_platform_win)
 endif()

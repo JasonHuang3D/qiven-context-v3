@@ -39,11 +39,11 @@
 #include "checked/rules.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/stage.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/faults/faults.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/view.hpp"
 

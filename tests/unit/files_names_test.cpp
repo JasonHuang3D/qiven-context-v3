@@ -24,9 +24,9 @@
 #include "memory/arena.hpp"
 #include "platform/files.hpp"
 #include "platform/names.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/faults/faults.hpp"
 
 namespace {
 

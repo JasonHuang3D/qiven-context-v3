@@ -5,7 +5,7 @@
   "platforms": [
     "windows"
   ],
-  "contract": "tests/support/faults/faults.hpp",
+  "contract": "foundation/devkit/test/faults/include/qiven/faults/faults.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -15,11 +15,12 @@
       "depends": [
         "memory",
         "log",
-        "diag"
+        "diag",
+        "runner"
       ],
       "test_depends": [],
       "paths": [
-        "tests/support/faults/",
+        "foundation/devkit/test/faults/",
         "tests/faults/",
         "tests/drive/test_faults.py",
         "tests/drive/test_hardened.py",

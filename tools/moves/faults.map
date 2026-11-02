@@ -1,0 +1,7 @@
+# The faults kit's move: the three files of tests/support/faults/ into foundation/devkit/test/faults/ and the two
+# headers' units renamed. Its target, qiven_faults, is an interface library, no path of the listing.
+tests/support/faults/CMakeLists.txt foundation/devkit/test/faults/CMakeLists.txt
+tests/support/faults/faults.hpp foundation/devkit/test/faults/include/qiven/faults/faults.hpp
+tests/support/faults/parts.hpp foundation/devkit/test/faults/include/qiven/faults/parts.hpp
+tests/support/headers/support_faults_faults.cpp tests/support/headers/faults_faults.cpp
+tests/support/headers/support_faults_parts.cpp tests/support/headers/faults_parts.cpp

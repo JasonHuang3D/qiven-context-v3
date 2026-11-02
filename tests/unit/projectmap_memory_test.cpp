@@ -20,11 +20,11 @@
 #include "entry/projectmap_files.hpp"
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
+#include "qiven/faults/faults.hpp"
+#include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "qiven/runner/runner.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/faults/faults.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace {

@@ -1,6 +1,6 @@
 // store/sqlite's refused create, on the fake over a scratch directory of
 // the case's own. create_refused, in parts (store_sqlite_create_parts_test.cpp
-// registers them, support/faults/parts.hpp), each a few runs: four passes,
+// registers them, qiven/faults/parts.hpp), each a few runs: four passes,
 // each refusing in turn every call of one kind a create makes: the fake's
 // platform calls, the store's arena allocations, the engine calls the
 // wrapper maps (open_v2, the settings, the schema, its TRUNCATE checkpoint,
@@ -34,14 +34,14 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "qiven/faults/faults.hpp"
+#include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/faults/faults.hpp"
-#include "support/faults/parts.hpp"
 
 namespace qiven3::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
@@ -219,7 +219,7 @@ std::string_view step_of(Kind kind, const Bounds& b, std::size_t at) {
 }
 
 // One pass: each call of kind refused in turn, the runs of the part's
-// range r executing (support/faults/parts.hpp's PartRuns).
+// range r executing (qiven/faults/parts.hpp's PartRuns).
 void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven3::test::FaultRange r) {
     const Bounds b = measure(rig, kind);
     qiven3::test::PartRuns part(r);

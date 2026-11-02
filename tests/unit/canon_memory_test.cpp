@@ -13,9 +13,9 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/faults/faults.hpp"
+#include "qiven3/canon.hpp"
 
 namespace {
 

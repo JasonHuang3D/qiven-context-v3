@@ -2,7 +2,7 @@
 // steps).
 // faults_*: each step run with each of its platform calls, command and store arena allocations and engine
 // calls failed in turn, and the engine heap's allocations with an engine installed; faults_init,
-// faults_change and faults_heap_create in parts, _part1 on (support/faults/parts.hpp), each within 30 s on
+// faults_change and faults_heap_create in parts, _part1 on (qiven/faults/parts.hpp), each within 30 s on
 // every job: each run exit 1, or the step's own status where the
 // failure came after the record or was absorbed, or, for a line's write failed, 2 with that write the run's last
 // platform call; after each run every page given back, nothing but the record in the configuration directory,
@@ -24,11 +24,11 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/location.hpp"
+#include "qiven/faults/faults.hpp"
+#include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven3/location.hpp"
 #include "store/engine/sqlite.hpp"
-#include "support/faults/faults.hpp"
-#include "support/faults/parts.hpp"
 #include "support/fixtures/location_bed.hpp"
 #include "wire/wire.hpp"
 
@@ -72,7 +72,7 @@ bool unwritten_held(const Bed& b, Step s, std::size_t from) {
 }
 
 // One step, each call of kind failed in turn, the runs of the part's range
-// r executing (support/faults/parts.hpp's PartRuns).
+// r executing (qiven/faults/parts.hpp's PartRuns).
 void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::test::FaultRange r) {
     Countdown c;
     qiven3::test::PartRuns part(r);
@@ -153,7 +153,7 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven3::
 
 // The passes of the chosen steps under the kinds, kind by kind and each
 // step in turn: pass p the kind p / steps and the step p % steps; part i of
-// parts runs its range of each (support/faults/parts.hpp). Whether the part
+// parts runs its range of each (qiven/faults/parts.hpp). Whether the part
 // reaches pass after, the one past them.
 template <std::size_t N>
 bool passes(qiven::runner::Context& qiven_ctx, std::span<const Step> chosen, std::span<const Kind> kinds,

@@ -17,10 +17,10 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fake_platform/fake_platform.hpp"
-#include "support/faults/faults.hpp"
 
 namespace {
 

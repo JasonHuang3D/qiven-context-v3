@@ -8,7 +8,7 @@
 # head_mismatch; its budgets and fault runs.
 qiven3_add_cases(qiven3_unit_checked_stage LABELS fast fake
   SOURCES checked_stage_test.cpp checked_stage_memory_test.cpp
-  LINK qiven3_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
+  LINK qiven_faults qiven3_platform_fake qiven3_fixtures qiven3_checked qiven3_store)
 
 # checked/clearing's cases (a false secret hit's clearing) through the
 # ruled stores from the ruled factory, on the fake: a hit refused

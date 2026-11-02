@@ -2,7 +2,7 @@
 # fixtures, the linear read, compile's budget and fault run.
 qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
   SOURCES matcher_test.cpp
-  LINK qiven3_faults qiven3_fixtures qiven3_secret)
+  LINK qiven_faults qiven3_fixtures qiven3_secret)
 
 # secret's cases: the twelve patterns, a header hit refused with its
 # pattern and path, each table and clearing fixture in a content string,
@@ -10,4 +10,4 @@ qiven3_add_cases(qiven3_unit_matcher LABELS fast fake
 # nor on 4,000 fresh ones; its budgets and fault runs.
 qiven3_add_cases(qiven3_unit_secret LABELS fast fake
   SOURCES secret_test.cpp secret_memory_test.cpp
-  LINK qiven3_faults qiven3_fixtures qiven3_secret)
+  LINK qiven_faults qiven3_fixtures qiven3_secret)

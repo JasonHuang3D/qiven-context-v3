@@ -21,8 +21,8 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/faults/faults.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 

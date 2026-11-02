@@ -16,10 +16,10 @@
 
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
-#include "qiven3/location.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven3/location.hpp"
 #include "store/engine/sqlite.hpp"
-#include "support/faults/faults.hpp"
 #include "support/fixtures/location_bed.hpp"
 
 namespace {

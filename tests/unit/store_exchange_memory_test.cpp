@@ -3,9 +3,9 @@
 #include <iostream>
 
 #include "platform/platform.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
-#include "support/faults/faults.hpp"
 #include "support/stores/exchange_bed.hpp"
 
 using namespace qiven3::test::exchange_bed;

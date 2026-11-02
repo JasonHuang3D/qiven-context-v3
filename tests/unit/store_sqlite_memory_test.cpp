@@ -13,11 +13,11 @@
 #include "memory/arena.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "qiven/faults/faults.hpp"
+#include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
-#include "support/faults/faults.hpp"
-#include "support/faults/parts.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
 namespace qiven3::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.

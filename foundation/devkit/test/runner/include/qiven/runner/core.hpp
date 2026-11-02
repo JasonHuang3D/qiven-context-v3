@@ -81,7 +81,7 @@ private:
 
 // What a running case reports to: its failed checks, written as they fail,
 // the allocators it counts, and the process's log, for the events of its
-// cases (fault.injected, support/faults/faults.hpp).
+// cases (fault.injected, qiven/faults/faults.hpp).
 struct Context {
     std::ostream& out;
     qiven3::log::Log& log;
