@@ -24,6 +24,7 @@
         "tools/git_shim.*",
         "tools/linux*",
         "tools/loop*",
+        "tools/moves/",
         "tools/nav*",
         "tools/trees.json",
         "tools/watch.py",

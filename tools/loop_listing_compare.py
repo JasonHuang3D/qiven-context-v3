@@ -6,7 +6,12 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
   move a line, OLD NEW, from the checkout's root; a path ending in / renames
   what is under it; a target the exemptions name renames as a path does; #
   starts a comment. A line merge NEW OLD... moves each
-  OLD to NEW as one merge. The map is refused, each move named, exit 1, when
+  OLD to NEW as one merge. A move's MAP and EXPECTED are its own files,
+  named for it and kept in its commit, tools/moves/<move>.map and
+  tools/moves/<move>.expected, and read against the commit before it, so
+  BEFORE is that commit's listing: a file moved twice is two maps and two
+  compares. An OLD two lines name is refused, both lines named, exit 1. The
+  map is refused, each move named, exit 1, when
   an OLD is no path of BEFORE nor a directory above one, when two OLDs with
   paths or two paths of BEFORE move to one NEW, or when a NEW is a path of
   BEFORE, or a directory above one, that no move takes away; a NEW a merge
@@ -56,17 +61,24 @@ OF_LAYER = frozenset(("library", "core"))  # scopes the structure's layers decid
 
 
 def read_map(text):
-    """({old: new}, the NEW paths named merges) of a rename map's text."""
-    moves, merged = {}, set()
-    for line in text.splitlines():
+    """({old: new}, the NEW paths named merges) of a rename map's text; an OLD two lines name is refused."""
+    moves, merged, where = {}, set(), {}
+    for at, line in enumerate(text.splitlines(), 1):
         words = line.split("#", 1)[0].split()
         if len(words) > 2 and words[0] == "merge":
-            moves.update(dict.fromkeys(words[2:], words[1]))
-            merged.add(words[1])
+            olds, new = words[2:], words[1]
+            merged.add(new)
         elif len(words) == 2:
-            moves[words[0]] = words[1]
+            olds, new = words[:1], words[1]
         elif words:
             raise SystemExit(f"loop_listing: a map line is OLD NEW or merge NEW OLD...: {line}")
+        else:
+            continue
+        for old in olds:
+            if old in where:
+                raise SystemExit(f"loop_listing: refused: {old} is named twice: {where[old]}; line {at}: {line}")
+            where[old] = f"line {at}: {line}"
+            moves[old] = new
     return moves, merged
 
 
