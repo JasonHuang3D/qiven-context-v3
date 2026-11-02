@@ -24,6 +24,7 @@ RECORD = ROOT / TREE / "changed.json"
 VCVARS_VER = "14.44.35207"  # tools/loop_windows.py's toolset, the tree's
 # Under -I this directory is off sys.path: the map, git's door and the statuses by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
+DOOR = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's door, by its file: no literal names git
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
@@ -97,10 +98,10 @@ def build(env, cmake):
 def files(table):
     """({module: {file: SHA-256}} of git's files but the documents, by each file's first module;
     [the files in no module])."""
-    git = MODULES["GIT"]["which"]()
+    git = DOOR["which"]()
     if not git:
         raise CannotRun("git is missing")
-    done = MODULES["GIT"]["run"](git, ["ls-files", "-z", "-co", "--exclude-standard"], cwd=ROOT)
+    done = DOOR["run"](git, ["ls-files", "-z", "-co", "--exclude-standard"], cwd=ROOT)
     if done.returncode != 0:
         raise CannotRun(f"git ls-files failed: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}")
     paths = sorted({p for p in done.stdout.decode("utf-8").split("\0") if p and not p.endswith(".md")})
@@ -183,6 +184,9 @@ def answer(lines):
                              if now.get(m, {}).get(p) != record.get(m, {}).get(p)) for m in sorted(set(now) | set(record))}
         changed = {m: paths for m, paths in changed.items() if paths}
         lines.append("changed: " + (", ".join(f"{m} ({len(p)} files)" for m, p in changed.items()) or "none"))
+        bare = [m for m in changed if not any(m in labels for labels in tests.values())]
+        if bare:  # ruling 71.2 item 2: its cases lie in another module's row, or it has none
+            lines.append(f"no test under its label, none run: {', '.join(bare)}")
         chosen, results, code = select(tests, changed), {}, 0
         if chosen:
             status, results, seconds = run_tests(env, ctest, chosen)
