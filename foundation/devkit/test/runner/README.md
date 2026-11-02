@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-- **Awaiting a split:** its second row, `support`, holds files that are not the runner's and leave it: `tests/support/scan/` for `scan` beside it; the test tree's composition (`tests/CMakeLists.txt`, `tests/unit/CMakeLists.txt`), the Python tests' packages (`tests/__init__.py`, `tests/drive/__init__.py`), the drives' session (`tests/drive/binaries.py`, `tests/drive/session.py`) and `tools/status.py`, each for a place not yet named. `tests/drive/test_runner.py`, the runner's test through a process, is the runner's and still lies under `tests/drive/`, to move into `tests/` here.
+- **Awaiting a split:** its second row, `support`, holds files that are not the runner's and leave it: the test tree's composition (`tests/CMakeLists.txt`, `tests/unit/CMakeLists.txt`), the Python tests' packages (`tests/__init__.py`, `tests/drive/__init__.py`), the drives' session (`tests/drive/binaries.py`, `tests/drive/session.py`) and `tools/status.py`, each for a place not yet named. `tests/drive/test_runner.py`, the runner's test through a process, is the runner's and still lies under `tests/drive/`, to move into `tests/` here.
 - **Holds:** the target `qiven_runner`: the cases' registration (`QIVEN_CASE`, `QIVEN_SERIAL_CASE`), the checks (`CHECK`, `CHECK_EQ`, `REQUIRE`, `QIVEN_SKIP`), the allocators a case takes and counts after it, the namers of an error a case lets out, and the run of a binary's cases (`qiven::runner`); the listing of every test for CTest (`ctest_tests.cmake`, `list_tests.py`); its own cases (`tests/`)
 - **Never holds:** a binary's main, which holds the process's log (the case main, `case_main`); a fault run (`faults`); a module's own tests
 - **Contract:** `foundation/devkit/test/runner/include/qiven/runner/runner.hpp`

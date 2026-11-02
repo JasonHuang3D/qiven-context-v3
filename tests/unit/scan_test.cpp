@@ -1,4 +1,4 @@
-// support/scan's smoke cases: the patterns' bytes, UTF-16LE's pairs and
+// scan's smoke cases: the patterns' bytes, UTF-16LE's pairs and
 // windows among them; a scan over a directory with a subdirectory finding
 // a marker in UTF-8 and in UTF-16LE and a key's hex, each file listed with
 // its size; and a SQLite store's directory scanned while open and after
@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "support/scan/scan.hpp"
+#include "qiven/scan/scan.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/stores.hpp"
 

@@ -1,0 +1,6 @@
+# The scan's move: the three files of tests/support/scan/ into foundation/devkit/test/scan/, and the target
+# renamed.
+tests/support/scan/CMakeLists.txt foundation/devkit/test/scan/CMakeLists.txt
+tests/support/scan/scan.hpp foundation/devkit/test/scan/include/qiven/scan/scan.hpp
+tests/support/scan/scan.cpp foundation/devkit/test/scan/src/scan.cpp
+qiven3_scan qiven_scan

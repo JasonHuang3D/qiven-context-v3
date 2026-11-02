@@ -5,11 +5,18 @@
   "platforms": [
     "windows"
   ],
-  "contract": "tests/support/scan/scan.hpp",
+  "contract": "foundation/devkit/test/scan/include/qiven/scan/scan.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
-  "present": [],
-  "from": [
-    "support"
+  "present": [
+    {
+      "name": "scan",
+      "layer": "support",
+      "depends": [],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/test/scan/"
+      ]
+    }
   ]
 }
