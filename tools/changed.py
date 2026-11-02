@@ -1,5 +1,4 @@
-"""The test runner (qiven-docs proposal/context-v3/TEST-SELECTION.md, ruling
-70.2): build build/ci-windows first, then run the tests of each module whose
+"""The test runner: build build/ci-windows first, then run the tests of each module whose
 files changed since its tests last ran, by the record
 build/ci-windows/changed.json; one answer of plain lines.
 
@@ -185,7 +184,7 @@ def answer(lines):
         changed = {m: paths for m, paths in changed.items() if paths}
         lines.append("changed: " + (", ".join(f"{m} ({len(p)} files)" for m, p in changed.items()) or "none"))
         bare = [m for m in changed if not any(m in labels for labels in tests.values())]
-        if bare:  # ruling 71.2 item 2: its cases lie in another module's row, or it has none
+        if bare:  # its cases lie in another module's row, or it has none: named, never silent
             lines.append(f"no test under its label, none run: {', '.join(bare)}")
         chosen, results, code = select(tests, changed), {}, 0
         if chosen:
