@@ -7,9 +7,9 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   by the caller's cmake and compiler, then OUT: a line for each file walked,
   analysed or given a rule set or a clang-tidy step, sources generated in the
   build tree as BUILD/<path>:
-    PATH module=M layer=L scopes=S ruleset=R [external=E] tidy=C tidy_from=F
-      [tidy_file=P] [unit=U unit_ruleset=R [unit_external=E] unit_tidy=C
-      unit_tidy_from=F]
+    PATH module=M layer=L scopes=S ruleset=R [external=E] [options=O] tidy=C
+      tidy_from=F [tidy_file=P] [unit=U unit_ruleset=R [unit_external=E]
+      [unit_options=O] unit_tidy=C unit_tidy_from=F]
   S: each scope of the commit's own rules taking it (walker, walked, layered,
   test_code, library, core, subset, k15, analysed). R: each compile of it,
   by the rule sets it names (joined by |), none for a compile naming none,
@@ -23,7 +23,13 @@ loop_listing.py list CHECKOUT COMMIT SCRATCH OUT
   includer and those above it (a file in the build tree or outside the
   checkout stays out); and each
   /external:env:VAR as spelled; left out where no compile takes one. A
-  header's own external read is its unit's, unit_external. C: its
+  header's own external read is its unit's, unit_external. O: as R, each
+  compile's warning and analysis options as it spells them, / or -, in its
+  order: /w, /W0 to /W4, /Wall, /WX, /WX-, /wd, /we, /wo, /w1 to /w4 with a
+  number, /Wv, /external:W and /analyze in every form, a rule set's or a
+  rule-set directory's path from the checkout's root as R's, written as one
+  word as an exemption's field is; none for a compile with none; left out
+  for a file no compile takes. C: its
   clang-tidy step's configuration, path@digest: the file the step names, or
   the nearest .clang-tidy above the source for a step naming none; for a
   file the build composes, composed@digest, P its path, and F what it was
@@ -68,6 +74,8 @@ HERE = Path(__file__).resolve().parent
 GIT = runpy.run_path(str(HERE / "loop_git.py"))  # git's one door, by runpy: under -I this directory is off sys.path
 COMPARE = runpy.run_path(str(HERE / "loop_listing_compare.py"))  # the compare, by runpy too
 NONE = COMPARE["NONE"]
+PATHED = COMPARE["PATHED"]  # options naming a path, written from the checkout's root
+OPTION = re.compile(r"[/-](?:w|W[0-4]|Wall|WX-?|w[deo]\d+|w[1-4]\d+|Wv(?::\S*)?|external:W\S*|analyze(?:[:-]\S*)?)")
 SCOPES = ("walker", "walked", "layered", "test_code", "library", "core", "subset", "k15")
 EXTERNAL = ("/external:I", "-external:I", "-isystem", "/imsvc", "-imsvc")  # a compile's external directories
 ENVIRONMENT = ("/external:env:", "-external:env:")  # each kept as spelled: what it names is the machine's
@@ -99,15 +107,33 @@ def rel_of(text, root, build):
     return "OUTSIDE/" + path.as_posix()
 
 
+def words(command):
+    """A compile's command, word by word, its quotes taken off."""
+    return [word.replace('"', "") for word in re.findall(r'(?:\\"|[^\s"]|"[^"]*")+', command)]
+
+
 def flagged(command, flags):
     """What follows each of flags in a compile's command: the rest of its word, or the next word."""
-    found, each = [], iter(re.findall(r'(?:\\"|[^\s"]|"[^"]*")+', command))
+    found, each = [], iter(words(command))
     for word in each:
-        word = word.replace('"', "")
         flag = next((f for f in flags if word.startswith(f)), None)
         if flag:
-            found.append(word[len(flag):] or next(each, "").replace('"', ""))
+            found.append(word[len(flag):] or next(each, ""))
     return found
+
+
+def options(commands, root, build):
+    """{path: [each compile's warning and analysis options]}: each as the
+    compile spells it, in its order, joined by |, a rule set's or a rule-set
+    directory's path from root."""
+    def spelled(entry):
+        found, each = [], iter(words(entry["command"]))
+        for word in each:
+            if OPTION.fullmatch(word):
+                head = next((p for p in PATHED if word.startswith(p)), None)
+                found.append(coded(head + rel_of(word[len(head):] or next(each, ""), root, build) if head else word))
+        return found
+    return each_compile(commands, root, build, spelled)
 
 
 def rule_files(command):
@@ -354,11 +380,11 @@ def listing(checkout, commit, scratch):
     sets = rulesets(commands, root, build)
     steps = tidy_steps((build / "build.ninja").read_text(encoding="utf-8", errors="replace"), root, build)
     return [*lines_of(scoped["files"], analysed, units, sets, steps, filters, root, build,
-                      externals(commands, root, build)), *ruleset_lines(commands, root, build, data["rule_sets"]),
-            *exempt_lines(data)]
+                      externals(commands, root, build), options(commands, root, build)),
+            *ruleset_lines(commands, root, build, data["rule_sets"]), *exempt_lines(data)]
 
 
-def lines_of(scoped, analysed, units, sets, steps, filters, root, build, external=()):
+def lines_of(scoped, analysed, units, sets, steps, filters, root, build, external=(), spelled=()):
     """The file and filter lines from what was read; analysed maps a path to the
     build's answer (TRUE or FALSE first), filters are the build's, the
     checkout's root in them as ROOT."""
@@ -366,6 +392,8 @@ def lines_of(scoped, analysed, units, sets, steps, filters, root, build, externa
         fields = {"ruleset": ",".join(sets[f]) if f in sets else NONE}
         if f in external:
             fields["external"] = ",".join(external[f])
+        if f in spelled:
+            fields["options"] = ",".join(spelled[f])
         config, rests, at = steps.get(f, (NONE, [], None))
         fields["tidy"] = f"composed@{digest(build / at[len('BUILD/'):])}" if at else with_digest(config, root, build)
         fields["tidy_from"] = ",".join(with_digest(r, root, build) for r in rests) or NONE

@@ -42,6 +42,10 @@ loop_listing.py compare BEFORE AFTER [MAP [EXPECTED]]
                               else loosens (-, none, narrower, composed, content changed)
     external, unit_external   loosens: a path, a file taken by angle brackets or an
                               /external:env: newly external; a path gone tightens
+    options, unit_options     loosens: any change, told as each option dropped, each
+                              added that weakens (/w, /W0 to /W3, /WX-, /wd, /wo,
+                              /w1 to /w4, /Wv, /external:W0 to W3, /analyze-, an
+                              /analyze:...-), each other added, or its order
     digest (ruleset:PATH)     loosens: a rule set's content changed
     line of ruleset:PATH      loosens: a rule set new or gone
     line of exempt:...        loosens: an entry added, or a check's scope grown;
@@ -58,6 +62,8 @@ from pathlib import Path
 NONE = "-"
 SECTION = re.compile(r"ruleset:|exempt:(?:[^:]+:)*")  # a line's key before its path or target
 OF_LAYER = frozenset(("library", "core"))  # scopes the structure's layers decide; a listing carries no such data
+PATHED = ("/analyze:rulesetdirectory", "-analyze:rulesetdirectory", "/analyze:ruleset", "-analyze:ruleset")
+WEAKER = re.compile(r"[/-](?:w|W[0-3]|WX-|w[o1-4]\d+|wd\d+|Wv(?::\S*)?|external:W[0-3]|analyze-|analyze:\S*-)")
 
 
 def read_map(text):
@@ -125,9 +131,13 @@ def refusals(paths, moves, merged):
 
 def parse(lines, moves):
     """{path: [(path before, {field: value})]}, paths and path values renamed by moves."""
+    def one(part):
+        head = next((p for p in PATHED if part.startswith(p)), "")  # an option naming a path: the path renamed
+        rest = part[len(head):]
+        return head + "@".join([renamed(rest.split("@")[0], moves), *rest.split("@")[1:]])
+
     def value(text):
-        return "".join(part if part in ",|" else "@".join([renamed(part.split("@")[0], moves), *part.split("@")[1:]])
-                       for part in re.split(r"([,|])", text))
+        return "".join(part if part in ",|" else one(part) for part in re.split(r"([,|])", text))
     found = {}
     for line in lines:
         path, *fields = line.split()
@@ -225,6 +235,8 @@ def loosens(field, then, now, library, narrow, follows=()):
     if key == "external":
         new = Counter(each(now)) - Counter(each(then))
         return ", ".join(f"{p} is newly external" for p in sorted(new) if p != "none") or None
+    if key == "options":
+        return options_changed(then, now)
     if key not in ("ruleset", "tidy", "tidy_from"):
         return f"{field} is no field a move may change"
     to, fewer = each(now), now == NONE or then != NONE and now.count(",") < then.count(",")
@@ -237,6 +249,19 @@ def loosens(field, then, now, library, narrow, follows=()):
     if to == each(then):
         return "its configuration's content changes"
     return next((f"enters {narrow[p]}" for p in to if p in narrow), f"is {now}, not the library's alone")
+
+
+def options_changed(then, now):
+    """Why a change of a file's compile options is refused, always: each
+    option dropped, each added that weakens a check, each other added, or
+    the options moved between its compiles or within one."""
+    def each(value):
+        return Counter(part for part in re.split(r"[,|]", value) if part not in (NONE, "none"))
+    gained = sorted(each(now) - each(then))
+    parts = (("drops", sorted(each(then) - each(now))), ("weakens by", [o for o in gained if WEAKER.fullmatch(o)]),
+             ("adds", [o for o in gained if not WEAKER.fullmatch(o)]))
+    return "; ".join(f"{how} {', '.join(found)}" for how, found in parts if found) or \
+        "its options change order or compile"
 
 
 def differences(old, new):
