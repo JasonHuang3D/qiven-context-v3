@@ -133,7 +133,7 @@ class TestTargets(unittest.TestCase):
             with self.subTest(target=name):
                 self.skipTest(f"{name}: pinned, and {build} does not define it")
 
-    def given(self, scratch, scoped, defined, preset="release", root=ROOT, directory=None):
+    def given(self, scratch, scoped, defined, preset="analysis", root=ROOT, directory=None):
         """The pin over a tree whose configure recorded preset, None for
         none, in the directory named directory, by default a neutral name."""
         build = Path(scratch, directory or "tree")
@@ -175,16 +175,19 @@ class TestTargets(unittest.TestCase):
             self.assertIn(f"{pinned[0]}: pinned, and {Path(scratch, 'tree')} defines it without", found[0][1])
 
     def test_skipped_by_name(self):
-        """nohal's qiven3_hal_fake, the list's entry, is skipped; a pinned
-        target another preset or nohal itself leaves undefined is refused,
-        naming it and the preset, and so is a listed one nohal defines."""
+        """nohal's qiven3_hal_fake, the list's entry, is skipped, with the
+        header units' target no such preset defines; a pinned target another
+        preset or nohal itself leaves undefined is refused, naming it and
+        the preset, and so is a listed one nohal defines."""
         pinned = json.loads(real(LIST))["test_code"]["targets"]
-        rest = [name for name in pinned if name != "qiven3_hal_fake"]
+        units = "qiven3_test_headers"
+        rest = [name for name in pinned if name not in ("qiven3_hal_fake", units)]
         with tempfile.TemporaryDirectory() as scratch:
-            self.assertEqual(self.given(scratch, rest, rest, "nohal"), ([], ["qiven3_hal_fake"]))
-            for preset, kept, absent, words in (("release", rest, [], "qiven3_hal_fake: pinned"),
-                                                ("nohal", rest[1:], ["qiven3_hal_fake"], f"{rest[0]}: pinned"),
-                                                ("nohal", pinned, [], "qiven3_hal_fake: listed as not defined")):
+            self.assertEqual(self.given(scratch, rest, rest, "nohal"), ([], ["qiven3_hal_fake", units]))
+            for preset, kept, absent, words in (("release", rest, [units], "qiven3_hal_fake: pinned"),
+                                                ("nohal", rest[1:], ["qiven3_hal_fake", units], f"{rest[0]}: pinned"),
+                                                ("nohal", [*rest, "qiven3_hal_fake"], [units],
+                                                 "qiven3_hal_fake: listed as not defined")):
                 with self.subTest(preset=preset, words=words):
                     found, skipped = self.given(scratch, kept, kept, preset)
                     self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], absent), found)
@@ -196,14 +199,15 @@ class TestTargets(unittest.TestCase):
         release; a nohal tree in another directory skips; a tree of CI's
         shared directory reads as its own preset."""
         pinned = json.loads(real(LIST))["test_code"]["targets"]
-        rest = [name for name in pinned if name != "qiven3_hal_fake"]
+        units = "qiven3_test_headers"
+        rest = [name for name in pinned if name not in ("qiven3_hal_fake", units)]
         with tempfile.TemporaryDirectory() as scratch:
             self.assertEqual(self.given(scratch, rest, rest, "nohal", directory="windows-msvc"),
-                             ([], ["qiven3_hal_fake"]))
+                             ([], ["qiven3_hal_fake", units]))
             for preset, directory in (("release", "nohal"), ("ci-windows", "ci")):
                 with self.subTest(preset=preset, directory=directory):
                     found, skipped = self.given(scratch, rest, rest, preset, directory=directory)
-                    self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], []), found)
+                    self.assertEqual(([rel for rel, _ in found], skipped), (["defined-targets.txt"], [units]), found)
                     self.assertIn(f"(preset {preset})", found[0][1])
 
     def test_no_record(self):

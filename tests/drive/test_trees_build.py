@@ -534,7 +534,10 @@ class TreesBuild(unittest.TestCase):
         derives for the source's own directory (tidy_config.cmake's own
         answer), one file for each directory and each directory one file;
         no step names the test configuration itself, and no other step a
-        composed one. The list comes from the compile statements, not the steps."""
+        composed one. The list comes from the compile statements, not the steps.
+        Each header's unit compiles in the target its header gives it by the
+        one reader of test code; qiven3_test_headers is test code's, and
+        qiven3_headers not."""
         tool, tidy = cmake(), clang_tidy()
         if tool is None or tidy is None or shutil.which("cl") is None:
             self.skipTest("no cmake, clang-tidy or cl: the analysis preset configures under vcvars")
@@ -559,6 +562,13 @@ class TreesBuild(unittest.TestCase):
             for source, config in tests.items():
                 base = key(build) if source.startswith(key(build) + os.sep) else key(str(ROOT))
                 homes.setdefault(config, set()).add(os.path.relpath(os.path.dirname(source), base))
+        through = shown("", script=ROOT / "tools" / "loop_listing.cmake",
+                        defines=(f"Python3_EXECUTABLE={Path(sys.executable).as_posix()}",))
+        wanted = {Path(unit).name: "qiven3_test_headers" if LOOP["test_path"](header, HOMES) else "qiven3_headers"
+                  for header, unit in through.items() if unit.startswith("tests/support/headers/")}
+        self.assertEqual({Path(source).name: target for target, source in compiled
+                          if target in ("qiven3_headers", "qiven3_test_headers")}, wanted)
+        self.assertEqual(targets & {"qiven3_headers", "qiven3_test_headers"}, {"qiven3_test_headers"})
         steps = {}
         for line in ninja.splitlines():
             if "clang-tidy" in line and "--quiet" in line:

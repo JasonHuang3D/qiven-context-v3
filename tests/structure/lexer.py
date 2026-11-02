@@ -124,7 +124,7 @@ def includes(tokens):
 
 if __name__ == "__main__":
     # Each file named, one line an include: its path as given, a tab, the name
-    # after its " or <; trees.cmake's header units read it.
+    # after its " or <; the build's header units (header_units.cmake) read it.
     import sys
     for path in sys.argv[1:]:
         with open(path, encoding="utf-8") as source:
