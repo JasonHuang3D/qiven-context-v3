@@ -30,18 +30,18 @@
 #include "entry/body.hpp"
 #include "entry/header.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "support/checked/stores.hpp"
 #include "support/fixtures/stage_book.hpp"
 
 namespace {
 
 using namespace qiven::test::stage_book;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
 using qiven::memory::Vector;
 using qiven::test::ruled::Memory;
 using SQLite = qiven::test::ruled::Sqlite<>;
@@ -55,7 +55,7 @@ constexpr std::string_view reviewer_lane = "reviewer";
 template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
-    return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+    return r ? std::string(qiven::recordlog::name(r->kind)) + " " + r->code : std::string("none");
 }
 
 // The corrupt code a call raised, or "none".
@@ -63,8 +63,8 @@ template <class F>
 std::string corrupt_code(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        return e.corrupt() ? std::string(qiven3::store::name(*e.corrupt())) : std::string("not corrupt");
+    } catch (const qiven::recordlog::StoreError& e) {
+        return e.corrupt() ? std::string(qiven::recordlog::name(*e.corrupt())) : std::string("not corrupt");
     }
     return "none";
 }
@@ -154,7 +154,7 @@ std::size_t cleared_peak(qiven::runner::Context& qiven_ctx, qiven::test::ruled::
     const std::vector<EntryView> lines = views(records);
     CHECK_EQ(appending(store, reviewer_lane, lines), std::string("none"));
     CHECK_EQ(appending(store, implementer_lane, hit_lines), std::string("none"));
-    CHECK(store.peak() <= *qiven3::store::operation_budget(*qiven3::store::given(hit_lines)));
+    CHECK(store.peak() <= *qiven::recordlog::operation_budget(*qiven::recordlog::given(hit_lines)));
     return store.peak();
 }
 
@@ -173,7 +173,7 @@ QIVEN_CASE(checked_clearing, parsed_view) {
     const auto site = qiven::test::ruled::site();
     const Stored a = site->book().stored("A");
     Bytes bytes{a.line, *a.record};
-    qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven3::store::Operation::append, "here"});
+    qiven3::checked::reads::ParsedView<Bytes> view(bytes, {qiven::recordlog::Operation::append, "here"});
     std::vector<std::byte> pages(1U << 20U);
     qiven::memory::Arena arena(pages);
     qiven3::checked::Header h{Chars(arena)};
@@ -211,7 +211,7 @@ QIVEN_CASE(checked_clearing, sqlite_short_record) {
     qiven::memory::String record{Chars(arena)};
     const std::string id = id_of(direction[0]);
     const std::string denied = "incoherent";
-    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
     for (const int n : {163, 100, 10, 0}) {
         store->connection().exec(
             "UPDATE body SET record = substr(record, 1, " + std::to_string(n) + ") WHERE id = '" + id + "'", at);
@@ -239,7 +239,7 @@ QIVEN_CASE(checked_clearing, sqlite_bad_content) {
     const std::vector<Stored> m2 = {book.stored("M2")};
     CHECK_EQ(appending(*store, implementer_lane, views(a)), std::string("none"));
     CHECK_EQ(appending(*store, reviewer_lane, views(theirs)), std::string("none"));
-    const qiven3::store::Counts held = store->verify();
+    const qiven::recordlog::Counts held = store->verify();
     (void)store->close();
     store = std::make_unique<SQLite::Store>(factory.reopen());
     const auto copy = std::make_unique<SQLite::Store>(fresh.make());
@@ -251,7 +251,7 @@ QIVEN_CASE(checked_clearing, sqlite_bad_content) {
     CHECK(store->verify() == held && copy->verify() == held);
     (void)copy->close();
     CHECK(std::make_unique<SQLite::Store>(fresh.reopen())->verify() == held);
-    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
     const std::string m1 = id_of(theirs[1]);
     store->connection().exec(
         "UPDATE body SET record = CAST(substr(record, 1, 11) || 'x' || substr(record, 13) AS BLOB) WHERE id = '" + m1 +
@@ -272,7 +272,7 @@ QIVEN_CASE(checked_clearing, memory) {
     const std::vector<Stored> hit = {book.made("A", "A", *book.with_secret("A", std::nullopt).content,
                                                [](header::FieldsView& f) { f.at = "2026-10-17T12:00:00.000Z"; })};
     const std::vector<EntryView> hit_lines = views(hit);
-    const auto admit = [&hit_lines](Store& s, qiven3::store::Expected expected) {
+    const auto admit = [&hit_lines](Store& s, qiven::recordlog::Expected expected) {
         return raised([&] { (void)s.append(qiven_scope, implementer_lane, expected, hit_lines); });
     };
     const std::string content = content_of(hit[0]);
@@ -359,9 +359,9 @@ QIVEN_CASE(checked_clearing, memory_many) {
     const std::size_t four = peak_with(4);
     const std::size_t sixteen = peak_with(16);
     std::cout << "checked_clearing.memory_many: append " << four << " bytes counted with 4 records, " << sixteen
-              << " with 16, of " << qiven3::store::state::budget_of(hit_lines) << '\n';
+              << " with 16, of " << qiven::recordlog::state::budget_of(hit_lines) << '\n';
     CHECK_EQ(four, sixteen);
-    CHECK(sixteen <= qiven3::store::state::budget_of(hit_lines));
+    CHECK(sixteen <= qiven::recordlog::state::budget_of(hit_lines));
 }
 
 QIVEN_CASE(checked_clearing, sqlite_many) {
@@ -383,7 +383,7 @@ void references_case(qiven::runner::Context& qiven_ctx, F& f, std::string_view n
     const stage_book::Book& book = f.site().book();
     const std::vector<stage_book::Stored> a = {book.stored("A")};
     const std::vector<stage_book::Stored> map = {book.with_references(24, stage_book::id_of(a[0]))};
-    const std::vector<qiven3::store::EntryView> lines = stage_book::views(map);
+    const std::vector<qiven::recordlog::EntryView> lines = stage_book::views(map);
     const auto store = std::make_unique<typename F::Store>(f.make());
     (void)store->append(qiven_scope, implementer_lane, std::nullopt, stage_book::views(a));
     std::string refused = "none";
@@ -395,12 +395,12 @@ void references_case(qiven::runner::Context& qiven_ctx, F& f, std::string_view n
     } catch (const qiven::memory::MemoryError&) {
         refused = "MemoryError";
     }
-    const std::size_t budget = *qiven3::store::operation_budget(*qiven3::store::given(lines));
+    const std::size_t budget = *qiven::recordlog::operation_budget(*qiven::recordlog::given(lines));
     std::cout << name << ": content " << map[0].content->size() << " bytes, refused " << refused << ", peak "
               << store->peak() << " of " << budget << "\n";
     CHECK_EQ(refused, std::string("none"));
     CHECK(store->peak() <= budget);
-    CHECK_EQ(store->head(qiven_scope, "reviewer").value_or(qiven3::store::Head{}).seq, 1);
+    CHECK_EQ(store->head(qiven_scope, "reviewer").value_or(qiven::recordlog::Head{}).seq, 1);
     (void)store->close();
 }
 

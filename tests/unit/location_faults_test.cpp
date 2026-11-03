@@ -28,7 +28,7 @@
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/location.hpp"
-#include "store/engine/sqlite.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
 #include "support/fixtures/location_bed.hpp"
 #include "wire/wire.hpp"
 
@@ -197,7 +197,7 @@ void store_dir_faults(qiven::runner::Context& qiven_ctx, Bed& b) {
                 qiven::memory::String out{qiven::memory::Allocator<char>(arena)};
                 qiven3::location::store_dir(*b.fake, out);
                 got = std::string(out);
-            } catch (const qiven3::store::StoreError&) {
+            } catch (const qiven::recordlog::StoreError&) {
                 got = "StoreError";
             } catch (const qiven::platform::PlatformError&) {
                 got = "PlatformError";

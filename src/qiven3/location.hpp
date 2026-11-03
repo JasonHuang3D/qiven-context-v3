@@ -70,11 +70,12 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/time/utc.hpp"
-#include "store/errors.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
 
 namespace qiven3::location {
 
+namespace store = qiven::recordlog;
 namespace utc = qiven::time::utc;
 using qiven::memory::String;
 

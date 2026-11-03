@@ -23,12 +23,12 @@
 #include <string_view>
 #include <vector>
 
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/stores.hpp"
 
@@ -38,8 +38,8 @@ namespace stores = qiven::test::stores;
 namespace records = qiven::test::records;
 using qiven::memory::String;
 using qiven::memory::Vector;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
 using records::Rec;
 
 constexpr std::string_view qs = "project:qiven";
@@ -155,7 +155,7 @@ void calls_case(qiven::runner::Context& qiven_ctx, F& f) {
 template <class F>
 void bounds_case(qiven::runner::Context& qiven_ctx, F& f) {
     const std::string id(Id::capacity, 'x');
-    const std::string scope = std::string(qiven3::store::scope_bytes - qs.size(), 's') + std::string(qs);
+    const std::string scope = std::string(qiven::recordlog::scope_bytes - qs.size(), 's') + std::string(qs);
     const std::vector<Rec> l = {records::rec(id, scope, "a", 1),
                                 records::targeting(records::rec("M", scope, "a", 2, id), id)};
     auto store = std::make_unique<typename F::Store>(f.make());

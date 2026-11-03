@@ -31,11 +31,14 @@
 #include "driver/store_wire.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/checked/stores.hpp"
 
 namespace qiven3::drive {
+
+namespace store = qiven::recordlog;
+
 namespace {
 
 using Fake = qiven::platform::fake::FakePlatform;

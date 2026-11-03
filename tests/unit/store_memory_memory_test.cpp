@@ -38,15 +38,15 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 using namespace qiven::test::records;
-namespace state = qiven3::store::state;
+namespace state = qiven::recordlog::state;
 using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::Arena;
@@ -54,19 +54,19 @@ using qiven::memory::MemoryError;
 using qiven::memory::String;
 using qiven::memory::Vector;
 using qiven::platform::PlatformError;
-using qiven3::store::Counts;
-using qiven3::store::EntryView;
-using qiven3::store::GuardView;
-using qiven3::store::Heads;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::Limits;
-using qiven3::store::Line;
-using qiven3::store::MemoryStore;
-using qiven3::store::Operation;
-using qiven3::store::RangeView;
-using qiven3::store::Record;
-using qiven3::store::Sizes;
+using qiven::recordlog::Counts;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Heads;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Line;
+using qiven::recordlog::MemoryStore;
+using qiven::recordlog::Operation;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Record;
+using qiven::recordlog::Sizes;
 using Store = MemoryStore<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -153,7 +153,7 @@ struct Step {
 std::size_t lines_budget(const std::vector<EntryView>& lines) { return state::budget_of(lines); }
 
 std::vector<Step> steps() {
-    constexpr std::size_t base = qiven3::store::operation_base;
+    constexpr std::size_t base = qiven::recordlog::operation_base;
     std::vector<Step> out;
     out.push_back({"make", base, false, {0, 0, 0, 1}, [](Bed& b, const Chars&) {
                        Store s(b.state, b.fake);
@@ -210,7 +210,7 @@ std::vector<Step> steps() {
                        (void)b.store.purge();
                        return Peaks{};
                    }});
-    out.push_back({"export", qiven3::store::export_budget, false, {0, 2, 4, 0}, [](Bed& b, const Chars& c) {
+    out.push_back({"export", qiven::recordlog::export_budget, false, {0, 2, 4, 0}, [](Bed& b, const Chars& c) {
                        auto x = b.store.export_(std::nullopt, {});
                        Vector<LaneHead> rows(c);
                        (void)x.heads(rows);
@@ -503,14 +503,14 @@ QIVEN_CASE(store_memory, maximum) {
         x.close();
     }
     const std::size_t imported = b->other.peak();
-    CHECK(imported <= qiven3::store::operation_base);
+    CHECK(imported <= qiven::recordlog::operation_base);
     const Counts counts = b->store.verify();
     const std::size_t verified = b->store.peak();
-    CHECK(verified <= qiven3::store::operation_base);
+    CHECK(verified <= qiven::recordlog::operation_base);
     CHECK_EQ(counts.entries, 1U);
     CHECK_EQ(counts.bodies, 1U);
     CHECK(b->other.verify() == counts);
     std::cout << "store_memory.maximum: lines " << mx[0].line.size() << " and "
               << mx[0].record->size() << "; append " << append << " of " << lines_budget(lines) << ", import "
-              << imported << " and verify " << verified << " of " << qiven3::store::operation_base << "\n";
+              << imported << " and verify " << verified << " of " << qiven::recordlog::operation_base << "\n";
 }

@@ -29,32 +29,32 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 using namespace qiven::test::records;
-namespace state = qiven3::store::state;
+namespace state = qiven::recordlog::state;
 using Fake = qiven::platform::fake::FakePlatform;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::String;
 using qiven::memory::Vector;
-using qiven3::store::EntryView;
-using qiven3::store::GuardView;
-using qiven3::store::Head;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::Limits;
-using qiven3::store::Line;
-using qiven3::store::MemoryStore;
-using qiven3::store::Operation;
-using qiven3::store::RangeView;
-using qiven3::store::Record;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Head;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Line;
+using qiven::recordlog::MemoryStore;
+using qiven::recordlog::Operation;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Record;
 using Store = MemoryStore<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -100,7 +100,7 @@ struct Bed {
 template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
-    return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+    return r ? std::string(qiven::recordlog::name(r->kind)) + " " + r->code : std::string("none");
 }
 
 // The StoreCorrupt code a call raised, "none", or "not corrupt".
@@ -108,8 +108,8 @@ template <class F>
 std::string corrupt_code(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        return e.corrupt() ? std::string(qiven3::store::name(*e.corrupt())) : std::string("not corrupt");
+    } catch (const qiven::recordlog::StoreError& e) {
+        return e.corrupt() ? std::string(qiven::recordlog::name(*e.corrupt())) : std::string("not corrupt");
     }
     return "none";
 }

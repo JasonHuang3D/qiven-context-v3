@@ -7,7 +7,7 @@
 #include <iterator>
 #include <utility>
 
-#include "store/errors.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace qiven::test::seams {
 
@@ -56,12 +56,12 @@ std::optional<std::string> NaiveStore::head(std::string_view scope, std::string_
     return id;
 }
 
-std::string NaiveStore::append(std::string_view scope, std::string_view lane, qiven3::store::Expected expected,
-                               std::span<const qiven3::store::EntryView> entries) {
+std::string NaiveStore::append(std::string_view scope, std::string_view lane, qiven::recordlog::Expected expected,
+                               std::span<const qiven::recordlog::EntryView> entries) {
     const std::optional<std::string> now = head(scope, lane);
     const std::string_view held = now ? std::string_view(*now) : std::string_view();
     if (held != expected.value_or(std::string_view())) {
-        throw qiven3::store::StoreError::head_conflict("append", directory_.generic_string(), scope, lane,
+        throw qiven::recordlog::StoreError::head_conflict("append", directory_.generic_string(), scope, lane,
                                                expected.value_or(std::string_view()), held);
     }
     if (entries.empty()) {
@@ -69,7 +69,7 @@ std::string NaiveStore::append(std::string_view scope, std::string_view lane, qi
     }
     {
         std::ofstream out(file(scope, lane, ".jsonl"), modes(std::ios::binary, std::ios::app));
-        for (const qiven3::store::EntryView& e : entries) {
+        for (const qiven::recordlog::EntryView& e : entries) {
             out << e.line;
             if (e.body) {
                 out << '\t' << *e.body;

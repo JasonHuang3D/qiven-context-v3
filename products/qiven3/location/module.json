@@ -16,7 +16,7 @@
         "platform",
         "memory",
         "entry",
-        "store",
+        "recordlog",
         "wire"
       ],
       "test_depends": [

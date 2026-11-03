@@ -15,23 +15,23 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/memory/pool.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test::sqlite_rig {
 
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using qiven::memory::Arena;
 using qiven::memory::String;
-using qiven3::store::StoreError;
-using qiven3::store::WhereView;
+using qiven::recordlog::StoreError;
+using qiven::recordlog::WhereView;
 using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven::platform::fake::FakePlatform;
-using Engine = qiven3::store::Engine<Fake>;
+using Engine = qiven::recordlog::Engine<Fake>;
 
 inline constexpr WhereView test_at = sqlite::site("test", "scratch");
 
@@ -97,13 +97,13 @@ std::string raised(const F& f) {
     } catch (const StoreError& e) {
         std::string code;
         if (e.code()) {
-            code = qiven3::store::name(*e.code());
+            code = qiven::recordlog::name(*e.code());
         } else if (e.corrupt()) {
-            code = qiven3::store::name(*e.corrupt());
+            code = qiven::recordlog::name(*e.corrupt());
         } else if (e.cause()) {
-            code = qiven3::store::name(*e.cause());
+            code = qiven::recordlog::name(*e.cause());
         }
-        return std::string(qiven3::store::name(e.kind())) + " " + code + ": " + std::string(e.detail());
+        return std::string(qiven::recordlog::name(e.kind())) + " " + code + ": " + std::string(e.detail());
     }
     return "none";
 }

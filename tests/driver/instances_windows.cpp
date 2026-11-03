@@ -31,6 +31,8 @@
 
 namespace qiven3::drive {
 
+namespace store = qiven::recordlog;
+
 template class PlatformDrive<qiven::platform::Current>;
 
 namespace {

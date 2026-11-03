@@ -26,9 +26,9 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -38,26 +38,26 @@ using namespace qiven::test::records;
 using Fake = qiven::platform::fake::FakePlatform;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
-using qiven3::store::Counts;
-using qiven3::store::EntryView;
-using qiven3::store::GuardView;
-using qiven3::store::Heads;
-using qiven3::store::Limits;
-using qiven3::store::Operation;
-using qiven3::store::Record;
-using qiven3::store::Id;
-using qiven3::store::Imported;
-using qiven3::store::LaneHead;
-using qiven3::store::Line;
-using qiven3::store::MemoryStore;
-using qiven3::store::RangeView;
-using qiven3::store::Written;
+using qiven::recordlog::Counts;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Heads;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Operation;
+using qiven::recordlog::Record;
+using qiven::recordlog::Id;
+using qiven::recordlog::Imported;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Line;
+using qiven::recordlog::MemoryStore;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Written;
 using qiven::memory::String;
 using qiven::memory::Vector;
 using Store = MemoryStore<Fake>;
 using Recs = std::vector<Rec>;
 
-static_assert(qiven3::store::Store<Store>, "the in-memory store meets the contract");
+static_assert(qiven::recordlog::Store<Store>, "the in-memory store meets the contract");
 static_assert(!Store::capabilities.durable && !Store::capabilities.files && !Store::capabilities.processes,
               "the in-memory store declares no capability");
 
@@ -77,9 +77,9 @@ struct Rig {
     Fake fake;
     Recs lane;
     qiven::platform::fake::FakePages heap;
-    qiven3::store::state::State state;
+    qiven::recordlog::state::State state;
     qiven::platform::fake::FakePages heap2;
-    qiven3::store::state::State state2;  // an import's
+    qiven::recordlog::state::State state2;  // an import's
     std::vector<std::byte> pages;
     Arena arena;
     Chars chars;
@@ -100,7 +100,7 @@ std::vector<std::string> scanned(Store& store, const RangeView& range, const Cha
 template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
-    return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+    return r ? std::string(qiven::recordlog::name(r->kind)) + " " + r->code : std::string("none");
 }
 
 // A and B appended, D after them; a HeadConflict between, nothing written.
@@ -133,7 +133,7 @@ void appends(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane) 
 void reads(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, const Chars& chars) {
     const Rec& a = lane[0];
     const Rec& d = lane[2];
-    const std::optional<qiven3::store::Head> head = store.head(qiven_scope, implementer_lane);
+    const std::optional<qiven::recordlog::Head> head = store.head(qiven_scope, implementer_lane);
     REQUIRE(head.has_value());
     CHECK_EQ(head->id.view(), id_of(d));
     CHECK(!store.head(qiven_scope, "reviewer").has_value());
@@ -298,7 +298,7 @@ struct Read {
     bool b_forgotten = false;
 };
 // Each line on a fresh arena, its id by its keys.
-using Exported = qiven3::store::state::MemoryExport;
+using Exported = qiven::recordlog::state::MemoryExport;
 Read read_all(Exported& x, const Rec& b) {
     Read out;
     std::vector<std::byte> pages(std::size_t{1} << 18U);
@@ -318,8 +318,8 @@ Read read_all(Exported& x, const Rec& b) {
 }
 
 // The bodies a state keeps for an open export: forgotten, not yet freed.
-std::size_t kept(qiven3::store::state::State& s) {
-    const qiven3::store::state::Locked lock(s, Operation::size, {});
+std::size_t kept(qiven::recordlog::state::State& s) {
+    const qiven::recordlog::state::Locked lock(s, Operation::size, {});
     const auto& held = lock.data().held;
     return static_cast<std::size_t>(
         std::count_if(held.begin(), held.end(), [](const auto& e) { return !e.has_body && !e.body.empty(); }));
@@ -398,7 +398,7 @@ QIVEN_CASE(store_memory, exchange) {
     CHECK_EQ(wrote.size(), 2U);
     CHECK(other.verify() == counts);
     CHECK(other.forgotten(id_of(lane[1])));
-    const std::array<qiven3::store::AfterView, 1> from = {qiven3::store::AfterView{qiven_scope, implementer_lane, 2}};
+    const std::array<qiven::recordlog::AfterView, 1> from = {qiven::recordlog::AfterView{qiven_scope, implementer_lane, 2}};
     auto tail = store.export_(std::nullopt, from);
     CHECK_EQ(lines_of(tail), counts.entries - 2U);
     tail.close();

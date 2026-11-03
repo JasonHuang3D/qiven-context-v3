@@ -26,9 +26,11 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven3/format/key.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 
 namespace qiven3::checked {
+
+namespace store = qiven::recordlog;
 
 using Header = entry::header::Header<qiven::memory::Allocator<char>>;
 

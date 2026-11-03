@@ -112,10 +112,11 @@ LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_exten
 LOAD_PREFIX = "LoadLibrary"
 # B13: the platform's calls that write.
 PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "remove", "rename", "lock"))
+RECORDLOG = "foundation/services/storage/recordlog/"  # the record log's module, its store and engine
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
-    "B1": ("src/store/engine/", *layers.VENDORED, "qiven3_store"),
+    "B1": (RECORDLOG + "include/qiven/recordlog/engine/", RECORDLOG + "src/engine/", *layers.VENDORED, "qiven_recordlog"),
     "B2": ("foundation/system/platform/src/windows/process.",),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
@@ -192,21 +193,20 @@ EXEMPT = {
     "B14": {STRUCTURE: "as B1's: the goldens path B14's literal rule refuses"},
 }
 # B12: the modules and targets that never reach backup or forgetting.
-B12_FILES = ("src/keys/", "src/store/", "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
-             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.",
-             "src/wire/")
-B12_TARGETS = frozenset(("qiven3_store", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
+B12_FILES = (RECORDLOG, "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
+             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.", "src/wire/")
+B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
                          "qiven3_bundle", "qiven3_reader", "qiven_platform", "qiven_platform_windows",
                          "qiven_platform_current", "qiven_text", "qiven_time", "qiven_digest", "qiven3_format",
                          "qiven3_location", "qiven3_wire"))
 B12_HEADERS = ("src/backup/", "src/forget/")
 B12_LINKS = ("qiven3_forget", "qiven3_backup")
 # B13: the reader's includes and its targets' links.
-B13_HEADERS = ("src/store/", "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.",
-               "src/bundle/")
+B13_HEADERS = (RECORDLOG, "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.", "src/bundle/")
+B13_OPEN = ("src/bundle/layout.", RECORDLOG + "include/qiven/recordlog/keys.")  # under B13_HEADERS, open to it
 B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven_text",
                          "qiven_time", "qiven_digest", "qiven3_format"))
-B13_LINKS = ("qiven_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
+B13_LINKS = ("qiven_sqlite", "qiven_recordlog", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
 # Core logic: every product target but the adapters, current and compute's.
 NOT_CORE = ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
@@ -221,7 +221,7 @@ NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current"
                               # qiven3-fault-crtdbg alone: their objects name that runtime, which the
                               # records do not read; the release copies are read.
                               "qiven_memory_crtdbg", "qiven_text_crtdbg", "qiven3_log_crtdbg"))
-CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven3_keys"))
+CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven_recordlog_keys"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("foundation/system/platform/include/qiven/platform/current.hpp",
                              "foundation/system/platform/include/qiven/platform/windows/windows.hpp",
@@ -459,7 +459,7 @@ def direct_include(by, path, kind, name, out):
     if rel is not None:
         if under(by, B12_FILES) and under(rel, B12_HEADERS):
             out.add("B12", by, detail=f"includes {rel}")
-        if by.startswith("src/reader/") and under(rel, B13_HEADERS) and not rel.startswith("src/bundle/layout."):
+        if by.startswith("src/reader/") and under(rel, B13_HEADERS) and not rel.startswith(B13_OPEN):
             out.add("B13", by, detail=f"includes {rel}")
         if rel == "src/qiven3/mapcheck.hpp":
             out.add("B16", by, detail="includes the map check")
@@ -468,7 +468,7 @@ def direct_include(by, path, kind, name, out):
             ok = name in B17_HEADERS
         elif kind == "v3":
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
-                  or (rel.endswith("/sqlite3.h") and by.startswith("src/store/engine/"))
+                  or (rel.endswith("/sqlite3.h") and by.startswith(RECORDLOG + "src/engine/"))
                   or ((out.tree.library(rel) or out.tree.test_code(rel))
                       and not rel.startswith(("foundation/system/platform/", "foundation/services/compute/"))))
         else:
@@ -544,7 +544,7 @@ def link_rules(records, out):
     mapcheck = {t for t, sources in owners.items() if any(under(s, ALLOWED["B16"]) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):
-            if dep == "qiven_sqlite" and target != "qiven3_store":
+            if dep == "qiven_sqlite" and target != "qiven_recordlog":
                 out.add("B1", target, detail="links qiven_sqlite")
             if shapes.get(dep) == "septagon" and target not in child:
                 out.add("B5", target, detail=f"links the system library {dep}")

@@ -24,7 +24,7 @@
 
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 #include "support/stores/records.hpp"
 
 namespace qiven::test::scan_case {
@@ -48,7 +48,7 @@ struct Lanes {
 
 // What verify counts once the case has run: nine entries, B's body erased
 // and E's none, one forget, three lanes.
-inline constexpr qiven3::store::Counts written{9, 7, 1, 3};
+inline constexpr qiven::recordlog::Counts written{9, 7, 1, 3};
 
 // Each id, then a space.
 inline std::string cut(const std::vector<Rec>& lines) {
@@ -60,10 +60,10 @@ inline std::string cut(const std::vector<Rec>& lines) {
 }
 
 // What a scan still gives, at most `most` records' ids, cut so.
-template <qiven3::store::Scan H>
+template <qiven::recordlog::Scan H>
 std::string rest(H& scan, const Chars& chars, std::size_t most = std::numeric_limits<std::size_t>::max()) {
     std::string ids;
-    qiven3::store::Record r(chars);
+    qiven::recordlog::Record r(chars);
     for (std::size_t n = 0; n < most && scan.next(r); ++n) {
         ids += std::string(r.id.view()) + " ";
     }
@@ -71,7 +71,7 @@ std::string rest(H& scan, const Chars& chars, std::size_t most = std::numeric_li
 }
 
 // store and other: two objects on one empty store, read-write.
-template <qiven3::store::Store S>
+template <qiven::recordlog::Store S>
 void scan_ends_at_start(qiven::runner::Context& qiven_ctx, S& store, S& other, const Chars& chars) {
     const Lanes lanes;
     const std::vector<Rec>& mine = lanes.mine;
@@ -82,16 +82,16 @@ void scan_ends_at_start(qiven::runner::Context& qiven_ctx, S& store, S& other, c
     (void)store.append(scope, implementer, std::nullopt, records::views(mine));
     (void)store.append(scope, reviewer, std::nullopt, records::views(theirs));
 
-    auto whole = store.scan(qiven3::store::RangeView{});
-    auto lane = store.scan(qiven3::store::RangeView{scope, reviewer, std::nullopt});
-    auto after = store.scan(qiven3::store::RangeView{std::nullopt, std::nullopt, 1});
+    auto whole = store.scan(qiven::recordlog::RangeView{});
+    auto lane = store.scan(qiven::recordlog::RangeView{scope, reviewer, std::nullopt});
+    auto after = store.scan(qiven::recordlog::RangeView{std::nullopt, std::nullopt, 1});
     CHECK_EQ(rest(whole, chars, 1), cut({mine[0]}));
 
     const std::string& acc = records::id_of(mine[3]);
     const std::string& m1 = records::id_of(theirs[1]);
-    const std::vector<qiven3::store::GuardView> guard = {qiven3::store::GuardView{scope, implementer, acc},
-                                                 qiven3::store::GuardView{scope, reviewer, m1}};
-    qiven3::store::Vector<qiven3::store::Id> erased(chars);
+    const std::vector<qiven::recordlog::GuardView> guard = {qiven::recordlog::GuardView{scope, implementer, acc},
+                                                 qiven::recordlog::GuardView{scope, reviewer, m1}};
+    qiven::recordlog::Vector<qiven::recordlog::Id> erased(chars);
     // The Written a temporary: its share of the frame held for the forget alone.
     CHECK(other.forget(scope, implementer, acc, records::views(forgets), guard, erased).purge.done);
     CHECK_EQ(erased.size(), 1U);
@@ -101,9 +101,9 @@ void scan_ends_at_start(qiven::runner::Context& qiven_ctx, S& store, S& other, c
     CHECK_EQ(rest(whole, chars), cut({mine[1], mine[2], mine[3], theirs[0], theirs[1]}));
     CHECK_EQ(rest(lane, chars), cut(theirs));
     CHECK_EQ(rest(after, chars), cut({mine[1], mine[2], mine[3], theirs[1]}));
-    auto now = store.scan(qiven3::store::RangeView{});
+    auto now = store.scan(qiven::recordlog::RangeView{});
     CHECK_EQ(rest(now, chars), cut(mine) + cut(forgets) + cut(theirs) + cut(later) + cut(tester));
-    auto theirs_now = other.scan(qiven3::store::RangeView{scope, reviewer, 1});
+    auto theirs_now = other.scan(qiven::recordlog::RangeView{scope, reviewer, 1});
     CHECK_EQ(rest(theirs_now, chars), cut({theirs[1], later[0]}));
     CHECK(store.verify() == written);
 }

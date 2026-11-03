@@ -25,7 +25,7 @@
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {

@@ -31,36 +31,36 @@
 #include "checked/part1.hpp"
 #include "driver/drive.hpp"
 #include "qiven/memory/arena.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace qiven::test::stage_book {
 class Book;
 }  // namespace qiven::test::stage_book
-namespace qiven3::store::sqlite {
+namespace qiven::recordlog::sqlite {
 class Connection;
-}  // namespace qiven3::store::sqlite
+}  // namespace qiven::recordlog::sqlite
 
 namespace qiven3::drive::wire {
 
-Value head(const qiven3::store::Head& h);
-Value volume(const qiven3::store::Volume& v);
-Value purge(const qiven3::store::Purge& p);
-Value written(const qiven3::store::Written& w);
-Value rows(std::span<const qiven3::store::LaneHead> list);
-Value counts(const qiven3::store::Counts& c);
-Value limits(const qiven3::store::Limits& l);
-Value sizes(const qiven3::store::Sizes& s);
+Value head(const qiven::recordlog::Head& h);
+Value volume(const qiven::recordlog::Volume& v);
+Value purge(const qiven::recordlog::Purge& p);
+Value written(const qiven::recordlog::Written& w);
+Value rows(std::span<const qiven::recordlog::LaneHead> list);
+Value counts(const qiven::recordlog::Counts& c);
+Value limits(const qiven::recordlog::Limits& l);
+Value sizes(const qiven::recordlog::Sizes& s);
 // A header's stored line, as hexadecimal, written on the arena.
 std::string header_line(const qiven3::checked::Header& header, qiven::memory::Arena& arena);
 // An export's or an import's line.
-Value line(const qiven3::store::Line& l);
+Value line(const qiven::recordlog::Line& l);
 
 // A store's typed error: "kind" "store" with its kind's fields.
-Value error(const qiven3::store::StoreError& e);
+Value error(const qiven::recordlog::StoreError& e);
 
 // The request's "limits", each threshold the format's where absent.
-qiven3::store::Limits limits_of(ArgView request);
+qiven::recordlog::Limits limits_of(ArgView request);
 
 // The request's entries under key: their bytes and their views, valid
 // while this lives.
@@ -70,12 +70,12 @@ public:
     Entries(const Entries&) = delete;
     Entries& operator=(const Entries&) = delete;
     ~Entries() = default;
-    [[nodiscard]] std::span<const qiven3::store::EntryView> views() const noexcept { return views_; }
+    [[nodiscard]] std::span<const qiven::recordlog::EntryView> views() const noexcept { return views_; }
 
 private:
     std::vector<std::string> lines_;
     std::vector<std::optional<std::string>> bodies_;
-    std::vector<qiven3::store::EntryView> views_;
+    std::vector<qiven::recordlog::EntryView> views_;
 };
 
 // The request's scope set, "scopes", or none for the whole store; its
@@ -86,16 +86,16 @@ public:
     Ranges(const Ranges&) = delete;
     Ranges& operator=(const Ranges&) = delete;
     ~Ranges() = default;
-    [[nodiscard]] qiven3::store::Scopes scopes() const noexcept;
-    [[nodiscard]] std::span<const qiven3::store::AfterView> after() const noexcept { return after_; }
-    [[nodiscard]] std::span<const qiven3::store::GuardView> guard() const noexcept { return guard_; }
+    [[nodiscard]] qiven::recordlog::Scopes scopes() const noexcept;
+    [[nodiscard]] std::span<const qiven::recordlog::AfterView> after() const noexcept { return after_; }
+    [[nodiscard]] std::span<const qiven::recordlog::GuardView> guard() const noexcept { return guard_; }
 
 private:
     bool whole_ = true;
     std::vector<std::string> texts_;
     std::vector<std::string_view> scopes_;
-    std::vector<qiven3::store::AfterView> after_;
-    std::vector<qiven3::store::GuardView> guard_;
+    std::vector<qiven::recordlog::AfterView> after_;
+    std::vector<qiven::recordlog::GuardView> guard_;
 };
 
 // An import's source given in the request: "heads", as rows, then
@@ -106,8 +106,8 @@ public:
     Given(const Given&) = delete;
     Given& operator=(const Given&) = delete;
     ~Given() = default;
-    void heads(qiven3::store::Vector<qiven3::store::LaneHead>& rows) const;
-    bool next(qiven3::store::Line& line);
+    void heads(qiven::recordlog::Vector<qiven::recordlog::LaneHead>& rows) const;
+    bool next(qiven::recordlog::Line& line);
 
 private:
     struct Held {
@@ -115,11 +115,11 @@ private:
         std::optional<std::string> body;
         bool forgotten = false;
     };
-    std::vector<qiven3::store::LaneHead> heads_;
+    std::vector<qiven::recordlog::LaneHead> heads_;
     std::vector<Held> lines_;
     std::size_t at_ = 0;
 };
-static_assert(qiven3::store::Source<Given>);
+static_assert(qiven::recordlog::Source<Given>);
 
 // The fixtures' entries, each {"line", "body"} (store_fixtures.cpp): a
 // fixture as the stage book stores it, by "name"; and one made "like" a
@@ -139,9 +139,9 @@ Value fixture_made(const qiven::test::stage_book::Book& book, ArgView request);
 // (the seam of S18's incoherent rows), {"code"}: the engine's, 0 where it
 // ran; settings, [{"name", "value", "when", "read"}, ...], each of the
 // store's SETTINGS with the value the connection reads back (S19).
-Value plans(qiven3::store::sqlite::Connection& c, ArgView request);
-Value seam_write(qiven3::store::sqlite::Connection& c, ArgView request);
-Value settings(qiven3::store::sqlite::Connection& c, ArgView request);
+Value plans(qiven::recordlog::sqlite::Connection& c, ArgView request);
+Value seam_write(qiven::recordlog::sqlite::Connection& c, ArgView request);
+Value settings(qiven::recordlog::sqlite::Connection& c, ArgView request);
 
 // The bytes of the lines a request gives under key, each line and body;
 // the operation's budget over them.

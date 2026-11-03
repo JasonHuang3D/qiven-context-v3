@@ -35,9 +35,9 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/stage.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/stage.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/view.hpp"
@@ -55,11 +55,11 @@ template <class S, class A>
 concept Appends = requires(S& s, std::span<const EntryView> lines, A a) {
     s.append(qiven_scope, implementer_lane, std::nullopt, lines, a);
 };
-static_assert(Appends<qiven3::store::MemoryStore<Fake>, qiven3::store::NoAdmit>);
+static_assert(Appends<qiven::recordlog::MemoryStore<Fake>, qiven::recordlog::NoAdmit>);
 static_assert(Appends<qiven3::checked::MemoryStore<Fake>, qiven3::checked::Rules<Fake>>);
-static_assert(!Appends<qiven3::checked::MemoryStore<Fake>, qiven3::store::NoAdmit>);
+static_assert(!Appends<qiven3::checked::MemoryStore<Fake>, qiven::recordlog::NoAdmit>);
 static_assert(Appends<qiven3::checked::SQLiteStore<Fake>, qiven3::checked::Rules<Fake>>);
-static_assert(!Appends<qiven3::checked::SQLiteStore<Fake>, qiven3::store::NoAdmit>);
+static_assert(!Appends<qiven3::checked::SQLiteStore<Fake>, qiven::recordlog::NoAdmit>);
 
 }  // namespace
 
@@ -341,7 +341,7 @@ QIVEN_CASE(store_stage, import) {
     fixtures::MemoryView view;
     const auto arrive = [&](std::size_t i) {
         return refused(
-            [&] { qiven3::store::stage::arrives(view, lines[i].keys, lines[i], i, at(Operation::import_)); });
+            [&] { qiven::recordlog::stage::arrives(view, lines[i].keys, lines[i], i, at(Operation::import_)); });
     };
     for (std::size_t i = 0; i < all.size(); ++i) {
         CHECK(!arrive(i).has_value());
@@ -354,7 +354,7 @@ QIVEN_CASE(store_stage, import) {
     CHECK_EQ(r->id, id_of(all[7]));
     const auto gap = std::make_unique<fixtures::MemoryView>();
     gap->put(header_of(5), content_at(5));
-    r = refused([&] { qiven3::store::stage::arrives(*gap, lines[7].keys, lines[7], 7, at(Operation::import_)); });
+    r = refused([&] { qiven::recordlog::stage::arrives(*gap, lines[7].keys, lines[7], 7, at(Operation::import_)); });
     REQUIRE(r.has_value());
     CHECK_EQ(r->code, std::string("parent"));
     // Once every header is in, the final view: E's forget of B applied.
@@ -420,10 +420,10 @@ QIVEN_CASE(store_stage, import_heads) {
     const Book& book = bench->book;
     const std::vector<Stored> all = {book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")};
     std::optional<Refusal> r;
-    std::vector<qiven3::store::LaneHead> source(2);
+    std::vector<qiven::recordlog::LaneHead> source(2);
     source[0] = lane_head(qiven_scope, implementer_lane, id_of(all[1]), 2);
     source[1] = lane_head(qiven_scope, "reviewer", id_of(all[3]), 3);
-    std::vector<qiven3::store::LaneHead> given = source;
+    std::vector<qiven::recordlog::LaneHead> given = source;
     CHECK(!refused([&] { qiven3::checked::same_heads(source, given, at(Operation::import_)); }).has_value());
     given[1].head.seq = 2;
     r = refused([&] { qiven3::checked::same_heads(source, given, at(Operation::import_)); });
@@ -439,7 +439,7 @@ QIVEN_CASE(store_stage, import_heads) {
 
 // A ruled memory export's next: a forged line, key and body key, the store's two.
 QIVEN_CASE(store_stage, memory_export) {
-    using qiven3::store::state::Held;
+    using qiven::recordlog::state::Held;
     const auto bench = std::make_unique<Bench>(1U << 20U);
     const std::vector<Stored> list = {bench->book.stored("A")};
     const std::vector<EntryView> lines = views(list);
@@ -452,12 +452,12 @@ QIVEN_CASE(store_stage, memory_export) {
         {[](Held& e) { e.content = false; }, id}};  // a record with no body key
     for (const auto& [forge, detail] : rows) {
         auto heap = bench->fake.pages(std::size_t{1} << 23U);
-        const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), Limits{});
+        const auto st = std::make_unique<qiven::recordlog::state::State>(heap.bytes(), Limits{});
         qiven3::checked::MemoryStore<Fake> ruled(*st, bench->fake);
         (void)ruled.append(lines.at(0).keys.scope, lines.at(0).keys.lane, std::nullopt, lines);
-        forge(qiven3::store::state::Locked(*st, qiven3::store::state::Unbounded{}).data().held[0]);
+        forge(qiven::recordlog::state::Locked(*st, qiven::recordlog::state::Unbounded{}).data().held[0]);
         auto exported = ruled.export_(std::nullopt, {});
-        qiven3::store::Line line(bench->arena);
+        qiven::recordlog::Line line(bench->arena);
         CHECK_EQ(refused([&] { (void)exported.next(line); }).value_or(Refusal{}).detail, detail);
     }
 }

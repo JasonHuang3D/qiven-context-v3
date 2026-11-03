@@ -4,14 +4,14 @@
 # over none.
 qiven3_add_cases(qiven3_unit_store_errors LABELS fast fake
   SOURCES store_errors_test.cpp
-  LINK qiven_faults qiven3_store)
+  LINK qiven_faults qiven_recordlog)
 
 # store/codes' cases: the table's named numbers, its order and its names;
 # each row of the mapping and each purge reason, evaluated by the compiler;
 # every code at every place and step; a line; the fault run over none.
 qiven3_add_cases(qiven3_unit_store_codes LABELS fast fake
   SOURCES store_codes_test.cpp
-  LINK qiven_faults qiven3_store)
+  LINK qiven_faults qiven_recordlog)
 
 # store/contract's cases: a minimal store, scan and export the concepts
 # accept and a plant of each that they refuse; the names, read-only's
@@ -21,7 +21,7 @@ qiven3_add_cases(qiven3_unit_store_codes LABELS fast fake
 # caller's arena; the fault run over none.
 qiven3_add_cases(qiven3_unit_store_contract LABELS fast fake
   SOURCES store_contract_test.cpp
-  LINK qiven_faults qiven3_store)
+  LINK qiven_faults qiven_recordlog)
 
 # store's view cases: the generic calls, a line by id, a record's targets,
 # a scope's ids of a kind with no target and a byte search over the lines
@@ -64,7 +64,7 @@ qiven3_add_cases(qiven3_unit_store_plain LABELS fast fake
 qiven3_add_cases(qiven3_unit_store_memory LABELS fast fake
   SOURCES store_memory_test.cpp store_memory_memory_test.cpp store_memory_threads_test.cpp
           store_memory_scan_test.cpp
-  LINK qiven_faults qiven_platform_fake qiven3_store)
+  LINK qiven_faults qiven_platform_fake qiven_recordlog)
 # The stores' support by its path under tests/, which the fake gave before its move.
 target_include_directories(qiven3_unit_store_memory PRIVATE "${PROJECT_SOURCE_DIR}/tests")
 
@@ -83,7 +83,7 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
           store_sqlite_scan_test.cpp store_sqlite_create_test.cpp store_sqlite_create_parts_test.cpp
           store_sqlite_cache_test.cpp
           store_sqlite_parts_test.cpp
-  LINK qiven_faults qiven_platform_fake qiven3_seams qiven3_store)
+  LINK qiven_faults qiven_platform_fake qiven3_seams qiven_recordlog)
 
 # store/exchange's cases: the SQLite store's export, import and verify on
 # the fake over a scratch directory; its smoke case: a round trip, a
@@ -95,7 +95,7 @@ qiven3_add_cases(qiven3_unit_store_sqlite LABELS fast fake
 # all over plain records with no admit hook.
 qiven3_add_cases(qiven3_unit_store_exchange LABELS fast fake
   SOURCES store_exchange_test.cpp store_exchange_memory_test.cpp store_exchange_counts_test.cpp store_exchange_states_test.cpp
-  LINK qiven_faults qiven_platform_fake qiven3_store)
+  LINK qiven_faults qiven_platform_fake qiven_recordlog)
 # The stores' support by its path under tests/, which the fake gave before its move.
 target_include_directories(qiven3_unit_store_exchange PRIVATE "${PROJECT_SOURCE_DIR}/tests")
 

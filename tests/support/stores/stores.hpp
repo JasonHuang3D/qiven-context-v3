@@ -58,10 +58,10 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/memory.hpp"
-#include "store/memory_state.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/memory_state.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/named.hpp"
 
@@ -74,12 +74,12 @@ using Chars = qiven::memory::Allocator<char>;
 // case reads (S16 (c), S17, S18, S19, S24, S28).
 enum class Own : std::uint8_t { none, sqlite };
 struct Needs {
-    qiven3::store::Capabilities capabilities{};
+    qiven::recordlog::Capabilities capabilities{};
     Own own = Own::none;
 };
 constexpr Needs operator|(const Needs& a, const Needs& b) noexcept {
-    const qiven3::store::Capabilities& x = a.capabilities;
-    const qiven3::store::Capabilities& y = b.capabilities;
+    const qiven::recordlog::Capabilities& x = a.capabilities;
+    const qiven::recordlog::Capabilities& y = b.capabilities;
     return Needs{{x.durable || y.durable, x.files || y.files, x.processes || y.processes},
                  a.own != Own::none ? a.own : b.own};
 }
@@ -92,7 +92,7 @@ inline constexpr Needs own_sqlite{{}, Own::sqlite};
 // The reason a store of factory F cannot run a case needing n, or none.
 template <class F>
 std::optional<std::string> lacking(const Needs& n) {
-    constexpr qiven3::store::Capabilities have = F::Store::capabilities;
+    constexpr qiven::recordlog::Capabilities have = F::Store::capabilities;
     std::string why;
     const auto lack = [&why](bool needed, bool held, std::string_view tag) {
         if (needed && !held) {
@@ -155,7 +155,7 @@ public:
     [[nodiscard]] const Chars& chars() const noexcept { return chars_; }
     [[nodiscard]] const std::filesystem::path& root() const noexcept { return root_; }
     // The engine heap, made at the first call and kept past every store.
-    qiven3::store::Engine<Fake>& engine() {
+    qiven::recordlog::Engine<Fake>& engine() {
         if (!engine_) {
             engine_.emplace(fake_);
         }
@@ -190,7 +190,7 @@ private:
 
     std::filesystem::path root_;
     Fake fake_;
-    std::optional<qiven3::store::Engine<Fake>> engine_;  // after the fake, whose pages it holds
+    std::optional<qiven::recordlog::Engine<Fake>> engine_;  // after the fake, whose pages it holds
     std::vector<std::byte> pages_;
     qiven::memory::Arena arena_;
     Chars chars_;
@@ -216,12 +216,12 @@ public:
 
     [[nodiscard]] T& site() noexcept { return *site_; }
     // make() once a factory: a second call is a case's error.
-    Store make(const qiven3::store::Limits& limits = qiven3::store::Limits{}) {
+    Store make(const qiven::recordlog::Limits& limits = qiven::recordlog::Limits{}) {
         if (state_) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
         pages_.emplace(site_->fake().pages(heap_));
-        state_ = std::make_unique<qiven3::store::state::State>(pages_->bytes(), limits);
+        state_ = std::make_unique<qiven::recordlog::state::State>(pages_->bytes(), limits);
         return Store(*state_, site_->fake());
     }
     Store again() { return Store(state(), site_->fake()); }
@@ -231,7 +231,7 @@ public:
     [[noreturn]] static Store reopen() { throw qiven::runner::Skip{"not applicable: the memory store is not durable"}; }
 
 private:
-    qiven3::store::state::State& state() {
+    qiven::recordlog::state::State& state() {
         if (!state_) {
             throw std::logic_error("stores: no state made yet");
         }
@@ -241,13 +241,13 @@ private:
     T* site_;
     std::size_t heap_;
     std::optional<qiven::platform::fake::FakePages> pages_;  // before the state made over them
-    std::unique_ptr<qiven3::store::state::State> state_;
+    std::unique_ptr<qiven::recordlog::state::State> state_;
 };
 
 // The SQLite store, its hooks H (a seam's, seams.hpp) given to each object:
 // its file store.db in a directory of its own under the Site's root. S is
 // the store's type with those hooks, T the Site's.
-template <class S, class T, qiven3::store::Hooks H>
+template <class S, class T, qiven::recordlog::Hooks H>
 class SqliteOn {
 public:
     using Store = S;
@@ -257,7 +257,7 @@ public:
     explicit SqliteOn(T& site, H hooks = H{}) : site_(&site), hooks_(std::move(hooks)) { (void)site.engine(); }
 
     [[nodiscard]] T& site() noexcept { return *site_; }
-    Store make(const qiven3::store::Limits& limits = qiven3::store::Limits{}) {
+    Store make(const qiven::recordlog::Limits& limits = qiven::recordlog::Limits{}) {
         if (!path_.empty()) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
@@ -286,12 +286,12 @@ private:
     H hooks_;
     std::filesystem::path directory_;
     std::string path_;
-    qiven3::store::Limits limits_{};
+    qiven::recordlog::Limits limits_{};
 };
 
 // The plain stores, with no admit hook.
-using Memory = MemoryOn<qiven3::store::MemoryStore<Fake>>;
-template <qiven3::store::Hooks H = qiven3::store::NoHooks>
-using Sqlite = SqliteOn<qiven3::store::SQLiteStore<Fake, H>, Site, H>;
+using Memory = MemoryOn<qiven::recordlog::MemoryStore<Fake>>;
+template <qiven::recordlog::Hooks H = qiven::recordlog::NoHooks>
+using Sqlite = SqliteOn<qiven::recordlog::SQLiteStore<Fake, H>, Site, H>;
 
 }  // namespace qiven::test::stores

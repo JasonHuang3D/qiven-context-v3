@@ -31,15 +31,15 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test::location_bed {
 
 namespace fs = std::filesystem;
 namespace location = qiven3::location;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using Fake = qiven::platform::fake::FakePlatform;
 using qiven::platform::State;
 #if defined(QIVEN_FAULTS)
@@ -117,8 +117,8 @@ struct Bed {
         c.facts = {{text(warm), w}};
         fake = std::make_unique<Fake>(c);
         {
-            const qiven3::store::Engine<Fake> maker(*fake, 1);
-            auto s = qiven3::store::SQLiteStore<Fake>::open(text(held / "store.db"), true, false, *fake);
+            const qiven::recordlog::Engine<Fake> maker(*fake, 1);
+            auto s = qiven::recordlog::SQLiteStore<Fake>::open(text(held / "store.db"), true, false, *fake);
             static_cast<void>(s.close());
         }
         fs::create_directories(config_dir);
@@ -229,7 +229,7 @@ struct Bed {
     fs::path fresh;
     fs::path warm;
     std::unique_ptr<Fake> fake;
-    std::optional<qiven3::store::Engine<Fake>> engine;
+    std::optional<qiven::recordlog::Engine<Fake>> engine;
     std::string before;
 };
 

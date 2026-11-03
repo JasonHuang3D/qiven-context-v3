@@ -22,10 +22,10 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 #include "qiven/memory/memory.hpp"
-#include "keys/keys.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/keys.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/scan_case.hpp"
 #include "support/stores/stores.hpp"
@@ -34,8 +34,8 @@ namespace {
 
 namespace stores = qiven::test::stores;
 namespace records = qiven::test::records;
-using qiven3::store::Code;
-using qiven3::store::StoreError;
+using qiven::recordlog::Code;
+using qiven::recordlog::StoreError;
 using records::Rec;
 
 constexpr std::string_view at_scope = "project:qiven";
@@ -69,7 +69,7 @@ void factory_case(qiven::runner::Context& qiven_ctx, F& f) {
     (void)store->append(at_scope, at_lane, std::nullopt, records::views(a));
     CHECK(other->head(at_scope, at_lane).has_value());
     CHECK(reader->head(at_scope, at_lane).has_value());
-    CHECK_EQ(reader->head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
+    CHECK_EQ(reader->head(at_scope, at_lane).value_or(qiven::recordlog::Head{}).seq, 1);
     std::optional<Code> refused;
     try {
         (void)reader->append(at_scope, at_lane, id, records::views(b));
@@ -85,7 +85,7 @@ void factory_case(qiven::runner::Context& qiven_ctx, F& f) {
         return;
     }
     const auto back = std::make_unique<Store>(f.reopen());
-    CHECK_EQ(back->head(at_scope, at_lane).value_or(qiven3::store::Head{}).seq, 1);
+    CHECK_EQ(back->head(at_scope, at_lane).value_or(qiven::recordlog::Head{}).seq, 1);
     CHECK_EQ(back->verify().entries, 1U);
     (void)back->close();
 }
@@ -100,21 +100,21 @@ void scan_case(qiven::runner::Context& qiven_ctx, F& f) {
 // One entry of a scope set: one ending in `*` holds the scopes its bytes
 // before the `*` begin, `*` alone every scope, any other the scope it
 // equals; a scope set holds what one of its entries holds.
-static_assert(qiven3::store::in_scope("project:q*", "project:qiven"));
-static_assert(qiven3::store::in_scope("project:qiven*", "project:qiven"));
-static_assert(!qiven3::store::in_scope("project:q", "project:qiven"));
-static_assert(!qiven3::store::in_scope("project:qiven", "project:q"));
-static_assert(qiven3::store::in_scope("*", "") && qiven3::store::in_scope("*", "person"));
-static_assert(qiven3::store::in_scope("a*", "a*") && !qiven3::store::in_scope("a*", "b*"));
-static_assert(qiven3::store::in_scope("person", "person") && !qiven3::store::in_scope("person", "persons"));
-static_assert(qiven3::store::in_scopes(std::nullopt, "life"));
+static_assert(qiven::recordlog::in_scope("project:q*", "project:qiven"));
+static_assert(qiven::recordlog::in_scope("project:qiven*", "project:qiven"));
+static_assert(!qiven::recordlog::in_scope("project:q", "project:qiven"));
+static_assert(!qiven::recordlog::in_scope("project:qiven", "project:q"));
+static_assert(qiven::recordlog::in_scope("*", "") && qiven::recordlog::in_scope("*", "person"));
+static_assert(qiven::recordlog::in_scope("a*", "a*") && !qiven::recordlog::in_scope("a*", "b*"));
+static_assert(qiven::recordlog::in_scope("person", "person") && !qiven::recordlog::in_scope("person", "persons"));
+static_assert(qiven::recordlog::in_scopes(std::nullopt, "life"));
 
 // A scope set's prefix entries, through heads and an export's heads alike:
 // one lane in each of four project scopes, the last of the scope's bound,
 // each its own record, and each set holding the lanes its entries match.
 template <class F>
 void prefix_case(qiven::runner::Context& qiven_ctx, F& f) {
-    const std::string longest = "project:q" + std::string(qiven3::store::scope_bytes - 9, 'a');
+    const std::string longest = "project:q" + std::string(qiven::recordlog::scope_bytes - 9, 'a');
     const std::vector<std::string> scopes = {"project:qiven", "project:quill", "project:other", longest};
     const auto store = std::make_unique<typename F::Store>(f.make());
     for (const std::string& scope : scopes) {
@@ -133,9 +133,9 @@ void prefix_case(qiven::runner::Context& qiven_ctx, F& f) {
         {{"project:other", "project:qu*"}, 2},            {{"project:qiven-*"}, 0},
         {{past}, 1},             {{beyond}, 0},           {{}, 0},
     };
-    qiven::memory::Vector<qiven3::store::LaneHead> rows(f.site().chars());
+    qiven::memory::Vector<qiven::recordlog::LaneHead> rows(f.site().chars());
     for (const Want& want : wants) {
-        const qiven3::store::Scopes set = std::span<const std::string_view>(want.set);
+        const qiven::recordlog::Scopes set = std::span<const std::string_view>(want.set);
         (void)store->heads(set, rows);
         const std::size_t held = rows.size();
         const auto out = std::make_unique<decltype(store->export_(set, {}))>(store->export_(set, {}));
@@ -200,7 +200,7 @@ QIVEN_CASE(stores, sqlite_factory) {
 template <class F>
 void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
     using Chars = qiven::memory::Allocator<char>;
-    constexpr std::size_t most = qiven3::store::operation_base / 4 * 3;
+    constexpr std::size_t most = qiven::recordlog::operation_base / 4 * 3;
     const std::vector<Rec> a = records::chain(at_scope, at_lane, {"A"});
     const std::string id = records::id_of(a[0]);
     const auto made = std::make_unique<typename F::Store>(f.make());
@@ -222,7 +222,7 @@ void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
             seen = held;
         });
         CHECK_EQ(seen, std::string(std::string_view(line)));
-        CHECK(store.peak() >= most && store.peak() <= qiven3::store::operation_base);
+        CHECK(store.peak() >= most && store.peak() <= qiven::recordlog::operation_base);
         std::optional<std::string> body;
         CHECK_EQ(store.body(id,
                             [&](std::string_view, const std::string_view* held, const Chars& chars) {
@@ -241,7 +241,7 @@ void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
             throw std::runtime_error("the step");
         }
     };
-    const auto fail_next = [](const qiven3::store::Record& r, const Chars&) {
+    const auto fail_next = [](const qiven::recordlog::Record& r, const Chars&) {
         if (!r.line.empty()) {
             throw std::runtime_error("the step");
         }
@@ -269,13 +269,13 @@ void lend_case(qiven::runner::Context& qiven_ctx, F& f) {
     CHECK_EQ(threw([&] { (void)scan.next(fail_next); }), std::string("the step"));
     std::string ids;
     for (int round = 0; round < 3; ++round) {
-        CHECK(scan.next([&](const qiven3::store::Record& r, const Chars& chars) {
+        CHECK(scan.next([&](const qiven::recordlog::Record& r, const Chars& chars) {
             take(chars);
             ids += std::string(r.id.view()) + " ";
         }) == (round < 2));
     }
     CHECK_EQ(ids, id + " " + records::id_of(b[0]) + " ");
-    CHECK(scan.peak() >= most && scan.peak() <= qiven3::store::operation_base);
+    CHECK(scan.peak() >= most && scan.peak() <= qiven::recordlog::operation_base);
     verified(qiven_ctx, f, store, 2);
 }
 
@@ -356,16 +356,16 @@ QIVEN_CASE(stores, store_error_named) {
     // kind with none.
     using qiven::runner::Context;
     const std::string own = named_run(qiven_ctx, [](Context&) {
-        throw qiven3::store::StoreError(qiven3::store::Code::internal, "open", "a.db", "no engine heap installed");
+        throw qiven::recordlog::StoreError(qiven::recordlog::Code::internal, "open", "a.db", "no engine heap installed");
     });
     CHECK(own.find("store error StoreError internal: no engine heap installed\n") != std::string::npos);
     CHECK(own.find("unknown type") == std::string::npos);
     CHECK(own.find("FAIL sample.case: 1 failed\n") != std::string::npos);
     const std::string locked = named_run(qiven_ctx, [](Context&) {
-        throw qiven3::store::StoreError::locked("open", "a.db", qiven3::store::Cause::held, "another writer");
+        throw qiven::recordlog::StoreError::locked("open", "a.db", qiven::recordlog::Cause::held, "another writer");
     });
     CHECK(locked.find("store error StoreLocked held: another writer\n") != std::string::npos);
     const std::string none =
-        named_run(qiven_ctx, [](Context&) { throw qiven3::store::StoreError::not_found("get", "a.db", "e1"); });
+        named_run(qiven_ctx, [](Context&) { throw qiven::recordlog::StoreError::not_found("get", "a.db", "e1"); });
     CHECK(none.find("store error NotFound: \n") != std::string::npos);
 }

@@ -22,10 +22,11 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace qiven3::location {
 
+namespace store = qiven::recordlog;
 namespace canon = qiven::text::canon;
 namespace json = qiven::text::json;
 

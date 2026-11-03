@@ -41,8 +41,8 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/stage.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/stage.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/view.hpp"
@@ -102,7 +102,7 @@ bool run(Fake& fake, fixtures::MemoryView& view, const Case& c, const std::vecto
 }
 
 std::size_t budget_of(const std::vector<EntryView>& lines) {
-    return *qiven3::store::operation_budget(*qiven3::store::given(lines));
+    return *qiven::recordlog::operation_budget(*qiven::recordlog::given(lines));
 }
 
 }  // namespace
@@ -128,7 +128,7 @@ QIVEN_CASE(store_stage, budget) {
         CHECK(scratch.peak() <= budget_of(lines) / 2);
         // What stays on the operation's arena is bounded by the lines: the
         // per-line work is the scratch's.
-        CHECK(kept <= 16384 + 8 * *qiven3::store::given(lines));
+        CHECK(kept <= 16384 + 8 * *qiven::recordlog::given(lines));
         std::cout << "store_stage.budget: " << c.name << ": " << kept << " bytes kept and admitted, "
                   << scratch.peak() << " a line's scratch at most, within " << budget_of(lines) << "\n";
     }

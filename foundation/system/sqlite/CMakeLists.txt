@@ -1,5 +1,5 @@
 # qiven_sqlite: SQLite 3.53.4's amalgamation, sqlite3.c and sqlite3.h as
-# extracted, unchanged (src/README.md). qiven3_store alone links it (B1), and
+# extracted, unchanged (src/README.md). qiven_recordlog alone links it (B1), and
 # includes the header as "qiven/sqlite/sqlite3.h" from the PUBLIC include/
 # alone.
 

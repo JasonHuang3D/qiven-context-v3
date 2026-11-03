@@ -41,8 +41,8 @@
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
 #include "qiven/memory/arena.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/checked/stores.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
@@ -58,6 +58,8 @@ qiven::test::stage_book::Stored claim(const qiven::test::stage_book::Book& book,
 }  // namespace qiven3::drive::wire
 
 namespace qiven3::drive {
+
+namespace store = qiven::recordlog;
 
 // call() run on a thread of its own, joined; what it raised raised here.
 template <class Call>

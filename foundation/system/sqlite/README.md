@@ -2,7 +2,7 @@
 
 layer system, status built
 
-- **Awaiting its split:** the store's half is held here: the compile options' values with their reasons (the definitions in `CMakeLists.txt`, `compile_options`' default in `module.json`, the table in `src/README.md`), chosen as the store sets its connections, and the B1 comments naming `qiven3_store` (`CMakeLists.txt`, `src/README.md`); they leave to the store when `compile_options` is built, the split waiting on the owner's choice
+- **Awaiting its split:** the store's half is held here: the compile options' values with their reasons (the definitions in `CMakeLists.txt`, `compile_options`' default in `module.json`, the table in `src/README.md`), chosen as the store sets its connections, and the B1 comments naming `qiven_recordlog` (`CMakeLists.txt`, `src/README.md`); they leave to the store when `compile_options` is built, the split waiting on the owner's choice
 - **Holds:** the vendored SQLite amalgamation, pinned, and its build
 - **Never holds:** a wrapper, a schema, or any caller's SQL
 - **Contract:** `foundation/system/sqlite/include/qiven/sqlite/sqlite3.h`

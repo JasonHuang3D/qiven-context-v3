@@ -35,10 +35,10 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/exchange.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/exchange.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -46,20 +46,20 @@ namespace qiven::test::exchange_bed {
 
 using records::Rec, records::views;
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::Arena;
 using qiven::memory::Vector;
-using qiven3::store::AfterView;
-using qiven3::store::Counts;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::Line;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using qiven::recordlog::AfterView;
+using qiven::recordlog::Counts;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Line;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
-using Engine = qiven3::store::Engine<Fake>;
+using Engine = qiven::recordlog::Engine<Fake>;
 
 inline constexpr std::string_view qiven_scope = "project:qiven";
 inline constexpr std::string_view implementer_lane = "implementer";
@@ -217,7 +217,7 @@ struct Bed {
     std::unique_ptr<Export> x;
     Held held;
     static constexpr std::array<std::string_view, 1> set = {"project:*"};
-    qiven3::store::Scopes scopes{set};
+    qiven::recordlog::Scopes scopes{set};
     std::vector<AfterView> after = {AfterView{qiven_scope, implementer_lane, 2}};
     std::vector<std::byte> call_pages;
     std::optional<Arena> call;
@@ -254,7 +254,7 @@ inline std::vector<Step> steps() {
                    }});
     out.push_back({"heads", Side::exporting, true, "2 1 7", [](Bed& b, const Chars& c) {
                        Vector<LaneHead> rows(c);
-                       const qiven3::store::Snapshot s = b.x->heads(rows);
+                       const qiven::recordlog::Snapshot s = b.x->heads(rows);
                        return Ran{0, b.call->peak(),
                                   std::to_string(rows.size()) + " " + std::to_string(s.forgets) + " " +
                                       std::to_string(s.volume.count)};
@@ -279,7 +279,7 @@ inline std::vector<Step> steps() {
                        Vector<LaneHead> heads(c);
                        b.heads_left = 0;
                        try {
-                           const qiven3::store::Imported i = b.target->import_(b.held, heads);
+                           const qiven::recordlog::Imported i = b.target->import_(b.held, heads);
                            return Ran{b.target->peak(), b.call->peak(),
                                       std::to_string(i.counts.entries) + " " + std::to_string(heads.size())};
                        } catch (...) {

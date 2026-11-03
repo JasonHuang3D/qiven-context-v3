@@ -26,10 +26,10 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
@@ -38,17 +38,17 @@ using namespace qiven::test::sqlite_rig;
 namespace {
 
 using qiven::memory::Vector;
-using qiven3::store::EntryView;
-using qiven3::store::GuardView;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::GuardView;
 using qiven::test::records::chain;
 using qiven::test::records::id_of;
 using qiven::test::records::Rec;
 using qiven::test::records::views;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::RangeView;
-using qiven3::store::Written;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Written;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
@@ -86,12 +86,12 @@ struct Course {
     std::vector<GuardView> guard;
 };
 
-std::string reason(const qiven3::store::Purge& p) { return p.done ? "done" : std::string(p.reason.view()); }
+std::string reason(const qiven::recordlog::Purge& p) { return p.done ? "done" : std::string(p.reason.view()); }
 
 // A scan's count over range.
 std::size_t scanned(Store& store, const RangeView& range, const Chars& chars) {
     auto scan = store.scan(range);
-    qiven3::store::Record h(chars);
+    qiven::recordlog::Record h(chars);
     std::size_t n = 0;
     while (scan.next(h)) {
         ++n;
@@ -116,7 +116,7 @@ void held(qiven::runner::Context& qiven_ctx, Store& store, const Course& course,
         CHECK_EQ(reason(store.heads(std::nullopt, rows).purge), std::string("reader"));
         Store other = Store::open(path, false, true, fake);
         Vector<LaneHead> others(chars);
-        const qiven3::store::Heads hs = other.heads(std::nullopt, others);
+        const qiven::recordlog::Heads hs = other.heads(std::nullopt, others);
         CHECK_EQ(hs.forgets, 1U);
         CHECK_EQ(reason(hs.purge), std::string("writer"));
         (void)other.close();
@@ -182,13 +182,13 @@ QIVEN_CASE(store_sqlite, pending) {
     CHECK_EQ(scanned(*store, RangeView{std::nullopt, std::nullopt, 99}, chars), 0U);
     CHECK_EQ(scanned(*store, RangeView{"project:other", std::nullopt, std::nullopt}, chars), 0U);
     CHECK_EQ(scanned(*store, RangeView{std::nullopt, "reviewer", std::nullopt}, chars), 0U);
-    const std::string overlong(qiven3::store::scope_bytes + 1, 'p');
+    const std::string overlong(qiven::recordlog::scope_bytes + 1, 'p');
     CHECK_EQ(scanned(*store, RangeView{overlong, std::nullopt, std::nullopt}, chars), 0U);
     CHECK(raised([&] {
         (void)store->append(qiven_scope, implementer_lane, course->acc_id, course->again_lines);
     }).starts_with("HeadConflict"));
     CHECK_EQ(arena.used(), 0U);
-    const qiven3::store::Counts counts{5, 3, 1, 1};
+    const qiven::recordlog::Counts counts{5, 3, 1, 1};
     CHECK(store->verify() == counts);
     CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
 }
@@ -229,7 +229,7 @@ QIVEN_CASE(store_sqlite, forged) {
     fs::remove(path + "-shm", error);
     std::ofstream(path, std::ios::binary | std::ios::trunc) << base;
     Store store = Store::open(path, false, false, rig->fake);  // the base again, as written
-    CHECK(store.verify() == (qiven3::store::Counts{5, 3, 1, 1}));
+    CHECK(store.verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));
 }
 
 QIVEN_CASE(store_sqlite, paths) {
@@ -279,7 +279,7 @@ QIVEN_CASE(store_sqlite, second_engine) {
     CHECK_EQ(rig->fake.calls().size(), calls);
     CHECK_EQ(rig->fake.lent(), lent);
     {
-        std::vector<std::byte> pages(qiven3::store::engine_budget);
+        std::vector<std::byte> pages(qiven::recordlog::engine_budget);
         CHECK_EQ(raised([&] { const sqlite::EngineHeap h(pages, 1); }), installed);
     }
     const Held after = held(*rig);
@@ -301,7 +301,7 @@ QIVEN_CASE(store_sqlite, second_engine) {
             store->forget(qiven_scope, implementer_lane, course->acc_id, course->e_lines, course->guard, erased);
         CHECK(w.purge.done);
     }
-    const qiven3::store::Counts counts = store->verify();
+    const qiven::recordlog::Counts counts = store->verify();
     CHECK(counts.entries == 5 && counts.forgets == 1 && counts.lanes == 1);
     CHECK_EQ(reason(store->close()), std::string("done"));
     CHECK_EQ(arena.used(), 0U);

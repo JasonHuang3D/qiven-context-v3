@@ -13,6 +13,7 @@
       "name": "driver",
       "layer": "product",
       "depends": [
+        "recordlog",
         "store",
         "checked",
         "location",

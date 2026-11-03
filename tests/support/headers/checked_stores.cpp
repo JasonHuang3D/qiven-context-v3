@@ -6,8 +6,9 @@
 
 #include "qiven/platform/fake/fake_platform.hpp"
 
-namespace qiven3::store {
+namespace qiven::recordlog {
 
+namespace checked = qiven3::checked;
 using Fake = qiven::platform::fake::FakePlatform;
 
 template class MemoryStore<Fake, checked::Rules<Fake>>;
@@ -22,9 +23,11 @@ static_assert(sizeof(checked::MemoryStore<Fake>) == sizeof(MemoryStore<Fake, che
 static_assert(sizeof(checked::SQLiteStore<Fake>) == sizeof(SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>),
               "a ruled store adds no member");
 
-}  // namespace qiven3::store
+}  // namespace qiven::recordlog
 
 namespace qiven3::checked {
+
+namespace store = qiven::recordlog;
 
 using Fake = qiven::platform::fake::FakePlatform;
 

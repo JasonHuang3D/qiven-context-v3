@@ -25,11 +25,11 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/exchange.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/exchange.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -37,21 +37,21 @@ namespace {
 
 namespace fs = std::filesystem;
 using Fake = qiven::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
-using Export = qiven3::store::sqlite::SQLiteExport<Fake>;
-using qiven3::store::AfterView;
-using qiven3::store::Counts;
-using qiven3::store::LaneHead;
-using qiven3::store::Line;
-using qiven3::store::StoreError;
-using qiven3::store::Vector;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
+using Export = qiven::recordlog::sqlite::SQLiteExport<Fake>;
+using qiven::recordlog::AfterView;
+using qiven::recordlog::Counts;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Line;
+using qiven::recordlog::StoreError;
+using qiven::recordlog::Vector;
 using qiven::test::records::chain;
 using qiven::test::records::forget;
 using qiven::test::records::owned;
 using qiven::test::records::Rec;
 using qiven::test::records::views;
 
-static_assert(qiven3::store::Export<Export>);
+static_assert(qiven::recordlog::Export<Export>);
 
 constexpr std::string_view held_scope = "project:qiven";
 constexpr std::string_view first_lane = "implementer";
@@ -93,7 +93,7 @@ struct Rig {
     [[nodiscard]] std::string path(std::string_view name) const { return text(root / std::string(name) / "store.db"); }
     fs::path root;
     Fake fake;
-    qiven3::store::Engine<Fake> engine;
+    qiven::recordlog::Engine<Fake> engine;
     std::vector<std::byte> pages;
     qiven::memory::Arena arena;
     qiven::memory::Allocator<char> chars;
@@ -107,13 +107,13 @@ std::string raised(const F& f) {
     } catch (const StoreError& e) {
         std::string code;
         if (e.code()) {
-            code = qiven3::store::name(*e.code());
+            code = qiven::recordlog::name(*e.code());
         } else if (e.corrupt()) {
-            code = qiven3::store::name(*e.corrupt());
+            code = qiven::recordlog::name(*e.corrupt());
         } else if (!e.entry_code().empty()) {
             code = e.entry_code();
         }
-        return std::string(qiven3::store::name(e.kind())) + " " + code;
+        return std::string(qiven::recordlog::name(e.kind())) + " " + code;
     }
     return "none";
 }
@@ -167,17 +167,17 @@ void fill(Store& store, const qiven::memory::Allocator<char>& chars) {
     const std::vector<Rec> forgets = {forget("E", held_scope, first_lane, 5, "ACC", "B")};
     (void)store.append(held_scope, first_lane, std::nullopt, views(mine));
     (void)store.append(held_scope, second_lane, std::nullopt, views(theirs));
-    const std::vector<qiven3::store::GuardView> guard = {qiven3::store::GuardView{held_scope, first_lane, "ACC"},
-                                                         qiven3::store::GuardView{held_scope, second_lane, "M1"}};
-    Vector<qiven3::store::Id> erased(chars);
+    const std::vector<qiven::recordlog::GuardView> guard = {qiven::recordlog::GuardView{held_scope, first_lane, "ACC"},
+                                                         qiven::recordlog::GuardView{held_scope, second_lane, "M1"}};
+    Vector<qiven::recordlog::Id> erased(chars);
     (void)store.forget(held_scope, first_lane, "ACC", views(forgets), guard, erased);
 }
 
 // Each export statement's plan, printed: no line of it a structure built
 // in memory as large as its rows.
-bool planned(qiven3::store::sqlite::Connection& c) {
-    namespace sqlite = qiven3::store::sqlite;
-    const qiven3::store::WhereView at = sqlite::site("plan", "");
+bool planned(qiven::recordlog::sqlite::Connection& c) {
+    namespace sqlite = qiven::recordlog::sqlite;
+    const qiven::recordlog::WhereView at = sqlite::site("plan", "");
     bool good = true;
     for (const std::string_view sql : {sqlite::forget_counts, sqlite::head_rows, sqlite::lane_rows}) {
         sqlite::Statement s = c.prepare(std::string("EXPLAIN QUERY PLAN ") + std::string(sql), at);
@@ -217,17 +217,17 @@ QIVEN_CASE(store_exchange, smoke) {
     CHECK_EQ(held.forgets, 1U);
     CHECK_EQ(held.lanes, 2U);
     CHECK(planned(source->connection()));
-    const qiven3::store::Volume from = source->size().volume;
+    const qiven::recordlog::Volume from = source->size().volume;
 
     auto whole = std::make_unique<Export>(source->export_(std::nullopt, {}));
     Vector<LaneHead> rows(rig->chars);
-    const qiven3::store::Snapshot snapshot = whole->heads(rows);
+    const qiven::recordlog::Snapshot snapshot = whole->heads(rows);
     CHECK_EQ(rows.size(), 2U);
     CHECK_EQ(snapshot.forgets, 1U);
     CHECK(snapshot.volume == from);
     const auto into = std::make_unique<Store>(Store::open(rig->path("into"), true, false, rig->fake));
     Vector<LaneHead> heads(rig->chars);
-    const qiven3::store::Imported imported = into->import_(*whole, heads);
+    const qiven::recordlog::Imported imported = into->import_(*whole, heads);
     CHECK(imported.counts == held);
     CHECK(imported.volume == from);
     CHECK(same(heads, rows));

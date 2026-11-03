@@ -38,41 +38,41 @@
 #include <utility>  // pair
 #include <vector>
 
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/memory.hpp"
-#include "store/memory_state.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/memory_state.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
-using qiven3::store::Counts;
-using qiven3::store::EntryView;
-using qiven3::store::KeysView;
-using qiven3::store::LaneHead;
-using qiven3::store::Line;
-using qiven3::store::NoAdmit;
-using qiven3::store::Vector;
+namespace sqlite = qiven::recordlog::sqlite;
+using qiven::recordlog::Counts;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::KeysView;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Line;
+using qiven::recordlog::NoAdmit;
+using qiven::recordlog::Vector;
 using Fake = qiven::platform::fake::FakePlatform;
 using qiven::test::records::lane_head;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
 using String = qiven::memory::String;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Parent = std::optional<std::string_view>;
 
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t page_bytes = std::size_t{1} << 20U;
-constexpr qiven3::store::WhereView test_at = sqlite::site("test", "scratch");
+constexpr qiven::recordlog::WhereView test_at = sqlite::site("test", "scratch");
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -108,7 +108,7 @@ struct Site {
     }
     fs::path root;
     Fake fake;
-    qiven3::store::Engine<Fake> engine;
+    qiven::recordlog::Engine<Fake> engine;
 };
 
 struct Given {
@@ -156,7 +156,7 @@ struct Plan {
     std::vector<Given> together;
     std::string_view refused;
     bool own = false;  // last, its own export imported
-    qiven3::store::Limits limits{};
+    qiven::recordlog::Limits limits{};
 };
 
 std::array<EntryView, 1> one(const Given& g) {
@@ -191,8 +191,8 @@ void write(S& s, const Plan& p, Arena& arena) {
     if (p.forget) {
         const KeysView& k = p.forget->keys;
         const KeysView& last = p.lines.back().keys;  // the one lane held
-        const std::array<qiven3::store::GuardView, 1> guard = {{{last.scope, last.lane, last.id}}};
-        Vector<qiven3::store::Id> erased{Chars(arena)};
+        const std::array<qiven::recordlog::GuardView, 1> guard = {{{last.scope, last.lane, last.id}}};
+        Vector<qiven::recordlog::Id> erased{Chars(arena)};
         (void)s.forget(k.scope, k.lane, k.parent, one(*p.forget), guard, erased, NoAdmit{});
     }
     if (p.own) {
@@ -212,7 +212,7 @@ std::string keys_text(const KeysView& k) {
 template <class S>
 std::string scanned(S& s, Arena& arena) {
     std::string out;
-    qiven3::store::Record r{Chars(arena)};
+    qiven::recordlog::Record r{Chars(arena)};
     for (auto scan = s.scan({}); scan.next(r);) {
         out += keys_text(r.keys());
     }
@@ -250,13 +250,13 @@ template <class F>
 std::string said(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        if (e.kind() == qiven3::store::Kind::entry_invalid) {
+    } catch (const qiven::recordlog::StoreError& e) {
+        if (e.kind() == qiven::recordlog::Kind::entry_invalid) {
             return std::string(e.entry_code()) + " " + std::to_string(e.index()) + " " + std::string(e.id());
         }
-        const std::optional<qiven3::store::Corrupt> c = e.corrupt();
-        return std::string(qiven3::store::name(e.kind())) + " " +
-               std::string(c ? qiven3::store::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
+        const std::optional<qiven::recordlog::Corrupt> c = e.corrupt();
+        return std::string(qiven::recordlog::name(e.kind())) + " " +
+               std::string(c ? qiven::recordlog::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
     }
     return {};
 }
@@ -347,10 +347,10 @@ void on_both(qiven::runner::Context& qiven_ctx, const Plan& p, const Counts& cou
     const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     auto fresh = fake->pages(state_bytes);
-    const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), p.limits);
-    const auto ft = std::make_unique<qiven3::store::state::State>(fresh.bytes(), qiven3::store::Limits{});
-    qiven3::store::MemoryStore<Fake> s(*st, *fake);
-    qiven3::store::MemoryStore<Fake> t(*ft, *fake);
+    const auto st = std::make_unique<qiven::recordlog::state::State>(heap.bytes(), p.limits);
+    const auto ft = std::make_unique<qiven::recordlog::state::State>(fresh.bytes(), qiven::recordlog::Limits{});
+    qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
+    qiven::recordlog::MemoryStore<Fake> t(*ft, *fake);
     std::vector<std::byte> pages(page_bytes);
     Arena arena(pages);
     attempt(qiven_ctx, s, p, arena);
@@ -545,7 +545,7 @@ QIVEN_CASE(store_plain, own_export) {
 }
 
 QIVEN_CASE(store_plain, entry_bound) {
-    using qiven3::store::entry_bytes;
+    using qiven::recordlog::entry_bytes;
     for (const std::size_t past : {std::size_t{0}, std::size_t{1}}) {
         Given t = note("t1", "one", 1, {}, true, true);
         t.record = std::string(entry_bytes + past - 21, 'r');  // its line "line t1", its keys t1 plain one note
@@ -562,11 +562,11 @@ QIVEN_CASE(store_plain, entry_bound) {
 }
 
 QIVEN_CASE(store_plain, kind_bound) {
-    const std::string kinds(qiven3::store::kind_bytes + 1, 'k');
+    const std::string kinds(qiven::recordlog::kind_bytes + 1, 'k');
     Given k = note("k1", "one", 1, {}, false, false);
     k.keys.kind = kinds;
     on_both(qiven_ctx, Plan{false, {k}, {}, {}, {}, "too_long 0 k1"}, Counts{});
-    const qiven3::store::Limits limits{39, 39, 39, 10, 10, 10};  // "line k1" and its LF, and a kind of 31
+    const qiven::recordlog::Limits limits{39, 39, 39, 10, 10, 10};  // "line k1" and its LF, and a kind of 31
     for (const std::size_t n : {std::size_t{31}, std::size_t{32}}) {
         k.keys.kind = std::string_view(kinds).substr(0, n);
         on_both(qiven_ctx, Plan{false, {k}, {}, {}, {}, n == 31 ? "" : "StoreFull  []", false, limits},

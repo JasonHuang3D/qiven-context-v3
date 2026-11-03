@@ -36,9 +36,12 @@
 
 #include "checked/reads.hpp"
 #include "qiven/memory/memory.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 
 namespace qiven3::checked {
+
+namespace keys = qiven::recordlog;
+namespace store = qiven::recordlog;
 
 template <class H>
 class Scan {

@@ -30,25 +30,25 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/memory.hpp"
-#include "store/memory_state.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/memory_state.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
-namespace state = qiven3::store::state;
-using qiven3::store::Engine;
-using qiven3::store::Id;
-using qiven3::store::Limits;
-using qiven3::store::Operation;
-using qiven3::store::Vector;
+namespace sqlite = qiven::recordlog::sqlite;
+namespace state = qiven::recordlog::state;
+using qiven::recordlog::Engine;
+using qiven::recordlog::Id;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Operation;
+using qiven::recordlog::Vector;
 using qiven::test::records::id_of;
 using qiven::test::records::Rec;
 using qiven::test::records::rec;
@@ -114,7 +114,7 @@ struct Chain {
         (void)store.append(qiven_scope, "reviewer", std::nullopt, views(theirs));
     }
     // The counts the chain's write holds.
-    static constexpr qiven3::store::Counts held{8, 8, 0, 2};
+    static constexpr qiven::recordlog::Counts held{8, 8, 0, 2};
     std::vector<Rec> mine;
     std::vector<Rec> theirs;
 };
@@ -270,19 +270,19 @@ template <class F>
 std::optional<Refusal> refused(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        const std::optional<qiven3::store::Code> code = e.code();
-        return Refusal{std::string(code ? qiven3::store::name(*code) : e.entry_code()), e.index(), std::string(e.id())};
+    } catch (const qiven::recordlog::StoreError& e) {
+        const std::optional<qiven::recordlog::Code> code = e.code();
+        return Refusal{std::string(code ? qiven::recordlog::name(*code) : e.entry_code()), e.index(), std::string(e.id())};
     }
     return std::nullopt;
 }
 
 // The counts the order's chain holds.
-constexpr qiven3::store::Counts ordered{3, 3, 0, 1};
+constexpr qiven::recordlog::Counts ordered{3, 3, 0, 1};
 
 template <class S>
 void order(qiven::runner::Context& qiven_ctx, S& store) {
-    using qiven3::store::NoAdmit;
+    using qiven::recordlog::NoAdmit;
     const std::vector<Rec> chain = qiven::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
     const std::vector<Rec> skip_first = {chain[1]};
     const std::vector<Rec> skip_second = {chain[0], chain[2]};
@@ -297,9 +297,9 @@ void order(qiven::runner::Context& qiven_ctx, S& store) {
     CHECK(second.has_value() && second->code == "parent" && second->index == 1U && second->id == id_of(chain[2]));
     const auto seq = one(late);
     CHECK(seq.has_value() && seq->code == "seq" && seq->index == 0U);
-    CHECK(store.verify() == qiven3::store::Counts{});
+    CHECK(store.verify() == qiven::recordlog::Counts{});
     const auto lines = views(chain);
-    const qiven3::store::Written w = store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{});
+    const qiven::recordlog::Written w = store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{});
     CHECK_EQ(w.head.id.view(), id_of(chain.back()));
     CHECK(w.head.seq == 3);
     CHECK(store.verify() == ordered);
@@ -311,7 +311,7 @@ QIVEN_CASE(store_view, order_memory) {
     const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
-    qiven3::store::MemoryStore<Fake> store(*st, *fake);
+    qiven::recordlog::MemoryStore<Fake> store(*st, *fake);
     order(qiven_ctx, store);
 }
 
@@ -319,7 +319,7 @@ QIVEN_CASE(store_view, order_sqlite) {
     const auto scratch = std::make_unique<Scratch>();
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
-    using Store = qiven3::store::SQLiteStore<Fake>;
+    using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "o" / "store.db");
     {
         const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
@@ -328,7 +328,7 @@ QIVEN_CASE(store_view, order_sqlite) {
     }
     const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
     CHECK(again->verify() == ordered);
-    const std::optional<qiven3::store::Head> head = again->head(qiven_scope, "implementer");
+    const std::optional<qiven::recordlog::Head> head = again->head(qiven_scope, "implementer");
     CHECK(head.has_value() && head->seq == 3 && head->id.view() == "D");
     (void)again->close();
 }
@@ -339,7 +339,7 @@ QIVEN_CASE(store_view, memory) {
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
     const Chain chain;
     {
-        qiven3::store::MemoryStore<Fake> store(*st, *fake);
+        qiven::recordlog::MemoryStore<Fake> store(*st, *fake);
         chain.write(store);
         CHECK(store.verify() == Chain::held);
     }
@@ -360,7 +360,7 @@ QIVEN_CASE(store_view, sqlite) {
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
     const Chain chain;
-    using Store = qiven3::store::SQLiteStore<Fake>;
+    using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "v" / "store.db");
     const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
     chain.write(*store);
@@ -369,7 +369,7 @@ QIVEN_CASE(store_view, sqlite) {
     Arena arena(pages);
     const Chars chars(arena);
     sqlite::Connection& c = store->connection();
-    const qiven3::store::WhereView at = sqlite::site("append", path);
+    const qiven::recordlog::WhereView at = sqlite::site("append", path);
     const sqlite::Totals held = sqlite::totals(c, at);
     sqlite::WriteView view(c, chars, nullptr, at, held);
     calls(qiven_ctx, view, chain, chars);

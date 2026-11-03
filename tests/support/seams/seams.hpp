@@ -45,7 +45,7 @@
 #include <string_view>
 #include <vector>
 
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 
 namespace qiven::test::seams {
 
@@ -109,8 +109,8 @@ public:
     // The head compared with expected, unlocked, a mismatch HeadConflict;
     // then each entry a line appended, and the head file rewritten to the
     // last one's id, read from its keys, which it gives.
-    std::string append(std::string_view scope, std::string_view lane, qiven3::store::Expected expected,
-                       std::span<const qiven3::store::EntryView> entries);
+    std::string append(std::string_view scope, std::string_view lane, qiven::recordlog::Expected expected,
+                       std::span<const qiven::recordlog::EntryView> entries);
     // The lane file's lines as they lie, a torn one among them.
     [[nodiscard]] std::vector<std::string> lines(std::string_view scope, std::string_view lane) const;
 

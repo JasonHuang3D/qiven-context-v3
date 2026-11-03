@@ -19,12 +19,12 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/codes.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/codes.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace {
 
-namespace store = qiven3::store;
+namespace store = qiven::recordlog;
 using store::Cause;
 using store::Code;
 using store::Corrupt;

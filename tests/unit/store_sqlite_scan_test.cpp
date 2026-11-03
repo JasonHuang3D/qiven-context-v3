@@ -19,8 +19,8 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/seams/seams.hpp"
 #include "support/stores/records.hpp"
@@ -30,7 +30,7 @@ namespace {
 
 namespace fs = std::filesystem;
 using Fake = qiven::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -68,7 +68,7 @@ struct Rig {
     }
     fs::path root;
     Fake fake;
-    qiven3::store::Engine<Fake> engine;
+    qiven::recordlog::Engine<Fake> engine;
     std::vector<std::byte> pages;
     qiven::memory::Arena arena;
     qiven::memory::Allocator<char> chars;
@@ -135,16 +135,16 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     const std::string before = rowids(store, ids);
     CHECK_EQ(before, std::string("1 1002 1003 1004 1005 1006 1007 "));
 
-    auto whole = store.scan(qiven3::store::RangeView{});
+    auto whole = store.scan(qiven::recordlog::RangeView{});
     CHECK_EQ(scan_case::rest(whole, rig->chars, 1), scan_case::cut({mine[0]}));
     // The guard's views over ids held for the call.
     const std::string& acc = records::id_of(mine[3]);
     const std::string& m1 = records::id_of(theirs[1]);
-    const std::vector<qiven3::store::GuardView> guard = {
-        qiven3::store::GuardView{scan_case::scope, scan_case::implementer, acc},
-        qiven3::store::GuardView{scan_case::scope, scan_case::reviewer, m1},
-        qiven3::store::GuardView{scan_case::scope, "tester", ids.back()}};
-    qiven3::store::Vector<qiven3::store::Id> erased(rig->chars);
+    const std::vector<qiven::recordlog::GuardView> guard = {
+        qiven::recordlog::GuardView{scan_case::scope, scan_case::implementer, acc},
+        qiven::recordlog::GuardView{scan_case::scope, scan_case::reviewer, m1},
+        qiven::recordlog::GuardView{scan_case::scope, "tester", ids.back()}};
+    qiven::recordlog::Vector<qiven::recordlog::Id> erased(rig->chars);
     CHECK(store.forget(scan_case::scope, scan_case::implementer, acc, records::views(forgets), guard, erased)
               .purge.done);
     CHECK_EQ(qiven::test::seams::read(store, "SELECT value FROM meta WHERE name = 'vacuumed'").value_or(-1),
@@ -154,5 +154,5 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
                                                      scan_case::cut(theirs) + scan_case::cut(tester));
     CHECK(store.close().done);
     Store reopened = Store::open(path, false, false, rig->fake);
-    CHECK(reopened.verify() == (qiven3::store::Counts{8, 6, 1, 3}));
+    CHECK(reopened.verify() == (qiven::recordlog::Counts{8, 6, 1, 3}));
 }

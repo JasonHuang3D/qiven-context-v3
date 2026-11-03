@@ -7,11 +7,13 @@
 #include <span>
 #include <string_view>
 
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/stage.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/stage.hpp"
 
 namespace qiven3::checked {
+
+namespace store = qiven::recordlog;
 
 void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> given, const AtView& at) {
     const std::size_t n = source.size() < given.size() ? source.size() : given.size();

@@ -39,11 +39,11 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/codes.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/codes.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -52,9 +52,9 @@ namespace {
 namespace fs = std::filesystem;
 using qiven::platform::fake::Config;
 using qiven::platform::fake::FakePlatform;
-using qiven3::store::Capabilities;
-using qiven3::store::Engine;
-using qiven3::store::EntryView;
+using qiven::recordlog::Capabilities;
+using qiven::recordlog::Engine;
+using qiven::recordlog::EntryView;
 using qiven::test::records::added;
 using qiven::test::records::chain;
 using qiven::test::records::forget;
@@ -63,18 +63,18 @@ using qiven::test::records::Rec;
 using qiven::test::records::views;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
-using qiven3::store::Vector;
-using qiven3::store::Written;
-using qiven3::store::Limits;
-using qiven3::store::Operation;
-using qiven3::store::StoreError;
-using qiven3::store::WhereView;
-using Store = qiven3::store::SQLiteStore<FakePlatform>;
-namespace sqlite = qiven3::store::sqlite;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
+using qiven::recordlog::Vector;
+using qiven::recordlog::Written;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Operation;
+using qiven::recordlog::StoreError;
+using qiven::recordlog::WhereView;
+using Store = qiven::recordlog::SQLiteStore<FakePlatform>;
+namespace sqlite = qiven::recordlog::sqlite;
 
-static_assert(qiven3::store::Store<Store>, "the SQLite store meets the contract");
+static_assert(qiven::recordlog::Store<Store>, "the SQLite store meets the contract");
 static_assert(Store::capabilities == Capabilities{true, true, true}, "the SQLite store declares every capability");
 
 std::string text(const fs::path& path) {
@@ -129,15 +129,15 @@ std::string raised(const F& f) {
     } catch (const StoreError& e) {
         std::string code;
         if (e.code()) {
-            code = qiven3::store::name(*e.code());
+            code = qiven::recordlog::name(*e.code());
         } else if (e.corrupt()) {
-            code = qiven3::store::name(*e.corrupt());
+            code = qiven::recordlog::name(*e.corrupt());
         } else if (e.cause()) {
-            code = qiven3::store::name(*e.cause());
+            code = qiven::recordlog::name(*e.cause());
         } else if (e.full()) {
-            code = qiven3::store::name(*e.full());
+            code = qiven::recordlog::name(*e.full());
         }
-        return std::string(qiven3::store::name(e.kind())) + " " + code + (e.detail().empty() ? "" : ": ") +
+        return std::string(qiven::recordlog::name(e.kind())) + " " + code + (e.detail().empty() ? "" : ": ") +
                std::string(e.detail());
     }
     return "none";
@@ -214,7 +214,7 @@ QIVEN3_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK_EQ(c.integer("SELECT count(*) FROM pragma_table_list WHERE schema = 'main' AND strict = 1", test_at), 4);
     CHECK(rig.engine.heap().used() > 0);
     CHECK(rig.engine.heap().peak() <= rig.engine.heap().budget());
-    CHECK(store.verify() == qiven3::store::Counts{});
+    CHECK(store.verify() == qiven::recordlog::Counts{});
 
     const std::string before = bytes_of(path);
     CHECK(open_error(rig, path, true).starts_with("StoreError exists"));
@@ -235,7 +235,7 @@ QIVEN3_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(raised([&] { (void)reader.append("project:qiven", "implementer", std::nullopt, {}); }) ==
           "StoreError read_only");
     Store moved = std::move(store);
-    CHECK(moved.verify() == qiven3::store::Counts{});
+    CHECK(moved.verify() == qiven::recordlog::Counts{});
 }
 
 // The files open refuses.
@@ -326,7 +326,7 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK_EQ(w.volume.count, 2U);
     CHECK_EQ(w.volume.size, added(first));
     CHECK(w.purge.done);
-    CHECK(store.peak() > 0 && store.peak() <= *qiven3::store::operation_budget(*qiven3::store::given(first_lines)));
+    CHECK(store.peak() > 0 && store.peak() <= *qiven::recordlog::operation_budget(*qiven::recordlog::given(first_lines)));
     const std::vector<Rec> later = {lane[2]};
     const std::vector<EntryView> later_lines = views(later);
     CHECK(raised([&] { (void)store.append(qiven_scope, implementer, std::nullopt, later_lines); })
@@ -335,7 +335,7 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::vector<Rec> acc = {lane[3]};
     const std::vector<EntryView> acc_lines = views(acc);
     (void)store.append(qiven_scope, implementer, id_of(later[0]), acc_lines);
-    const auto sizes = std::make_unique<const qiven3::store::Sizes>(store.size());  // past a frame's share
+    const auto sizes = std::make_unique<const qiven::recordlog::Sizes>(store.size());  // past a frame's share
     CHECK_EQ(sizes->volume.count, 4U);
     CHECK_EQ(sizes->volume.size, added(first) + added(later) + added(acc));
     REQUIRE(sizes->figures == 6U);
@@ -366,7 +366,7 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK_EQ(c.integer("SELECT count(*) FROM body WHERE id = '" + id_of(first[1]) + "'", test_at), 0);
     CHECK(store.purge().done);
     CHECK_EQ(store.size().volume.size, f.volume.size);
-    const qiven3::store::Counts counts{5, 3, 1, 1};
+    const qiven::recordlog::Counts counts{5, 3, 1, 1};
     CHECK(store.verify() == counts);
     {
         const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
@@ -380,9 +380,9 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
 }
 
 // Each scanned record's id; cut, the same of records given.
-std::string scanned(Store& store, const Chars& chars, const qiven3::store::RangeView& range) {
+std::string scanned(Store& store, const Chars& chars, const qiven::recordlog::RangeView& range) {
     std::string ids;
-    qiven3::store::Record r(chars);
+    qiven::recordlog::Record r(chars);
     for (auto scan = store.scan(range); scan.next(r);) {
         ids += std::string(r.id.view()) + " ";
     }
@@ -417,15 +417,15 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, b}, GuardView{qiven_scope, reviewer, m2}};
     const std::vector<Rec> forgets = {*f2, *f3};
     (void)store->forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
-    const qiven3::store::Counts counts{7, 3, 2, 2};
+    const qiven::recordlog::Counts counts{7, 3, 2, 2};
     CHECK(store->verify() == counts);
     {
         const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
         CHECK(reader->verify() == counts);
     }
     CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));
-    Vector<qiven3::store::LaneHead> rows(chars);
-    const auto all = std::make_unique<const qiven3::store::Heads>(store->heads(std::nullopt, rows));
+    Vector<qiven::recordlog::LaneHead> rows(chars);
+    const auto all = std::make_unique<const qiven::recordlog::Heads>(store->heads(std::nullopt, rows));
     REQUIRE(rows.size() == 2U);
     CHECK(rows[1].lane.view() == reviewer && rows[1].head.seq == 5);
     CHECK(all->forgets == 2U && all->purge.done);
@@ -433,14 +433,14 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
-    const auto out = std::make_unique<qiven3::store::Record>(chars);  // past a frame's share
+    const auto out = std::make_unique<qiven::recordlog::Record>(chars);  // past a frame's share
     qiven::memory::String line(chars);
     store->header(a, line);
     CHECK_EQ(std::string_view(line), mine[0].line);
     std::string lent;  // the same lent from the store's own pages
     store->header(a, [&lent](std::string_view l, const sqlite::Chars&) { lent = l; });
     CHECK_EQ(lent, mine[0].line);
-    CHECK(store->peak() > 0 && store->peak() <= qiven3::store::operation_base);
+    CHECK(store->peak() > 0 && store->peak() <= qiven::recordlog::operation_base);
     qiven::memory::String record(chars);
     CHECK(store->body(a, record) && std::string_view(record) == *mine[0].record);
     CHECK(!store->body(id_of(theirs[1]), record) && !store->body(id_of(*f2), record));

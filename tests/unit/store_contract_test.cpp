@@ -26,12 +26,12 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace {
 
-namespace store = qiven3::store;
+namespace store = qiven::recordlog;
 using store::Operation;
 using store::StoreError;
 

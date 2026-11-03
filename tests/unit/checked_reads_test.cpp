@@ -38,10 +38,10 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "support/checked/stores.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
@@ -50,11 +50,11 @@ namespace {
 
 using namespace qiven::test::stage_book;
 using qiven::memory::Vector;
-using qiven3::store::Counts;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::Written;
+using qiven::recordlog::Counts;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Written;
 using Memory = qiven::test::ruled::Memory;
 using SQLite = qiven::test::ruled::Sqlite<>;
 
@@ -63,16 +63,16 @@ constexpr std::string_view implementer_lane = "implementer";
 constexpr std::string_view reviewer_lane = "reviewer";
 
 // The widths against what fills them.
-static_assert(qiven3::store::field_bytes == qiven3::entry::content::path_size);
-static_assert(qiven3::store::id_bytes == std::tuple_size_v<decltype(qiven3::entry::validator::Id::bytes)>);
-static_assert(qiven3::store::scope_bytes == std::string_view("project:").size() + 48 &&
-              qiven3::store::lane_bytes == 32);
+static_assert(qiven::recordlog::field_bytes == qiven3::entry::content::path_size);
+static_assert(qiven::recordlog::id_bytes == std::tuple_size_v<decltype(qiven3::entry::validator::Id::bytes)>);
+static_assert(qiven::recordlog::scope_bytes == std::string_view("project:").size() + 48 &&
+              qiven::recordlog::lane_bytes == 32);
 
 // The error a call raised, as "Kind code", or "none".
 template <class F>
 std::string raised(const F& f) {
     const std::optional<Refusal> r = refused(f);
-    return r ? std::string(qiven3::store::name(r->kind)) + " " + r->code : std::string("none");
+    return r ? std::string(qiven::recordlog::name(r->kind)) + " " + r->code : std::string("none");
 }
 
 // A forget of target as like's (E's) fields give it, on lane at seq after
@@ -141,10 +141,10 @@ void own_export(qiven::runner::Context& qiven_ctx, F& factory, const Book& book,
 
 QIVEN_CASE(checked_reads, widths) {
     for (std::size_t i = 0; i < qiven3::entry::secret::PATTERNS.size(); ++i) {
-        CHECK(qiven3::entry::secret::name(static_cast<std::uint8_t>(i)).size() <= qiven3::store::pattern_bytes);
+        CHECK(qiven3::entry::secret::name(static_cast<std::uint8_t>(i)).size() <= qiven::recordlog::pattern_bytes);
     }
     for (const std::string_view code : qiven3::entry::validator::code_names) {
-        CHECK(code.size() <= qiven3::store::code_bytes);
+        CHECK(code.size() <= qiven::recordlog::code_bytes);
     }
 }
 
@@ -245,10 +245,10 @@ QIVEN_CASE(checked_reads, own_export) {
 
 namespace {
 
-namespace state = qiven3::store::state;
+namespace state = qiven::recordlog::state;
 using qiven3::checked::Header;
 using qiven::memory::String;
-using qiven3::store::Head;
+using qiven::recordlog::Head;
 using Store = qiven3::checked::MemoryStore<Fake>;
 
 // The fake, the fixtures, a state holding A, B, D and ACC, E's lines (a
@@ -283,8 +283,8 @@ template <class F>
 std::string corrupt_code(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        return e.corrupt() ? std::string(qiven3::store::name(*e.corrupt())) : std::string("not corrupt");
+    } catch (const qiven::recordlog::StoreError& e) {
+        return e.corrupt() ? std::string(qiven::recordlog::name(*e.corrupt())) : std::string("not corrupt");
     }
     return "none";
 }
@@ -362,8 +362,8 @@ QIVEN_CASE(checked_reads, sqlite_corrupt) {
         for (auto scan = store->scan({}); scan.next(*h);) {
         }
     };
-    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
-    qiven3::store::sqlite::Connection& c = store->connection();
+    constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
+    qiven::recordlog::sqlite::Connection& c = store->connection();
     c.exec("UPDATE body SET record = (SELECT record FROM body WHERE id = '" + b + "') WHERE id = '" + a + "'", at);
     CHECK_EQ(corrupt_code([&] { (void)store->body(a, record); }), std::string("body_mismatch"));
     c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", at);
@@ -388,7 +388,7 @@ QIVEN_CASE(checked_reads, sqlite_columns) {
                                               "kind = substr(kind, 1, length(kind) - 1)"};
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
-    constexpr qiven3::store::WhereView at = qiven3::store::sqlite::site("test", "scratch");
+    constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
     for (std::size_t i = 0; i < alters.size(); ++i) {
         store->connection().exec("UPDATE entry SET " + alters.at(i) + " WHERE id = '" + a + "'", at);
         Header h{Chars(arena)};
@@ -467,7 +467,7 @@ QIVEN_CASE(checked_reads, forged) {
 
 namespace {
 
-using qiven3::store::Line;
+using qiven::recordlog::Line;
 
 // A source of lines held: the heads given, then each line.
 struct Held {

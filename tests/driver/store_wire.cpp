@@ -15,6 +15,9 @@
 #include "qiven/memory/memory.hpp"
 
 namespace qiven3::drive::wire {
+
+namespace store = qiven::recordlog;
+
 namespace {
 
 std::int64_t n(std::uint64_t value) { return static_cast<std::int64_t>(value); }

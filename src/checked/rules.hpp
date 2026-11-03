@@ -5,7 +5,7 @@
 // places, and the ruled stores' default (checked/stores.hpp).
 //
 // The store runs its own guards over the keys the hook gives, whatever its
-// hook (store/stage): the keys' bounds, forget_kind, forget_path, the
+// hook (recordlog/stage): the keys' bounds, forget_kind, forget_path, the
 // chain at import, the order, the targets a forget erases. The hook,
 // Rules: given, before the first line, at forget each line through the
 // strict parser, a line it refuses EntryInvalid with the parser's code, a
@@ -26,7 +26,7 @@
 // whose target is a target of the call, in any scope, not forgotten, not
 // itself a target, and of a kind but the change kinds (CHANGE_KINDS) is
 // StoreError whole_record, "entry <j>" naming the first forget of that
-// target. The store's own step follows (store/stage).
+// target. The store's own step follows (recordlog/stage).
 //
 // At import, read runs part 1 of each line on the store's work arena for
 // it, a fault refused, the entry held until release, and gives the store
@@ -93,16 +93,18 @@
 #include "entry/kinds.hpp"
 #include "entry/secret.hpp"
 #include "entry/validator.hpp"
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven3/format/key.hpp"
-#include "store/contract.hpp"
-#include "store/stage.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/stage.hpp"
 
 namespace qiven3::checked {
 
+namespace keys = qiven::recordlog;
+namespace store = qiven::recordlog;
 namespace canon = qiven::text::canon;
 using qiven::text::ParseCode;
 

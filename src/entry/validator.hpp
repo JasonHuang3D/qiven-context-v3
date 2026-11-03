@@ -82,13 +82,14 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::validator {
 
+namespace keys = qiven::recordlog;
 namespace canon = qiven::text::canon;
 namespace json = qiven::text::json;
 

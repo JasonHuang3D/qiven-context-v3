@@ -9,7 +9,7 @@
 
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
 using namespace qiven::test::sqlite_bed;
@@ -100,7 +100,7 @@ QIVEN_CASE(store_sqlite, counts) {
     sqlite::attach_calls(nullptr, nullptr);
     b->engine->heap().attach(nullptr);
     b->store->attach(nullptr);
-    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 #else

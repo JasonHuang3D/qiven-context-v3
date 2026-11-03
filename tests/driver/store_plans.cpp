@@ -10,10 +10,13 @@
 #include <string_view>
 
 #include "driver/store_wire.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/exchange.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/exchange.hpp"
 
 namespace qiven3::drive::wire {
+
+namespace store = qiven::recordlog;
+
 namespace {
 
 struct PlannedView {

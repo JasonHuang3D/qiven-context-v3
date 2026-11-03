@@ -13,9 +13,9 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/exchange.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/exchange.hpp"
 #include "support/seams/seams.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/stores.hpp"
@@ -25,8 +25,8 @@ namespace {
 namespace seams = qiven::test::seams;
 namespace stores = qiven::test::stores;
 namespace records = qiven::test::records;
-using qiven3::store::Kind;
-using qiven3::store::StoreError;
+using qiven::recordlog::Kind;
+using qiven::recordlog::StoreError;
 
 constexpr std::string_view at_scope = "project:qiven";
 constexpr std::string_view at_lane = "implementer";
@@ -39,10 +39,10 @@ struct Recorder {
     }
 };
 
-static_assert(qiven3::store::Hooks<seams::Steps<Recorder>>);
-static_assert(qiven3::store::Hooks<seams::NoDeferral>);
-static_assert(!qiven3::store::sqlite::defers<seams::NoDeferral>());
-static_assert(qiven3::store::sqlite::defers<qiven3::store::NoHooks>());
+static_assert(qiven::recordlog::Hooks<seams::Steps<Recorder>>);
+static_assert(qiven::recordlog::Hooks<seams::NoDeferral>);
+static_assert(!qiven::recordlog::sqlite::defers<seams::NoDeferral>());
+static_assert(qiven::recordlog::sqlite::defers<qiven::recordlog::NoHooks>());
 
 }  // namespace
 
@@ -73,13 +73,13 @@ QIVEN_CASE(seams, incoherent_row) {
         CHECK_EQ(seams::write(store, seams::purged_above_vacuumed), 0);
         (void)store.close();
     }
-    std::optional<qiven3::store::Corrupt> found;
+    std::optional<qiven::recordlog::Corrupt> found;
     try {
         (void)f.reopen();
     } catch (const StoreError& e) {
         found = e.corrupt();
     }
-    CHECK(found == qiven3::store::Corrupt::incoherent);
+    CHECK(found == qiven::recordlog::Corrupt::incoherent);
 }
 
 QIVEN_CASE(seams, vacuum_and_checkpoint) {

@@ -39,16 +39,16 @@
 #include <system_error>
 #include <vector>
 
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/memory.hpp"
-#include "store/memory_state.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/memory_state.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -56,17 +56,17 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace records = qiven::test::records;
-namespace state = qiven3::store::state;
-using qiven3::store::Engine;
-using qiven3::store::EntryView;
-using qiven3::store::Expected;
-using qiven3::store::GuardView;
-using qiven3::store::Id;
-using qiven3::store::LaneHead;
-using qiven3::store::Limits;
-using qiven3::store::Line;
-using qiven3::store::NoAdmit;
-using qiven3::store::Vector;
+namespace state = qiven::recordlog::state;
+using qiven::recordlog::Engine;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::Expected;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Id;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Line;
+using qiven::recordlog::NoAdmit;
+using qiven::recordlog::Vector;
 using records::id_of;
 using records::lane_head;
 using records::Rec;
@@ -95,12 +95,12 @@ template <class F>
 std::optional<Refusal> refused(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
+    } catch (const qiven::recordlog::StoreError& e) {
         Refusal r;
-        if (const std::optional<qiven3::store::Code> code = e.code()) {
-            r.code = qiven3::store::name(*code);
-        } else if (const std::optional<qiven3::store::Full> full = e.full()) {
-            r.code = qiven3::store::name(*full);
+        if (const std::optional<qiven::recordlog::Code> code = e.code()) {
+            r.code = qiven::recordlog::name(*code);
+        } else if (const std::optional<qiven::recordlog::Full> full = e.full()) {
+            r.code = qiven::recordlog::name(*full);
         } else {
             r.code = e.entry_code();
         }
@@ -160,7 +160,7 @@ struct Scratch {
 
 // An import's source: the lines given, in order, the heads, and a change to the last line's keys.
 struct ListSource {
-    using Change = void (*)(qiven3::store::KeysView&);
+    using Change = void (*)(qiven::recordlog::KeysView&);
     std::vector<LaneHead> given;
     std::vector<Rec> lines;
     Change last = nullptr;
@@ -175,7 +175,7 @@ struct ListSource {
         line.has_body = s.record.has_value();
         line.body.assign(s.record.value_or(std::string()));
         line.forgotten = false;
-        qiven3::store::KeysView k = records::view(s.keys);
+        qiven::recordlog::KeysView k = records::view(s.keys);
         if (at == lines.size() && last != nullptr) {
             last(k);
         }
@@ -265,8 +265,8 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     };
     // A's view, its keys or record changed by f, appended on an empty lane.
     const std::string past_id(Id::capacity + 1, 'x');
-    const std::string past_scope(qiven3::store::scope_bytes + 1, 's');
-    const std::string past_lane(qiven3::store::lane_bytes + 1, 'l');
+    const std::string past_scope(qiven::recordlog::scope_bytes + 1, 's');
+    const std::string past_lane(qiven::recordlog::lane_bytes + 1, 'l');
     const auto keyed = [&](auto&& f) {
         lines = {a};
         std::vector<EntryView> given = views(lines);
@@ -276,8 +276,8 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     // E, its keys changed by f, with A's record where bodied: appended (op
     // 'a') or given to forget ('f') on A, B, D and ACC, or imported after
     // them ('i'), B's body not given where E forgets it.
-    const ListSource::Change bodied = [](qiven3::store::KeysView& v) { v.body = true; };
-    const ListSource::Change untargeted = [](qiven3::store::KeysView& v) { v.target.reset(); };
+    const ListSource::Change bodied = [](qiven::recordlog::KeysView& v) { v.body = true; };
+    const ListSource::Change untargeted = [](qiven::recordlog::KeysView& v) { v.target.reset(); };
     const auto changed = [&](ListSource::Change f, char op) {
         Rec given = e;
         Rec b = book.b;
@@ -392,18 +392,18 @@ template <class F>
 std::string said(const F& f) {
     try {
         f();
-    } catch (const qiven3::store::StoreError& e) {
-        const std::optional<qiven3::store::Corrupt> c = e.corrupt();
-        return std::string(qiven3::store::name(e.kind())) + " " +
-               std::string(c ? qiven3::store::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
+    } catch (const qiven::recordlog::StoreError& e) {
+        const std::optional<qiven::recordlog::Corrupt> c = e.corrupt();
+        return std::string(qiven::recordlog::name(e.kind())) + " " +
+               std::string(c ? qiven::recordlog::name(*c) : std::string_view()) + " [" + std::string(e.detail()) + "]";
     }
     return {};
 }
 
 // s's verify the counts held; a refusal printed, the case's name at.
 template <class S>
-bool verifies(S& s, const qiven3::store::Counts& held, std::string_view at) {
-    qiven3::store::Counts got;
+bool verifies(S& s, const qiven::recordlog::Counts& held, std::string_view at) {
+    qiven::recordlog::Counts got;
     if (const std::string r = said([&] { got = s.verify(); }); !r.empty()) {
         std::cout << at << ": verify " << r << "\n";
         return false;
@@ -416,7 +416,7 @@ struct PlainSource {
     struct Given {
         std::string line;
         std::optional<std::string> record;
-        qiven3::store::KeysView keys;
+        qiven::recordlog::KeysView keys;
     };
     std::vector<LaneHead> given;
     std::vector<Given> lines;
@@ -442,21 +442,21 @@ struct PlainSource {
 // scan's keys and lines as given.
 template <class S>
 bool imports_plain(S& s, const Book& book, Arena& arena) {
-    using qiven3::store::KeysView;
+    using qiven::recordlog::KeysView;
     PlainSource src;
     src.lines = {{book.a.line, "a record", KeysView{"p1", "plain", "one", "note", 1, {}, {}, true}},
                  {"line two", std::nullopt, KeysView{"p2", "plain", "one", "note", 2, "p1", {}, true}},
                  {"line three", std::nullopt, KeysView{"p3", "plain", "two", "forget", 1, {}, "p2", false}}};
     src.given = {lane_head("plain", "one", "p2", 2), lane_head("plain", "two", "p3", 1)};
     Vector<LaneHead> wrote{Chars(arena)};
-    const qiven3::store::Imported in = s.import_(src, wrote, NoAdmit{});
-    const std::optional<qiven3::store::Head> one = s.head("plain", "one");
-    const std::optional<qiven3::store::Head> two = s.head("plain", "two");
-    bool ok = in.counts == qiven3::store::Counts{3, 1, 1, 2} && wrote.size() == 2 && one && one->id.view() == "p2" &&
+    const qiven::recordlog::Imported in = s.import_(src, wrote, NoAdmit{});
+    const std::optional<qiven::recordlog::Head> one = s.head("plain", "one");
+    const std::optional<qiven::recordlog::Head> two = s.head("plain", "two");
+    bool ok = in.counts == qiven::recordlog::Counts{3, 1, 1, 2} && wrote.size() == 2 && one && one->id.view() == "p2" &&
               two && two->seq == 1;
     {
         auto scan = s.scan({});
-        qiven3::store::Record r{Chars(arena)};
+        qiven::recordlog::Record r{Chars(arena)};
         for (const PlainSource::Given& g : src.lines) {
             ok = ok && scan.next(r);
             const KeysView k = r.keys();
@@ -475,9 +475,9 @@ bool imports_plain(S& s, const Book& book, Arena& arena) {
 template <class S>
 bool appends_plain(S& s) {
     const std::array<EntryView, 1> lines = {
-        EntryView{"line four", "record four", qiven3::store::KeysView{"p4", "plain", "three", "note", 1, {}, {}, true}}};
+        EntryView{"line four", "record four", qiven::recordlog::KeysView{"p4", "plain", "three", "note", 1, {}, {}, true}}};
     (void)s.append("plain", "three", std::nullopt, lines, NoAdmit{});
-    return s.verify() == qiven3::store::Counts{4, 2, 1, 3};
+    return s.verify() == qiven::recordlog::Counts{4, 2, 1, 3};
 }
 
 }  // namespace
@@ -490,14 +490,14 @@ QIVEN_CASE(store_guard, import_plain) {
     {
         auto heap = fake->pages(state_bytes);
         const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
-        qiven3::store::MemoryStore<Fake> s(*st, *fake);
+        qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
         CHECK(imports_plain(s, *book, arena));
         CHECK(appends_plain(s));
     }
     const auto scratch = std::make_unique<Scratch>();
     const auto disk = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*disk);
-    using Store = qiven3::store::SQLiteStore<Fake>;
+    using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "plain" / "store.db");
     {
         const auto s = std::make_unique<Store>(Store::open(path, true, false, *disk));
@@ -506,7 +506,7 @@ QIVEN_CASE(store_guard, import_plain) {
         (void)s->close();
     }
     const auto again = std::make_unique<Store>(Store::open(path, false, false, *disk));
-    CHECK(again->verify() == (qiven3::store::Counts{4, 2, 1, 3}));
+    CHECK(again->verify() == (qiven::recordlog::Counts{4, 2, 1, 3}));
     (void)again->close();
 }
 
@@ -518,10 +518,10 @@ QIVEN_CASE(store_guard, memory) {
         const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
         std::vector<std::byte> pages(std::size_t{1} << 20U);
         Arena arena(pages);
-        qiven3::store::MemoryStore<Fake> s(*st, *fake);
+        qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
         before(k, s, *book, arena);
-        const qiven3::store::Counts held = s.verify();
-        const std::optional<qiven3::store::Head> head = s.head(qs, mine);
+        const qiven::recordlog::Counts held = s.verify();
+        const std::optional<qiven::recordlog::Head> head = s.head(qs, mine);
         const std::optional<Refusal> r = write(k, s, *book, arena);
         std::cout << "store_guard.memory: " << wants[k].name << ": " << (r ? r->code : "none") << "\n";
         CHECK(as_wanted(k, r));
@@ -536,13 +536,13 @@ QIVEN_CASE(store_guard, sqlite) {
     const auto fake = std::make_unique<Fake>(scratch->config());
     const Engine<Fake> engine(*fake);
     const auto book = std::make_unique<const Book>();
-    using Store = qiven3::store::SQLiteStore<Fake>;
+    using Store = qiven::recordlog::SQLiteStore<Fake>;
     for (std::size_t k = 0; k < cases; ++k) {
         const std::string path = text(scratch->root / ("g" + std::to_string(k)) / "store.db");
         std::vector<std::byte> pages(std::size_t{1} << 20U);
         Arena arena(pages);
-        qiven3::store::Counts held;
-        std::optional<qiven3::store::Head> head;
+        qiven::recordlog::Counts held;
+        std::optional<qiven::recordlog::Head> head;
         {
             const auto s = std::make_unique<Store>(Store::open(path, true, false, *fake));
             before(k, *s, *book, arena);

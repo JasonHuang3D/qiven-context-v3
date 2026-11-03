@@ -20,7 +20,8 @@ text's and then the tokens' own:
 - B21: a C-style cast, and a pun by static_cast through void*;
 - B22: a C variadic function's declaration or call, which tokens cannot tell
   from a pack or a fold; the tokens read SQLite's own variadic functions'
-  calls by name, so that store/engine/ calls sqlite3_config alone;
+  calls by name, so that recordlog's src/engine/ calls sqlite3_config
+  alone;
 - B23: a union's member read; B24: a library's own threads; a test's
   std::thread passes when a join is called in its block, whichever thread
   it joins;
@@ -49,7 +50,7 @@ C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_
 B20_NAMES = frozenset(("construct_at", "destroy_at"))
 B21_NAMES = frozenset(("reinterpret_cast", "const_cast"))
 B22_NAMES = frozenset(("va_list", "va_start", "va_arg", "va_copy", "va_end"))
-# SQLite's variadic functions, called by name: sqlite3_config is store/engine/'s alone.
+# SQLite's variadic functions, called by name: sqlite3_config is recordlog's src/engine/'s alone.
 SQLITE_VARIADIC = frozenset(("sqlite3_config", "sqlite3_db_config", "sqlite3_vtab_config", "sqlite3_mprintf",
                              "sqlite3_snprintf", "sqlite3_str_appendf", "sqlite3_log", "sqlite3_test_control"))
 B24_NAMES = frozenset(("CreateThread", "_beginthread", "_beginthreadex", "pthread_create"))
@@ -91,7 +92,7 @@ ALLOWED = {
 # rule: Type is a type's members, Type::member that member alone.
 RUNNER_TEST = "foundation/devkit/test/runner/tests/runner_test.cpp"
 CELLS = {
-    ("B22", "src/store/engine/", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
+    ("B22", "foundation/services/storage/recordlog/src/engine/", "sqlite3_config"): "SQLite's configuration, variadic in its interface",
     ("B25", RUNNER_TEST, "reached"): "whether a sample case went on past its failed REQUIRE: the sample, a plain "
                                      "case function that takes no state but its Context, sets it, and the case "
                                      "that runs the sample reads it",

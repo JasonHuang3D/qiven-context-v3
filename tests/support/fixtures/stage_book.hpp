@@ -34,25 +34,25 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven3/format/key.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
-#include "store/stage.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/stage.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace qiven::test::stage_book {
 
-namespace stage = qiven3::store::stage;
+namespace stage = qiven::recordlog::stage;
 namespace checked = qiven3::checked;
 namespace header = qiven3::entry::header;
 namespace body = qiven3::entry::body;
 namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Arena;
-using qiven3::store::EntryView;
-using qiven3::store::Kind;
-using qiven3::store::Limits;
-using qiven3::store::Operation;
-using qiven3::store::StoreError;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::Kind;
+using qiven::recordlog::Limits;
+using qiven::recordlog::Operation;
+using qiven::recordlog::StoreError;
 using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven::platform::fake::FakePlatform;
 using Slot = header::Slot;
@@ -135,7 +135,7 @@ inline EntryView keyed(std::string_view line, std::optional<std::string_view> re
         const std::optional<std::string_view> v = h.text(s);
         return v ? std::optional<std::string_view>(in_line(*v)) : std::nullopt;
     };
-    qiven3::store::KeysView k{in_line(h.value(Slot::id)),   in_line(h.value(Slot::scope)), in_line(h.value(Slot::lane)),
+    qiven::recordlog::KeysView k{in_line(h.value(Slot::id)),   in_line(h.value(Slot::scope)), in_line(h.value(Slot::lane)),
                               in_line(h.value(Slot::kind)), h.seq(),                       text(Slot::parent),
                               text(Slot::target),           h.text(Slot::content).has_value()};
     return EntryView{line, record, k};
@@ -178,12 +178,12 @@ inline void hold(fixtures::MemoryView& view, const std::vector<Stored>& list) {
 
 inline stage::AtView at(Operation op) { return stage::AtView{op, "store-path"}; }
 
-inline qiven3::store::LaneHead lane_head(std::string_view scope, std::string_view lane, std::string_view id,
+inline qiven::recordlog::LaneHead lane_head(std::string_view scope, std::string_view lane, std::string_view id,
                                          std::int64_t seq) {
-    qiven3::store::LaneHead h;
-    h.head = qiven3::store::Head{qiven3::store::Id::of(id), seq};
-    h.scope = qiven::memory::Inline<qiven3::store::scope_bytes>(scope);
-    h.lane = qiven::memory::Inline<qiven3::store::lane_bytes>(lane);
+    qiven::recordlog::LaneHead h;
+    h.head = qiven::recordlog::Head{qiven::recordlog::Id::of(id), seq};
+    h.scope = qiven::memory::Inline<qiven::recordlog::scope_bytes>(scope);
+    h.lane = qiven::memory::Inline<qiven::recordlog::lane_bytes>(lane);
     return h;
 }
 
@@ -390,10 +390,10 @@ std::optional<Refusal> refused(const F& f) {
     } catch (const StoreError& e) {
         Refusal r;
         r.kind = e.kind();
-        if (const std::optional<qiven3::store::Code> code = e.code()) {
-            r.code = qiven3::store::name(*code);
-        } else if (const std::optional<qiven3::store::Full> full = e.full()) {
-            r.code = qiven3::store::name(*full);
+        if (const std::optional<qiven::recordlog::Code> code = e.code()) {
+            r.code = qiven::recordlog::name(*code);
+        } else if (const std::optional<qiven::recordlog::Full> full = e.full()) {
+            r.code = qiven::recordlog::name(*full);
         } else {
             r.code = e.entry_code();
         }

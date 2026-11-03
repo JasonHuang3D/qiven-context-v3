@@ -19,6 +19,9 @@
 #include "support/fixtures/stage_book.hpp"
 
 namespace qiven3::drive::wire {
+
+namespace store = qiven::recordlog;
+
 namespace {
 
 namespace header = entry::header;

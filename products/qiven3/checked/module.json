@@ -13,8 +13,7 @@
       "name": "checked",
       "layer": "product",
       "depends": [
-        "keys",
-        "store",
+        "recordlog",
         "entry",
         "secret",
         "format",
@@ -22,7 +21,8 @@
         "platform"
       ],
       "test_depends": [
-        "faults"
+        "faults",
+        "store"
       ],
       "paths": [
         "src/checked/",

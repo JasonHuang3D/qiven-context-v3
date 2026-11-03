@@ -37,10 +37,10 @@
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/codes.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/codes.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test {
@@ -51,13 +51,13 @@ void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::a
 namespace {
 
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using Fake = qiven::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 using qiven::memory::Countdown;
 using qiven::memory::MemoryError;
 using qiven::platform::PlatformError;
-using qiven3::store::StoreError;
+using qiven::recordlog::StoreError;
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -115,7 +115,7 @@ struct Rig {
         } catch (const StoreError& e) {
             detail = e.detail();
             const auto code = e.code();
-            return std::string(qiven3::store::name(e.kind())) + (code ? " " + std::string(qiven3::store::name(*code)) : "");
+            return std::string(qiven::recordlog::name(e.kind())) + (code ? " " + std::string(qiven::recordlog::name(*code)) : "");
         } catch (const MemoryError& e) {
             detail = e.detail.view();
             return "MemoryError";
@@ -135,7 +135,7 @@ struct Rig {
     }
     fs::path root;
     Fake fake;
-    qiven3::store::Engine<Fake> engine;
+    qiven::recordlog::Engine<Fake> engine;
     fs::path dir;
     std::string path;
     std::string detail;
@@ -177,7 +177,7 @@ Bounds measure(Rig& rig, Kind kind) {
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     qiven::memory::Arena arena(pages);
     const qiven::memory::String path(rig.path, qiven::memory::Allocator<char>(arena));
-    const qiven3::store::WhereView at = sqlite::site(sqlite::open_name, rig.path);
+    const qiven::recordlog::WhereView at = sqlite::site(sqlite::open_name, rig.path);
     Bounds b;
     Countdown c;
     {
@@ -240,7 +240,7 @@ void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven::test::F
         try {
             made.emplace(Store::open(rig.path, true, false, rig.fake));
         } catch (const StoreError& e) {
-            ++raised[std::string(qiven3::store::name(e.kind()))];
+            ++raised[std::string(qiven::recordlog::name(e.kind()))];
             rig.detail = e.detail();
             throw Typed{};
         } catch (const MemoryError& e) {

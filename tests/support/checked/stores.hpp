@@ -18,7 +18,7 @@
 #include <utility>
 
 #include "checked/stores.hpp"
-#include "store/contract.hpp"
+#include "qiven/recordlog/contract.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/stores/stores.hpp"
 
@@ -54,7 +54,7 @@ private:
 inline std::unique_ptr<Site> site(std::uint64_t seed = 7) { return std::make_unique<Site>(seed); }
 
 using Memory = stores::MemoryOn<qiven3::checked::MemoryStore<Fake>, Site>;
-template <qiven3::store::Hooks H = qiven3::store::NoHooks>
+template <qiven::recordlog::Hooks H = qiven::recordlog::NoHooks>
 using Sqlite = stores::SqliteOn<qiven3::checked::SQLiteStore<Fake, H>, Site, H>;
 
 }  // namespace qiven::test::ruled

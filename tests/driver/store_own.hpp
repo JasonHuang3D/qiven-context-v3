@@ -33,14 +33,16 @@
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
 #include "qiven/memory/memory.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "support/checked/stores.hpp"
 #include "support/seams/seams.hpp"
 
 namespace qiven3::drive {
+
+namespace store = qiven::recordlog;
 
 // path, UTF-8 and relative, under the Site's root.
 inline std::string under_site(const qiven::test::ruled::Site& site, std::string_view path) {

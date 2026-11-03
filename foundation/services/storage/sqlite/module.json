@@ -5,11 +5,11 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/store/engine/connection.hpp",
+  "contract": "foundation/services/storage/recordlog/include/qiven/recordlog/engine/connection.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [],
   "from": [
-    "store"
+    "recordlog"
   ]
 }

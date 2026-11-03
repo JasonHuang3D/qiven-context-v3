@@ -9,25 +9,25 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/memory.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/scan_case.hpp"
 
 namespace {
 
 using Fake = qiven::platform::fake::FakePlatform;
-using Store = qiven3::store::MemoryStore<Fake>;
+using Store = qiven::recordlog::MemoryStore<Fake>;
 
 // The fake, the state's pages and the state, and the caller's arena; on
 // the heap.
 struct Rig {
     Rig()
         : fake(qiven::platform::fake::Config{}), heap(fake.pages(std::size_t{8} << 20U)),
-          state(heap.bytes(), qiven3::store::Limits{}), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
+          state(heap.bytes(), qiven::recordlog::Limits{}), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
     Fake fake;
     qiven::platform::fake::FakePages heap;
-    qiven3::store::state::State state;
+    qiven::recordlog::state::State state;
     std::vector<std::byte> pages;
     qiven::memory::Arena arena;
     qiven::memory::Allocator<char> chars;

@@ -52,12 +52,14 @@
 #include "driver/store_held.hpp"
 #include "driver/store_wire.hpp"
 #include "qiven/memory/arena.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/checked/stores.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::drive::wire {
+
+namespace store = qiven::recordlog;
 
 inline constexpr std::int64_t fill_batch = 100;
 
@@ -134,6 +136,8 @@ Value drain(Export& x, const Held& held) {
 }  // namespace qiven3::drive::wire
 
 namespace qiven3::drive {
+
+namespace store = qiven::recordlog;
 
 // A thread appending through a store object of its own over factory F's
 // state, holding after its first hold batches until released; released

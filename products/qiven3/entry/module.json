@@ -13,7 +13,7 @@
       "name": "entry",
       "layer": "product",
       "depends": [
-        "keys",
+        "recordlog",
         "matcher",
         "text",
         "time",

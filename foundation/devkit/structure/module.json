@@ -15,6 +15,7 @@
       "depends": [],
       "test_depends": [
         "faults",
+        "recordlog",
         "store",
         "checked",
         "write",
@@ -33,6 +34,7 @@
     {
       "from": "structure",
       "to": [
+        "recordlog",
         "store",
         "checked",
         "write",

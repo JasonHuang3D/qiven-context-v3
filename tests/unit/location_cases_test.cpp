@@ -37,8 +37,8 @@
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
@@ -156,7 +156,7 @@ struct Bed {
         qiven::memory::String got{qiven::memory::Allocator<char>(arena)};
         try {
             location::store_dir(*fake, got);
-        } catch (const qiven3::store::StoreError& e) {
+        } catch (const qiven::recordlog::StoreError& e) {
             return "StoreError " + std::string(e.operation()) + " " + std::string(e.detail());
         }
         return std::string(got);
@@ -167,8 +167,8 @@ struct Bed {
     }
     // A store made at dir by the store itself, closed.
     void make_store(const fs::path& dir) {
-        const qiven3::store::Engine<Fake> engine(*fake, 1);
-        auto s = qiven3::store::SQLiteStore<Fake>::open(text(dir / "store.db"), true, false, *fake);
+        const qiven::recordlog::Engine<Fake> engine(*fake, 1);
+        auto s = qiven::recordlog::SQLiteStore<Fake>::open(text(dir / "store.db"), true, false, *fake);
         static_cast<void>(s.close());
     }
 

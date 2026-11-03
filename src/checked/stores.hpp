@@ -13,11 +13,13 @@
 #include "checked/ruled.hpp"
 #include "checked/rules.hpp"
 #include "qiven/platform/platform.hpp"
-#include "store/contract.hpp"
-#include "store/memory.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 
 namespace qiven3::checked {
+
+namespace store = qiven::recordlog;
 
 template <qiven::platform::Platform P>
 using MemoryStore = Ruled<store::MemoryStore<P, Rules<P>>>;

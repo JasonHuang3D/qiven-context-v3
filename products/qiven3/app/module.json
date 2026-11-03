@@ -14,7 +14,7 @@
       "layer": "product",
       "depends": [
         "location",
-        "store",
+        "recordlog",
         "wire",
         "diag"
       ],

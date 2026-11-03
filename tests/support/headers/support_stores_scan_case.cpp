@@ -3,15 +3,15 @@
 
 #include "support/stores/scan_case.hpp"
 
-#include "store/memory.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/memory.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test::scan_case {
 
 using Fake = qiven::platform::fake::FakePlatform;
-using Memory = qiven3::store::MemoryStore<Fake>;
-using SQLite = qiven3::store::SQLiteStore<Fake>;
+using Memory = qiven::recordlog::MemoryStore<Fake>;
+using SQLite = qiven::recordlog::SQLiteStore<Fake>;
 
 template void scan_ends_at_start(qiven::runner::Context&, Memory&, Memory&, const Chars&);
 template void scan_ends_at_start(qiven::runner::Context&, SQLite&, SQLite&, const Chars&);

@@ -21,8 +21,8 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
 using namespace qiven::test::sqlite_rig;
@@ -83,13 +83,13 @@ QIVEN_CASE(store_sqlite, cache) {
               << " slots (mark " << s.peak << "), heap " << all.used << " (peak " << all.peak << "), past the slots "
               << s.overflow << " (mark " << s.overflow_peak << "): the cache " << cache << " against 2,000 KiB ("
               << std::size_t{2000} * 1024 << "); the connection's peak " << all.top()
-              << " against the engine's budget a connection " << qiven3::store::engine_budget << "\n";
+              << " against the engine's budget a connection " << qiven::recordlog::engine_budget << "\n";
     // Each cached page on a slot of its own, the page and the engine's
     // header, none on the heap's classes: a full cache holds about its
     // 2,000 KiB, the connection within its budget.
     CHECK_EQ(s.count, (sqlite::cache_slots * sqlite::default_connections) + sqlite::slots_reserve);
     CHECK_EQ(rig->engine->heap().budget() + (s.count * s.size),
-             qiven3::store::engine_budget * sqlite::default_connections);  // the heap before the slots
+             qiven::recordlog::engine_budget * sqlite::default_connections);  // the heap before the slots
     CHECK(s.size > sqlite::page_size && s.size < 2 * sqlite::page_size && s.size % 8 == 0);
     CHECK_EQ(slots_a_page, 100U);
     CHECK(heap_a_page < 64);
@@ -97,7 +97,7 @@ QIVEN_CASE(store_sqlite, cache) {
     CHECK_EQ(s.overflow_peak, 0U);
     CHECK(s.used <= sqlite::cache_slots);
     CHECK(cache <= sqlite::cache_slots * s.size);
-    CHECK(all.top() <= qiven3::store::engine_budget);
+    CHECK(all.top() <= qiven::recordlog::engine_budget);
     if (slots_pinned) {
         CHECK_EQ(s.size, slot_measured);
         CHECK_EQ(s.used, sqlite::cache_slots);  // a full cache, as cache_slots holds it
@@ -121,9 +121,9 @@ QIVEN_CASE(store_sqlite, cache_shared) {
                   << " slots, heap " << rig->engine->heap().budget() << "), two caches full at once: first "
                   << first.slots.used << " slots, then " << s.used << " (mark " << s.peak << "), heap " << both.used
                   << " (peak " << both.peak << "), past the slots " << s.overflow << " (mark " << s.overflow_peak
-                  << "): peak " << both.top() << " against " << qiven3::store::engine_budget * connections
-                  << " for its connections, " << qiven3::store::engine_budget * 2 << " for two\n";
-        CHECK(both.top() <= qiven3::store::engine_budget * 2);
+                  << "): peak " << both.top() << " against " << qiven::recordlog::engine_budget * connections
+                  << " for its connections, " << qiven::recordlog::engine_budget * 2 << " for two\n";
+        CHECK(both.top() <= qiven::recordlog::engine_budget * 2);
         // a's full cache and b's first page buffer, the engine's reserve
         // beside the slots letting a's cache fill
         CHECK(!slots_pinned || first.slots.used == sqlite::cache_slots + 1);
@@ -176,7 +176,7 @@ QIVEN_CASE(store_sqlite, slots_refused) {
     CHECK(!sqlite::engine_ready());
     // Pages short of the slots: refused, nothing installed.
     {
-        std::vector<std::byte> short_pages(qiven3::store::engine_budget / 2);
+        std::vector<std::byte> short_pages(qiven::recordlog::engine_budget / 2);
         CHECK_EQ(raised([&] { const sqlite::EngineHeap h(short_pages, 1); }),
                  "StoreError internal: the engine heap's pages cannot hold the page cache's slots");
         CHECK(!sqlite::engine_ready());

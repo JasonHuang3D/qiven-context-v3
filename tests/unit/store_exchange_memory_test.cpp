@@ -5,14 +5,14 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/stores/exchange_bed.hpp"
 
 using namespace qiven::test::exchange_bed;
 
 namespace {
 
-constexpr std::size_t own_bytes = qiven3::store::operation_base;
+constexpr std::size_t own_bytes = qiven::recordlog::operation_base;
 
 }  // namespace
 
@@ -36,7 +36,7 @@ QIVEN_CASE(store_exchange, budget) {
         const Ran r = s.run(*b, c);
         const sqlite::Slots slots = b->engine->slots();
         const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
-        const std::size_t engine_within = qiven3::store::engine_budget * (s.side == Side::exporting ? 2U : 1U);
+        const std::size_t engine_within = qiven::recordlog::engine_budget * (s.side == Side::exporting ? 2U : 1U);
         CHECK(r.own <= own_bytes);
         CHECK(r.own > 0 || s.name == "heads" || s.side == Side::verifying);  // the plain verify counts none
         CHECK_EQ(r.result, std::string(s.want));
@@ -57,9 +57,9 @@ namespace {
 
 using qiven::memory::MemoryError;
 using qiven::platform::PlatformError;
-using qiven3::store::Heads;
-using qiven3::store::RangeView;
-using qiven3::store::Sizes;
+using qiven::recordlog::Heads;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Sizes;
 
 std::uintmax_t wal_bytes(const std::string& path) {
     std::error_code error;
@@ -86,13 +86,13 @@ std::string fingerprint(Store& store) {
         out.append(" size ").append(std::to_string(sizes->volume.size));
         out.append(" count ").append(std::to_string(sizes->volume.count)).append(" ids");
         auto scan = store.scan(RangeView{});
-        qiven3::store::Record record(chars);
+        qiven::recordlog::Record record(chars);
         while (scan.next(record)) {
             out.append(" ").append(record.id.view());
         }
         return out;
-    } catch (const qiven3::store::StoreError& e) {
-        return "raised " + std::string(qiven3::store::name(e.kind()));
+    } catch (const qiven::recordlog::StoreError& e) {
+        return "raised " + std::string(qiven::recordlog::name(e.kind()));
     } catch (const MemoryError&) {
         return "raised MemoryError";
     }
@@ -117,8 +117,8 @@ void attach(Bed& b, qiven::memory::Countdown* c) {
     b.fake.attach(c);
 }
 
-bool injected_io(const qiven3::store::StoreError& e) {
-    return qiven3::store::name(e.kind()) == "StoreLocked" && e.cause() && *e.cause() == qiven3::store::Cause::io;
+bool injected_io(const qiven::recordlog::StoreError& e) {
+    return qiven::recordlog::name(e.kind()) == "StoreLocked" && e.cause() && *e.cause() == qiven::recordlog::Cause::io;
 }
 
 struct After {
@@ -174,9 +174,9 @@ void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven:
         } catch (const PlatformError&) {
             ++t.platform;
             throw Typed{};
-        } catch (const qiven3::store::StoreError& e) {
+        } catch (const qiven::recordlog::StoreError& e) {
             if (!injected_io(e)) {
-                std::cout << "store_exchange.faults: " << s.name << ": " << qiven3::store::name(e.kind()) << " "
+                std::cout << "store_exchange.faults: " << s.name << ": " << qiven::recordlog::name(e.kind()) << " "
                           << e.detail() << "\n";
                 throw;
             }

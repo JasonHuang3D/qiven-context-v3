@@ -34,9 +34,9 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -44,20 +44,20 @@ namespace qiven::test::sqlite_bed {
 
 using records::chain, records::forget, records::id_of, records::Rec, records::views;
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using qiven::memory::String;
 using qiven::memory::Vector;
-using qiven3::store::EntryView;
-using qiven3::store::GuardView;
-using qiven3::store::Heads;
-using qiven3::store::LaneHead;
-using qiven3::store::RangeView;
-using qiven3::store::Sizes;
-using qiven3::store::Written;
+using qiven::recordlog::EntryView;
+using qiven::recordlog::GuardView;
+using qiven::recordlog::Heads;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::RangeView;
+using qiven::recordlog::Sizes;
+using qiven::recordlog::Written;
 using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven::platform::fake::FakePlatform;
-using Store = qiven3::store::SQLiteStore<Fake>;
-using Engine = qiven3::store::Engine<Fake>;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
+using Engine = qiven::recordlog::Engine<Fake>;
 
 inline constexpr std::string_view qiven_scope = "project:qiven";
 inline constexpr std::string_view implementer_lane = "implementer";
@@ -213,7 +213,7 @@ inline std::vector<Step> steps() {
 }
 
 inline void add_steps(std::vector<Step>& out) {
-    constexpr std::size_t base = qiven3::store::operation_base;
+    constexpr std::size_t base = qiven::recordlog::operation_base;
     out.push_back({"create", base, Sort::create, 1, {}, [](Bed& b, const Chars&) {
                        b.store = std::make_unique<Store>(Store::open(b.path, true, false, b.fake));
                        return Ran{b.store->peak(), 0, "made"};
@@ -230,7 +230,7 @@ inline void add_steps(std::vector<Step>& out) {
 }
 
 inline void add_reads(std::vector<Step>& out) {
-    constexpr std::size_t base = qiven3::store::operation_base;
+    constexpr std::size_t base = qiven::recordlog::operation_base;
     out.push_back({"head", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
                        const auto h = b.store->head(qiven_scope, implementer_lane);
                        return Ran{0, 0, h ? std::string(h->id.view()) : "none"};
@@ -255,7 +255,7 @@ inline void add_reads(std::vector<Step>& out) {
                    }});
     out.push_back({"scan", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
                        auto scan = b.store->scan(RangeView{});
-                       qiven3::store::Record h(c);
+                       qiven::recordlog::Record h(c);
                        std::string ids;
                        while (scan.next(h)) {
                            ids.append(h.id.view().substr(0, 8)).append(" ");
@@ -267,7 +267,7 @@ inline void add_reads(std::vector<Step>& out) {
                        return Ran{0, 0, std::to_string(sizes->volume.size) + " " + std::to_string(sizes->volume.count)};
                    }});
     out.push_back({"forget", 0, Sort::write, 1, {}, [](Bed& b, const Chars& c) {
-                       Vector<qiven3::store::Id> erased(c);
+                       Vector<qiven::recordlog::Id> erased(c);
                        const Written w =
                            b.store->forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
                        return Ran{b.store->peak(), b.call->peak(), written(w) + " " + std::to_string(erased.size())};
@@ -295,10 +295,10 @@ inline void add_reads(std::vector<Step>& out) {
 // The generic calls, after the course's forget: A's line, B's targets (E),
 // the scope's notes with no target, and their lent walk.
 inline void add_calls(std::vector<Step>& out) {
-    constexpr std::size_t base = qiven3::store::operation_base;
-    const auto ids = [](const Vector<qiven3::store::Id>& list) {
+    constexpr std::size_t base = qiven::recordlog::operation_base;
+    const auto ids = [](const Vector<qiven::recordlog::Id>& list) {
         std::string s;
-        for (const qiven3::store::Id& id : list) {
+        for (const qiven::recordlog::Id& id : list) {
             s.append(id.view().substr(0, 8)).append(" ");
         }
         return s;
@@ -309,18 +309,18 @@ inline void add_calls(std::vector<Step>& out) {
                        return Ran{b.store->peak(), b.call->peak(), std::to_string(held) + std::to_string(line.size())};
                    }});
     out.push_back({"targets", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
-                       Vector<qiven3::store::Id> list(c);
+                       Vector<qiven::recordlog::Id> list(c);
                        b.store->targets(id_of(b.first[1]), qiven_scope, list);
                        return Ran{b.store->peak(), b.call->peak(), ids(list)};
                    }});
     out.push_back({"keyed", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
-                       Vector<qiven3::store::Id> list(c);
+                       Vector<qiven::recordlog::Id> list(c);
                        b.store->keyed(qiven_scope, "note", list);
                        return Ran{b.store->peak(), b.call->peak(), ids(list)};
                    }});
     out.push_back({"each_keyed", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
                        std::size_t n = 0;
-                       const bool stopped = b.store->each_keyed(qiven_scope, "note", [&n](const qiven3::store::Id&) {
+                       const bool stopped = b.store->each_keyed(qiven_scope, "note", [&n](const qiven::recordlog::Id&) {
                            return ++n == 2;
                        });
                        return Ran{b.store->peak(), 0, std::to_string(stopped) + std::to_string(n)};
@@ -334,7 +334,7 @@ inline std::size_t budget(const Bed& b, const Step& s) {
     }
     const std::vector<EntryView>& lines =
         s.name == "append" ? b.first_lines : s.name == "append_acc" ? b.acc_lines : b.e_lines;
-    return qiven3::store::operation_budget(qiven3::store::given(lines).value_or(0)).value_or(0);
+    return qiven::recordlog::operation_budget(qiven::recordlog::given(lines).value_or(0)).value_or(0);
 }
 
 }  // namespace qiven::test::sqlite_bed

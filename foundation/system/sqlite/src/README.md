@@ -19,7 +19,7 @@ Configure checks both files' SHA-256 (the module's `CMakeLists.txt`, at its
 top) and fails on any other, so a changed amalgamation never builds. The
 target `qiven_sqlite` (the same file) compiles `sqlite3.c` as C at its own level: MSVC `/W3`
 without `/WX`, gcc and clang their defaults without `-Werror`; the core's
-warnings, analysis and frame bound do not cover it. `qiven3_store` alone
+warnings, analysis and frame bound do not cover it. `qiven_recordlog` alone
 links it (B1).
 
 ## The options

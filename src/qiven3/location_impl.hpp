@@ -16,11 +16,14 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
-#include "store/errors.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "wire/wire.hpp"
 
 namespace qiven3::location {
+
+namespace store = qiven::recordlog;
+
 namespace detail {
 
 // The status a line written gives on: no status of main's, which a line

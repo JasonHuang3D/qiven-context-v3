@@ -16,8 +16,8 @@
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 #include "support/stores/sqlite_bed.hpp"
 
 namespace qiven::test {  // A group's fault runs, a part's range of them, by store_sqlite_parts_test.cpp.
@@ -26,7 +26,7 @@ void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_vie
 using namespace qiven::test::sqlite_bed;
 using qiven::memory::MemoryError;
 using qiven::platform::PlatformError;
-using qiven3::store::StoreError;
+using qiven::recordlog::StoreError;
 
 QIVEN_CASE(store_sqlite, budget) {
     const auto b = std::make_unique<Bed>();
@@ -35,10 +35,10 @@ QIVEN_CASE(store_sqlite, budget) {
         const std::size_t opened = b->engine->heap().peak();
         const Chars c = b->caller();
         const Ran r = s.run(*b, c);
-        const qiven3::store::sqlite::Slots slots = b->engine->slots();
+        const qiven::recordlog::sqlite::Slots slots = b->engine->slots();
         const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
         const std::size_t within = budget(*b, s);
-        const std::size_t engine_within = qiven3::store::engine_budget * (s.connections == 0 ? 1 : s.connections);
+        const std::size_t engine_within = qiven::recordlog::engine_budget * (s.connections == 0 ? 1 : s.connections);
         CHECK(r.store <= within);
         CHECK(r.caller <= call_bytes);
         CHECK(engine <= engine_within);
@@ -48,7 +48,7 @@ QIVEN_CASE(store_sqlite, budget) {
                   << slots.peak << " slots of it (reopened, the heap's " << opened << ") within " << engine_within
                   << "\n";
     }
-    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 
@@ -77,13 +77,13 @@ std::string fingerprint(Store* store) {
         out.append(" size ").append(std::to_string(sizes->volume.size));
         out.append(" count ").append(std::to_string(sizes->volume.count)).append(" ids");
         auto scan = store->scan(RangeView{});
-        qiven3::store::Record h(chars);
+        qiven::recordlog::Record h(chars);
         while (scan.next(h)) {
             out.append(" ").append(h.id.view());
         }
         return out;
     } catch (const StoreError& e) {
-        return "raised " + std::string(qiven3::store::name(e.kind()));
+        return "raised " + std::string(qiven::recordlog::name(e.kind()));
     } catch (const MemoryError&) {
         return "raised MemoryError";
     }
@@ -110,8 +110,8 @@ void attach(Bed& b, qiven::memory::Countdown* c) {
 }
 
 bool injected_io(const StoreError& e) {
-    return qiven3::store::name(e.kind()) == "StoreLocked" && e.cause() &&
-           *e.cause() == qiven3::store::Cause::io;
+    return qiven::recordlog::name(e.kind()) == "StoreLocked" && e.cause() &&
+           *e.cause() == qiven::recordlog::Cause::io;
 }
 
 // One step's fault runs, those of the part's range; its tallies, and
@@ -145,7 +145,7 @@ bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven:
             throw Typed{};
         } catch (const StoreError& e) {
             if (!injected_io(e)) {
-                std::cout << "store_sqlite.faults: " << s.name << ": " << qiven3::store::name(e.kind()) << " "
+                std::cout << "store_sqlite.faults: " << s.name << ": " << qiven::recordlog::name(e.kind()) << " "
                           << e.detail() << "\n";
                 throw;
             }
@@ -223,7 +223,7 @@ void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, st
             std::cout << "store_sqlite.faults: " << s.name << " failed\n";
         }
     }
-    CHECK(b->store->verify() == (qiven3::store::Counts{5, 3, 1, 1}));  // the course's
+    CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
     CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
 }
 #else

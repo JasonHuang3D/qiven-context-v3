@@ -33,11 +33,11 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "store/contract.hpp"
-#include "store/engine/sqlite.hpp"
-#include "store/errors.hpp"
-#include "store/exchange.hpp"
-#include "store/sqlite_store.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/exchange.hpp"
+#include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
@@ -45,23 +45,23 @@ namespace {
 
 using namespace qiven::test::records;
 namespace fs = std::filesystem;
-namespace sqlite = qiven3::store::sqlite;
+namespace sqlite = qiven::recordlog::sqlite;
 using qiven::memory::Vector;
-using qiven3::store::Counts;
-using qiven3::store::LaneHead;
-using qiven3::store::Line;
-using qiven3::store::StoreError;
+using qiven::recordlog::Counts;
+using qiven::recordlog::LaneHead;
+using qiven::recordlog::Line;
+using qiven::recordlog::StoreError;
 using Fake = qiven::platform::fake::FakePlatform;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
-using Store = qiven3::store::SQLiteStore<Fake>;
+using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
-using Engine = qiven3::store::Engine<Fake>;
+using Engine = qiven::recordlog::Engine<Fake>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
 constexpr std::string_view implementer_lane = "implementer";
 constexpr std::string_view reviewer_lane = "reviewer";
-constexpr std::size_t own_bytes = qiven3::store::operation_base;
+constexpr std::size_t own_bytes = qiven::recordlog::operation_base;
 constexpr std::size_t max_body = std::size_t{64} << 10U;
 
 std::string text(const fs::path& path) {
@@ -86,13 +86,13 @@ std::string raised(const F& f) {
     } catch (const StoreError& e) {
         std::string code;
         if (e.code()) {
-            code = qiven3::store::name(*e.code());
+            code = qiven::recordlog::name(*e.code());
         } else if (e.corrupt()) {
-            code = qiven3::store::name(*e.corrupt());
+            code = qiven::recordlog::name(*e.corrupt());
         } else if (!e.entry_code().empty()) {
             code = e.entry_code();
         }
-        return std::string(qiven3::store::name(e.kind())) + " " + code;
+        return std::string(qiven::recordlog::name(e.kind())) + " " + code;
     }
     return "none";
 }
@@ -135,20 +135,20 @@ struct Probe {
     void written() const {
         *seen = wal_bytes(*path);
         if (refuse) {
-            throw StoreError(qiven3::store::Code::internal, "import", *path, "refused once written");
+            throw StoreError(qiven::recordlog::Code::internal, "import", *path, "refused once written");
         }
     }
     void committed() const noexcept {}
     void rebuilt() const noexcept {}
 };
-using Probed = qiven3::store::SQLiteStore<Fake, Probe>;
+using Probed = qiven::recordlog::SQLiteStore<Fake, Probe>;
 
 // An admit hook refusing the heads at an import's end, any held.
-struct HeadsRefused : qiven3::store::NoAdmit {
+struct HeadsRefused : qiven::recordlog::NoAdmit {
     static void heads(std::span<const LaneHead> source, std::span<const LaneHead> /*given*/,
-                      const qiven3::store::AtView& /*at*/) {
+                      const qiven::recordlog::AtView& /*at*/) {
         if (!source.empty()) {
-            throw StoreError(qiven3::store::Code::internal, "import", "", "heads refused");
+            throw StoreError(qiven::recordlog::Code::internal, "import", "", "heads refused");
         }
     }
 };
@@ -263,7 +263,7 @@ Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
     {
         auto x = std::make_unique<Export>(from->export_(std::nullopt, {}));
         Vector<LaneHead> heads(rig.chars);
-        const qiven3::store::Imported i = into->import_(*x, heads);
+        const qiven::recordlog::Imported i = into->import_(*x, heads);
         p.exported = x->peak();
         p.imported = into->peak();
         p.entries = i.counts.entries;

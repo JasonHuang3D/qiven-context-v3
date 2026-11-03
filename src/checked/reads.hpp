@@ -40,15 +40,17 @@
 #include "checked/part1.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
-#include "keys/keys.hpp"
+#include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "store/contract.hpp"
-#include "store/errors.hpp"
+#include "qiven/recordlog/contract.hpp"
+#include "qiven/recordlog/errors.hpp"
 
 namespace qiven3::checked::reads {
 
+namespace keys = qiven::recordlog;
+namespace store = qiven::recordlog;
 namespace canon = qiven::text::canon;
 using qiven::text::ParseError;
 
