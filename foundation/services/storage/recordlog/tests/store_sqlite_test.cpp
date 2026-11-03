@@ -179,11 +179,12 @@ void alter(const fs::path& path, std::string_view sql) {
 
 // SETTINGS, row by row, as the text's table gives them.
 void settings_table(qiven::runner::Context& qiven_ctx) {
-    constexpr std::array<std::string_view, 11> names = {
-        "journal_mode", "synchronous",  "secure_delete", "temp_store",     "foreign_keys", "trusted_schema",
-        "cell_size_check", "auto_vacuum", "busy_timeout", "application_id", "user_version"};
-    constexpr std::array<std::string_view, 11> values = {"wal", "2", "1",    "2",          "1", "0",
-                                                         "1",   "0", "5000", "1903571713", "2"};
+    constexpr std::array<std::string_view, 14> names = {
+        "page_size", "journal_mode", "synchronous", "secure_delete", "temp_store",
+        "foreign_keys", "trusted_schema", "cell_size_check", "auto_vacuum", "wal_autocheckpoint",
+        "cache_size", "busy_timeout", "application_id", "user_version"};
+    constexpr std::array<std::string_view, 14> values = {
+        "4096", "wal", "2", "1", "2", "1", "0", "1", "0", "1000", "-2000", "5000", "1903571713", "2"};
     CHECK_EQ(Store::SETTINGS.size(), names.size());
     for (std::size_t i = 0; i < names.size(); ++i) {
         CHECK_EQ(Store::SETTINGS.at(i).name.view(), names.at(i));

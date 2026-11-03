@@ -89,19 +89,24 @@ enum class When : std::uint8_t { every, read_write, create };
 
 // A setting, its value as the engine reads it back, as text.
 struct Setting {
-    qiven::memory::Inline<16> name;
+    qiven::memory::Inline<24> name;
     qiven::memory::Inline<16> value;
     When when = When::every;
 };
 
 constexpr Setting setting(std::string_view name, std::string_view value, When when = When::every) noexcept {
-    return Setting{qiven::memory::Inline<16>(name), qiven::memory::Inline<16>(value), when};
+    return Setting{qiven::memory::Inline<24>(name), qiven::memory::Inline<16>(value), when};
 }
 
 // SETTINGS, the table the store applies and a test compares with the
-// text's: journal_mode first, so that the rest apply in WAL; busy_timeout
-// as the wrapper sets it; the identity last.
-inline constexpr std::array<Setting, 11> settings = {
+// text's: page_size first, so that a new file takes it before WAL writes
+// its first page (on a file already made it changes nothing, and reads
+// back the file's own); journal_mode next, so that the rest apply in WAL;
+// busy_timeout as the wrapper sets it; the identity last. The engine's
+// build chooses none of these: each holds on a connection by this table
+// alone.
+inline constexpr std::array<Setting, 14> settings = {
+    setting("page_size", "4096"),
     setting("journal_mode", "wal", When::read_write),
     setting("synchronous", "2"),
     setting("secure_delete", "1"),
@@ -110,6 +115,8 @@ inline constexpr std::array<Setting, 11> settings = {
     setting("trusted_schema", "0"),
     setting("cell_size_check", "1"),
     setting("auto_vacuum", "0"),
+    setting("wal_autocheckpoint", "1000"),
+    setting("cache_size", "-2000"),
     setting("busy_timeout", "5000"),
     setting("application_id", "1903571713", When::create),
     setting("user_version", "2", When::create),
@@ -252,7 +259,7 @@ private:
 };
 
 #if INTPTR_MAX == INT64_MAX
-static_assert(sizeof(Setting) == 56, "a setting's size is pinned: two names in place and when");
+static_assert(sizeof(Setting) == 64, "a setting's size is pinned: its name and value in place and when");
 static_assert(sizeof(Statement) == 16, "a statement's size is pinned: two handles");
 static_assert(sizeof(Connection) == 8, "a connection's size is pinned: its handle");
 #endif

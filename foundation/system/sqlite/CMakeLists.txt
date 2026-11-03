@@ -39,21 +39,13 @@ target_include_directories(qiven_sqlite PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/incl
 if(MSVC)
   target_compile_options(qiven_sqlite PRIVATE /W3)
 endif()
-# The options, each with its reason in src/README.md. None changes sqlite3.h,
-# so the store's own code needs none of them.
+# The foundation's one build of the engine: its options, each with its
+# reason in src/README.md. None sets a default a caller sets by a pragma on
+# its connection, and none changes sqlite3.h, so a caller's code needs none
+# of them.
 target_compile_definitions(qiven_sqlite PRIVATE
   SQLITE_THREADSAFE=1
   SQLITE_DQS=0
-  SQLITE_DEFAULT_SYNCHRONOUS=2
-  SQLITE_DEFAULT_WAL_SYNCHRONOUS=2
-  SQLITE_DEFAULT_PAGE_SIZE=4096
-  SQLITE_DEFAULT_CACHE_SIZE=-2000
-  SQLITE_DEFAULT_WAL_AUTOCHECKPOINT=1000
-  SQLITE_DEFAULT_AUTOVACUUM=0
-  SQLITE_SECURE_DELETE
-  SQLITE_TEMP_STORE=2
-  SQLITE_DEFAULT_FOREIGN_KEYS=1
-  SQLITE_TRUSTED_SCHEMA=0
   SQLITE_ENABLE_FTS5
   SQLITE_ENABLE_API_ARMOR
   SQLITE_LIKE_DOESNT_MATCH_BLOBS

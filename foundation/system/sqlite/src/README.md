@@ -24,37 +24,31 @@ links it (B1).
 
 ## The options
 
-The 21 options of `qiven_sqlite`, each `SQLITE_`-prefixed:
+The foundation's one build of the engine: the 11 options of
+`qiven_sqlite`, each `SQLITE_`-prefixed, each for a reason that holds for
+any caller of this build:
 
 | Option | Reason |
 |---|---|
-| `THREADSAFE=1` | serialized, the default; the store's threads each hold a connection |
-| `DQS=0` | a double-quoted string literal is refused, a misfeature off; no store statement uses one |
-| `DEFAULT_SYNCHRONOUS=2` | FULL, as the store sets on each connection |
-| `DEFAULT_WAL_SYNCHRONOUS=2` | FULL in WAL mode too |
-| `DEFAULT_PAGE_SIZE=4096` | the store's page size, pinned against a changed default |
-| `DEFAULT_CACHE_SIZE=-2000` | the default, 2,000 KiB a connection, pinned |
-| `DEFAULT_WAL_AUTOCHECKPOINT=1000` | the store's 1,000 pages, pinned |
-| `DEFAULT_AUTOVACUUM=0` | `auto_vacuum` NONE, as the store sets it |
-| `SECURE_DELETE` | `secure_delete` ON by default, as each connection sets it |
-| `TEMP_STORE=2` | temporary storage in memory by default; the pragma still set |
-| `DEFAULT_FOREIGN_KEYS=1` | `foreign_keys` ON by default, as each connection sets it |
-| `TRUSTED_SCHEMA=0` | `trusted_schema` OFF by default, as each connection sets it |
-| `ENABLE_FTS5` | the engine item's index; no core table uses it |
-| `ENABLE_API_ARMOR` | a misuse of the API returns `SQLITE_MISUSE` rather than undefined behaviour |
-| `LIKE_DOESNT_MATCH_BLOBS` | sqlite.org's recommendation; no store statement uses `LIKE` |
-| `STRICT_SUBTYPE=1` | sqlite.org's recommendation; v3 defines no SQL function |
-| `OMIT_AUTOINIT` | the core calls `sqlite3_initialize()` itself, before its first connection |
-| `OMIT_SHARED_CACHE` | shared cache is never used; recommended, faster |
-| `OMIT_LOAD_EXTENSION` | no extension is ever loaded (B10) |
-| `OMIT_DECLTYPE` | the declared type of a column is never read |
-| `OMIT_PROGRESS_CALLBACK` | the store's wait is the busy timeout, never a progress handler |
+| `THREADSAFE=1` | threading: serialized, SQLite's default, kept explicit; a caller may use its connections from any thread without corrupting the engine |
+| `DQS=0` | a behaviour switch: a double-quoted string literal is refused in statements and in schemas, so a misspelt column name is an error, never a string; the amalgamation's own advice ("`-DSQLITE_DQS=0` (best)"). It is the default of a connection's `SQLITE_DBCONFIG_DQS_DML` and `SQLITE_DBCONFIG_DQS_DDL`, which no pragma sets: kept until a caller's connection sets them by `sqlite3_db_config` |
+| `ENABLE_FTS5` | a feature in: the full-text index, which no caller can add to a build without it; shown by the case `store_sqlite.fts5` |
+| `ENABLE_API_ARMOR` | a behaviour switch: a misuse of the API returns `SQLITE_MISUSE` rather than undefined behaviour |
+| `LIKE_DOESNT_MATCH_BLOBS` | a behaviour switch: `LIKE` and `GLOB` never match a BLOB, so a pattern compares text alone; sqlite.org's recommendation |
+| `STRICT_SUBTYPE=1` | a behaviour switch: an SQL function that sets a result's subtype without declaring `SQLITE_RESULT_SUBTYPE` raises an error, rather than its subtype being lost in some cases (the amalgamation's comment on `sqlite3_result_subtype`); sqlite.org's recommendation |
+| `OMIT_AUTOINIT` | a feature out: the engine never starts by itself, so it starts only once its caller has configured it (its allocator) and called `sqlite3_initialize()` |
+| `OMIT_SHARED_CACHE` | a feature out: no connection shares another's cache; sqlite.org's recommendation, and faster |
+| `OMIT_LOAD_EXTENSION` | a feature out: no extension can be loaded, so no code outside this pinned build runs in the engine |
+| `OMIT_DECLTYPE` | a feature out: a statement keeps no declared types of its columns; sqlite.org's recommendation |
+| `OMIT_PROGRESS_CALLBACK` | a feature out: no progress handler, its check gone from every statement's loop; a caller's wait is the busy timeout; sqlite.org's recommendation |
 
-The four defaults that agree with the store's settings (`SECURE_DELETE`,
-`TEMP_STORE=2`, `DEFAULT_FOREIGN_KEYS=1`, `TRUSTED_SCHEMA=0`) keep a
-connection on them even if a pragma were missed; each connection still
-sets and reads back every one. SQLite allocates through
-`SQLITE_CONFIG_MALLOC`, routed to v3's heap, which needs no option.
+The build sets no default of a setting a caller sets by a pragma on its
+connection (the page size, the page cache's size, the WAL's automatic
+checkpoint, `synchronous`, `auto_vacuum`, `secure_delete`, `temp_store`,
+`foreign_keys`, `trusted_schema`): SQLite's own defaults hold until a
+caller sets them, and each caller sets and reads back its own. SQLite
+allocates through `SQLITE_CONFIG_MALLOC`, routed by its caller to its own
+heap, which needs no option.
 
 ## Updating
 

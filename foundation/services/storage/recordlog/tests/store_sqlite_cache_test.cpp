@@ -5,7 +5,9 @@
 // page, none of the heap's,
 // the full cache's bytes and the connection's peak within the engine's
 // budget for a connection; cache_shared: two connections' caches at once,
-// within the slots and past them; slots_refused: an engine heap refused
+// within the slots and past them; fts5: the engine's full-text index, an
+// fts5 table on a plain database found by MATCH; slots_refused: an engine
+// heap refused
 // while one is installed, its slots kept, or by its configuration's
 // failed call, none kept.
 
@@ -132,10 +134,12 @@ QIVEN_CASE(store_sqlite, cache_shared) {
             CHECK_EQ(s.overflow_peak, 0U);
         } else {
             // Past its last free slots the engine recycles a cache's pages;
-            // pages it cannot recycle, a temporary table's in memory, it
-            // takes from the heap, a class of 8,192 each, within the
-            // heap's budget.
+            // pages it cannot recycle, a temporary table's in memory (the
+            // store's temp_store, set here as every store connection sets
+            // it), it takes from the heap, a class of 8,192 each, within
+            // the heap's budget.
             CHECK(s.peak <= s.count);
+            a.exec("PRAGMA temp_store = 2", test_at);
             a.exec("CREATE TEMP TABLE m AS SELECT x FROM t WHERE rowid <= 60", test_at);
             const Held past = held(*rig);
             std::cout << "store_sqlite.cache_shared: then a temporary table of 60 pages: " << past.slots.used
@@ -147,6 +151,20 @@ QIVEN_CASE(store_sqlite, cache_shared) {
             CHECK(past.peak <= rig->engine->heap().budget());
         }
     }
+}
+
+// FTS5, which the engine's build compiles in: on a plain database, an fts5
+// table made, two rows inserted, a MATCH query finding the one that holds
+// its word.
+QIVEN_CASE(store_sqlite, fts5) {
+    const auto rig = std::make_unique<Rig>();
+    const std::string path = text(rig->root / "fts5.db");
+    std::ofstream(path, std::ios::binary).flush();  // 0 bytes: an empty database
+    sqlite::Connection c = raw(path);
+    c.exec("CREATE VIRTUAL TABLE words USING fts5 (body)", test_at);
+    c.exec("INSERT INTO words (rowid, body) VALUES (1, 'a pinned engine'), (2, 'another row')", test_at);
+    CHECK_EQ(c.integer("SELECT count(*) FROM words WHERE words MATCH 'pinned'", test_at), 1);
+    CHECK_EQ(c.integer("SELECT rowid FROM words WHERE words MATCH 'pinned'", test_at), 1);
 }
 
 QIVEN_CASE(store_sqlite, slots_refused) {

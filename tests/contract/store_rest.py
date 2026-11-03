@@ -22,8 +22,9 @@ from tests.drive.session import has_faults
 
 # The text's settings table, as the engine reads each back: application_id
 # 0x71763301 as a number.
-TEXT_SETTINGS = (("journal_mode", "wal"), ("synchronous", "2"), ("secure_delete", "1"), ("temp_store", "2"),
-                 ("foreign_keys", "1"), ("trusted_schema", "0"), ("cell_size_check", "1"), ("auto_vacuum", "0"),
+TEXT_SETTINGS = (("page_size", "4096"), ("journal_mode", "wal"), ("synchronous", "2"), ("secure_delete", "1"),
+                 ("temp_store", "2"), ("foreign_keys", "1"), ("trusted_schema", "0"), ("cell_size_check", "1"),
+                 ("auto_vacuum", "0"), ("wal_autocheckpoint", "1000"), ("cache_size", "-2000"),
                  ("busy_timeout", "5000"), ("application_id", str(0x71763301)), ("user_version", "2"))
 # The countdowns of a create, and the removals a refused one makes, in the
 # engine calls' order after open_v2's.
