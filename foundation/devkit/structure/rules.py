@@ -136,12 +136,11 @@ STATED = {
                                                              "contract, the vendored header",
     ("B1", "foundation/system/sqlite/module.json", "sqlite3"): "that module's table file, whose contract is the "
                                                                "vendored header's path",
-    ("B1", "foundation/system/sqlite/CMakeLists.txt", "sqlite3"): "that module's build file, its one target over "
-                                                                  "the vendored source and header",
+    ("B1", "foundation/system/sqlite/CMakeLists.txt", "sqlite3"): "that module's build file: the pin of the "
+                                                                  "vendored source's and header's digests, and "
+                                                                  "its one target over them",
     ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
                                                                  "files' version, source, digests and options",
-    ("B1", "foundation/devkit/build/build.cmake", "sqlite3"): "the build's pin of the vendored source's and header's "
-                                                              "digests, and its language note on that source",
     ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
                                                   "its absence: its text alone, and B1's include still refused",
     ("B9", "src/diag/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "

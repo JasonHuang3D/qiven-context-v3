@@ -21,7 +21,7 @@ tests/fuzz/entries/regress/** -text
 tests/fuzz/entry/regress/** -text
 tests/fuzz/wire/regress/** -text
 # The vendored SQLite amalgamation, as its upstream ships it: each file's
-# SHA-256 pinned in foundation/devkit/build/build.cmake and checked on every configure.
+# SHA-256 pinned in foundation/system/sqlite/CMakeLists.txt and checked on every configure.
 foundation/system/sqlite/src/sqlite3.c -text
 foundation/system/sqlite/include/qiven/sqlite/sqlite3.h -text
 

@@ -17,10 +17,11 @@ set_property(CACHE QIVEN_LOG_MIN PROPERTY STRINGS "" "trace" "debug" "info" "war
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-# C, which sqlite3.c alone is, likewise: C17 without GNU extensions, so that
-# its dialect never follows a compiler's default. C17 is the newest standard
-# each compiler here takes whole (MSVC as /std:c17); SQLite needs C89, and
-# strict C only drops its forced inlining of one function (__STRICT_ANSI__).
+# C, which SQLite's amalgamation alone is, likewise: C17 without GNU
+# extensions, so that its dialect never follows a compiler's default. C17 is
+# the newest standard each compiler here takes whole (MSVC as /std:c17);
+# SQLite needs C89, and strict C only drops its forced inlining of one
+# function (__STRICT_ANSI__).
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -154,28 +155,6 @@ endif()
 if(Python3_EXECUTABLE)
   message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
 endif()
-
-# SQLite 3.53.4's amalgamation, vendored unchanged in foundation/system/sqlite/:
-# each file's SHA-256 checked on every configure, pinned or not, so that a
-# changed amalgamation never builds.
-set(QIVEN_SQLITE_SHA256
-  "src/sqlite3.c=b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189"
-  "include/qiven/sqlite/sqlite3.h=919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d")
-foreach(pin IN LISTS QIVEN_SQLITE_SHA256)
-  string(REPLACE "=" ";" pin "${pin}")
-  list(GET pin 0 qiven_file)
-  list(GET pin 1 qiven_pinned)
-  set(qiven_path "${PROJECT_SOURCE_DIR}/foundation/system/sqlite/${qiven_file}")
-  if(NOT EXISTS "${qiven_path}")
-    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} is missing")
-  endif()
-  file(SHA256 "${qiven_path}" qiven_digest)
-  if(NOT qiven_digest STREQUAL qiven_pinned)
-    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} has SHA-256 ${qiven_digest}; "
-      "the pin is ${qiven_pinned}")
-  endif()
-endforeach()
-message(STATUS "qiven3: SQLite's amalgamation holds its pinned digests")
 
 # The flags of every core and test target, through qiven_build. RTTI is
 # off: no code of v3's uses dynamic_cast or typeid, and no standard facility

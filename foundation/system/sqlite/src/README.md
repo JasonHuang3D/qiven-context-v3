@@ -15,9 +15,9 @@ public domain.
 | `sqlite3.c` | 9,515,341 bytes, SHA-256 `b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189` |
 | `sqlite3.h` | 690,838 bytes, SHA-256 `919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d` |
 
-Configure checks both files' SHA-256 (`foundation/devkit/build/build.cmake`) and
-fails on any other, so a changed amalgamation never builds. The target
-`qiven_sqlite` (the module's `CMakeLists.txt`) compiles `sqlite3.c` as C at its own level: MSVC `/W3`
+Configure checks both files' SHA-256 (the module's `CMakeLists.txt`, at its
+top) and fails on any other, so a changed amalgamation never builds. The
+target `qiven_sqlite` (the same file) compiles `sqlite3.c` as C at its own level: MSVC `/W3`
 without `/WX`, gcc and clang their defaults without `-Werror`; the core's
 warnings, analysis and frame bound do not cover it. `qiven3_store` alone
 links it (B1).
@@ -59,5 +59,5 @@ sets and reads back every one. SQLite allocates through
 ## Updating
 
 A new version replaces both files from sqlite.org's amalgamation zip, each
-checked against the publisher's digest, and the pins in
-`foundation/devkit/build/build.cmake` and this file in the same change.
+checked against the publisher's digest, and the pins in the module's
+`CMakeLists.txt` and this file in the same change.
