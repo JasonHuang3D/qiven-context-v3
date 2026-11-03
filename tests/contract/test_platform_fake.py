@@ -18,7 +18,6 @@ from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import CASES as PROCESS_CASES
 from tests.contract.platform_process import PlatformProcess
-from tests.contract.platform_rest import PlatformRest
 from tests.drive.session import FAKE
 
 
@@ -48,8 +47,8 @@ class FakeBinding(PlatformBinding):
         d.call("set_busy", **times)
 
 
-class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformRest,
-           PlatformLast, PlatformMemory, unittest.TestCase):
+class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformLast,
+           PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 

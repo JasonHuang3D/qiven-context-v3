@@ -13,8 +13,11 @@ not applicable, a skip with the reason.
 
 Here: the binding. P1, current's choice, is platform's own
 (foundation/system/platform/tests/current_test.cpp), as is P2, config_dir
-(win_platform_test.cpp and fake_platform_test.cpp there). P3 to P8 and P16 are location's
-(contract/platform_location.py), P9 and P25 the files'
+(win_platform_test.cpp and fake_platform_test.cpp there), and P23
+(random_bytes), P24 (now), P25 (not UTF-8) and P28 (pages) are too, there;
+P26, standard_output to a pipe, is (win_process_streams_test.cpp there).
+P3 to P8 and P16 are location's
+(contract/platform_location.py), P9 the files'
 (contract/platform_files.py), P20 the processes'
 (contract/platform_process.py), P17, P18, P21 and P22 the machine's
 (contract/platform_machine.py); the fake's own cases, "own: fake",

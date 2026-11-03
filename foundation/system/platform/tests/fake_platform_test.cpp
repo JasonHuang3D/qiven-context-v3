@@ -1,11 +1,16 @@
 // The fake's own members beyond files and processes: config_dir's location
 // as its Config gives it, made only by create, and its errors, in a scratch
 // directory of each case's own; normcase folding ASCII letters alone; wipe
-// zeroing, each call recorded.
+// zeroing, each call recorded; random_bytes by its seed's blocks; now as its
+// clock truncated to milliseconds; pages zeroed in whole pages, refused when
+// set to, lent counting them; resolve and a Staged's open refusing a path
+// not UTF-8.
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -16,6 +21,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
@@ -124,6 +130,42 @@ std::string ascii_folded(std::string_view path) {
     return out;
 }
 
+// The bytes' lowercase hex digits.
+std::string hex(std::span<const std::byte> bytes) {
+    constexpr std::string_view digits = "0123456789abcdef";
+    std::string out;
+    for (const std::byte b : bytes) {
+        out.push_back(digits[std::to_integer<unsigned>(b) >> 4U]);
+        out.push_back(digits[std::to_integer<unsigned>(b) & 15U]);
+    }
+    return out;
+}
+
+// The fake's blocks: seed 1's first two, seed 2's first.
+constexpr std::array<std::string_view, 2> seed_1{
+    "783825822a6f9e62da2190e828e4c9d2576e5977e3a0b3620b092dfb9e9996fa",
+    "532deabf88729cb43995ab5a9cd49bf9b90a079904dc0645ecda9e47ce7345a9",
+};
+constexpr std::string_view seed_2 = "1309ac3f4e41512820fbf259ae492bb686480eb4a7f5fa4bbc38215266ad984c";
+
+// The test's clock, in milliseconds since the epoch.
+constexpr std::int64_t clock_ms = 1'792'229'400'123;
+
+// The bytes all zero.
+bool zeroed(std::span<const std::byte> bytes) {
+    return std::ranges::all_of(bytes, [](std::byte b) { return b == std::byte{0}; });
+}
+
+// The names a directory holds, sorted.
+std::vector<std::string> names_in(const fs::path& directory) {
+    std::vector<std::string> out;
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory)) {
+        out.push_back(text(entry.path().filename()));
+    }
+    std::ranges::sort(out);
+    return out;
+}
+
 }  // namespace
 
 // The Config's location, as given: config_dir gives it and makes nothing;
@@ -205,4 +247,120 @@ QIVEN_CASE(fake_platform, wipe) {
     fake.wipe(std::span<std::byte>(bytes).first(0));
     CHECK(std::ranges::all_of(bytes, [](std::byte b) { return b == std::byte{0xa5}; }));
     CHECK_EQ(std::ranges::count(fake.calls(), std::string("wipe")), 2);
+}
+
+// random_bytes(32) twice on the fake's default seed: the two differing;
+// seeded 1, then 2: its blocks, a call taking the next n bytes across them
+// (16, 40, then 8).
+QIVEN_CASE(fake_platform, random_bytes) {
+    {
+        FakePlatform fake{Config{}};
+        std::array<std::byte, 32> first{};
+        std::array<std::byte, 32> second{};
+        fake.random_bytes(first);
+        fake.random_bytes(second);
+        CHECK(first != second);
+    }
+    Config one;
+    one.seed = 1;
+    {
+        FakePlatform fake(one);
+        for (const std::string_view block : seed_1) {
+            std::array<std::byte, 32> drawn{};
+            fake.random_bytes(drawn);
+            CHECK_EQ(hex(drawn), std::string(block));
+        }
+    }
+    {
+        FakePlatform fake(one);
+        std::array<std::byte, 64> drawn{};
+        const std::span<std::byte> all(drawn);
+        fake.random_bytes(all.first(16));
+        fake.random_bytes(all.subspan(16, 40));
+        fake.random_bytes(all.subspan(56));
+        CHECK_EQ(hex(drawn), std::string(seed_1[0]) + std::string(seed_1[1]));
+    }
+    Config two;
+    two.seed = 2;
+    FakePlatform fake(two);
+    std::array<std::byte, 32> drawn{};
+    fake.random_bytes(drawn);
+    CHECK_EQ(hex(drawn), std::string(seed_2));
+}
+
+// now() on the fake set to 1,792,229,400,123 ms in microseconds, then to
+// its last microsecond: the clock truncated to milliseconds each time.
+QIVEN_CASE(fake_platform, now) {
+    FakePlatform fake{Config{}};
+    for (const std::int64_t us : {clock_ms * 1000, clock_ms * 1000 + 999}) {
+        fake.set_clock(std::chrono::sys_time<std::chrono::microseconds>(std::chrono::microseconds(us)));
+        CHECK_EQ(fake.now().time_since_epoch().count(), clock_ms);
+    }
+}
+
+// pages(1), pages(5000) and pages(4096): 4,096, 8,192 and 4,096 bytes,
+// zeroed, each given back; the fake set to refuse its second call: memory,
+// the first's pages whole and lent counting them, back to its start when
+// freed, the next call served.
+QIVEN_CASE(fake_platform, pages) {
+    FakePlatform fake{Config{}};
+    const std::size_t start = fake.lent();
+    {
+        const auto first = fake.pages(1);
+        const auto second = fake.pages(5000);
+        const auto third = fake.pages(4096);
+        CHECK_EQ(first.bytes().size(), 4096U);
+        CHECK_EQ(second.bytes().size(), 8192U);
+        CHECK_EQ(third.bytes().size(), 4096U);
+        CHECK(zeroed(first.bytes()) && zeroed(second.bytes()) && zeroed(third.bytes()));
+        CHECK_EQ(fake.lent(), start + 16384U);
+    }
+    CHECK_EQ(fake.lent(), start);
+    fake.refuse_pages(2);
+    {
+        const auto first = fake.pages(1);
+        const auto refused = thrown([&] { static_cast<void>(fake.pages(5000)); });
+        CHECK_EQ(refused.first, Code::memory);
+        CHECK_EQ(refused.second, std::string("pages"));
+        CHECK_EQ(first.bytes().size(), 4096U);
+        CHECK(zeroed(first.bytes()));
+        CHECK_EQ(fake.lent(), start + 4096U);
+    }
+    CHECK_EQ(fake.lent(), start);
+    {
+        const auto last = fake.pages(1);
+        CHECK_EQ(last.bytes().size(), 4096U);
+    }
+    CHECK_EQ(fake.lent(), start);
+}
+
+// A path holding 0xff, then a lone surrogate's three bytes, to resolve:
+// path; the surrogate's to a Staged's open (0xff's is files_test.cpp's
+// stage case, and replace's both its replace_refused): path; nothing
+// written in the scratch directory, the staging directory left empty.
+QIVEN_CASE(fake_platform, not_utf8) {
+    const Scratch scratch;
+    const fs::path inside = scratch.root / "staged";
+    fs::create_directory(inside);
+    const std::vector<std::string> before = names_in(scratch.root);
+    const auto pages = std::make_unique<Pages>();
+    Arena arena(pages->bytes);
+    {
+        FakePlatform fake(scratch.config(""));
+        String out{Allocator<char>(arena)};
+        for (const std::string_view bad : {std::string_view("\xff"), std::string_view("\xed\xa0\x80")}) {
+            const std::string path = text(scratch.root) + "/a" + std::string(bad) + ".txt";
+            const auto refused = thrown([&] { fake.resolve(path, out); });
+            CHECK_EQ(refused.first, Code::path);
+            CHECK_EQ(refused.second, std::string("resolve"));
+        }
+        auto staged = fake.stage(text(inside));
+        const auto opened = thrown([&] { static_cast<void>(staged.open("a\xed\xa0\x80")); });
+        CHECK_EQ(opened.first, Code::path);
+        CHECK_EQ(opened.second, std::string("open"));
+        staged.discard();
+    }
+    CHECK_EQ(arena.used(), 0U);
+    CHECK(names_in(scratch.root) == before);
+    CHECK(fs::is_empty(inside));
 }

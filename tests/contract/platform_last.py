@@ -1,9 +1,9 @@
-"""The platform's cases P27 to P30, each defined once over an adapter
+"""The platform's case P27, defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
 Here: P27 (create and read, and two drives' creates racing, and
 remove_directory, create's counterpart for a directory, and list, remove
-and rename, the kept files' members) and P28 (pages). P29 (normcase) and
+and rename, the kept files' members). P28 (pages), P29 (normcase) and
 P30 (wipe, which digest.Key's ends and moves call; its unit cases count
 those calls on the fake) are platform's own
 (foundation/system/platform/tests/win_platform_test.cpp and
@@ -185,33 +185,3 @@ class PlatformLast:
             with self.subTest(path=path.name):
                 self.assertEqual(sorted(pair, key=str), [("platform", "exists"), "made"])
                 self.assertEqual(path.read_bytes(), b"")
-
-    def test_P28_pages(self):
-        """pages(1), then pages(5000); the fake set to refuse the second; on
-        the adapter, a count the system refuses."""
-        with self.drive() as d:
-            first = d.call("pages", n=1)
-            self.assertEqual((first["size"], first["zero"]), (4096, True))
-            second = d.call("pages", n=5000)
-            self.assertEqual((second["size"], second["zero"]), (8192, True))
-            third = d.call("pages", n=4096)
-            self.assertEqual(third["size"], 4096)
-            for held in (first, second, third):
-                self.assertIsNone(d.call("pages_free", id=held["id"]))
-            if self.ADAPTER != "fake":
-                # Pages the system refuses. Not on the fake: under the asan
-                # build's allocator such a request ends the process.
-                error = self.failure(d.call, "pages", n=(1 << 53) - 1)
-                self.assert_platform_error(error, "memory")
-                return
-            before = d.call("lent")
-            d.call("refuse_pages", at=2)
-            first = d.call("pages", n=1)
-            self.assert_platform_error(self.failure(d.call, "pages", n=5000), "memory")
-            self.assertEqual(d.call("pages_check", id=first["id"]), {"size": 4096, "zero": True})
-            self.assertEqual(d.call("lent"), before + 4096)
-            d.call("pages_free", id=first["id"])
-            self.assertEqual(d.call("lent"), before)
-            last = d.call("pages", n=1)
-            self.assertEqual(last["size"], 4096)
-            d.call("pages_free", id=last["id"])

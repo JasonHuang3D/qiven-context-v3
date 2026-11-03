@@ -20,7 +20,6 @@ from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import CASES as OWN_CASES
 from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import PlatformProcess
-from tests.contract.platform_rest import PlatformRest
 from tests.drive.session import WINDOWS, Drive
 from tests.machine.windows_holds import HeldDrive
 
@@ -72,14 +71,14 @@ class WindowsBinding(PlatformBinding):
         return d.holder_times(kind)
 
 
-class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformOwn, PlatformRest, PlatformLast,
-              PlatformMemory, PlatformMachine, unittest.TestCase):
+class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformOwn, PlatformLast, PlatformMemory,
+              PlatformMachine, unittest.TestCase):
     pass
 
 
 # The files' and processes' cases' skips: none. P20, the last of them to
 # skip, runs whole, its child half's two init runs over qiven3-child
-# init, after its lock half, timed; P9 and P25 run whole.
+# init, after its lock half, timed; P9 runs whole.
 FILES_UNTIL = {}
 # The cases pinned running whole here, no skip: P20, its child half last.
 FILES_WHOLE = ("test_P20_lock",)
@@ -88,7 +87,7 @@ FILES_WHOLE = ("test_P20_lock",)
 class FilesUntil(unittest.TestCase):
     """Windows' files and processes cases run here, none skipping: P20
     whole, its lock half timed on a lock held by another handle, its child
-    half two init children at once; P25 runs through stage."""
+    half two init children at once."""
     ctest_labels = ("drive",)
 
     def setUp(self):

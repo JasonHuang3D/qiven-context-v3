@@ -1,11 +1,12 @@
-"""The platform's cases P9 and P25, each defined once over an adapter
+"""The platform's case P9, defined once over an adapter
 (contract/platform_cases.py names the binding's part): replace's and
 stage's files, through the drive's handles (driver/platform_files.hpp).
 
-Here: P9 (replace held), P25 (not UTF-8) and a failed open making
-nothing, under faults (938). P19, publish, is platform's own
+Here: P9 (replace held) and a failed open making nothing, under faults
+(938). P19, publish, is platform's own
 (foundation/system/platform/tests/files_test.cpp and
-win_files_stage_test.cpp). A holder is
+win_files_stage_test.cpp), as is P25, not UTF-8 (files_test.cpp,
+fake_platform_test.cpp and win_platform_test.cpp there). A holder is
 the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
@@ -15,7 +16,6 @@ The Windows adapter's replace, stage and lock are its module win/files'.
 """
 
 import itertools
-import os
 import re
 from pathlib import Path
 
@@ -35,9 +35,6 @@ OPEN_CALLS = {
     "windows": (("CreateDirectoryW of a", "io", "open"), ("CreateDirectoryW of a/b", "io", "open"),
                 ("CreateFileW", "io", "open")),
 }
-
-# P25's bytes: an invalid byte, then a lone surrogate's three bytes.
-NOT_UTF8 = (b"\xff", b"\xed\xa0\x80")
 
 
 def bag_of(directory):
@@ -106,33 +103,6 @@ class PlatformFiles:
             self.assertEqual(target.read_bytes(), b"twice")
             self.assertEqual(temporaries(root), [])
             self.nothing_kept(d)
-
-    def test_P25_not_utf8(self):
-        """A path holding 0xff, then a lone surrogate's three bytes, to
-        resolve, replace and a Staged's open: path each time, nothing
-        written."""
-        self.needs("files")
-        root = Path(self.files_root())
-        inside = root / "staged"
-        inside.mkdir()
-        before = sorted(p.name for p in root.iterdir())
-        prefix = os.fsencode(str(root)) + os.sep.encode()
-        with self.drive() as d:
-            for bad in NOT_UTF8:
-                with self.subTest(bytes=bad.hex()):
-                    path = (prefix + b"a" + bad + b".txt").hex()
-                    self.assert_platform_error(self.failure(d.call, "resolve", path_hex=path), "path")
-                    self.assert_platform_error(self.failure(d.call, "replace", path_hex=path, data="00"), "path")
-            self.assertEqual(sorted(p.name for p in root.iterdir()), before)
-            for bad in NOT_UTF8:
-                with self.subTest(bytes=bad.hex(), member="stage"):
-                    staged = d.call("stage", path=str(inside))["id"]
-                    error = self.failure(d.call, "staged_open", id=staged, path_hex=(b"a" + bad).hex())
-                    self.assert_platform_error(error, "path")
-                    self.assertIsNone(d.call("discard", id=staged))
-            self.nothing_kept(d)
-        self.assertEqual(sorted(p.name for p in root.iterdir()), before)
-        self.assertEqual(list(inside.iterdir()), [])
 
     def test_open_failed(self):
         """938: a Staged's open of a file two directories down, each of its

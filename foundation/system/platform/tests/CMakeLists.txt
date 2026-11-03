@@ -24,7 +24,10 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # directory, the caller's or the one given. And its own members
 # beyond files (fake_platform_test.cpp): config_dir's location made only by
 # create, and its errors (P2's); normcase folding ASCII letters alone
-# (P29's); wipe zeroing, each call recorded (P30's).
+# (P29's); wipe zeroing, each call recorded (P30's); random_bytes by its
+# seed's blocks (P23's); now as its clock in milliseconds (P24's); pages
+# zeroed, refused when set to, lent counting them (P28's); resolve and a
+# Staged's open refusing a path not UTF-8 (P25's).
 qiven3_add_cases(qiven_platform_fake_process_test LABELS fast fake
   SOURCES fake_process_test.cpp fake_platform_test.cpp
   LINK qiven_platform_fake)
@@ -65,7 +68,10 @@ endif()
 # fault's status apart. And the adapter's own members in this process
 # (win_platform_test.cpp): config_dir's override and its default location,
 # which LOCALAPPDATA does not move (P2's); normcase's forms (P29's); wipe's
-# zeros (P30's). fast and fake, as win_files'.
+# zeros (P30's); random_bytes' draws differing (P23's); now beside the
+# system's clock (P24's); pages zeroed, a count the system refuses memory
+# (P28's); resolve, replace and a Staged's open refusing a path not UTF-8
+# (P25's). fast and fake, as win_files'.
 if(WIN32)
   qiven3_add_cases(qiven_platform_win_arguments_test LABELS fast fake
     SOURCES win_arguments_test.cpp win_platform_test.cpp

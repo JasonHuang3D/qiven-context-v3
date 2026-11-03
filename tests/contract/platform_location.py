@@ -14,7 +14,8 @@ its standard output to a pipe kept apart from the drive's replies: the
 system's own facts and clock, set by no request, and no calls recorded.
 The cases read the facts first, giving --accept where they warn, and read
 the record's "at", the system's clock within 1 s of the case's around the
-command (P24's bound); the commands' stream is the adapter's to a pipe,
+command (P24's bound, platform's own win_platform_test.cpp now case);
+the commands' stream is the adapter's to a pipe,
 the ANSI code page with each LF as CRLF; the files root is resolved, as
 the commands resolve their directories. The fake's own requests' parts
 (P5's synced folder and links, P6's warnings, P16's ASCII stream, the

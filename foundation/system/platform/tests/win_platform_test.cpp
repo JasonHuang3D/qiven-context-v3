@@ -3,12 +3,17 @@
 // the scratch directory of each case's own under the job's temporary
 // directory; its default location, the known folder LocalAppData's leaf,
 // which LOCALAPPDATA moved, unset or relative does not move; normcase's
-// forms by LCMapStringEx's invariant lowercase; wipe's zeros. No Windows
-// header here (B5): the environment by the C runtime's _putenv_s.
+// forms by LCMapStringEx's invariant lowercase; wipe's zeros; random_bytes'
+// draws differing; now beside the system's clock; pages zeroed in whole
+// pages, a count the system refuses memory; resolve, replace and a Staged's
+// open refusing a path not UTF-8. No Windows header here (B5): the
+// environment by the C runtime's _putenv_s.
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -21,6 +26,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/platform/windows/windows.hpp"
@@ -33,6 +39,7 @@ using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::platform::Code;
 using qiven::platform::PlatformError;
+using qiven::platform::Seconds;
 using qiven::platform::String;
 using qiven::platform::win::WindowsPlatform;
 
@@ -153,6 +160,27 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 9> normcase_
     {"", ""},
 }};
 
+// replace's deadline.
+constexpr Seconds five{5.0};
+
+// The milliseconds since the epoch of a time.
+std::int64_t ms_of(std::chrono::sys_time<std::chrono::milliseconds> at) { return at.time_since_epoch().count(); }
+
+// The bytes all zero.
+bool zeroed(std::span<const std::byte> bytes) {
+    return std::ranges::all_of(bytes, [](std::byte b) { return b == std::byte{0}; });
+}
+
+// The names a directory holds, sorted.
+std::vector<std::string> names_in(const fs::path& directory) {
+    std::vector<std::string> out;
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory)) {
+        out.push_back(text(entry.path().filename()));
+    }
+    std::ranges::sort(out);
+    return out;
+}
+
 }  // namespace
 
 // The override, as given: config_dir gives it and makes nothing; with
@@ -266,4 +294,80 @@ QIVEN_CASE(win_platform, wipe) {
     platform.wipe(std::span<std::byte>());
     platform.wipe(std::span<std::byte>(bytes).first(0));
     CHECK(std::ranges::all_of(bytes, [](std::byte b) { return b == std::byte{0xa5}; }));
+}
+
+// random_bytes(32) twice: the two differing.
+QIVEN_CASE(win_platform, random_bytes) {
+    WindowsPlatform platform(std::nullopt);
+    std::array<std::byte, 32> first{};
+    std::array<std::byte, 32> second{};
+    platform.random_bytes(first);
+    platform.random_bytes(second);
+    CHECK(first != second);
+}
+
+// now(): the system's clock in milliseconds, within 1 s of the case's own
+// reads before and after it.
+QIVEN_CASE(win_platform, now) {
+    using std::chrono::floor;
+    using std::chrono::milliseconds;
+    using std::chrono::system_clock;
+    const WindowsPlatform platform(std::nullopt);
+    const std::int64_t before = ms_of(floor<milliseconds>(system_clock::now()));
+    const std::int64_t now = ms_of(platform.now());
+    const std::int64_t after = ms_of(floor<milliseconds>(system_clock::now()));
+    CHECK(now >= before - 1000);
+    CHECK(now <= after + 1000);
+}
+
+// pages(1), pages(5000) and pages(4096): 4,096, 8,192 and 4,096 bytes,
+// zeroed, each given back; (1 << 53) - 1 bytes, which the system refuses:
+// memory.
+QIVEN_CASE(win_platform, pages) {
+    WindowsPlatform platform(std::nullopt);
+    {
+        const auto first = platform.pages(1);
+        const auto second = platform.pages(5000);
+        const auto third = platform.pages(4096);
+        CHECK_EQ(first.bytes().size(), 4096U);
+        CHECK_EQ(second.bytes().size(), 8192U);
+        CHECK_EQ(third.bytes().size(), 4096U);
+        CHECK(zeroed(first.bytes()) && zeroed(second.bytes()) && zeroed(third.bytes()));
+    }
+    const Thrown refused = thrown([&] { static_cast<void>(platform.pages((std::size_t{1} << 53U) - 1)); });
+    CHECK(refused.code == Code::memory);
+    CHECK_EQ(refused.operation, std::string("pages"));
+}
+
+// A path holding 0xff, then a lone surrogate's three bytes, to resolve,
+// replace and a Staged's open: path each time; nothing written in the
+// scratch directory, the staging directory left empty.
+QIVEN_CASE(win_platform, not_utf8) {
+    const Scratch scratch;
+    const fs::path inside = scratch.root / "staged";
+    fs::create_directory(inside);
+    const std::vector<std::string> before = names_in(scratch.root);
+    const auto pages = std::make_unique<Pages>();
+    Arena arena(pages->bytes);
+    {
+        WindowsPlatform platform(std::nullopt);
+        String out{Allocator<char>(arena)};
+        for (const std::string_view bad : {std::string_view("\xff"), std::string_view("\xed\xa0\x80")}) {
+            const std::string path = text(scratch.root) + "\\a" + std::string(bad) + ".txt";
+            const Thrown resolved = thrown([&] { platform.resolve(path, out); });
+            CHECK(resolved.code == Code::path);
+            CHECK_EQ(resolved.operation, std::string("resolve"));
+            const Thrown replaced = thrown([&] { platform.replace(path, "00", five); });
+            CHECK(replaced.code == Code::path);
+            CHECK_EQ(replaced.operation, std::string("replace"));
+            auto staged = platform.stage(text(inside));
+            const Thrown opened = thrown([&] { static_cast<void>(staged.open("a" + std::string(bad))); });
+            CHECK(opened.code == Code::path);
+            CHECK_EQ(opened.operation, std::string("open"));
+            staged.discard();
+        }
+    }
+    CHECK_EQ(arena.used(), 0U);
+    CHECK(names_in(scratch.root) == before);
+    CHECK(fs::is_empty(inside));
 }
