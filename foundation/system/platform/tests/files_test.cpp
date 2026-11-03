@@ -418,7 +418,9 @@ QIVEN_CASE(files, stage_insert) {
 }
 
 // P20's lock on the fake: held, then released before the deadline; held
-// past it; another holder's count.
+// past it; another holder's count; a deadline of 0, one try, no time
+// spent: busy while held, acquired once free, busy then acquired once the
+// holder lets go.
 QIVEN_CASE(files, lock) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
@@ -428,10 +430,17 @@ QIVEN_CASE(files, lock) {
     CHECK(code == Code::busy);
     CHECK_EQ(detail, std::string("lock: error 33 (ERROR_LOCK_VIOLATION)"));
     CHECK_EQ(fake.files().elapsed(), 5000ms);
+    CHECK(thrown([&] { fake.lock(path, Seconds{0.0}); }).first == Code::busy);
+    CHECK_EQ(fake.files().elapsed(), 5000ms);
     auto moved = std::move(held);
     moved.release();
     moved.release();
     { auto again = fake.lock(path, five); }
+    { auto once = fake.lock(path, Seconds{0.0}); }
+    fake.set_busy(Busy{.lock = 1});
+    CHECK(thrown([&] { fake.lock(path, Seconds{0.0}); }).first == Code::busy);
+    { auto then = fake.lock(path, Seconds{0.0}); }
+    CHECK_EQ(fake.files().elapsed(), 5000ms);
     fake.set_busy(Busy{.lock = 2});
     auto late = fake.lock(path, five);
     CHECK_EQ(fake.files().elapsed(), 5100ms);

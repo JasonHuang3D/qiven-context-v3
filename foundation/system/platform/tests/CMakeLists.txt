@@ -8,8 +8,9 @@ set(qiven_platform_src "${qiven_platform_dir}/src")
 
 # files' cases on the fake: its pure checks evaluated by the compiler;
 # replace, stage and lock on real files in each case's scratch directory,
-# the fake's busy counts driving the retries (P9, P19, P20's lock, P25's
-# replace and open); replace's calls failed in turn, the old bytes whole
+# the fake's busy counts driving the retries, a deadline of 0 one try (P9,
+# P19, P20's lock, P25's replace and open); replace's calls failed in
+# turn, the old bytes whole
 # after each (P10's); stage's bound at its edge, each end freeing a slot;
 # list, remove and rename (files_names_test.cpp), list's names counted on
 # their arena, and the fake's members over them, a file renamed to its own
@@ -23,7 +24,9 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
 # its line on a failed allocation, by the budget and, under QIVEN_FAULTS,
 # each of the line's allocations failed in turn; a program's working
-# directory, the caller's or the one given. And its own members
+# directory, the caller's or the one given; its programs killed, hanging,
+# flooding, exiting with a code at each cap, found by their whole argv
+# alone (P11's to P13's and P15's on the fake). And its own members
 # beyond files (fake_platform_test.cpp): config_dir's location made only by
 # create, and its errors (P2's); normcase folding ASCII letters alone
 # (P29's); wipe zeroing, each call recorded (P30's); random_bytes by its

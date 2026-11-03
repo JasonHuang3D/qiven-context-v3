@@ -1,8 +1,8 @@
 """The platform's cases on the Windows adapter, here, through
 qiven3-drive-windows: those needing neither processes nor machine, as on
 the fake, the process cases over qiven_platform_child's children, and the
-machine cases; the fake's own cases, not applicable here. Those that run
-qiven3, location's and P22, are in machine/test_platform_location.py.
+machine cases. Those that run qiven3, location's and P22, are in
+machine/test_platform_location.py.
 
 Each case's drive
 holds as many handles at its end as before it; HandleCount plants a leak.
@@ -16,8 +16,6 @@ from tests.contract.platform_cases import PlatformBinding
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_machine import PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
-from tests.contract.platform_own import CASES as OWN_CASES
-from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import PlatformProcess
 from tests.drive.session import WINDOWS, Drive
 from tests.machine.windows_holds import HeldDrive
@@ -69,8 +67,7 @@ class WindowsBinding(PlatformBinding):
         return d.holder_times(kind)
 
 
-class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformOwn, PlatformMemory, PlatformMachine,
-              unittest.TestCase):
+class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformMemory, PlatformMachine, unittest.TestCase):
     pass
 
 
@@ -95,21 +92,6 @@ class FilesUntil(unittest.TestCase):
         reasons, others = skip_reasons(Windows, FILES_WHOLE + tuple(FILES_UNTIL))
         self.assertEqual(others, [])
         self.assertEqual(reasons, dict.fromkeys(FILES_WHOLE) | FILES_UNTIL)
-
-
-class OwnNotApplicable(unittest.TestCase):
-    """The fake's own cases run here on the Windows adapter: each not
-    applicable, by its reason."""
-    ctest_labels = ("drive",)
-
-    def setUp(self):
-        if sys.platform != "win32":
-            self.skipTest("not applicable: the Windows adapter is built on Windows alone")
-
-    def test_own_not_applicable(self):
-        reasons, others = skip_reasons(Windows, OWN_CASES)
-        self.assertEqual(others, [])
-        self.assertEqual(reasons, dict.fromkeys(OWN_CASES, "not applicable: own: fake: the windows adapter lacks it"))
 
 
 def plant_handle(pid):

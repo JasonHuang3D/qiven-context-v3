@@ -12,15 +12,13 @@ Each case needs processes, which the fake lacks: it checks that need
 first, so on the fake it is not applicable having run nothing. What the
 fake's programs carry (set_programs: a program
 found by its whole argv gives its lines, its err and its code, or hangs,
-or floods a stream) is the fake's own cases' (contract/platform_own.py).
+or floods a stream) is platform's own (fake_process_test.cpp there).
 The Windows adapter's program, start and run are its module win/process',
 and the children its cases start are qiven_platform_child's, started
 through the drive; a binding with PROCESSES false checks that run refuses
 a relative argv[0] (start), and the child half is skipped. P20's lock
 half is platform's own (foundation/system/platform/tests/win_files_test.cpp
-and files_test.cpp); lock_half, over the binding's hold()
-(contract/platform_files.py), is the fake's own lock case's
-(contract/platform_own.py). P20's two init runs are qiven3-child init's,
+and files_test.cpp). P20's two init runs are qiven3-child init's,
 each location's init on the adapter.
 
 The readings where the text is silent run on every adapter, the fake's
@@ -33,8 +31,6 @@ stops.
 
 import json
 import os
-import re
-import time
 
 from tests.drive import binaries
 from tests.drive.session import DriveError, debug_library, has_faults
@@ -53,22 +49,8 @@ FLOOD = 100000
 # The child's lines: a timeout, in ms, past a slow start here; one a
 # sleeping child is past.
 LINE_TIMEOUT, SHORT = 30000, 200
-# P20's lock half, timed: the holder's 3 counts of 50 ms; the deadline
-# past which busy, its slack; in seconds.
-HELD, PAST, SLACK = 0.15, 0.3, 1.0
-# The adapter's clock's tick, which a deadline may end short of.
-TICK = 0.016
-# The fake's own arguments (contract/platform_own.py): an empty one, one
-# with spaces and quotes, one with e diaeresis.
-ARGS = ("", 'a "quoted" word, two  spaces', "\u00eb")
 # The cases needing processes, not applicable on the fake.
 CASES = ("test_P20_lock",)
-
-
-def named(error, stream):
-    """Whether an output error names the stream, out or err, alone."""
-    other = "err" if stream == "out" else "out"
-    return bool(re.search(rf"\b{stream}\b", error.detail)) and not re.search(rf"\b{other}\b", error.detail)
 
 
 def programs(case, d, **given):
@@ -84,47 +66,6 @@ def programs(case, d, **given):
         made.append({"argv": argv[name], **fields})
     d.call("set_programs", programs=made)
     return argv
-
-
-def lock_half(case, d, timed=False):
-    """lock held, then released before the deadline; held past it; a
-    deadline of 0, one try: acquired; busy; busy, then acquired once the
-    holder lets go. Timed, where the deadlines are kept: acquired no
-    sooner than the holder's own release, read by the holder itself, the
-    holder having held its time, and before the deadline; busy no sooner
-    than its deadline, and at 0 without waiting."""
-    path = case.files_root() / "store.lock"
-    case.hold(d, lock=3)
-    asked = time.monotonic()
-    held = d.call("lock", path=str(path))["id"]
-    acquired = time.monotonic()
-    waited = acquired - asked
-    holder = case.held(d, "lock") if timed else None
-    case.assertEqual(case.failure(d.call, "lock_release", id=held + 1).kind, "request")
-    d.call("lock_release", id=held)
-    case.assertEqual(case.failure(d.call, "lock_release", id=held).kind, "request")
-    case.hold(d, lock=-1)
-    began = time.monotonic()
-    case.assert_platform_error(case.failure(d.call, "lock", path=str(path), deadline=int(PAST * 1000)), "busy")
-    past = time.monotonic() - began
-    began = time.monotonic()
-    case.assert_platform_error(case.failure(d.call, "lock", path=str(path), deadline=0), "busy")
-    once = time.monotonic() - began
-    if timed:
-        # The lower bound from the holder's own release: acquired no
-        # sooner than the holder let go, which held the lock its time.
-        taken, released = holder
-        case.assertIsNotNone(released, "the holder never let go")
-        case.assertGreaterEqual(released - taken, HELD - TICK, "the holder held the lock short of its time")
-        case.assertTrue(asked <= taken and released <= acquired, (asked, taken, released, acquired))
-        case.assertLess(waited, 5.0, waited)
-        case.assertTrue(PAST - TICK <= past < PAST + SLACK, past)
-        case.assertLess(once, PAST, once)
-    case.hold(d, lock=1)
-    case.assert_platform_error(case.failure(d.call, "lock", path=str(path), deadline=0), "busy")
-    again = d.call("lock", path=str(path), deadline=0)["id"]
-    d.call("lock_release", id=again)
-    case.nothing_kept(d)
 
 
 class PlatformProcess:

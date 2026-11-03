@@ -3,7 +3,7 @@
 A binding (contract/test_platform_fake.py, machine/test_platform_windows.py)
 mixes the cases into a TestCase with its adapter: ADAPTER, the name it gives;
 DRIVE, the drive's binary; TAGS, what it has of files, processes and
-machine, and "own: fake" on the fake; drive_args(config, seed), the drive's arguments for it;
+machine; drive_args(config, seed), the drive's arguments for it;
 files_root(), a directory its files' operations may write under;
 COUNT_HANDLES, whether each drive's handle count is compared; and, for
 the files' cases, hold(drive, **times), its holders
@@ -24,8 +24,9 @@ P3 to P8 and P16 are location's
 (contract/platform_location.py), the files' a failed open
 (contract/platform_files.py), P20's child half the processes'
 (contract/platform_process.py), P17, P18, P21 and P22 the machine's
-(contract/platform_machine.py); the fake's own cases, "own: fake",
-contract/platform_own.py.
+(contract/platform_machine.py). The fake's own programs, their kill, hang,
+flood, exit code and argv, are platform's own (fake_process_test.cpp
+there), and its lock's deadline of 0 (files_test.cpp there).
 """
 
 import shutil

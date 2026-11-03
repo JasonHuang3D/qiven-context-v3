@@ -2,7 +2,10 @@
 // relative argv[0], a .cmd and a .bat with start, before any program is
 // looked up; a Child's read_line keeps its line when an allocation fails,
 // the next call reading it whole; a program's working directory, the
-// caller's or the one given.
+// caller's or the one given; a killed program ended (P11's); a hang
+// deadline (P12's); a flood and a cap passed output naming the stream, the
+// exit code as given (P13's); a program found by its whole argv alone
+// (P15's).
 
 #include <array>
 #include <cstddef>
@@ -278,4 +281,163 @@ QIVEN_CASE(fake_process, cwd) {
         }
     }
     CHECK_EQ(arena.used(), 0U);
+}
+
+// A program that never ends, killed after its line: its stream ends and its
+// wait answers 1; kill() again, idempotent, its wait 1 still (P11's on the
+// fake).
+QIVEN_CASE(fake_process, kill_ended) {
+    FakePlatform fake{Config{}};
+    const std::string endless = absolute("endless.exe");
+    Program program = printing({"one"});
+    program.hang = true;
+    std::map<std::vector<std::string>, Program> programs;
+    programs[{endless}] = program;
+    fake.set_programs(std::move(programs));
+    const std::array<std::string_view, 1> argv{endless};
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    auto child = fake.start(of(argv));
+    String line{Allocator<char>(arena)};
+    REQUIRE(child.read_line(five, line));
+    CHECK_EQ(std::string(line), std::string("one\n"));
+    child.kill();
+    CHECK(!child.read_line(five, line));
+    CHECK_EQ(child.wait(five), 1);
+    child.kill();
+    CHECK_EQ(child.wait(five), 1);
+}
+
+// A program that hangs, by run and by start: deadline; by start its line
+// read first, then deadline again on each next read_line and on wait (P12's
+// on the fake).
+QIVEN_CASE(fake_process, hang_deadline) {
+    FakePlatform fake{Config{}};
+    const std::string sleeper = absolute("sleeper.exe");
+    Program program = printing({"awake"});
+    program.hang = true;
+    std::map<std::vector<std::string>, Program> programs;
+    programs[{sleeper}] = program;
+    fake.set_programs(std::move(programs));
+    const std::array<std::string_view, 1> argv{sleeper};
+    Command command = of(argv);
+    command.deadline = Seconds{0.2};
+    const std::pair<Code, std::string> hangs{Code::deadline, "the fake's program hangs"};
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    Ran ran(arena);
+    CHECK(thrown([&] { fake.run(command, "", ran); }) == hangs);
+    auto child = fake.start(command);
+    String line{Allocator<char>(arena)};
+    REQUIRE(child.read_line(five, line));
+    CHECK_EQ(std::string(line), std::string("awake\n"));
+    CHECK(thrown([&] { static_cast<void>(child.read_line(five, line)); }) == hangs);
+    CHECK(thrown([&] { static_cast<void>(child.read_line(five, line)); }) == hangs);
+    CHECK(thrown([&] { static_cast<void>(child.wait(five)); }) == hangs);
+}
+
+// A program flooding out, then one flooding err, by run and by start:
+// output naming the stream, from run, read_line and wait (P13's on the
+// fake).
+QIVEN_CASE(fake_process, flood_output) {
+    FakePlatform fake{Config{}};
+    const std::array<std::string, 2> streams{"out", "err"};
+    std::map<std::vector<std::string>, Program> programs;
+    for (const std::string& stream : streams) {
+        Program program;
+        program.flood = stream;
+        programs[{absolute("flood_" + stream + ".exe")}] = program;
+    }
+    fake.set_programs(std::move(programs));
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    for (const std::string& stream : streams) {
+        const std::string flood = absolute("flood_" + stream + ".exe");
+        const std::array<std::string_view, 1> argv{flood};
+        const Command command = of(argv);
+        const std::pair<Code, std::string> floods{Code::output, stream};
+        Ran ran(arena);
+        CHECK(thrown([&] { fake.run(command, "", ran); }) == floods);
+        auto child = fake.start(command);
+        String line{Allocator<char>(arena)};
+        CHECK(thrown([&] { static_cast<void>(child.read_line(five, line)); }) == floods);
+        CHECK(thrown([&] { static_cast<void>(child.wait(five)); }) == floods);
+    }
+}
+
+// A program printing a line and its err, exiting 7, run at each cap
+// exactly: the code, out and err as given; a byte short of the out cap,
+// then of the err cap: output naming the stream (P13's on the fake).
+QIVEN_CASE(fake_process, exit_code) {
+    FakePlatform fake{Config{}};
+    const std::string printer = absolute("printer.exe");
+    const std::string complaint(16, 'e');
+    Program program = printing({"0123456789"});
+    program.err = complaint;
+    program.code = 7;
+    std::map<std::vector<std::string>, Program> programs;
+    programs[{printer}] = program;
+    fake.set_programs(std::move(programs));
+    const std::array<std::string_view, 1> argv{printer};
+    Command command = of(argv);
+    command.caps.out = 11;  // "0123456789\n"
+    command.caps.err = complaint.size();
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    {
+        Ran ran(arena);
+        fake.run(command, "", ran);
+        CHECK_EQ(ran.code, 7);
+        CHECK_EQ(std::string(ran.out), std::string("0123456789\n"));
+        CHECK_EQ(std::string(ran.err), complaint);
+    }
+    command.caps.out = 10;
+    {
+        Ran ran(arena);
+        CHECK(thrown([&] { fake.run(command, "", ran); }) == std::pair(Code::output, std::string("out")));
+    }
+    command.caps.out = 11;
+    command.caps.err = complaint.size() - 1;
+    {
+        Ran ran(arena);
+        CHECK(thrown([&] { fake.run(command, "", ran); }) == std::pair(Code::output, std::string("err")));
+    }
+}
+
+// A program found by its whole argv, an empty argument, one with spaces and
+// quotes and one with e diaeresis among it, by run and by start; that argv
+// one argument dropped, then one changed: not found, start (P15's on the
+// fake).
+QIVEN_CASE(fake_process, argv_found) {
+    FakePlatform fake{Config{}};
+    const std::string echo = absolute("echo.exe");
+    const std::string quoted = "a \"quoted\" word, two  spaces";
+    const std::string requoted = "a 'quoted' word, two  spaces";
+    const std::string diaeresis = "\xc3\xab";  // e diaeresis in UTF-8
+    std::map<std::vector<std::string>, Program> programs;
+    programs[{echo, "", quoted, diaeresis}] = printing({"found"});
+    fake.set_programs(std::move(programs));
+    const std::array<std::string_view, 4> argv{echo, "", quoted, diaeresis};
+    const Command command = of(argv);
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    {
+        Ran ran(arena);
+        fake.run(command, "", ran);
+        CHECK_EQ(std::string(ran.out), std::string("found\n"));
+    }
+    auto child = fake.start(command);
+    String line{Allocator<char>(arena)};
+    REQUIRE(child.read_line(five, line));
+    CHECK_EQ(std::string(line), std::string("found\n"));
+    const std::array<std::string_view, 3> dropped{echo, quoted, diaeresis};
+    const std::array<std::string_view, 4> changed{echo, "", requoted, diaeresis};
+    const std::pair<Code, std::string> missing{Code::start, "no such program: " + echo};
+    for (const std::span<const std::string_view> other :
+         {std::span<const std::string_view>(dropped), std::span<const std::string_view>(changed)}) {
+        const Command not_found = of(other);
+        Ran ran(arena);
+        CHECK(thrown([&] { fake.run(not_found, "", ran); }) == missing);
+        CHECK(thrown([&] { static_cast<void>(fake.start(not_found)); }) == missing);
+    }
 }

@@ -1,10 +1,10 @@
 """The platform's cases on the fake, every system of the CI matrix, through
 qiven3-drive-fake.
 
-The fake has files and its own cases ("own: fake", contract/platform_own.py:
-its programs, by set_programs, and its lock), and lacks processes and
-machine, so P20 runs nothing on it. Its files' operations
-write under its root alone.
+The fake has files, and lacks processes and machine, so P20 runs nothing
+on it; its own programs, by set_programs, and its lock are platform's own
+(foundation/system/platform/tests/fake_process_test.cpp and
+files_test.cpp). Its files' operations write under its root alone.
 """
 
 import unittest
@@ -14,7 +14,6 @@ from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_machine import CASES, PlatformForms, PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
-from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import CASES as PROCESS_CASES
 from tests.contract.platform_process import PlatformProcess
 from tests.drive.session import FAKE
@@ -23,7 +22,7 @@ from tests.drive.session import FAKE
 class FakeBinding(PlatformBinding):
     ADAPTER = "fake"
     DRIVE = FAKE
-    TAGS = frozenset({"files", "own: fake"})
+    TAGS = frozenset({"files"})
 
     def root(self):
         root = self.scratch / "root"
@@ -46,8 +45,7 @@ class FakeBinding(PlatformBinding):
         d.call("set_busy", **times)
 
 
-class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformMemory,
-           unittest.TestCase):
+class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 
