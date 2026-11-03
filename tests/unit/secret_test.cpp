@@ -20,10 +20,10 @@
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
 #include "entry/secret.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/patterns.hpp"
 
@@ -35,7 +35,7 @@ namespace matcher = qiven::matcher;
 namespace content = qiven3::entry::content;
 namespace canon = qiven::text::canon;
 namespace json = qiven::text::json;
-namespace digest = qiven3::digest;
+namespace digest = qiven::digest;
 namespace fixtures = qiven::test::fixtures;
 
 #define ID "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -240,7 +240,7 @@ QIVEN_CASE(secret, pinned) {
         digest::plain(data, plain);
         w.string(plain);
         std::string keyed;
-        digest::detail::write_hex("hmac-sha256:", digest::hmac("key " + std::to_string(i), data), keyed);
+        digest::write_hex("hmac-sha256:", digest::hmac("key " + std::to_string(i), data), keyed);
         w.string(keyed);
     }
     w.close();

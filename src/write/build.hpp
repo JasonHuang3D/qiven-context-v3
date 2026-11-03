@@ -71,7 +71,7 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
@@ -191,7 +191,7 @@ void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& ar
         work_arena.attach(hooks.work);
 #endif
         const qiven::memory::Allocator<char> alloc(work_arena);
-        digest::Key<P> key = digest::new_key(platform);
+        format::Key<P> key = format::new_key(platform);
         qiven::memory::String work(alloc);
 
         // A placeholder's version: @name:'s entry if of this scope, else
@@ -237,9 +237,9 @@ void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& ar
                         }
                         got.read = true;
                     }
-                    digest::keyed(key, got.bytes, fill);
+                    format::keyed(key, got.bytes, fill);
                 } else {
-                    digest::keyed(key, file.text(p.value), fill);
+                    format::keyed(key, file.text(p.value), fill);
                 }
                 continue;
             }
@@ -296,7 +296,7 @@ void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& ar
         b.body = kind != "forget";
         qiven::memory::String content_digest(alloc);
         if (b.body) {
-            digest::keyed(key, content, content_digest);
+            format::keyed(key, content, content_digest);
         }
         const header::FieldsView f{
             .scope = scope, .lane = lane, .seq = parent ? parent->seq + 1 : 1,

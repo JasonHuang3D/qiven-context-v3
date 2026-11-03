@@ -24,7 +24,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace {
@@ -32,7 +32,7 @@ namespace {
 namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
@@ -94,7 +94,7 @@ struct Inputs {
 
 // Op over a, its result held until the arena's use is read: the bytes held
 // after it returns.
-std::size_t run(Op op, Inputs& in, Arena& arena, const digest::Key<Fake>& key) {
+std::size_t run(Op op, Inputs& in, Arena& arena, const format::Key<Fake>& key) {
     const Allocator<char> a(arena);
     switch (op) {
         case Op::registry: {
@@ -130,7 +130,7 @@ std::size_t run(Op op, Inputs& in, Arena& arena, const digest::Key<Fake>& key) {
 
 QIVEN_CASE(projectmap, budget) {
     Inputs in;
-    const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
+    const format::Key<Fake> key = format::key_from_hex(in.fake, HEX);
     for (const Op op : OPS) {
         Arena& arena = qiven_ctx.counted.arena(1U << 20U);
         const std::size_t before = arena.peak();
@@ -146,7 +146,7 @@ QIVEN_CASE(projectmap, budget) {
 QIVEN_CASE(projectmap, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     Inputs in;
-    const digest::Key<Fake> key = digest::key_from_hex(in.fake, HEX);
+    const format::Key<Fake> key = format::key_from_hex(in.fake, HEX);
     std::vector<std::byte> pages(1U << 16U);
     for (const Op op : OPS) {
         qiven::memory::Countdown countdown;

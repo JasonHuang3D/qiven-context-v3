@@ -44,7 +44,7 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::check {
 
@@ -178,7 +178,7 @@ Entry<P, A> check_entry(P& platform, std::string_view line, std::optional<std::s
     header::Header<A> h(allocator);
     std::optional<body::Body<P, A>> b;
     const auto bind = [&](const body::detail::RecordView& parts, const header::Header<A>& with) {
-        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
+        b.emplace(parts.content, parts.id, format::key_from_hex(platform, parts.key), allocator);
         try {
             body::check(*b, with);
         } catch (const body::BodyError&) {

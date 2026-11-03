@@ -5,11 +5,24 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/qiven3/qiven3.hpp",
+  "contract": "products/qiven3/format/include/qiven3/format/qiven3.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
-  "present": [],
-  "from": [
-    "base"
+  "present": [
+    {
+      "name": "format",
+      "layer": "product",
+      "depends": [
+        "digest",
+        "memory",
+        "platform"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "products/qiven3/format/"
+      ]
+    }
   ]
 }

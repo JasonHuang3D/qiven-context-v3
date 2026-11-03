@@ -12,7 +12,7 @@
 // the parser's own faults are its ParseError. check holds a body against
 // its header: an id not the header's, or a content whose digest under the
 // key is not the header's content (a forget's header has none), is
-// BodyError body_mismatch, both compared by digest::same.
+// BodyError body_mismatch, both compared by qiven::digest::same.
 //
 // Body holds the content's bytes and the id in one text, beside its Key:
 // the key's material lives in the Key alone, in no arena, and reaches
@@ -45,11 +45,12 @@
 #include <utility>
 
 #include "entry/header.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::body {
 
@@ -71,7 +72,7 @@ struct BodyError {
 // The record's keys in their order, and the frame around the content.
 inline constexpr std::array<std::string_view, 3> record_keys = {"content", "id", "key"};
 inline constexpr std::size_t id_size = 71;  // sha256: and 64 hex digits
-inline constexpr std::size_t key_size = 2 * digest::bytes;
+inline constexpr std::size_t key_size = 2 * qiven::digest::bytes;
 inline constexpr std::size_t digest_size = 76;  // hmac-sha256: and 64 hex digits
 inline constexpr std::string_view head = "{\"content\":";
 inline constexpr std::string_view id_part = ",\"id\":\"";
@@ -136,7 +137,7 @@ constexpr std::optional<Code> layout(const json::Basic<A>& v) {
         return Code::missing_key;
     }
     if (v.kind(at[0]) != json::Kind::object || v.kind(at[1]) != json::Kind::string ||
-        v.kind(at[2]) != json::Kind::string || !id_text(v.text(at[1])) || !digest::key_text(v.text(at[2]))) {
+        v.kind(at[2]) != json::Kind::string || !id_text(v.text(at[1])) || !format::key_text(v.text(at[2]))) {
         return Code::syntax;
     }
     return std::nullopt;
@@ -215,7 +216,7 @@ public:
     using Text = std::basic_string<char, std::char_traits<char>, A>;
 
     // The parts' bytes copied: one allocation. The id is id_size bytes.
-    Body(std::string_view content, std::string_view id, digest::Key<P> key, const A& allocator)
+    Body(std::string_view content, std::string_view id, format::Key<P> key, const A& allocator)
         : text_(allocator), key_(std::move(key)) {
         if (id.size() != id_size) {
             qiven::memory::fail_fast("body: an id not of 71 bytes");
@@ -244,18 +245,19 @@ public:
     // The content's keyed digest, the header's content, into out.
     template <typename S>
     void content_digest(S& out) const {
-        digest::keyed(key_, content(), out);
+        format::keyed(key_, content(), out);
     }
     // The record's bytes into out, replaced only on success: one
-    // allocation. They hold the key's hex, as the record must.
+    // allocation. They hold the key's hex, as the record must: key_hex is
+    // for the body record's key alone.
     template <typename S>
     void line(S& out) const {
-        detail::write(content(), id(), [this](std::span<char, key_size> hex) { digest::key_hex(key_, hex); }, out);
+        detail::write(content(), id(), [this](std::span<char, key_size> hex) { format::key_hex(key_, hex); }, out);
     }
 
 private:
     Text text_;
-    digest::Key<P> key_;
+    format::Key<P> key_;
 };
 
 // A body from a content's canonical bytes, the entry's key and its id. The
@@ -263,7 +265,7 @@ private:
 // an id off its syntax, is BodyError syntax; a content past 15 levels,
 // which the record's root would take past 16, ParseError depth.
 template <qiven::platform::Platform P, typename A = std::allocator<char>>
-Body<P, A> make(std::string_view content, digest::Key<P> key, std::string_view id, const A& allocator = A()) {
+Body<P, A> make(std::string_view content, format::Key<P> key, std::string_view id, const A& allocator = A()) {
     {
         json::Basic<A> value(allocator);
         canon::parse(content, value);
@@ -298,7 +300,7 @@ Body<P, A> parse(P& platform, std::string_view data, const A& allocator = A()) {
             qiven::memory::fail_fast("body: a canonical record's parts not at their places");
         }
     }
-    return Body<P, A>(r.content, r.id, digest::key_from_hex(platform, r.key), allocator);
+    return Body<P, A>(r.content, r.id, format::key_from_hex(platform, r.key), allocator);
 }
 
 // A body against its header: its id the header's, and its content's digest
@@ -306,12 +308,12 @@ Body<P, A> parse(P& platform, std::string_view data, const A& allocator = A()) {
 // allocation.
 template <qiven::platform::Platform P, typename B, typename C>
 void check(const Body<P, B>& body, const header::Header<C>& h) {
-    if (!digest::same(body.id(), h.value(header::Slot::id)) || !h.present(header::Slot::content)) {
+    if (!qiven::digest::same(body.id(), h.value(header::Slot::id)) || !h.present(header::Slot::content)) {
         throw BodyError{Code::body_mismatch};
     }
     detail::DigestText d;
     body.content_digest(d);
-    if (!digest::same(d.view(), h.value(header::Slot::content))) {
+    if (!qiven::digest::same(d.view(), h.value(header::Slot::content))) {
         throw BodyError{Code::body_mismatch};
     }
 }

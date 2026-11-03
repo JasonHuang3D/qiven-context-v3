@@ -25,7 +25,7 @@
 #include "entry/header.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "store/contract.hpp"
 
 namespace qiven3::checked {
@@ -46,7 +46,7 @@ Entry<P> part1(P& platform, const store::AtView& at, std::size_t index, const st
     Header h(allocator);
     std::optional<body::Body<P, qiven::memory::Allocator<char>>> b;
     const auto bind = [&](const body::detail::RecordView& parts, const Header& with) {
-        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
+        b.emplace(parts.content, parts.id, format::key_from_hex(platform, parts.key), allocator);
         try {
             body::check(*b, with);
         } catch (const body::BodyError&) {

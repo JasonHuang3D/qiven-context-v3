@@ -25,32 +25,12 @@
     {
       "name": "base",
       "layer": "foundation",
-      "depends": [
-        "memory",
-        "platform"
-      ],
-      "test_depends": [
-        "faults"
-      ],
+      "depends": [],
+      "test_depends": [],
       "paths": [
         "src/qiven3/CMakeLists.txt",
-        "src/qiven3/digest.*",
-        "src/qiven3/qiven3.*",
-        "tests/unit/base.cmake",
-        "tests/unit/constant_test.cpp",
-        "tests/unit/digest_test.cpp",
-        "tests/unit/digest_memory_test.cpp",
         "tests/support/fixtures/filled.hpp"
       ]
-    }
-  ],
-  "exceptions": [
-    {
-      "from": "base",
-      "to": [
-        "platform"
-      ],
-      "until": "base splits and digest's key moves to the product's format"
     }
   ]
 }

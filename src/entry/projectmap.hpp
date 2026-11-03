@@ -32,7 +32,7 @@
 // returns; with MISSING or none, none. Platform calls: the key's wipe of
 // its padded block. try_check_map is constexpr and a template on the
 // allocators, so its vectors run in constant evaluation too; mark is not
-// (digest::keyed reads the key). Each reads by index, with no pointer
+// (format::keyed reads the key). Each reads by index, with no pointer
 // arithmetic. projectmap logs nothing.
 //
 // thread: none; the view's, and a key's (its platform's).
@@ -50,9 +50,10 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/served.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::projectmap {
 
@@ -170,17 +171,17 @@ constexpr void check_map(const header::Header<A>& h, const canon::Basic<B>& cont
 // of the bytes under the version's key is the object's, else stale. The
 // digest's text is written on allocator C, one allocation.
 template <qiven::platform::Platform P, typename A, typename B, typename C = std::allocator<char>>
-served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& key,
+served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const format::Key<P>& key,
                   std::string_view object_bytes, const C& allocator = C()) {
     const std::string_view held = detail::object_digest(h, content);
     std::basic_string<char, std::char_traits<char>, C> computed(allocator);
-    digest::keyed(key, object_bytes, computed);
-    return digest::same(computed, held) ? served::Mark::fresh : served::Mark::stale;
+    format::keyed(key, object_bytes, computed);
+    return qiven::digest::same(computed, held) ? served::Mark::fresh : served::Mark::stale;
 }
 
 // The object missing: stale.
 template <qiven::platform::Platform P, typename A, typename B>
-served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& /*key*/,
+served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const format::Key<P>& /*key*/,
                   Missing /*object*/) {
     static_cast<void>(detail::object_digest(h, content));
     return served::Mark::stale;
@@ -188,7 +189,7 @@ served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, co
 
 // No bytes read: unchecked.
 template <qiven::platform::Platform P, typename A, typename B>
-served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& /*key*/,
+served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const format::Key<P>& /*key*/,
                   std::nullopt_t /*object*/) {
     static_cast<void>(detail::object_digest(h, content));
     return served::Mark::unchecked;

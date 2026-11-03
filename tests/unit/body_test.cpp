@@ -26,7 +26,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -35,14 +35,14 @@ namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace matcher = qiven::matcher;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using body::Code;
 using header::Slot;
 using Fake = qiven::platform::fake::FakePlatform;
 using Body = body::Body<Fake>;
 
-static_assert(sizeof(digest::Key<Fake>) == 32 + sizeof(void*), "a key's size is pinned: its 32 and its platform's");
+static_assert(sizeof(format::Key<Fake>) == 32 + sizeof(void*), "a key's size is pinned: its 32 and its platform's");
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
 static_assert(sizeof(body::Body<Fake, qiven::memory::Allocator<char>>) == 80,
               "the body's size is pinned: its text, 40, and its key, 40");
@@ -109,8 +109,8 @@ static_assert(body::detail::id_text(a_id) && id_agrees(a_id) && id_agrees(b_id))
 static_assert(!body::detail::id_text("sha256:00") && id_agrees("sha256:00") && id_agrees(""));
 static_assert(id_agrees(edited(a_id, "9023", "9O23")) && id_agrees(edited(a_id, "ae", "AE")));
 static_assert(id_agrees(std::string(a_id) + "0") && id_agrees(edited(a_id, "sha256", "sha257")));
-static_assert(digest::key_text(k0) && !digest::key_text(upper_key) && !digest::key_text(k0.substr(1)));
-static_assert(!digest::key_text(std::string(k0) + "0") && !digest::key_text(edited(k0, "0a", "0g")));
+static_assert(format::key_text(k0) && !format::key_text(upper_key) && !format::key_text(k0.substr(1)));
+static_assert(!format::key_text(std::string(k0) + "0") && !format::key_text(edited(k0, "0a", "0g")));
 
 // A refusal thrown, as a code's name.
 template <typename Op>
@@ -143,7 +143,7 @@ QIVEN_CASE(body, fixtures) {
             continue;
         }
         REQUIRE(e.content.has_value());
-        const Body b = body::make(*e.content, digest::key_from_hex(fake, *e.key), h.value(Slot::id));
+        const Body b = body::make(*e.content, format::key_from_hex(fake, *e.key), h.value(Slot::id));
         std::string d;
         b.content_digest(d);
         CHECK_EQ(d, std::string(h.value(Slot::content)));
@@ -175,7 +175,7 @@ QIVEN_CASE(body, refusals) {
     REQUIRE(a.has_value() && a->key && a->content);
     const header::Header<> h = header::parse_line(a->header);
     std::string record;
-    body::make(*a->content, digest::key_from_hex(fake, *a->key), h.value(Slot::id)).line(record);
+    body::make(*a->content, format::key_from_hex(fake, *a->key), h.value(Slot::id)).line(record);
     const auto parse_check = [&](std::string text) {
         return [&fake, &h, text] { body::check(body::parse(fake, text), h); };
     };
@@ -215,13 +215,13 @@ QIVEN_CASE(body, refusals) {
     const header::Header<> forget = header::make(f);
     CHECK(!header::try_check(forget));
     CHECK_EQ(thrown([&] {
-                 body::check(body::make("{}", digest::key_from_hex(fake, k0), forget.value(Slot::id)), forget);
+                 body::check(body::make("{}", format::key_from_hex(fake, k0), forget.value(Slot::id)), forget);
              }),
              "body_mismatch");
     // make's refusals: a content that is no object, not canonical or past
     // 15 levels; an id off its syntax.
     const auto make = [&fake](std::string content, std::string id) {
-        return [&fake, content, id] { static_cast<void>(body::make(content, digest::key_from_hex(fake, k0), id)); };
+        return [&fake, content, id] { static_cast<void>(body::make(content, format::key_from_hex(fake, k0), id)); };
     };
     CHECK_EQ(thrown(make("{}", std::string(a_id))), "none");
     CHECK_EQ(thrown(make("[]", std::string(a_id))), "syntax");
@@ -235,7 +235,7 @@ QIVEN_CASE(body, refusals) {
     }
     CHECK_EQ(thrown(make(deep, std::string(a_id))), "none");  // 15 levels
     std::string record15;
-    body::make(deep, digest::key_from_hex(fake, k0), a_id).line(record15);
+    body::make(deep, format::key_from_hex(fake, k0), a_id).line(record15);
     CHECK_EQ(thrown([&] { static_cast<void>(body::parse(fake, record15)); }), "none");
     CHECK_EQ(thrown(make("{\"a\":" + deep + "}", std::string(a_id))), "depth");  // 16
     // The codes' names, in their order.
@@ -246,15 +246,15 @@ QIVEN_CASE(body, refusals) {
 QIVEN_CASE(body, key) {
     Fake fake(qiven::platform::fake::Config{});
     const std::size_t before = fake.calls().size();
-    const digest::Key<Fake> key = digest::key_from_hex(fake, k0);
+    const format::Key<Fake> key = format::key_from_hex(fake, k0);
     // The decoded copy on the stack, wiped: the one platform call.
     REQUIRE(fake.calls().size() == before + 1);
     CHECK_EQ(fake.calls().back(), "wipe");
     std::array<char, body::key_size> hex{};
-    digest::key_hex(key, std::span<char, body::key_size>(hex));
+    format::key_hex(key, std::span<char, body::key_size>(hex));
     CHECK_EQ(std::string(hex.data(), hex.size()), std::string(k0));
     // Its digest of the empty object, the vectors' cv1.
-    const Body b = body::make("{}", digest::key_from_hex(fake, k0), a_id);
+    const Body b = body::make("{}", format::key_from_hex(fake, k0), a_id);
     std::string d;
     b.content_digest(d);
     CHECK_EQ(d, "hmac-sha256:86227fe96722a2247dcfee12c07d89c1b0567bbc9aa6a8d804838f66a3da843f");

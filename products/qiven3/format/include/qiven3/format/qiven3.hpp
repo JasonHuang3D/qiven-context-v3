@@ -3,7 +3,7 @@
 #include <optional>
 #include <string_view>
 
-namespace qiven3 {
+namespace qiven3::format {
 
 inline constexpr std::string_view ENTRY_TAG = "qiven-entry/1";
 inline constexpr std::string_view BUNDLE_FORMAT = "qiven-bundle";
@@ -20,4 +20,4 @@ struct Version {
 // leading zero; anything else gives no value.
 std::optional<Version> parse_version(std::string_view text);
 
-}  // namespace qiven3
+}  // namespace qiven3::format

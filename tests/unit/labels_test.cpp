@@ -35,7 +35,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -43,7 +43,7 @@ namespace {
 namespace labels = qiven3::entry::labels;
 namespace header = qiven3::entry::header;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using labels::Act;
 using labels::Basis;
@@ -408,10 +408,10 @@ Transcript reverify(Fake& fake, const Held& x, const CheckView& c, std::optional
     if (!material) {
         throw std::runtime_error("no key");
     }
-    const digest::Key key(fake, std::span<const std::byte, 32>(*material));
+    const format::Key key(fake, std::span<const std::byte, 32>(*material));
     fake.wipe(std::span<std::byte>(*material));
     std::string out;
-    digest::keyed(key, *yields, out);
+    format::keyed(key, *yields, out);
     return out == c.digest ? Transcript::reverified : Transcript::unequal;
 }
 

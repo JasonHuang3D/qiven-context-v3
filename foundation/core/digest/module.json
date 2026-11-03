@@ -5,11 +5,22 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/qiven3/digest.hpp",
+  "contract": "foundation/core/digest/include/qiven/digest/digest.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
-  "present": [],
-  "from": [
-    "base"
+  "present": [
+    {
+      "name": "digest",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/digest/"
+      ]
+    }
   ]
 }

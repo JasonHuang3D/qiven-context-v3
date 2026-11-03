@@ -44,7 +44,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/entry_id.hpp"
 
 namespace qiven3::entry::header {
 
@@ -271,8 +271,8 @@ public:
     // The text's bytes held: its capacity, its terminator apart.
     [[nodiscard]] constexpr std::size_t bytes() const noexcept { return text_.capacity(); }
     // The 11 fields as digest frames them; views of this header's text.
-    [[nodiscard]] constexpr std::array<digest::Field, field_count> fields() const {
-        std::array<digest::Field, field_count> out{};
+    [[nodiscard]] constexpr std::array<format::Field, field_count> fields() const {
+        std::array<format::Field, field_count> out{};
         for (std::size_t i = 0; i < field_count; ++i) {
             out.at(i) = text(static_cast<Slot>(i));
         }
@@ -338,9 +338,9 @@ static_assert(sizeof(Header<qiven::memory::Allocator<char>>) == 200,
 // The id over a header's fields, in place.
 template <typename A>
 constexpr detail::IdText id_of(const Header<A>& header) {
-    const std::array<digest::Field, field_count> fields = header.fields();
+    const std::array<format::Field, field_count> fields = header.fields();
     detail::IdText id;
-    digest::entry_id(std::span<const digest::Field>(fields), id);
+    format::entry_id(std::span<const format::Field>(fields), id);
     return id;
 }
 
@@ -410,13 +410,13 @@ constexpr Header<A> make(const FieldsView& f, const A& allocator = A()) {
     if (f.id) {
         put(Slot::id, f.id, Form::text);
     } else {
-        std::array<digest::Field, field_count> fields = qiven::memory::each_value<digest::Field, field_count>();
+        std::array<format::Field, field_count> fields = qiven::memory::each_value<format::Field, field_count>();
         for (std::size_t i = 0; i < field_count; ++i) {
             if (parts.forms.at(i) != Form::absent) {
                 fields.at(i) = parts.bytes.at(i);
             }
         }
-        digest::entry_id(std::span<const digest::Field>(fields), computed);
+        format::entry_id(std::span<const format::Field>(fields), computed);
         put(Slot::id, computed.view(), Form::text);
     }
     return Header<A>(parts, allocator);

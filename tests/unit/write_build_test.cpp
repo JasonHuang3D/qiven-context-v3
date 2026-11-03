@@ -30,7 +30,7 @@
 #include "entry/kinds.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
@@ -203,7 +203,7 @@ std::string keyed(const std::string& hex, std::string_view data) {
     for (std::size_t i = 0; i + 1 < hex.size(); i += 2) {
         raw.push_back(static_cast<char>(std::stoi(hex.substr(i, 2), nullptr, 16)));
     }
-    const qiven3::digest::Bytes d = qiven3::digest::hmac(raw, data);
+    const qiven::digest::Bytes d = qiven::digest::hmac(raw, data);
     std::string out = "hmac-sha256:";
     constexpr std::string_view digits = "0123456789abcdef";
     for (const std::uint8_t b : d) {

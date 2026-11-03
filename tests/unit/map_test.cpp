@@ -20,10 +20,12 @@
 #include "entry/projectmap.hpp"
 #include "entry/projectmap_files.hpp"
 #include "entry/served.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/entry_id.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -32,7 +34,8 @@ namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
 namespace served = qiven3::entry::served;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace digest = qiven::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using Fake = qiven::platform::fake::FakePlatform;
 using served::Mark;
@@ -81,7 +84,7 @@ std::optional<std::string> version(const canon::Basic<>& all, std::int64_t n) {
 std::string id_of(const header::Header<>& h) {
     std::string out;
     const auto fields = h.fields();
-    digest::entry_id(std::span<const digest::Field>(fields), out);
+    format::entry_id(std::span<const format::Field>(fields), out);
     return out;
 }
 
@@ -101,8 +104,8 @@ QIVEN_CASE(map, fa2_stale) {
     CHECK_EQ(v1->size(), 57U);
     CHECK_EQ(v2->size(), 75U);
     Fake fake(qiven::platform::fake::Config{});
-    const digest::Key<Fake> k1(fake, std::span<const std::byte, digest::bytes>(m1.key));
-    const digest::Key<Fake> k2(fake, std::span<const std::byte, digest::bytes>(m2.key));
+    const format::Key<Fake> k1(fake, std::span<const std::byte, digest::bytes>(m1.key));
+    const format::Key<Fake> k2(fake, std::span<const std::byte, digest::bytes>(m2.key));
 
     // Both ids, as stored and recomputed.
     CHECK_EQ(m1.h.value(header::Slot::id), M1_ID);
@@ -113,11 +116,11 @@ QIVEN_CASE(map, fa2_stale) {
 
     // The three digests.
     std::string d;
-    digest::keyed(k1, *v1, d);
+    format::keyed(k1, *v1, d);
     CHECK_EQ(d, std::string(M1_V1));
-    digest::keyed(k1, *v2, d);
+    format::keyed(k1, *v2, d);
     CHECK_EQ(d, std::string(M1_V2));
-    digest::keyed(k2, *v2, d);
+    format::keyed(k2, *v2, d);
     CHECK_EQ(d, std::string(M2_V2));
 
     // The four marks.

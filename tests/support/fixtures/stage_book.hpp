@@ -33,7 +33,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
@@ -201,7 +201,7 @@ public:
         if (e.content && e.key) {
             const header::Header<> h = header::parse_line(e.header);
             std::string record;
-            body::make(*e.content, qiven3::digest::key_from_hex(*fake_, *e.key), h.value(Slot::id)).line(record);
+            body::make(*e.content, qiven3::format::key_from_hex(*fake_, *e.key), h.value(Slot::id)).line(record);
             s.record = std::move(record);
             s.content = std::string(*e.content);
         }
@@ -314,12 +314,12 @@ public:
         change(f);
         std::string digest_text;
         // The digest alone is read: any id of the syntax serves.
-        body::make(content, qiven3::digest::key_from_hex(*fake_, key), h.value(Slot::id)).content_digest(digest_text);
+        body::make(content, qiven3::format::key_from_hex(*fake_, key), h.value(Slot::id)).content_digest(digest_text);
         f.content = digest_text;
         const header::Header<> made_header = header::make(f);
         Stored s{std::string(), std::string(), content};
         made_header.line(s.line);
-        body::make(content, qiven3::digest::key_from_hex(*fake_, key), made_header.value(Slot::id)).line(*s.record);
+        body::make(content, qiven3::format::key_from_hex(*fake_, key), made_header.value(Slot::id)).line(*s.record);
         return s;
     }
 

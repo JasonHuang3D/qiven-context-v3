@@ -55,7 +55,8 @@
       "name": "fuzzing",
       "layer": "product",
       "depends": [
-        "base",
+        "digest",
+        "format",
         "entry",
         "wire",
         "write",

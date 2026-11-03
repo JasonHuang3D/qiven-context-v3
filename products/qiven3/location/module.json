@@ -13,7 +13,6 @@
       "name": "location",
       "layer": "product",
       "depends": [
-        "base",
         "platform",
         "memory",
         "entry",

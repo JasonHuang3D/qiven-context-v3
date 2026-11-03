@@ -26,7 +26,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -35,7 +35,7 @@ namespace check = qiven3::entry::check;
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
@@ -70,7 +70,7 @@ std::vector<Case> cases(Fake& fake) {
         if (with) {
             const header::Header<> h = header::parse_line(e->header);
             std::string record;
-            body::make(*e->content, digest::key_from_hex(fake, *e->key), h.value(header::Slot::id)).line(record);
+            body::make(*e->content, format::key_from_hex(fake, *e->key), h.value(header::Slot::id)).line(record);
             c.record = record;
         }
         out.push_back(c);

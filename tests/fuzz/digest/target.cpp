@@ -22,12 +22,15 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven/digest/digest.hpp"
+#include "qiven3/format/entry_id.hpp"
+#include "qiven3/format/key.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
-namespace digest = qiven3::digest;
+namespace digest = qiven::digest;
+namespace format = qiven3::format;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::String;
@@ -85,7 +88,7 @@ int digest_input(const std::uint8_t* data, std::size_t size) {
         text[i] = static_cast<char>(input[i]);
     }
     const std::string_view view(text);
-    std::array<digest::Field, entry_fields> fields{};
+    std::array<format::Field, entry_fields> fields{};
     std::size_t start = 0;
     std::size_t n = 0;
     for (std::size_t lf = view.find('\n'); lf != std::string_view::npos && n + 1 < entry_fields;
@@ -96,11 +99,11 @@ int digest_input(const std::uint8_t* data, std::size_t size) {
     fields[n] = view.substr(start);
     const std::size_t field_bytes = size - n;  // the LFs that split them are no field's
 
-    const std::string framed = within(field_bytes, [&](String& out) { digest::frame(fields, out); });
-    if (framed.size() != digest::framed_size(fields)) {
+    const std::string framed = within(field_bytes, [&](String& out) { format::frame(fields, out); });
+    if (framed.size() != format::framed_size(fields)) {
         finding("a framed size but framed_size's");
     }
-    const std::string id = within(field_bytes, [&](String& out) { digest::entry_id(fields, out); });
+    const std::string id = within(field_bytes, [&](String& out) { format::entry_id(fields, out); });
     if (id != within(framed.size(), [&](String& out) { digest::plain(framed, out); })) {
         finding("an id but the plain digest of the framed bytes");
     }
@@ -115,8 +118,8 @@ int digest_input(const std::uint8_t* data, std::size_t size) {
         material_text[i] = static_cast<char>(i);
     }
     Fake fake{qiven::platform::fake::Config{}};
-    const digest::Key<Fake> key(fake, material);
-    const std::string keyed = within(size, [&](String& out) { digest::keyed(key, view, out); });
+    const format::Key<Fake> key(fake, material);
+    const std::string keyed = within(size, [&](String& out) { format::keyed(key, view, out); });
     if (keyed != "hmac-sha256:" + hex(digest::hmac(material_text, view))) {
         finding("a keyed digest but hmac's over the key's bytes");
     }

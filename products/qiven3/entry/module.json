@@ -17,11 +17,13 @@
         "matcher",
         "text",
         "time",
-        "base",
+        "digest",
+        "format",
         "memory",
         "platform"
       ],
       "test_depends": [
+        "base",
         "faults"
       ],
       "paths": [

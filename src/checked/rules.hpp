@@ -97,7 +97,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "store/contract.hpp"
 #include "store/stage.hpp"
 
@@ -179,7 +179,7 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
     std::optional<entry::body::Body<P, Chars>> b;
     if (e.has_body() && line.body) {
         const entry::body::detail::RecordView parts = entry::body::detail::parts(*line.body);
-        b.emplace(parts.content, parts.id, digest::key_from_hex(platform, parts.key), allocator);
+        b.emplace(parts.content, parts.id, format::key_from_hex(platform, parts.key), allocator);
     }
     return Entry<P>(std::move(kept), std::move(b));
 }

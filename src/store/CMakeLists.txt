@@ -37,5 +37,5 @@ add_library(qiven3_store STATIC
   values.hpp
 )
 target_include_directories(qiven3_store PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_store PUBLIC qiven3_keys qiven_text qiven3_base qiven_memory
+target_link_libraries(qiven3_store PUBLIC qiven3_keys qiven_text qiven_platform qiven_memory
   PRIVATE qiven_build qiven_sqlite)

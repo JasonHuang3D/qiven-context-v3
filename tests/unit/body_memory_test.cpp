@@ -20,7 +20,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -28,7 +28,7 @@ namespace {
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using header::Slot;
 using qiven::memory::Allocator;
@@ -62,7 +62,7 @@ std::vector<Entry> entries(Fake& fake) {
         }
         const header::Header<> h = header::parse_line(e.header);
         Entry x{std::string(*e.content), std::string(*e.key), std::string(e.header), {}};
-        body::make(x.content, digest::key_from_hex(fake, x.key), h.value(Slot::id)).line(x.record);
+        body::make(x.content, format::key_from_hex(fake, x.key), h.value(Slot::id)).line(x.record);
         out.push_back(std::move(x));
     }
     return out;
@@ -89,7 +89,7 @@ QIVEN_CASE(body, budget) {
         Peaks peaks;
         {
             Arena& arena = qiven_ctx.counted.arena(budget);
-            const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(arena));
+            const Body b = body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(arena));
             peaks.make = arena.peak();
             CHECK_EQ(arena.used(), b.bytes() + 1);  // the text's terminator
             const std::size_t held = arena.used();
@@ -125,7 +125,7 @@ QIVEN_CASE(body, budget) {
         bool make_refused = false;
         try {
             Arena& shorter = qiven_ctx.counted.arena(peaks.make - 1);
-            static_cast<void>(body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(shorter)));
+            static_cast<void>(body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(shorter)));
         } catch (const MemoryError& e) {
             make_refused = budget_error(e);
         }
@@ -140,7 +140,7 @@ QIVEN_CASE(body, budget) {
         CHECK(parse_refused);
         // line writes into the caller's string, on its own arena here.
         Arena& whole = qiven_ctx.counted.arena(budget);
-        const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(whole));
+        const Body b = body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(whole));
         Arena& shorter = qiven_ctx.counted.arena(peaks.line - 1);
         String out{Allocator<char>(shorter)};
         bool line_refused = false;
@@ -184,7 +184,7 @@ QIVEN_CASE(body, faults) {
     const auto make = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
-        const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
+        const Body b = body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
         done = b.id() == id;
     };
     report("make", qiven::test::run_faults<MemoryError>(qiven_ctx.log, "body.make", countdown, make, empty), 5);
@@ -198,7 +198,7 @@ QIVEN_CASE(body, faults) {
     // The record's one, and the digest's text's one.
     const auto line = [&] {
         arena.emplace(pages);
-        const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
+        const Body b = body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
         arena->attach(&countdown);
         String out{Allocator<char>(*arena)};
         b.line(out);
@@ -207,7 +207,7 @@ QIVEN_CASE(body, faults) {
     report("line", qiven::test::run_faults<MemoryError>(qiven_ctx.log, "body.line", countdown, line, empty), 1);
     const auto digest_of = [&] {
         arena.emplace(pages);
-        const Body b = body::make(x.content, digest::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
+        const Body b = body::make(x.content, format::key_from_hex(fake, x.key), id, Allocator<char>(*arena));
         arena->attach(&countdown);
         String out{Allocator<char>(*arena)};
         b.content_digest(out);

@@ -20,10 +20,11 @@
 #include "entry/check.hpp"
 #include "entry/content.hpp"
 #include "entry/header.hpp"
+#include "qiven/digest/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -33,7 +34,8 @@ namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace content = qiven3::entry::content;
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace digest = qiven::digest;
+namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using check::Fault;
 using check::Part;
@@ -59,7 +61,7 @@ constexpr std::string keyed(std::string_view key_hex, std::string_view data) {
         key += static_cast<char>((nibble(key_hex[i]) << 4U) | nibble(key_hex[i + 1]));
     }
     std::string out;
-    digest::detail::write_hex("hmac-sha256:", digest::hmac(key, data), out);
+    digest::write_hex("hmac-sha256:", digest::hmac(key, data), out);
     return out;
 }
 
@@ -292,7 +294,7 @@ std::string thrown(const Op& op) {
 std::string record_of(Fake& fake, const fixtures::EntryView& e) {
     const header::Header<> h = header::parse_line(e.header);
     std::string out;
-    body::make(*e.content, digest::key_from_hex(fake, *e.key), h.value(Slot::id)).line(out);
+    body::make(*e.content, format::key_from_hex(fake, *e.key), h.value(Slot::id)).line(out);
     return out;
 }
 

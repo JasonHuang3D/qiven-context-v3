@@ -20,7 +20,8 @@
 #include "entry/projectmap.hpp"
 #include "entry/served.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/entry_id.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace qiven::test::vectors {
@@ -28,7 +29,6 @@ namespace qiven::test::vectors {
 namespace body = qiven3::entry::body;
 namespace check = qiven3::entry::check;
 namespace content = qiven3::entry::content;
-namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
@@ -109,7 +109,7 @@ std::string checked(Context& c, std::string_view line, std::optional<std::string
 
 std::string framing(Context& /*c*/, const Value& v) {
     std::string decimal;
-    qiven3::digest::Field field;
+    qiven3::format::Field field;
     if (const std::optional<qiven::text::json::Index> at = v.find(0, "value")) {
         if (v.kind(*at) == qiven::text::json::Kind::integer) {
             decimal = std::to_string(v.integer(*at));
@@ -118,9 +118,9 @@ std::string framing(Context& /*c*/, const Value& v) {
             field = text(v, "value");
         }
     }
-    const std::array<qiven3::digest::Field, 1> fields = {field};
+    const std::array<qiven3::format::Field, 1> fields = {field};
     std::string out;
-    qiven3::digest::frame(std::span<const qiven3::digest::Field>(fields), out);
+    qiven3::format::frame(std::span<const qiven3::format::Field>(fields), out);
     return same("framed", hex_of(out), text(v, "framed"));
 }
 
@@ -128,12 +128,12 @@ std::string framed_header(Context& /*c*/, const Value& v) {
     const header::Header<> h = header::parse_line(text(v, "header"));
     const auto fields = h.fields();
     std::string out;
-    qiven3::digest::frame(std::span<const qiven3::digest::Field>(fields), out);
+    qiven3::format::frame(std::span<const qiven3::format::Field>(fields), out);
     if (out.size() != size(v, "size")) {
         return "size: " + std::to_string(out.size());
     }
     std::string id;
-    qiven3::digest::entry_id(std::span<const qiven3::digest::Field>(fields), id);
+    qiven3::format::entry_id(std::span<const qiven3::format::Field>(fields), id);
     const std::string f = same("framed", hex_of(out), text(v, "framed"));
     return f.empty() ? same("id", id, text(v, "id")) : f;
 }
@@ -144,11 +144,11 @@ std::string entry(Context& c, const Value& v) {
     qiven::text::canon::parse(line, strict);
     const header::Header<> h = header::parse_line(line);
     const auto fields = h.fields();
-    if (qiven3::digest::framed_size(std::span<const qiven3::digest::Field>(fields)) != size(v, "framed_size")) {
+    if (qiven3::format::framed_size(std::span<const qiven3::format::Field>(fields)) != size(v, "framed_size")) {
         return "framed_size";
     }
     std::string id;
-    qiven3::digest::entry_id(std::span<const qiven3::digest::Field>(fields), id);
+    qiven3::format::entry_id(std::span<const qiven3::format::Field>(fields), id);
     if (const std::string f = same("id", id, text(v, "id")); !f.empty() || h.value(Slot::id) != id) {
         return f.empty() ? "the line's id" : f;
     }
@@ -171,12 +171,12 @@ std::string entry(Context& c, const Value& v) {
         return "content_size, or not the fixtures' key and content";
     }
     std::string d;
-    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, *key), text_of, d);
+    qiven3::format::keyed(qiven3::format::key_from_hex(c.fake, *key), text_of, d);
     if (d != h.value(Slot::content)) {
         return "content digest: " + d;
     }
     std::string record;
-    body::make(text_of, qiven3::digest::key_from_hex(c.fake, *key), id).line(record);
+    body::make(text_of, qiven3::format::key_from_hex(c.fake, *key), id).line(record);
     if (record != text(v, "body") || record.size() != size(v, "body_size")) {
         return "body: " + record;
     }
@@ -198,14 +198,14 @@ std::string content_digest(Context& c, const Value& v) {
         return "canonical: " + hex_of(out);
     }
     std::string d;
-    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, text(v, "key")), bytes, d);
+    qiven3::format::keyed(qiven3::format::key_from_hex(c.fake, text(v, "key")), bytes, d);
     return same("digest", d, text(v, "digest"));
 }
 
 std::string evidence(Context& c, const Value& v) {
     const Entry& e = c.entry(text(v, "entry"));
     std::string d;
-    qiven3::digest::keyed(qiven3::digest::key_from_hex(c.fake, e.key), from_hex(text(v, "data")), d);
+    qiven3::format::keyed(qiven3::format::key_from_hex(c.fake, e.key), from_hex(text(v, "data")), d);
     if (const std::string f = same("digest", d, text(v, "digest")); !f.empty()) {
         return f;
     }
@@ -314,7 +314,7 @@ std::string map(Context& c, const Value& v) {
     const header::Header<> h = header::parse_line(e.header);
     Value cv;
     qiven::text::canon::parse(e.content, cv);
-    const qiven3::digest::Key<Fake> key = qiven3::digest::key_from_hex(c.fake, e.key);
+    const qiven3::format::Key<Fake> key = qiven3::format::key_from_hex(c.fake, e.key);
     served::Mark mark = served::Mark::unchecked;
     if (integer(v, "version") == 0) {
         if (v.find(0, "digest")) {
@@ -324,7 +324,7 @@ std::string map(Context& c, const Value& v) {
     } else {
         const std::string& bytes = c.file(integer(v, "version"));
         std::string d;
-        qiven3::digest::keyed(key, bytes, d);
+        qiven3::format::keyed(key, bytes, d);
         if (const std::string f = same("digest", d, text(v, "digest")); !f.empty()) {
             return f;
         }

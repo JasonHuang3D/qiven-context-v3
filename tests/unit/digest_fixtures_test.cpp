@@ -25,23 +25,24 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/digest.hpp"
+#include "qiven3/format/entry_id.hpp"
+#include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace canon = qiven::text::canon;
-namespace digest = qiven3::digest;
+namespace format = qiven3::format;
 namespace json = qiven::text::json;
 namespace fixtures = qiven::test::fixtures;
-using digest::Field;
+using format::Field;
 using fixtures::Code;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 using Fake = qiven::platform::fake::FakePlatform;
-using Key = digest::Key<Fake>;
+using Key = format::Key<Fake>;
 
 // Each entry the text pins, in the file's order: its canonical content's
 // size (0 for none) and its framed header's.
@@ -87,7 +88,7 @@ std::string keyed_under(Fake& fake, std::string_view hex, std::string_view data)
     const Key key(fake, std::span<const std::byte, 32>(*material));
     fake.wipe(std::span<std::byte>(*material));
     std::string out;
-    digest::keyed(key, data, out);
+    format::keyed(key, data, out);
     return out;
 }
 
@@ -189,9 +190,9 @@ QIVEN_CASE(fixtures, entries) {
         }
         std::string seq;
         const std::array<Field, 11> fields = fields_of(h, seq);
-        CHECK_EQ(digest::framed_size(fields), pinned[i].framed);
+        CHECK_EQ(format::framed_size(fields), pinned[i].framed);
         std::string id;
-        digest::entry_id(fields, id);
+        format::entry_id(fields, id);
         CHECK_EQ(id, std::string(*text_of(h, "id")));
         const std::optional<fixtures::EntryView> found = fixtures::find_entry(v, pinned[i].name);
         CHECK(found.has_value() && found->header == e.header);
