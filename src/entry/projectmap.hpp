@@ -29,8 +29,8 @@
 // Allocations: check_map none of its own; the view's read of the named
 // header, as the view states, freed before it returns. mark one, the
 // digest's text, 76 bytes on the caller's allocator, freed before it
-// returns; with MISSING or none, none. Platform calls: the key's wipe of
-// its padded block. try_check_map is constexpr and a template on the
+// returns; with MISSING or none, none. Platform calls: the key's wipes of
+// its two states and padded block. try_check_map is constexpr and a template on the
 // allocators, so its vectors run in constant evaluation too; mark is not
 // (format::keyed reads the key). Each reads by index, with no pointer
 // arithmetic. projectmap logs nothing.

@@ -225,20 +225,20 @@ QIVEN_CASE(format, key_wipes) {
         const Key& from = key;  // read after the move: its bytes read zero
         CHECK_EQ(wipes(fake), 0U);
         CHECK_EQ(keyed(key, data), fixed);
-        CHECK_EQ(wipes(fake), 1U);  // keyed's padded block
+        CHECK_EQ(wipes(fake), 3U);  // keyed's two states and padded block
         Key moved(std::move(key));
-        CHECK_EQ(wipes(fake), 2U);  // the moved-from key
+        CHECK_EQ(wipes(fake), 4U);  // the moved-from key
         CHECK_EQ(keyed(moved, data), fixed);
         CHECK_EQ(keyed(from, data), zero);
         Key other(fake, counting(0xa0));
         const Key& assigned = moved;
         other = std::move(moved);
-        CHECK_EQ(wipes(fake), 6U);  // the assignment's two: the old key's, the moved-from's
+        CHECK_EQ(wipes(fake), 12U);  // the assignment's two: the old key's, the moved-from's
         CHECK_EQ(keyed(other, data), fixed);
         CHECK_EQ(keyed(assigned, data), zero);
-        CHECK_EQ(wipes(fake), 8U);
+        CHECK_EQ(wipes(fake), 18U);
     }
-    CHECK_EQ(wipes(fake), 11U);  // each key at its end
+    CHECK_EQ(wipes(fake), 21U);  // each key at its end
 }
 
 QIVEN_CASE(format, new_key) {

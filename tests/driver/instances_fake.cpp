@@ -23,8 +23,7 @@
 // it as "refused" (driver/store_wire.hpp's form). location takes its own
 // pages, its budget's, and no arena of the drive's; store_dir's is the
 // member's. For the processes' cases: set_programs, the programs start
-// and run find by their whole argv (the fake's Program); set_found, the
-// paths program(name) gives.
+// and run find by their whole argv (the fake's Program).
 
 #include <array>
 #include <chrono>
@@ -220,16 +219,6 @@ Result set_programs(Drive& d, qiven::memory::Arena&, ArgView request) {
     return std::nullopt;
 }
 
-// program(name)'s paths, [name, path] each; the earlier ones dropped.
-Result set_found(Drive& d, qiven::memory::Arena&, ArgView request) {
-    std::map<std::string, std::string, std::less<>> found;
-    for (auto& [name, path] : pairs(request, "found")) {
-        found.insert_or_assign(std::move(name), std::move(path));
-    }
-    d.platform().set_found(std::move(found));
-    return std::nullopt;
-}
-
 struct Own {
     const char* name;
     Drive::Operation operation;
@@ -237,7 +226,7 @@ struct Own {
 };
 
 // The fake's own operations; store_dir's arena the member's.
-constexpr std::array<Own, 15> own = {{
+constexpr std::array<Own, 14> own = {{
     {"set_clock", set_clock, nullptr},
     {"set_read_error", set_read_error, nullptr},
     {"refuse_pages", refuse_pages, nullptr},
@@ -252,7 +241,6 @@ constexpr std::array<Own, 15> own = {{
     {"location", location_command, nullptr},
     {"store_dir", store_dir, ops::member},
     {"set_programs", set_programs, nullptr},
-    {"set_found", set_found, nullptr},
 }};
 
 }  // namespace

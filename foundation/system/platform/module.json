@@ -24,6 +24,7 @@
       "name": "platform",
       "layer": "foundation",
       "depends": [
+        "digest",
         "memory"
       ],
       "test_depends": [

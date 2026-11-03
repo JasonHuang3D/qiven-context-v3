@@ -1,4 +1,4 @@
-// digest's comparison and its instantiation for v3's string: the plain
+// digest's comparison and its instantiation for memory's string: the plain
 // digest over an arena, compiled once here.
 
 #include "qiven/digest/digest.hpp"

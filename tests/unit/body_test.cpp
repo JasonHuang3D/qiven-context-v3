@@ -262,7 +262,7 @@ QIVEN_CASE(body, key) {
     b.line(record);
     CHECK_EQ(record, std::string(r0));
     // parse: the decoded copy's wipe, then the key's move into the body
-    // and its parameter's end; content_digest: keyed's one.
+    // and its parameter's end; content_digest: keyed's three.
     const std::size_t at = fake.calls().size();
     const Body read = body::parse(fake, record);
     CHECK_EQ(fake.calls().size(), at + 3);
@@ -270,5 +270,5 @@ QIVEN_CASE(body, key) {
     std::string again;
     read.content_digest(again);
     CHECK_EQ(again, d);
-    CHECK_EQ(static_cast<std::size_t>(std::count(fake.calls().begin(), fake.calls().end(), "wipe")), drawn + 1);
+    CHECK_EQ(static_cast<std::size_t>(std::count(fake.calls().begin(), fake.calls().end(), "wipe")), drawn + 3);
 }

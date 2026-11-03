@@ -7,7 +7,7 @@
 // second. A date is its first 10 characters alone. No other form is read,
 // nor a time zone: the reading and the printing are arithmetic on the
 // text and the count, and never consult the process's zone. A time is UTC
-// as milliseconds since 1970, the platform's now() type; printing writes
+// as milliseconds since 1970, as the caller gives it; printing writes
 // the 24 characters of a time from year 1 to year 9999, the count floored
 // to the day first. Every function is pure and constexpr, the printing a
 // template on the string it writes into, so its vectors run in constant
@@ -27,7 +27,7 @@
 
 namespace qiven::time::utc {
 
-// UTC, milliseconds since 1970: the platform's now().
+// UTC, milliseconds since 1970: the time the caller gives.
 using Millis = std::chrono::sys_time<std::chrono::milliseconds>;
 
 inline constexpr std::size_t at_size = 24;

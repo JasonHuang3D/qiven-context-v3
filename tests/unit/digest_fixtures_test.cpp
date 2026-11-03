@@ -2,8 +2,10 @@
 // canon::parse, its layout checked, and each entry giving what the text
 // pins: its content canonical and of its size, the content's keyed digest
 // under the entry's own key equal to its header's, its header canonical
-// and its id over its framed header, of its size; the mapped file's two
-// versions, each under M1's and M2's keys; the layout's refusals and
+// and its id over its framed header, of its size; L1's and L2's evidence,
+// the interpreter's output keyed under the lesson's key, the digest its
+// content quotes; the mapped file's two versions, each under M1's and
+// M2's keys; the layout's refusals and
 // key_bytes' vectors in constant evaluation; the load within canon's
 // budget, a byte short a MemoryError budget; and each allocation of the
 // load failed in turn, a typed error with nothing held, the accessors
@@ -96,6 +98,21 @@ qiven::platform::fake::Config seeded() {
     qiven::platform::fake::Config config;
     config.seed = 0;
     return config;
+}
+
+// A lesson's key: 32 bytes counting up from first (L1 c0, L2 e0).
+std::array<std::byte, 32> lesson_key(unsigned first) {
+    std::array<std::byte, 32> key{};
+    for (std::size_t i = 0; i < key.size(); ++i) {
+        key[i] = static_cast<std::byte>(first + i);
+    }
+    return key;
+}
+
+std::string keyed(const Key& key, std::string_view data) {
+    std::string out;
+    format::keyed(key, data, out);
+    return out;
 }
 
 // The layout's vectors: a document's first fault, or root 99 where the
@@ -206,6 +223,27 @@ QIVEN_CASE(fixtures, entries) {
     CHECK(!l1.find(0, "parent"));
     CHECK_EQ(*text_of(l2, "parent"), *text_of(l1, "id"));
     CHECK_EQ(*text_of(l2, "target"), *text_of(l1, "id"));
+}
+
+// L1's and L2's evidence, each under its own key: the evidence digest over
+// the interpreter's output, the digest each content quotes.
+QIVEN_CASE(digest, lessons) {
+    struct LessonView {
+        std::array<std::byte, 32> key;
+        std::string_view output;
+        std::string_view evidence;
+    };
+    const std::vector<LessonView> lessons = {
+        {lesson_key(0xc0), "Python 3.14.7\n",
+         "hmac-sha256:0427965c77d19ad3af90f88a2e288afa35e68082d468838b50d416e1e5e38474"},
+        {lesson_key(0xe0), "Python 3.15.0\n",
+         "hmac-sha256:9b2b49164905577f1312bffc2f690e450a2152c95c432fa0c52cc01047bef814"},
+    };
+    Fake fake(seeded());
+    for (const LessonView& lesson : lessons) {
+        const Key key(fake, lesson.key);
+        CHECK_EQ(keyed(key, lesson.output), std::string(lesson.evidence));
+    }
 }
 
 QIVEN_CASE(fixtures, mapped) {

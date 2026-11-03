@@ -1,7 +1,8 @@
 // digest's vectors: SHA-256's, the standard's examples and the padding's
 // edges among them; RFC 4231's HMAC cases and the keys on and past a
-// block; keyed's text over a 32-byte key's bytes, its wipe called once over
-// the padded key's block; and the comparison's.
+// block; keyed's text over a 32-byte key's bytes, its wipe called three
+// times, over the HMAC's two states and last over the padded key's block;
+// and the comparison's.
 
 #include <array>
 #include <cstddef>
@@ -139,10 +140,9 @@ QIVEN_CASE(digest, keyed) {
         {pattern(1120, 131, 7), "170ec20dd51a6920a441359641573f9d053bde76cc15bf29f5560005d807f3d7"},
     };
     for (const auto& [data, want] : rows) {
-        // The case's wipe: the bytes it was given, then zeroed.
+        // The case's wipe: the bytes it was last given, then zeroed.
         std::size_t calls = 0;
         std::string given;
-        bool zeroed = false;
         const auto wipe = [&](std::span<std::byte> block) {
             ++calls;
             given.clear();
@@ -152,17 +152,12 @@ QIVEN_CASE(digest, keyed) {
             for (std::byte& b : block) {
                 b = std::byte{0};
             }
-            zeroed = true;
-            for (const std::byte b : block) {
-                zeroed = zeroed && b == std::byte{0};
-            }
         };
         std::string out;
         digest::keyed(std::span<const std::byte, digest::bytes>(key), data, out, wipe);
         CHECK_EQ(out, "hmac-sha256:" + std::string(want));
-        CHECK_EQ(calls, 1U);
+        CHECK_EQ(calls, 3U);  // the inner state, the outer, the padded block
         CHECK_EQ(hex(given), hex(padded));
-        CHECK(zeroed);
     }
 }
 

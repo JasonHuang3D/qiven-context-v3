@@ -3,10 +3,11 @@
 // key: Key holds 32 bytes of key material in no arena, beside the platform
 // it came from: its destructor and its moves wipe them by the platform's
 // wipe, and keyed alone reads them, through digest's keyed with the
-// platform's wipe for the padded key's block. It has no stream operator,
-// formatter or accessor, so no log or message can hold it, but for its
-// hex: key_hex writes its 64 lowercase hex digits into the caller's buffer,
-// and key_from_hex reads them back, its decoded copy on the stack wiped.
+// platform's wipe for the HMAC's two key-derived states and the padded
+// key's block. It has no stream operator, formatter or accessor, so no log
+// or message can hold it, but for its hex: key_hex writes its 64 lowercase
+// hex digits into the caller's buffer, and key_from_hex reads them back,
+// its decoded copy on the stack wiped.
 // new_key draws one from the platform's random_bytes. The platform's
 // contract is included here alone, so a caller of the id takes no platform.
 //
@@ -69,7 +70,8 @@ private:
 };
 
 // The keyed digest of data under key: hmac-sha256: and its hex, into out.
-// The padded key's block on the stack is wiped by the key's platform.
+// The HMAC's two key-derived states and the padded key's block on the
+// stack are wiped by the key's platform: three calls.
 template <qiven::platform::Platform P, typename S>
 void keyed(const Key<P>& key, std::string_view data, S& out) {
     P* const platform = key.platform_;

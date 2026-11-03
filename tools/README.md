@@ -57,3 +57,7 @@ later changes to be made again; the commit after it shows every line cut with th
   cases that sent them became platform's own. The drive's `random_bytes` and `now` requests stay. Last
   commit `90d05e4`:
   `git restore --source=90d05e4 -- tests/driver/platform_files.hpp tests/driver/platform_ops.hpp tests/driver/platform_ops_impl.hpp tests/driver/common.cpp tests/driver/drive.hpp tests/driver/instances_fake.cpp tests/driver/store_ops.cpp tests/driver/store_ops.hpp tests/drive/session.py tests/contract/platform_cases.py tests/contract/platform_files.py tests/contract/test_platform_fake.py tests/contract/store_cases.py tests/machine/test_platform_windows.py tests/machine/windows_holds.py products/qiven3/tests/module.json`
+- **Two drive requests used by nothing (1707):** the fake drive's `set_found` (`tests/driver/instances_fake.cpp`)
+  and the drive's `sink_close` (`tests/driver/platform_files.hpp`, `platform_ops.hpp`,
+  `platform_ops_impl.hpp`), with their operation names (`tests/driver/common.cpp`), each sent by no case. Last commit `19eb790`:
+  `git restore --source=19eb790 -- tests/driver/instances_fake.cpp tests/driver/platform_files.hpp tests/driver/platform_ops.hpp tests/driver/platform_ops_impl.hpp tests/driver/common.cpp`

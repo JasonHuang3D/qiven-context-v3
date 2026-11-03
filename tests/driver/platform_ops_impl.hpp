@@ -325,7 +325,6 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"stage", {ops::stage<P>, ops::member}},
         {"staged_open", {ops::staged_open<P>, ops::member}},
         {"sink_write", {ops::sink_write<P>, ops::member}},
-        {"sink_close", {ops::sink_close<P>, ops::member}},
         {"publish", {ops::publish<P>, ops::member}},
         {"discard", {ops::discard<P>, ops::member}},
         {"create", {ops::create<P>, ops::member}},

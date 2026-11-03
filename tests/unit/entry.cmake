@@ -1,3 +1,5 @@
+# The fixtures' cases, with L1's and L2's evidence digests (digest's
+# lessons case), each under its lesson's key through format's keyed.
 qiven3_add_cases(qiven3_unit_digest_fixtures LABELS fast fake
   SOURCES digest_fixtures_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures)

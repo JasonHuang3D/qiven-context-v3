@@ -6,12 +6,12 @@
 // prefix and a digest's 64 lowercase hex digits, plain sha256: and keyed
 // hmac-sha256: with the digest's hex, each into the caller's string,
 // replaced only on success: one allocation, the result's. keyed takes a
-// 32-byte key's bytes and the caller's wipe, which wipes the padded key's
-// block on the stack before the text is written. The functions but keyed's
-// and same are constexpr and templates on the string type, so their vectors
-// run in constant evaluation too; they read by index, with no pointer
-// arithmetic. same compares in a time that does not depend on where two
-// texts differ.
+// 32-byte key's bytes and the caller's wipe, which wipes the HMAC's two
+// key-derived states and the padded key's block on the stack before the
+// text is written. The functions but keyed's and same are constexpr and
+// templates on the string type, so their vectors run in constant
+// evaluation too; they read by index, with no pointer arithmetic. same
+// compares in a time that does not depend on where two texts differ.
 //
 // thread: none.
 
@@ -129,8 +129,11 @@ constexpr Bytes sha256(std::string_view data) noexcept {
 
 namespace detail {
 
-// HMAC over a key already padded to a block, or hashed first.
-constexpr Bytes hmac_block(const Block& key, std::string_view data) noexcept {
+// HMAC over a key already padded to a block, or hashed first. Its two
+// states, each derived from the key, are given to spent, inner then outer,
+// before the digest is returned.
+template <typename Spent>
+constexpr Bytes hmac_block(const Block& key, std::string_view data, const Spent& spent) {
     Sha256 inner;
     for (const std::uint8_t b : key) {
         inner.push(static_cast<std::uint8_t>(b ^ 0x36U));
@@ -142,7 +145,9 @@ constexpr Bytes hmac_block(const Block& key, std::string_view data) noexcept {
         outer.push(static_cast<std::uint8_t>(b ^ 0x5cU));
     }
     outer.update(first);
-    return outer.finish();
+    const Bytes digest = outer.finish();
+    spent(inner, outer);
+    return digest;
 }
 
 }  // namespace detail
@@ -178,7 +183,7 @@ constexpr Bytes hmac(std::string_view key, std::string_view data) noexcept {
             padded[i] = static_cast<std::uint8_t>(key[i]);
         }
     }
-    return detail::hmac_block(padded, data);
+    return detail::hmac_block(padded, data, [](const Sha256&, const Sha256&) noexcept {});
 }
 
 // The plain digest of data: sha256: and its hex, into out.
@@ -188,15 +193,19 @@ constexpr void plain(std::string_view data, S& out) {
 }
 
 // The keyed digest of data under a 32-byte key: hmac-sha256: and its hex,
-// into out. The padded key's block on the stack is wiped by wipe, the
-// caller's, before the text is written: the key's own copy is the caller's.
+// into out. The HMAC's two key-derived states and the padded key's block,
+// all on the stack, are wiped by wipe, the caller's, in that order, before
+// the text is written: three calls. The key's own copy is the caller's.
 template <typename S, std::invocable<std::span<std::byte>> Wipe>
 void keyed(std::span<const std::byte, bytes> key, std::string_view data, S& out, const Wipe& wipe) {
     detail::Block padded{};
     for (std::size_t i = 0; i < bytes; ++i) {
         padded[i] = std::to_integer<std::uint8_t>(key[i]);
     }
-    const Bytes digest = detail::hmac_block(padded, data);
+    const Bytes digest = detail::hmac_block(padded, data, [&wipe](Sha256& inner, Sha256& outer) {
+        wipe(std::as_writable_bytes(std::span<Sha256, 1>(&inner, 1)));
+        wipe(std::as_writable_bytes(std::span<Sha256, 1>(&outer, 1)));
+    });
     wipe(std::as_writable_bytes(std::span<std::uint8_t>(padded)));
     write_hex("hmac-sha256:", digest, out);
 }

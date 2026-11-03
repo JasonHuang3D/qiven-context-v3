@@ -19,7 +19,7 @@
 //
 // The files' handles stay held by an id too (driver/platform_files.hpp):
 // stage's Staged until publish or discard ends it, staged_open's Sink
-// until sink_close; a publish or a discard refused keeps its Staged, so
+// until the drive ends; a publish or a discard refused keeps its Staged, so
 // that a later discard tries again. Each is
 // a member, on the member's budget. start's Child stays held by an id
 // until child_end (driver/platform_child.hpp), as a member too.

@@ -64,9 +64,9 @@ if(WIN32)
   target_link_libraries(qiven_platform_current PUBLIC qiven_platform_windows)
 endif()
 
-# qiven_platform_fake: the fake platform, on the C++ standard library alone,
-# built on every system; its files' system calls under files' retries;
-# its seed blocks.
+# qiven_platform_fake: the fake platform, on the C++ standard library and
+# digest, built on every system; its files' system calls under files'
+# retries; its seed blocks, by digest's SHA-256.
 add_library(qiven_platform_fake STATIC
   include/qiven/platform/fake/fake_files.hpp
   include/qiven/platform/fake/fake_platform.hpp
@@ -75,4 +75,4 @@ add_library(qiven_platform_fake STATIC
   src/fake/fake_platform.cpp
   src/fake/fake_seed.cpp
 )
-target_link_libraries(qiven_platform_fake PUBLIC qiven_platform PRIVATE qiven_build)
+target_link_libraries(qiven_platform_fake PUBLIC qiven_platform PRIVATE qiven_digest qiven_build)

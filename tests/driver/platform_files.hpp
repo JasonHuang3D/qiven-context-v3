@@ -3,7 +3,7 @@
 // The drive's requests on the files' handles (driver/platform_ops.hpp),
 // which driver/platform_ops_impl.hpp alone includes: stage, a Staged held
 // by an id; staged_open, a Sink of a held Staged, held by an id;
-// sink_write, its bytes; sink_close; publish and discard, each ending its
+// sink_write, its bytes; publish and discard, each ending its
 // Staged when it succeeds and keeping it when refused. Each is the
 // contract's member, called as a caller calls it, on the member's budget;
 // files take no memory.
@@ -52,16 +52,6 @@ std::optional<Value> staged_open(PlatformDrive<P>& d, qiven::memory::Arena&, Arg
 template <class P>
 std::optional<Value> sink_write(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     by_id(d.sinks(), request, "file")->second.write(from_hex(text(request, "data")));
-    return std::nullopt;
-}
-
-// The file closed and its handle ended, also when the close is refused.
-template <class P>
-std::optional<Value> sink_close(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
-    const auto found = by_id(d.sinks(), request, "file");
-    typename PlatformDrive<P>::Sink sink = std::move(found->second);
-    d.sinks().erase(found);
-    sink.close();
     return std::nullopt;
 }
 
