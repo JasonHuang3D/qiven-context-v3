@@ -1,6 +1,11 @@
 // store/sqlite's states, on the fake, over a scratch directory of the
 // case's own, the rig of sqlite_rig.hpp. second_engine: an engine made
-// while one is installed refused before its pages, the first serving on.
+// while one is installed refused before its pages, the first serving on;
+// the wrapper's refusal of an engine heap on the case's own pages reaching
+// the store's caller as StoreError internal, the wrapper's detail its
+// detail. engine_refused: an engine's pages refused by the platform and,
+// under faults, its configuration by the engine, StoreError internal with
+// the engine's code as its detail; nothing installed, the next one served.
 // pending: a forget's purge left pending by a reader's snapshot ("reader"),
 // heads reporting it; a writer holding the write lock, an append StoreBusy
 // after the busy wait and a purge pending "writer"; done once both end;
@@ -25,6 +30,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/sqlite_steps.hpp"
@@ -313,4 +319,43 @@ QIVEN_CASE(store_sqlite, second_engine) {
     CHECK_EQ(reason(store->close()), std::string("done"));
     CHECK_EQ(arena.used(), 0U);
     CHECK(Store::open(path, false, true, rig->fake, records::suite_limits, records::suite_identity).verify() == counts);
+}
+
+// An engine refused: its pages by the platform, PlatformError, nothing
+// installed; under faults, the engine refusing its heap's configuration,
+// the wrapper's refusal reaching the store's caller as StoreError internal
+// with the engine's code as its detail, nothing installed; the next engine
+// then made, its slots as the first's, and a connection served on it.
+QIVEN_CASE(store_sqlite, engine_refused) {
+    const auto rig = std::make_unique<Rig>();
+    const storage_sqlite::Slots before = rig->engine->slots();
+    rig->engine.reset();
+    rig->fake.refuse_pages(1);
+    std::string refused = "none";
+    try {
+        const Engine second(rig->fake);
+    } catch (const qiven::platform::PlatformError&) {
+        refused = "PlatformError";
+    }
+    CHECK_EQ(refused, "PlatformError");
+    CHECK(!sqlite::engine_ready());
+#if defined(QIVEN_FAULTS)
+    qiven::memory::Countdown calls;
+    calls.arm(1);
+    sqlite::attach_calls(&calls, nullptr);
+    refused = raised([&] { const Engine third(rig->fake); });
+    sqlite::attach_calls(nullptr, nullptr);
+    std::cout << "store_sqlite.engine_refused: " << refused << "\n";
+    CHECK(calls.fired());
+    CHECK(refused.starts_with("StoreError internal: SQLITE_IOERR"));
+    CHECK(!sqlite::engine_ready());
+#endif
+    rig->fresh_engine();
+    CHECK(sqlite::engine_ready());
+    CHECK_EQ(rig->engine->slots().count, before.count);
+    const std::string path = text(rig->root / "plain.db");
+    std::ofstream(path, std::ios::binary).flush();  // 0 bytes: an empty database
+    sqlite::Connection c = raw(path);
+    c.exec("CREATE TABLE t (x INTEGER)", test_at);
+    CHECK_EQ(c.integer("SELECT count(*) FROM t", test_at), 0);
 }

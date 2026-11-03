@@ -95,16 +95,16 @@ target_include_directories(qiven_recordlog_memory_test PRIVATE "${CMAKE_CURRENT_
 # directory; its smoke case: create, identify, the settings read back, the
 # files open refuses, the guard and coherence; its writes case: append,
 # forget, purge, size and close; its reads; its budgets, counts and fault
-# runs, the create's and the forget's in parts; the engine heap's page
-# cache, a purge held pending, forged files; a scan's end at each lane's
-# length at its start (scan_case.hpp), and entry's rowids kept by a
-# purge's VACUUM between two steps of a scan, read through the seams; a
-# create refused at each call, in parts, and its removals refused.
+# runs, the create's and the forget's in parts; a purge held pending,
+# forged files, an engine refused and its refusals as StoreError; a scan's
+# end at each lane's length at its start (scan_case.hpp), and entry's
+# rowids kept by a purge's VACUUM between two steps of a scan, read through
+# the seams; a create refused at each call, in parts, and its removals
+# refused.
 qiven3_add_cases(qiven_recordlog_sqlite_test LABELS fast fake
   SOURCES store_sqlite_test.cpp store_sqlite_memory_test.cpp store_sqlite_states_test.cpp
           store_sqlite_counts_test.cpp
           store_sqlite_scan_test.cpp store_sqlite_create_test.cpp store_sqlite_create_parts_test.cpp
-          store_sqlite_cache_test.cpp
           store_sqlite_parts_test.cpp
   LINK qiven_faults qiven_platform_fake qiven_recordlog_seams qiven_recordlog)
 

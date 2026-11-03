@@ -32,7 +32,7 @@ any caller of this build:
 |---|---|
 | `THREADSAFE=1` | threading: serialized, SQLite's default, kept explicit; a caller may use its connections from any thread without corrupting the engine |
 | `DQS=0` | a behaviour switch: a double-quoted string literal is refused in statements and in schemas, so a misspelt column name is an error, never a string; the amalgamation's own advice ("`-DSQLITE_DQS=0` (best)"). It is the default of a connection's `SQLITE_DBCONFIG_DQS_DML` and `SQLITE_DBCONFIG_DQS_DDL`, which no pragma sets: kept until a caller's connection sets them by `sqlite3_db_config` |
-| `ENABLE_FTS5` | a feature in: the full-text index, which no caller can add to a build without it; shown by the case `store_sqlite.fts5` |
+| `ENABLE_FTS5` | a feature in: the full-text index, which no caller can add to a build without it; shown by the case `storage_sqlite.fts5` |
 | `ENABLE_API_ARMOR` | a behaviour switch: a misuse of the API returns `SQLITE_MISUSE` rather than undefined behaviour |
 | `LIKE_DOESNT_MATCH_BLOBS` | a behaviour switch: `LIKE` and `GLOB` never match a BLOB, so a pattern compares text alone; sqlite.org's recommendation |
 | `STRICT_SUBTYPE=1` | a behaviour switch: an SQL function that sets a result's subtype without declaring `SQLITE_RESULT_SUBTYPE` raises an error, rather than its subtype being lost in some cases (the amalgamation's comment on `sqlite3_result_subtype`); sqlite.org's recommendation |

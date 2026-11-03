@@ -274,11 +274,11 @@ std::optional<Value> drain_export(D& d, qiven::memory::Arena&, ArgView request) 
     if constexpr (D::Factory::own == qiven::test::ruled::Own::sqlite) {
         auto& engine = d.site().engine();
         const auto held = [&engine] {
-            const qiven::storage_sqlite::Slots s = engine.slots();
+            const store::sqlite::Slots s = engine.slots();
             return engine.heap().used() + (s.used * s.size);
         };
         Value out = wire::drain(x, held);
-        const qiven::storage_sqlite::Slots s = engine.slots();
+        const store::sqlite::Slots s = engine.slots();
         out.set("engine_peak", static_cast<std::int64_t>(engine.heap().peak() + (s.peak * s.size)));
         return out;
     } else {

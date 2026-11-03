@@ -6,7 +6,7 @@
     "windows"
   ],
   "contract": "foundation/services/storage/sqlite/include/qiven/storage_sqlite/connection.hpp",
-  "adopted": "2026-10-31",
+  "adopted": "2026-11-03",
   "parameters": [],
   "present": [
     {
@@ -20,7 +20,8 @@
       "paths": [
         "foundation/services/storage/sqlite/CMakeLists.txt",
         "foundation/services/storage/sqlite/include/",
-        "foundation/services/storage/sqlite/src/"
+        "foundation/services/storage/sqlite/src/",
+        "foundation/services/storage/sqlite/tests/"
       ]
     }
   ]

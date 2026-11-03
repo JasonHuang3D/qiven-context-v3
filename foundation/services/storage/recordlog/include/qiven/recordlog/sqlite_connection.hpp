@@ -11,7 +11,7 @@
 // the wrapper's StoreError internal, the wrapper's detail its detail. The
 // engine's NOMEM passes as the wrapper raises it, MemoryError budget. The
 // engine heap's refusals name open_name and no path. The wrapper's values
-// the store's code names (Setting, When, setting, engine_version,
+// the store's code names (Setting, When, setting, Slots, engine_version,
 // engine_ready, remove_file) are declared here by its own names.
 //
 // Allocations: the wrapper's alone. thread: as connection.hpp states.
@@ -34,6 +34,7 @@ using qiven::storage_sqlite::engine_version;
 using qiven::storage_sqlite::remove_file;
 using qiven::storage_sqlite::Setting;
 using qiven::storage_sqlite::setting;
+using qiven::storage_sqlite::Slots;
 using qiven::storage_sqlite::When;
 
 // The process's engine heap, as the wrapper's: its making refuses,

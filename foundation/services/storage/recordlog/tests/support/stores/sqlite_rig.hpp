@@ -1,8 +1,8 @@
 #pragma once
 
-// store/sqlite's rig for the cases on an engine heap of their own (store_sqlite_cache_test.cpp and
-// store_sqlite_states_test.cpp, which describe them), on the fake, over a scratch directory of the case's own: the
-// rig itself, a connection as no store opens, the error a call raised, the engine's bytes once a read.
+// store/sqlite's rig for the cases on an engine heap of their own (store_sqlite_states_test.cpp, which describes
+// them), on the fake, over a scratch directory of the case's own: the rig itself, a connection as no store opens, the
+// error a call raised, the engine's bytes once a read.
 
 #include <cstddef>
 #include <filesystem>
@@ -115,10 +115,6 @@ struct Held {
     std::size_t used = 0;
     std::size_t peak = 0;
     storage_sqlite::Slots slots;
-    // The slots' bytes held and their mark; the connection's peak, the
-    // heap's and the slots' marks together.
-    [[nodiscard]] std::size_t in_slots() const { return slots.used * slots.size; }
-    [[nodiscard]] std::size_t top() const { return peak + (slots.peak * slots.size); }
 };
 inline Held held(const Rig& rig) { return {rig.engine->heap().used(), rig.engine->heap().peak(), rig.engine->slots()}; }
 
