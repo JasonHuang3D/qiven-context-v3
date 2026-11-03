@@ -3,13 +3,10 @@
 A binding (contract/test_platform_fake.py, machine/test_platform_windows.py)
 mixes the cases into a TestCase with its adapter: ADAPTER, the name it gives;
 DRIVE, the drive's binary; TAGS, what it has of files, processes and
-machine; drive_args(config, seed), the drive's arguments for it;
-files_root(), a directory its files' operations may write under;
-COUNT_HANDLES, whether each drive's handle count is compared; and, for
-the files' cases, hold(drive, **times), its holders
-(contract/platform_files.py), and, on Windows, held(drive, kind), a
-holder's own times, taken and released. A case needing a tag the adapter lacks is
-not applicable, a skip with the reason.
+machine; drive_args(config), the drive's arguments for it;
+files_root(), a directory its files' operations may write under; and
+COUNT_HANDLES, whether each drive's handle count is compared. A case
+needing a tag the adapter lacks is not applicable, a skip with the reason.
 
 Here: the binding. P1, current's choice, is platform's own
 (foundation/system/platform/tests/current_test.cpp), as is P2, config_dir
@@ -54,11 +51,11 @@ class PlatformBinding:
         if lacking:
             self.skipTest(f"not applicable: {', '.join(lacking)}: the {self.ADAPTER} adapter lacks it")
 
-    def drive(self, config=None, seed=None, env=None, cwd=None):
-        return Drive(*self.drive_args(config, seed), drive=self.DRIVE, env=env, cwd=cwd,
+    def drive(self, config=None, env=None, cwd=None):
+        return Drive(*self.drive_args(config), drive=self.DRIVE, env=env, cwd=cwd,
                      count_handles=self.COUNT_HANDLES)
 
-    def drive_args(self, config=None, seed=None):
+    def drive_args(self, config=None):
         raise NotImplementedError
 
     def files_root(self):

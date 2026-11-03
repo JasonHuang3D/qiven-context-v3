@@ -479,7 +479,7 @@ stores::Site& StoreDrive<F>::site() {
         for (const char c : *options.root) {
             root.push_back(static_cast<char8_t>(c));
         }
-        site_ = std::make_unique<stores::Site>(options.seed, std::filesystem::path(root) / "stores");
+        site_ = std::make_unique<stores::Site>(0, std::filesystem::path(root) / "stores");
     }
     return *site_;
 }

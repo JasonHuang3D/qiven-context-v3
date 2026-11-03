@@ -4,9 +4,9 @@
 // which driver/platform_ops_impl.hpp alone includes: stage, a Staged held
 // by an id; staged_open, a Sink of a held Staged, held by an id;
 // sink_write, its bytes; sink_close; publish and discard, each ending its
-// Staged when it succeeds and keeping it when refused; lock, a Lock held
-// by an id; lock_release. Each is the contract's member, called as a
-// caller calls it, on the member's budget; files take no memory.
+// Staged when it succeeds and keeping it when refused. Each is the
+// contract's member, called as a caller calls it, on the member's budget;
+// files take no memory.
 
 #include <cstdint>
 #include <string>
@@ -17,13 +17,6 @@
 #include "driver/platform_ops.hpp"
 
 namespace qiven3::drive::ops {
-
-// A path's bytes: "<key>_hex" in hexadecimal where given, for one that is
-// no UTF-8, else "<key>" as text.
-inline std::string given_path(ArgView request, std::string_view key) {
-    const std::string hex = std::string(key) + "_hex";
-    return request.find(hex) ? from_hex(text(request, hex)) : text(request, key);
-}
 
 // A handle held by the request's "id", or RequestError naming what.
 template <class Map>
@@ -47,13 +40,13 @@ Value keep(PlatformDrive<P>& d, Map& map, H&& handle) {
 
 template <class P>
 std::optional<Value> stage(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
-    return keep(d, d.staged(), d.platform().stage(given_path(request, "path")));
+    return keep(d, d.staged(), d.platform().stage(text(request, "path")));
 }
 
 template <class P>
 std::optional<Value> staged_open(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
     const auto staged = by_id(d.staged(), request, "staging directory");
-    return keep(d, d.sinks(), staged->second.open(given_path(request, "path")));
+    return keep(d, d.sinks(), staged->second.open(text(request, "path")));
 }
 
 template <class P>
@@ -85,19 +78,6 @@ std::optional<Value> discard(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView
     const auto found = by_id(d.staged(), request, "staging directory");
     found->second.discard();
     d.staged().erase(found);
-    return std::nullopt;
-}
-
-template <class P>
-std::optional<Value> lock(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
-    return keep(d, d.locks(), d.platform().lock(text(request, "path"), deadline(request, "deadline")));
-}
-
-template <class P>
-std::optional<Value> lock_release(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
-    const auto found = by_id(d.locks(), request, "lock");
-    found->second.release();
-    d.locks().erase(found);
     return std::nullopt;
 }
 

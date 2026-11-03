@@ -254,13 +254,7 @@ class Drive:
                 raise AssertionError(f"{op}, {of} {k}: {reply['held']} bytes held, {before} before")
         raise AssertionError(f"{op}: {of} faults past {limit}")
 
-    # The platform's operations used by the cases, bytes as bytes.
-    def random_bytes(self, n):
-        return bytes.fromhex(self.call("random_bytes", n=n))
-
-    def now(self):
-        return self.call("now")
-
+    # The platform's operation used by the cases.
     def code_page(self):
         return self.call("code_page")
 

@@ -78,7 +78,7 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         const bool valued =
-            arg == "--config" || arg == "--hal" || (fake && (arg == "--root" || arg == "--seed" || arg == "--store"));
+            arg == "--config" || arg == "--hal" || (fake && (arg == "--root" || arg == "--store"));
         if (!valued) {
             why = "an unknown argument: " + arg;
             return std::nullopt;
@@ -98,20 +98,6 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
                 return std::nullopt;
             }
             options.store = value;
-        } else if (arg == "--seed") {
-            try {
-                if (value.empty() || value[0] < '0' || value[0] > '9') {
-                    throw std::invalid_argument(value);
-                }
-                std::size_t used = 0;
-                options.seed = std::stoull(value, &used);
-                if (used != value.size()) {
-                    throw std::invalid_argument(value);
-                }
-            } catch (const std::exception&) {
-                why = "--seed takes a decimal integer: " + value;
-                return std::nullopt;
-            }
         } else if (value == "fake") {
             options.hal_fake = true;
         } else {
@@ -478,17 +464,17 @@ qiven::test::Journal::Pages pages;
 
 // The names a request's op, an error's kind, its code and its operation
 // are picked from: the drives' operations and those the typed errors name.
-constexpr std::array<log::Name, 127> operation_names{
+constexpr std::array<log::Name, 125> operation_names{
     "adapter_for", "current", "name", "config_dir", "resolve", "normcase", "facts", "synced",
     "replace", "create", "remove_directory", "list", "remove", "rename", "read", "program", "run", "code_page",
     "stdout", "residual",
     "random_bytes", "wipe", "now", "pages", "pages_check", "pages_free", "set_clock", "set_read_error",
-    // The files' handles' requests, and the operation their errors name.
-    "stage", "staged_open", "sink_write", "sink_close", "publish", "discard", "lock", "lock_release", "write",
+    // The files' handles' requests, and lock and write, which errors name.
+    "stage", "staged_open", "sink_write", "sink_close", "publish", "discard", "lock", "write",
     // A Child's requests (driver/platform_child.hpp).
     "child_read_line", "child_write", "child_close_input", "child_wait", "child_kill", "child_end",
     // The fake's own (driver/instances_fake.cpp).
-    "set_busy", "set_facts", "set_synced", "set_links", "set_encoding", "kept", "location", "store_dir",
+    "set_facts", "set_synced", "set_links", "set_encoding", "kept", "location", "store_dir",
     "set_programs", "set_found",
     "refuse_pages", "calls", "written", "lent", "hal_fake", "hal_facts", "hal_device",
     "hal_allocate", "hal_upload", "hal_download", "hal_free", "hal_run", "hal_counts",

@@ -98,7 +98,7 @@ Result config_dir(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
 template <class P>
 Result resolve(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     qiven::memory::String out = string(arena);
-    d.platform().resolve(given_path(request, "path"), out);
+    d.platform().resolve(text(request, "path"), out);
     return scalar(copy(out));
 }
 
@@ -129,7 +129,7 @@ Result synced(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
 
 template <class P>
 Result replace(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
-    d.platform().replace(given_path(request, "path"), from_hex(text(request, "data")),
+    d.platform().replace(text(request, "path"), from_hex(text(request, "data")),
                          deadline(request, "deadline"));
     return std::nullopt;
 }
@@ -328,8 +328,6 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
         {"sink_close", {ops::sink_close<P>, ops::member}},
         {"publish", {ops::publish<P>, ops::member}},
         {"discard", {ops::discard<P>, ops::member}},
-        {"lock", {ops::lock<P>, ops::member}},
-        {"lock_release", {ops::lock_release<P>, ops::member}},
         {"create", {ops::create<P>, ops::member}},
         {"remove_directory", {ops::remove_directory<P>, ops::member}},
         {"list", {ops::list<P>, ops::member}},

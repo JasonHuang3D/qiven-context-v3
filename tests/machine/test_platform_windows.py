@@ -1,12 +1,12 @@
 """The platform's cases on the Windows adapter, here, through
-qiven3-drive-windows: those needing neither processes nor machine, as on
-the fake, the process cases over qiven_platform_child's children, and the
-machine cases. Those that run qiven3, location's and P22, are in
-machine/test_platform_location.py.
+qiven3-drive-windows: as on the fake, the files' failed open under faults
+and the memory cases, each operation's budget and its faults; P20's child
+half and the process readings, over qiven_platform_child's children; and
+the machine cases P17, P18 and P21. Those that run qiven3, location's and
+P22, are in machine/test_platform_location.py.
 
-Each case's drive
-holds as many handles at its end as before it; HandleCount plants a leak.
-The files' holders are real handles (machine/windows_holds.py).
+Each case's drive holds as many handles at its end as before it;
+HandleCount plants a leak.
 """
 
 import sys
@@ -18,18 +18,17 @@ from tests.contract.platform_machine import PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_process import PlatformProcess
 from tests.drive.session import WINDOWS, Drive
-from tests.machine.windows_holds import HeldDrive
 
 
 class WindowsBinding(PlatformBinding):
     ADAPTER = "windows"
     DRIVE = WINDOWS
-    # create, read, remove_directory, replace, lock and stage are
-    # win/files'; facts, synced and residual win/facts'; location's
-    # commands run as the binary, qiven3 location ..., the drive answering
-    # store_dir, the facts and the clock the system's; program, start and
-    # run are win/process', their children qiven_platform_child's;
-    # program is the machine cases'.
+    # Its cases' operations: create, read, remove_directory, replace and
+    # stage are win/files'; facts, synced and residual win/facts';
+    # location's commands run as the binary, qiven3 location ..., the
+    # drive answering store_dir, the facts and the clock the system's;
+    # program, start and run are win/process', their children
+    # qiven_platform_child's; program is the machine cases' too.
     SYSTEM_LOCATION = True
     PROCESSES = True
     FACTS = True
@@ -44,7 +43,7 @@ class WindowsBinding(PlatformBinding):
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
         super().setUp()
 
-    def drive_args(self, config=None, seed=None):
+    def drive_args(self, config=None):
         args = []
         if config is not None:
             args += ["--config", config]
@@ -52,19 +51,6 @@ class WindowsBinding(PlatformBinding):
 
     def files_root(self):
         return self.scratch
-
-    def drive(self, config=None, seed=None, env=None, cwd=None):
-        return HeldDrive(*self.drive_args(config, seed), drive=self.DRIVE, env=env, cwd=cwd,
-                         count_handles=self.COUNT_HANDLES)
-
-    def hold(self, d, **times):
-        """The holders: real handles, armed on the next request naming a
-        path (machine/windows_holds.py)."""
-        d.hold(**times)
-
-    def held(self, d, kind):
-        """The kind's last holder's own times, (taken, released)."""
-        return d.holder_times(kind)
 
 
 class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformMemory, PlatformMachine, unittest.TestCase):

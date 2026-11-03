@@ -45,3 +45,15 @@ later changes to be made again; the commit after it shows every line cut with th
   nothing once the drive's cases that sent them became platform's own. The `cwd` field of the drive's
   `start` and `run` stays. Last commit `5c19e8a`:
   `git restore --source=5c19e8a -- tests/driver/instances_fake.cpp tests/machine/windows_holds.py`
+- **The drive's parts used by nothing (1689):** a path's `path_hex` form (`given_path`,
+  `tests/driver/platform_files.hpp`); the drive's `lock` and `lock_release` requests and their held Locks
+  (`platform_files.hpp`, `platform_ops.hpp`, `platform_ops_impl.hpp`); the fake drive's `set_busy`
+  (`tests/driver/instances_fake.cpp`); the fake drive's `--seed` option (`tests/driver/common.cpp`,
+  `drive.hpp`, `instances_fake.cpp`, `store_ops.cpp`, whose Site's seed is now 0), with the bindings'
+  `seed` parameter (`tests/contract/platform_cases.py`, `test_platform_fake.py`, `store_cases.py`,
+  `tests/machine/test_platform_windows.py`); `Drive.random_bytes` and `Drive.now`
+  (`tests/drive/session.py`); and the Windows holders whole, the bindings' `hold` and `held` with
+  `tests/machine/windows_holds.py`'s `HeldDrive` and `Holder`, each used by nothing once the drive's
+  cases that sent them became platform's own. The drive's `random_bytes` and `now` requests stay. Last
+  commit `90d05e4`:
+  `git restore --source=90d05e4 -- tests/driver/platform_files.hpp tests/driver/platform_ops.hpp tests/driver/platform_ops_impl.hpp tests/driver/common.cpp tests/driver/drive.hpp tests/driver/instances_fake.cpp tests/driver/store_ops.cpp tests/driver/store_ops.hpp tests/drive/session.py tests/contract/platform_cases.py tests/contract/platform_files.py tests/contract/test_platform_fake.py tests/contract/store_cases.py tests/machine/test_platform_windows.py tests/machine/windows_holds.py products/qiven3/tests/module.json`

@@ -51,15 +51,12 @@ class StoreBinding:
         self.scratch = Path(tempfile.mkdtemp(prefix="qiven3-s-"))
         self.addCleanup(shutil.rmtree, self.scratch, True)
 
-    def drive(self, seed=None):
+    def drive(self):
         """The fake's drive over this case's root, the binding's store
         selected; a context manager."""
         root = self.scratch / "root"
         root.mkdir(exist_ok=True)
-        args = ["--root", str(root), "--store", self.STORE]
-        if seed is not None:
-            args += ["--seed", seed]
-        return Drive(*args, drive=FAKE)
+        return Drive("--root", str(root), "--store", self.STORE, drive=FAKE)
 
     @staticmethod
     def lacking(capabilities, tags):

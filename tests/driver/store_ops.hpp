@@ -3,7 +3,7 @@
 // The drive's store half, the fake's drive alone: with --store sqlite or
 // memory, the store contract's operations on the wire, beside the
 // platform's, over support/stores' factory on a Site under
-// "<root>/stores", its fake seeded by --seed. Without --store the drive
+// "<root>/stores", its fake's seed 0. Without --store the drive
 // serves the platform's requests alone.
 //
 // Each state, store object, scan and export is named by an id in the

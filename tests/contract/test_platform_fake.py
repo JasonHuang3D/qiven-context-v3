@@ -29,20 +29,14 @@ class FakeBinding(PlatformBinding):
         root.mkdir(exist_ok=True)
         return root
 
-    def drive_args(self, config=None, seed=None):
+    def drive_args(self, config=None):
         args = ["--root", str(self.root())]
         if config is not None:
             args += ["--config", config]
-        if seed is not None:
-            args += ["--seed", seed]
         return args
 
     def files_root(self):
         return self.root()
-
-    def hold(self, d, **times):
-        """The fake's holders: its busy counts, none given none."""
-        d.call("set_busy", **times)
 
 
 class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformMemory, unittest.TestCase):

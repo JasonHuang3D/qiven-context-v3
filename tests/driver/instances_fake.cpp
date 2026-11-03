@@ -10,9 +10,7 @@
 // gives too. Under QIVEN_FAULTS each of the fake's calls is a fault point
 // of a request's "fault" (driver/drive.hpp).
 //
-// For the files' cases: set_busy, how often replace's rename ("target",
-// "temporary"), publish's ("publish") and lock ("lock") refuse before
-// they succeed, -1 for ever; kept, what the fake's files hold open (files,
+// For the files' cases: kept, what the fake's files hold open (files,
 // staging directories, locks). For location's: set_facts, the facts of
 // every path ("volume" and each condition's state, "fake" its reason);
 // set_synced, the synced folders, [folder, client] each; set_links, the
@@ -63,7 +61,6 @@ void make(std::optional<Fake>& into, const Options& options) {
     qiven::platform::fake::Config config;
     config.root = *options.root;
     config.config_dir = options.config ? *options.config : *options.root + "/qiven3";
-    config.seed = options.seed;
     config.open_bound = open_bound;
     into.emplace(std::move(config));
 }
@@ -98,21 +95,6 @@ std::size_t lent_of(const Fake& fake) { return fake.lent(); }
 
 Result lent(Drive& d, qiven::memory::Arena&, ArgView) {
     return scalar(static_cast<std::int64_t>(d.platform().lent()));
-}
-
-// A busy count: absent 0, -1 for ever.
-std::uint64_t times(ArgView request, std::string_view key) {
-    const std::int64_t n = integer(request, key, 0);
-    if (n < -1) {
-        throw RequestError(std::string(key) + ": a count, or -1 for ever");
-    }
-    return n == -1 ? qiven::platform::fake::never : static_cast<std::uint64_t>(n);
-}
-
-Result set_busy(Drive& d, qiven::memory::Arena&, ArgView request) {
-    d.platform().set_busy(qiven::platform::fake::Busy{times(request, "target"), times(request, "temporary"),
-                                               times(request, "publish"), times(request, "lock")});
-    return std::nullopt;
 }
 
 Result kept(Drive& d, qiven::memory::Arena&, ArgView) {
@@ -255,14 +237,13 @@ struct Own {
 };
 
 // The fake's own operations; store_dir's arena the member's.
-constexpr std::array<Own, 16> own = {{
+constexpr std::array<Own, 15> own = {{
     {"set_clock", set_clock, nullptr},
     {"set_read_error", set_read_error, nullptr},
     {"refuse_pages", refuse_pages, nullptr},
     {"calls", calls, nullptr},
     {"written", written, nullptr},
     {"lent", lent, nullptr},
-    {"set_busy", set_busy, nullptr},
     {"kept", kept, nullptr},
     {"set_facts", set_facts, nullptr},
     {"set_synced", set_synced, nullptr},

@@ -38,7 +38,7 @@ Finding = namedtuple("Finding", "rule where kind detail")
 # with its source: a drive-letter path into a profile's root.
 EXAMPLES = {
     "C:/Users/ABC": "normcase's first vector, by CPython's ntpath and LCMapStringEx "
-                    "(tests/contract/platform_last.py)",
+                    "(foundation/system/platform/tests/win_platform_test.cpp)",
     "c:\\users\\abc": "that vector's normcase, as the case module writes it",
 }
 

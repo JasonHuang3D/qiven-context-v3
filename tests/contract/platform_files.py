@@ -6,13 +6,7 @@ Here: a failed open making nothing, under faults (938). P9, replace
 held, is platform's own (foundation/system/platform/tests/files_test.cpp
 and win_files_held_test.cpp), as are P19, publish (files_test.cpp and
 win_files_stage_test.cpp), and P25, not UTF-8 (files_test.cpp,
-fake_platform_test.cpp and win_platform_test.cpp there). A holder is
-the binding's hold(drive, **times): how often each call refuses before it
-succeeds, as a holder's handle released in time does, -1 held past any
-deadline; none given, none held. On the fake it is its busy counts;
-"target" and "temporary" hold replace's rename, "publish" publish's and
-discard's; on the Windows drive real handles, "publish" not among them
-(machine/windows_holds.py).
+fake_platform_test.cpp and win_platform_test.cpp there).
 The Windows adapter's replace, stage and lock are its module win/files'.
 """
 

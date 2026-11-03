@@ -28,7 +28,6 @@
         "tests/contract/",
         "tests/machine/__init__.py",
         "tests/machine/test_platform_windows.py",
-        "tests/machine/windows_holds.py",
         "tests/slow/",
         "tests/drive/samples.py",
         "tests/drive/test_store_session.py",

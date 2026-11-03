@@ -10,7 +10,7 @@
 // lone surrogate escape, as canonical JSON has none. Bytes cross as
 // lowercase hexadecimal strings.
 //
-//   qiven3-drive-fake --root DIR [--seed N] [--config DIR] [--hal fake]
+//   qiven3-drive-fake --root DIR [--config DIR] [--hal fake]
 //                     [--store sqlite|memory]
 //   qiven3-drive-windows [--config DIR] [--hal fake]
 //
@@ -91,12 +91,11 @@ inline constexpr std::size_t open_bound = 16;
 
 struct Options {
     std::optional<std::string> root, config, store;
-    std::uint64_t seed = 0;
     bool hal_fake = false;
 };
 
-// The arguments; none for any other, `why` saying so. `fake` takes --root,
-// --seed and --store, which the Windows drive refuses.
+// The arguments; none for any other, `why` saying so. `fake` takes --root
+// and --store, which the Windows drive refuses.
 std::optional<Options> read_options(int argc, char** argv, bool fake, std::string& why);
 // Arguments refused: `program: why` on standard error; the exit status, 2.
 int refuse(std::string_view program, const std::string& why);
