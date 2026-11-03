@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "driver/store_wire.hpp"
 #include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/exchange.hpp"
@@ -85,7 +85,7 @@ Value settings(store::sqlite::Connection& c, ArgView) {
     for (const store::sqlite::Setting& s : store::sqlite::settings) {
         row(s.name.view(), s.value.view(), when.at(static_cast<std::size_t>(s.when)));
     }
-    row("application_id", std::to_string(qiven3::checked::cognition_identity.application_id), when.at(2));
+    row("application_id", std::to_string(qiven3::entry::cognition_identity.application_id), when.at(2));
     row("user_version", std::to_string(store::schema_version), when.at(2));
     return out;
 }

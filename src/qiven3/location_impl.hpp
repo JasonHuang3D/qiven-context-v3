@@ -12,7 +12,7 @@
 #include <span>
 #include <string_view>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
@@ -122,7 +122,7 @@ void open_or_create(P& platform, std::string_view dir, qiven::memory::Arena& are
     bool missing = false;
     try {
         Store opened = Store::open(file, false, false, platform,
-                                   checked::cognition_limits, checked::cognition_identity);
+                                   entry::cognition_limits, entry::cognition_identity);
         static_cast<void>(opened.close());
     } catch (const store::StoreError& e) {
         if (e.code() != store::Code::missing) {
@@ -131,7 +131,7 @@ void open_or_create(P& platform, std::string_view dir, qiven::memory::Arena& are
         missing = true;
     }
     if (missing) {
-        Store made = Store::open(file, true, false, platform, checked::cognition_limits, checked::cognition_identity);
+        Store made = Store::open(file, true, false, platform, entry::cognition_limits, entry::cognition_identity);
         static_cast<void>(made.close());
     }
 }

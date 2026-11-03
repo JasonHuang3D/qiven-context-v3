@@ -28,7 +28,7 @@
 #include <string_view>
 #include <utility>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "checked/stores.hpp"
 #include "driver/drive.hpp"
 #include "driver/store_held.hpp"
@@ -137,7 +137,7 @@ std::optional<Value> open_at([[maybe_unused]] D& d, qiven::memory::Arena&, [[may
         Value out;
         try {
             Store made = Store::open(path, create, read_only, site.fake(),
-                                     checked::cognition_limits, checked::cognition_identity);
+                                     entry::cognition_limits, entry::cognition_identity);
             static_cast<void>(made.close());
             out.set("made", true);
         } catch (const store::StoreError& error) {
@@ -162,7 +162,7 @@ std::optional<Value> import_undeferred([[maybe_unused]] D& d, [[maybe_unused]] q
         using Undeferred = checked::SQLiteStore<qiven::test::ruled::Fake, qiven::test::seams::NoDeferral>;
         const auto& factory = *held::named(d.states(), request, "state").object;
         Undeferred into = Undeferred::open(factory.path(), false, false, d.site().fake(),
-                                           checked::cognition_limits, checked::cognition_identity);
+                                           entry::cognition_limits, entry::cognition_identity);
         store::Vector<store::LaneHead> rows{qiven::memory::Allocator<store::LaneHead>(arena)};
         store::Imported done;
         if (request.find("export")) {

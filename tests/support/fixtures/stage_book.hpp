@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "checked/rules.hpp"
 #include "entry/body.hpp"
 #include "entry/header.hpp"
@@ -420,7 +420,7 @@ inline std::optional<Refusal> refused_check(Fake& fake, const std::vector<Stored
 
 inline std::optional<Refusal> refused_admit(fixtures::MemoryView& view, const qiven3::checked::Checked<Fake>& checked,
                                             std::optional<std::string_view> expected, const Chars& chars,
-                                            const Limits& limits = qiven3::checked::cognition_limits) {
+                                            const Limits& limits = qiven3::entry::cognition_limits) {
     const std::string_view scope = "project:qiven";
     const std::string_view lane =
         checked.entries.empty() ? std::string_view() : checked.entries[0].header().value(Slot::lane);

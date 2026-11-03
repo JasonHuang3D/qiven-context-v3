@@ -182,7 +182,8 @@ B12_LINKS = ("qiven3_forget", "qiven3_backup")
 # B13: the reader's includes and its targets' links.
 B13_HEADERS = (RECORDLOG, ENGINE + "include/qiven/storage_sqlite/", "src/backup/", "src/forget/",
                "src/qiven3/mapcheck.", "src/entry/secret.", "src/bundle/")
-B13_OPEN = ("src/bundle/layout.", RECORDLOG + "include/qiven/recordlog/keys.")  # under B13_HEADERS, open to it
+B13_OPEN = ("src/bundle/layout.", RECORDLOG + "include/qiven/recordlog/keys.",  # under B13_HEADERS, open to it
+            RECORDLOG + "include/qiven/recordlog/values.")
 B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven_text",
                          "qiven_time", "qiven_digest", "qiven3_format"))
 B13_LINKS = ("qiven_sqlite", "qiven_storage_sqlite", "qiven_recordlog", "qiven3_forget", "qiven3_secret",

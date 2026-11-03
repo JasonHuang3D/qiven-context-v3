@@ -27,7 +27,7 @@
 #include <system_error>
 #include <vector>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
@@ -120,7 +120,7 @@ struct Bed {
         {
             const qiven::recordlog::Engine<Fake> maker(*fake, 1);
             auto s = qiven::recordlog::SQLiteStore<Fake>::open(text(held / "store.db"), true, false, *fake,
-                    qiven3::checked::cognition_limits, qiven3::checked::cognition_identity);
+                    qiven3::entry::cognition_limits, qiven3::entry::cognition_identity);
             static_cast<void>(s.close());
         }
         fs::create_directories(config_dir);

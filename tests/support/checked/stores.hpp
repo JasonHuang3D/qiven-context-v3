@@ -17,7 +17,7 @@
 #include <memory>
 #include <utility>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "checked/stores.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "support/fixtures/stage_book.hpp"
@@ -43,8 +43,8 @@ using stores::text;
 // stores taking cognition's limits and file identity.
 class Site : public stores::Site {
 public:
-    static constexpr qiven::recordlog::Limits limits = qiven3::checked::cognition_limits;
-    static constexpr qiven::recordlog::Identity identity = qiven3::checked::cognition_identity;
+    static constexpr qiven::recordlog::Limits limits = qiven3::entry::cognition_limits;
+    static constexpr qiven::recordlog::Identity identity = qiven3::entry::cognition_identity;
 
     explicit Site(std::uint64_t seed) : stores::Site(seed), book_(fake()) {}
     Site(std::uint64_t seed, std::filesystem::path root) : stores::Site(seed, std::move(root)), book_(fake()) {}

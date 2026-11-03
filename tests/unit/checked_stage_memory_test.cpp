@@ -36,7 +36,7 @@
 #include <string_view>
 #include <vector>
 
-#include "checked/cognition.hpp"
+#include "qiven3/entry/cognition.hpp"
 #include "checked/rules.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
@@ -98,7 +98,7 @@ bool run(Fake& fake, fixtures::MemoryView& view, const Case& c, const std::vecto
     const std::optional<std::string_view> expected =
         c.expected ? std::optional<std::string_view>(*c.expected) : std::nullopt;
     const stage::Staged staged = qiven3::checked::admit(view, "project:qiven", checked.entries[0].header().value(Slot::lane),
-                                              expected, checked, qiven3::checked::cognition_limits, at(c.op), chars);
+                                              expected, checked, qiven3::entry::cognition_limits, at(c.op), chars);
     return staged.count == c.call.size();
 }
 

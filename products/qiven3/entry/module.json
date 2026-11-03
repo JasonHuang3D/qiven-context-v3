@@ -27,6 +27,7 @@
         "faults"
       ],
       "paths": [
+        "products/qiven3/entry/",
         "src/entry/CMakeLists.txt",
         "src/entry/body.*",
         "src/entry/check.*",
