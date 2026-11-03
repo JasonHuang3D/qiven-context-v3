@@ -179,8 +179,14 @@ QIVEN_CASE(win_files, read) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     String out{Allocator<char>(arena)};
+    // Every byte value, then CRLF, the C runtime's end of text and a NUL
+    // with bytes past them: read whole, none converted, none the end.
     const fs::path written = scratch.root / "written.bin";
-    const std::string whole("a\0b\r\nc", 6);
+    std::string whole;
+    for (int c = 0; c < 256; ++c) {
+        whole.push_back(static_cast<char>(c));
+    }
+    whole += std::string_view("\r\n\x1a\0tail", 8);
     write_bytes(written, whole);
     out = "stale";
     platform.read(text(written), out);

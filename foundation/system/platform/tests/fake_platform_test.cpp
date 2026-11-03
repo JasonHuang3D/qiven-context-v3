@@ -432,6 +432,8 @@ QIVEN_CASE(fake_platform, read) {
     const std::string missing = detail_of([&] { fake.read(text(scratch.root / "absent"), out); });
     CHECK(missing.starts_with("not found: "));
     CHECK(out.empty());
+    const auto absent = thrown([&] { fake.read(text(scratch.root / "absent"), out); });
+    CHECK(absent == std::pair(Code::io, std::string("read")));
     const std::string planted = "ERROR_LOCK_VIOLATION (33)";
     fake.set_read_error(text(written), planted);
     CHECK_EQ(detail_of([&] { fake.read(text(written), out); }), planted);
