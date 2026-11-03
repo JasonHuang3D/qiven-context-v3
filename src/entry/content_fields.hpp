@@ -44,8 +44,8 @@
 
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "entry/matcher.hpp"
 #include "entry/refs.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -250,9 +250,9 @@ public:
 private:
     // The automata, none compiled: each holds the allocator alone.
     template <std::size_t... I>
-    static constexpr std::array<matcher::Basic<B>, sizeof...(I)> fresh(const B& allocator,
+    static constexpr std::array<qiven::matcher::Basic<B>, sizeof...(I)> fresh(const B& allocator,
                                                                       std::index_sequence<I...> /*each*/) noexcept {
-        return {((void)I, matcher::Basic<B>(allocator))...};
+        return {((void)I, qiven::matcher::Basic<B>(allocator))...};
     }
 
     static constexpr std::uint32_t narrow(std::size_t n) noexcept {
@@ -437,14 +437,14 @@ private:
 
     // Whether s matches a syntax, compiled at its first use in the walk.
     constexpr bool match(Syntax which, std::string_view s) {
-        matcher::Basic<B>& automaton = automata_.at(static_cast<std::size_t>(which));
+        qiven::matcher::Basic<B>& automaton = automata_.at(static_cast<std::size_t>(which));
         if (!automaton.compiled()) {
-            if (const std::optional<matcher::PatternError> fault =
-                    matcher::try_compile(SYNTAXES.at(static_cast<std::size_t>(which)), automaton)) {
+            if (const std::optional<qiven::matcher::PatternError> fault =
+                    qiven::matcher::try_compile(SYNTAXES.at(static_cast<std::size_t>(which)), automaton)) {
                 throw *fault;
             }
         }
-        return matcher::hit(automaton, s);
+        return qiven::matcher::hit(automaton, s);
     }
 
     // refs' match(pattern, text) over the walk's automata: a pattern of
@@ -550,7 +550,7 @@ private:
     kinds::Basis basis_;
     PathText path_;
     std::optional<ContentError> best_;
-    std::array<matcher::Basic<B>, SYNTAXES.size()> automata_;
+    std::array<qiven::matcher::Basic<B>, SYNTAXES.size()> automata_;
 };
 
 }  // namespace detail

@@ -11,7 +11,7 @@
 if(WIN32)
   set(qiven3_child_links qiven3_location qiven3_platform_win)
 else()
-  set(qiven3_child_links qiven3_entry qiven3_matcher qiven3_base)
+  set(qiven3_child_links qiven3_entry qiven_matcher qiven3_base)
 endif()
 qiven_executable(qiven3-child SOURCES main.cpp child.hpp probe.cpp platform.cpp instances.cpp
   LINK ${qiven3_child_links} WIDE)

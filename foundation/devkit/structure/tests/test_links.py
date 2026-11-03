@@ -15,7 +15,7 @@ from tests.drive import binaries
 from foundation.devkit.structure import links
 
 # The links that failed on macOS, by their targets' names.
-FIVE = ("qiven3_unit_matcher", "qiven3_unit_store_errors", "qiven3_unit_stores", "qiven3-child",
+FIVE = ("qiven3_unit_secret", "qiven3_unit_store_errors", "qiven3_unit_stores", "qiven3-child",
         "qiven3-drive-fake")
 
 

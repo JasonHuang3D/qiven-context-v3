@@ -2,14 +2,14 @@
 // standard allocator, the constant-evaluated vectors' type; matcher.cpp
 // compiles it over v3's.
 
-#include "entry/matcher_basic.hpp"
+#include "qiven/matcher/basic.hpp"
 
 #include <memory>
 
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 
-namespace qiven3::entry::matcher {
+namespace qiven::matcher {
 
 template class Basic<std::allocator<char>>;
 
-}  // namespace qiven3::entry::matcher
+}  // namespace qiven::matcher

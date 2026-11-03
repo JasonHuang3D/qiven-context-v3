@@ -33,8 +33,8 @@
 #include <vector>
 
 #include "child/child.hpp"
-#include "entry/matcher.hpp"
 #include "entry/refs.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -89,11 +89,11 @@ int malformed(std::string_view what) {
     return usage_status;
 }
 
-std::string_view fault_name(entry::matcher::Fault code) noexcept {
+std::string_view fault_name(qiven::matcher::Fault code) noexcept {
     switch (code) {
-        case entry::matcher::Fault::syntax: return "syntax";
-        case entry::matcher::Fault::unsupported: return "unsupported";
-        case entry::matcher::Fault::size: return "size";
+        case qiven::matcher::Fault::syntax: return "syntax";
+        case qiven::matcher::Fault::unsupported: return "unsupported";
+        case qiven::matcher::Fault::size: return "size";
     }
     return "unknown";
 }
@@ -108,9 +108,9 @@ int match() {
     // each automaton for the process's life: compile's scratch is not given
     // back to the span, so each pattern takes at most compile_budget of it.
     const std::size_t count = static_cast<std::size_t>(std::count(line.begin(), line.end(), ' ')) + 1;
-    std::vector<std::byte> span(count * entry::matcher::compile_budget);
+    std::vector<std::byte> span(count * qiven::matcher::compile_budget);
     qiven::memory::Arena arena{std::span<std::byte>(span)};
-    std::vector<entry::matcher::Automaton> automata;
+    std::vector<qiven::matcher::Automaton> automata;
     automata.reserve(count);
     std::size_t start = 0;
     while (start <= line.size()) {
@@ -119,8 +119,8 @@ int match() {
             return malformed("a pattern that is not hex");
         }
         automata.emplace_back(qiven::memory::Allocator<char>(arena));
-        if (const std::optional<entry::matcher::PatternError> fault =
-                entry::matcher::try_compile(bytes, automata.back())) {
+        if (const std::optional<qiven::matcher::PatternError> fault =
+                qiven::matcher::try_compile(bytes, automata.back())) {
             std::cout << "fault " << automata.size() - 1 << " " << fault_name(fault->code) << " " << fault->at << "\n";
             return 1;
         }
@@ -133,8 +133,8 @@ int match() {
             return malformed("a string that is not hex");
         }
         answer.clear();
-        for (const entry::matcher::Automaton& a : automata) {
-            answer.push_back(entry::matcher::hit(a, bytes) ? '1' : '0');
+        for (const qiven::matcher::Automaton& a : automata) {
+            answer.push_back(qiven::matcher::hit(a, bytes) ? '1' : '0');
         }
         std::cout << answer << "\n";
     }
@@ -176,7 +176,7 @@ bool one_space(std::string_view bytes) noexcept {
 int refs() {
     std::string line;
     std::string bytes;
-    std::vector<std::byte> span(entry::matcher::compile_budget);
+    std::vector<std::byte> span(qiven::matcher::compile_budget);
     while (next_line(line)) {
         if (!unhex(line, bytes)) {
             return malformed("a string that is not hex");

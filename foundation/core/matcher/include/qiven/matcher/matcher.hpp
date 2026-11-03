@@ -33,10 +33,10 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/matcher_basic.hpp"
-#include "entry/matcher_read.hpp"
+#include "qiven/matcher/basic.hpp"
+#include "qiven/matcher/read.hpp"
 
-namespace qiven3::entry::matcher {
+namespace qiven::matcher {
 
 // The pattern's automaton into out, which is replaced only on success;
 // the first fault, or none. Two allocations: the scratch, freed before it
@@ -68,4 +68,4 @@ constexpr bool hit(const Basic<A>& automaton, std::string_view text) {
     return automaton.hit(text);
 }
 
-}  // namespace qiven3::entry::matcher
+}  // namespace qiven::matcher

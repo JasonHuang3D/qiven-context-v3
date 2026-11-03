@@ -2,7 +2,7 @@
 
 // matcher's reader of a pattern: compile's builder, which reads the
 // pattern into its scratch in one pass and writes the automaton in one
-// allocation. entry/matcher.hpp states the module; include it.
+// allocation. qiven/matcher/matcher.hpp states the module; include it.
 //
 // thread: none
 
@@ -15,10 +15,10 @@
 #include <utility>
 #include <vector>
 
-#include "entry/matcher_basic.hpp"
+#include "qiven/matcher/basic.hpp"
 #include "qiven/memory/memory.hpp"
 
-namespace qiven3::entry::matcher {
+namespace qiven::matcher {
 
 namespace detail {
 
@@ -467,4 +467,4 @@ private:
 
 }  // namespace detail
 
-}  // namespace qiven3::entry::matcher
+}  // namespace qiven::matcher

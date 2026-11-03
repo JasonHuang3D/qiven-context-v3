@@ -39,7 +39,7 @@
 #include <string_view>
 #include <utility>
 
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -425,9 +425,9 @@ namespace detail {
 template <typename A, std::size_t N>
 constexpr bool all_match(std::string_view pattern, const std::array<std::optional<std::string_view>, N>& texts,
                          const A& allocator) {
-    const matcher::Basic<A> automaton = matcher::compile(pattern, allocator);
+    const qiven::matcher::Basic<A> automaton = qiven::matcher::compile(pattern, allocator);
     for (const std::optional<std::string_view>& t : texts) {
-        if (t && !matcher::hit(automaton, *t)) {
+        if (t && !qiven::matcher::hit(automaton, *t)) {
             return false;
         }
     }

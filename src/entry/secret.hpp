@@ -44,7 +44,7 @@
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -149,11 +149,11 @@ inline constexpr std::size_t first_hits = 4;
 namespace detail {
 
 template <typename A>
-using Automata = std::array<matcher::Basic<A>, PATTERNS.size()>;
+using Automata = std::array<qiven::matcher::Basic<A>, PATTERNS.size()>;
 
 template <typename A, std::size_t... I>
 constexpr Automata<A> fresh(const A& allocator, std::index_sequence<I...> /*each*/) noexcept {
-    return {((void)I, matcher::Basic<A>(allocator))...};
+    return {((void)I, qiven::matcher::Basic<A>(allocator))...};
 }
 
 // The twelve compiled, in order: 24 allocations, 12 held.
@@ -161,7 +161,7 @@ template <typename A>
 constexpr Automata<A> compile_all(const A& allocator) {
     Automata<A> out = fresh(allocator, std::make_index_sequence<PATTERNS.size()>{});
     for (std::size_t p = 0; p < PATTERNS.size(); ++p) {
-        if (matcher::try_compile(PATTERNS.at(p).text.view(), out.at(p))) {
+        if (qiven::matcher::try_compile(PATTERNS.at(p).text.view(), out.at(p))) {
             qiven::memory::fail_fast("secret: a pinned pattern the matcher refuses");
         }
     }

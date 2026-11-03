@@ -19,8 +19,8 @@
 
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
-#include "entry/matcher.hpp"
 #include "entry/secret.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
@@ -31,7 +31,7 @@ namespace {
 
 namespace secret = qiven3::entry::secret;
 namespace header = qiven3::entry::header;
-namespace matcher = qiven3::entry::matcher;
+namespace matcher = qiven::matcher;
 namespace content = qiven3::entry::content;
 namespace canon = qiven3::canon;
 namespace json = qiven3::json;

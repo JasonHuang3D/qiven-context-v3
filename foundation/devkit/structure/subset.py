@@ -118,7 +118,7 @@ CELLS = {
 # B26's modules, each with its own cases or fuzzed, where the analysis
 # configuration may turn pointer arithmetic off; a directory's .clang-tidy
 # serves a module that is a directory, memory alone.
-B26_MODULES = ("foundation/core/memory/", "src/qiven3/digest.", "src/entry/matcher.", "src/qiven3/canon.", "src/qiven3/json.")
+B26_MODULES = ("foundation/core/memory/", "src/qiven3/digest.", "foundation/core/matcher/", "src/qiven3/canon.", "src/qiven3/json.")
 B26_TIDY = "cppcoreguidelines-pro-bounds-pointer-arithmetic"
 B26_MSVC = "C26481"
 

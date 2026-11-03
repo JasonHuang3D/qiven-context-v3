@@ -48,7 +48,7 @@
 #include <string_view>
 
 #include "entry/header.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utf.hpp"
 
@@ -215,8 +215,8 @@ constexpr Scan scan(std::string_view text) noexcept {
 // freed before it returns.
 template <typename A>
 constexpr bool matches(std::string_view pattern, std::string_view text, const A& allocator) {
-    const matcher::Basic<A> automaton = matcher::compile(pattern, allocator);
-    return matcher::hit(automaton, text);
+    const qiven::matcher::Basic<A> automaton = qiven::matcher::compile(pattern, allocator);
+    return qiven::matcher::hit(automaton, text);
 }
 
 }  // namespace detail

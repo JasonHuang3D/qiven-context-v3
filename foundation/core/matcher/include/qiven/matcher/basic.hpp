@@ -1,7 +1,7 @@
 #pragma once
 
 // matcher's types: the bounds, the fault, the sets and parts compile
-// works in, and the automaton, which hit runs. entry/matcher.hpp states
+// works in, and the automaton, which hit runs. qiven/matcher/matcher.hpp states
 // the module; include it.
 //
 // thread: none
@@ -19,7 +19,7 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 
-namespace qiven3::entry::matcher {
+namespace qiven::matcher {
 
 // The bounds: a pattern's bytes, its positions once written out, its open
 // groups and a count of {n,m}.
@@ -187,4 +187,4 @@ constexpr std::size_t automaton_bytes(std::size_t positions) noexcept {
 // compile's peak: its scratch and the largest automaton.
 inline constexpr std::size_t compile_budget = sizeof(detail::Scratch) + automaton_bytes(max_positions);
 
-}  // namespace qiven3::entry::matcher
+}  // namespace qiven::matcher

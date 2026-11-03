@@ -11,7 +11,7 @@
 #include <string_view>
 
 #include "entry/content_fields.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -91,11 +91,11 @@ struct Reader {
     Path path;
     std::uint32_t entry = none;
     qiven::memory::Inline<64> entry_name;
-    entry::matcher::Automaton slug;
-    entry::matcher::Automaton scope;
-    entry::matcher::Automaton writer;
-    entry::matcher::Automaton id;
-    entry::matcher::Automaton lane;
+    qiven::matcher::Automaton slug;
+    qiven::matcher::Automaton scope;
+    qiven::matcher::Automaton writer;
+    qiven::matcher::Automaton id;
+    qiven::matcher::Automaton lane;
 
     [[noreturn]] void refuse(Why why) const;
     [[noreturn]] void refuse_at(std::string_view key, Why why);
@@ -122,7 +122,7 @@ struct Reader {
     // A member's node of a JSON kind, or 0 where absent and not required.
     json::Index node(const Field& f, json::Kind kind, bool required);
     // A string member, not empty, within bytes and, given one, a syntax.
-    Text text(const Field& f, bool required, std::size_t bytes, const entry::matcher::Automaton* syntax);
+    Text text(const Field& f, bool required, std::size_t bytes, const qiven::matcher::Automaton* syntax);
     // The node absent, else not_allowed.
     void refused(const Field& f);
 

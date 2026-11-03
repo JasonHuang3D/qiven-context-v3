@@ -17,8 +17,8 @@
 #include <vector>
 
 #include "entry/header.hpp"
-#include "entry/matcher.hpp"
 #include "entry/secret.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
@@ -29,7 +29,7 @@ namespace {
 
 namespace secret = qiven3::entry::secret;
 namespace header = qiven3::entry::header;
-namespace matcher = qiven3::entry::matcher;
+namespace matcher = qiven::matcher;
 namespace canon = qiven3::canon;
 namespace json = qiven3::json;
 using qiven::memory::Allocator;

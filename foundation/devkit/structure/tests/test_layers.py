@@ -10,8 +10,9 @@ from foundation.devkit.structure import layers, rules
 
 TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
-# Where core logic was read: src/, and memory's library code, in src/ until its move.
-OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/")
+# Where core logic was read: src/, and memory's and matcher's library code, in src/ until their moves.
+OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/",
+           "foundation/core/matcher/include/", "foundation/core/matcher/src/")
 
 
 def files():
@@ -19,7 +20,7 @@ def files():
 
 
 def was_core(rel):
-    """Core logic as it was read, src/ its literal root, memory's code at its new place."""
+    """Core logic as it was read, src/ its literal root, memory's and matcher's code at their new places."""
     return rel.startswith(OLD_SRC) and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
 
 
@@ -32,7 +33,7 @@ class Core(unittest.TestCase):
         self.assertEqual([rel for rel in held if not rules.is_core(rel, TREE)], [])
 
     def test_outside(self):
-        """No file outside src/ and memory's code is core logic today: the runner, devkit's,
+        """No file outside src/ and memory's and matcher's code is core logic today: the runner, devkit's,
         the vendored SQLite, system's, and test code are outside it."""
         self.assertEqual([rel for rel in files() if rel.endswith(CXX) and rules.is_core(rel, TREE)
                           and not was_core(rel)], [])

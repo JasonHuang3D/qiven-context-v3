@@ -1,10 +1,11 @@
-// matcher's cases: the syntaxes' and the patterns' vectors, evaluated by the
-// compiler on std::allocator; the secret check's twelve patterns on their
-// tables' fixtures and the clearing fixtures (support/fixtures), each built
-// when the case runs so that no file holds a live-looking token; compile's
-// faults; a string that makes a backtracking engine square its time, read
-// in linear time; compile's budget, its two allocations failed in turn, and
-// hit's none.
+// The matcher over its callers' patterns, secret's: the syntaxes' vectors,
+// copies of the entry's, evaluated by the compiler on std::allocator; the
+// secret check's twelve patterns on their tables' fixtures and the clearing
+// fixtures (support/fixtures), each built when the case runs so that no file
+// holds a live-looking token; a string that makes a backtracking engine
+// square its time, read in linear time; compile's budget over them, its two
+// allocations failed in turn, and hit's none. The engine's own vectors and
+// compile's faults are matcher's (foundation/core/matcher/tests/).
 
 #include <chrono>
 #include <cstddef>
@@ -14,8 +15,8 @@
 #include <string_view>
 #include <vector>
 
-#include "entry/matcher.hpp"
 #include "entry/secret.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
@@ -24,7 +25,7 @@
 
 namespace {
 
-namespace matcher = qiven3::entry::matcher;
+namespace matcher = qiven::matcher;
 namespace secret = qiven3::entry::secret;
 namespace fixtures = qiven::test::fixtures;
 using matcher::Fault;
@@ -43,11 +44,6 @@ constexpr std::optional<Fault> fault_of(std::string_view pattern) {
     return fault ? std::optional<Fault>(fault->code) : std::nullopt;
 }
 
-constexpr std::size_t fault_at(std::string_view pattern) {
-    matcher::Basic<> out;
-    return matcher::try_compile(pattern, out).value_or(matcher::PatternError{Fault::syntax, 9999}).at;
-}
-
 // The syntaxes, whole-value.
 constexpr std::string_view lane = "^[a-z][a-z0-9-]{0,31}$";
 constexpr std::string_view number = "^[1-9][0-9]{0,8}$";
@@ -62,31 +58,7 @@ static_assert(hits(key_syntax, "a_b") && hits(key_syntax, "ab1_c2_d") && !hits(k
 static_assert(hits(case_id, "FA2") && hits(case_id, "ACC-2") && !hits(case_id, "FA--2") && !hits(case_id, "fa2"));
 static_assert(hits(symbol, "a::b/c.d") && hits(symbol, "_x") && !hits(symbol, "a:b") && !hits(symbol, "a..b"));
 
-// The engine: alternation under a loop, counts, the empty string, search
-// against whole-value, the lookbehind and bytes past ASCII.
-static_assert(hits("(ab|c)+d", "xababcd") && !hits("(ab|c)+d", "xabad") && hits("^(ab|c)+d$", "abccd"));
-static_assert(hits("^a{2,3}$", "aaa") && !hits("^a{2,3}$", "aaaa") && !hits("^a{2,3}$", "a") && hits("a{2,3}", "aaaa"));
-static_assert(hits("^(?:x|)$", "") && hits("^$", "") && !hits("^$", "a") && hits("", "abc") && hits("a*", ""));
-static_assert(hits("^a{0}b$", "b") && !hits("^a{0}b$", "ab") && hits("^(?:ab){2,}$", "ababab") && !hits("^(?:ab){2,}$", "ab"));
-static_assert(hits("(?<![a-z])b", "b") && hits("(?<![a-z])b", "ab b") && !hits("(?<![a-z])b", "ab"));
-static_assert(hits("(?<![a-z])b", "\xe4\xb8\xad" "b") && hits("^[^a]+$", "\xe4\xb8\xad") && !hits("^[^x]$", "x"));
-static_assert(hits("[\\t ]x", "\tx") && hits("a\\|b", "a|b") && !hits("a\\|b", "a") && hits("[]a]", "]"));
-static_assert(hits("[a-]", "-") && hits("[-a]", "-") && hits("^[^ \\t\\r\\n\"'$<%{-]$", "q") && !hits("^[^-]$", "-"));
-
-// compile's faults and where each is found.
-static_assert(fault_of("a**") == Fault::syntax && fault_of("*a") == Fault::syntax && fault_of("a{2,1}") == Fault::syntax);
-static_assert(fault_of("(a") == Fault::syntax && fault_of("a)") == Fault::syntax && fault_of("[a") == Fault::syntax);
-static_assert(fault_of("[z-a]") == Fault::syntax && fault_of("\\") == Fault::syntax && fault_of("a|*") == Fault::syntax);
-static_assert(fault_of(".") == Fault::unsupported && fault_of("\\d") == Fault::unsupported);
-static_assert(fault_of("a*?") == Fault::unsupported && fault_of("a{,3}") == Fault::unsupported);
-static_assert(fault_of("(?=a)") == Fault::unsupported && fault_of("x(?<![a])") == Fault::unsupported);
-static_assert(fault_of("^(?<![a])b$") == Fault::unsupported && fault_of("(?<!a)b") == Fault::unsupported);
-static_assert(fault_of("^a") == Fault::unsupported && fault_of("a$") == Fault::unsupported && fault_of("a^") == Fault::unsupported);
-static_assert(fault_of("\xc3\xa9") == Fault::unsupported && fault_of("[[a]") == Fault::unsupported && fault_of("a{") == Fault::unsupported);
-static_assert(fault_of("a{256}") == Fault::size && fault_of("[a-z]{300}") == Fault::size && fault_of("(?:ab){129}") == Fault::size);
-static_assert(fault_of("(((((((((a)))))))))") == Fault::size && !fault_of("((((((((a))))))))"));
-static_assert(!fault_of("a{255}") && !fault_of("(?:ab){128}") && !fault_of(symbol));
-static_assert(fault_at("ab)") == 2 && fault_at("ab(cd") == 2 && fault_at("[ab") == 0 && fault_at("a{2,1}") == 1);
+static_assert(!fault_of(symbol));
 
 std::string rep(std::string_view s, std::size_t n) {
     std::string out;
@@ -108,11 +80,6 @@ std::vector<std::string_view> patterns() {
 bool budget_error(const MemoryError& e) { return e.code == MemoryCode::budget; }
 
 }  // namespace
-
-QIVEN_CASE(matcher, vectors) {
-    // The static assertions above held, or this binary was not built.
-    CHECK(hits(lane, "writer"));
-}
 
 QIVEN_CASE(matcher, patterns) {
     std::vector<matcher::Basic<>> compiled;

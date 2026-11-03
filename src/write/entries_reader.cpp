@@ -15,7 +15,7 @@
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
@@ -29,8 +29,8 @@ using JKind = json::Kind;
 namespace kinds = entry::kinds;
 namespace header = entry::header;
 
-entry::matcher::Automaton compiled(std::string_view syntax, qiven::memory::Arena& arena) {
-    return entry::matcher::compile(syntax, qiven::memory::Allocator<char>(arena));
+qiven::matcher::Automaton compiled(std::string_view syntax, qiven::memory::Arena& arena) {
+    return qiven::matcher::compile(syntax, qiven::memory::Allocator<char>(arena));
 }
 
 // An absolute path: from the root, a drive's or a share's, with no
@@ -129,13 +129,13 @@ json::Index Reader::node(const Field& f, JKind kind, bool required) {
     return f.at;
 }
 
-Text Reader::text(const Field& f, bool required, std::size_t bytes, const entry::matcher::Automaton* syntax) {
+Text Reader::text(const Field& f, bool required, std::size_t bytes, const qiven::matcher::Automaton* syntax) {
     const json::Index n = node(f, JKind::string, required);
     if (n == 0) {
         return 0;
     }
     const std::string_view t = v->text(n);
-    if (t.empty() || t.size() > bytes || (syntax != nullptr && !entry::matcher::hit(*syntax, t))) {
+    if (t.empty() || t.size() > bytes || (syntax != nullptr && !qiven::matcher::hit(*syntax, t))) {
         refuse_at(f.key.view(), Why::syntax);
     }
     return n;
@@ -214,7 +214,7 @@ void Reader::pieces(const Field& f) {
     for (json::Index k = n + 1; k < v->next(n); k = v->next(k + 1)) {
         const std::string_view key = v->text(k);
         const Step one(path, path.member(key));
-        if (key.size() > name_chars || !entry::matcher::hit(slug, key)) {
+        if (key.size() > name_chars || !qiven::matcher::hit(slug, key)) {
             refuse(Why::syntax);
         }
         if (v->kind(k + 1) != JKind::object) {
@@ -280,7 +280,7 @@ void Reader::read_entry(json::Index object) {
         if (v->text(e.target).starts_with("@")) {
             e.target_site = static_cast<std::uint32_t>(m->sites_.size());
             hole(e.target);
-        } else if (!entry::matcher::hit(id, v->text(e.target))) {
+        } else if (!qiven::matcher::hit(id, v->text(e.target))) {
             refuse(Why::syntax);
         }
     }
@@ -370,8 +370,8 @@ void Reader::hole(json::Index node) {
         }
         const Hole hole = static_cast<Hole>(h);
         const std::string_view rest = t.substr(prefixes.at(h).size());
-        const bool fits = hole == Hole::lane ? entry::matcher::hit(lane, rest)
-                                             : rest.size() <= name_chars && entry::matcher::hit(slug, rest);
+        const bool fits = hole == Hole::lane ? qiven::matcher::hit(lane, rest)
+                                             : rest.size() <= name_chars && qiven::matcher::hit(slug, rest);
         if (!fits) {
             refuse(Why::placeholder);
         }

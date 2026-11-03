@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#include "entry/matcher.hpp"
 #include "entry/refs.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
@@ -66,9 +66,9 @@ QIVEN_CASE(refs, budget) {
         CHECK(!refs::try_check_reference(v).has_value());
         CHECK_EQ(arena.used(), used);
         // The arena's cursor never goes back: each compile adds its own.
-        CHECK(arena.peak() - before <= c.allocations / 2 * qiven3::entry::matcher::compile_budget);
+        CHECK(arena.peak() - before <= c.allocations / 2 * qiven::matcher::compile_budget);
         std::cout << "refs.budget: " << c.name << ": " << arena.peak() - before << " bytes for " << c.allocations / 2
-                  << " compiles, within " << qiven3::entry::matcher::compile_budget << " each\n";
+                  << " compiles, within " << qiven::matcher::compile_budget << " each\n";
     }
     // A path, a name and a subject but repo's take nothing from an arena of none.
     Arena& none = qiven_ctx.counted.arena(64);

@@ -98,6 +98,7 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main" case_m
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults" faults_kit)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/scan" scan)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/memory/tests" memory_tests)
+add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/matcher/tests" matcher_tests)
 add_subdirectory(support/fake_platform)
 add_subdirectory(support/fixtures)
 add_subdirectory(support/stores)

@@ -1,14 +1,3 @@
-# qiven3_matcher: the patterns' and syntaxes' matcher alone, which the
-# entry's syntax checks and the secret check link.
-add_library(qiven3_matcher STATIC
-  matcher.cpp
-  matcher.hpp
-  matcher_basic.hpp
-  matcher_read.hpp
-)
-target_include_directories(qiven3_matcher PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_matcher PUBLIC qiven_memory PRIVATE qiven_build)
-
 # qiven3_entry: the entry's modules, header and body first; its syntax
 # checks link the matcher.
 add_library(qiven3_entry STATIC
@@ -41,7 +30,7 @@ add_library(qiven3_entry STATIC
   validator.hpp
 )
 target_include_directories(qiven3_entry PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_entry PUBLIC qiven3_keys qiven3_matcher qiven3_base qiven_memory PRIVATE qiven_build)
+target_link_libraries(qiven3_entry PUBLIC qiven3_keys qiven_matcher qiven3_base qiven_memory PRIVATE qiven_build)
 
 # qiven3_secret: the secret check, apart from the entry's modules so that
 # the reader links none of it (B13); it links the matcher and the entry.
@@ -50,4 +39,4 @@ add_library(qiven3_secret STATIC
   secret.hpp
 )
 target_include_directories(qiven3_secret PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_secret PUBLIC qiven3_entry qiven3_matcher qiven3_base qiven_memory PRIVATE qiven_build)
+target_link_libraries(qiven3_secret PUBLIC qiven3_entry qiven_matcher qiven3_base qiven_memory PRIVATE qiven_build)

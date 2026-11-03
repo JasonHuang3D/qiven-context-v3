@@ -113,7 +113,7 @@ QIVEN_CASE(header, budget) {
             peaks.line = arena.peak() - held;
         }
         // check's compiles, five at most, each within matcher's budget.
-        CHECK(peaks.check <= 5 * qiven3::entry::matcher::compile_budget);
+        CHECK(peaks.check <= 5 * qiven::matcher::compile_budget);
         CHECK(peaks.parse <= budget);
         CHECK(peaks.make + peaks.check <= budget);
         CHECK(peaks.make + peaks.line <= budget);
@@ -156,7 +156,7 @@ QIVEN_CASE(header, budget) {
     }
     std::cout << "header.budget: longest line " << longest << " bytes, budget " << budget_for(longest)
               << "; peaks: parse_line " << most_parse << ", check " << most_check << ", line " << most_line
-              << "; compile_budget " << qiven3::entry::matcher::compile_budget << "\n";
+              << "; compile_budget " << qiven::matcher::compile_budget << "\n";
 }
 
 QIVEN_CASE(header, faults) {

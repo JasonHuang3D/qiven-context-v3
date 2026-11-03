@@ -191,7 +191,7 @@ EXEMPT = {
 # B12: the modules and targets that never reach backup or forgetting.
 B12_FILES = ("src/keys/", "src/store/", "src/entry/", "src/bundle/", "src/reader/", "src/platform/",
              "src/qiven3/canon.", "src/qiven3/digest.", "src/qiven3/location.", "src/wire/")
-B12_TARGETS = frozenset(("qiven3_store", "qiven3_entry", "qiven3_matcher", "qiven3_secret", "qiven3_layout",
+B12_TARGETS = frozenset(("qiven3_store", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
                          "qiven3_bundle", "qiven3_reader", "qiven3_platform", "qiven3_platform_win",
                          "qiven3_platform_current", "qiven3_base", "qiven3_location", "qiven3_wire"))
 B12_HEADERS = ("src/backup/", "src/forget/")
@@ -199,7 +199,7 @@ B12_LINKS = ("qiven3_forget", "qiven3_backup")
 # B13: the reader's includes and its targets' links.
 B13_HEADERS = ("src/store/", "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.",
                "src/bundle/")
-B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven3_matcher", "qiven3_base"))
+B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven3_base"))
 B13_LINKS = ("qiven_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
 # Core logic: every product target but the adapters, current and the HAL's.

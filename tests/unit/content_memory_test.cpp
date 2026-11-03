@@ -22,7 +22,7 @@
 
 #include "entry/content.hpp"
 #include "entry/header.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
@@ -122,9 +122,9 @@ QIVEN_CASE(content, budget) {
         const std::size_t before = arena.peak();
         CHECK(!content::try_check(h, v).has_value());
         CHECK_EQ(arena.used(), used);
-        CHECK(arena.peak() - before <= c.allocations / 2 * qiven3::entry::matcher::compile_budget);
+        CHECK(arena.peak() - before <= c.allocations / 2 * qiven::matcher::compile_budget);
         std::cout << "content.budget: " << c.name << ": " << arena.peak() - before << " bytes for "
-                  << c.allocations / 2 << " compiles, within " << qiven3::entry::matcher::compile_budget
+                  << c.allocations / 2 << " compiles, within " << qiven::matcher::compile_budget
                   << " each\n";
     }
 }

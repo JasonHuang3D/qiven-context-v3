@@ -21,7 +21,7 @@
 
 #include "entry/body.hpp"
 #include "entry/header.hpp"
-#include "entry/matcher.hpp"
+#include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
@@ -33,7 +33,7 @@ namespace {
 
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
-namespace matcher = qiven3::entry::matcher;
+namespace matcher = qiven::matcher;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
