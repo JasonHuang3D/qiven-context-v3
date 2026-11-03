@@ -5,7 +5,8 @@
 
 The table is read by tools/loop_table.py. Each tracked file in one module; each module's dependencies, followed
 transitively, covering its includes (each #include "..." resolved to the
-tracked file it names, from its directory, and each #include <qiven/...>
+tracked file it names, from its directory, a module directory's own
+tests' from that directory's src/ too, and each #include <qiven/...>
 or <qiven3/...> without it, from the build's include directories
 and each module directory's include/ under foundation/, kits/ and
 products/; one resolving to none refused but in a vendored file, tools/trees.json's
@@ -209,10 +210,15 @@ def include_roots(files):
                                  and f[:f.index("/include/")] in homes}))
 
 
-def resolve(including, name, tracked, roots=ROOTS, angle=False):
+def resolve(including, name, tracked, roots=ROOTS, angle=False, homes=()):
     """The tracked file an #include "name" of the file including names, its
-    .. steps taken, or None; an angle include from the roots alone."""
-    for base in (() if angle else (posixpath.dirname(including),)) + tuple(roots):
+    .. steps taken, or None; an angle include from the roots alone. A file
+    under the tests/ of a module directory, one of homes, resolves from that
+    directory's src/ after its own, as LAYERS.md §4 forbids src/ from
+    outside alone."""
+    under = test_path(including, homes)
+    own = (including[:-len(under) - 1] + "/src",) if under and under != including else ()
+    for base in (() if angle else (posixpath.dirname(including),) + own) + tuple(roots):
         candidate = posixpath.normpath(posixpath.join(base, name))
         if candidate in tracked:
             return candidate
@@ -266,7 +272,7 @@ def check(table, files, read, targets=None, left=None):
         for match in INCLUDE.finditer(data):
             angle = match.group(1) is None
             name = (match.group(2) if angle else match.group(1)).decode("utf-8", "replace")
-            found, shown = resolve(f, name, tracked, roots, angle), f"<{name}>" if angle else f'"{name}"'
+            found, shown = resolve(f, name, tracked, roots, angle, homes), f"<{name}>" if angle else f'"{name}"'
             if found is None:
                 line = data.count(b"\n", 0, match.start()) + 1
                 if f not in VENDORED:

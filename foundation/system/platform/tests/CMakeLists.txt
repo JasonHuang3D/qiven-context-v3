@@ -2,8 +2,9 @@
 # by tests/CMakeLists.txt, where qiven3_add_cases, qiven_faults and
 # qiven_case_main are made. A case that reads a private header of the
 # Windows adapter (windows/facts.hpp) reaches the module's src/ by its own
-# include directory.
-set(qiven_platform_src "${CMAKE_CURRENT_SOURCE_DIR}/../src")
+# include directory, written without .. (structure's B11).
+cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH qiven_platform_dir)
+set(qiven_platform_src "${qiven_platform_dir}/src")
 
 # files' cases on the fake: its pure checks evaluated by the compiler;
 # replace, stage and lock on real files in each case's scratch directory,
