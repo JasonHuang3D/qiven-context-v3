@@ -12,7 +12,7 @@ compile_commands.json, its includes as the compiler reports them
 and its object's symbols (dumpbin /symbols); the C and C++ runtimes'
 public names (dumpbin /linkermember:1); the targets' link edges (CMake's
 --graphviz, from a configure of SOURCE in a directory of its own); and
-index.json, naming each. third_party/sqlite/sqlite3.c,
+index.json, naming each. foundation/system/sqlite/src/sqlite3.c,
 the one vendored file, has its object's names recorded, for what it
 defines, and no includes.
 """
@@ -31,7 +31,7 @@ from pathlib import Path
 # The trees every check walks, by runpy: run as a script under -I, the checkout is off sys.path.
 MODULES = runpy.run_path(str(Path(__file__).resolve().parents[3] / "tools" / "loop_modules.py"))
 TREES, CXX = MODULES["TREES"], MODULES["CXX_SUFFIXES"]
-VENDORED = "third_party/sqlite/sqlite3.c"
+VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure
 # build's); oldnames.lib, POSIX names, is not one.
 RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")

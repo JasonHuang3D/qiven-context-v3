@@ -356,7 +356,7 @@ class TreesBuild(unittest.TestCase):
         paths = ("foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "foundation/core/memory/tests/arena_test.cpp",
                  "tests/driver/driver.cpp", "foundation/core/memory/tests/arena_test.cpp", "kits/kp/src/kp.cpp",
                  "foundation/devkit/test/runner/tests/runner_test.cpp", "foundation/devkit/test/runner/src/runner.cpp",
-                 "products/qiven3/tests/x/drive.cpp", "third_party/sqlite/vendored.c")
+                 "products/qiven3/tests/x/drive.cpp", "foundation/system/sqlite/src/sqlite3.c")
         got = shown("analysed", paths=paths)
         self.assertEqual([p for p in paths if got[p].startswith("TRUE")],
                          ["foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "kits/kp/src/kp.cpp",

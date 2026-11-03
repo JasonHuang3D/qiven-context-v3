@@ -19,12 +19,12 @@ from tools import loop_git
 # or pins it: the fixtures and the vectors, compiled into the cases as their
 # bytes; the fuzz corpora, each input named by its SHA-1 (a directory, by its
 # trailing slash); the SQLite files, each pinned by its SHA-256 in
-# CMakeLists.txt. No other file is.
+# foundation/devkit/build/build.cmake. No other file is.
 KEPT = ("tests/fixtures/entries.json", "tests/vectors/ids.json", "tests/fuzz/digest/regress/",
         "tests/fuzz/entries/regress/", "tests/fuzz/entry/regress/", "tests/fuzz/wire/regress/",
-        "third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h")
+        "foundation/system/sqlite/src/sqlite3.c", "foundation/system/sqlite/include/qiven/sqlite/sqlite3.h")
 # The directories that hold code beside kept data: their code stays text, LF.
-BESIDE = ("tests/fixtures/", "tests/vectors/", "tests/support/fixtures/", "third_party/")
+BESIDE = ("tests/fixtures/", "tests/vectors/", "tests/support/fixtures/", "foundation/system/sqlite/")
 
 
 def kept(rel):

@@ -1,6 +1,7 @@
 # SQLite, vendored
 
-`sqlite3.c` and `sqlite3.h` are SQLite 3.53.4's amalgamation as extracted,
+`sqlite3.c` (here, `src/`) and `sqlite3.h` (`include/qiven/sqlite/`, the
+module's contract) are SQLite 3.53.4's amalgamation as extracted,
 unchanged. `shell.c` and `sqlite3ext.h` are not kept. SQLite is in the
 public domain.
 
@@ -14,16 +15,16 @@ public domain.
 | `sqlite3.c` | 9,515,341 bytes, SHA-256 `b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189` |
 | `sqlite3.h` | 690,838 bytes, SHA-256 `919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d` |
 
-Configure checks both files' SHA-256 (the top `CMakeLists.txt`) and fails
-on any other, so a changed amalgamation never builds. The target
-`qiven3_sqlite` compiles `sqlite3.c` as C at its own level: MSVC `/W3`
+Configure checks both files' SHA-256 (`foundation/devkit/build/build.cmake`) and
+fails on any other, so a changed amalgamation never builds. The target
+`qiven_sqlite` (the module's `CMakeLists.txt`) compiles `sqlite3.c` as C at its own level: MSVC `/W3`
 without `/WX`, gcc and clang their defaults without `-Werror`; the core's
 warnings, analysis and frame bound do not cover it. `qiven3_store` alone
 links it (B1).
 
 ## The options
 
-The 21 options of `qiven3_sqlite`, each `SQLITE_`-prefixed:
+The 21 options of `qiven_sqlite`, each `SQLITE_`-prefixed:
 
 | Option | Reason |
 |---|---|

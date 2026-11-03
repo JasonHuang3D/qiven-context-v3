@@ -18,7 +18,7 @@ set(qiven3_roots ${qiven3_layers} ${qiven3_analysed})
 cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
 
 enable_testing()
-add_subdirectory(third_party/sqlite)
+add_subdirectory(foundation/system/sqlite)
 add_subdirectory(foundation/core/memory)
 add_subdirectory(src/diag)
 add_subdirectory(src/qiven3)

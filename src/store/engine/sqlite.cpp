@@ -19,7 +19,7 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/memory/pool.hpp"
-#include "sqlite3.h"
+#include "qiven/sqlite/sqlite3.h"
 #include "store/codes.hpp"
 #include "store/errors.hpp"
 

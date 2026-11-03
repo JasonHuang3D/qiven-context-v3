@@ -1,4 +1,4 @@
-# qiven3_store: the store, the one target that links qiven3_sqlite: its
+# qiven3_store: the store, the one target that links qiven_sqlite: its
 # contract, its typed errors, the engine's result codes mapped to them,
 # stage, the admit hook at its places, the store's own guards over the
 # keys, its order and the maximum, the in-memory reference store, and the SQLite store: exchange its export,
@@ -37,4 +37,4 @@ add_library(qiven3_store STATIC
   values.hpp
 )
 target_include_directories(qiven3_store PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_store PUBLIC qiven3_keys qiven3_base qiven_memory PRIVATE qiven_build qiven3_sqlite)
+target_link_libraries(qiven3_store PUBLIC qiven3_keys qiven3_base qiven_memory PRIVATE qiven_build qiven_sqlite)

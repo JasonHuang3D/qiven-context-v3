@@ -15,7 +15,7 @@ does not know, or a layer or a name not its directory's, is refused; so
 are two table files or two rows of one name, a row not in the table file
 of its name, a from or an of naming no row, a row's path holding no
 tracked file, given twice, or outside its table file's directory but in
-src/, tests/, third_party/, tools/ (the old places) and a whole-build
+src/, tests/, tools/ (the old places) and a whole-build
 row's root files, a path of the root module.json's rows not the
 repository's own at its root (whole-build rows alone: a file there or a
 directory of no tree), a row's path in the old places outside its table

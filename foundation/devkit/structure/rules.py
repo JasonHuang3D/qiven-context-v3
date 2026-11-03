@@ -25,7 +25,7 @@ from foundation.devkit.structure.records import Records, command_include_dirs
 from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
 
 ROOT = Path(__file__).resolve().parents[3]
-VENDORED = "third_party/sqlite/sqlite3.c"
+VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 STRUCTURE = "foundation/devkit/structure/"
 # The runner's directory, from the table: its headers every case includes.
 RUNNER = layers.of(ROOT).directory("runner")
@@ -114,7 +114,7 @@ PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
-    "B1": ("src/store/engine/", "third_party/sqlite/", "qiven3_store"),
+    "B1": ("src/store/engine/", *layers.VENDORED, "qiven3_store"),
     "B2": ("src/platform/win/process.",),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
@@ -136,6 +136,10 @@ STATED = {
                                                              "contract, the vendored header",
     ("B1", "foundation/system/sqlite/module.json", "sqlite3"): "that module's table file, whose contract is the "
                                                                "vendored header's path",
+    ("B1", "foundation/system/sqlite/CMakeLists.txt", "sqlite3"): "that module's build file, its one target over "
+                                                                  "the vendored source and header",
+    ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
+                                                                 "files' version, source, digests and options",
     ("B1", "foundation/devkit/build/build.cmake", "sqlite3"): "the build's pin of the vendored source's and header's "
                                                               "digests, and its language note on that source",
     ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
@@ -197,7 +201,7 @@ B12_LINKS = ("qiven3_forget", "qiven3_backup")
 B13_HEADERS = ("src/store/", "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.",
                "src/bundle/")
 B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven3_matcher", "qiven3_base"))
-B13_LINKS = ("qiven3_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
+B13_LINKS = ("qiven_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
 # Core logic: every product target but the adapters, current and the HAL's.
 NOT_CORE = ("src/platform/win/", "src/platform/current.", "src/hal/", "src/diag/")
@@ -209,7 +213,7 @@ NOT_CORE_TARGETS = frozenset(("qiven3_platform_win", "qiven3_platform_current", 
                               # qiven3-fault-crtdbg alone: their objects name that runtime, which the
                               # records do not read; the release copies are read.
                               "qiven_memory_crtdbg", "qiven3_base_crtdbg", "qiven3_log_crtdbg"))
-CORE_NAMED = frozenset(("qiven_build", "qiven3_sqlite", "qiven3_keys"))
+CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven3_keys"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("src/platform/current.hpp", "src/platform/win/windows.hpp",
                              "tests/support/fake_platform/fake_platform.hpp"))
@@ -531,8 +535,8 @@ def link_rules(records, out):
     mapcheck = {t for t, sources in owners.items() if any(under(s, ALLOWED["B16"]) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):
-            if dep == "qiven3_sqlite" and target != "qiven3_store":
-                out.add("B1", target, detail="links qiven3_sqlite")
+            if dep == "qiven_sqlite" and target != "qiven3_store":
+                out.add("B1", target, detail="links qiven_sqlite")
             if shapes.get(dep) == "septagon" and target not in child:
                 out.add("B5", target, detail=f"links the system library {dep}")
             if dep.lower().removesuffix(".lib") in NET_LIBS:

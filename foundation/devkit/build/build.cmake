@@ -155,23 +155,23 @@ if(Python3_EXECUTABLE)
   message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
 endif()
 
-# SQLite 3.53.4's amalgamation, vendored unchanged in third_party/sqlite/:
+# SQLite 3.53.4's amalgamation, vendored unchanged in foundation/system/sqlite/:
 # each file's SHA-256 checked on every configure, pinned or not, so that a
 # changed amalgamation never builds.
 set(QIVEN_SQLITE_SHA256
-  "sqlite3.c=b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189"
-  "sqlite3.h=919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d")
+  "src/sqlite3.c=b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189"
+  "include/qiven/sqlite/sqlite3.h=919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d")
 foreach(pin IN LISTS QIVEN_SQLITE_SHA256)
   string(REPLACE "=" ";" pin "${pin}")
   list(GET pin 0 qiven_file)
   list(GET pin 1 qiven_pinned)
-  set(qiven_path "${PROJECT_SOURCE_DIR}/third_party/sqlite/${qiven_file}")
+  set(qiven_path "${PROJECT_SOURCE_DIR}/foundation/system/sqlite/${qiven_file}")
   if(NOT EXISTS "${qiven_path}")
-    message(FATAL_ERROR "qiven3: third_party/sqlite/${qiven_file} is missing")
+    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} is missing")
   endif()
   file(SHA256 "${qiven_path}" qiven_digest)
   if(NOT qiven_digest STREQUAL qiven_pinned)
-    message(FATAL_ERROR "qiven3: third_party/sqlite/${qiven_file} has SHA-256 ${qiven_digest}; "
+    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} has SHA-256 ${qiven_digest}; "
       "the pin is ${qiven_pinned}")
   endif()
 endforeach()
@@ -363,7 +363,7 @@ endif()
 list(JOIN qiven_path_maps ", " qiven_maps_text)
 message(STATUS "qiven3: paths mapped: ${qiven_maps_text}")
 
-# Static analysis of v3's own sources, never third_party/, every finding an
+# Static analysis of v3's own sources, never a vendored file, every finding an
 # error under /WX. stack: C6262 alone, a frame past 4,096 bytes. analysis:
 # the Core Guidelines checker and its lifetime rules, then clang-tidy over
 # compile_commands.json (below). The rule sets list each rule turned off

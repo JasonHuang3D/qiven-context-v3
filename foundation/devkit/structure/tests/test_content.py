@@ -99,7 +99,7 @@ REFERENCE = re.compile(
     r"|(?i:\xa7|&sect;)\s*\d"
     r"|" + _TOKEN + r"(?:\d{2}[A-D]\d{1,2}|(?<!noqa: )F\d{1,3})" + _END)
 REFERENCE_FINDING = "a ruling's or section's number"
-VENDORED_TREE = "third_party/"
+VENDORED = rules.layers.VENDORED  # tools/trees.json's vendored: the vendored files, not their module's
 
 
 def private_names():
@@ -216,7 +216,7 @@ def content_findings(root, files, paths, names=()):
         for pattern in PRIVATE:
             if pattern.search(text):
                 found.append((rel, "a name of the specification's repository"))
-        if not rel.startswith(VENDORED_TREE) and REFERENCE.search(text):
+        if rel not in VENDORED and REFERENCE.search(text):
             found.append((rel, REFERENCE_FINDING))
     return sorted(set(found))
 

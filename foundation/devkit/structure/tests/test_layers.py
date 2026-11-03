@@ -39,8 +39,8 @@ class Core(unittest.TestCase):
         runner = [rel for rel in files() if rel.startswith(rules.RUNNER) and rel.endswith(CXX)]
         self.assertGreaterEqual(len(runner), 4)
         self.assertEqual(TREE.layer(runner[0]), "devkit")
-        self.assertEqual(TREE.layer("third_party/sqlite/sqlite3.c"), "system")
-        for rel in (*runner, "third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h", "foundation/core/memory/tests/arena_test.cpp"):
+        self.assertEqual(TREE.layer("foundation/system/sqlite/src/sqlite3.c"), "system")
+        for rel in (*runner, "foundation/system/sqlite/src/sqlite3.c", "foundation/system/sqlite/include/qiven/sqlite/sqlite3.h", "foundation/core/memory/tests/arena_test.cpp"):
             with self.subTest(rel=rel):
                 self.assertFalse(rules.is_core(rel, TREE))
         self.assertTrue(rules.is_core("foundation/core/memory/src/arena.cpp", TREE))
