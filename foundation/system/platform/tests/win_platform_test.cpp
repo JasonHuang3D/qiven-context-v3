@@ -146,8 +146,9 @@ struct Pages {
 };
 
 // normcase's paths, as UTF-8, and their forms: '/' as '\', each letter by
-// the invariant lowercase, which leaves U+0130, U+01C5 and U+00DF and folds
-// U+03A3, U+FF21 and U+10400, beyond the BMP.
+// the invariant lowercase, which leaves the capital I with a dot, the
+// titlecase Dz with caron and the sharp s, and folds the capital sigma, the
+// fullwidth capital A and Deseret's long I, beyond the BMP.
 constexpr std::array<std::pair<std::string_view, std::string_view>, 9> normcase_forms{{
     {"C:/Users/ABC", "c:\\users\\abc"},
     {"D:\\\xc3\x84\\\xc3\x96x", "d:\\\xc3\xa4\\\xc3\xb6x"},

@@ -214,8 +214,8 @@ def resolve(including, name, tracked, roots=ROOTS, angle=False, homes=()):
     """The tracked file an #include "name" of the file including names, its
     .. steps taken, or None; an angle include from the roots alone. A file
     under the tests/ of a module directory, one of homes, resolves from that
-    directory's src/ after its own, as LAYERS.md §4 forbids src/ from
-    outside alone."""
+    directory's src/ after its own, as a module's shape in LAYERS.md
+    forbids src/ from outside alone."""
     under = test_path(including, homes)
     own = (including[:-len(under) - 1] + "/src",) if under and under != including else ()
     for base in (() if angle else (posixpath.dirname(including),) + own) + tuple(roots):

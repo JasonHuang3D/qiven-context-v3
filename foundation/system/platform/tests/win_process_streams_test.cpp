@@ -243,8 +243,9 @@ QIVEN_CASE(win_process, run) {
 
 // standard_output() to a pipe, the child's out under run: each character in
 // the ANSI code page's bytes, one '?' for a character it lacks, never a
-// look-alike, CRLF for LF. The text: 'a', U+00EB, U+4E2D, U+00A2, U+20AC,
-// U+E000 (a private-use character code page 936 maps), U+1F600 and LF.
+// look-alike, CRLF for LF. The text: 'a', e with a diaeresis, the CJK
+// character for middle, the cent and euro signs, the first private-use
+// character (code page 936 maps it), the grinning face past the BMP and LF.
 // The bytes pinned are code page 936's, this machine's; on another page
 // the 'a' first and the CRLF last alone. code_page() gives "cp<n>".
 QIVEN_CASE(win_process, standard_output) {
