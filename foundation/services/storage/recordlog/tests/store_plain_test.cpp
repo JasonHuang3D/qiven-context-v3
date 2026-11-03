@@ -45,7 +45,7 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/errors.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/memory.hpp"
 #include "qiven/recordlog/memory_state.hpp"
 #include "qiven/recordlog/sqlite_store.hpp"

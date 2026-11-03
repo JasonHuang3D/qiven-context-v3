@@ -17,7 +17,7 @@
 #include <system_error>
 
 #include "qiven/recordlog/codes.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/recordlog/errors.hpp"

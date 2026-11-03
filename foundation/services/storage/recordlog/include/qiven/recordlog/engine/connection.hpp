@@ -8,7 +8,9 @@
 // (B1). The two sit in the store's engine/ directories, where alone the
 // engine is named: this header in include/qiven/recordlog/engine/, sqlite.cpp
 // in src/engine/, whose analysis configuration lets the engine's variadic
-// configuration call pass (B22).
+// configuration call pass (B22). The store's own values beside it (its
+// settings table, the engine's least version, the busy wait, its operations'
+// names and site()) are sqlite_steps.hpp's.
 //
 // EngineHeap is the process's one engine heap: made over pages its maker
 // takes, it routes every allocation of the engine to a qiven::memory::Heap
@@ -30,7 +32,6 @@
 // its statements one; EngineHeap's heap shared, under its own lock, and
 // its slots under the engine's.
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -46,14 +47,6 @@ struct sqlite3_stmt;
 
 namespace qiven::recordlog::sqlite {
 
-// The engine's least version (STRICT, 3.37.0).
-inline constexpr int least_version = 3037000;
-// The busy wait, a connection's: 5 s; a purge's statements set 0.
-inline constexpr int busy_milliseconds = 5000;
-inline constexpr double busy_seconds = 5.0;
-// The operation open's errors name, and the public guard's.
-inline constexpr std::string_view open_name = "open";
-inline constexpr std::string_view guard_name = "guard";
 // The engine heap's connections: its bytes are the engine's budget, a
 // connection's, times these.
 inline constexpr std::size_t default_connections = 8;
@@ -68,16 +61,6 @@ inline constexpr std::size_t default_connections = 8;
 inline constexpr std::size_t page_size = 4096;
 inline constexpr std::size_t cache_slots = 483;
 inline constexpr std::size_t slots_reserve = 10;
-
-// A call's site: the operation and the store's path, with the busy wait's
-// seconds for StoreBusy.
-constexpr WhereView site(std::string_view operation, std::string_view path, double seconds = busy_seconds) noexcept {
-    WhereView at;
-    at.operation = operation;
-    at.path = path;
-    at.seconds = seconds;
-    return at;
-}
 
 // When a setting is written: on every connection, and read back; or on a
 // read-write one, a read-only one reading it back alone (journal_mode).
@@ -95,27 +78,6 @@ struct Setting {
 constexpr Setting setting(std::string_view name, std::string_view value, When when = When::every) noexcept {
     return Setting{qiven::memory::Inline<24>(name), qiven::memory::Inline<16>(value), when};
 }
-
-// SETTINGS, the table the store applies and a test compares with the
-// text's: page_size first, so that a new file takes it before WAL writes
-// its first page (on a file already made it changes nothing, and reads
-// back the file's own); journal_mode next, so that the rest apply in WAL;
-// busy_timeout as the wrapper sets it. The engine's build chooses none of
-// these: each holds on a connection by this table alone.
-inline constexpr std::array<Setting, 12> settings = {
-    setting("page_size", "4096"),
-    setting("journal_mode", "wal", When::read_write),
-    setting("synchronous", "2"),
-    setting("secure_delete", "1"),
-    setting("temp_store", "2"),
-    setting("foreign_keys", "1"),
-    setting("trusted_schema", "0"),
-    setting("cell_size_check", "1"),
-    setting("auto_vacuum", "0"),
-    setting("wal_autocheckpoint", "1000"),
-    setting("cache_size", "-2000"),
-    setting("busy_timeout", "5000"),
-};
 
 // The engine's version number, as the library gives it.
 [[nodiscard]] int engine_version() noexcept;

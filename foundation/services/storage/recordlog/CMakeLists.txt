@@ -16,23 +16,25 @@ target_include_directories(qiven_recordlog_keys INTERFACE "${CMAKE_CURRENT_SOURC
 # SQLite store: exchange its export, import and verify, through the
 # wrapper; src/engine/, a directory of its own with its own analysis
 # configuration, holds the engine's calls, src/engine/sqlite.cpp alone
-# including the engine's header and making its every call, its headers
-# in include/qiven/recordlog/engine/; sqlite_open.cpp runs the open steps
-# through its wrapper, sqlite_create.hpp create's making and undoing on
-# the platform, sqlite_write.cpp the writes, sqlite_read.cpp the reads;
+# including the engine's header and making its every call, its wrapper's
+# header include/qiven/recordlog/engine/connection.hpp; sqlite_steps.hpp
+# declares the store's settings, open steps, writes and reads through the
+# wrapper, sqlite_open.cpp runs the open steps, sqlite_create.hpp create's
+# making and undoing on the platform, sqlite_write.cpp the writes,
+# sqlite_read.cpp the reads;
 # src/sizes/, a directory of its own for its analysis configuration too,
 # reads a file's size.
 add_library(qiven_recordlog STATIC
   include/qiven/recordlog/codes.hpp
   include/qiven/recordlog/contract.hpp
   include/qiven/recordlog/engine/connection.hpp
-  include/qiven/recordlog/engine/sqlite.hpp
   include/qiven/recordlog/errors.hpp
   include/qiven/recordlog/exchange.hpp
   include/qiven/recordlog/memory.hpp
   include/qiven/recordlog/memory_exchange.hpp
   include/qiven/recordlog/memory_state.hpp
   include/qiven/recordlog/sqlite_create.hpp
+  include/qiven/recordlog/sqlite_steps.hpp
   include/qiven/recordlog/sqlite_store.hpp
   include/qiven/recordlog/sqlite_store_impl.hpp
   include/qiven/recordlog/stage.hpp

@@ -12,7 +12,7 @@
 #include <string_view>
 #include <system_error>
 
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 
 namespace qiven::recordlog::sqlite {
 

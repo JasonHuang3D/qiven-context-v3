@@ -1,9 +1,10 @@
 // sqlite: the engine's calls, all of them: the engine heap's allocator
 // and its installation with the page cache's slots, Connection and
 // Statement, and the mapping of every failing call by its extended code
-// (connection.hpp).
+// (connection.hpp); and the countdowns sqlite_steps.hpp declares, whose
+// busy wait and open's name it reads.
 
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/engine/connection.hpp"
 
 #include <algorithm>
 #include <array>
@@ -22,6 +23,7 @@
 #include "qiven/sqlite/sqlite3.h"
 #include "qiven/recordlog/codes.hpp"
 #include "qiven/recordlog/errors.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 
 namespace qiven::recordlog::sqlite {
 

@@ -35,7 +35,7 @@
 #include "driver/store_wire.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/recordlog/contract.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/sqlite_store.hpp"
 #include "support/checked/stores.hpp"

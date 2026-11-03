@@ -1,11 +1,12 @@
 #pragma once
 
-// sqlite: what the SQLite store runs through its connection wrapper and
-// engine heap (connection.hpp, which this header includes): the open steps,
-// the writes, the reads and the views over them. In the store's own
-// directory, sqlite_open.cpp holds the open steps, through the wrapper,
-// sqlite_write.cpp the writes, sqlite_read.cpp the reads; sqlite_store.hpp
-// the store itself, a template on the platform.
+// sqlite_steps: what the SQLite store runs through its connection wrapper
+// and engine heap (engine/connection.hpp, which this header includes): its
+// settings table, the engine's least version, the busy wait, its
+// operations' names and a call's site, the open steps, the writes, the
+// reads and the views over them. sqlite_open.cpp holds the open steps,
+// through the wrapper, sqlite_write.cpp the writes, sqlite_read.cpp the
+// reads; sqlite_store.hpp the store itself, a template on the platform.
 //
 // Allocations: on the engine heap alone (connection.hpp), and the open
 // steps' std::filesystem paths (presence, the checkout walk), which the
@@ -30,6 +31,46 @@
 #include "qiven/recordlog/errors.hpp"
 
 namespace qiven::recordlog::sqlite {
+
+// The engine's least version (STRICT, 3.37.0).
+inline constexpr int least_version = 3037000;
+// The busy wait, a connection's: 5 s; a purge's statements set 0.
+inline constexpr int busy_milliseconds = 5000;
+inline constexpr double busy_seconds = 5.0;
+// The operation open's errors name, and the public guard's.
+inline constexpr std::string_view open_name = "open";
+inline constexpr std::string_view guard_name = "guard";
+
+// A call's site: the operation and the store's path, with the busy wait's
+// seconds for StoreBusy.
+constexpr WhereView site(std::string_view operation, std::string_view path, double seconds = busy_seconds) noexcept {
+    WhereView at;
+    at.operation = operation;
+    at.path = path;
+    at.seconds = seconds;
+    return at;
+}
+
+// SETTINGS, the table the store applies and a test compares with the
+// text's: page_size first, so that a new file takes it before WAL writes
+// its first page (on a file already made it changes nothing, and reads
+// back the file's own); journal_mode next, so that the rest apply in WAL;
+// busy_timeout as the wrapper sets it. The engine's build chooses none of
+// these: each holds on a connection by this table alone.
+inline constexpr std::array<Setting, 12> settings = {
+    setting("page_size", "4096"),
+    setting("journal_mode", "wal", When::read_write),
+    setting("synchronous", "2"),
+    setting("secure_delete", "1"),
+    setting("temp_store", "2"),
+    setting("foreign_keys", "1"),
+    setting("trusted_schema", "0"),
+    setting("cell_size_check", "1"),
+    setting("auto_vacuum", "0"),
+    setting("wal_autocheckpoint", "1000"),
+    setting("cache_size", "-2000"),
+    setting("busy_timeout", "5000"),
+};
 
 // What open read: the meta rows, and the entry and body rows counted.
 struct Opened {

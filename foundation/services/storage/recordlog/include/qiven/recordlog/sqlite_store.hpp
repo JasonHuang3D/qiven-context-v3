@@ -1,7 +1,7 @@
 #pragma once
 
 // sqlite_store: the SQLite store, SQLiteStore<P, H, Rule>, on the platform,
-// the step hooks and its writes' default admit hook, over sqlite.hpp's
+// the step hooks and its writes' default admit hook, over sqlite_steps.hpp's
 // connection wrapper and open steps; and Engine<P>, the engine heap over
 // pages the platform gives, which its maker keeps past every store it opens.
 // The long members' bodies sit in sqlite_store_impl.hpp, which this header
@@ -68,7 +68,7 @@
 #include "qiven/text/canon.hpp"
 #include "qiven/recordlog/codes.hpp"
 #include "qiven/recordlog/contract.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/exchange.hpp"
 #include "qiven/recordlog/sqlite_create.hpp"
@@ -259,7 +259,7 @@ public:
         peak_ = 0;
         return stopped;
     }
-    // A cursor over this object's connection and pages (sqlite.hpp).
+    // A cursor over this object's connection and pages (sqlite_steps.hpp).
     sqlite::ScanView scan(const RangeView& range) {
         gate_.enter(Operation::scan, path_.view());
         return {gate_, connection_, pages_.bytes().first(operation_base), countdown_, path_.view(), range};

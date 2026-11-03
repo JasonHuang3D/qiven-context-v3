@@ -11,7 +11,7 @@
 
 #include "checked/cognition.hpp"
 #include "driver/store_wire.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/exchange.hpp"
 
 namespace qiven3::drive::wire {

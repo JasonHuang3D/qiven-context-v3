@@ -24,7 +24,7 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/contract.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "support/stores/sqlite_rig.hpp"
 
 using namespace qiven::test::sqlite_rig;

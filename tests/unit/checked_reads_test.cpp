@@ -40,7 +40,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/contract.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/memory.hpp"
 #include "support/checked/stores.hpp"

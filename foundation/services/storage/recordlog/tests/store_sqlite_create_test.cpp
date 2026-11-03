@@ -38,7 +38,7 @@
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/codes.hpp"
-#include "qiven/recordlog/engine/sqlite.hpp"
+#include "qiven/recordlog/sqlite_steps.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
