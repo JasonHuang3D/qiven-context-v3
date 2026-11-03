@@ -36,7 +36,6 @@
         "src/qiven3/CMakeLists.txt",
         "src/qiven3/digest.*",
         "src/qiven3/qiven3.*",
-        "src/qiven3/utc.hpp",
         "tests/unit/base.cmake",
         "tests/unit/constant_test.cpp",
         "tests/unit/digest_test.cpp",

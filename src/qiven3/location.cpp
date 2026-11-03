@@ -21,7 +21,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/utc.hpp"
+#include "qiven/time/utc.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::location {

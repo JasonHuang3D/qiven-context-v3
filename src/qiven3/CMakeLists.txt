@@ -1,11 +1,10 @@
-# qiven3_base: the format's names and versions, utc and digest, each until
-# it moves to its own module.
+# qiven3_base: the format's names and versions, and digest, each until it
+# moves to its own module.
 add_library(qiven3_base STATIC
   digest.cpp
   digest.hpp
   qiven3.cpp
   qiven3.hpp
-  utc.hpp
 )
 # digest's keys are templates on the platform's contract, its header alone,
 # reached by the contract's include directory: a binary that makes a key
@@ -27,5 +26,5 @@ add_library(qiven3_location STATIC
 )
 target_include_directories(qiven3_location PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_location
-  PUBLIC qiven3_store qiven3_entry qiven_platform qiven3_wire qiven_text qiven3_base qiven_memory
+  PUBLIC qiven3_store qiven3_entry qiven_platform qiven3_wire qiven_text qiven_time qiven3_base qiven_memory
   PRIVATE qiven_build)

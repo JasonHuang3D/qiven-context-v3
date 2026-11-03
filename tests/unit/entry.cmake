@@ -2,11 +2,11 @@ qiven3_add_cases(qiven3_unit_digest_fixtures LABELS fast fake
   SOURCES digest_fixtures_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures)
 
-# utc's cases: its vectors, L1's 8-hour shift through support/fixtures,
-# the zone tests/drive/test_utc.py sets by TZ, its budget and fault run.
+# utc over the entry's fixture: L1's 8-hour shift through support/fixtures;
+# utc's own cases are time's (foundation/core/time/tests/).
 qiven3_add_cases(qiven3_unit_utc LABELS fast fake
   SOURCES utc_test.cpp
-  LINK qiven_faults qiven3_fixtures)
+  LINK qiven_faults qiven_time qiven3_fixtures)
 
 # header's cases: A's refusals and the codes' order, the syntaxes, make and
 # line, stamp, evaluated by the compiler and again at run time over

@@ -43,13 +43,14 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/text/canon.hpp"
+#include "qiven/time/utc.hpp"
 #include "qiven3/digest.hpp"
-#include "qiven3/utc.hpp"
 
 namespace qiven3::entry::header {
 
 namespace canon = qiven::text::canon;
 namespace json = qiven::text::json;
+namespace utc = qiven::time::utc;
 
 // The codes, in the order check reads them.
 enum class Code : std::uint8_t {

@@ -20,7 +20,7 @@
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/text/canon.hpp"
-#include "qiven3/utc.hpp"
+#include "qiven/time/utc.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -28,7 +28,7 @@ namespace {
 namespace header = qiven3::entry::header;
 namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
-namespace utc = qiven3::utc;
+namespace utc = qiven::time::utc;
 using header::Code;
 using header::FieldsView;
 using header::Slot;

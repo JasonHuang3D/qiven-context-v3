@@ -5,11 +5,20 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/qiven3/utc.hpp",
+  "contract": "foundation/core/time/include/qiven/time/utc.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
-  "present": [],
-  "from": [
-    "base"
+  "present": [
+    {
+      "name": "time",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/time/"
+      ]
+    }
   ]
 }

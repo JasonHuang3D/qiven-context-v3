@@ -1,4 +1,4 @@
-"""utc reads no time zone: qiven3_unit_utc's cases, each run as a process
+"""utc reads no time zone: qiven_time_test's cases, each run as a process
 under TZ CST-8 and again under TZ UTC0, pass under both, and the zone case
 reports the C runtime's local offset, 28,800 seconds and 0, so the zone
 was the process's while the vectors gave the same results. The fault run
@@ -12,7 +12,7 @@ import unittest
 from tests import SKIP_CODE
 from tests.drive import binaries
 
-CASES = "qiven3_unit_utc"
+CASES = "qiven_time_test"
 # Each zone and the offset from UTC, in seconds, it gives the C runtime.
 ZONES = {"CST-8": 28800, "UTC0": 0}
 

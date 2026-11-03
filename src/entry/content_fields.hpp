@@ -50,13 +50,14 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/text/canon.hpp"
 #include "qiven/text/utf.hpp"
-#include "qiven3/utc.hpp"
+#include "qiven/time/utc.hpp"
 
 namespace qiven3::entry::content {
 
 namespace canon = qiven::text::canon;
 namespace json = qiven::text::json;
 namespace utf = qiven::text::utf;
+namespace utc = qiven::time::utc;
 
 // The codes, in the table's order: the first decides.
 enum class Code : std::uint8_t {

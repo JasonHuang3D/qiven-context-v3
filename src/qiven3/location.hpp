@@ -69,12 +69,13 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/utc.hpp"
+#include "qiven/time/utc.hpp"
 #include "store/errors.hpp"
 #include "store/contract.hpp"
 
 namespace qiven3::location {
 
+namespace utc = qiven::time::utc;
 using qiven::memory::String;
 
 // The text's names: the record, its lock, the store's file.

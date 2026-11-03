@@ -1,6 +1,6 @@
 #pragma once
 
-// utc: an entry's `at` and a date, read and printed. An `at` is
+// utc: a time as its `at`, and a date, read and printed. An `at` is
 // YYYY-MM-DDTHH:MM:SS.mmmZ, 24 ASCII characters: a real date by
 // std::chrono's year_month_day, its year from 1, since std::chrono has a
 // year 0 and the text none; hours to 23, minutes and seconds to 59, no leap
@@ -25,7 +25,7 @@
 #include <string_view>
 #include <utility>
 
-namespace qiven3::utc {
+namespace qiven::time::utc {
 
 // UTC, milliseconds since 1970: the platform's now().
 using Millis = std::chrono::sys_time<std::chrono::milliseconds>;
@@ -183,4 +183,4 @@ template <typename S>
     return true;
 }
 
-}  // namespace qiven3::utc
+}  // namespace qiven::time::utc
