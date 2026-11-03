@@ -523,8 +523,8 @@ def config_rules(root, files, add):
 def in_scope(rel, tree):
     """Whether B19 to B31 hold in rel, by the tree's table (layers.Layers):
     a library's file of core to products, a file of the test kit, or one of
-    tests/support/; a vendor's never."""
-    return not rel.startswith(layers.VENDORED) and (
+    tests/support/; a vendored file never."""
+    return rel not in layers.VENDORED and (
         tree.library(rel) or rel.startswith(layers.KIT) or tree.as_tests(rel).startswith(layers.SUPPORT))
 
 

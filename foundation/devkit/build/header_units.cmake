@@ -188,7 +188,7 @@ endfunction()
 # qiven3_header_units(<root> <out>): the units of tests/support/headers/ of
 # the checkout at root, one for each header of a suffix of
 # qiven3_header_suffixes the analysis reads (under an analysed root or a
-# layer's tree) that has no source of its own, so that the analysis reads it
+# layer's tree, no vendored file) that has no source of its own, so that the analysis reads it
 # whatever includes it: an own source stands in for a unit where its target
 # compiles it (qiven3_listed) and it includes its header (qiven3_includes).
 # An error names each such header with no unit, two headers of one unit, a

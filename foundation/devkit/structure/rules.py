@@ -320,7 +320,7 @@ def source_rules(root, files, out):
         data = (root / rel).read_bytes()
         name = rel.rsplit("/", 1)[-1]
         if name.endswith((*CXX_SOURCES, ".py", ".cmake")) or name == "CMakeLists.txt":
-            if line_count(data) > 600 and not rel.startswith(layers.VENDORED):
+            if line_count(data) > 600 and rel not in layers.VENDORED:
                 out.add("B15", rel, detail=f"{line_count(data)} lines")
         found = B32_BYTES.search(data) if is_text(rel, attributes) else None
         if found:

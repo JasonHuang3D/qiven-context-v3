@@ -19,7 +19,7 @@ SOURCES, HEADERS, CXX = MODULES["SOURCE_SUFFIXES"], MODULES["HEADER_SUFFIXES"], 
 LINKED = tuple(MODULES["ORDER"])  # the link graph's layers, devkit first
 CORE = LINKED[1:]  # core logic's layers: the link graph's but devkit, layer 0, linked into tests alone
 KIT = MODULES["KIT"]  # the test kit's table files
-VENDORED = MODULES["VENDORED"]  # a vendor's sources
+VENDORED = MODULES["VENDORED"]  # a vendor's own files, tools/trees.json's vendored; not their module's other files
 TESTS = f"{MODULES['TESTS']}/"  # the top-level test tree
 SUPPORT = f"{MODULES['TREE_FILE']['support']}/"  # the tests' shared support, in the subset with the libraries
 CHILD = f"{MODULES['TREE_FILE']['child']}/"  # the test tree's child processes
@@ -36,8 +36,8 @@ def walked(rel):
 def layered(rel):
     """Whether rel is of the layers' code or test code, by where it lies, so
     that a file of no row and a tool's test stay in, and a module keeps its
-    place as it moves: a walked tree's but the tools' and a vendor's."""
-    return walked(rel) and not rel.startswith((TOOLS, VENDORED))
+    place as it moves: a walked tree's but the tools' and a vendored file."""
+    return walked(rel) and not rel.startswith(TOOLS) and rel not in VENDORED
 
 
 class Layers:
@@ -68,7 +68,10 @@ class Layers:
     def analysed(self, rel):
         """Whether the analysis reads rel, as trees.cmake's qiven3_analysed
         rules: under an analysed root, as it stands or as the top-level
-        tests/ would hold it, or under a layer's tree and no test code."""
+        tests/ would hold it, or under a layer's tree and no test code; never
+        a vendored file."""
+        if rel in VENDORED:
+            return False
         test = MODULES["test_path"](rel, self.dirs)
         return any(where.startswith(root) for where in (rel, test or "") for root in ANALYSED) or (
             test is None and rel.startswith(LAYER_TREES))
@@ -85,8 +88,8 @@ class Layers:
 
     def library(self, rel):
         """Whether rel is a library's file of the link graph's core logic
-        layers: core to products, neither test code nor a vendor's."""
-        return (rel is not None and not rel.startswith(VENDORED) and not self.test_code(rel)
+        layers: core to products, neither test code nor a vendored file."""
+        return (rel is not None and rel not in VENDORED and not self.test_code(rel)
                 and self.layer(rel) in CORE)
 
 

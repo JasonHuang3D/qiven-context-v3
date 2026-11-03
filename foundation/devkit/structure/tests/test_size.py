@@ -1,6 +1,6 @@
 """B15: no .hpp, .cpp, .py or CMake file over 600 lines, its LFs and one
-unended line counted; third_party/sqlite/sqlite3.c, the one vendored file,
-is outside the count. Over every file of the checkout.
+unended line counted; the vendored files, tools/trees.json's vendored, are
+outside the count. Over every file of the checkout.
 
 Read from the tree alone, by tree.py, no record, no build and no table, so
 that a long file is reported beside a broken table: this file imports
@@ -19,7 +19,7 @@ def size_findings(root):
     for rel in source_files(root):
         name = rel.rsplit("/", 1)[-1]
         counted = name.endswith((*layers.CXX, ".py", ".cmake")) or name == "CMakeLists.txt"
-        if counted and not rel.startswith(layers.VENDORED) and line_count((root / rel).read_bytes()) > BOUND:
+        if counted and rel not in layers.VENDORED and line_count((root / rel).read_bytes()) > BOUND:
             found.append(rel)
     return sorted(found)
 

@@ -8,8 +8,8 @@ transitively, covering its includes (each #include "..." resolved to the
 tracked file it names, from its directory, and each #include <qiven/...>
 or <qiven3/...> without it, from the build's include directories
 and each module directory's include/ under foundation/, kits/ and
-products/; one resolving to none refused but in third_party/, where they
-are counted on one line) and, given a configured build tree, its links
+products/; one resolving to none refused but in a vendored file, tools/trees.json's
+vendored, where they are counted on one line) and, given a configured build tree, its links
 (read from CMake's file API, the codemodel the root CMakeLists.txt asks
 for, an INTERFACE target's its CMakeLists.txt's when it has no source; the
 build's own not read): a library file's and target's by depends alone,
@@ -269,7 +269,7 @@ def check(table, files, read, targets=None, left=None):
             found, shown = resolve(f, name, tracked, roots, angle), f"<{name}>" if angle else f'"{name}"'
             if found is None:
                 line = data.count(b"\n", 0, match.start()) + 1
-                if not f.startswith(VENDORED):
+                if f not in VENDORED:
                     errors.append(f"include {f}:{line} {shown}: resolves to no tracked file")
                 elif left is not None:
                     left.append(f"{f}:{line} {shown}")
@@ -368,7 +368,7 @@ def main(argv):
         return 2
     for line in errors:
         print(f"modules: {line}")
-    print(f"vendored: {len(left)} includes in {VENDORED} left unresolved")
+    print(f"vendored: {len(left)} includes in {', '.join(VENDORED)} left unresolved")
     print(f"modules: {len(errors)} errors")
     return 1 if errors else 0
 

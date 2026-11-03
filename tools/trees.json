@@ -6,7 +6,7 @@
   "tests": "tests",
   "support": "tests/support",
   "child": "tests/child",
-  "vendored": "third_party",
+  "vendored": ["third_party/sqlite/sqlite3.c", "third_party/sqlite/sqlite3.h"],
   "tables": ["module.json", "tools/module.json"],
   "source_suffixes": [".c", ".cc", ".cpp", ".cxx"],
   "header_suffixes": [".h", ".hh", ".hpp", ".hxx", ".inc", ".inl", ".ipp", ".tpp"]

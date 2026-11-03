@@ -28,7 +28,7 @@ RESOLVE, INCLUDE_ROOTS = layers.MODULES["resolve"], layers.MODULES["include_root
 
 def read(rel, tree):
     """Whether K15 reads rel: a file of a link graph module's, not under the top-level tests/, not a vendor's."""
-    return tree.layer(rel) in layers.LINKED and not rel.startswith((layers.TESTS, layers.VENDORED))
+    return tree.layer(rel) in layers.LINKED and not rel.startswith(layers.TESTS) and rel not in layers.VENDORED
 
 
 def allowed(rel, tree):

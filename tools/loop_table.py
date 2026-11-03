@@ -43,7 +43,7 @@ TREE_FILE = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8
 TOPS = tuple(TREE_FILE["layers"])  # the trees whose every module.json is a table file
 TREES = (*TREE_FILE["walked"], *TOPS)  # the trees every check that walks the checkout walks
 TESTS = TREE_FILE["tests"]  # the top-level test tree, and the name of a module's own
-VENDORED = f"{TREE_FILE['vendored']}/"  # a vendor's source: its unresolved includes counted, not refused
+VENDORED = tuple(TREE_FILE["vendored"])  # a vendor's own files, not their module's: its unresolved includes counted, not refused
 TABLES = tuple(TREE_FILE["tables"])  # the table files outside the layers' trees
 # The C++ suffixes, named there once too: a source's, a header's, and either; every rule and walker's.
 SOURCE_SUFFIXES, HEADER_SUFFIXES = tuple(TREE_FILE["source_suffixes"]), tuple(TREE_FILE["header_suffixes"])

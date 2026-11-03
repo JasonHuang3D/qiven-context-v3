@@ -5,7 +5,8 @@
 # cmake -P with ROOT (the checkout) and SHOW (what to print).
 
 # qiven3_trees(<file>): qiven3_layers, qiven3_walked, qiven3_analysed,
-# qiven3_included, qiven3_tables, and the C++ suffixes qiven3_source_suffixes
+# qiven3_included, qiven3_vendored (the vendored files, which the analysis
+# never reads), qiven3_tables, and the C++ suffixes qiven3_source_suffixes
 # and qiven3_header_suffixes, its lists, in the caller's scope; with
 # qiven3_source_suffix and qiven3_header_suffix, the regular expressions
 # ending a path in one; qiven3_tests, the top-level test tree; and
@@ -13,7 +14,7 @@
 macro(qiven3_trees file)
   file(READ "${file}" qiven3_trees_text)
   string(JSON qiven3_tests GET "${qiven3_trees_text}" tests)
-  foreach(qiven3_key IN ITEMS layers walked analysed included tables source_suffixes header_suffixes)
+  foreach(qiven3_key IN ITEMS layers walked analysed included vendored tables source_suffixes header_suffixes)
     set(qiven3_${qiven3_key} "")
     string(JSON qiven3_count LENGTH "${qiven3_trees_text}" ${qiven3_key})
     math(EXPR qiven3_last "${qiven3_count} - 1")
@@ -190,9 +191,12 @@ endfunction()
 # path, from the root: under an analysed root, as it stands or as the
 # top-level tree would hold it, or under a layer's tree and no test code, a
 # module's own tests, which an analysed root names where the analysis reads
-# them.
+# them; never a vendored file (qiven3_vendored).
 function(qiven3_analysed path out)
   set(${out} FALSE PARENT_SCOPE)
+  if(path IN_LIST qiven3_vendored)
+    return()
+  endif()
   qiven3_test_path("${path}" test)
   foreach(root IN LISTS qiven3_analysed)
     qiven3_under("${path}" "${root}" under)
