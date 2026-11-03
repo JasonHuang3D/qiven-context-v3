@@ -138,13 +138,19 @@ Result factory_open(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     return id_value("store", keep(d, d.objects(), std::move(made), state));
 }
 
-// reopen, a static member on the in-memory factory, which is not durable.
+// reopen, a static member on the in-memory factory, which is not durable:
+// there it throws, and nothing follows it.
 template <class F>
 Result factory_reopen(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t state = integer(request, "state");
     F& factory = *named(d.states(), request, "state").object;
-    auto made = std::make_unique<typename F::Store>(factory.reopen());
-    return id_value("store", keep(d, d.objects(), std::move(made), state));
+    if constexpr (F::Store::capabilities.durable) {
+        auto made = std::make_unique<typename F::Store>(factory.reopen());
+        return id_value("store", keep(d, d.objects(), std::move(made), state));
+    } else {
+        (void)state;
+        (void)factory.reopen();
+    }
 }
 
 template <class F>

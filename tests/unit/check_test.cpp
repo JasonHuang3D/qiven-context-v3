@@ -253,7 +253,12 @@ constexpr bool holds(std::size_t i) {
     return w.admitted ? !f.has_value() : (f && f->part == w.part && f->code == w.code);
 }
 
+// A vector whose content the walk reads is no constant under MSVC's Debug
+// library (its storage allocated and not deallocated, the compiler says):
+// there it runs in check.vectors alone, as every vector does.
+#if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
 static_assert(holds(0));
+#endif
 static_assert(holds(1));
 static_assert(holds(2));
 static_assert(holds(3));
@@ -266,7 +271,9 @@ static_assert(holds(9));
 static_assert(holds(10));
 static_assert(holds(11));
 static_assert(holds(12));
+#if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
 static_assert(holds(13));
+#endif
 static_assert(holds(14));
 static_assert(holds(15));
 static_assert(holds(16));

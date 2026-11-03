@@ -78,9 +78,9 @@ QIVEN_CASE(refs, budget) {
     // A byte short of one compile's peak: MemoryError, nothing held.
     Arena& one = qiven_ctx.counted.arena(budget);
     CHECK(refs::check_subject("repo:qiven/src/x.py", Allocator<char>(one)));
-    const std::size_t peak = one.peak();
     CHECK_EQ(one.used(), 0U);
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
+    const std::size_t peak = one.peak();
     bool refused = false;
     try {
         Arena& shorter = qiven_ctx.counted.arena(peak - 1);

@@ -2,7 +2,8 @@
 // order, basis and scope leading even past an unknown field or with no
 // body, the admission test's presence, absence and statements, exact key
 // sets, expires after at, and when's faults, evaluated by the compiler on
-// std::allocator where no syntax is compiled; at run time when and pins
+// std::allocator where no syntax is compiled (under MSVC's Debug library
+// those the walk reads run in content.vectors); at run time when and pins
 // each fault its code, a lesson of 500 记 admitted and of 501 too_long,
 // the limits at their bounds, references and a map's object, the episode,
 // the kinds' rules, the size past 65,536 bytes, and every entry of
@@ -70,7 +71,6 @@ constexpr std::optional<ContentError> direction(std::string_view text, std::stri
 #define D_TAIL R"("subject":"entity:owner","words":"Keep the tests pinned.")"
 constexpr std::string_view d_ok = "{" ADMIT "," D_BAND "," D_TAIL "}";
 
-static_assert(!direction(d_ok).has_value());
 static_assert(content::name(Code::basis) == "basis" && content::name(Code::too_large) == "too_large");
 // basis and scope lead, an unknown field behind them, and with no body.
 static_assert(is(direction(d_ok, "claimed"), Code::basis, ""));
@@ -88,80 +88,93 @@ static_assert(is(verdict("check", "import", "observed", "person", R"({"method":"
                  Code::basis, ""));
 static_assert(is(verdict("check", "import", "derived", "person", R"({"method":"guess","result":"verified"})"),
                  Code::basis, ""));
-// A content that is no object.
-static_assert(is(direction("[]"), Code::type, ""));
-// unknown_field, then not_allowed: another kind's field, a common one this
-// kind does not carry.
-static_assert(is(direction("{" ADMIT "," D_BAND "," D_TAIL R"(,"zzz":1})"), Code::unknown_field, "zzz"));
-static_assert(is(direction("{" ADMIT R"(,"as_of":"2026-01-01",)" D_BAND "," D_TAIL "}"), Code::not_allowed, "as_of"));
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"claim":"x",)" D_TAIL "}"), Code::not_allowed, "claim"));
-static_assert(is(direction("{" ADMIT R"(,"as_of":"2026-01-01",)" D_BAND "," D_TAIL R"(,"zzz":1})"), Code::unknown_field,
-                 "zzz"));
-// A key of a shape alone is no kind's.
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"mistake":"x",)" D_TAIL "}"), Code::unknown_field, "mistake"));
-// missing, the common fields first; not_allowed before it.
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:owner"})"), Code::missing, "words"));
-static_assert(is(direction("{" ADMIT "," D_TAIL "}"), Code::missing, "band"));
-static_assert(is(direction(R"({"words":"w"})"), Code::missing, "subject"));
-static_assert(is(direction("{" ADMIT R"(,"as_of":"2026-01-01","subject":"entity:owner"})"), Code::not_allowed, "as_of"));
-// type, empty, syntax; missing before type, type before syntax.
-static_assert(is(direction("{" ADMIT R"(,"band":1,)" D_TAIL "}"), Code::type, "band"));
-static_assert(is(direction("{" ADMIT R"(,"band":1,"subject":"entity:owner"})"), Code::missing, "words"));
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:owner","words":""})"), Code::empty, "words"));
-static_assert(is(direction("{" ADMIT R"(,"band":"x",)" D_TAIL "}"), Code::syntax, "band"));
-static_assert(is(direction("{" ADMIT R"(,"band":"x","subject":"entity:owner","words":7})"), Code::type, "words"));
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"subject":"owner","words":"w"})"), Code::syntax, "subject"));
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:a b","words":"w"})"), Code::syntax, "subject"));
-// The admission test: required for import, its statements exact, not
-// empty, not blank, not equal; refused on an exempt kind.
-static_assert(is(direction("{" D_BAND "," D_TAIL "}"), Code::missing, "admit"));
-static_assert(is(direction(R"({"admit":{"mistake":"m"},)" D_BAND "," D_TAIL "}"), Code::missing, "admit.underivable"));
-static_assert(is(direction(R"({"admit":{"mistake":"m","underivable":"u","x":"y"},)" D_BAND "," D_TAIL "}"),
-                 Code::unknown_field, "admit.x"));
-static_assert(is(direction(R"({"admit":{"mistake":"","underivable":"u"},)" D_BAND "," D_TAIL "}"), Code::empty,
-                 "admit.mistake"));
-static_assert(is(direction(R"({"admit":{"mistake":" )" "\xe3\x80\x80" R"(","underivable":"u"},)" D_BAND "," D_TAIL "}"), Code::empty,
-                 "admit.mistake"));
-static_assert(is(direction(R"({"admit":{"mistake":"same","underivable":"same"},)" D_BAND "," D_TAIL "}"),
-                 Code::repeated, "admit"));
-static_assert(is(direction(R"({"admit":["m"],)" D_BAND "," D_TAIL "}"), Code::type, "admit"));
-static_assert(is(verdict("retire", "import", "claimed", "person", R"({"admit":{"mistake":"m","underivable":"u"},)"
-                                                                  R"("reason":"r"})"),
-                 Code::not_allowed, "admit"));
-// expires later than the header's at; a time of the at's syntax.
-static_assert(!direction("{" ADMIT "," D_BAND R"(,"expires":"2026-10-17T09:30:00.001Z",)" D_TAIL "}").has_value());
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"expires":")" AT R"(",)" D_TAIL "}"), Code::syntax, "expires"));
-static_assert(is(direction("{" ADMIT "," D_BAND R"(,"expires":"2026-10-17",)" D_TAIL "}"), Code::syntax, "expires"));
-// when: exact keys, a time, a quality of the four.
+
+// A content the walk reads is no constant under MSVC's Debug library (its
+// storage allocated and not deallocated, the compiler says): each vector
+// below is a static_assert, and there a check of content.vectors.
+#if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
+#define CONSTANT(...) static_assert(__VA_ARGS__)
+#else
+#define CONSTANT(...) CHECK(__VA_ARGS__)
+#endif
+
+void walked([[maybe_unused]] qiven::runner::Context& qiven_ctx) {
+    CONSTANT(!direction(d_ok).has_value());
+    // A content that is no object.
+    CONSTANT(is(direction("[]"), Code::type, ""));
+    // unknown_field, then not_allowed: another kind's field, a common one this
+    // kind does not carry.
+    CONSTANT(is(direction("{" ADMIT "," D_BAND "," D_TAIL R"(,"zzz":1})"), Code::unknown_field, "zzz"));
+    CONSTANT(is(direction("{" ADMIT R"(,"as_of":"2026-01-01",)" D_BAND "," D_TAIL "}"), Code::not_allowed, "as_of"));
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"claim":"x",)" D_TAIL "}"), Code::not_allowed, "claim"));
+    CONSTANT(is(direction("{" ADMIT R"(,"as_of":"2026-01-01",)" D_BAND "," D_TAIL R"(,"zzz":1})"), Code::unknown_field,
+                "zzz"));
+    // A key of a shape alone is no kind's.
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"mistake":"x",)" D_TAIL "}"), Code::unknown_field, "mistake"));
+    // missing, the common fields first; not_allowed before it.
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:owner"})"), Code::missing, "words"));
+    CONSTANT(is(direction("{" ADMIT "," D_TAIL "}"), Code::missing, "band"));
+    CONSTANT(is(direction(R"({"words":"w"})"), Code::missing, "subject"));
+    CONSTANT(is(direction("{" ADMIT R"(,"as_of":"2026-01-01","subject":"entity:owner"})"), Code::not_allowed, "as_of"));
+    // type, empty, syntax; missing before type, type before syntax.
+    CONSTANT(is(direction("{" ADMIT R"(,"band":1,)" D_TAIL "}"), Code::type, "band"));
+    CONSTANT(is(direction("{" ADMIT R"(,"band":1,"subject":"entity:owner"})"), Code::missing, "words"));
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:owner","words":""})"), Code::empty, "words"));
+    CONSTANT(is(direction("{" ADMIT R"(,"band":"x",)" D_TAIL "}"), Code::syntax, "band"));
+    CONSTANT(is(direction("{" ADMIT R"(,"band":"x","subject":"entity:owner","words":7})"), Code::type, "words"));
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"subject":"owner","words":"w"})"), Code::syntax, "subject"));
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"subject":"entity:a b","words":"w"})"), Code::syntax, "subject"));
+    // The admission test: required for import, its statements exact, not
+    // empty, not blank, not equal; refused on an exempt kind.
+    CONSTANT(is(direction("{" D_BAND "," D_TAIL "}"), Code::missing, "admit"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":"m"},)" D_BAND "," D_TAIL "}"), Code::missing, "admit.underivable"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":"m","underivable":"u","x":"y"},)" D_BAND "," D_TAIL "}"),
+                Code::unknown_field, "admit.x"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":"","underivable":"u"},)" D_BAND "," D_TAIL "}"), Code::empty,
+                "admit.mistake"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":" )" "\xe3\x80\x80" R"(","underivable":"u"},)" D_BAND "," D_TAIL "}"), Code::empty,
+                "admit.mistake"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":"same","underivable":"same"},)" D_BAND "," D_TAIL "}"),
+                Code::repeated, "admit"));
+    CONSTANT(is(direction(R"({"admit":["m"],)" D_BAND "," D_TAIL "}"), Code::type, "admit"));
+    CONSTANT(is(verdict("retire", "import", "claimed", "person", R"({"admit":{"mistake":"m","underivable":"u"},)"
+                                                                 R"("reason":"r"})"),
+                Code::not_allowed, "admit"));
+    // expires later than the header's at; a time of the at's syntax.
+    CONSTANT(!direction("{" ADMIT "," D_BAND R"(,"expires":"2026-10-17T09:30:00.001Z",)" D_TAIL "}").has_value());
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"expires":")" AT R"(",)" D_TAIL "}"), Code::syntax, "expires"));
+    CONSTANT(is(direction("{" ADMIT "," D_BAND R"(,"expires":"2026-10-17",)" D_TAIL "}"), Code::syntax, "expires"));
+    // when: exact keys, a time, a quality of the four.
 #define WHEN(x) "{" ADMIT "," D_BAND R"(,"subject":"entity:owner","when":)" x R"(,"words":"w"})"
-static_assert(!direction(WHEN(R"({"quality":"anchored","time":"2026-10-17T05:00:00.000Z"})")).has_value());
-static_assert(is(direction(WHEN(R"({"quality":"guess","time":")" AT R"("})")), Code::syntax, "when.quality"));
-static_assert(is(direction(WHEN(R"({"quality":"exact","time":"2026-10-17T13:00:00+08:00"})")), Code::syntax,
-                 "when.time"));
-static_assert(is(direction(WHEN(R"({"time":")" AT R"("})")), Code::missing, "when.quality"));
-static_assert(is(direction(WHEN(R"({"quality":"exact","time":")" AT R"(","zone":"+08:00"})")), Code::unknown_field,
-                 "when.zone"));
-static_assert(is(direction(WHEN(R"({"quality":1,"time":")" AT R"("})")), Code::type, "when.quality"));
-static_assert(is(direction(WHEN(R"("2026-10-17")")), Code::type, "when"));
-// applies_to: each key optional, environment at most 8.
-static_assert(!direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":["linux"]},)" D_BAND
-                         "," D_TAIL "}")
-                   .has_value());
-static_assert(is(direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":)"
-                           R"(["1","2","3","4","5","6","7","8","9"]},)" D_BAND "," D_TAIL "}"),
-                 Code::too_many, "applies_to.environment"));
-static_assert(is(direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":[]},)" D_BAND
-                           "," D_TAIL "}"),
-                 Code::empty, "applies_to.environment"));
-// An account carries as_of, a real date.
-static_assert(is(verdict("account", "import", "owner-words", "person", "{" ADMIT "," D_BAND "," D_TAIL "}"),
-                 Code::missing, "as_of"));
-static_assert(is(verdict("account", "import", "owner-words", "person",
-                         "{" ADMIT R"(,"as_of":"2026-02-30",)" D_BAND "," D_TAIL "}"),
-                 Code::syntax, "as_of"));
-static_assert(!verdict("account", "import", "owner-words", "person", "{" ADMIT R"(,"as_of":"2024-02-29",)" D_BAND
-                                                                      "," D_TAIL "}")
-                   .has_value());
+    CONSTANT(!direction(WHEN(R"({"quality":"anchored","time":"2026-10-17T05:00:00.000Z"})")).has_value());
+    CONSTANT(is(direction(WHEN(R"({"quality":"guess","time":")" AT R"("})")), Code::syntax, "when.quality"));
+    CONSTANT(is(direction(WHEN(R"({"quality":"exact","time":"2026-10-17T13:00:00+08:00"})")), Code::syntax,
+                "when.time"));
+    CONSTANT(is(direction(WHEN(R"({"time":")" AT R"("})")), Code::missing, "when.quality"));
+    CONSTANT(is(direction(WHEN(R"({"quality":"exact","time":")" AT R"(","zone":"+08:00"})")), Code::unknown_field,
+                "when.zone"));
+    CONSTANT(is(direction(WHEN(R"({"quality":1,"time":")" AT R"("})")), Code::type, "when.quality"));
+    CONSTANT(is(direction(WHEN(R"("2026-10-17")")), Code::type, "when"));
+    // applies_to: each key optional, environment at most 8.
+    CONSTANT(!direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":["linux"]},)" D_BAND
+                        "," D_TAIL "}")
+                  .has_value());
+    CONSTANT(is(direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":)"
+                          R"(["1","2","3","4","5","6","7","8","9"]},)" D_BAND "," D_TAIL "}"),
+                Code::too_many, "applies_to.environment"));
+    CONSTANT(is(direction(R"({"admit":{"mistake":"m","underivable":"u"},"applies_to":{"environment":[]},)" D_BAND
+                          "," D_TAIL "}"),
+                Code::empty, "applies_to.environment"));
+    // An account carries as_of, a real date.
+    CONSTANT(is(verdict("account", "import", "owner-words", "person", "{" ADMIT "," D_BAND "," D_TAIL "}"),
+                Code::missing, "as_of"));
+    CONSTANT(is(verdict("account", "import", "owner-words", "person",
+                        "{" ADMIT R"(,"as_of":"2026-02-30",)" D_BAND "," D_TAIL "}"),
+                Code::syntax, "as_of"));
+    CONSTANT(!verdict("account", "import", "owner-words", "person", "{" ADMIT R"(,"as_of":"2024-02-29",)" D_BAND
+                                                                     "," D_TAIL "}")
+                  .has_value());
+}
 
 }  // namespace
 
@@ -459,6 +472,7 @@ std::optional<ContentError> run(const Vector& t) {
 }  // namespace
 
 QIVEN_CASE(content, vectors) {
+    walked(qiven_ctx);
     std::size_t passed = 0;
     std::size_t refused = 0;
     const std::vector<Vector> all = vectors();

@@ -51,7 +51,7 @@ template <class F, class S>
 void verified(qiven::runner::Context& qiven_ctx, F& f, S& store, std::uint64_t entries) {
     CHECK_EQ(store.verify().entries, entries);
     (void)store.close();
-    if (!stores::lacking<F>(stores::durable)) {
+    if constexpr (F::Store::capabilities.durable) {
         const auto back = std::make_unique<typename F::Store>(f.reopen());
         CHECK_EQ(back->verify().entries, entries);
         (void)back->close();
@@ -62,7 +62,7 @@ void verified(qiven::runner::Context& qiven_ctx, F& f, S& store, std::uint64_t e
 // and a reopened object in its place before the reads.
 template <class F>
 void reopened(F& f, std::unique_ptr<typename F::Store>& store) {
-    if (!stores::lacking<F>(stores::durable)) {
+    if constexpr (F::Store::capabilities.durable) {
         (void)store->close();
         store = std::make_unique<typename F::Store>(f.reopen());
     }
