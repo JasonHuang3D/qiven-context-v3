@@ -97,8 +97,11 @@ QIVEN_CASE(win_process, read_line_timeout) {
 }
 
 // Past each cap: output naming its stream alone, from read_line, wait and
-// write, the tree killed (run ends long before the child's sleep); at the
-// cap whole. kill() stops the reason.
+// write; kill() stops the reason. The tree killed by the cap itself, no
+// kill() first: a `tree` child begun by start, flooding the stream past
+// caps of 4096 once given "go", is gone with its grandchild, though each
+// would sleep 60 s; run ends long before the flood's sleep. At the cap
+// whole.
 QIVEN_CASE(win_process, caps) {
     CHECK(holds_word("out", "out") && holds_word("the (out) cap", "out") && holds_word("x out", "out"));
     CHECK(!holds_word("stdout", "out") && !holds_word("out_", "out") && !holds_word("err0 errs", "err"));
@@ -120,6 +123,28 @@ QIVEN_CASE(win_process, caps) {
             CHECK(names(thrown([&] { child.write("x"); }), stream));
             child.kill();
             CHECK_EQ(child.wait(Seconds(5.0)), 1);
+
+            {
+                ChildView run_tree({"tree", "60000", std::string(stream), "100000"}, Seconds(60.0), Caps{4096, 4096});
+                WindowsChild tree = platform.start(run_tree.command);
+                REQUIRE(tree.read_line(Seconds(30.0), line));
+                REQUIRE(line.starts_with("grandchild "));
+                const std::string grandchild = std::string(line).substr(line.find(' ') + 1);
+                REQUIRE(tree.read_line(Seconds(30.0), line));
+                REQUIRE(line.starts_with("pid "));
+                const std::string own = std::string(line).substr(line.find(' ') + 1);
+                tree.write("go\n");
+                CHECK(names(thrown([&] {
+                          while (tree.read_line(Seconds(30.0), line)) {
+                          }
+                      }),
+                      stream));
+                CHECK(names(thrown([&] { static_cast<void>(tree.wait(Seconds(5.0))); }), stream));
+                CHECK_EQ(gone(platform, line, grandchild, 1000), std::string("gone\n"));
+                CHECK_EQ(gone(platform, line, own, 1000), std::string("gone\n"));
+                tree.kill();
+                CHECK_EQ(tree.wait(Seconds(5.0)), 1);
+            }
 
             Ran ran(arena);
             const Clock::time_point start = Clock::now();
