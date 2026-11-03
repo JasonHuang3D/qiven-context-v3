@@ -30,7 +30,10 @@
         "faults"
       ],
       "paths": [
-        "foundation/system/platform/"
+        "foundation/system/platform/CMakeLists.txt",
+        "foundation/system/platform/include/",
+        "foundation/system/platform/src/",
+        "foundation/system/platform/tests/"
       ]
     }
   ]
