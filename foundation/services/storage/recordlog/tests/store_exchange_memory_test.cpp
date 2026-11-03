@@ -34,7 +34,7 @@ QIVEN_CASE(store_exchange, budget) {
         }
         const Chars c = b->caller();
         const Ran r = s.run(*b, c);
-        const sqlite::Slots slots = b->engine->slots();
+        const qiven::storage_sqlite::Slots slots = b->engine->slots();
         const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
         const std::size_t engine_within = qiven::recordlog::engine_budget * (s.side == Side::exporting ? 2U : 1U);
         CHECK(r.own <= own_bytes);

@@ -12,7 +12,7 @@ TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
 # Where core logic was read: src/, and memory's, matcher's, text's, time's, digest's, format's, compute's,
 # platform's and recordlog's library code, in src/ until their moves (compute's fake and platform's, each a
-# library's since its move from tests/support/, with them).
+# library's since its move from tests/support/, with them), and storage_sqlite's, recordlog's until its move.
 OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/",
            "foundation/core/matcher/include/", "foundation/core/matcher/src/",
            "foundation/core/text/include/", "foundation/core/text/src/", "foundation/core/time/include/",
@@ -20,7 +20,8 @@ OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/sr
            "products/qiven3/format/include/", "products/qiven3/format/src/",
            "foundation/services/compute/include/", "foundation/services/compute/src/",
            "foundation/system/platform/include/", "foundation/system/platform/src/",
-           "foundation/services/storage/recordlog/include/", "foundation/services/storage/recordlog/src/")
+           "foundation/services/storage/recordlog/include/", "foundation/services/storage/recordlog/src/",
+           "foundation/services/storage/sqlite/include/", "foundation/services/storage/sqlite/src/")
 
 
 def files():

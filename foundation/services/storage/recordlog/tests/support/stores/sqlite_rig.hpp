@@ -25,6 +25,7 @@ namespace qiven::test::sqlite_rig {
 
 namespace fs = std::filesystem;
 namespace sqlite = qiven::recordlog::sqlite;
+namespace storage_sqlite = qiven::storage_sqlite;
 using qiven::memory::Arena;
 using qiven::memory::String;
 using qiven::recordlog::StoreError;
@@ -71,7 +72,7 @@ struct Rig {
         return c;
     }
     // A fresh engine heap: every connection on the last closed first.
-    void fresh_engine(std::size_t connections = sqlite::default_connections) {
+    void fresh_engine(std::size_t connections = storage_sqlite::default_connections) {
         engine.reset();
         engine = std::make_unique<Engine>(fake, connections);
     }
@@ -113,7 +114,7 @@ std::string raised(const F& f) {
 struct Held {
     std::size_t used = 0;
     std::size_t peak = 0;
-    sqlite::Slots slots;
+    storage_sqlite::Slots slots;
     // The slots' bytes held and their mark; the connection's peak, the
     // heap's and the slots' marks together.
     [[nodiscard]] std::size_t in_slots() const { return slots.used * slots.size; }

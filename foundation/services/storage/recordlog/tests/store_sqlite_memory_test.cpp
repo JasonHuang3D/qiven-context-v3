@@ -36,7 +36,7 @@ QIVEN_CASE(store_sqlite, budget) {
         const std::size_t opened = b->engine->heap().peak();
         const Chars c = b->caller();
         const Ran r = s.run(*b, c);
-        const qiven::recordlog::sqlite::Slots slots = b->engine->slots();
+        const qiven::storage_sqlite::Slots slots = b->engine->slots();
         const std::size_t engine = b->engine->heap().peak() + (slots.peak * slots.size);
         const std::size_t within = budget(*b, s);
         const std::size_t engine_within = qiven::recordlog::engine_budget * (s.connections == 0 ? 1 : s.connections);

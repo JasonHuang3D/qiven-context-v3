@@ -1,8 +1,8 @@
 #pragma once
 
 // exchange: the SQLite store's export, import and verify, run through the
-// connection wrapper (engine/connection.hpp), so that it neither includes the
-// engine's header nor names the engine.
+// store's connection over the wrapper (sqlite_connection.hpp), so that it
+// neither includes the engine's header nor names the engine.
 //
 // Export: a connection of its own on the store's file, read-only (connect,
 // identify, the settings), in one read transaction whose first read, at

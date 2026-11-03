@@ -1,7 +1,7 @@
 #pragma once
 
 // sqlite_steps: what the SQLite store runs through its connection wrapper
-// and engine heap (engine/connection.hpp, which this header includes): its
+// and engine heap (sqlite_connection.hpp, which this header includes): its
 // settings table, the engine's least version, the busy wait, its
 // operations' names and a call's site, the open steps, the writes, the
 // reads and the views over them. sqlite_open.cpp holds the open steps,
@@ -27,7 +27,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/recordlog/codes.hpp"
 #include "qiven/recordlog/contract.hpp"
-#include "qiven/recordlog/engine/connection.hpp"
+#include "qiven/recordlog/sqlite_connection.hpp"
 #include "qiven/recordlog/errors.hpp"
 
 namespace qiven::recordlog::sqlite {
@@ -146,7 +146,8 @@ using Countdown = qiven::memory::Countdown;
 // maps asks first, a failed one taking SQLITE_IOERR as its result, the
 // engine not called; and arenas, which a store object made while it is
 // attached takes for its arenas, open's and the guard's among them. None,
-// nullptr.
+// nullptr. sqlite_connection.cpp holds them, calls given on to the
+// wrapper's attach_calls.
 void attach_calls(Countdown* calls, Countdown* arenas) noexcept;
 [[nodiscard]] Countdown* arenas_countdown() noexcept;
 #else

@@ -1,5 +1,5 @@
 // sqlite: the open steps, run through the connection wrapper
-// (engine/connection.hpp): the checkout walk and the file's presence, read
+// (sqlite_connection.hpp): the checkout walk and the file's presence, read
 // through the standard library's file system reads (a file's size by
 // sizes/); then identify, the settings, create's schema and its TRUNCATE
 // checkpoint, the write probe and coherence; a create refused at any of

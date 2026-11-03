@@ -112,11 +112,11 @@ LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_exten
 LOAD_PREFIX = "LoadLibrary"
 # B13: the platform's calls that write.
 PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "remove", "rename", "lock"))
-RECORDLOG = "foundation/services/storage/recordlog/"  # the record log's module, its store and engine
+RECORDLOG, ENGINE = "foundation/services/storage/recordlog/", "foundation/services/storage/sqlite/"  # store, wrapper
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
-    "B1": (RECORDLOG + "include/qiven/recordlog/engine/", RECORDLOG + "src/engine/", *layers.VENDORED, "qiven_recordlog"),
+    "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", *layers.VENDORED, "qiven_storage_sqlite"),
     "B2": ("foundation/system/platform/src/windows/process.",),
     # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
     # and its variants' (src/diag/CMakeLists.txt).
@@ -468,7 +468,7 @@ def direct_include(by, path, kind, name, out):
             ok = name in B17_HEADERS
         elif kind == "v3":
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
-                  or (rel.endswith("/sqlite3.h") and by.startswith(RECORDLOG + "src/engine/"))
+                  or (rel.endswith("/sqlite3.h") and by.startswith(ENGINE + "src/"))
                   or ((out.tree.library(rel) or out.tree.test_code(rel))
                       and not rel.startswith(("foundation/system/platform/", "foundation/services/compute/"))))
         else:
@@ -544,7 +544,7 @@ def link_rules(records, out):
     mapcheck = {t for t, sources in owners.items() if any(under(s, ALLOWED["B16"]) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):
-            if dep == "qiven_sqlite" and target != "qiven_recordlog":
+            if dep == "qiven_sqlite" and target != "qiven_storage_sqlite":
                 out.add("B1", target, detail="links qiven_sqlite")
             if shapes.get(dep) == "septagon" and target not in child:
                 out.add("B5", target, detail=f"links the system library {dep}")

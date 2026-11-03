@@ -1,13 +1,11 @@
 // sqlite: the engine's calls, all of them: the engine heap's allocator
 // and its installation with the page cache's slots, Connection and
-// Statement, and the mapping of every failing call by its extended code
-// (connection.hpp); and the countdowns sqlite_steps.hpp declares, whose
-// busy wait and open's name it reads.
+// Statement, the mapping of every failing call by its extended code, and
+// the engine calls' countdown (connection.hpp).
 
-#include "qiven/recordlog/engine/connection.hpp"
+#include "qiven/storage_sqlite/connection.hpp"
 
 #include <algorithm>
-#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -21,11 +19,8 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/memory/pool.hpp"
 #include "qiven/sqlite/sqlite3.h"
-#include "qiven/recordlog/codes.hpp"
-#include "qiven/recordlog/errors.hpp"
-#include "qiven/recordlog/sqlite_steps.hpp"
 
-namespace qiven::recordlog::sqlite {
+namespace qiven::storage_sqlite {
 
 namespace {
 
@@ -45,7 +40,7 @@ std::atomic<std::size_t>& refused() noexcept {
 qiven::memory::Heap& heap_or_fail() noexcept {
     qiven::memory::Heap* const heap = installed().load(std::memory_order_acquire);
     if (heap == nullptr) {
-        qiven::memory::fail_fast("store/sqlite: the engine called its allocator with no heap installed");
+        qiven::memory::fail_fast("storage_sqlite: the engine called its allocator with no heap installed");
     }
     return *heap;
 }
@@ -93,21 +88,23 @@ int engine_init(void* /*data*/) noexcept { return SQLITE_OK; }
 
 // A slot's bytes: a page and the engine's per-page header, at the
 // multiple of 8 the engine takes; 0 when the engine refuses to give its
-// header, initialized already.
-std::size_t slot_bytes() noexcept {
+// header, initialized already, or when the sum passes a size.
+std::size_t slot_bytes(std::size_t page) noexcept {
     int header = 0;
     if (sqlite3_config(SQLITE_CONFIG_PCACHE_HDRSZ, &header) != SQLITE_OK || header <= 0) {
         return 0;
     }
-    return ((page_size + static_cast<std::size_t>(header) + 7) / 8) * 8;
+    const std::optional<std::size_t> sum = qiven::memory::add(page, static_cast<std::size_t>(header) + 7);
+    return sum ? (*sum / 8) * 8 : 0;
 }
 
 // The slots for connections and the engine's reserve; 0 when the pages cannot hold their bytes or
 // their count or size passes the engine's int.
-std::size_t slot_count(std::span<std::byte> pages, std::size_t connections, std::size_t size) noexcept {
+std::size_t slot_count(std::span<std::byte> pages, std::size_t connections, std::size_t size,
+                       const Cache& cache) noexcept {
     constexpr auto most = static_cast<std::size_t>(std::numeric_limits<int>::max());
-    const std::optional<std::size_t> each = qiven::memory::mul(cache_slots, connections);
-    const std::optional<std::size_t> n = each ? qiven::memory::add(*each, slots_reserve) : std::nullopt;
+    const std::optional<std::size_t> each = qiven::memory::mul(cache.slots, connections);
+    const std::optional<std::size_t> n = each ? qiven::memory::add(*each, cache.reserve) : std::nullopt;
     if (!n || size == 0 || size > most || *n > most) {
         return 0;
     }
@@ -144,25 +141,20 @@ int extended(sqlite3* db, int rc) noexcept {
     return (code & 0xFF) == (rc & 0xFF) ? code : rc;
 }
 
-[[noreturn]] void raise_at(sqlite3* db, int rc, const WhereView& at) {
+[[noreturn]] void raise_at(sqlite3* db, int rc, const Site& at) {
     const int code = extended(db, rc);
     if ((code & 0xFF) == SQLITE_NOMEM || code == SQLITE_IOERR_NOMEM) {
         const qiven::memory::Heap* const heap = installed().load(std::memory_order_acquire);
-        throw qiven::memory::MemoryError::budget("store/sqlite", heap != nullptr ? heap->budget() : 0,
+        throw qiven::memory::MemoryError::budget("storage_sqlite", heap != nullptr ? heap->budget() : 0,
                                           refused().load(std::memory_order_relaxed),
                                           heap != nullptr ? heap->used() : 0);
     }
-    throw to_error(code, at);
+    throw EngineError(Refusal::engine, code, at);
 }
 
 #if defined(QIVEN_FAULTS)
-std::atomic<Countdown*>& faults() noexcept {
-    static std::atomic<Countdown*> countdown{nullptr};
-    return countdown;
-}
-
-std::atomic<Countdown*>& arenas() noexcept {
-    static std::atomic<Countdown*> countdown{nullptr};
+std::atomic<qiven::memory::Countdown*>& faults() noexcept {
+    static std::atomic<qiven::memory::Countdown*> countdown{nullptr};
     return countdown;
 }
 #endif
@@ -171,17 +163,17 @@ std::atomic<Countdown*>& arenas() noexcept {
 // SQLITE_IOERR, the engine not called. Never without QIVEN_FAULTS.
 bool injected() noexcept {
 #if defined(QIVEN_FAULTS)
-    Countdown* const countdown = faults().load(std::memory_order_acquire);
+    qiven::memory::Countdown* const countdown = faults().load(std::memory_order_acquire);
     return countdown != nullptr && countdown->fail();
 #else
     return false;
 #endif
 }
 
-// A statement past the engine's int-sized length is refused, internal.
-void fits(std::string_view text, const WhereView& at) {
+// A statement past the engine's int-sized length is refused.
+void fits(std::string_view text, const Site& at) {
     if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-        throw StoreError(Code::internal, at.operation, at.path, "a statement past the engine's length");
+        throw EngineError(Refusal::too_long, 0, at, "a statement past the engine's length");
     }
 }
 
@@ -201,12 +193,7 @@ std::string_view bytes_of(sqlite3_stmt* statement, int column) noexcept {
 int engine_version() noexcept { return sqlite3_libversion_number(); }
 
 #if defined(QIVEN_FAULTS)
-void attach_calls(Countdown* calls, Countdown* arenas_too) noexcept {
-    faults().store(calls, std::memory_order_release);
-    arenas().store(arenas_too, std::memory_order_release);
-}
-
-Countdown* arenas_countdown() noexcept { return arenas().load(std::memory_order_acquire); }
+void attach_calls(qiven::memory::Countdown* calls) noexcept { faults().store(calls, std::memory_order_release); }
 #endif
 
 bool engine_ready() noexcept { return installed().load(std::memory_order_acquire) != nullptr; }
@@ -234,17 +221,17 @@ bool remove_file(std::string_view path, std::string_view suffix) noexcept {
     return rc == SQLITE_OK || rc == SQLITE_IOERR_DELETE_NOENT;
 }
 
-EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections)
-    : size_(slot_bytes()), count_(slot_count(pages, connections, size_)),
+EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections, const Cache& cache)
+    : size_(slot_bytes(cache.page)), count_(slot_count(pages, connections, size_, cache)),
       heap_(pages.first(pages.size() - (size_ * count_))),
       slots_(pages.subspan(pages.size() - (size_ * count_)).data()) {
     qiven::memory::Heap* none = nullptr;
     if (!installed().compare_exchange_strong(none, &heap_, std::memory_order_acq_rel)) {
-        throw StoreError(Code::internal, open_name, {}, "an engine heap is installed already");
+        throw EngineError(Refusal::installed, 0, {}, "an engine heap is installed already");
     }
     if (count_ == 0) {
         installed().store(nullptr, std::memory_order_release);
-        throw StoreError(Code::internal, open_name, {}, "the engine heap's pages cannot hold the page cache's slots");
+        throw EngineError(Refusal::slots, 0, {}, "the engine heap's pages cannot hold the page cache's slots");
     }
     // The engine copies the methods before the call returns.
     sqlite3_mem_methods methods{&engine_malloc, &engine_free,  &engine_realloc,  &engine_size,
@@ -263,8 +250,7 @@ EngineHeap::EngineHeap(std::span<std::byte> pages, std::size_t connections)
         static_cast<void>(sqlite3_shutdown());
         release_slots();
         installed().store(nullptr, std::memory_order_release);
-        std::array<char, result_detail_bytes> buffer{};
-        throw StoreError(Code::internal, open_name, {}, result_detail(rc, buffer));
+        throw EngineError(Refusal::configuration, rc, {}, "the engine refused its configuration");
     }
     // The marks from this engine heap on.
     static_cast<void>(status(SQLITE_STATUS_PAGECACHE_USED, true));
@@ -276,7 +262,7 @@ EngineHeap::~EngineHeap() {
     release_slots();
     installed().store(nullptr, std::memory_order_release);
     if (heap_.used() != 0) {
-        qiven::memory::fail_fast("store/sqlite: the engine heap holds blocks past the engine's end");
+        qiven::memory::fail_fast("storage_sqlite: the engine heap holds blocks past the engine's end");
     }
 }
 
@@ -311,14 +297,14 @@ void Statement::finalize() noexcept {
     }
 }
 
-void Statement::bind(int index, std::int64_t value, const WhereView& at) {
+void Statement::bind(int index, std::int64_t value, const Site& at) {
     const int rc = injected() ? SQLITE_IOERR : sqlite3_bind_int64(statement_, index, value);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
 }
 
-void Statement::bind_text(int index, std::string_view text, const WhereView& at) {
+void Statement::bind_text(int index, std::string_view text, const Site& at) {
     // An empty view may have no data; the empty text is bound, never null.
     const char* const data = text.empty() ? "" : text.data();
     const int rc =
@@ -328,7 +314,7 @@ void Statement::bind_text(int index, std::string_view text, const WhereView& at)
     }
 }
 
-void Statement::bind_blob(int index, std::string_view bytes, const WhereView& at) {
+void Statement::bind_blob(int index, std::string_view bytes, const Site& at) {
     const int rc = injected()      ? SQLITE_IOERR
                    : bytes.empty() ? sqlite3_bind_zeroblob(statement_, index, 0)
                                    : sqlite3_bind_blob64(statement_, index, bytes.data(), bytes.size(), nullptr);
@@ -337,14 +323,14 @@ void Statement::bind_blob(int index, std::string_view bytes, const WhereView& at
     }
 }
 
-void Statement::bind_null(int index, const WhereView& at) {
+void Statement::bind_null(int index, const Site& at) {
     const int rc = injected() ? SQLITE_IOERR : sqlite3_bind_null(statement_, index);
     if (rc != SQLITE_OK) {
         raise_at(db_, rc, at);
     }
 }
 
-bool Statement::step(const WhereView& at) {
+bool Statement::step(const Site& at) {
     const int rc = injected() ? SQLITE_IOERR : sqlite3_step(statement_);
     if (rc == SQLITE_ROW) {
         return true;
@@ -373,9 +359,10 @@ std::string_view Statement::blob(int column) const noexcept { return bytes_of(st
 
 bool Statement::null(int column) const noexcept { return sqlite3_column_type(statement_, column) == SQLITE_NULL; }
 
-Connection Connection::open(const qiven::memory::String& path, bool read_only, const WhereView& at) {
+Connection Connection::open(const qiven::memory::String& path, bool read_only, int busy_milliseconds,
+                            const Site& at) {
     if (!engine_ready()) {
-        throw StoreError(Code::internal, at.operation, at.path, "no engine heap installed");
+        throw EngineError(Refusal::no_heap, 0, at, "no engine heap installed");
     }
     sqlite3* db = nullptr;
     const int flags = (read_only ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE) | SQLITE_OPEN_EXRESCODE;
@@ -403,7 +390,7 @@ Connection& Connection::operator=(Connection&& other) noexcept {
 
 Connection::~Connection() { close(); }
 
-Statement Connection::prepare(std::string_view sql, const WhereView& at) {
+Statement Connection::prepare(std::string_view sql, const Site& at) {
     fits(sql, at);
     sqlite3_stmt* statement = nullptr;
     const int rc = injected() ? SQLITE_IOERR
@@ -413,26 +400,26 @@ Statement Connection::prepare(std::string_view sql, const WhereView& at) {
         raise_at(db_, rc, at);
     }
     if (statement == nullptr) {
-        throw StoreError(Code::internal, at.operation, at.path, "an empty statement");
+        throw EngineError(Refusal::empty, 0, at, "an empty statement");
     }
     return s;
 }
 
-void Connection::exec(std::string_view sql, const WhereView& at) {
+void Connection::exec(std::string_view sql, const Site& at) {
     Statement s = prepare(sql, at);
     while (s.step(at)) {
     }
 }
 
-std::int64_t Connection::integer(std::string_view sql, const WhereView& at) {
+std::int64_t Connection::integer(std::string_view sql, const Site& at) {
     Statement s = prepare(sql, at);
     if (!s.step(at)) {
-        throw StoreError(Code::internal, at.operation, at.path, "a query with no row");
+        throw EngineError(Refusal::no_row, 0, at, "a query with no row");
     }
     return s.integer(0);
 }
 
-void Connection::raise(int code, const WhereView& at) const { raise_at(db_, code, at); }
+void Connection::raise(int code, const Site& at) const { raise_at(db_, code, at); }
 
 int Connection::run(std::string_view sql, std::span<std::int64_t> row) noexcept {
     if (db_ == nullptr || sql.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
@@ -492,4 +479,4 @@ void Connection::close() noexcept {
     }
 }
 
-}  // namespace qiven::recordlog::sqlite
+}  // namespace qiven::storage_sqlite

@@ -40,7 +40,7 @@
       "layer": "foundation",
       "depends": [
         "memory",
-        "sqlite",
+        "storage_sqlite",
         "platform",
         "text"
       ],
