@@ -39,3 +39,9 @@ later changes to be made again; the commit after it shows every line cut with th
 - **The nav tools:** `nav.py`, `nav_lsp.py` and `nav_query.py`, the C++ navigation aid over clangd, run by
   hand. Last commit `597b22f`:
   `git restore --source=597b22f -- tools/nav.py tools/nav_lsp.py tools/nav_query.py`
+- **Two drive parts whose job left (1674):** the `cwd` echo the fake drive's `set_programs` accepted
+  (`tests/driver/instances_fake.cpp`), and the Windows drive's `publish` hold, a reader on a staging
+  directory's first file with the stage record it read (`tests/machine/windows_holds.py`), each used by
+  nothing once the drive's cases that sent them became platform's own. The `cwd` field of the drive's
+  `start` and `run` stays. Last commit `5c19e8a`:
+  `git restore --source=5c19e8a -- tests/driver/instances_fake.cpp tests/machine/windows_holds.py`

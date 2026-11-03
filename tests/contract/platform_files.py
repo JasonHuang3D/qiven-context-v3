@@ -11,7 +11,8 @@ the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
 "target" and "temporary" hold replace's rename, "publish" publish's and
-discard's; on the Windows drive real handles (machine/windows_holds.py).
+discard's; on the Windows drive real handles, "publish" not among them
+(machine/windows_holds.py).
 The Windows adapter's replace, stage and lock are its module win/files'.
 """
 

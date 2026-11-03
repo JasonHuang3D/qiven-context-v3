@@ -1,7 +1,6 @@
 """The Windows drive's holders over real handles, for the files' cases
 (contract/platform_files.py): a HeldDrive's hold(**times) arms them on
-the next request that names a path, before it is sent, or for publish
-the next publish or discard.
+the next request that names a path, before it is sent.
 
 - target: a reader on the path, sharing reads alone: replace's rename is
   refused with error 5.
@@ -11,10 +10,6 @@ the next publish or discard.
   it, a reader on the path holds the rename back.
 - lock: the path's first byte locked through another handle: lock is
   refused with error 33.
-- publish: a reader on the first file, by name, of the staging directory
-  a publish or discard names by its id, sharing reads alone: publish's
-  rename is refused with error 5, and its discard's deletion with 32. The
-  drive records each staging directory a stage makes, by its id.
 
 A count n above 0 holds for n retry intervals from when the handle is
 taken, and to the request's end at the latest, as a holder's handle
@@ -29,13 +24,13 @@ import threading
 import time
 from pathlib import Path
 
-from tests.contract.platform_files import STAGING, TEMPORARY
+from tests.contract.platform_files import TEMPORARY
 from tests.drive.session import Drive
 
 # files' retry interval, in seconds, and the watcher's.
 INTERVAL = 0.05
 WATCH = 0.001
-KINDS = ("target", "temporary", "lock", "publish")
+KINDS = ("target", "temporary", "lock")
 
 GENERIC_READ, GENERIC_WRITE = 0x80000000, 0x40000000
 FILE_SHARE_READ, FILE_SHARE_WRITE = 0x1, 0x2
@@ -94,11 +89,6 @@ def locker(path):
         kernel32().CloseHandle(handle)
         raise error
     return handle
-
-
-def staging(directory):
-    """The staging directories' names in directory."""
-    return [p.name for p in Path(directory).iterdir() if STAGING.fullmatch(p.name)]
 
 
 class Holder:
@@ -178,13 +168,11 @@ class Holder:
 
 class HeldDrive(Drive):
     """The Windows drive with its holders: hold(**times), each armed on
-    the next request that names a path, publish's on the next publish or
-    discard."""
+    the next request that names a path."""
 
     def __init__(self, *args, **kwargs):
         self.pending = {}
         self.holders = []
-        self.staged = {}
         self.ended = {}
         super().__init__(*args, **kwargs)
 
@@ -212,26 +200,13 @@ class HeldDrive(Drive):
                 kept.append(holder)
         self.holders = kept
 
-    def first_file(self, staged):
-        """The first file, by name, in the staging directory of id staged."""
-        return sorted(p for p in self.staged[staged].iterdir() if p.is_file())[0]
-
     def call(self, op, **args):
-        if "path" in args:
-            armed = {kind: n for kind, n in self.pending.items() if kind != "publish"}
-        else:
-            armed = {kind: n for kind, n in self.pending.items() if kind == "publish" and op in ("publish", "discard")}
+        armed = dict(self.pending) if "path" in args else {}
         for kind, times in armed.items():
             del self.pending[kind]
-            path = self.first_file(args["id"]) if kind == "publish" else args["path"]
-            self.holders.append(Holder(kind, times, path))
-        before = set(staging(args["path"])) if op == "stage" and "path" in args else None
+            self.holders.append(Holder(kind, times, args["path"]))
         try:
-            answer = super().call(op, **args)
-            if before is not None:
-                (made,) = set(staging(args["path"])) - before
-                self.staged[answer["id"]] = Path(args["path"]) / made
-            return answer
+            return super().call(op, **args)
         finally:
             self.release(every=False)
 
