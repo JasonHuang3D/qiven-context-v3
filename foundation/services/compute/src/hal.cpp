@@ -1,8 +1,8 @@
-#include "hal/hal.hpp"
+#include "qiven/compute/hal.hpp"
 
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3::hal {
+namespace qiven::compute {
 
 std::string_view name(Vector vector) noexcept {
     switch (vector) {
@@ -54,16 +54,16 @@ std::string_view name(Code code) noexcept {
 
 void Kernels::add(std::string_view name, Reference reference) noexcept {
     if (reference == nullptr) {
-        qiven::memory::fail_fast("hal::Kernels::add: a null reference");
+        qiven::memory::fail_fast("compute::Kernels::add: a null reference");
     }
     if (name.empty() || name.size() > kernel_name_bytes) {
-        qiven::memory::fail_fast("hal::Kernels::add: a name empty or past kernel_name_bytes");
+        qiven::memory::fail_fast("compute::Kernels::add: a name empty or past kernel_name_bytes");
     }
     if (find(name) != nullptr) {
-        qiven::memory::fail_fast("hal::Kernels::add: a name added twice");
+        qiven::memory::fail_fast("compute::Kernels::add: a name added twice");
     }
     if (size_ == entries_.size()) {
-        qiven::memory::fail_fast("hal::Kernels::add: a kernel past kernels_max");
+        qiven::memory::fail_fast("compute::Kernels::add: a kernel past kernels_max");
     }
     entries_[size_] = Entry{qiven::memory::Inline<kernel_name_bytes>(name), reference};
     ++size_;
@@ -78,4 +78,4 @@ const Reference* Kernels::find(std::string_view name) const noexcept {
     return nullptr;
 }
 
-}  // namespace qiven3::hal
+}  // namespace qiven::compute

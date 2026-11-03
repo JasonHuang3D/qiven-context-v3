@@ -1,15 +1,26 @@
-"""The HAL's memory checks, defined once over a compute binding
-(contract/hal_cases.py names its part): each member, host side, within
-the 64 KiB budget by its arena's count, a budget a byte short of its peak
-MemoryError budget, and, under QIVEN_FAULTS, each allocation on its
-arena failed in turn. The fake HAL makes no platform call.
+"""The drive's memory checks of its HAL members, over a drive binding
+(contract/test_hal_fake.py: drive(), a drive whose HAL the case gives its
+device set by hal_fake): each member, host side, within the drive's 64 KiB
+budget by its arena's count, a budget a byte short of its peak MemoryError
+budget, and, under QIVEN_FAULTS, each allocation on its arena failed in
+turn. The fake HAL makes no platform call. Compute's own guarantees over
+its fake, H1 to H5, H8 and its writing on the caller's arena, are its own
+cases (foundation/services/compute/tests/).
 """
 
-from tests.contract.hal_cases import CPU, GPU, int64s
+import struct
+
 from tests.drive.session import debug_library, has_faults
 
+GIB = 1 << 30
+GPU = {"id": "gpu0", "back_end": "cuda", "name": "a GPU of 12 GiB", "memory": 12 * GIB}
+CPU = {"id": "cpu0", "back_end": "cpu", "name": "the CPU", "memory": 1 << 20}
 MEMBER = 64 << 10
 SIZE = 8 * 64
+
+
+def int64s(values):
+    return struct.pack(f"={len(values)}q", *values).hex()
 
 
 def operations(d):

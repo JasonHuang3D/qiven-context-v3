@@ -1,13 +1,12 @@
 #pragma once
 
 // The hardware abstraction layer: the contract for compute (CPU threads,
-// vector instructions, GPGPU) that features use. The core never includes
-// this header or links qiven3_hal; a feature's targets do. A back end comes
-// with the first feature that uses it.
+// vector instructions, GPGPU) that a caller uses: a caller's targets link
+// qiven_compute. A back end comes with the first caller that uses it.
 //
 // The contract is a pair of concepts bound at compile time: a back end or
 // the fake is a concrete type satisfying Compute, with no base class and no
-// virtual function, and a feature's code is a template on it. Views go in,
+// virtual function, and a caller's code is a template on it. Views go in,
 // results into the caller's out; a buffer is a move-only value that frees
 // its memory at its end.
 //
@@ -31,7 +30,7 @@
 
 #include "qiven/memory/memory.hpp"
 
-namespace qiven3::hal {
+namespace qiven::compute {
 
 enum class Vector : std::uint8_t { sse2, sse4_2, avx, fma, avx2, avx512f, neon };
 
@@ -169,4 +168,4 @@ static_assert(sizeof(Device) == 128, "Device's size is pinned");
 static_assert(sizeof(Facts) == 40, "Facts' size is pinned");
 #endif
 
-}  // namespace qiven3::hal
+}  // namespace qiven::compute

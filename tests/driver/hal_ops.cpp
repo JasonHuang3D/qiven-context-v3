@@ -35,21 +35,24 @@ namespace qiven3::drive {
 namespace {
 
 using Result = std::optional<Value>;
-using Fake = hal::fake::FakeCompute;
+using Fake = qiven::compute::fake::FakeCompute;
 
-constexpr std::array<hal::Vector, hal::vector_sets> all_vectors = {
-    hal::Vector::sse2, hal::Vector::sse4_2,  hal::Vector::avx,  hal::Vector::fma,
-    hal::Vector::avx2, hal::Vector::avx512f, hal::Vector::neon,
+constexpr std::array<qiven::compute::Vector, qiven::compute::vector_sets> all_vectors = {
+    qiven::compute::Vector::sse2,    qiven::compute::Vector::sse4_2, qiven::compute::Vector::avx,
+    qiven::compute::Vector::fma,     qiven::compute::Vector::avx2,   qiven::compute::Vector::avx512f,
+    qiven::compute::Vector::neon,
 };
 
-constexpr std::array<hal::Reason, 4> all_reasons = {hal::Reason::no_device, hal::Reason::no_driver,
-                                                    hal::Reason::not_built, hal::Reason::not_pinned};
+constexpr std::array<qiven::compute::Reason, 4> all_reasons = {
+    qiven::compute::Reason::no_device, qiven::compute::Reason::no_driver, qiven::compute::Reason::not_built,
+    qiven::compute::Reason::not_pinned};
 
 void add_i64(std::span<const std::span<std::byte>> buffers, std::span<const std::int64_t>,
              const std::array<std::uint32_t, 3>&) {
     if (buffers.size() != 3 || buffers[0].size() != buffers[1].size() || buffers[0].size() != buffers[2].size() ||
         buffers[0].size() % 8 != 0) {
-        throw hal::HalError(hal::Code::launch, "run", "add_i64 takes three buffers of one size, of int64");
+        throw qiven::compute::HalError(qiven::compute::Code::launch, "run",
+                                       "add_i64 takes three buffers of one size, of int64");
     }
     for (std::size_t at = 0; at < buffers[0].size(); at += 8) {
         std::int64_t a = 0, b = 0;
@@ -60,14 +63,14 @@ void add_i64(std::span<const std::span<std::byte>> buffers, std::span<const std:
     }
 }
 
-hal::fake::Config base_config() {
-    hal::fake::Config config;
+qiven::compute::fake::Config base_config() {
+    qiven::compute::fake::Config config;
     config.kernels.add("add_i64", add_i64);
     return config;
 }
 
-template <hal::Compute C>
-void reset(HalState<C>& h, const hal::fake::Config& config) {
+template <qiven::compute::Compute C>
+void reset(HalState<C>& h, const qiven::compute::fake::Config& config) {
     h.buffers.clear();
     for (std::optional<C>& compute : h.computes) {
         compute.reset();
@@ -89,8 +92,8 @@ Hal& hal_of(Session& s) {
 
 std::string_view view(const qiven::memory::String& text) { return std::string_view(text.data(), text.size()); }
 
-hal::Device device_of(qiven::memory::Arena& arena, ArgView value) {
-    hal::Device d(arena);
+qiven::compute::Device device_of(qiven::memory::Arena& arena, ArgView value) {
+    qiven::compute::Device d(arena);
     const std::string id = text(value, "id"), back_end = text(value, "back_end"), name = text(value, "name");
     d.id.assign(id.data(), id.size());
     d.back_end.assign(back_end.data(), back_end.size());
@@ -99,7 +102,7 @@ hal::Device device_of(qiven::memory::Arena& arena, ArgView value) {
     return d;
 }
 
-Value device_value(const hal::Device& d) {
+Value device_value(const qiven::compute::Device& d) {
     Value value;
     value.set("id", std::string(view(d.id)));
     value.set("back_end", std::string(view(d.back_end)));
@@ -108,7 +111,7 @@ Value device_value(const hal::Device& d) {
     return value;
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 typename HalState<C>::Held& held(HalState<C>& h, ArgView request, std::string_view key) {
     const std::int64_t id = integer(request, key);
     const auto found = h.buffers.find(id);
@@ -118,35 +121,35 @@ typename HalState<C>::Held& held(HalState<C>& h, ArgView request, std::string_vi
     return found->second;
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result facts(HalState<C>& h, qiven::memory::Arena& arena, ArgView) {
-    hal::Facts f(arena);
+    qiven::compute::Facts f(arena);
     h.computes[0]->facts(f);
     Value value;
     value.set("cpu_threads", static_cast<std::int64_t>(f.cpu_threads));
     Value vectors = array();
-    for (const hal::Vector v : all_vectors) {
+    for (const qiven::compute::Vector v : all_vectors) {
         if (f.vectors.test(static_cast<std::size_t>(v))) {
-            vectors.push(scalar(hal::name(v)));
+            vectors.push(scalar(qiven::compute::name(v)));
         }
     }
     value.set("vectors", std::move(vectors));
     Value devices = array();
-    for (const hal::Device& d : f.devices) {
+    for (const qiven::compute::Device& d : f.devices) {
         devices.push(device_value(d));
     }
     value.set("devices", std::move(devices));
     return value;
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result device(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
-    hal::Device d(arena);
-    const std::optional<hal::Gap> gap = h.computes[0]->device(text(request, "capability"), d);
+    qiven::compute::Device d(arena);
+    const std::optional<qiven::compute::Gap> gap = h.computes[0]->device(text(request, "capability"), d);
     Value value;
     if (gap) {
         Value g;
-        g.set("reason", std::string(hal::name(gap->reason)));
+        g.set("reason", std::string(qiven::compute::name(gap->reason)));
         value.set("gap", std::move(g));
     } else {
         value.set("device", device_value(d));
@@ -154,10 +157,10 @@ Result device(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     return value;
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result allocate(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     const std::size_t from = flag(request, "other", false) ? 1 : 0;
-    const hal::Device d = device_of(arena, argument(request, "device"));
+    const qiven::compute::Device d = device_of(arena, argument(request, "device"));
     auto buffer = h.computes[from]->allocate(d, static_cast<std::uint64_t>(integer(request, "size")));
     const std::int64_t id = h.next++;
     h.buffers.emplace(id, typename HalState<C>::Held{std::move(buffer), from});
@@ -168,7 +171,7 @@ std::span<const std::byte> bytes_of(const std::string& data) {
     return std::as_bytes(std::span<const char>(data.data(), data.size()));
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result upload(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     const std::string data = from_hex(text(request, "data"));
     h.computes[0]->upload(held(h, request, "buffer").buffer, bytes_of(data));
@@ -176,7 +179,7 @@ Result upload(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
 }
 
 // "size", the span's, is the buffer's when absent.
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result download(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     const auto& buffer = held(h, request, "buffer").buffer;
     const std::int64_t size = integer(request, "size", static_cast<std::int64_t>(buffer.size()));
@@ -188,14 +191,14 @@ Result download(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     return scalar(to_hex(out));
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result free_buffer(HalState<C>& h, qiven::memory::Arena&, ArgView request) {
     held(h, request, "buffer");
     h.buffers.erase(integer(request, "buffer"));
     return std::nullopt;
 }
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 Result run(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
     std::vector<typename C::Buffer*> buffers;
     if (const std::optional<ArgView> items = request.find("buffers")) {
@@ -225,19 +228,19 @@ Result run(HalState<C>& h, qiven::memory::Arena& arena, ArgView request) {
         }
     }
     const std::string kernel = text(request, "kernel");
-    const hal::Device d = device_of(arena, argument(request, "device"));
-    h.computes[0]->run(d, hal::Launch<typename C::Buffer>{kernel, buffers, scalars, grid});
+    const qiven::compute::Device d = device_of(arena, argument(request, "device"));
+    h.computes[0]->run(d, qiven::compute::Launch<typename C::Buffer>{kernel, buffers, scalars, grid});
     return std::nullopt;
 }
 
 Result hal_fake(Hal& h, qiven::memory::Arena&, ArgView request) {
-    hal::fake::Config config = base_config();
+    qiven::compute::fake::Config config = base_config();
     config.cpu_threads = static_cast<unsigned>(integer(request, "threads", 1));
     if (const std::optional<ArgView> vectors = request.find("vectors")) {
         for (const ArgView item : vectors->as_array("vectors")) {
             bool known = false;
-            for (const hal::Vector v : all_vectors) {
-                if (hal::name(v) == item.as_string("vectors")) {
+            for (const qiven::compute::Vector v : all_vectors) {
+                if (qiven::compute::name(v) == item.as_string("vectors")) {
                     config.vectors.set(static_cast<std::size_t>(v));
                     known = true;
                 }
@@ -249,7 +252,7 @@ Result hal_fake(Hal& h, qiven::memory::Arena&, ArgView request) {
     }
     if (const std::optional<ArgView> devices = request.find("devices")) {
         for (const ArgView item : devices->as_array("devices")) {
-            config.devices.push_back(hal::fake::FakeDevice{text(item, "id"), text(item, "back_end"),
+            config.devices.push_back(qiven::compute::fake::FakeDevice{text(item, "id"), text(item, "back_end"),
                                                            text(item, "name"),
                                                            static_cast<std::uint64_t>(integer(item, "memory"))});
         }
@@ -258,8 +261,8 @@ Result hal_fake(Hal& h, qiven::memory::Arena&, ArgView request) {
         for (const auto& [key, member] : gaps->as_object("gaps")) {
             const std::string reason = member.as_string("gaps");
             bool known = false;
-            for (const hal::Reason r : all_reasons) {
-                if (hal::name(r) == reason) {
+            for (const qiven::compute::Reason r : all_reasons) {
+                if (qiven::compute::name(r) == reason) {
                     config.gaps.emplace_back(key, r);
                     known = true;
                 }
@@ -274,7 +277,7 @@ Result hal_fake(Hal& h, qiven::memory::Arena&, ArgView request) {
 }
 
 Result hal_counts(Hal& h, qiven::memory::Arena&, ArgView) {
-    const hal::fake::Counts& c = h.computes[0]->counts();
+    const qiven::compute::fake::Counts& c = h.computes[0]->counts();
     Value value;
     value.set("allocations", static_cast<std::int64_t>(c.allocations));
     value.set("uploads", static_cast<std::int64_t>(c.uploads));

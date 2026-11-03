@@ -102,7 +102,7 @@ CELLS = {
     ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
-    ("B28", "src/hal/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",
+    ("B28", "foundation/services/compute/include/qiven/compute/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",
     ("B28", "foundation/core/memory/include/qiven/memory/arena.hpp", "Arena"): "the span of pages its owner lends, a platform Pages value that "
                                               "outlives the arena, which ends before its pages; memory sits "
                                               "below the platform and cannot hold that type",

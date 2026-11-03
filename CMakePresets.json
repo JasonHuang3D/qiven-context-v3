@@ -73,7 +73,7 @@
       "name": "nohal",
       "inherits": "here",
       "displayName": "Without the HAL, MSVC (H6)",
-      "description": "QIVEN_HAL off: no qiven3_hal, no HAL fake and no H case but H6",
+      "description": "QIVEN_HAL off: no qiven_compute, its fake or its cases, and no H case but H6",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_HAL": "OFF"}
     },
     {

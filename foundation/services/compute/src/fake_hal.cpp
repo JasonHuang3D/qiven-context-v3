@@ -1,4 +1,4 @@
-#include "support/fake_hal/fake_hal.hpp"
+#include "qiven/compute/fake_hal.hpp"
 
 #include <algorithm>
 #include <array>
@@ -8,7 +8,7 @@
 
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3::hal::fake {
+namespace qiven::compute::fake {
 namespace {
 
 bool matches(std::string_view capability, const FakeDevice& device) {
@@ -91,7 +91,7 @@ FakeCompute::FakeCompute(Config config) : config_(std::move(config)) {
     for (std::size_t at = 0; at < config_.devices.size(); ++at) {
         for (std::size_t before = 0; before < at; ++before) {
             if (config_.devices[before].id == config_.devices[at].id) {
-                qiven::memory::fail_fast("hal::fake::FakeCompute: a device id given twice");
+                qiven::memory::fail_fast("compute::fake::FakeCompute: a device id given twice");
             }
         }
     }
@@ -100,7 +100,7 @@ FakeCompute::FakeCompute(Config config) : config_(std::move(config)) {
 
 FakeCompute::~FakeCompute() {
     if (state_.live != 0) {
-        qiven::memory::fail_fast("hal::fake::FakeCompute: ended with its buffers live");
+        qiven::memory::fail_fast("compute::fake::FakeCompute: ended with its buffers live");
     }
 }
 
@@ -143,12 +143,12 @@ std::size_t FakeCompute::known(const Device& d) const noexcept {
             return at;
         }
     }
-    qiven::memory::fail_fast("hal::fake::FakeCompute: a device this compute was not given");
+    qiven::memory::fail_fast("compute::fake::FakeCompute: a device this compute was not given");
 }
 
 void FakeCompute::ours(const FakeBuffer& b) const noexcept {
     if (b.owner_ != &state_) {
-        qiven::memory::fail_fast("hal::fake::FakeCompute: a buffer this compute did not give");
+        qiven::memory::fail_fast("compute::fake::FakeCompute: a buffer this compute did not give");
     }
 }
 
@@ -197,11 +197,11 @@ void FakeCompute::run(const Device& d, const Launch<FakeBuffer>& launch) {
     const std::size_t at = known(d);
     for (const FakeBuffer* b : launch.buffers) {
         if (b == nullptr) {
-            qiven::memory::fail_fast("hal::fake::FakeCompute::run: a null buffer");
+            qiven::memory::fail_fast("compute::fake::FakeCompute::run: a null buffer");
         }
         ours(*b);
         if (b->device_ != at) {
-            qiven::memory::fail_fast("hal::fake::FakeCompute::run: a buffer of another device");
+            qiven::memory::fail_fast("compute::fake::FakeCompute::run: a buffer of another device");
         }
     }
     const Reference* reference = config_.kernels.find(launch.kernel);
@@ -228,4 +228,4 @@ std::uint64_t FakeCompute::used(std::string_view device_id) const noexcept {
     return 0;
 }
 
-}  // namespace qiven3::hal::fake
+}  // namespace qiven::compute::fake

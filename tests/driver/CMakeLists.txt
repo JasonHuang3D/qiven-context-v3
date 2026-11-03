@@ -21,7 +21,7 @@ target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven_memory qi
 if(QIVEN_HAL)
   target_sources(qiven3_drive_common PRIVATE hal_ops.cpp hal_ops.hpp)
   target_compile_definitions(qiven3_drive_common PUBLIC QIVEN3_DRIVE_HAL)
-  target_link_libraries(qiven3_drive_common PUBLIC qiven3_hal_fake)
+  target_link_libraries(qiven3_drive_common PUBLIC qiven_compute_fake)
 endif()
 
 # The fake's drive alone has the store's requests, over support/checked's

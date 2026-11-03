@@ -26,7 +26,7 @@
 #include "qiven3/utf.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
-#include "hal/hal.hpp"
+#include "qiven/compute/hal.hpp"
 #endif
 
 #if defined(_WIN32)
@@ -373,8 +373,9 @@ Value caught(std::string_view name) {
     } catch (const qiven::memory::MemoryError& error) {
         return error_reply(typed("memory", qiven::memory::name(error.code), error.operation.view(), error.detail.view()));
 #if defined(QIVEN3_DRIVE_HAL)
-    } catch (const hal::HalError& error) {
-        return error_reply(typed("hal", hal::name(error.code), error.operation.view(), error.detail.view()));
+    } catch (const qiven::compute::HalError& error) {
+        return error_reply(
+            typed("hal", qiven::compute::name(error.code), error.operation.view(), error.detail.view()));
 #endif
     } catch (const RequestError& error) {
         return error_reply(plain("request", error.what()));

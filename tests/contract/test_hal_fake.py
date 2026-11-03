@@ -1,17 +1,17 @@
-"""The HAL's cases on its fake, every system of the CI matrix; not
-applicable in a build with QIVEN_HAL off, which has no HAL (H6)."""
+"""The drive's HAL members on the HAL's fake, every system of the CI
+matrix; not applicable in a build with QIVEN_HAL off, which has no HAL
+(H6). Compute's own cases are its own (foundation/services/compute/tests/)."""
 
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from tests.contract.hal_cases import HalCases
 from tests.contract.hal_memory import HalMemory
-from tests.drive.session import Drive, has_hal, once
+from tests.drive.session import Drive, has_hal
 
 
-class Fake(HalCases, HalMemory, unittest.TestCase):
+class Fake(HalMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
     def setUp(self):
@@ -22,6 +22,3 @@ class Fake(HalCases, HalMemory, unittest.TestCase):
 
     def drive(self):
         return Drive("--root", self.root, "--hal", "fake")
-
-    def drive_once(self, *requests):
-        return once(["--root", self.root, "--hal", "fake"], *requests)

@@ -105,7 +105,7 @@ add_subdirectory(support/stores)
 add_subdirectory(support/checked)
 add_subdirectory(support/seams)
 if(QIVEN_HAL)
-  add_subdirectory(support/fake_hal)
+  add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/compute/tests" compute_tests)
 endif()
 # The header units' rule on every configure with an interpreter, not the
 # analysis's alone: a header the analysis reads with no

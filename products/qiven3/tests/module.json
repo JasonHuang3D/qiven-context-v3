@@ -17,7 +17,7 @@
         "checked",
         "location",
         "wire",
-        "hal",
+        "compute",
         "log",
         "diag",
         "platform"

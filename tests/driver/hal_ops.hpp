@@ -13,12 +13,12 @@
 #include <optional>
 #include <vector>
 
-#include "hal/hal.hpp"
-#include "support/fake_hal/fake_hal.hpp"
+#include "qiven/compute/hal.hpp"
+#include "qiven/compute/fake_hal.hpp"
 
 namespace qiven3::drive {
 
-template <hal::Compute C>
+template <qiven::compute::Compute C>
 struct HalState {
     using Buffer = typename C::Buffer;
     struct Held {
@@ -35,6 +35,6 @@ struct HalState {
     std::vector<std::byte> pages;  // the results' arena's, the members' budget at the first request
 };
 
-using Hal = HalState<hal::fake::FakeCompute>;
+using Hal = HalState<qiven::compute::fake::FakeCompute>;
 
 }  // namespace qiven3::drive

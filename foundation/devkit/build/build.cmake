@@ -2,7 +2,7 @@
 # analysis and qiven_executable, every target's; included by the root
 # CMakeLists.txt after project(), before any target.
 option(QIVEN_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
-option(QIVEN_HAL "Build qiven3_hal, its fake and its cases" ON)
+option(QIVEN_HAL "Build qiven_compute, its fake and its cases" ON)
 option(QIVEN3_STRUCTURE "Write the records the structure tests read" OFF)
 option(QIVEN_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
 option(QIVEN_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)

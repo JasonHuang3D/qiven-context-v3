@@ -61,8 +61,9 @@ SDK_DIRS = ("um", "shared", "winrt", "cppwinrt")
 
 # B17: core logic's direct includes, copied from the platform's include
 # boundary, which changes first; then sqlite3.h in B1's module alone, and
-# v3's own headers outside src/platform/ and src/hal/, a library's of core
-# to products or the test tree's (layers.py), with the contract's.
+# v3's own headers outside src/platform/ and foundation/services/compute/, a
+# library's of core to products or the test tree's (layers.py), with the
+# contract's.
 B17_HEADERS = frozenset("""
 algorithm array atomic bit charconv chrono cmath compare concepts condition_variable cstddef cstdint
 cstring deque exception filesystem format fstream functional initializer_list iterator limits map
@@ -202,10 +203,10 @@ B13_HEADERS = ("src/store/", "src/backup/", "src/forget/", "src/qiven3/mapcheck.
 B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven3_base"))
 B13_LINKS = ("qiven_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
-# Core logic: every product target but the adapters, current and the HAL's.
-NOT_CORE = ("src/platform/win/", "src/platform/current.", "src/hal/", "src/diag/")
+# Core logic: every product target but the adapters, current and compute's.
+NOT_CORE = ("src/platform/win/", "src/platform/current.", "foundation/services/compute/", "src/diag/")
 NOT_CORE_TARGETS = frozenset(("qiven3_platform_win", "qiven3_platform_current", "qiven3_platform_fake",
-                              "qiven3_hal", "qiven3_hal_fake", "qiven3_diag", "qiven3_diag_entry",
+                              "qiven_compute", "qiven_compute_fake", "qiven3_diag", "qiven3_diag_entry",
                               "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
                               "qiven3_diag_entry_poisoned",
                               # memory, the base and the log again on the debug runtime, for
@@ -243,7 +244,7 @@ def is_instantiation(path):
 def is_core(path, tree):
     """Core logic, by layer in the tree's table: a library's file of a
     module of core to products (layers.Layers.library()), not devkit's, layer
-    0, nor test code nor a vendor's; the adapters, current, the HAL and the
+    0, nor test code nor a vendor's; the adapters, current, compute and the
     diagnostic entry apart (NOT_CORE), and the instantiation files."""
     return tree.library(path) and not under(path, NOT_CORE) and not is_instantiation(path)
 
@@ -460,7 +461,7 @@ def direct_include(by, path, kind, name, out):
             ok = (rel == CONTRACT or (is_instantiation(by) and rel in ADAPTER_HEADERS)
                   or (rel.endswith("/sqlite3.h") and by.startswith("src/store/engine/"))
                   or ((out.tree.library(rel) or out.tree.test_code(rel))
-                      and not rel.startswith(("src/platform/", "src/hal/"))))
+                      and not rel.startswith(("src/platform/", "foundation/services/compute/"))))
         else:
             ok = False
         if not ok:

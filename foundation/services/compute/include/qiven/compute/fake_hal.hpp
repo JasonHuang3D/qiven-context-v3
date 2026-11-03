@@ -1,6 +1,6 @@
 #pragma once
 
-// The HAL's fake, qiven3_hal_fake: FakeCompute, a concrete type satisfying
+// The HAL's fake, qiven_compute_fake: FakeCompute, a concrete type satisfying
 // the concept Compute on the C++ standard library alone, so it builds and
 // runs on every system. It reports the devices the test gives, keeps each
 // buffer in host memory counted against its device's given memory, counts
@@ -31,9 +31,9 @@
 #include <utility>
 #include <vector>
 
-#include "hal/hal.hpp"
+#include "qiven/compute/hal.hpp"
 
-namespace qiven3::hal::fake {
+namespace qiven::compute::fake {
 
 struct FakeDevice {
     std::string id, back_end, name;
@@ -129,4 +129,4 @@ static_assert(Compute<FakeCompute>, "FakeCompute satisfies Compute");
 static_assert(sizeof(FakeBuffer) == 40, "FakeBuffer's size is pinned: its bytes, the tag and the device");
 #endif
 
-}  // namespace qiven3::hal::fake
+}  // namespace qiven::compute::fake

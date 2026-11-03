@@ -32,9 +32,9 @@ add_subdirectory(src/store)
 add_subdirectory(src/checked)
 add_subdirectory(src/write)
 add_subdirectory(src/app)
-# QIVEN_HAL off leaves the HAL, its fake and its cases out of the build (H6).
+# QIVEN_HAL off leaves compute, its fake and its cases out of the build (H6).
 if(QIVEN_HAL)
-  add_subdirectory(src/hal)
+  add_subdirectory(foundation/services/compute)
 endif()
 add_subdirectory(tests)
 

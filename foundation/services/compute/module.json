@@ -5,20 +5,21 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/hal/hal.hpp",
+  "contract": "foundation/services/compute/include/qiven/compute/hal.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
     {
-      "name": "hal",
+      "name": "compute",
       "layer": "foundation",
       "depends": [
         "memory"
       ],
-      "test_depends": [],
+      "test_depends": [
+        "faults"
+      ],
       "paths": [
-        "src/hal/",
-        "tests/support/fake_hal/"
+        "foundation/services/compute/"
       ]
     }
   ]
