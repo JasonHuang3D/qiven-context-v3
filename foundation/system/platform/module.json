@@ -10,13 +10,13 @@
   "parameters": [
     {
       "name": "config_leaf",
-      "default": "qiven3",
-      "built": false
+      "default": null,
+      "built": true
     },
     {
       "name": "open_bound",
-      "default": 16,
-      "built": false
+      "default": null,
+      "built": true
     }
   ],
   "present": [

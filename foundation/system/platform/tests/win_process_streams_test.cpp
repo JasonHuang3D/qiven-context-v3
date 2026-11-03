@@ -47,7 +47,7 @@ bool names(const Thrown& t, std::string_view stream) {
 }  // namespace
 
 QIVEN_CASE(win_process, read_line) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -72,7 +72,7 @@ QIVEN_CASE(win_process, read_line) {
 // No line within the timeout: deadline, the tree running; once killed,
 // the stream's end.
 QIVEN_CASE(win_process, read_line_timeout) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -105,7 +105,7 @@ QIVEN_CASE(win_process, read_line_timeout) {
 QIVEN_CASE(win_process, caps) {
     CHECK(holds_word("out", "out") && holds_word("the (out) cap", "out") && holds_word("x out", "out"));
     CHECK(!holds_word("stdout", "out") && !holds_word("out_", "out") && !holds_word("err0 errs", "err"));
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -168,7 +168,7 @@ QIVEN_CASE(win_process, caps) {
 // At the deadline the tree is killed; each next call but kill throws
 // deadline; kill() stops it.
 QIVEN_CASE(win_process, deadline) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -202,7 +202,7 @@ QIVEN_CASE(win_process, deadline) {
 // refusals and its deadline named run's, the latter with a child that
 // never reads its input.
 QIVEN_CASE(win_process, run) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -248,7 +248,7 @@ QIVEN_CASE(win_process, run) {
 // The bytes pinned are code page 936's, this machine's; on another page
 // the 'a' first and the CRLF last alone. code_page() gives "cp<n>".
 QIVEN_CASE(win_process, standard_output) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {

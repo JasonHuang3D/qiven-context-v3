@@ -260,7 +260,7 @@ int replace(std::span<const std::string_view> args) {
     put(STD_OUTPUT_HANDLE, "held\n");
     int status = 0;
     try {
-        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        qiven::platform::win::WindowsPlatform adapter("qiven-platform-test", 16, std::nullopt);
         adapter.replace(args[0], *data, qiven::platform::Seconds(static_cast<double>(*ms) / 1000.0));
         put(STD_OUTPUT_HANDLE, "replaced\n");
     } catch (const qiven::platform::PlatformError& error) {
@@ -278,7 +278,7 @@ int standard_output(std::span<const std::string_view> args) {
     }
     put(STD_ERROR_HANDLE, "acp " + std::to_string(GetACP()) + "\n");
     try {
-        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        qiven::platform::win::WindowsPlatform adapter("qiven-platform-test", 16, std::nullopt);
         adapter.standard_output().write(*text);
     } catch (const qiven::platform::PlatformError& error) {
         put(STD_ERROR_HANDLE, std::string(qiven::platform::name(error.code)) + "\n");
@@ -311,7 +311,7 @@ int tree(std::span<const std::string_view> args) {
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     qiven::memory::Arena arena{std::span<std::byte>(pages)};
     try {
-        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        qiven::platform::win::WindowsPlatform adapter("qiven-platform-test", 16, std::nullopt);
         const qiven::platform::Seconds deadline(static_cast<double>(*ms) / 1000.0 + 60.0);
         qiven::platform::win::WindowsChild grandchild =
             adapter.start(qiven::platform::Command{argv, "", {}, deadline, qiven::platform::Caps{1U << 16U, 1U << 16U}});

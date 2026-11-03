@@ -58,6 +58,12 @@ void await_line() {
 
 }  // namespace
 
+// Cognition's own configuration leaf, as the binary's (src/app/instances.cpp),
+// unread here: CONFIG overrides it.
+constexpr std::string_view config_leaf = "qiven3";
+// Cognition's own stage bound, as the binary's.
+constexpr std::size_t open_bound = 16;
+
 int init(std::span<const std::string_view> args) {
     if (args.size() != 2) {
         put(STD_ERROR_HANDLE, "qiven3-child init: init CONFIG DIR\n");
@@ -67,7 +73,7 @@ int init(std::span<const std::string_view> args) {
     await_line();
     const std::array<std::string_view, 5> argv = {"init", args[1], "--accept", "--config", args[0]};
     try {
-        qiven::platform::win::WindowsPlatform adapter(args[0]);
+        qiven::platform::win::WindowsPlatform adapter(config_leaf, open_bound, args[0]);
         return location::main(std::span<const std::string_view>(argv), adapter);
     } catch (const qiven::platform::PlatformError& error) {
         put(STD_ERROR_HANDLE, std::string("qiven3-child init: ").append(error.detail.view()).append("\n"));

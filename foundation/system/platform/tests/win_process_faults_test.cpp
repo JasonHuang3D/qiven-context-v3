@@ -98,7 +98,7 @@ constexpr std::string_view start_calls =
 QIVEN_CASE(win_process, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch("win-process");
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     Countdown countdown;

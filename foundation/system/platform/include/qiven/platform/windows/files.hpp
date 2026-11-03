@@ -17,7 +17,6 @@
 //
 // thread: one (the adapter's)
 
-#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -130,6 +129,13 @@ public:
     files::Error close_all(const Dir& dir);
     // The slots held.
     [[nodiscard]] std::size_t open_files() const noexcept;
+    // stage's bound: the slots taken.
+    [[nodiscard]] std::size_t open_bound() const noexcept { return slots_.size(); }
+    // Stage's table, taken once by the adapter's constructor: open_bound
+    // slots on pages from the adapter's pages(), each made in place; for
+    // 0 no pages, and every open refused. A table past the address space,
+    // or pages the system refuses: PlatformError memory.
+    void take_slots(std::size_t open_bound);
     files::Error publish(const Dir& dir, std::string_view name);
     files::Error discard(const Dir& dir, Detail& left) noexcept;
     void forget(Dir& dir) noexcept;
@@ -184,8 +190,8 @@ public:
 private:
     // An open file of a staging directory: its handle, its directory's id
     // and its serial; all 0 when free. files' bound refuses an open at
-    // open_bound held, before any slot is sought, so a full table is never
-    // reached by a System serving one thread at a time.
+    // open_bound() held, before any slot is sought, so a full table is
+    // never reached by a System serving one thread at a time.
     struct Slot {
         void* handle = nullptr;
         std::uint64_t dir = 0;
@@ -217,7 +223,8 @@ private:
     qiven::memory::Countdown* countdown_ = nullptr;
     ClockTrace* trace_ = nullptr;
 #endif
-    std::array<Slot, files::open_bound> slots_{};
+    WindowsPages slot_pages_;   // the table's
+    std::span<Slot> slots_;     // the table, open_bound() slots on them
     std::uint64_t serial_ = 0;  // the last File's or Dir's
 };
 

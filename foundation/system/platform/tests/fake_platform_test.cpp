@@ -82,6 +82,7 @@ struct Scratch {
         Config config;
         config.root = text(root);
         config.config_dir = std::string(config_dir);
+        config.open_bound = 16;  // the cases' own stage bound
         return config;
     }
     fs::path root;

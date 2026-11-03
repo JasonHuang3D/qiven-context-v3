@@ -64,6 +64,7 @@ void make(std::optional<Fake>& into, const Options& options) {
     config.root = *options.root;
     config.config_dir = options.config ? *options.config : *options.root + "/qiven3";
     config.seed = options.seed;
+    config.open_bound = open_bound;
     into.emplace(std::move(config));
 }
 

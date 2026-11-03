@@ -176,27 +176,31 @@ void StandardOutput::write(std::string_view utf8) { platform_->write_output(utf8
 
 // --- the adapter ---
 
-WindowsPlatform::WindowsPlatform(std::optional<std::string_view> config_dir) {
+// The override when given, else the leaf: its UTF-16 units after the two
+// paths, its flag set when it is not UTF-8 or past 32,767 units; then
+// stage's table.
+WindowsPlatform::WindowsPlatform(std::string_view leaf, std::size_t open_bound,
+                                 std::optional<std::string_view> config_dir) {
+    overridden_ = config_dir.has_value();
+    const std::string_view text = overridden_ ? *config_dir : leaf;
+    bool& bad = overridden_ ? bad_override_ : bad_leaf_;
     std::size_t extra = 0;
-    if (config_dir) {
-        overridden_ = true;
-        const std::string_view text = *config_dir;
-        if (text.size() > static_cast<std::size_t>(INT_MAX)) {
-            bad_override_ = true;
-        } else if (!text.empty()) {
-            const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                                              static_cast<int>(text.size()), nullptr, 0);
-            bad_override_ = n <= 0 || static_cast<std::size_t>(n) >= units;
-            extra = bad_override_ ? 0 : static_cast<std::size_t>(n);
-        }
+    if (text.size() > static_cast<std::size_t>(INT_MAX)) {
+        bad = true;
+    } else if (!text.empty()) {
+        const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()),
+                                          nullptr, 0);
+        bad = n <= 0 || static_cast<std::size_t>(n) >= units;
+        extra = bad ? 0 : static_cast<std::size_t>(n);
     }
     scratch_ = pages((2 * units + extra) * sizeof(wchar_t));
-    if (extra > 0 && config_dir) {
+    if (extra > 0) {
         const std::span<wchar_t> into = paths::scratch(scratch_).subspan(2 * units, extra);
-        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, config_dir->data(),
-                            static_cast<int>(config_dir->size()), into.data(), static_cast<int>(extra));
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), into.data(),
+                            static_cast<int>(extra));
     }
-    override_ = extra;
+    (overridden_ ? override_ : leaf_) = extra;
+    files_.take_slots(open_bound);
 }
 
 void WindowsPlatform::config_dir(bool create, String& out) {
@@ -215,6 +219,9 @@ void WindowsPlatform::config_dir(bool create, String& out) {
         std::copy(given.begin(), given.end(), a.begin());
         m = given.size();
     } else {
+        if (bad_leaf_) {
+            fail(Code::path, "config_dir", "the leaf is not UTF-8, or longer than 32,767 UTF-16 units");
+        }
         PWSTR folder = nullptr;
         const HRESULT hr = SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_DEFAULT, nullptr, &folder);
         if (FAILED(hr) || folder == nullptr) {
@@ -222,16 +229,17 @@ void WindowsPlatform::config_dir(bool create, String& out) {
             fail(Code::config, "config_dir", Detail("SHGetKnownFolderPath: HRESULT ").hex(static_cast<std::uint32_t>(hr)));
         }
         const std::wstring_view found(folder);
-        constexpr std::wstring_view leaf = L"\\qiven3";
-        const bool fits = found.size() + leaf.size() < units;
+        const std::span<const wchar_t> leaf = all.subspan(2 * units + override_, leaf_);
+        const bool fits = found.size() + 1 + leaf.size() < units;
         if (fits) {
             std::copy(found.begin(), found.end(), a.begin());
-            std::copy(leaf.begin(), leaf.end(), a.subspan(found.size()).begin());
-            m = found.size() + leaf.size();
+            a[found.size()] = L'\\';
+            std::copy(leaf.begin(), leaf.end(), a.subspan(found.size() + 1).begin());
+            m = found.size() + 1 + leaf.size();
         }
         CoTaskMemFree(folder);
         if (!fits) {
-            fail(Code::config, "config_dir", "the known folder is longer than 32,767 UTF-16 units");
+            fail(Code::path, "config_dir", "the known folder, '\\' and the leaf are longer than 32,767 UTF-16 units");
         }
     }
     a[m] = L'\0';

@@ -82,6 +82,9 @@ struct Config {
     std::uint64_t seed = 0;  // random_bytes' seed
     std::chrono::sys_time<std::chrono::microseconds> clock{};
     Busy busy;  // how often replace, publish or lock is busy before it succeeds
+    // stage's bound (qiven/platform/files.hpp), the caller's own; 0, every
+    // open refused.
+    std::size_t open_bound = 0;
 
     // A move may throw, stated: a map's move allocates its head node in
     // one standard library.

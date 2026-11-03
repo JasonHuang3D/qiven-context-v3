@@ -12,6 +12,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <new>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <tuple>
@@ -19,6 +21,7 @@
 
 #include "qiven/platform/windows/files.hpp"
 #include "paths.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/platform/windows/windows.hpp"
 
 namespace qiven::platform::win {
@@ -81,6 +84,21 @@ WindowsFiles::Slot* WindowsFiles::held(std::uint64_t file) noexcept {
         }
     }
     return nullptr;
+}
+
+void WindowsFiles::take_slots(std::size_t open_bound) {
+    const std::optional<std::size_t> bytes = qiven::memory::mul(open_bound, sizeof(Slot));
+    if (!bytes) {
+        throw PlatformError(Code::memory, "pages",
+                            Detail("a table past the address space: ").number(open_bound).add(" slots"));
+    }
+    WindowsPages pages = platform_->pages(*bytes);
+    Slot* const first = static_cast<Slot*>(pages.address());
+    for (std::size_t i = 0; i < open_bound; ++i) {
+        ::new (static_cast<void*>(first + i)) Slot{};  // the pages' zero bytes are no objects
+    }
+    slot_pages_ = std::move(pages);
+    slots_ = std::span<Slot>(first, open_bound);
 }
 
 std::size_t WindowsFiles::open_files() const noexcept {

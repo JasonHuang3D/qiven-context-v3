@@ -8,7 +8,7 @@ layer system, status built
 - **Contract:** `foundation/system/platform/include/qiven/platform/platform.hpp`
 - **Files:** `include/qiven/platform/` (`platform.hpp`, `files.hpp`, `names.hpp`, `current.hpp`; `windows/`: `windows.hpp`, `files.hpp`; `fake/`: `fake_platform.hpp`, `fake_files.hpp`), `src/` (`platform.cpp`, `current.cpp`; `windows/`, the adapter's sources and private headers; `fake/`), `tests/` (its cases, `win_process_case.hpp` the process cases' helpers, and `child/`, the program their children run), `CMakeLists.txt`; their namespace `qiven::platform`, the adapter's `qiven::platform::win`, the fake's `qiven::platform::fake`
 - **Consumers rely on:** concepts bound at compile time; views in, the caller's buffers out, on the caller's arena; typed `PlatformError` codes, never a system's number
-- **Parameters:** `config_leaf` (not built yet); `open_bound` (not built yet)
+- **Parameters:** `config_leaf`; `open_bound`
 - **Refuses:** a system it has no adapter for (`unsupported`); a stage past `open_bound` files already open
 - **Words:**
   - `adapter`: a concrete type meeting `Platform` for one system; the fake is one

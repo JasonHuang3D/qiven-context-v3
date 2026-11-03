@@ -260,7 +260,7 @@ void FakeOutput::write(std::string_view utf8) {
 // --- the fake ---
 
 FakePlatform::FakePlatform(const Config& config)
-    : config_(config), output_(config_.encoding), files_(*this, config_.busy) {}
+    : config_(config), output_(config_.encoding), files_(*this, config_.busy, config_.open_bound) {}
 
 void FakePlatform::record(std::string_view operation) const {
     calls_.emplace_back(operation);

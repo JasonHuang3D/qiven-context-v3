@@ -136,8 +136,8 @@ struct FakeFiles::State {
     std::map<std::size_t, Locked> locks;
 };
 
-FakeFiles::FakeFiles(FakePlatform& platform, const Busy& busy)
-    : platform_(&platform), busy_(busy), state_(std::make_unique<State>()) {}
+FakeFiles::FakeFiles(FakePlatform& platform, const Busy& busy, std::size_t open_bound)
+    : platform_(&platform), busy_(busy), open_bound_(open_bound), state_(std::make_unique<State>()) {}
 
 FakeFiles::~FakeFiles() = default;
 

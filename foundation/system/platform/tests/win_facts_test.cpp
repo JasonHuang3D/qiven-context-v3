@@ -198,7 +198,7 @@ QIVEN_CASE(win_facts, unopened) {
 // A relative path and a text no path holds: path, before any read, each
 // member's out cleared.
 QIVEN_CASE(win_facts, refusals) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
@@ -239,7 +239,7 @@ QIVEN_CASE(win_facts, refusals) {
 // failed call runs nothing, so no machine fact is read.
 QIVEN_CASE(win_facts, first_fault) {
 #if defined(QIVEN_FAULTS)
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);

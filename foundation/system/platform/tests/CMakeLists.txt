@@ -62,9 +62,9 @@ endif()
 
 # windows/files' stage on the Windows adapter, on Windows alone, as
 # win_files': stage, open, write, close, publish and discard on real files;
-# the bound of 16 open files to its edge; each Win32 call failed in turn;
-# the heap counted by the binary's own operator new, which no other binary
-# has.
+# the bound, the case's own 4 open files, to its edge; each Win32 call
+# failed in turn; the heap counted by the binary's own operator new, which
+# no other binary has.
 if(WIN32)
   qiven3_add_cases(qiven_platform_win_files_stage_test LABELS fast fake
     SOURCES win_files_stage_test.cpp win_files_stage_memory_test.cpp

@@ -23,18 +23,25 @@ std::string_view build_system() noexcept {
 }
 
 #if defined(_WIN32)
-Current adapter_for(std::string_view system, std::optional<std::string_view> config_dir) {
+Current adapter_for(std::string_view system, std::string_view leaf, std::size_t open_bound,
+                    std::optional<std::string_view> config_dir) {
     if (system != "windows") {
         unsupported(system);
     }
-    return Current(config_dir);
+    return Current(leaf, open_bound, config_dir);
 }
 
-Current current(std::optional<std::string_view> config_dir) { return adapter_for(build_system(), config_dir); }
+Current current(std::string_view leaf, std::size_t open_bound, std::optional<std::string_view> config_dir) {
+    return adapter_for(build_system(), leaf, open_bound, config_dir);
+}
 #else
-void adapter_for(std::string_view system, std::optional<std::string_view>) { unsupported(system); }
+void adapter_for(std::string_view system, std::string_view, std::size_t, std::optional<std::string_view>) {
+    unsupported(system);
+}
 
-void current(std::optional<std::string_view> config_dir) { adapter_for(build_system(), config_dir); }
+void current(std::string_view leaf, std::size_t open_bound, std::optional<std::string_view> config_dir) {
+    adapter_for(build_system(), leaf, open_bound, config_dir);
+}
 #endif
 
 }  // namespace qiven::platform

@@ -111,7 +111,7 @@ QIVEN_CASE(win_files_stage, memory) {
     const std::string payload(std::size_t{1} << 20U, 'x');
     const Seconds five{5.0};
     {
-        WindowsPlatform platform(std::nullopt);
+        WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
         Count taken;
         // The count's control: a string past its own buffer calls it once.
         const std::string control(std::string_view(payload).substr(0, 64));

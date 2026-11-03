@@ -54,7 +54,7 @@ public:
         std::size_t id = 0;
     };
 
-    FakeFiles(FakePlatform& platform, const Busy& busy);
+    FakeFiles(FakePlatform& platform, const Busy& busy, std::size_t open_bound);
     FakeFiles(const FakeFiles&) = delete;
     FakeFiles& operator=(const FakeFiles&) = delete;
     FakeFiles(FakeFiles&&) = delete;
@@ -77,6 +77,8 @@ public:
     files::Error close_all(const Dir& dir);
     // The files open, across the staging directories: files' bound.
     [[nodiscard]] std::size_t open_files() const noexcept;
+    // files' bound itself: its Config's open_bound.
+    [[nodiscard]] std::size_t open_bound() const noexcept { return open_bound_; }
     files::Error publish(const Dir& dir, std::string_view name);
     files::Error discard(const Dir& dir, Detail& left) noexcept;
     void forget(const Dir& dir) noexcept;
@@ -111,6 +113,7 @@ private:
 
     FakePlatform* platform_;
     Busy busy_;
+    std::size_t open_bound_;
     std::chrono::milliseconds clock_{0};
     std::unique_ptr<State> state_;
 #if defined(QIVEN_FAULTS)

@@ -39,7 +39,8 @@ using Drive = PlatformDrive<qiven::platform::Current>;
 using Result = std::optional<Value>;
 
 void make(std::optional<qiven::platform::Current>& into, const Options& options) {
-    into.emplace(options.config ? std::optional<std::string_view>(*options.config) : std::nullopt);
+    into.emplace(config_leaf, open_bound,
+                 options.config ? std::optional<std::string_view>(*options.config) : std::nullopt);
 }
 
 // The request's arguments as UTF-16: RequestError for a unit past 16 bits.

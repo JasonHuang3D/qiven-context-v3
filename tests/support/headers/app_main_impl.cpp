@@ -1,6 +1,7 @@
 // main_impl's unit for the analysis preset: the binary's main on the fake
 // platform's maker, and on a maker that makes none, as current() is where
-// no adapter is built; the binary's instantiation file gives it current().
+// no adapter is built; the binary's instantiation file gives it a maker
+// over current().
 
 #include <optional>
 #include <string_view>

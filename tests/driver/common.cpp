@@ -51,18 +51,18 @@ std::optional<std::string_view> view(const std::optional<std::string>& text) {
 std::optional<Value> adapter_for(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return scalar(qiven::platform::adapter_for(text(request, "system"), view(config)).name());
+    return scalar(qiven::platform::adapter_for(text(request, "system"), config_leaf, open_bound, view(config)).name());
 #else
-    qiven::platform::adapter_for(text(request, "system"), view(config));
+    qiven::platform::adapter_for(text(request, "system"), config_leaf, open_bound, view(config));
 #endif
 }
 
 std::optional<Value> current(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return scalar(qiven::platform::current(view(config)).name());
+    return scalar(qiven::platform::current(config_leaf, open_bound, view(config)).name());
 #else
-    qiven::platform::current(view(config));
+    qiven::platform::current(config_leaf, open_bound, view(config));
 #endif
 }
 

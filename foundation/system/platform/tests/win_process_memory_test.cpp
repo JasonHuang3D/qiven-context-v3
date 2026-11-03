@@ -105,7 +105,7 @@ constexpr std::size_t start_news = 6;
 }  // namespace
 
 QIVEN_CASE(win_process, memory) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {

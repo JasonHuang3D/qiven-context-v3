@@ -20,8 +20,10 @@
 // so the adapter does not move, as a handle holds its System's address.
 //
 // Its scratch, a path's UTF-16 forms, lives in pages it takes once
-// through pages(): 128 KiB for two paths of 32,767 UTF-16 units, and the
-// configuration override's UTF-16 units after them.
+// through pages(): 128 KiB for two paths of 32,767 UTF-16 units, and after
+// them the configuration override's UTF-16 units or, when no override is
+// given, the configuration leaf's. Stage's table, the caller's open_bound
+// slots, lives on pages taken so too, none for a bound of 0.
 //
 // thread: one (an adapter object serves one thread at a time: its scratch)
 
@@ -123,9 +125,15 @@ private:
 
 class WindowsPlatform {
 public:
-    // config_dir, when given, overrides the known folder's qiven3. The
-    // scratch is taken here: PlatformError memory if the system refuses it.
-    explicit WindowsPlatform(std::optional<std::string_view> config_dir);
+    // The configuration location: config_dir when given, else the known
+    // folder LocalAppData, '\', then leaf, which is read only then. The one
+    // used is converted to UTF-16 here; not UTF-8, or past 32,767 units, it
+    // is path at config_dir. open_bound is stage's bound (qiven/platform/
+    // files.hpp), the caller's own: its table of open_bound slots is taken
+    // here, as the scratch is: PlatformError memory if the system refuses
+    // either, or for a table past the address space.
+    explicit WindowsPlatform(std::string_view leaf, std::size_t open_bound,
+                             std::optional<std::string_view> config_dir);
     // Made in place, never moved: its handles hold its WindowsFiles' address.
     WindowsPlatform(WindowsPlatform&&) = delete;
     WindowsPlatform& operator=(WindowsPlatform&&) = delete;
@@ -197,8 +205,10 @@ private:
 
     WindowsPages scratch_;
     std::size_t override_ = 0;  // the override's UTF-16 units after the scratch
+    std::size_t leaf_ = 0;      // the leaf's UTF-16 units there, when no override is given
     bool overridden_ = false;
     bool bad_override_ = false;  // not UTF-8, or past 32,767 units: path at config_dir
+    bool bad_leaf_ = false;      // the same, for the leaf
     bool error_mode_ = false;    // set by the first start
     WindowsFiles files_{*this};
 };
@@ -211,10 +221,10 @@ static_assert(Platform<WindowsPlatform>);
 // their System's address and one handle (the Sink's its file's serial);
 // Staged its System's address, its Dir and its digits; Child its pages and
 // three threads (std::jthread, 24 bytes each), its handles and the
-// countdown on the pages; the adapter its scratch, the override's size, three flags and
-// its WindowsFiles: the adapter's address, under
-// QIVEN_FAULTS the countdown's and the trace's, stage's 16 slots of 24
-// bytes and a serial.
+// countdown on the pages; the adapter its scratch, the override's and the leaf's sizes,
+// four flags and its WindowsFiles: the adapter's address, under
+// QIVEN_FAULTS the countdown's and the trace's, the Pages of stage's
+// table, a span over its slots and a serial.
 #if defined(_WIN64)
 static_assert(sizeof(WindowsPages) == 16, "the Windows adapter's Pages: address and size");
 static_assert(sizeof(WindowsSink) == 16, "the System's address and one handle");
@@ -222,9 +232,9 @@ static_assert(sizeof(WindowsFiles::Dir) == 32 && sizeof(WindowsStaged) == 56, "t
 static_assert(sizeof(WindowsLock) == 16, "the System's address and one handle");
 static_assert(sizeof(WindowsChild) == 88, "its pages and three threads");
 #if defined(QIVEN_FAULTS)
-static_assert(sizeof(WindowsFiles) == 416 && sizeof(WindowsPlatform) == 448, "scratch, size, flags, files");
+static_assert(sizeof(WindowsFiles) == 64 && sizeof(WindowsPlatform) == 104, "scratch, sizes, flags, files");
 #else
-static_assert(sizeof(WindowsFiles) == 400 && sizeof(WindowsPlatform) == 432, "scratch, size, flags, files");
+static_assert(sizeof(WindowsFiles) == 48 && sizeof(WindowsPlatform) == 88, "scratch, sizes, flags, files");
 #endif
 #endif
 

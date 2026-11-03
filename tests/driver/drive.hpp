@@ -81,6 +81,14 @@
 
 namespace qiven3::drive {
 
+// The drive's own configuration leaf, which its adapter_for, current and
+// Windows adapter pass: the Windows adapter's location, without --config,
+// is LocalAppData\qiven3-drive.
+inline constexpr std::string_view config_leaf = "qiven3-drive";
+// The drive's own stage bound (qiven/platform/files.hpp), which its
+// adapter_for, current, Windows adapter and fake pass.
+inline constexpr std::size_t open_bound = 16;
+
 struct Options {
     std::optional<std::string> root, config, store;
     std::uint64_t seed = 0;

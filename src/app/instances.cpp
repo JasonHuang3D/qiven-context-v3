@@ -1,8 +1,9 @@
 // qiven3: the binary's instantiation file. It instantiates the templates
-// qiven3 calls for its one adapter, qiven::platform::Current, and gives main the
-// adapter's maker, current(). Where no adapter is built there is no
-// Current: main is instantiated for current() alone, which throws, and the
-// binary exits 1, or 2 for a usage error (app/main.hpp).
+// qiven3 calls for its one adapter, qiven::platform::Current, and gives main its
+// maker, make_platform: current() with cognition's own configuration leaf,
+// qiven3, and stage bound, 16. Where no adapter is built there is no Current: main is
+// instantiated for a maker that calls current() alone, which throws, and
+// the binary exits 1, or 2 for a usage error (app/main.hpp).
 //
 // The command line reaches main as UTF-8. On Windows the binary's entry is
 // wmain, which takes the arguments as UTF-16, as the system holds them,
@@ -14,6 +15,7 @@
 // is made yet to write the fault's answer. Elsewhere main takes them as
 // the system gives them, and the wire reads them.
 
+#include <cstddef>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -30,11 +32,32 @@ template int location::main<qiven::platform::Current>(std::span<const std::strin
                                                const location::Hooks&) noexcept;
 #endif
 
-template int app::main(int, const char* const*, decltype(&qiven::platform::current)) noexcept;
+namespace {
+
+// Cognition's own configuration leaf: on Windows, LocalAppData\qiven3.
+constexpr std::string_view config_leaf = "qiven3";
+// Cognition's own stage bound (qiven/platform/files.hpp): sized for a
+// caller that holds two files open at once; the rest is the margin its
+// other budgets keep.
+constexpr std::size_t open_bound = 16;
+
+#if defined(_WIN32)
+qiven::platform::Current make_platform(std::optional<std::string_view> config_dir) {
+    return qiven::platform::current(config_leaf, open_bound, config_dir);
+}
+#else
+[[noreturn]] void make_platform(std::optional<std::string_view> config_dir) {
+    qiven::platform::current(config_leaf, open_bound, config_dir);
+}
+#endif
+
+}  // namespace
+
+template int app::main(int, const char* const*, decltype(&make_platform)) noexcept;
 
 namespace {
 
-int run(int argc, const char* const* argv) noexcept { return app::main(argc, argv, &qiven::platform::current); }
+int run(int argc, const char* const* argv) noexcept { return app::main(argc, argv, &make_platform); }
 
 #if defined(_WIN32)
 int run_wide(int argc, const wchar_t* const* argv) noexcept {

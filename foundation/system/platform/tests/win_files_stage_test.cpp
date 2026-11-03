@@ -2,15 +2,17 @@
 // scratch directory of each case's own under the job's temporary
 // directory: stage, open, write, close, publish and discard as the contract
 // states them, each error by its Win32 name; a file inside held by a
-// reader, which shares read and write but not delete; the bound of 16 open
-// files driven to its edge across staging directories, by each end that
-// frees a place; each Win32 call failed in turn, a typed error with no
+// reader, which shares read and write but not delete; the bound, the
+// case's own 4 open files, driven to its edge across staging directories,
+// by each end that frees a place, and one past the address space refused;
+// each Win32 call failed in turn, a typed error with no
 // staging directory, handle or place left (the heap's count is
 // win_files_stage_memory_test.cpp's).
 
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -164,7 +166,7 @@ void check_clock(qiven::runner::Context& qiven_ctx, const ClockTrace& t, std::ch
     CHECK(spent == (t.last - t.first >= deadline));
 }
 #endif
-constexpr std::string_view bound_detail = "16 files already open across the staged directories";
+constexpr std::string_view bound_detail = "4 files already open across the staged directories";
 constexpr std::string_view closed_handle = "write: error 6";  // 6 is off files' table of names
 constexpr std::string_view ended = "the staging directory is published or discarded";
 
@@ -176,7 +178,7 @@ constexpr std::string_view ended = "the staging directory is published or discar
 // Staged io; each refused path, nothing made; open's errors.
 QIVEN_CASE(win_files_stage, publish) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path bags = scratch.root / "bags";
     fs::create_directory(bags);
     {
@@ -252,7 +254,7 @@ QIVEN_CASE(win_files_stage, publish) {
 // directory discarded first.
 QIVEN_CASE(win_files_stage, publish_exists) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     fs::create_directories(scratch.root / "full");
     fs::create_directories(scratch.root / "empty");
     write_bytes(scratch.root / "full" / "bagit.txt", "present");
@@ -280,7 +282,7 @@ QIVEN_CASE(win_files_stage, publish_exists) {
 // check_clock states them.
 QIVEN_CASE(win_files_stage, publish_held) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
 #if defined(QIVEN_FAULTS)
     ClockTrace trace;
 #endif
@@ -352,7 +354,7 @@ QIVEN_CASE(win_files_stage, publish_held) {
 // Staged's end discards.
 QIVEN_CASE(win_files_stage, discard) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     {
         WindowsStaged staged = platform.stage(text(scratch.root));
         WindowsSink open = staged.open("a/b/c.txt");
@@ -400,7 +402,7 @@ QIVEN_CASE(win_files_stage, discard) {
 // the walk deletes those before it and names it.
 QIVEN_CASE(win_files_stage, discard_order) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     WindowsStaged staged = platform.stage(text(scratch.root));
     const std::string name = staging_left(scratch.root).front();
     const fs::path inside = scratch.root / name;
@@ -430,22 +432,26 @@ QIVEN_CASE(win_files_stage, discard_order) {
     CHECK(staging_left(scratch.root).empty());
 }
 
-// The bound to its edge: 16 open across two staging directories, the 17th
-// io naming the bound with nothing made; then each end that frees a place,
-// the places it frees opened again, one more refused: a Sink's close, its
-// end, publish, discard and the Staged's end.
+// The bound to its edge, the case's own small bound of 4, so that its edge
+// is reached in a few opens: 4 open across two staging directories, the
+// 5th io naming the bound with nothing made; then each end that frees a
+// place, the places it frees opened again, one more refused: a Sink's
+// close, its end, publish, discard and the Staged's end. A bound whose
+// table passes the address space: memory from the constructor.
 QIVEN_CASE(win_files_stage, bound) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    const Thrown huge = thrown([] { WindowsPlatform past("qiven-platform-test", SIZE_MAX, std::nullopt); });
+    CHECK(huge.code == Code::memory && huge.operation == "pages");
+    WindowsPlatform platform("qiven-platform-test", 4, std::nullopt);
     const std::string root = text(scratch.root);
     std::vector<WindowsSink> a;
     std::vector<WindowsSink> b;
     std::optional<WindowsStaged> first(platform.stage(root));
     std::optional<WindowsStaged> second(platform.stage(root));
-    for (std::size_t n = 0; n < 8; ++n) {
+    for (std::size_t n = 0; n < 3; ++n) {
         a.push_back(first->open("a" + std::to_string(n)));
-        b.push_back(second->open("b/" + std::to_string(n)));
     }
+    b.push_back(second->open("b/0"));
     const Thrown over = thrown([&] { static_cast<void>(second->open("over")); });
     CHECK(over.code == Code::io);
     CHECK_EQ(over.operation, std::string("open"));
@@ -458,19 +464,19 @@ QIVEN_CASE(win_files_stage, bound) {
     a[1] = WindowsSink();
     CHECK_EQ(fill(*second, b, "end-"), 1U);
     first->publish("published", five);
-    CHECK_EQ(std::distance(fs::directory_iterator(scratch.root / "published"), fs::directory_iterator()), 8);
-    CHECK_EQ(fill(*second, b, "publish-"), 6U);
+    CHECK_EQ(std::distance(fs::directory_iterator(scratch.root / "published"), fs::directory_iterator()), 3);
+    CHECK_EQ(fill(*second, b, "publish-"), 1U);
     CHECK_EQ(thrown([&] { a[2].write("x"); }).detail, std::string(closed_handle));
     std::optional<WindowsStaged> third(platform.stage(root));
     std::vector<WindowsSink> c;
     CHECK_EQ(fill(*third, c, "none-"), 0U);
     second->discard();
     CHECK_EQ(thrown([&] { b[0].write("x"); }).detail, std::string(closed_handle));
-    CHECK_EQ(fill(*third, c, "discard-"), 16U);
+    CHECK_EQ(fill(*third, c, "discard-"), 4U);
     third.reset();
     std::optional<WindowsStaged> fourth(platform.stage(root));
     std::vector<WindowsSink> d;
-    CHECK_EQ(fill(*fourth, d, "staged-end-"), 16U);
+    CHECK_EQ(fill(*fourth, d, "staged-end-"), 4U);
     CHECK_EQ(thrown([&] { static_cast<void>(fourth->open("over")); }).detail, std::string(bound_detail));
     fourth.reset();
     first.reset();
@@ -490,7 +496,7 @@ QIVEN_CASE(win_files_stage, bound) {
 QIVEN_CASE(win_files_stage, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     qiven::memory::Countdown countdown;
     const fs::path runs = scratch.root / "runs";
     fs::create_directory(runs);

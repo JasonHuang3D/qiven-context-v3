@@ -7,7 +7,7 @@
 // wire cannot read, an argument not UTF-8 or past a bound (more than
 // max_arguments arguments among them), exits 2 with no line, the wire's
 // own failure. It then makes the platform by the maker its binary gives
-// it, current(), with the subcommand's --config, and runs the subcommand
+// it, over current(), with the subcommand's --config, and runs the subcommand
 // on it, whose lines go through the wire and whose exit status is the
 // binary's. A usage error of the binary's own, no subcommand or another,
 // answers usage_line() and exits 2. Where the platform cannot be made (no
@@ -92,9 +92,9 @@ static_assert(sizeof(CommandView) == 24, "CommandView's size is pinned: a span a
 std::string_view usage_line() noexcept;
 
 // The command argv names, run on the platform make gives for its
-// --config: the subcommand's exit status. make is the binary's current();
-// where it returns no platform (no adapter is built), it throws, and main
-// exits 1, or 2 for a usage error.
+// --config: the subcommand's exit status. make is the binary's, over
+// current(); where it returns no platform (no adapter is built), it
+// throws, and main exits 1, or 2 for a usage error.
 template <typename Make>
 int main(int argc, const char* const* argv, Make make) noexcept;
 

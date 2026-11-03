@@ -281,7 +281,7 @@ void check_clock(qiven::runner::Context& qiven_ctx, const ClockTrace& t, std::ch
 
 QIVEN_CASE(win_files, create) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path made = scratch.root / "made";
     const fs::path folder = scratch.root / "folder";
     platform.create(text(made), false);
@@ -332,8 +332,8 @@ QIVEN_CASE(win_files, create) {
 QIVEN_CASE(win_files, create_race) {
     const Scratch scratch;
     constexpr std::size_t races = 64;
-    WindowsPlatform one(std::nullopt);
-    WindowsPlatform two(std::nullopt);
+    WindowsPlatform one("qiven-platform-test", 16, std::nullopt);
+    WindowsPlatform two("qiven-platform-test", 16, std::nullopt);
     const std::array<WindowsPlatform*, 2> creators{&one, &two};
     std::vector<std::vector<Thrown>> outcomes(2, std::vector<Thrown>(races));
     std::barrier gate(2);
@@ -367,7 +367,7 @@ QIVEN_CASE(win_files, create_race) {
 
 QIVEN_CASE(win_files, read) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     String out{Allocator<char>(arena)};
@@ -416,7 +416,7 @@ QIVEN_CASE(win_files, read) {
 QIVEN_CASE(win_files, read_memory) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     qiven::memory::Countdown allocations;
@@ -463,7 +463,7 @@ QIVEN_CASE(win_files, read_memory) {
 
 QIVEN_CASE(win_files, remove_directory) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path empty = scratch.root / "empty";
     fs::create_directory(empty);
     CHECK(platform.remove_directory(text(empty)));
@@ -495,7 +495,7 @@ QIVEN_CASE(win_files, remove_directory) {
 
 QIVEN_CASE(win_files, replace) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path target = scratch.root / "record.json";
     platform.replace(text(target), "first", five);
     CHECK_EQ(bytes_of(target), std::string("first"));
@@ -531,7 +531,7 @@ QIVEN_CASE(win_files, replace) {
 // named.
 QIVEN_CASE(win_files, replace_held) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path target = scratch.root / "map-marks.json";
     write_bytes(target, "old");
 #if defined(QIVEN_FAULTS)
@@ -663,7 +663,7 @@ QIVEN_CASE(win_files, replace_held) {
 // of its own: acquired no sooner than that release, within the deadline.
 QIVEN_CASE(win_files, lock) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const fs::path file = scratch.root / "location.lock";
     auto held = platform.lock(text(file), five);
     CHECK(fs::is_regular_file(file));
@@ -704,7 +704,7 @@ QIVEN_CASE(win_files, lock) {
 
     // Another holder, released before the deadline: then acquired.
     {
-        WindowsPlatform other(std::nullopt);
+        WindowsPlatform other("qiven-platform-test", 16, std::nullopt);
         auto theirs = other.lock(text(file), five);
         const auto taken = Clock::now();
         std::optional<Clock::time_point> let_go;
@@ -755,7 +755,7 @@ QIVEN_CASE(win_files, lock) {
 QIVEN_CASE(win_files, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);

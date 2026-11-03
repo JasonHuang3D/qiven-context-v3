@@ -185,7 +185,7 @@ std::vector<std::string> sweep(WindowsPlatform& platform, Op op, Answered answer
 QIVEN_CASE(win_facts_machine, facts_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     const std::string path = text(scratch.root);
@@ -213,7 +213,7 @@ QIVEN_CASE(win_facts_machine, facts_faults) {
 QIVEN_CASE(win_facts_machine, residual_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     const std::array<std::string, 2> given = {text(scratch.root), "C:\\"};
@@ -254,7 +254,7 @@ QIVEN_CASE(win_facts_machine, residual_faults) {
 QIVEN_CASE(win_facts_machine, synced_faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {

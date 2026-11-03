@@ -5,6 +5,7 @@
 // adapter_for takes no arena, by its signature, and its refusal holds its
 // detail in place (platform.hpp's PlatformError).
 
+#include <cstddef>
 #include <optional>
 #include <string_view>
 
@@ -16,6 +17,10 @@ namespace {
 
 using qiven::platform::Code;
 using qiven::platform::PlatformError;
+
+// The cases' own configuration leaf and stage's bound.
+constexpr std::string_view leaf = "qiven-platform-test";
+constexpr std::size_t open_bound = 16;
 
 // Whether the call refuses: PlatformError unsupported from current, its
 // detail naming system.
@@ -36,8 +41,8 @@ bool refused(Call&& call, std::string_view system) {
 // not: unsupported, naming it.
 QIVEN_CASE(current, unsupported) {
     for (const std::string_view system : {"linux", "macos", "plan9"}) {
-        CHECK(refused([&] { return qiven::platform::adapter_for(system, std::nullopt); }, system));
-        CHECK(refused([&] { return qiven::platform::adapter_for(system, "C:\\qiven"); }, system));
+        CHECK(refused([&] { return qiven::platform::adapter_for(system, leaf, open_bound, std::nullopt); }, system));
+        CHECK(refused([&] { return qiven::platform::adapter_for(system, leaf, open_bound, "C:\\qiven"); }, system));
     }
 }
 
@@ -47,10 +52,11 @@ QIVEN_CASE(current, build_system) {
     const std::string_view system = qiven::platform::build_system();
 #if defined(_WIN32)
     CHECK_EQ(system, std::string_view("windows"));
-    CHECK_EQ(qiven::platform::current(std::nullopt).name(), std::string_view("windows"));
-    CHECK_EQ(qiven::platform::adapter_for("windows", std::nullopt).name(), std::string_view("windows"));
+    CHECK_EQ(qiven::platform::current(leaf, open_bound, std::nullopt).name(), std::string_view("windows"));
+    CHECK_EQ(qiven::platform::adapter_for("windows", leaf, open_bound, std::nullopt).name(),
+             std::string_view("windows"));
 #else
     CHECK(system == "linux" || system == "macos" || system == "unknown");
-    CHECK(refused([] { qiven::platform::current(std::nullopt); }, system));
+    CHECK(refused([] { qiven::platform::current(leaf, open_bound, std::nullopt); }, system));
 #endif
 }

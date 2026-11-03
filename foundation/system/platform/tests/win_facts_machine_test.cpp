@@ -133,7 +133,7 @@ void row_is(qiven::runner::Context& qiven_ctx, const Row& row, std::size_t i, Ap
 
 QIVEN_CASE(win_facts_machine, facts_here) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     const std::array<std::string, 2> paths = {text(scratch.root), "C:\\"};
@@ -167,7 +167,7 @@ QIVEN_CASE(win_facts_machine, facts_here) {
 
 QIVEN_CASE(win_facts_machine, residual_here) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     const std::array<std::string, 2> given = {text(scratch.root), "C:\\"};
     const std::array<std::string_view, 2> paths = {given[0], given[1]};
@@ -246,7 +246,7 @@ QIVEN_CASE(win_facts_machine, residual_here) {
 
 QIVEN_CASE(win_facts_machine, synced_here) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {

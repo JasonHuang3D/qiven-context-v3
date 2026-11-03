@@ -196,7 +196,7 @@ QIVEN_CASE(win_platform, config_override) {
         String out{Allocator<char>(arena)};
         const fs::path over = scratch.root / "over" / "qiven-config";
         fs::create_directory(over.parent_path());
-        WindowsPlatform platform(text(over));
+        WindowsPlatform platform("qiven-platform-test", 16, text(over));
         platform.config_dir(false, out);
         CHECK_EQ(std::string(out), text(over));
         CHECK(!fs::exists(over));
@@ -216,14 +216,14 @@ QIVEN_CASE(win_platform, config_override) {
         CHECK_EQ(bytes_of(over), std::string("a file"));
 
         const fs::path orphan = scratch.root / "missing" / "qiven-config";
-        WindowsPlatform orphaned(text(orphan));
+        WindowsPlatform orphaned("qiven-platform-test", 16, text(orphan));
         const Thrown missing = thrown([&] { orphaned.config_dir(true, out); });
         CHECK_EQ(missing.code, Code::io);
         CHECK_EQ(missing.operation, std::string("config_dir"));
         CHECK(!fs::exists(orphan.parent_path()));
 
         const Here here(scratch.root);
-        WindowsPlatform relative("qiven-relative");
+        WindowsPlatform relative("qiven-platform-test", 16, "qiven-relative");
         for (const bool create : {false, true}) {
             const Thrown refused = thrown([&] { relative.config_dir(create, out); });
             CHECK_EQ(refused.code, Code::path);
@@ -234,35 +234,41 @@ QIVEN_CASE(win_platform, config_override) {
     CHECK_EQ(arena.used(), 0U);
 }
 
-// No override: the known folder LocalAppData's qiven3, absolute, which the
-// process's LOCALAPPDATA names where the system set it; LOCALAPPDATA moved,
-// unset and relative each give the same, and nothing is made under the
-// moved one.
+// No override: the known folder LocalAppData, '\', then the case's own
+// leaf, absolute, which the process's LOCALAPPDATA names where the system
+// set it; LOCALAPPDATA moved, unset and relative each give the same, and
+// nothing is made under the moved one. A leaf not UTF-8 is path.
 QIVEN_CASE(win_platform, config_default) {
+    constexpr std::string_view leaf = "qiven-platform-test";
     const Scratch scratch;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
         String out{Allocator<char>(arena)};
-        WindowsPlatform first(std::nullopt);
+        WindowsPlatform first(leaf, 16, std::nullopt);
         first.config_dir(false, out);
         const std::string expected(out);
         const fs::path found = fs::path(std::u8string(expected.begin(), expected.end()));
         CHECK(found.is_absolute());
-        CHECK_EQ(text(found.filename()), std::string("qiven3"));
+        CHECK_EQ(text(found.filename()), std::string(leaf));
         if (const std::optional<std::string> set = variable("LOCALAPPDATA")) {
-            CHECK_EQ(expected, *set + "\\qiven3");
+            CHECK_EQ(expected, *set + "\\" + std::string(leaf));
         }
         const fs::path elsewhere = scratch.root / "elsewhere";
         for (const std::optional<std::string>& value :
              {std::optional<std::string>(text(elsewhere)), std::optional<std::string>(),
               std::optional<std::string>("relative")}) {
             const Variable moved("LOCALAPPDATA", value);
-            WindowsPlatform platform(std::nullopt);
+            WindowsPlatform platform(leaf, 16, std::nullopt);
             platform.config_dir(false, out);
             CHECK_EQ(std::string(out), expected);
         }
-        CHECK(!fs::exists(elsewhere / "qiven3"));
+        CHECK(!fs::exists(elsewhere / leaf));
+
+        WindowsPlatform broken("\xff", 16, std::nullopt);
+        const Thrown refused = thrown([&] { broken.config_dir(true, out); });
+        CHECK_EQ(refused.code, Code::path);
+        CHECK_EQ(refused.operation, std::string("config_dir"));
     }
     CHECK_EQ(arena.used(), 0U);
 }
@@ -272,7 +278,7 @@ QIVEN_CASE(win_platform, normcase) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
-        WindowsPlatform platform(std::nullopt);
+        WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
         String out{Allocator<char>(arena)};
         for (const auto& [path, form] : normcase_forms) {
             platform.normcase(path, out);
@@ -285,7 +291,7 @@ QIVEN_CASE(win_platform, normcase) {
 // wipe of 32 bytes filled with 0xa5: each zero after; of an empty span, of
 // none and of the filled bytes' first 0, nothing changed.
 QIVEN_CASE(win_platform, wipe) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     std::array<std::byte, 32> bytes{};
     bytes.fill(std::byte{0xa5});
     platform.wipe(bytes);
@@ -298,7 +304,7 @@ QIVEN_CASE(win_platform, wipe) {
 
 // random_bytes(32) twice: the two differing.
 QIVEN_CASE(win_platform, random_bytes) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     std::array<std::byte, 32> first{};
     std::array<std::byte, 32> second{};
     platform.random_bytes(first);
@@ -312,7 +318,7 @@ QIVEN_CASE(win_platform, now) {
     using std::chrono::floor;
     using std::chrono::milliseconds;
     using std::chrono::system_clock;
-    const WindowsPlatform platform(std::nullopt);
+    const WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     const std::int64_t before = ms_of(floor<milliseconds>(system_clock::now()));
     const std::int64_t now = ms_of(platform.now());
     const std::int64_t after = ms_of(floor<milliseconds>(system_clock::now()));
@@ -324,7 +330,7 @@ QIVEN_CASE(win_platform, now) {
 // zeroed, each given back; (1 << 53) - 1 bytes, which the system refuses:
 // memory.
 QIVEN_CASE(win_platform, pages) {
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     {
         const auto first = platform.pages(1);
         const auto second = platform.pages(5000);
@@ -350,7 +356,7 @@ QIVEN_CASE(win_platform, not_utf8) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     {
-        WindowsPlatform platform(std::nullopt);
+        WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
         String out{Allocator<char>(arena)};
         for (const std::string_view bad : {std::string_view("\xff"), std::string_view("\xed\xa0\x80")}) {
             const std::string path = text(scratch.root) + "\\a" + std::string(bad) + ".txt";

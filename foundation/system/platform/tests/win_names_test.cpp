@@ -144,7 +144,7 @@ constexpr Seconds once{0.0};
 
 QIVEN_CASE(win_names, list) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     WindowsFiles system(platform);
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
@@ -175,7 +175,7 @@ QIVEN_CASE(win_names, list) {
 
 QIVEN_CASE(win_names, remove) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     WindowsFiles system(platform);
     const fs::path file = scratch.root / "file";
     write_bytes(file, "x");
@@ -206,7 +206,7 @@ QIVEN_CASE(win_names, remove) {
 
 QIVEN_CASE(win_names, rename) {
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     WindowsFiles system(platform);
     const fs::path file = scratch.root / "file";
     write_bytes(file, "x");
@@ -242,7 +242,7 @@ QIVEN_CASE(win_names, rename) {
 QIVEN_CASE(win_names, faults) {
 #if defined(QIVEN_FAULTS)
     const Scratch scratch;
-    WindowsPlatform platform(std::nullopt);
+    WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
     qiven::memory::Countdown countdown;
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
