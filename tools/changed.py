@@ -79,9 +79,8 @@ def vcvars_env():
 
 
 def build(env, cmake):
-    """(status, the answer's build line, or on a failure the failing steps' lines whole, as the build printed
-    them: each from Ninja's FAILED: line to its next step or Ninja's own last line; the whole output when no
-    step failed, as when configure fails)."""
+    """(status, the answer's build line, and on a failure every line the build printed but Ninja's step
+    lines: configure's or a regenerating build's CMake output, each FAILED: block, Ninja's last line)."""
     status, text = 0, ""
     if not (ROOT / TREE / "CMakeCache.txt").is_file():
         status, text = capture([cmake, "--preset", "ci-windows", "-B", TREE], env)
@@ -89,12 +88,8 @@ def build(env, cmake):
         status, more = capture([cmake, "--build", TREE], env)
         text += more
     if status != 0:
-        lines, failing, inside = text.splitlines(), [], False
-        for line in lines:
-            inside = line.startswith("FAILED:") or (inside and not (STEP.match(line) or line.startswith("ninja: ")))
-            if inside:
-                failing.append(line)
-        return status, [f"build: failed, {STATUS['line'](status)}", *(failing or lines)]
+        return status, [f"build: failed, {STATUS['line'](status)}",
+                        *(line for line in text.splitlines() if not STEP.match(line))]
     if "ninja: no work to do." in text:
         return 0, ["build: nothing to rebuild"]
     return 0, [f"build: {sum(1 for line in text.splitlines() if STEP.match(line))} steps"]
@@ -230,7 +225,9 @@ def main(argv):
     except CannotRun as error:
         lines.append(f"cannot run: {error}")
         code = 2
-    print("\n".join(lines[:39] + [f"exit {code}"]))
+    if len(lines) > 39:  # the answer's bound, 40 lines with the exit's: the cut named
+        lines = lines[:38] + [f"and {len(lines) - 38} more lines, left out by the answer's bound"]
+    print("\n".join(lines + [f"exit {code}"]))
     return code
 
 
