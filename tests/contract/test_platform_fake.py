@@ -11,7 +11,6 @@ import unittest
 
 from tests.contract.platform_cases import PlatformBinding
 from tests.contract.platform_files import PlatformFiles
-from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_machine import CASES, PlatformForms, PlatformMachine, skip_reasons
 from tests.contract.platform_memory import PlatformMemory
@@ -47,8 +46,8 @@ class FakeBinding(PlatformBinding):
         d.call("set_busy", **times)
 
 
-class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformLast,
-           PlatformMemory, unittest.TestCase):
+class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformMemory,
+           unittest.TestCase):
     ctest_labels = ("fake",)
 
 

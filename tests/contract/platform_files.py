@@ -1,11 +1,11 @@
-"""The platform's case P9, defined once over an adapter
-(contract/platform_cases.py names the binding's part): replace's and
-stage's files, through the drive's handles (driver/platform_files.hpp).
+"""The platform's files case of 938, defined once over an adapter
+(contract/platform_cases.py names the binding's part): stage's files,
+through the drive's handles (driver/platform_files.hpp).
 
-Here: P9 (replace held) and a failed open making nothing, under faults
-(938). P19, publish, is platform's own
-(foundation/system/platform/tests/files_test.cpp and
-win_files_stage_test.cpp), as is P25, not UTF-8 (files_test.cpp,
+Here: a failed open making nothing, under faults (938). P9, replace
+held, is platform's own (foundation/system/platform/tests/files_test.cpp
+and win_files_test.cpp), as are P19, publish (files_test.cpp and
+win_files_stage_test.cpp), and P25, not UTF-8 (files_test.cpp,
 fake_platform_test.cpp and win_platform_test.cpp there). A holder is
 the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
@@ -47,62 +47,11 @@ def staging_left(directory):
     return sorted(p.name for p in Path(directory).iterdir() if STAGING.fullmatch(p.name))
 
 
-def temporaries(directory):
-    """The temporary files replace left in directory."""
-    return sorted(p.name for p in Path(directory).iterdir() if TEMPORARY.fullmatch(p.name))
-
-
 class PlatformFiles:
     def nothing_kept(self, d):
         """On the fake: no file, staging directory or lock held open."""
         if self.ADAPTER == "fake":
             self.assertEqual(d.call("kept"), 0)
-
-    def test_P9_replace_held(self):
-        """A reader holds the target, released before the deadline, then
-        held past it; a handle on the temporary file, released before the
-        deadline, then held past it; a deadline of 0, one try."""
-        self.needs("files")
-        root = Path(self.files_root())
-        target = root / "target.txt"
-        target.write_bytes(b"old")
-        with self.drive() as d:
-            for held, data in (("target", b"new 1"), ("temporary", b"new 2")):
-                with self.subTest(held=held, released=True):
-                    target.write_bytes(b"old")
-                    self.hold(d, **{held: 3})
-                    self.assertIsNone(d.call("replace", path=str(target), data=data.hex()))
-                    self.assertEqual(target.read_bytes(), data)
-                    self.assertEqual(temporaries(root), [])
-                with self.subTest(held=held, released=False):
-                    target.write_bytes(b"old")
-                    self.hold(d, **{held: -1})
-                    error = self.failure(d.call, "replace", path=str(target), data=data.hex(), deadline=300)
-                    self.hold(d)
-                    self.assert_platform_error(error, "busy")
-                    self.assertEqual(error.operation, "replace")
-                    self.assertEqual(target.read_bytes(), b"old")
-                    left = temporaries(root)
-                    if held == "target":
-                        self.assertEqual(left, [])
-                        self.assertEqual(error.detail, "rename: error 5 (ERROR_ACCESS_DENIED)")
-                    else:
-                        # Its deletion refused too: the detail names it.
-                        self.assertEqual(len(left), 1, left)
-                        self.assertEqual(TEMPORARY.fullmatch(left[0])["name"], target.name)
-                        self.assertEqual(error.detail, f"rename: error 32 (ERROR_SHARING_VIOLATION); left {left[0]}, "
-                                                       "delete: error 32 (ERROR_SHARING_VIOLATION)")
-                        (root / left[0]).unlink()
-            # A deadline of 0 gets one try.
-            self.hold(d, target=1)
-            self.assert_platform_error(
-                self.failure(d.call, "replace", path=str(target), data=b"once".hex(), deadline=0), "busy")
-            self.assertEqual(target.read_bytes(), b"old")
-            self.hold(d, target=1)
-            self.assertIsNone(d.call("replace", path=str(target), data=b"twice".hex()))
-            self.assertEqual(target.read_bytes(), b"twice")
-            self.assertEqual(temporaries(root), [])
-            self.nothing_kept(d)
 
     def test_open_failed(self):
         """938: a Staged's open of a file two directories down, each of its

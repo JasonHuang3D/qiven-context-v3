@@ -4,7 +4,9 @@
 // names on the caller's arena counted; remove's none there, busy with no
 // retry and its errors; rename's exists with both kept, its retries until
 // the deadline then busy, one try for a deadline of 0 or not a number,
-// and its errors; each system call and each allocation failed in turn.
+// and its errors; the fake's members, a file renamed to its own name kept
+// and each refused by its fault point; each system call and each
+// allocation failed in turn.
 
 #include <array>
 #include <chrono>
@@ -310,6 +312,45 @@ QIVEN_CASE(files_names, rename) {
     CHECK(thrown([&] { files::rename(system, "relative", "6.pending", five); }).first == Code::path);
     CHECK_EQ(bytes_of(from), std::string("held"));
     CHECK_EQ(system.kept(), 0U);
+}
+
+// The fake's members over list, remove and rename (P27's names): a file
+// renamed to its own name kept; under QIVEN_FAULTS each member refused by
+// its fault point, io under its own operation, the file kept.
+QIVEN_CASE(files_names, members) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config());
+    const auto pages = std::make_unique<Pages>();
+    Arena arena(pages->bytes);
+    Vector<String> names{Allocator<String>(arena)};
+    const fs::path kept = scratch.root / "c.tmp";
+    write_bytes(kept, "c");
+    fake.rename(text(kept), "c.tmp", five);
+    CHECK_EQ(bytes_of(kept), std::string("c"));
+    fake.list(text(scratch.root), names);
+    CHECK_EQ(joined(names), std::string("c.tmp"));
+#if defined(QIVEN_FAULTS)
+    qiven::memory::Countdown countdown;
+    const auto refused = [&](std::string_view operation, auto op) {
+        std::string got = "none thrown";
+        countdown.arm(1);
+        try {
+            op();
+        } catch (const PlatformError& error) {
+            got = std::string(error.operation.view()) + (error.code == Code::io ? ": io" : ": not io");
+        }
+        countdown.disarm();
+        CHECK_EQ(got, std::string(operation) + ": io");
+    };
+    fake.attach(&countdown);
+    refused("list", [&] { fake.list(text(scratch.root), names); });
+    refused("remove", [&] { fake.remove(text(kept)); });
+    refused("rename", [&] { fake.rename(text(kept), "c.pending", five); });
+    fake.attach(nullptr);
+    CHECK_EQ(bytes_of(kept), std::string("c"));
+    CHECK(!fs::exists(scratch.root / "c.pending"));
+#endif
+    CHECK_EQ(fake.files().kept(), 0U);
 }
 
 // Each system call failed in turn, then each allocation of list's names:

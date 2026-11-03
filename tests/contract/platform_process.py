@@ -9,17 +9,19 @@ P15, the tree, the deadline, the caps, the environment and the
 arguments (win_process_test.cpp and win_process_streams_test.cpp).
 
 Each case needs processes, which the fake lacks: it checks that need
-first, so on the fake it is not applicable having run nothing, P20's lock
-half included. What the fake's programs carry (set_programs: a program
+first, so on the fake it is not applicable having run nothing. What the
+fake's programs carry (set_programs: a program
 found by its whole argv gives its lines, its err and its code, or hangs,
 or floods a stream) is the fake's own cases' (contract/platform_own.py).
 The Windows adapter's program, start and run are its module win/process',
 and the children its cases start are qiven_platform_child's, started
 through the drive; a binding with PROCESSES false checks that run refuses
-a relative argv[0] (start), and the child half is skipped. P20's lock is
-the files', its holder the binding's hold() (contract/platform_files.py),
-timed where P20 runs; its child half's two init runs are qiven3-child
-init's, each location's init on the adapter.
+a relative argv[0] (start), and the child half is skipped. P20's lock
+half is platform's own (foundation/system/platform/tests/win_files_test.cpp
+and files_test.cpp); lock_half, over the binding's hold()
+(contract/platform_files.py), is the fake's own lock case's
+(contract/platform_own.py). P20's two init runs are qiven3-child init's,
+each location's init on the adapter.
 
 The readings where the text is silent run on every adapter, the fake's
 programs echoing their command as the child's forms print it: a caller's
@@ -166,17 +168,17 @@ class PlatformProcess:
             self.assertEqual(bytes.fromhex(ran["out"]), b"gone\n", pid)
 
     def test_P20_lock(self):
-        """lock held, then released before the deadline; held past it:
-        acquired; busy; a deadline of 0, one try (the lock half), timed.
-        Two init runs at once, each a child: one recorded, the other chosen
-        (the child half). Each child, over one configuration directory and
-        a directory of its own, says ready, then runs init once its input
-        ends, the two inputs ended together: one exits 0, recorded, the
-        record naming its directory, which holds the store; the other exits
-        1 on one line naming chosen, its directory left empty."""
+        """Two init runs at once, each a child: one recorded, the other
+        chosen (the child half). Each child, over one configuration
+        directory and a directory of its own, says ready, then runs init
+        once its input ends, the two inputs ended together: one exits 0,
+        recorded, the record naming its directory, which holds the store;
+        the other exits 1 on one line naming chosen, its directory left
+        empty. The lock half, held, then released before the deadline,
+        held past it and a deadline of 0, is platform's own
+        (foundation/system/platform/tests/win_files_test.cpp and
+        files_test.cpp there)."""
         self.needs("processes")
-        with self.drive() as d:
-            lock_half(self, d, timed=True)
         self.child_half("two init runs at once, each a child: one recorded, the other chosen")
         config = self.files_root() / "inits"
         chosen = [self.files_root() / f"init-{k}" for k in range(2)]

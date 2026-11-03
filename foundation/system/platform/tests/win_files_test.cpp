@@ -1,25 +1,32 @@
 // windows/files' cases on the Windows adapter, on the real file system in a
 // scratch directory of each case's own under the job's temporary
 // directory: create, read and remove_directory as the contract states them,
-// each error by the system's call and its Win32 name; replace and lock over
-// files' retries, a reader holding the target and a second lock driving
-// them; read's one allocation counted on its arena; each Win32 call failed
-// in turn, a typed error with nothing left open or behind.
+// each error by the system's call and its Win32 name; two adapters' creates
+// racing; replace and lock over files' retries, a reader holding the target
+// or the temporary file and a second lock driving them, released before the
+// deadline or held past it; read's one allocation counted on its arena;
+// each Win32 call failed in turn, a typed error with nothing left open or
+// behind.
 
 #include <array>
+#include <barrier>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <random>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
+#include <vector>
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/platform/windows/windows.hpp"
@@ -134,6 +141,123 @@ std::chrono::milliseconds steady_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 }
 
+using Clock = std::chrono::steady_clock;
+
+// A holder's time: three of the adapter's 50 ms retry intervals.
+constexpr std::chrono::milliseconds held_for{150};
+// The deadline a holder of replace's temporary file is held past: its
+// watcher's time to take the file, on a loaded machine, within it.
+constexpr Seconds held_past{1.0};
+
+// The whole milliseconds of a span, for a case's output.
+long long ms_of(Clock::duration span) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(span).count();
+}
+
+// replace's temporary files in a directory, ".<name>.<16 digits>.tmp" for
+// the target's name.
+std::vector<std::string> temporaries(const fs::path& directory, std::string_view name) {
+    const std::string prefix = "." + std::string(name) + ".";
+    std::vector<std::string> out;
+    std::error_code error;
+    for (const fs::directory_entry& entry : fs::directory_iterator(directory, error)) {
+        const std::string found = text(entry.path().filename());
+        if (found.size() == prefix.size() + 20 && found.starts_with(prefix) && found.ends_with(".tmp")) {
+            out.push_back(found);
+        }
+    }
+    return out;
+}
+
+// P9's holder, by the standard library alone, a reader as std::ifstream
+// opens one: sharing read and write, never delete. On the target, taken at
+// once; or on replace's temporary file, which a watcher thread finds beside
+// the target and opens once the adapter has closed it, a reader on the
+// target holding the rename back until then. Released held_for after it is
+// taken, or else at release(). Its times and the file's name are read
+// after release(); the release's time before its readers close.
+class Holder {
+public:
+    Holder(const fs::path& target, bool temporary, std::optional<std::chrono::milliseconds> hold)
+        : target_(target), temporary_(temporary), hold_(hold), gate_(target, std::ios::binary) {
+        ready_ = gate_.is_open();
+        if (!temporary_) {
+            taken_ = Clock::now();
+        }
+        watcher_ = std::thread([this] { run(); });
+    }
+    Holder(const Holder&) = delete;
+    Holder& operator=(const Holder&) = delete;
+    Holder(Holder&&) = delete;
+    Holder& operator=(Holder&&) = delete;
+    ~Holder() { release(); }
+
+    void release() {
+        {
+            const std::scoped_lock lock(mutex_);
+            stop_ = true;
+        }
+        woken_.notify_all();
+        if (watcher_.joinable()) {
+            watcher_.join();
+        }
+    }
+    [[nodiscard]] bool ready() const { return ready_; }
+    [[nodiscard]] const std::optional<Clock::time_point>& taken() const { return taken_; }
+    [[nodiscard]] const std::optional<Clock::time_point>& released() const { return released_; }
+    [[nodiscard]] const std::string& name() const { return name_; }
+
+private:
+    // The temporary file opened, if one is there and the adapter's handle
+    // on it is closed.
+    bool take_temporary() {
+        for (const std::string& found : temporaries(target_.parent_path(), text(target_.filename()))) {
+            reader_.open(target_.parent_path() / found, std::ios::binary);
+            if (reader_.is_open()) {
+                name_ = found;
+                return true;
+            }
+            reader_.clear();
+        }
+        return false;
+    }
+
+    void run() {
+        std::unique_lock lock(mutex_);
+        while (temporary_ && !stop_ && !take_temporary()) {
+            woken_.wait_for(lock, std::chrono::milliseconds(1), [this] { return stop_; });
+        }
+        if (temporary_ && reader_.is_open()) {
+            taken_ = Clock::now();
+            gate_.close();
+        }
+        if (taken_) {
+            if (hold_) {
+                woken_.wait_until(lock, *taken_ + *hold_, [this] { return stop_; });
+            } else {
+                woken_.wait(lock, [this] { return stop_; });
+            }
+            released_ = Clock::now();
+        }
+        reader_.close();
+        gate_.close();
+    }
+
+    fs::path target_;
+    bool temporary_;
+    std::optional<std::chrono::milliseconds> hold_;
+    std::ifstream gate_;    // on the target
+    std::ifstream reader_;  // on the temporary file
+    bool ready_ = false;
+    std::optional<Clock::time_point> taken_;
+    std::optional<Clock::time_point> released_;
+    std::string name_;
+    std::mutex mutex_;
+    std::condition_variable woken_;
+    bool stop_ = false;
+    std::thread watcher_;
+};
+
 #if defined(QIVEN_FAULTS)
 using qiven::platform::win::ClockTrace;
 
@@ -199,6 +323,46 @@ QIVEN_CASE(win_files, create) {
     const Thrown bad = thrown([&] { platform.create(scratch.at("a") + "\xff", false); });
     CHECK(bad.code == Code::path);
     CHECK_EQ(bad.detail, std::string("not UTF-8"));
+}
+
+// P27's race: two adapters, each on a thread of its own, create the same
+// absent files, each pair of creates released together by a barrier: of
+// each pair one makes the empty file and the other finds it present,
+// never both.
+QIVEN_CASE(win_files, create_race) {
+    const Scratch scratch;
+    constexpr std::size_t races = 64;
+    WindowsPlatform one(std::nullopt);
+    WindowsPlatform two(std::nullopt);
+    const std::array<WindowsPlatform*, 2> creators{&one, &two};
+    std::vector<std::vector<Thrown>> outcomes(2, std::vector<Thrown>(races));
+    std::barrier gate(2);
+    const auto creates = [&](std::size_t creator) {
+        for (std::size_t k = 0; k < races; ++k) {
+            gate.arrive_and_wait();
+            outcomes[creator][k] =
+                thrown([&] { creators[creator]->create(scratch.at("raced-" + std::to_string(k)), false); });
+        }
+    };
+    std::thread second(creates, std::size_t{1});
+    creates(0);
+    second.join();
+    std::array<std::size_t, 2> made{};
+    for (std::size_t k = 0; k < races; ++k) {
+        const std::string name = "raced-" + std::to_string(k);
+        const Thrown& first = outcomes[0][k];
+        const Thrown& other = outcomes[1][k];
+        made[0] += first.detail == "none thrown" ? 1U : 0U;
+        made[1] += other.detail == "none thrown" ? 1U : 0U;
+        const Thrown& lost = first.detail == "none thrown" ? other : first;
+        const Thrown& won = first.detail == "none thrown" ? first : other;
+        CHECK_EQ(name + ": " + won.detail, name + ": none thrown");
+        CHECK_EQ(name + ": " + lost.detail, name + ": CreateFileW: ERROR_FILE_EXISTS (80)");
+        CHECK(lost.code == Code::exists);
+        CHECK_EQ(fs::file_size(scratch.root / name), 0U);
+    }
+    std::cout << "win_files.create_race: of " << races << " pairs the first made " << made[0] << ", the second "
+              << made[1] << "\n";
 }
 
 QIVEN_CASE(win_files, read) {
@@ -361,7 +525,10 @@ QIVEN_CASE(win_files, replace) {
 // calls: the held replace of deadline 0 makes those of a replace that
 // renames at its first try, and one more, its temporary file's deletion;
 // the deadline's replace those and one rename more for each pause.
-// Released, the new bytes.
+// Released, the new bytes. Then P9's holders (Holder): a reader on the
+// target, then one on the temporary file, each released before the
+// deadline; one on the temporary file held past it, the file left and
+// named.
 QIVEN_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -428,11 +595,72 @@ QIVEN_CASE(win_files, replace_held) {
 #else
     static_cast<void>(retried + once + first_try);
 #endif
+
+    // A reader on the target, then one on the temporary file, each released
+    // held_for after it is taken: replaced no sooner than it lets go, within
+    // the deadline, no temporary file left.
+    for (const bool temporary : {false, true}) {
+        const char* const kind = temporary ? "the temporary file" : "the target";
+        write_bytes(target, "old");
+        Holder holder(target, temporary, held_for);
+        CHECK(holder.ready());
+        const auto before = Clock::now();
+        const Thrown released = thrown([&] { platform.replace(text(target), "new", five); });
+        const auto after = Clock::now();
+        holder.release();
+        CHECK_EQ(released.detail, std::string("none thrown"));
+        CHECK_EQ(bytes_of(target), std::string("new"));
+        CHECK(!temporary_left(scratch.root));
+        CHECK(holder.taken().has_value() && holder.released().has_value());
+        if (holder.taken() && holder.released()) {
+            const auto taken = *holder.taken();
+            const auto let_go = *holder.released();
+            std::cout << "win_files.replace_held: " << kind << " held " << ms_of(let_go - taken) << " ms, replaced "
+                      << ms_of(after - let_go) << " ms after its release, " << ms_of(after - before)
+                      << " ms after asking\n";
+            CHECK(let_go - taken >= held_for);
+            CHECK(let_go <= after);
+            CHECK(after - before < five);
+        }
+        CHECK(!temporary || !holder.name().empty());
+    }
+
+    // A reader on the temporary file held past the deadline: busy, the old
+    // bytes, the temporary file left, and the detail names it, its deletion
+    // refused too.
+    write_bytes(target, "old");
+    {
+        Holder holder(target, true, std::nullopt);
+        CHECK(holder.ready());
+        const auto before = Clock::now();
+        const Thrown past = thrown([&] { platform.replace(text(target), "new", held_past); });
+        const auto after = Clock::now();
+        holder.release();
+        std::cout << "win_files.replace_held: the temporary file held past a deadline of "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(held_past).count() << " ms, busy "
+                  << ms_of(after - before) << " ms after asking\n";
+        CHECK(past.code == Code::busy);
+        CHECK_EQ(past.operation, std::string("replace"));
+        CHECK_EQ(bytes_of(target), std::string("old"));
+        const std::vector<std::string> left = temporaries(scratch.root, text(target.filename()));
+        CHECK_EQ(left.size(), 1U);
+        CHECK(!holder.name().empty());
+        if (left.size() == 1) {
+            CHECK_EQ(left.front(), holder.name());
+            CHECK_EQ(past.detail, "rename: error 32 (ERROR_SHARING_VIOLATION); left " + holder.name() +
+                                      ", delete: error 32 (ERROR_SHARING_VIOLATION)");
+            fs::remove(scratch.root / left.front());
+        }
+    }
+    CHECK(!temporary_left(scratch.root));
+    CHECK(unheld(target));
 }
 
 // P20's lock half: held past the deadline, busy, never before it by the
 // clock the adapter reads, and under QIVEN_FAULTS the retries as
-// check_clock states them; at 0 busy; released, acquired.
+// check_clock states them; at 0 busy, one try; released, acquired. Held by
+// another adapter's lock released held_for after it took it, on a thread
+// of its own: acquired no sooner than that release, within the deadline.
 QIVEN_CASE(win_files, lock) {
     const Scratch scratch;
     WindowsPlatform platform(std::nullopt);
@@ -454,7 +682,16 @@ QIVEN_CASE(win_files, lock) {
     platform.trace(nullptr);
     check_clock(qiven_ctx, trace, before, after, short_wait, true);
 #endif
+#if defined(QIVEN_FAULTS)
+    ClockTrace zero_trace;
+    platform.trace(&zero_trace);
+#endif
     CHECK(thrown([&] { platform.lock(text(file), Seconds{0.0}); }).code == Code::busy);
+#if defined(QIVEN_FAULTS)
+    platform.trace(nullptr);
+    CHECK_EQ(zero_trace.reads, 2U);  // its start, and its one try's
+    CHECK_EQ(zero_trace.pauses, 0U);
+#endif
     auto moved = std::move(held);
     moved.release();
     moved.release();
@@ -463,6 +700,46 @@ QIVEN_CASE(win_files, lock) {
     {
         const auto last = platform.lock(text(file), five);
         CHECK(thrown([&] { platform.lock(text(file), Seconds{0.0}); }).code == Code::busy);
+    }
+
+    // Another holder, released before the deadline: then acquired.
+    {
+        WindowsPlatform other(std::nullopt);
+        auto theirs = other.lock(text(file), five);
+        const auto taken = Clock::now();
+        std::optional<Clock::time_point> let_go;
+        std::thread holder([&] {
+            std::this_thread::sleep_until(taken + held_for);
+            let_go = Clock::now();
+            theirs.release();
+        });
+#if defined(QIVEN_FAULTS)
+        ClockTrace waited;
+        platform.trace(&waited);
+#endif
+        const auto asked_ms = steady_ms();
+        const auto asked = Clock::now();
+        std::optional<Clock::time_point> acquired;
+        const Thrown ours = thrown([&] {
+            const auto mine = platform.lock(text(file), five);
+            acquired = Clock::now();
+        });
+        const auto returned_ms = steady_ms();
+        holder.join();
+#if defined(QIVEN_FAULTS)
+        platform.trace(nullptr);
+        check_clock(qiven_ctx, waited, asked_ms, returned_ms, five, false);
+#endif
+        CHECK_EQ(ours.detail, std::string("none thrown"));
+        CHECK(let_go.has_value() && acquired.has_value());
+        if (let_go && acquired) {
+            std::cout << "win_files.lock: another holder held " << ms_of(*let_go - taken) << " ms, acquired "
+                      << ms_of(*acquired - *let_go) << " ms after its release, " << ms_of(*acquired - asked)
+                      << " ms after asking\n";
+            CHECK(*let_go - taken >= held_for);
+            CHECK(taken <= asked && *let_go <= *acquired);
+            CHECK(*acquired - asked < five);
+        }
     }
     CHECK(fs::is_regular_file(file));  // kept, never written
     CHECK_EQ(fs::file_size(file), 0U);

@@ -7,8 +7,8 @@ machine, and "own: fake" on the fake; drive_args(config, seed), the drive's argu
 files_root(), a directory its files' operations may write under;
 COUNT_HANDLES, whether each drive's handle count is compared; and, for
 the files' cases, hold(drive, **times), its holders
-(contract/platform_files.py), and, where P20 runs timed, held(drive,
-kind), a holder's own times, taken and released. A case needing a tag the adapter lacks is
+(contract/platform_files.py), and, on Windows, held(drive, kind), a
+holder's own times, taken and released. A case needing a tag the adapter lacks is
 not applicable, a skip with the reason.
 
 Here: the binding. P1, current's choice, is platform's own
@@ -16,9 +16,13 @@ Here: the binding. P1, current's choice, is platform's own
 (win_platform_test.cpp and fake_platform_test.cpp there), and P23
 (random_bytes), P24 (now), P25 (not UTF-8) and P28 (pages) are too, there;
 P26, standard_output to a pipe, is (win_process_streams_test.cpp there).
+P9, replace held, is too (files_test.cpp and win_files_test.cpp there), as
+are P20's lock half (the same two) and P27, create, read, their race,
+remove_directory and the names (fake_platform_test.cpp,
+files_names_test.cpp, win_files_test.cpp and win_names_test.cpp there).
 P3 to P8 and P16 are location's
-(contract/platform_location.py), P9 the files'
-(contract/platform_files.py), P20 the processes'
+(contract/platform_location.py), the files' a failed open
+(contract/platform_files.py), P20's child half the processes'
 (contract/platform_process.py), P17, P18, P21 and P22 the machine's
 (contract/platform_machine.py); the fake's own cases, "own: fake",
 contract/platform_own.py.

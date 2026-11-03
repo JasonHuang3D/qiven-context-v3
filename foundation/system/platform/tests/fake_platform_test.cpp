@@ -4,15 +4,18 @@
 // zeroing, each call recorded; random_bytes by its seed's blocks; now as its
 // clock truncated to milliseconds; pages zeroed in whole pages, refused when
 // set to, lent counting them; resolve and a Staged's open refusing a path
-// not UTF-8.
+// not UTF-8; create, read and remove_directory on real files, two fakes'
+// creates racing (P27's).
 
 #include <algorithm>
 #include <array>
+#include <barrier>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <random>
@@ -20,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -107,6 +111,17 @@ std::pair<Code, std::string> thrown(Op&& op) {
         return {error.code, std::string(error.operation.view())};
     }
     return {Code::unsupported, "none thrown"};
+}
+
+// The detail of the PlatformError op throws; "none thrown" when it returns.
+template <class Op>
+std::string detail_of(Op&& op) {
+    try {
+        std::forward<Op>(op)();
+    } catch (const PlatformError& error) {
+        return std::string(error.detail.view());
+    }
+    return "none thrown";
 }
 
 // Pages for an arena, off the stack.
@@ -363,4 +378,141 @@ QIVEN_CASE(fake_platform, not_utf8) {
     CHECK_EQ(arena.used(), 0U);
     CHECK(names_in(scratch.root) == before);
     CHECK(fs::is_empty(inside));
+}
+
+// P27's create on the fake: an absent file made empty, an absent directory
+// made; each again exists, what each holds kept; one whose parent is
+// missing io, the parent not made; a relative path path.
+QIVEN_CASE(fake_platform, create) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config(""));
+    const fs::path made = scratch.root / "made";
+    const fs::path folder = scratch.root / "folder";
+    fake.create(text(made), false);
+    CHECK(fs::is_regular_file(made));
+    CHECK_EQ(fs::file_size(made), 0U);
+    fake.create(text(folder), true);
+    CHECK(fs::is_directory(folder));
+
+    write_bytes(made, "kept");
+    write_bytes(folder / "inside", "inside");
+    CHECK(thrown([&] { fake.create(text(made), false); }) == std::pair(Code::exists, std::string("create")));
+    CHECK(thrown([&] { fake.create(text(folder), true); }).first == Code::exists);
+    CHECK_EQ(bytes_of(made), std::string("kept"));
+    CHECK_EQ(bytes_of(folder / "inside"), std::string("inside"));
+
+    const fs::path orphan = scratch.root / "missing" / "child";
+    for (const bool directory : {false, true}) {
+        CHECK(thrown([&] { fake.create(text(orphan), directory); }) == std::pair(Code::io, std::string("create")));
+    }
+    CHECK(!fs::exists(orphan.parent_path()));
+    CHECK(thrown([&] { fake.create("relative", false); }).first == Code::path);
+}
+
+// P27's read on the fake: a file of every byte value read whole, CRLF and
+// the C runtime's end of text among them; a missing file io, its detail
+// naming the error; the error the fake is given for a path, its detail.
+QIVEN_CASE(fake_platform, read) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config(""));
+    const auto pages = std::make_unique<Pages>();
+    Arena arena(pages->bytes);
+    String out{Allocator<char>(arena)};
+    std::string whole;
+    for (int c = 0; c < 256; ++c) {
+        whole.push_back(static_cast<char>(c));
+    }
+    whole += std::string_view("\r\n\x1a\0tail", 8);
+    const fs::path written = scratch.root / "written.bin";
+    write_bytes(written, whole);
+    fake.read(text(written), out);
+    CHECK(std::string_view(out) == whole);
+
+    const std::string missing = detail_of([&] { fake.read(text(scratch.root / "absent"), out); });
+    CHECK(missing.starts_with("not found: "));
+    CHECK(out.empty());
+    const std::string planted = "ERROR_LOCK_VIOLATION (33)";
+    fake.set_read_error(text(written), planted);
+    CHECK_EQ(detail_of([&] { fake.read(text(written), out); }), planted);
+    CHECK(thrown([&] { fake.read(text(written), out); }) == std::pair(Code::io, std::string("read")));
+}
+
+// P27's remove_directory on the fake: an empty directory removed, true,
+// and true again with none there; one holding a file and one holding a
+// directory kept, false; a file io, kept; a relative path path; under
+// QIVEN_FAULTS refused by its fault point, io, the directory kept.
+QIVEN_CASE(fake_platform, remove_directory) {
+    const Scratch scratch;
+    FakePlatform fake(scratch.config(""));
+    const fs::path empty = scratch.root / "empty";
+    const fs::path full = scratch.root / "full";
+    const fs::path nested = scratch.root / "nested";
+    const fs::path plain = scratch.root / "plain";
+    fs::create_directory(empty);
+    CHECK(fake.remove_directory(text(empty)));
+    CHECK(!fs::exists(empty));
+    CHECK(fake.remove_directory(text(empty)));
+    fs::create_directory(full);
+    write_bytes(full / "inside", "inside");
+    fs::create_directories(nested / "inner");
+    CHECK(!fake.remove_directory(text(full)));
+    CHECK(!fake.remove_directory(text(nested)));
+    CHECK_EQ(bytes_of(full / "inside"), std::string("inside"));
+    CHECK(fs::is_directory(nested / "inner"));
+    write_bytes(plain, "plain");
+    CHECK(thrown([&] { fake.remove_directory(text(plain)); }) ==
+          std::pair(Code::io, std::string("remove_directory")));
+    CHECK_EQ(bytes_of(plain), std::string("plain"));
+    CHECK(thrown([&] { fake.remove_directory("relative"); }).first == Code::path);
+#if defined(QIVEN_FAULTS)
+    fs::create_directory(empty);
+    qiven::memory::Countdown countdown;
+    fake.attach(&countdown);
+    countdown.arm(1);
+    CHECK(thrown([&] { fake.remove_directory(text(empty)); }) ==
+          std::pair(Code::io, std::string("remove_directory")));
+    countdown.disarm();
+    fake.attach(nullptr);
+    CHECK(fs::is_directory(empty));
+#endif
+}
+
+// P27's race on the fake, whose create is the system's exclusive one: two
+// fakes on one root, each on a thread of its own, create the same absent
+// files, each pair of creates released together by a barrier: of each pair
+// one makes the empty file and the other finds it present, never both.
+QIVEN_CASE(fake_platform, create_race) {
+    const Scratch scratch;
+    constexpr std::size_t races = 64;
+    FakePlatform one(scratch.config(""));
+    FakePlatform two(scratch.config(""));
+    const std::array<FakePlatform*, 2> creators{&one, &two};
+    std::vector<std::vector<std::pair<Code, std::string>>> outcomes(
+        2, std::vector<std::pair<Code, std::string>>(races));
+    std::barrier gate(2);
+    const auto creates = [&](std::size_t creator) {
+        for (std::size_t k = 0; k < races; ++k) {
+            const std::string path = text(scratch.root / ("raced-" + std::to_string(k)));
+            gate.arrive_and_wait();
+            outcomes[creator][k] = thrown([&] { creators[creator]->create(path, false); });
+        }
+    };
+    std::thread second(creates, std::size_t{1});
+    creates(0);
+    second.join();
+    const std::pair<Code, std::string> made(Code::unsupported, "none thrown");
+    const std::pair<Code, std::string> present(Code::exists, "create");
+    std::array<std::size_t, 2> won{};
+    for (std::size_t k = 0; k < races; ++k) {
+        const std::string name = "raced-" + std::to_string(k);
+        const auto& first = outcomes[0][k];
+        const auto& other = outcomes[1][k];
+        won[0] += first == made ? 1U : 0U;
+        won[1] += other == made ? 1U : 0U;
+        const bool decided = (first == made && other == present) || (first == present && other == made);
+        CHECK_EQ(name + (decided ? ": one made, one present" : ": not so"), name + ": one made, one present");
+        CHECK_EQ(fs::file_size(scratch.root / name), 0U);
+    }
+    std::cout << "fake_platform.create_race: of " << races << " pairs the first made " << won[0] << ", the second "
+              << won[1] << "\n";
 }

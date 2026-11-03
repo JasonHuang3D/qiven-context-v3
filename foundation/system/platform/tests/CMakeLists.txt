@@ -12,7 +12,9 @@ set(qiven_platform_src "${qiven_platform_dir}/src")
 # replace and open); replace's calls failed in turn, the old bytes whole
 # after each (P10's); stage's bound at its edge, each end freeing a slot;
 # list, remove and rename (files_names_test.cpp), list's names counted on
-# their arena; each system and platform call failed in turn.
+# their arena, and the fake's members over them, a file renamed to its own
+# name kept and each refused by its fault point (P27's names); each system
+# and platform call failed in turn.
 qiven3_add_cases(qiven_platform_files_test LABELS fast fake
   SOURCES files_test.cpp files_names_test.cpp
   LINK qiven_faults qiven_platform_fake)
@@ -27,7 +29,8 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # (P29's); wipe zeroing, each call recorded (P30's); random_bytes by its
 # seed's blocks (P23's); now as its clock in milliseconds (P24's); pages
 # zeroed, refused when set to, lent counting them (P28's); resolve and a
-# Staged's open refusing a path not UTF-8 (P25's).
+# Staged's open refusing a path not UTF-8 (P25's); create, read and
+# remove_directory on real files, two fakes' creates racing (P27's).
 qiven3_add_cases(qiven_platform_fake_process_test LABELS fast fake
   SOURCES fake_process_test.cpp fake_platform_test.cpp
   LINK qiven_platform_fake)
@@ -40,7 +43,10 @@ qiven3_add_cases(qiven_platform_current_test LABELS fast fake
 
 # windows/files' cases on the Windows adapter, on Windows alone: create,
 # read, remove_directory, replace and lock on real files in each case's
-# scratch directory under the job's temporary directory, and list, remove
+# scratch directory under the job's temporary directory, two adapters'
+# creates racing (P27's), replace held by a reader on the target or on its
+# temporary file and lock by another holder, each released before the
+# deadline or held past it (P9's and P20's lock half), and list, remove
 # and rename with each system error they meet measured (win_names_test.cpp);
 # read's allocation counted; each Win32 call failed in turn. fast and fake:
 # they need no processes, machine fact or debugger, so every Windows
