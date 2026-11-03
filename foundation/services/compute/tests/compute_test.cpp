@@ -3,9 +3,9 @@
 // value (H2); allocate past the device's memory and a span of another size
 // refused (H3); a name no kernel has refused (H4); a kernel's CPU reference
 // run on the fake (H5); facts and device writing the caller's out on its
-// arena alone, within the reference budget, a byte short refused; their
-// allocations failed in turn. A caller's mistake ends the process: its case
-// is fail_demo.cpp's, which test_fail.py runs.
+// arena alone, within the 64 KiB these cases give, a byte short refused;
+// their allocations failed in turn. A caller's mistake ends the process: its
+// case is fail_demo.cpp's, which test_fail.py runs.
 
 #include <array>
 #include <cstddef>
@@ -38,9 +38,8 @@ using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 
 constexpr std::uint64_t gib = std::uint64_t{1} << 30;
-// The arena a caller gives facts and device: the drive's members' budget,
-// the reference these cases were rewritten from.
-constexpr std::size_t member_budget = std::size_t{64} << 10;
+// The arena these cases give facts and device, their own 64 KiB.
+constexpr std::size_t arena_budget = std::size_t{64} << 10;
 
 FakeDevice gpu() { return FakeDevice{"gpu0", "cuda", "a GPU of 12 GiB", 12 * gib}; }
 FakeDevice cpu() { return FakeDevice{"cpu0", "cpu", "the CPU", std::uint64_t{1} << 20}; }
@@ -98,7 +97,7 @@ QIVEN_CASE(compute, facts) {
     Config c = config({gpu()}, 4);
     c.vectors.set(static_cast<std::size_t>(compute::Vector::avx2));
     const FakeCompute fake(std::move(c));
-    Arena& arena = qiven_ctx.counted.arena(member_budget);
+    Arena& arena = qiven_ctx.counted.arena(arena_budget);
     compute::Facts f(arena);
     fake.facts(f);
     CHECK_EQ(f.cpu_threads, 4U);
@@ -114,7 +113,7 @@ QIVEN_CASE(compute, gap) {
     // H2: no GPU: device("gpu") a gap, no_device; no back end: device("cuda")
     // a gap, not_built. A gap is a value, not an error.
     const FakeCompute fake(config({cpu()}));
-    Arena& arena = qiven_ctx.counted.arena(member_budget);
+    Arena& arena = qiven_ctx.counted.arena(arena_budget);
     compute::Device d(arena);
     const std::optional<compute::Gap> no_gpu = fake.device("gpu", d);
     CHECK(no_gpu.has_value() && no_gpu->reason == compute::Reason::no_device);
@@ -129,7 +128,7 @@ QIVEN_CASE(compute, memory_and_size) {
     // H3: allocate past the device's memory: memory; upload or download of a
     // span of another size than the buffer's: size; only what succeeded counted.
     FakeCompute fake(config({gpu()}));
-    Arena& arena = qiven_ctx.counted.arena(member_budget);
+    Arena& arena = qiven_ctx.counted.arena(arena_budget);
     compute::Device d(arena);
     CHECK(!fake.device("gpu", d).has_value());
     CHECK(refused([&] { (void)fake.allocate(d, 12 * gib + 1); }) == compute::Code::memory);
@@ -150,7 +149,7 @@ QIVEN_CASE(compute, memory_and_size) {
 QIVEN_CASE(compute, kernel) {
     // H4: run of a name no kernel has: kernel, its detail naming it.
     FakeCompute fake(config({cpu()}));
-    Arena& arena = qiven_ctx.counted.arena(member_budget);
+    Arena& arena = qiven_ctx.counted.arena(arena_budget);
     compute::Device d(arena);
     CHECK(!fake.device("cpu", d).has_value());
     bool named = false;
@@ -175,7 +174,7 @@ QIVEN_CASE(compute, reference) {
     }
     const std::uint64_t size = 8 * a.size();
     FakeCompute fake(config({cpu()}, 2));
-    Arena& arena = qiven_ctx.counted.arena(member_budget);
+    Arena& arena = qiven_ctx.counted.arena(arena_budget);
     compute::Device d(arena);
     CHECK(!fake.device("cpu", d).has_value());
     {
@@ -200,35 +199,35 @@ QIVEN_CASE(compute, reference) {
 
 QIVEN_CASE(compute, arena) {
     // facts and device write the caller's out on its arena, within the
-    // reference budget, nothing held once out ends; a byte short of a peak,
+    // case's 64 KiB, nothing held once out ends; a byte short of a peak,
     // MemoryError budget. allocate, upload, download and run place nothing
     // on it.
     const FakeCompute fake(config({cpu(), gpu()}, 2));
     std::size_t facts_peak = 0, device_peak = 0;
     {
-        Arena& arena = qiven_ctx.counted.arena(member_budget);
+        Arena& arena = qiven_ctx.counted.arena(arena_budget);
         {
             compute::Facts f(arena);
             fake.facts(f);
             CHECK_EQ(f.devices.size(), 2U);
             facts_peak = arena.peak();
         }
-        CHECK(facts_peak <= member_budget);
+        CHECK(facts_peak <= arena_budget);
         CHECK_EQ(arena.used(), 0U);
     }
     {
-        Arena& arena = qiven_ctx.counted.arena(member_budget);
+        Arena& arena = qiven_ctx.counted.arena(arena_budget);
         {
             compute::Device d(arena);
             CHECK(!fake.device("gpu", d).has_value());
             device_peak = arena.peak();
         }
-        CHECK(device_peak <= member_budget);
+        CHECK(device_peak <= arena_budget);
         CHECK_EQ(arena.used(), 0U);
     }
     {
         FakeCompute mutable_fake(config({cpu(), gpu()}, 2));
-        Arena& arena = qiven_ctx.counted.arena(member_budget);
+        Arena& arena = qiven_ctx.counted.arena(arena_budget);
         compute::Device d(arena);
         CHECK(!mutable_fake.device("cpu", d).has_value());
         const std::size_t held = arena.used(), peak = arena.peak();
@@ -244,7 +243,7 @@ QIVEN_CASE(compute, arena) {
         CHECK_EQ(arena.peak(), peak);
     }
     std::cout << "compute.arena: facts' peak " << facts_peak << ", device's " << device_peak << ", budget "
-              << member_budget << "\n";
+              << arena_budget << "\n";
 #if !defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0
     if (facts_peak > 0) {
         Arena& shorter = qiven_ctx.counted.arena(facts_peak - 1);
@@ -276,7 +275,7 @@ QIVEN_CASE(compute, faults) {
     // Each allocation facts and device make on the caller's arena failed in
     // turn: each failed run MemoryError, nothing held.
     const FakeCompute fake(config({cpu(), gpu()}, 2));
-    std::vector<std::byte> pages(member_budget);
+    std::vector<std::byte> pages(arena_budget);
     qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
