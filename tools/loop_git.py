@@ -1,6 +1,6 @@
 """The one door the tools and the tests start git by: the runner
-(tools/changed.py), the table's reader (tools/loop_modules.py), nav.py and
-the tests (foundation/devkit/structure/tests/test_line_endings.py) alike, so
+(tools/changed.py), the table's reader (tools/loop_modules.py) and the
+tests (foundation/devkit/structure/tests/test_line_endings.py) alike, so
 that a run's git processes are counted where they start.
 
 - which(): PATH's git; None when there is none.
@@ -15,7 +15,7 @@ that a run's git processes are counted where they start.
 - carried(starts, env): an inner count's starts added to the enclosing
   count's directory, so that a test's starts count where it runs too.
 
-Loaded by runpy.run_path (tools/changed.py, loop_modules.py, nav.py,
+Loaded by runpy.run_path (tools/changed.py, loop_modules.py,
 loop_shim.py) or imported as tools.loop_git (the tests); it imports no
 other tool.
 """
