@@ -49,14 +49,15 @@ qiven3_add_cases(qiven_platform_current_test LABELS fast fake
 # scratch directory under the job's temporary directory, two adapters'
 # creates racing (P27's), replace held by a reader on the target or on its
 # temporary file and lock by another holder, each released before the
-# deadline or held past it (P9's and P20's lock half), and list, remove
-# and rename with each system error they meet measured (win_names_test.cpp);
-# read's allocation counted; each Win32 call failed in turn. fast and fake:
-# they need no processes, machine fact or debugger, so every Windows
-# build's fake selection and CI's run them, as the fast one does.
+# deadline or held past it (P9's and P20's lock half; the race and the
+# holders in win_files_held_test.cpp), and list, remove and rename with
+# each system error they meet measured (win_names_test.cpp); read's
+# allocation counted; each Win32 call failed in turn. fast and fake: they
+# need no processes, machine fact or debugger, so every Windows build's
+# fake selection and CI's run them, as the fast one does.
 if(WIN32)
   qiven3_add_cases(qiven_platform_win_files_test LABELS fast fake
-    SOURCES win_files_test.cpp win_names_test.cpp
+    SOURCES win_files_test.cpp win_files_held_test.cpp win_names_test.cpp
     LINK qiven_faults qiven_platform_windows)
 endif()
 

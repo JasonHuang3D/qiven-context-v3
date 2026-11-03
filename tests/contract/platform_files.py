@@ -4,7 +4,7 @@ through the drive's handles (driver/platform_files.hpp).
 
 Here: a failed open making nothing, under faults (938). P9, replace
 held, is platform's own (foundation/system/platform/tests/files_test.cpp
-and win_files_test.cpp), as are P19, publish (files_test.cpp and
+and win_files_held_test.cpp), as are P19, publish (files_test.cpp and
 win_files_stage_test.cpp), and P25, not UTF-8 (files_test.cpp,
 fake_platform_test.cpp and win_platform_test.cpp there). A holder is
 the binding's hold(drive, **times): how often each call refuses before it

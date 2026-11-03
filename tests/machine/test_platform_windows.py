@@ -73,7 +73,7 @@ class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformMemory, Pl
 
 # The files' and processes' cases' skips: none. P20, the last of them to
 # skip, runs whole, its two init runs over qiven3-child init; its lock
-# half and P9 are platform's own (win_files_test.cpp).
+# half and P9 are platform's own (win_files_held_test.cpp).
 FILES_UNTIL = {}
 # The cases pinned running whole here, no skip: P20.
 FILES_WHOLE = ("test_P20_lock",)

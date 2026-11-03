@@ -17,8 +17,9 @@ The Windows adapter's program, start and run are its module win/process',
 and the children its cases start are qiven_platform_child's, started
 through the drive; a binding with PROCESSES false checks that run refuses
 a relative argv[0] (start), and the child half is skipped. P20's lock
-half is platform's own (foundation/system/platform/tests/win_files_test.cpp
-and files_test.cpp). P20's two init runs are qiven3-child init's,
+half is platform's own
+(foundation/system/platform/tests/win_files_held_test.cpp and
+files_test.cpp). P20's two init runs are qiven3-child init's,
 each location's init on the adapter.
 
 The readings where the text is silent run on every adapter, the fake's
@@ -117,7 +118,7 @@ class PlatformProcess:
         the other exits 1 on one line naming chosen, its directory left
         empty. The lock half, held, then released before the deadline,
         held past it and a deadline of 0, is platform's own
-        (foundation/system/platform/tests/win_files_test.cpp and
+        (foundation/system/platform/tests/win_files_held_test.cpp and
         files_test.cpp there)."""
         self.needs("processes")
         self.child_half("two init runs at once, each a child: one recorded, the other chosen")

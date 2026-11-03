@@ -151,7 +151,7 @@ std::chrono::milliseconds steady_ms() {
 using qiven::platform::win::ClockTrace;
 
 // A retry loop's clock by its trace, read between before and after, as
-// win_files_test.cpp's check_clock: its reads in order within them, the
+// win_files_held_test.cpp's check_clock: its reads in order within them, the
 // first at its start, then one after each refused try; a pause of the
 // text's 50 ms after each such read but a spent one. Spent: it gave up at
 // its first read past the deadline, never before; else every read short
