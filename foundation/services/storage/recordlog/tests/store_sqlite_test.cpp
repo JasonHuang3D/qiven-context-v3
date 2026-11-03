@@ -146,11 +146,11 @@ std::string raised(const F& f) {
 // A frame of the function's own: clang inlined smoke's steps, and a store
 // for each open, into frames past the bound. open_error: what open raised.
 #ifdef __GNUC__
-#define QIVEN3_OWN_FRAME __attribute__((noinline))
+#define QIVEN_OWN_FRAME __attribute__((noinline))
 #else
-#define QIVEN3_OWN_FRAME
+#define QIVEN_OWN_FRAME
 #endif
-QIVEN3_OWN_FRAME std::string open_error(Rig& rig, const fs::path& path, bool create = false, bool read_only = false,
+QIVEN_OWN_FRAME std::string open_error(Rig& rig, const fs::path& path, bool create = false, bool read_only = false,
                                         const Limits& limits = Limits{}) {
     return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits); });
 }
@@ -192,7 +192,7 @@ void settings_table(qiven::runner::Context& qiven_ctx) {
 }
 
 // create, then what it made, read through the store's connection.
-QIVEN3_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
+QIVEN_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     Store store = Store::open(text(path), true, false, rig.fake);
     CHECK(!store.read_only());
@@ -225,7 +225,7 @@ QIVEN3_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
 }
 
 // open again, read-write and read-only.
-QIVEN3_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
+QIVEN_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string path = text(rig.scratch.root / "a" / "store.db");
     Store store = Store::open(path, false, false, rig.fake);
     CHECK(!sqlite::differing(store.connection(), test_at).has_value());
@@ -239,7 +239,7 @@ QIVEN3_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
 }
 
 // The files open refuses.
-QIVEN3_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
+QIVEN_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
     CHECK(open_error(rig, root / "none.db") == "StoreError missing");
     write_file(root / "empty.db", "");
@@ -271,7 +271,7 @@ QIVEN3_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
 
 // The guard: a checkout by a .git directory, then a file, and a synced
 // folder, by open and alone; nothing made.
-QIVEN3_OWN_FRAME void guarded(qiven::runner::Context& qiven_ctx, Rig& rig) {
+QIVEN_OWN_FRAME void guarded(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path& root = rig.scratch.root;
     fs::create_directories(root / "repo" / ".git");
     fs::create_directories(root / "work");
@@ -288,7 +288,7 @@ QIVEN3_OWN_FRAME void guarded(qiven::runner::Context& qiven_ctx, Rig& rig) {
 }
 
 // Coherence refuses a meta that disagrees with the rows.
-QIVEN3_OWN_FRAME void incoherent(qiven::runner::Context& qiven_ctx, Rig& rig) {
+QIVEN_OWN_FRAME void incoherent(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
     alter(path, "UPDATE meta SET value = 1 WHERE name = 'forgets'");
     CHECK(open_error(rig, path).starts_with("StoreCorrupt incoherent: meta: forgets"));

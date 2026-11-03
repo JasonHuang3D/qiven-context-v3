@@ -1,7 +1,6 @@
 # The record log, added by the root CMakeLists.txt. Its public headers are
-# include/qiven/recordlog/, its sources src/; the store's tests and their
-# support are still in the old places (tests/unit/store.cmake,
-# tests/support/stores/, tests/support/seams/).
+# include/qiven/recordlog/, its sources src/; its tests and their support
+# are tests/, added by tests/CMakeLists.txt.
 
 # qiven_recordlog_keys: a record's keys, Id and Head, the most entries one
 # call takes and a scope set's match, below the store and the entry, which

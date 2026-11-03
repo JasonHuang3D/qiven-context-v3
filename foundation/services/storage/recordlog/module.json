@@ -62,28 +62,8 @@
       "paths": [
         "foundation/services/storage/recordlog/CMakeLists.txt",
         "foundation/services/storage/recordlog/include/",
-        "foundation/services/storage/recordlog/src/"
-      ]
-    },
-    {
-      "name": "store",
-      "layer": "foundation",
-      "depends": [
-        "recordlog",
-        "memory",
-        "platform"
-      ],
-      "test_depends": [
-        "faults"
-      ],
-      "paths": [
-        "tests/support/stores/",
-        "tests/support/seams/",
-        "tests/unit/store.cmake",
-        "tests/unit/store_*",
-        "tests/unit/stores_test.cpp",
-        "tests/unit/scan_test.cpp",
-        "tests/unit/seams_test.cpp"
+        "foundation/services/storage/recordlog/src/",
+        "foundation/services/storage/recordlog/tests/"
       ]
     }
   ]

@@ -77,7 +77,8 @@ class StoreThreads:
         counts = store.verify()
         self.assertEqual((counts["entries"], counts["bodies"], counts["lanes"]), (len(entries), len(entries), lanes))
         volume = store.size()["volume"]
-        size = sum(len(line) + len(body) + 2 for line, body in entries)
+        size = sum(len(line) + len(body) + 2 + len(header((line, body))["kind"].encode("utf-8"))
+                   for line, body in entries)
         self.assertEqual((volume["size"], volume["count"]), (size, len(entries)))
 
     def test_S21_m5_threads(self):

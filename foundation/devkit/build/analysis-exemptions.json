@@ -13,7 +13,7 @@
     "clang-tidy": "foundation/devkit/build/analysis-test.clang-tidy",
     "msvc": "foundation/devkit/build/analysis-test.ruleset",
     "targets": ["qiven3-child", "qiven3_fixtures",
-      "qiven3_seams", "qiven3_test_headers", "qiven_platform_child", "qiven_runner_demo", "qiven_runner_test"],
+      "qiven_recordlog_seams", "qiven3_test_headers", "qiven_platform_child", "qiven_runner_demo", "qiven_runner_test"],
     "not_defined": [{"preset": "debug", "target": "qiven3_test_headers", "reason": "The analysis alone compiles header units."},
       {"preset": "release", "target": "qiven3_test_headers", "reason": "The analysis alone compiles header units."},
       {"preset": "asan", "target": "qiven3_test_headers", "reason": "The analysis alone compiles header units."},

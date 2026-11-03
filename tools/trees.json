@@ -2,7 +2,7 @@
   "layers": ["foundation", "kits", "products"],
   "walked": ["src", "tests", "tools"],
   "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
-  "included": ["src", "tests"],
+  "included": ["src", "tests", "foundation/services/storage/recordlog/tests"],
   "tests": "tests",
   "support": "tests/support",
   "child": "tests/child",

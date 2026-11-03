@@ -16,7 +16,6 @@
       "test_depends": [
         "faults",
         "recordlog",
-        "store",
         "checked",
         "write",
         "location",
@@ -35,7 +34,6 @@
       "from": "structure",
       "to": [
         "recordlog",
-        "store",
         "checked",
         "write",
         "location",
