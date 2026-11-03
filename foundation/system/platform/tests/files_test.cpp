@@ -182,7 +182,7 @@ QIVEN_CASE(files, replace) {
 QIVEN_CASE(files, replace_held) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
-    const fs::path target = scratch.root / "map-marks.json";
+    const fs::path target = scratch.root / "held.json";
     write_bytes(target, "old");
     const std::string path = text(target);
 
@@ -197,7 +197,7 @@ QIVEN_CASE(files, replace_held) {
     CHECK(held == Code::busy);
     CHECK_EQ(held_detail, std::string("rename: error 5 (ERROR_ACCESS_DENIED)"));
     CHECK_EQ(bytes_of(target), std::string("old"));
-    CHECK_EQ(listing(scratch.root), std::string("map-marks.json"));
+    CHECK_EQ(listing(scratch.root), std::string("held.json"));
     CHECK_EQ(fake.files().elapsed(), 100ms + 5000ms);
 
     fake.set_busy(Busy{.temporary = 2});
@@ -208,13 +208,13 @@ QIVEN_CASE(files, replace_held) {
     fake.set_busy(Busy{.temporary = never});
     const auto [temporary, temporary_detail] = thrown([&] { fake.replace(path, "new", five); });
     CHECK(temporary == Code::busy);
-    CHECK(temporary_detail.starts_with("rename: error 32 (ERROR_SHARING_VIOLATION); left .map-marks.json."));
+    CHECK(temporary_detail.starts_with("rename: error 32 (ERROR_SHARING_VIOLATION); left .held.json."));
     CHECK(temporary_detail.ends_with(".tmp, delete: error 32 (ERROR_SHARING_VIOLATION)"));
     CHECK_EQ(bytes_of(target), std::string("old"));
     // The temporary file, left as the holder keeps it, is the one named.
     const std::string left = listing(scratch.root);
-    CHECK(left.starts_with("map-marks.json|.map-marks.json.") || left.starts_with(".map-marks.json."));
-    CHECK(temporary_detail.find(left.substr(left.find(".map-marks.json."), 33)) != std::string::npos);
+    CHECK(left.starts_with("held.json|.held.json.") || left.starts_with(".held.json."));
+    CHECK(temporary_detail.find(left.substr(left.find(".held.json."), 28)) != std::string::npos);
 
     // A deadline of 0 and one not a number: one try each.
     fake.set_busy(Busy{.target = never});
@@ -430,7 +430,7 @@ QIVEN_CASE(files, stage_insert) {
 QIVEN_CASE(files, lock) {
     const Scratch scratch;
     FakePlatform fake(scratch.config());
-    const std::string path = text(scratch.root / "location.lock");
+    const std::string path = text(scratch.root / "held.lock");
     auto held = fake.lock(path, five);
     const auto [code, detail] = thrown([&] { fake.lock(path, five); });
     CHECK(code == Code::busy);
@@ -451,7 +451,7 @@ QIVEN_CASE(files, lock) {
     auto late = fake.lock(path, five);
     CHECK_EQ(fake.files().elapsed(), 5100ms);
     late.release();
-    CHECK(!fs::exists(scratch.root / "location.lock"));  // the fake's locks are in memory
+    CHECK(!fs::exists(scratch.root / "held.lock"));  // the fake's locks are in memory
     CHECK(thrown([&] { fake.lock("relative.lock", five); }).first == Code::path);
     CHECK_EQ(fake.files().kept(), 0U);
 }
@@ -533,10 +533,10 @@ QIVEN_CASE(files, faults) {
         stage.publish("bag", five);
     }, 11);
     // record, open, try_lock.
-    runs("files.lock", [&] { fake.lock(root + "/location.lock", five).release(); }, 4);
+    runs("files.lock", [&] { fake.lock(root + "/faulted.lock", five).release(); }, 4);
     // A lock's other error: io at once, not retried as a holder's.
     countdown.arm(3);
-    CHECK(thrown([&] { fake.lock(root + "/location.lock", five); }).first == Code::io);
+    CHECK(thrown([&] { fake.lock(root + "/faulted.lock", five); }).first == Code::io);
     countdown.disarm();
     // A discard failed: io, then the destructor's discard removes it.
     {

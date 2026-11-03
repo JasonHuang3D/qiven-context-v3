@@ -4,14 +4,24 @@
 # key rule (canon); their instantiations over memory's allocator. Its tests
 # (tests/) are added by tests/CMakeLists.txt, where the case functions and
 # qiven_case_main are made.
-add_library(qiven_text STATIC
-  src/utf.cpp
-  src/json.cpp
-  src/canon.cpp
-  include/qiven/text/utf.hpp
-  include/qiven/text/json.hpp
-  include/qiven/text/json_bytes.hpp
-  include/qiven/text/canon.hpp
-)
-target_include_directories(qiven_text PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(qiven_text PUBLIC qiven_memory PRIVATE qiven_build)
+#
+# qiven_text_targets(<suffix> <memory target>) makes qiven_text with the
+# suffix, over the memory target given: "" over qiven_memory, and the
+# variants built on another memory (memory's tests' _poisoned, the faults'
+# _crtdbg).
+function(qiven_text_targets suffix memory)
+  set(dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
+  add_library(qiven_text${suffix} STATIC
+    "${dir}/src/utf.cpp"
+    "${dir}/src/json.cpp"
+    "${dir}/src/canon.cpp"
+    "${dir}/include/qiven/text/utf.hpp"
+    "${dir}/include/qiven/text/json.hpp"
+    "${dir}/include/qiven/text/json_bytes.hpp"
+    "${dir}/include/qiven/text/canon.hpp"
+  )
+  target_include_directories(qiven_text${suffix} PUBLIC "${dir}/include")
+  target_link_libraries(qiven_text${suffix} PUBLIC ${memory} PRIVATE qiven_build)
+endfunction()
+
+qiven_text_targets("" qiven_memory)

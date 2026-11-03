@@ -141,8 +141,8 @@ public:
     static constexpr qiven::recordlog::Identity identity = records::suite_identity;
 
     explicit Site(std::uint64_t seed) : Site(seed, fresh()) {}
-    // Over the root given, made where absent, and removed at its end as a
-    // fresh one is (the drive's, under its --root).
+    // Over the root its caller gives in place of a fresh one, made where
+    // absent, and removed at its end as a fresh one is.
     Site(std::uint64_t seed, std::filesystem::path root)
         : root_(made(std::move(root))), fake_(config(root_, seed)), pages_(arena_bytes), arena_(pages_),
           chars_(arena_) {}

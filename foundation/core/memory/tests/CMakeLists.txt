@@ -28,11 +28,12 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
 
   # The entry's targets, the text and the log the runner's log takes, and
   # the platform whose codes it names, over the poisoned memory, so that one
-  # copy of memory is linked.
+  # copy of memory is linked: the entry, the text and the platform by their
+  # own functions, the log again over its own sources.
   qiven3_diag_targets(_poisoned qiven_memory_poisoned)
+  qiven_text_targets(_poisoned qiven_memory_poisoned)
   qiven_platform_targets(_poisoned qiven_memory_poisoned)
-  foreach(pair IN ITEMS "qiven_text;foundation/core/text;qiven_memory_poisoned"
-                        "qiven3_log;src/log;qiven_text_poisoned;qiven_memory_poisoned")
+  foreach(pair IN ITEMS "qiven3_log;src/log;qiven_text_poisoned;qiven_memory_poisoned")
     list(POP_FRONT pair name dir)
     get_target_property(sources ${name} SOURCES)
     list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/${dir}/")

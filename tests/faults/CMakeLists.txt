@@ -18,7 +18,7 @@ if(MSVC AND NOT QIVEN_SANITIZE)
     target_link_libraries(${name}_crtdbg PUBLIC ${ARGN} PRIVATE qiven_build)
   endfunction()
   qiven3_crtdbg_library(qiven_memory foundation/core/memory)
-  qiven3_crtdbg_library(qiven_text foundation/core/text qiven_memory_crtdbg)
+  qiven_text_targets(_crtdbg qiven_memory_crtdbg)
   qiven3_crtdbg_library(qiven3_log src/log qiven_text_crtdbg qiven_memory_crtdbg)
   qiven3_diag_targets(_crtdbg qiven_memory_crtdbg)
   qiven_executable(qiven3-fault-crtdbg SOURCES fault.cpp fault_assert.cpp LINK qiven3_log_crtdbg

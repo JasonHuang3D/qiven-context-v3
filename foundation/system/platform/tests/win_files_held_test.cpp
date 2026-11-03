@@ -320,7 +320,7 @@ QIVEN_CASE(win_files, create_race) {
 QIVEN_CASE(win_files, replace_held) {
     const Scratch scratch;
     WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
-    const fs::path target = scratch.root / "map-marks.json";
+    const fs::path target = scratch.root / "held.json";
     write_bytes(target, "old");
 #if defined(QIVEN_FAULTS)
     qiven::memory::Countdown countdown;
@@ -452,7 +452,7 @@ QIVEN_CASE(win_files, replace_held) {
 QIVEN_CASE(win_files, lock) {
     const Scratch scratch;
     WindowsPlatform platform("qiven-platform-test", 16, std::nullopt);
-    const fs::path file = scratch.root / "location.lock";
+    const fs::path file = scratch.root / "held.lock";
     auto held = platform.lock(text(file), five);
     CHECK(fs::is_regular_file(file));
 #if defined(QIVEN_FAULTS)
