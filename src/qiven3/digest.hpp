@@ -34,7 +34,7 @@
 
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 
 namespace qiven3::digest {
 
@@ -261,7 +261,7 @@ constexpr void plain(std::string_view data, S& out) {
 bool same(std::string_view a, std::string_view b) noexcept;
 
 // 32 bytes of key material and the platform that wipes them.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class Key {
 public:
     // A fixed key: the fixtures', or one read back from its record. The
@@ -292,9 +292,9 @@ public:
     }
 
 private:
-    template <platform::Platform Q, typename S>
+    template <qiven::platform::Platform Q, typename S>
     friend void keyed(const Key<Q>& key, std::string_view data, S& out);
-    template <platform::Platform Q>
+    template <qiven::platform::Platform Q>
     friend void key_hex(const Key<Q>& key, std::span<char, 2 * bytes> out) noexcept;
 
     void wipe() noexcept { platform_->wipe(std::span<std::byte>(material_)); }
@@ -305,7 +305,7 @@ private:
 
 // The keyed digest of data under key: hmac-sha256: and its hex, into out.
 // The padded key's block on the stack is wiped by the key's platform.
-template <platform::Platform P, typename S>
+template <qiven::platform::Platform P, typename S>
 void keyed(const Key<P>& key, std::string_view data, S& out) {
     detail::Block padded{};
     for (std::size_t i = 0; i < bytes; ++i) {
@@ -331,7 +331,7 @@ constexpr bool key_text(std::string_view hex) noexcept {
 
 // The key's 64 lowercase hex digits into out, the body record's key; no
 // allocation. The caller's buffer is the caller's to wipe.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void key_hex(const Key<P>& key, std::span<char, 2 * bytes> out) noexcept {
     constexpr std::string_view digits = "0123456789abcdef";
     for (std::size_t i = 0; i < bytes; ++i) {
@@ -344,7 +344,7 @@ void key_hex(const Key<P>& key, std::span<char, 2 * bytes> out) noexcept {
 // A key read back from its record's hex, which the caller has checked by
 // key_text; text that is not a key's is a broken invariant, fail_fast. The
 // decoded copy on the stack is wiped by the platform after: one call.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Key<P> key_from_hex(P& platform, std::string_view hex) noexcept {
     if (!key_text(hex)) {
         qiven::memory::fail_fast("digest: key_from_hex given text that is no key's");
@@ -372,7 +372,7 @@ Key<P> key_from_hex(P& platform, std::string_view hex) noexcept {
 
 // A key drawn from the platform's random_bytes, the drawn copy wiped; a
 // refused draw is the platform's error, with the partial bytes wiped.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Key<P> new_key(P& platform) {
     std::array<std::byte, bytes> drawn{};
     try {

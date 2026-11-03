@@ -19,7 +19,7 @@
 
 #include "entry/projectmap_files.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
 #include "store/errors.hpp"
@@ -87,7 +87,7 @@ private:
     std::size_t size_ = 0;
 };
 
-constexpr std::string_view state_name(platform::State state) noexcept {
+constexpr std::string_view state_name(qiven::platform::State state) noexcept {
     constexpr std::array<std::string_view, 4> names = {"on", "off", "locked", "unknown"};
     return names.at(static_cast<std::size_t>(state));
 }
@@ -109,7 +109,7 @@ constexpr std::array<TextView, 3> texts = {
 };
 
 [[noreturn]] void unreadable(std::string_view old, std::string_view op, const std::error_code& error) {
-    platform::Detail detail("old_unreadable: error ");
+    qiven::platform::Detail detail("old_unreadable: error ");
     detail.number(static_cast<std::uint64_t>(error.value() < 0 ? 0 : error.value()));
     throw store::StoreError(store::Code::location, op, old, detail.view());
 }
@@ -191,7 +191,7 @@ bool absent(std::string_view path) {
 
 void record_bytes(utc::Millis at, std::string_view dir, std::string_view op, String& out) {
     if (!projectmap::absolute(dir, projectmap::NATIVE) || projectmap::control(dir)) {
-        throw platform::PlatformError(platform::Code::path, op, "not absolute, or holding a control character");
+        throw qiven::platform::PlatformError(qiven::platform::Code::path, op, "not absolute, or holding a control character");
     }
     const std::optional<std::array<char, utc::at_size>> text = utc::format_at(at);
     if (!text) {
@@ -202,7 +202,7 @@ void record_bytes(utc::Millis at, std::string_view dir, std::string_view op, Str
     value.set("dir", dir);
     String made{out.get_allocator()};
     if (canon::try_canonical(value, made)) {
-        throw platform::PlatformError(platform::Code::path, op, "a path the record cannot hold");
+        throw qiven::platform::PlatformError(qiven::platform::Code::path, op, "a path the record cannot hold");
     }
     made.push_back('\n');
     out = std::move(made);
@@ -257,7 +257,7 @@ void left_behind(std::string_view old, std::string_view op) {
     if (std::ranges::none_of(held, [](bool b) { return b; })) {
         return;
     }
-    platform::Detail detail("not_moved:");
+    qiven::platform::Detail detail("not_moved:");
     std::string_view between = " ";
     for (std::size_t i = 0; i < v3_files.size(); ++i) {
         if (held.at(i)) {
@@ -268,9 +268,9 @@ void left_behind(std::string_view old, std::string_view op) {
     throw store::StoreError(store::Code::location, op, old, detail.view());
 }
 
-bool fact_line(Condition condition, const platform::Reading& reading, std::string_view volume, String& out) {
+bool fact_line(Condition condition, const qiven::platform::Reading& reading, std::string_view volume, String& out) {
     const TextView& text = texts.at(static_cast<std::size_t>(condition));
-    const bool warns = reading.state != platform::State::off;
+    const bool warns = reading.state != qiven::platform::State::off;
     out.clear();
     if (warns) {
         out.append("warning: ");
@@ -295,10 +295,10 @@ std::string_view error_line(const store::StoreError& error, std::span<char> out)
     return {out.data(), text.size() + 1};
 }
 
-std::string_view error_line(const platform::PlatformError& error, std::span<char> out) noexcept {
+std::string_view error_line(const qiven::platform::PlatformError& error, std::span<char> out) noexcept {
     return LineView(out)
         .add("PlatformError ")
-        .add(platform::name(error.code))
+        .add(qiven::platform::name(error.code))
         .add(": ")
         .add(error.operation.view())
         .add("; ")

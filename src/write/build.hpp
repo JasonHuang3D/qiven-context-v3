@@ -68,7 +68,7 @@
 #include "entry/kinds_identity.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven3/utc.hpp"
@@ -169,7 +169,7 @@ std::optional<Held> current(std::span<const Built> built, F& fold, std::string_v
 }
 
 // Each entry built into out, empty, as build says, its work over pages.
-template <platform::Platform P, Fold F>
+template <qiven::platform::Platform P, Fold F>
 void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& arena, std::span<std::byte> pages,
                 [[maybe_unused]] entries::Hooks hooks, qiven::memory::Vector<Built>& out) {
     namespace header = entry::header;
@@ -225,7 +225,7 @@ void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& ar
                     if (!got.read) {
                         try {
                             platform.read(file.text(p.value), got.bytes);
-                        } catch (const platform::PlatformError&) {
+                        } catch (const qiven::platform::PlatformError&) {
                             detail::refuse_site(file, i, s);
                         }
                         if (got.bytes.size() > entries::max_piece_bytes) {
@@ -336,7 +336,7 @@ void build_each(const File& file, F& fold, P& platform, qiven::memory::Arena& ar
 // above; MemoryError budget past the arena, the platform's errors but
 // read's as they come. On any error out is left empty, its memory and the
 // work span given back: no entry of a file refused is built.
-template <platform::Platform P, Fold F>
+template <qiven::platform::Platform P, Fold F>
 void build(const File& file, F& fold, P& platform, qiven::memory::Arena& arena, qiven::memory::Vector<Built>& out,
            entries::Hooks hooks = {}) {
     out.clear();

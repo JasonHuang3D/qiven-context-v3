@@ -16,8 +16,8 @@ add_library(qiven3_drive_common STATIC
 target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tests"
   "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
 # The request loop holds the process's log, kept for the entry's report.
-target_link_libraries(qiven3_drive_common PUBLIC qiven3_platform qiven_memory qiven3_base qiven3_log qiven3_diag
-  PRIVATE qiven_build qiven3_platform_current)
+target_link_libraries(qiven3_drive_common PUBLIC qiven_platform qiven_memory qiven3_base qiven3_log qiven3_diag
+  PRIVATE qiven_build qiven_platform_current)
 if(QIVEN_HAL)
   target_sources(qiven3_drive_common PRIVATE hal_ops.cpp hal_ops.hpp)
   target_compile_definitions(qiven3_drive_common PUBLIC QIVEN3_DRIVE_HAL)
@@ -28,12 +28,12 @@ endif()
 # ruled factory (driver/store_ops.hpp), and location's commands on the fake.
 qiven_executable(qiven3-drive-fake SOURCES instances_fake.cpp store_ops.cpp store_ops.hpp store_fill.cpp store_fixtures.cpp
   store_held.hpp store_own.hpp store_plans.cpp store_race.hpp store_threads.hpp store_wire.cpp store_wire.hpp
-  LINK qiven3_drive_common qiven3_checked_stores qiven3_seams qiven3_location qiven3_platform_fake qiven3_platform_current
+  LINK qiven3_drive_common qiven3_checked_stores qiven3_seams qiven3_location qiven_platform_fake qiven_platform_current
        qiven_runner)
 
 # The Windows drive's store_dir reads location's record on the adapter, its
 # refusal in the store half's wire form.
 if(WIN32)
   qiven_executable(qiven3-drive-windows SOURCES instances_windows.cpp store_wire.cpp store_wire.hpp
-    LINK qiven3_drive_common qiven3_location qiven3_platform_current)
+    LINK qiven3_drive_common qiven3_location qiven_platform_current)
 endif()

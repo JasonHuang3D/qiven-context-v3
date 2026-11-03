@@ -62,7 +62,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory_state.hpp"
@@ -173,7 +173,7 @@ private:
 
 // import, on pages of the object's own: a quarter for the source's heads,
 // a quarter for the line in hand, the half left for each line's work.
-template <platform::Platform P, Source R, class A>
+template <qiven::platform::Platform P, Source R, class A>
 Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads, std::span<std::byte> pages,
                        Countdown* countdown, Peak& peak, A& admit) {
     constexpr Operation op = Operation::import_;

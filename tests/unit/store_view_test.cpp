@@ -36,7 +36,7 @@
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
@@ -55,7 +55,7 @@ using qiven::test::records::rec;
 using qiven::test::records::targeting;
 using qiven::test::records::views;
 using Arena = qiven::memory::Arena;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 
 constexpr std::string_view qiven_scope = "project:qiven";
@@ -86,8 +86,8 @@ struct Scratch {
         std::error_code error;
         fs::remove_all(root, error);
     }
-    [[nodiscard]] qiven3::platform::fake::Config config() const {
-        qiven3::platform::fake::Config config;
+    [[nodiscard]] qiven::platform::fake::Config config() const {
+        qiven::platform::fake::Config config;
         config.root = text(root);
         config.seed = 7;
         return config;
@@ -308,7 +308,7 @@ void order(qiven::runner::Context& qiven_ctx, S& store) {
 }  // namespace
 
 QIVEN_CASE(store_view, order_memory) {
-    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
     qiven3::store::MemoryStore<Fake> store(*st, *fake);
@@ -334,7 +334,7 @@ QIVEN_CASE(store_view, order_sqlite) {
 }
 
 QIVEN_CASE(store_view, memory) {
-    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
     const Chain chain;

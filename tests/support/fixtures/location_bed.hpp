@@ -28,20 +28,20 @@
 #include <vector>
 
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test::location_bed {
 
 namespace fs = std::filesystem;
 namespace location = qiven3::location;
 namespace sqlite = qiven3::store::sqlite;
-using Fake = qiven3::platform::fake::FakePlatform;
-using qiven3::platform::State;
+using Fake = qiven::platform::fake::FakePlatform;
+using qiven::platform::State;
 #if defined(QIVEN_FAULTS)
 using qiven::memory::Countdown;
 #else
@@ -101,7 +101,7 @@ struct Bed {
         held = root / "held";
         fresh = root / "new";
         warm = root / "warm";
-        qiven3::platform::fake::Config c;
+        qiven::platform::fake::Config c;
         c.root = text(root);
         c.config_dir = text(config_dir);
         c.seed = 5;
@@ -112,7 +112,7 @@ struct Bed {
         c.default_facts.protection.state = State::off;
         c.default_facts.file_history.state = State::off;
         c.default_facts.bitlocker.state = State::off;
-        qiven3::platform::fake::FakeFacts w = c.default_facts;
+        qiven::platform::fake::FakeFacts w = c.default_facts;
         w.bitlocker.state = State::unknown;
         c.facts = {{text(warm), w}};
         fake = std::make_unique<Fake>(c);

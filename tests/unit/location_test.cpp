@@ -21,19 +21,19 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
 namespace location = qiven3::location;
-using Fake = qiven3::platform::fake::FakePlatform;
-using qiven3::platform::State;
+using Fake = qiven::platform::fake::FakePlatform;
+using qiven::platform::State;
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -62,8 +62,8 @@ struct Scratch {
     fs::path root;
 };
 
-qiven3::platform::fake::Config config(const fs::path& root, State facts) {
-    qiven3::platform::fake::Config c;
+qiven::platform::fake::Config config(const fs::path& root, State facts) {
+    qiven::platform::fake::Config c;
     c.root = text(root);
     c.config_dir = text(root / "config");
     c.seed = 5;

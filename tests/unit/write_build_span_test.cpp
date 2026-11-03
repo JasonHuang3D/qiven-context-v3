@@ -26,10 +26,10 @@
 #include "entry/kinds.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
 
@@ -39,7 +39,7 @@ namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
 using qiven::memory::Arena;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
 
@@ -61,10 +61,10 @@ public:
         std::ofstream(std::string(path), std::ios::binary) << "changed after its read\n";
     }
 };
-static_assert(qiven3::platform::Platform<Changing>);
+static_assert(qiven::platform::Platform<Changing>);
 
-qiven3::platform::fake::Config config(const std::string& root) {
-    qiven3::platform::fake::Config c;
+qiven::platform::fake::Config config(const std::string& root) {
+    qiven::platform::fake::Config c;
     c.root = root;
     c.seed = 7;
     c.clock = std::chrono::time_point_cast<std::chrono::microseconds>(

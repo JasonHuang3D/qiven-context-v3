@@ -14,7 +14,7 @@
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
 #include "qiven/memory/fail.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven/runner/runner.hpp"
 
@@ -33,8 +33,8 @@ constexpr qiven3::log::Name failed = "fail";
 bool platform_named(std::ostream& out) {
     try {
         throw;
-    } catch (const qiven3::platform::PlatformError& e) {
-        out << "platform error " << qiven3::platform::name(e.code) << ": " << e.detail.view() << "\n";
+    } catch (const qiven::platform::PlatformError& e) {
+        out << "platform error " << qiven::platform::name(e.code) << ": " << e.detail.view() << "\n";
         return true;
     } catch (...) {
         return false;

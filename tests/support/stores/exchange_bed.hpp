@@ -39,7 +39,7 @@
 #include "store/engine/sqlite.hpp"
 #include "store/exchange.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace qiven::test::exchange_bed {
@@ -47,7 +47,7 @@ namespace qiven::test::exchange_bed {
 using records::Rec, records::views;
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::Arena;
 using qiven::memory::Vector;
@@ -141,8 +141,8 @@ struct Bed {
         fs::create_directories(out);
         return out;
     }
-    static qiven3::platform::fake::Config config(const fs::path& root) {
-        qiven3::platform::fake::Config c;
+    static qiven::platform::fake::Config config(const fs::path& root) {
+        qiven::platform::fake::Config c;
         c.root = text(root);
         c.seed = 7;
         return c;

@@ -17,12 +17,12 @@
 #include <vector>
 
 #include "qiven3/canon.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test::vectors {
 
 namespace canon = qiven3::canon;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Value = qiven3::canon::Basic<>;
 
 std::string_view text(const Value& v, std::string_view key);
@@ -42,7 +42,7 @@ struct Entry {
     std::string content;
 };
 struct Context {
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     Value fixtures;
     std::vector<Entry> entries;
     std::vector<std::pair<std::int64_t, std::string>> files;

@@ -5,7 +5,7 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/platform/platform.hpp",
+  "contract": "foundation/system/platform/include/qiven/platform/platform.hpp",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -30,17 +30,8 @@
         "faults"
       ],
       "paths": [
-        "src/platform/",
-        "tests/support/fake_platform/",
-        "tests/support/fixtures/win_process_case.hpp",
-        "tests/unit/platform.cmake",
-        "tests/unit/win_arguments_test.cpp",
-        "tests/unit/win_facts*",
-        "tests/unit/win_files*",
-        "tests/unit/win_names_test.cpp",
-        "tests/unit/fake_process_test.cpp",
-        "tests/unit/files_test.cpp",
-        "tests/unit/files_names_test.cpp"
+        "foundation/system/platform/",
+        "tests/support/fixtures/win_process_case.hpp"
       ]
     }
   ]

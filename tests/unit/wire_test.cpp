@@ -17,16 +17,16 @@
 #include <vector>
 
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "wire/wire.hpp"
 
 namespace {
 
 namespace wire = qiven3::wire;
-using qiven3::platform::fake::Config;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::Config;
+using qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t most = std::numeric_limits<std::size_t>::max();
 
@@ -73,8 +73,8 @@ struct Throwing {
     Out& standard_output() { return out; }
 };
 
-using qiven3::platform::Code;
-using qiven3::platform::PlatformError;
+using qiven::platform::Code;
+using qiven::platform::PlatformError;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 

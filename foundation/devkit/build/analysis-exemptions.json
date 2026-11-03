@@ -12,7 +12,7 @@
   "test_code": {
     "clang-tidy": "foundation/devkit/build/analysis-test.clang-tidy",
     "msvc": "foundation/devkit/build/analysis-test.ruleset",
-    "targets": ["qiven3-child", "qiven3_fixtures", "qiven3_platform_fake",
+    "targets": ["qiven3-child", "qiven3_fixtures",
       "qiven3_seams", "qiven3_test_headers", "qiven_runner_demo", "qiven_runner_test"],
     "not_defined": [{"preset": "debug", "target": "qiven3_test_headers", "reason": "The analysis alone compiles header units."},
       {"preset": "release", "target": "qiven3_test_headers", "reason": "The analysis alone compiles header units."},
@@ -55,7 +55,7 @@
      "reason": "B26: memory alone places and frees blocks by offset, with its own cases, fault runs and poisoning under AddressSanitizer."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-avoid-non-const-global-variables", "scope": "foundation/core/memory/",
      "reason": "B25's allowance: memory/fail keeps fail_fast's cause at namespace scope, for the diagnostic entry's terminate handler, which reads it with nothing allocated."},
-    {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-type-union-access", "scope": "src/platform/win/",
+    {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-type-union-access", "scope": "foundation/system/platform/src/windows/",
      "reason": "B23: a Win32 structure's own union is read here alone (OVERLAPPED, LARGE_INTEGER, PROPVARIANT)."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-type-vararg", "scope": "src/store/engine/",
      "reason": "The engine's configuration call is variadic in its interface, the one call B22 allows, made in sqlite.cpp alone; the check stays on in the rest of the store."},

@@ -44,7 +44,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/checked/stores.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 
 namespace qiven3::drive::wire {
@@ -164,9 +164,9 @@ private:
         Racer& r = *racers_[index];
         bool made = false;
         try {
-            platform::fake::Config config;
+            qiven::platform::fake::Config config;
             config.root = root_;
-            const auto fake = std::make_unique<platform::fake::FakePlatform>(config);
+            const auto fake = std::make_unique<qiven::platform::fake::FakePlatform>(config);
             const auto book = std::make_unique<qiven::test::stage_book::Book>(*fake);
             std::unique_ptr<typename F::Store> object;
             {

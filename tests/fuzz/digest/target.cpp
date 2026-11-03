@@ -23,7 +23,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
@@ -31,7 +31,7 @@ namespace digest = qiven3::digest;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::String;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t beside = 4096;  // each operation's budget beside its input
 constexpr std::size_t entry_fields = 11;
@@ -114,7 +114,7 @@ int digest_input(const std::uint8_t* data, std::size_t size) {
         material[i] = static_cast<std::byte>(i);
         material_text[i] = static_cast<char>(i);
     }
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, material);
     const std::string keyed = within(size, [&](String& out) { digest::keyed(key, view, out); });
     if (keyed != "hmac-sha256:" + hex(digest::hmac(material_text, view))) {

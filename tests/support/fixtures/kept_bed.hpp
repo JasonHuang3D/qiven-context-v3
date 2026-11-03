@@ -22,8 +22,8 @@
 #include "entry/header.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/kept.hpp"
 #include "write/refuse.hpp"
@@ -39,12 +39,12 @@ using qiven::memory::Arena;
 using qiven::memory::Inline;
 using qiven::memory::String;
 using qiven::memory::Vector;
-using qiven3::platform::Code;
-using qiven3::platform::PlatformError;
-using qiven3::platform::fake::Busy;
-using qiven3::platform::fake::Config;
-using qiven3::platform::fake::FakePlatform;
-using qiven3::platform::fake::never;
+using qiven::platform::Code;
+using qiven::platform::PlatformError;
+using qiven::platform::fake::Busy;
+using qiven::platform::fake::Config;
+using qiven::platform::fake::FakePlatform;
+using qiven::platform::fake::never;
 using qiven3::write::build::Built;
 using qiven3::write::refuse::Refusal;
 namespace rc = qiven3::write::refuse;

@@ -4,11 +4,11 @@
 
 #include "store/memory.hpp"
 
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::store {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 template class MemoryScan<Fake>;
 template class MemoryStore<Fake>;

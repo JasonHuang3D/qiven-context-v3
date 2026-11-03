@@ -22,7 +22,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
@@ -126,7 +126,7 @@ static_assert(store::name(Corrupt::not_a_store) == "not_a_store" && store::name(
 static_assert(store::name(Full::disk_full) == "disk_full");
 
 // The widths against what fills them (the entry's, checked_reads' case).
-static_assert(store::detail_bytes == qiven3::platform::detail_bytes);
+static_assert(store::detail_bytes == qiven::platform::detail_bytes);
 
 // Each kind's line, made and checked away from the case's frame.
 struct LineVector {

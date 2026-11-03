@@ -25,7 +25,7 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -40,7 +40,7 @@ using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Key = digest::Key<Fake>;
 
 // Each entry the text pins, in the file's order: its canonical content's
@@ -91,8 +91,8 @@ std::string keyed_under(Fake& fake, std::string_view hex, std::string_view data)
     return out;
 }
 
-qiven3::platform::fake::Config seeded() {
-    qiven3::platform::fake::Config config;
+qiven::platform::fake::Config seeded() {
+    qiven::platform::fake::Config config;
     config.seed = 0;
     return config;
 }

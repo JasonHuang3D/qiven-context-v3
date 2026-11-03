@@ -20,7 +20,7 @@ namespace {
 using namespace qiven::test::process;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
-using qiven3::platform::Ran;
+using qiven::platform::Ran;
 
 // Whether text holds word whole: no word character ([A-Za-z0-9_], a
 // regex's \b) on either side of it.

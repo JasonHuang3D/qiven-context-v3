@@ -18,13 +18,13 @@
 
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
 namespace digest = qiven3::digest;
 using digest::Field;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Key = digest::Key<Fake>;
 
 std::string unhex(std::string_view text) {
@@ -88,8 +88,8 @@ std::array<std::byte, 32> lesson_key(unsigned first) {
     return key;
 }
 
-qiven3::platform::fake::Config seeded(std::uint64_t seed) {
-    qiven3::platform::fake::Config config;
+qiven::platform::fake::Config seeded(std::uint64_t seed) {
+    qiven::platform::fake::Config config;
     config.seed = seed;
     return config;
 }

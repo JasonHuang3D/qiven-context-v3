@@ -61,7 +61,7 @@
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
-#include "platform/win/windows.hpp"
+#include "qiven/platform/windows/windows.hpp"
 #include "qiven3/location.hpp"
 #endif
 
@@ -210,11 +210,11 @@ int replace(std::span<const std::string_view> args) {
     put(STD_OUTPUT_HANDLE, "held\n");
     int status = 0;
     try {
-        platform::win::WindowsPlatform adapter(std::nullopt);
-        adapter.replace(args[0], *data, platform::Seconds(static_cast<double>(*ms) / 1000.0));
+        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        adapter.replace(args[0], *data, qiven::platform::Seconds(static_cast<double>(*ms) / 1000.0));
         put(STD_OUTPUT_HANDLE, "replaced\n");
-    } catch (const platform::PlatformError& error) {
-        put(STD_OUTPUT_HANDLE, std::string(platform::name(error.code)) + "\n");
+    } catch (const qiven::platform::PlatformError& error) {
+        put(STD_OUTPUT_HANDLE, std::string(qiven::platform::name(error.code)) + "\n");
         status = 1;
     }
     CloseHandle(reader);
@@ -245,12 +245,12 @@ int tree(std::span<const std::string_view> args) {
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     qiven::memory::Arena arena{std::span<std::byte>(pages)};
     try {
-        platform::win::WindowsPlatform adapter(std::nullopt);
-        const platform::Seconds deadline(static_cast<double>(*ms) / 1000.0 + 60.0);
-        platform::win::WindowsChild grandchild =
-            adapter.start(platform::Command{argv, "", {}, deadline, platform::Caps{1U << 16U, 1U << 16U}});
-        platform::String line{qiven::memory::Allocator<char>(arena)};
-        if (!grandchild.read_line(platform::Seconds(30.0), line) || !line.starts_with("pid ")) {
+        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        const qiven::platform::Seconds deadline(static_cast<double>(*ms) / 1000.0 + 60.0);
+        qiven::platform::win::WindowsChild grandchild =
+            adapter.start(qiven::platform::Command{argv, "", {}, deadline, qiven::platform::Caps{1U << 16U, 1U << 16U}});
+        qiven::platform::String line{qiven::memory::Allocator<char>(arena)};
+        if (!grandchild.read_line(qiven::platform::Seconds(30.0), line) || !line.starts_with("pid ")) {
             return wrong("the grandchild printed no pid");
         }
         put(STD_OUTPUT_HANDLE, "grandchild " + std::string(std::string_view(line).substr(4)));
@@ -264,7 +264,7 @@ int tree(std::span<const std::string_view> args) {
             return flood(past);
         }
         Sleep(static_cast<DWORD>(*ms));
-    } catch (const platform::PlatformError& error) {
+    } catch (const qiven::platform::PlatformError& error) {
         return wrong(std::string("start: ") + std::string(error.detail.view()));
     }
     return 0;
@@ -298,9 +298,9 @@ int init(std::span<const std::string_view> args) {
     await_line();
     const std::array<std::string_view, 5> argv = {"init", args[1], "--accept", "--config", args[0]};
     try {
-        platform::win::WindowsPlatform adapter(args[0]);
+        qiven::platform::win::WindowsPlatform adapter(args[0]);
         return location::main(std::span<const std::string_view>(argv), adapter);
-    } catch (const platform::PlatformError& error) {
+    } catch (const qiven::platform::PlatformError& error) {
         put(STD_ERROR_HANDLE, std::string("qiven3-child platform: init: ").append(error.detail.view()).append("\n"));
         return 1;
     }

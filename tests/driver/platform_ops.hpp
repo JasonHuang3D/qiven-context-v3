@@ -37,18 +37,18 @@
 
 #include "driver/drive.hpp"
 #include "qiven/memory/arena.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 
 namespace qiven3::drive {
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class PlatformDrive {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
     using Staged = decltype(std::declval<P&>().stage(std::string_view{}));
     using Sink = decltype(std::declval<Staged&>().open(std::string_view{}));
-    using Lock = decltype(std::declval<P&>().lock(std::string_view{}, platform::Seconds{}));
-    using Child = decltype(std::declval<P&>().start(std::declval<const platform::Command&>()));
+    using Lock = decltype(std::declval<P&>().lock(std::string_view{}, qiven::platform::Seconds{}));
+    using Child = decltype(std::declval<P&>().start(std::declval<const qiven::platform::Command&>()));
     using Operation = std::optional<Value> (*)(PlatformDrive&, qiven::memory::Arena&, ArgView);
     // The operation's stated budget for this request, in bytes.
     using Budget = std::size_t (*)(ArgView);

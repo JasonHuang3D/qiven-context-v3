@@ -49,7 +49,7 @@
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
@@ -75,7 +75,7 @@ using records::seq_of;
 using records::views;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 constexpr std::string_view qs = "project:qiven";
 constexpr std::string_view away_scope = "person";
@@ -149,8 +149,8 @@ struct Scratch {
         std::error_code error;
         fs::remove_all(root, error);
     }
-    [[nodiscard]] qiven3::platform::fake::Config config() const {
-        qiven3::platform::fake::Config config;
+    [[nodiscard]] qiven::platform::fake::Config config() const {
+        qiven::platform::fake::Config config;
         config.root = text(root);
         config.seed = 7;
         return config;
@@ -483,7 +483,7 @@ bool appends_plain(S& s) {
 }  // namespace
 
 QIVEN_CASE(store_guard, import_plain) {
-    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     const auto book = std::make_unique<const Book>();
     std::vector<std::byte> pages(std::size_t{1} << 20U);
     Arena arena(pages);
@@ -511,7 +511,7 @@ QIVEN_CASE(store_guard, import_plain) {
 }
 
 QIVEN_CASE(store_guard, memory) {
-    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     const auto book = std::make_unique<const Book>();
     for (std::size_t k = 0; k < cases; ++k) {
         auto heap = fake->pages(state_bytes);

@@ -26,17 +26,17 @@ inline qiven::memory::String string(qiven::memory::Arena& arena) { return qiven:
 
 inline std::string copy(const qiven::memory::String& text) { return std::string(text.data(), text.size()); }
 
-inline std::string state_name(platform::State state) {
+inline std::string state_name(qiven::platform::State state) {
     switch (state) {
-    case platform::State::on: return "on";
-    case platform::State::off: return "off";
-    case platform::State::locked: return "locked";
-    case platform::State::unknown: return "unknown";
+    case qiven::platform::State::on: return "on";
+    case qiven::platform::State::off: return "off";
+    case qiven::platform::State::locked: return "locked";
+    case qiven::platform::State::unknown: return "unknown";
     }
     return "unknown";
 }
 
-inline Value reading(const platform::Reading& r) {
+inline Value reading(const qiven::platform::Reading& r) {
     Value value;
     value.set("state", state_name(r.state));
     value.set("reason", copy(r.reason));
@@ -111,7 +111,7 @@ Result normcase(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
 
 template <class P>
 Result facts(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
-    platform::Facts f(arena);
+    qiven::platform::Facts f(arena);
     d.platform().facts(text(request, "path"), f);
     Value value;
     value.set("volume", copy(f.volume));
@@ -147,10 +147,10 @@ Result remove_directory(Drive<P>& d, qiven::memory::Arena&, ArgView request) {
 
 template <class P>
 Result list(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
-    qiven::memory::Vector<platform::String> names{qiven::memory::Allocator<platform::String>(arena)};
+    qiven::memory::Vector<qiven::platform::String> names{qiven::memory::Allocator<qiven::platform::String>(arena)};
     d.platform().list(text(request, "path"), names);
     Value out = array();
-    for (const platform::String& name : names) {
+    for (const qiven::platform::String& name : names) {
         out.push(scalar(std::string_view(name)));
     }
     return out;
@@ -186,8 +186,8 @@ Result program(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
 template <class P>
 Result run(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     const std::string data = request.find("data") ? from_hex(text(request, "data")) : std::string();
-    platform::Ran ran(arena);
-    with_command(request, [&](const platform::Command& command) { d.platform().run(command, data, ran); });
+    qiven::platform::Ran ran(arena);
+    with_command(request, [&](const qiven::platform::Command& command) { d.platform().run(command, data, ran); });
     Value value;
     value.set("code", ran.code);
     value.set("out", to_hex(ran.out));
@@ -216,10 +216,10 @@ template <class P>
 Result residual(Drive<P>& d, qiven::memory::Arena& arena, ArgView request) {
     const std::vector<std::string> paths = strings(request, "paths");
     const std::vector<std::string_view> path_views = views(paths);
-    qiven::memory::Vector<platform::Row> rows{qiven::memory::Allocator<platform::Row>(arena)};
+    qiven::memory::Vector<qiven::platform::Row> rows{qiven::memory::Allocator<qiven::platform::Row>(arena)};
     d.platform().residual(path_views, rows);
     Value out = array();
-    for (const platform::Row& row : rows) {
+    for (const qiven::platform::Row& row : rows) {
         Value value;
         value.set("name", copy(row.name));
         value.set("applies", copy(row.applies));
@@ -311,7 +311,7 @@ concept Faulted = requires(P& p, qiven::memory::Countdown* countdown) { p.attach
 
 }  // namespace ops
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
     : session_(session), make_(make), lent_(lent) {
     const std::pair<const char*, Entry> table[] = {
@@ -360,7 +360,7 @@ PlatformDrive<P>::PlatformDrive(Session& session, Make make, Lent lent)
     }
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 P& PlatformDrive<P>::platform() {
     if (!platform_) {
         make_(platform_, session_.options());
@@ -368,7 +368,7 @@ P& PlatformDrive<P>::platform() {
     return *platform_;
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 std::size_t PlatformDrive<P>::holding() const {
     if (!platform_) {
         return 0;
@@ -385,7 +385,7 @@ std::size_t PlatformDrive<P>::holding() const {
 
 // The operation as its caller runs it: pages(budget), then the operation
 // on an arena over those bytes alone; the pages go back at the end.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
     P& p = platform();
 #if defined(QIVEN_FAULTS)
@@ -406,7 +406,7 @@ Value PlatformDrive<P>::run(const Entry& entry, ArgView request) {
                              [&](qiven::memory::Arena& arena) { return entry.operation(*this, arena, request); }));
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Value PlatformDrive<P>::reply(ArgView request) {
     std::string op;
     Value answer;

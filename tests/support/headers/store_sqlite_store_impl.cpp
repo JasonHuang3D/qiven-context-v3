@@ -5,11 +5,11 @@
 #include "store/sqlite_store.hpp"
 #include "store/sqlite_store_impl.hpp"
 
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::store {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 template Written SQLiteStore<Fake, NoHooks>::append(std::string_view, std::string_view, Expected,
                                                     std::span<const EntryView>, NoAdmit&&);

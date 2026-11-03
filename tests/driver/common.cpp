@@ -22,7 +22,7 @@
 
 #include "driver/drive.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/current.hpp"
+#include "qiven/platform/current.hpp"
 #include "qiven3/utf.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
@@ -51,18 +51,18 @@ std::optional<std::string_view> view(const std::optional<std::string>& text) {
 std::optional<Value> adapter_for(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return scalar(platform::adapter_for(text(request, "system"), view(config)).name());
+    return scalar(qiven::platform::adapter_for(text(request, "system"), view(config)).name());
 #else
-    platform::adapter_for(text(request, "system"), view(config));
+    qiven::platform::adapter_for(text(request, "system"), view(config));
 #endif
 }
 
 std::optional<Value> current(Session&, ArgView request) {
     const std::optional<std::string> config = config_of(request);
 #if defined(_WIN32)
-    return scalar(platform::current(view(config)).name());
+    return scalar(qiven::platform::current(view(config)).name());
 #else
-    platform::current(view(config));
+    qiven::platform::current(view(config));
 #endif
 }
 
@@ -305,8 +305,8 @@ bool flag(ArgView request, std::string_view key, bool fallback) {
     return found ? found->as_boolean(key) : fallback;
 }
 
-platform::Seconds deadline(ArgView request, std::string_view key) {
-    return platform::Seconds(static_cast<double>(integer(request, key, 5000)) / 1000.0);
+qiven::platform::Seconds deadline(ArgView request, std::string_view key) {
+    return qiven::platform::Seconds(static_cast<double>(integer(request, key, 5000)) / 1000.0);
 }
 
 const Operations& operations() {
@@ -367,9 +367,9 @@ Value plain(std::string_view kind, std::string_view detail) {
 Value caught(std::string_view name) {
     try {
         throw;
-    } catch (const platform::PlatformError& error) {
+    } catch (const qiven::platform::PlatformError& error) {
         return error_reply(
-            typed("platform", platform::name(error.code), error.operation.view(), error.detail.view()));
+            typed("platform", qiven::platform::name(error.code), error.operation.view(), error.detail.view()));
     } catch (const qiven::memory::MemoryError& error) {
         return error_reply(typed("memory", qiven::memory::name(error.code), error.operation.view(), error.detail.view()));
 #if defined(QIVEN3_DRIVE_HAL)

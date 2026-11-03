@@ -4,11 +4,11 @@
 
 #include "store/sqlite_store.hpp"
 
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::store {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 template class Engine<Fake>;
 template class SQLiteStore<Fake, NoHooks>;

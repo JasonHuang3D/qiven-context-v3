@@ -12,7 +12,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
@@ -25,7 +25,7 @@ void store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_vie
 
 using namespace qiven::test::sqlite_bed;
 using qiven::memory::MemoryError;
-using qiven3::platform::PlatformError;
+using qiven::platform::PlatformError;
 using qiven3::store::StoreError;
 
 QIVEN_CASE(store_sqlite, budget) {

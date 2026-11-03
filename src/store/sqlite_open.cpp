@@ -19,7 +19,7 @@
 #include "store/codes.hpp"
 #include "store/engine/sqlite.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store::sqlite {
@@ -373,7 +373,7 @@ void reraise(Refused refused) {
     } catch (qiven::memory::MemoryError& e) {
         e.detail = decltype(e.detail)(named(e.detail.view()).view());
         throw;
-    } catch (platform::PlatformError& e) {
+    } catch (qiven::platform::PlatformError& e) {
         e.detail = decltype(e.detail)(named(e.detail.view()).view());
         throw;
     }

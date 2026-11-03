@@ -3,11 +3,11 @@
 
 #include "store/sqlite_create.hpp"
 
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::store::sqlite {
 
-template Connection made<platform::fake::FakePlatform>(const qiven::memory::String&, platform::fake::FakePlatform&,
+template Connection made<qiven::platform::fake::FakePlatform>(const qiven::memory::String&, qiven::platform::fake::FakePlatform&,
                                                        const WhereView&, Opened&);
 
 }  // namespace qiven3::store::sqlite

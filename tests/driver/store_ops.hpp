@@ -56,12 +56,12 @@
 
 #include "driver/drive.hpp"
 #include "driver/platform_ops.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::drive {
 
 // The fake's request loop: the store's requests where --store selects a
 // store, else the platform's alone; the process's exit status.
-int serve(Session& session, PlatformDrive<platform::fake::FakePlatform>& drive);
+int serve(Session& session, PlatformDrive<qiven::platform::fake::FakePlatform>& drive);
 
 }  // namespace qiven3::drive

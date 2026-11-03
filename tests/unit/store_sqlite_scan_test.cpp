@@ -21,7 +21,7 @@
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/seams/seams.hpp"
 #include "support/stores/records.hpp"
 #include "support/stores/scan_case.hpp"
@@ -29,7 +29,7 @@
 namespace {
 
 namespace fs = std::filesystem;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven3::store::SQLiteStore<Fake>;
 
 std::string text(const fs::path& path) {
@@ -60,8 +60,8 @@ struct Rig {
         fs::create_directories(out);
         return out;
     }
-    static qiven3::platform::fake::Config config(const fs::path& root) {
-        qiven3::platform::fake::Config c;
+    static qiven::platform::fake::Config config(const fs::path& root) {
+        qiven::platform::fake::Config c;
         c.root = text(root);
         c.seed = 7;
         return c;

@@ -20,7 +20,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -29,7 +29,7 @@
 
 namespace qiven3::store {
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, bool create, bool read_only, P& platform,
                                                       const Limits& limits, H hooks) {
     if (!valid(limits)) {
@@ -64,7 +64,7 @@ SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, boo
     return store;
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 void SQLiteStore<P, H, Rule>::guard(std::string_view path, P& platform) {
     Pages pages = platform.pages(operation_base);
     qiven::memory::Arena arena(pages.bytes());
@@ -78,7 +78,7 @@ void SQLiteStore<P, H, Rule>::guard(std::string_view path, P& platform) {
     check(resolved, platform, arena, sqlite::guard_name);
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 template <class A>
 Written SQLiteStore<P, H, Rule>::write(Operation op, std::string_view scope, std::string_view lane,
                                        Expected expected, std::span<const EntryView> entries,
@@ -151,7 +151,7 @@ Written SQLiteStore<P, H, Rule>::write(Operation op, std::string_view scope, std
     return w;
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 std::int64_t SQLiteStore<P, H, Rule>::delta(std::uint64_t added, std::uint64_t dropped) {
     constexpr auto most = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
     if (added > most || dropped > most) {
@@ -160,7 +160,7 @@ std::int64_t SQLiteStore<P, H, Rule>::delta(std::uint64_t added, std::uint64_t d
     return static_cast<std::int64_t>(added) - static_cast<std::int64_t>(dropped);
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> entries,
                                                    std::optional<Pages>& extra) {
     const std::optional<std::size_t> lines = given(entries);
@@ -179,7 +179,7 @@ std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> en
     return extra->bytes().first(*budget);
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 Purge SQLiteStore<P, H, Rule>::attempt() {
     connection_.wait(0);
     Purge p;
@@ -194,7 +194,7 @@ Purge SQLiteStore<P, H, Rule>::attempt() {
     return p;
 }
 
-template <platform::Platform P, Hooks H, class Rule>
+template <qiven::platform::Platform P, Hooks H, class Rule>
 Purge SQLiteStore<P, H, Rule>::attempt_steps() {
     sqlite::Connection& c = connection_;
     const auto pending = [](int code, Step step) { return Purge::pending(purge_reason(code, step)); };

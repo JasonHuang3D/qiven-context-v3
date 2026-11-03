@@ -17,7 +17,7 @@ qiven3_add_cases(qiven3_unit_write_entries LABELS fast fake
 # fixed arena, a path piece read once, an @name: of another scope refused.
 qiven3_add_cases(qiven3_unit_write_build LABELS fast fake
   SOURCES write_build_test.cpp write_build_memory_test.cpp write_build_span_test.cpp
-  LINK qiven_faults qiven3_platform_fake qiven3_write)
+  LINK qiven_faults qiven_platform_fake qiven3_write)
 
 # write/refuse over synthetic files read, built and refused against a fake
 # fold: each refusal code of the write command with its cases and its
@@ -25,7 +25,7 @@ qiven3_add_cases(qiven3_unit_write_build LABELS fast fake
 # revising the review's claimed entries, and the fold's queries counted.
 qiven3_add_cases(qiven3_unit_write_refuse LABELS fast fake
   SOURCES write_refuse_test.cpp
-  LINK qiven_faults qiven3_platform_fake qiven3_write)
+  LINK qiven_faults qiven_platform_fake qiven3_write)
 
 # write/kept over a scratch store's real files on the fake and a fake
 # store's ids (support/fixtures/kept_bed.hpp): the kept file's form, names
@@ -37,4 +37,6 @@ qiven3_add_cases(qiven3_unit_write_refuse LABELS fast fake
 # a write, a refused write and the import, settled by the next write.
 qiven3_add_cases(qiven3_unit_write_kept LABELS fast fake
   SOURCES write_kept_test.cpp write_kept_steps_test.cpp write_kept_memory_test.cpp
-  LINK qiven_faults qiven3_platform_fake qiven3_write)
+  LINK qiven_faults qiven_platform_fake qiven3_write)
+# The fixtures' kept_bed.hpp by its path under tests/, which the fake gave before its move.
+target_include_directories(qiven3_unit_write_kept PRIVATE "${PROJECT_SOURCE_DIR}/tests")

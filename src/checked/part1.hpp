@@ -24,7 +24,7 @@
 #include "entry/check.hpp"
 #include "entry/header.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 
@@ -32,13 +32,13 @@ namespace qiven3::checked {
 
 using Header = entry::header::Header<qiven::memory::Allocator<char>>;
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 using Entry = entry::check::Entry<P, qiven::memory::Allocator<char>>;
 
 [[noreturn]] void refuse_part1(const store::AtView& at, std::size_t index, std::string_view id,
                                const entry::check::Fault& fault);
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Entry<P> part1(P& platform, const store::AtView& at, std::size_t index, const store::EntryView& line,
                const qiven::memory::Allocator<char>& allocator) {
     namespace body = entry::body;

@@ -14,7 +14,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
@@ -33,7 +33,7 @@ struct Unwritten {};
 
 // A line to standard output through the wire's answer; Unwritten where it
 // is not written.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void say(P& platform, std::string_view line) {
     if (wire::answer(platform, line, going) != going) {
         throw Unwritten{};
@@ -41,7 +41,7 @@ void say(P& platform, std::string_view line) {
 }
 
 // An error's line, then status; wire::failed where it is not written.
-template <platform::Platform P, typename E>
+template <qiven::platform::Platform P, typename E>
 int report(P& platform, const E& error, int status) noexcept {
     std::array<char, line_bytes> buffer{};
     return wire::answer(platform, error_line(error, buffer), status);
@@ -69,7 +69,7 @@ private:
 // The record at path: its bytes into bytes and its dir into dir;
 // StoreError location not_chosen where none is, config where its rules
 // refuse it.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void read_record(P& platform, std::string_view path, std::string_view op, String& bytes, String& dir) {
     if (absent(path)) {
         throw store::StoreError(store::Code::location, op, path, "not_chosen");
@@ -79,13 +79,13 @@ void read_record(P& platform, std::string_view path, std::string_view op, String
 }
 
 // The drive check on dir: one line per condition; true where any warns.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 bool check_drive(P& platform, std::string_view dir, qiven::memory::Arena& arena) {
-    platform::Facts facts(arena);
+    qiven::platform::Facts facts(arena);
     platform.facts(dir, facts);
     String line{qiven::memory::Allocator<char>(arena)};
     bool warned = false;
-    const std::array<const platform::Reading*, 3> readings = {&facts.protection, &facts.file_history,
+    const std::array<const qiven::platform::Reading*, 3> readings = {&facts.protection, &facts.file_history,
                                                               &facts.bitlocker};
     for (std::size_t i = 0; i < readings.size(); ++i) {
         warned = fact_line(static_cast<Condition>(i), *readings.at(i), facts.volume, line) || warned;
@@ -95,7 +95,7 @@ bool check_drive(P& platform, std::string_view dir, qiven::memory::Arena& arena)
 }
 
 // Whether a and b, both resolved, are one directory: equal after normcase.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 bool same(P& platform, std::string_view a, std::string_view b, qiven::memory::Arena& arena) {
     String x{qiven::memory::Allocator<char>(arena)};
     String y{qiven::memory::Allocator<char>(arena)};
@@ -106,7 +106,7 @@ bool same(P& platform, std::string_view a, std::string_view b, qiven::memory::Ar
 
 // The store at dir opened as it is, or, where its file is missing, created;
 // then closed. The engine's heap made for it where none is installed.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void open_or_create(P& platform, std::string_view dir, qiven::memory::Arena& arena) {
     using Store = store::SQLiteStore<P>;
     std::optional<store::Engine<P>> engine;
@@ -134,7 +134,7 @@ void open_or_create(P& platform, std::string_view dir, qiven::memory::Arena& are
 // The record printed, then `recorded` naming dir: after the record is
 // written, a line not composed leaves it recorded, and a line not written
 // ends with wire::failed, the record standing.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 int print_recorded(P& platform, std::string_view record, std::string_view dir, qiven::memory::Arena& arena) noexcept {
     if (wire::answer(platform, record, recorded) != recorded) {
         return wire::failed;
@@ -149,7 +149,7 @@ int print_recorded(P& platform, std::string_view record, std::string_view dir, q
 }
 
 // One command, under the lock; its errors to main.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 int run(P& platform, const ArgumentsView& args, const Hooks& hooks) {
     auto pages = platform.pages(budget);
     qiven::memory::Arena arena(pages.bytes());
@@ -202,7 +202,7 @@ int run(P& platform, const ArgumentsView& args, const Hooks& hooks) {
 
 }  // namespace detail
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks) noexcept {
     const std::optional<ArgumentsView> args = arguments(argv);
     if (!args) {
@@ -214,7 +214,7 @@ int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks
         return wire::failed;  // no further line
     } catch (const store::StoreError& e) {
         return detail::report(platform, e, refused);
-    } catch (const platform::PlatformError& e) {
+    } catch (const qiven::platform::PlatformError& e) {
         return detail::report(platform, e, refused);
     } catch (const qiven::memory::MemoryError& e) {
         return detail::report(platform, e, refused);
@@ -223,7 +223,7 @@ int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks
     }
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void store_dir(P& platform, String& out) {
     const qiven::memory::Allocator<char> on = out.get_allocator();
     String config{on};

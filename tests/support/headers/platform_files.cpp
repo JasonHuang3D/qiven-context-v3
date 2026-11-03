@@ -2,11 +2,11 @@
 // the fake's system, the one System the code gives them yet, every member
 // of each handle instantiated.
 
-#include "platform/files.hpp"
+#include "qiven/platform/files.hpp"
 
-#include "support/fake_platform/fake_files.hpp"
+#include "qiven/platform/fake/fake_files.hpp"
 
-namespace qiven3::platform::files {
+namespace qiven::platform::files {
 
 using Fake = fake::FakeFiles;
 
@@ -19,4 +19,4 @@ template void replace(Fake&, std::string_view, std::string_view, Seconds);
 template Staged<Fake> stage(Fake&, std::string_view);
 template Lock<Fake> lock(Fake&, std::string_view, Seconds);
 
-}  // namespace qiven3::platform::files
+}  // namespace qiven::platform::files

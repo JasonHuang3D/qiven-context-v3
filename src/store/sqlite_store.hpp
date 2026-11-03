@@ -64,7 +64,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
@@ -82,7 +82,7 @@ namespace qiven3::store {
 // made while another is installed is refused, StoreError internal, before
 // it takes its pages, with no platform call and no allocation, the
 // installed one unchanged.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class Engine {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
@@ -116,7 +116,7 @@ private:
     sqlite::EngineHeap heap_;
 };
 
-template <platform::Platform P, Hooks H = NoHooks, class Rule = NoAdmit>
+template <qiven::platform::Platform P, Hooks H = NoHooks, class Rule = NoAdmit>
 class SQLiteStore {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));

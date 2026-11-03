@@ -24,7 +24,7 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace {
@@ -37,7 +37,7 @@ using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
 using qiven::memory::String;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 #define HEX "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 #define A64 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -82,7 +82,7 @@ constexpr std::size_t expected(Op op) {
 
 // What each operation reads, made outside the arena.
 struct Inputs {
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     projectmap::Marks<> marks = projectmap::parse_marks(MARKS);
     canon::Basic<> content;
     qiven::test::fixtures::MemoryView view;

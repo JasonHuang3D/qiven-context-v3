@@ -20,7 +20,7 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -36,7 +36,7 @@ using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 using qiven::memory::String;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Body = body::Body<Fake, Allocator<char>>;
 
 constexpr std::size_t budget_for(std::size_t record) { return 262144 + 8 * record; }
@@ -79,7 +79,7 @@ struct Peaks {
 }  // namespace
 
 QIVEN_CASE(body, budget) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     Peaks most;
     std::size_t longest = 0;
     for (const Entry& x : entries(fake)) {
@@ -160,7 +160,7 @@ QIVEN_CASE(body, budget) {
 
 QIVEN_CASE(body, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const std::vector<Entry> all = entries(fake);
     const Entry& x = all.front();
     const header::Header<> h = header::parse_line(x.header);

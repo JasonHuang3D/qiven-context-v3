@@ -6,7 +6,7 @@
 // the bytes of one and the bytes of all. The program's name is the
 // system's and is not read. On Windows the binary's wmain gives them as
 // UTF-8 converted from the system's UTF-16 by the Windows adapter
-// (platform::win::run_utf8), which does not read the program's name
+// (qiven::platform::win::run_utf8), which does not read the program's name
 // either; its refusal, an unpaired surrogate or a command line past its
 // bounds, the binary ends with `failed` as well, and an allocation it
 // cannot have, a fault and no failure of the wire's, with the status its
@@ -80,7 +80,7 @@ private:
 [[nodiscard]] std::optional<RequestView> read_request(int argc, const char* const* argv, const Bounds& bounds) noexcept;
 
 // What the wire writes to: standard output, whose write writes its bytes
-// whole or throws. Every platform::Platform is one.
+// whole or throws. Every qiven::platform::Platform is one.
 template <class P>
 concept Output = requires(P& p, std::string_view bytes) { p.standard_output().write(bytes); };
 

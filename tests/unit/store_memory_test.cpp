@@ -29,13 +29,13 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 using namespace qiven::test::records;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
 using qiven3::store::Counts;
@@ -71,14 +71,14 @@ constexpr std::size_t buffer_bytes = std::size_t{1} << 20U;
 // the state, and the caller's arena.
 struct Rig {
     Rig()
-        : fake(qiven3::platform::fake::Config{}), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
+        : fake(qiven::platform::fake::Config{}), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
           heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}), heap2(fake.pages(state_bytes)),
           state2(heap2.bytes(), Limits{}), pages(buffer_bytes), arena(pages), chars(arena) {}
     Fake fake;
     Recs lane;
-    qiven3::platform::fake::FakePages heap;
+    qiven::platform::fake::FakePages heap;
     qiven3::store::state::State state;
-    qiven3::platform::fake::FakePages heap2;
+    qiven::platform::fake::FakePages heap2;
     qiven3::store::state::State state2;  // an import's
     std::vector<std::byte> pages;
     Arena arena;

@@ -20,7 +20,7 @@
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
@@ -31,7 +31,7 @@ using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 using qiven::memory::String;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t budget_for(std::size_t input) { return 4096 + input; }
 
@@ -97,7 +97,7 @@ void budget_case(qiven::runner::Context& qiven_ctx, std::string_view name, std::
 
 QIVEN_CASE(digest, budgets) {
     const Header header;
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, fixture_key());
     budget_case(qiven_ctx, "frame", header.bytes(), [&](String& out) { digest::frame(header.fields, out); });
     budget_case(qiven_ctx, "entry_id", header.bytes(), [&](String& out) { digest::entry_id(header.fields, out); });
@@ -118,7 +118,7 @@ QIVEN_CASE(digest, budgets) {
 QIVEN_CASE(digest, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
     const Header header;
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     const digest::Key<Fake> key(fake, fixture_key());
     std::vector<std::byte> pages(budget_for(header.bytes()));
     qiven::memory::Countdown countdown;
@@ -148,7 +148,7 @@ QIVEN_CASE(digest, faults) {
 
     // new_key's platform calls: the draw fails, its bytes wiped after.
     fake.attach(&countdown);
-    const qiven::test::FaultRuns draws = qiven::test::run_faults<qiven3::platform::PlatformError>(
+    const qiven::test::FaultRuns draws = qiven::test::run_faults<qiven::platform::PlatformError>(
         qiven_ctx.log, "digest.new_key", countdown, [&] { const digest::Key<Fake> k = digest::new_key(fake); },
         [&](std::size_t) { return fake.calls().back() == "wipe"; });
     fake.attach(nullptr);

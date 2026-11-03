@@ -32,14 +32,14 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/memory.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 using namespace qiven::test::records;
 namespace state = qiven3::store::state;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::String;
@@ -71,7 +71,7 @@ struct NoSource {
 // C (the reviewer's first), and an arena.
 struct Bed {
     Bed()
-        : fake(qiven3::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
+        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
           lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
           e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, c{rec("C", qiven_scope, "reviewer", 1)},
           e_lines(views(e)), c_lines(views(c)), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {
@@ -82,7 +82,7 @@ struct Bed {
         guard.push_back(GuardView{qiven_scope, implementer_lane, acc});
     }
     Fake fake;
-    qiven3::platform::fake::FakePages heap;
+    qiven::platform::fake::FakePages heap;
     state::State state;
     std::vector<Rec> lane;
     std::vector<Rec> e;
@@ -154,7 +154,7 @@ QIVEN_CASE(store_memory, busy) {
         threads.reserve(all.size());
         for (std::size_t i = 0; i < all.size(); ++i) {
             threads.emplace_back([&, i] {
-                Fake fake(qiven3::platform::fake::Config{});
+                Fake fake(qiven::platform::fake::Config{});
                 Store s(b->state, fake);
                 got[i] = raised([&] { all[i].second(s, *b); });
             });

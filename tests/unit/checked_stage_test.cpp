@@ -38,7 +38,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 #include "support/fixtures/stage_book.hpp"

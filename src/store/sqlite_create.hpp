@@ -15,13 +15,13 @@
 #include <string_view>
 
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::store::sqlite {
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 [[nodiscard]] Connection made(const qiven::memory::String& resolved, P& platform, const WhereView& at, Opened& opened) {
     const std::string_view directory = directory_of(resolved);
     bool own = false;
@@ -29,8 +29,8 @@ template <platform::Platform P>
         try {
             platform.create(directory, true);
             own = true;
-        } catch (const platform::PlatformError& e) {
-            if (e.code != platform::Code::exists) {
+        } catch (const qiven::platform::PlatformError& e) {
+            if (e.code != qiven::platform::Code::exists) {
                 throw;
             }
         }
@@ -40,8 +40,8 @@ template <platform::Platform P>
         try {
             platform.create(resolved, false);
             file = true;
-        } catch (const platform::PlatformError& e) {
-            if (e.code == platform::Code::exists) {
+        } catch (const qiven::platform::PlatformError& e) {
+            if (e.code == qiven::platform::Code::exists) {
                 throw StoreError(Code::exists, at.operation, at.path, "a file was made meanwhile");
             }
             throw;

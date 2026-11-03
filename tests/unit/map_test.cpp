@@ -23,7 +23,7 @@
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -34,7 +34,7 @@ namespace served = qiven3::entry::served;
 namespace canon = qiven3::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using served::Mark;
 
 constexpr std::string_view M1_ID = "sha256:cdc1ccfaaa779c70066a3cd1e3c4da47904c915acb77b83e43de309f7ed36700";
@@ -100,7 +100,7 @@ QIVEN_CASE(map, fa2_stale) {
     }
     CHECK_EQ(v1->size(), 57U);
     CHECK_EQ(v2->size(), 75U);
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const digest::Key<Fake> k1(fake, std::span<const std::byte, digest::bytes>(m1.key));
     const digest::Key<Fake> k2(fake, std::span<const std::byte, digest::bytes>(m2.key));
 

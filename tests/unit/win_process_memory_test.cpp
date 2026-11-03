@@ -70,7 +70,7 @@ namespace {
 using namespace qiven::test::process;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
-using qiven3::platform::Ran;
+using qiven::platform::Ran;
 
 #if defined(QIVEN_SYSTEM_HEAP)
 constexpr bool arena_counted = false;

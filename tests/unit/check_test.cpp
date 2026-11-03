@@ -23,7 +23,7 @@
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -38,7 +38,7 @@ namespace fixtures = qiven::test::fixtures;
 using check::Fault;
 using check::Part;
 using header::Slot;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Entry = check::Entry<Fake>;
 
 #if defined(_MSC_VER) && defined(_WIN64) && defined(_ITERATOR_DEBUG_LEVEL) && _ITERATOR_DEBUG_LEVEL == 0
@@ -322,7 +322,7 @@ QIVEN_CASE(check, vectors) {
 }
 
 QIVEN_CASE(check, fixtures) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::size_t bodies = 0;
@@ -351,7 +351,7 @@ QIVEN_CASE(check, fixtures) {
 }
 
 QIVEN_CASE(check, refusals) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
     const std::optional<fixtures::EntryView> a = fixtures::find_entry(v, "A");
@@ -400,7 +400,7 @@ QIVEN_CASE(check, refusals) {
 }
 
 QIVEN_CASE(check, parser) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
     const std::optional<fixtures::EntryView> a = fixtures::find_entry(v, "A");
@@ -436,7 +436,7 @@ QIVEN_CASE(check, parser) {
 QIVEN_CASE(check, large) {
     // A module past 65,536 bytes canonical, each field within its limit,
     // bound to its header: content's too_large through part 1.
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const std::string face = "\xf0\x9f\x98\x80";
     const auto items = [](const std::string& item, std::size_t n) {
         std::string out = "[";

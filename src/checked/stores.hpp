@@ -12,17 +12,17 @@
 
 #include "checked/ruled.hpp"
 #include "checked/rules.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
 #include "store/sqlite_store.hpp"
 
 namespace qiven3::checked {
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 using MemoryStore = Ruled<store::MemoryStore<P, Rules<P>>>;
 
-template <platform::Platform P, store::Hooks H = store::NoHooks>
+template <qiven::platform::Platform P, store::Hooks H = store::NoHooks>
 using SQLiteStore = Ruled<store::SQLiteStore<P, H, Rules<P>>>;
 
 }  // namespace qiven3::checked

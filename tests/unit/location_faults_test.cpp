@@ -199,7 +199,7 @@ void store_dir_faults(qiven::runner::Context& qiven_ctx, Bed& b) {
                 got = std::string(out);
             } catch (const qiven3::store::StoreError&) {
                 got = "StoreError";
-            } catch (const qiven3::platform::PlatformError&) {
+            } catch (const qiven::platform::PlatformError&) {
                 got = "PlatformError";
             } catch (const qiven::memory::MemoryError&) {
                 got = "MemoryError";

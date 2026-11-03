@@ -20,7 +20,7 @@
 #include <string_view>
 #include <utility>
 
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "wire/wire.hpp"
 
@@ -127,7 +127,7 @@ struct Counting {
         bool refuse = false;
         void write(std::string_view bytes) {
             if (refuse) {
-                throw qiven3::platform::PlatformError(qiven3::platform::Code::io, "stdout", "refused");
+                throw qiven::platform::PlatformError(qiven::platform::Code::io, "stdout", "refused");
             }
             taken += bytes.size();
         }

@@ -33,7 +33,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/faults/parts.hpp"
 #include "qiven/runner/runner.hpp"
@@ -41,7 +41,7 @@
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
@@ -52,11 +52,11 @@ namespace {
 
 namespace fs = std::filesystem;
 namespace sqlite = qiven3::store::sqlite;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven3::store::SQLiteStore<Fake>;
 using qiven::memory::Countdown;
 using qiven::memory::MemoryError;
-using qiven3::platform::PlatformError;
+using qiven::platform::PlatformError;
 using qiven3::store::StoreError;
 
 std::string text(const fs::path& path) {
@@ -86,8 +86,8 @@ struct Rig {
         fs::create_directories(out);
         return out;
     }
-    static qiven3::platform::fake::Config config(const fs::path& root) {
-        qiven3::platform::fake::Config c;
+    static qiven::platform::fake::Config config(const fs::path& root) {
+        qiven::platform::fake::Config c;
         c.root = text(root);
         c.seed = 7;
         return c;

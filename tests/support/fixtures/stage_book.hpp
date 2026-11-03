@@ -36,7 +36,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -54,7 +54,7 @@ using qiven3::store::Limits;
 using qiven3::store::Operation;
 using qiven3::store::StoreError;
 using Chars = qiven::memory::Allocator<char>;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Slot = header::Slot;
 
 // A stored entry: its header line, its body record and content or none.
@@ -359,7 +359,7 @@ private:
 // that a case's frame stays within the bound.
 struct Bench {
     explicit Bench(std::size_t bytes)
-        : fake(qiven3::platform::fake::Config{}), book(fake), pages(bytes), arena(pages), chars(arena),
+        : fake(qiven::platform::fake::Config{}), book(fake), pages(bytes), arena(pages), chars(arena),
           scratch(scratch_bytes) {}
     Fake fake;
     Book book;

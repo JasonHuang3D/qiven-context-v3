@@ -23,7 +23,7 @@
 #include "qiven/memory/memory.hpp"
 
 #if defined(_WIN32)
-#include "platform/win/windows.hpp"
+#include "qiven/platform/windows/windows.hpp"
 #endif
 
 namespace {
@@ -87,7 +87,7 @@ int run(int argc, const char* const* argv) noexcept {
 
 #if defined(_WIN32)
 int wmain(int argc, wchar_t** argv) {
-    return qiven3::platform::win::run_utf8(argc, argv, &run,
+    return qiven::platform::win::run_utf8(argc, argv, &run,
                                            {qiven3::child::usage_status, qiven3::child::exception_status});
 }
 #else

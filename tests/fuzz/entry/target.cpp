@@ -29,7 +29,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven3/canon.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
@@ -39,7 +39,7 @@ using qiven3::ParseCode;
 using qiven3::ParseError;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t budget_base = 262144;  // the entry's checks' budget beside 8 times the input
 
@@ -58,7 +58,7 @@ std::optional<ParseCode> parsed(std::string_view data) {
 // check_entry's parse fault, or none: its other refusals a pass, the
 // entry, admitted, written back.
 std::optional<ParseCode> checked(Arena& arena, std::string_view line, std::optional<std::string_view> record) {
-    Fake fake{qiven3::platform::fake::Config{}};
+    Fake fake{qiven::platform::fake::Config{}};
     try {
         const check::Entry<Fake, Allocator<char>> e =
             check::check_entry(fake, line, record, Allocator<char>(arena));

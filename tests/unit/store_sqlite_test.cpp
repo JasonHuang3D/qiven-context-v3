@@ -37,21 +37,21 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
-using qiven3::platform::fake::Config;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::Config;
+using qiven::platform::fake::FakePlatform;
 using qiven3::store::Capabilities;
 using qiven3::store::Engine;
 using qiven3::store::EntryView;

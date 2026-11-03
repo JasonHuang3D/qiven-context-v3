@@ -68,7 +68,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/utc.hpp"
 #include "store/errors.hpp"
 #include "store/contract.hpp"
@@ -82,7 +82,7 @@ inline constexpr std::string_view record_name = "location.json";
 inline constexpr std::string_view lock_name = "location.lock";
 inline constexpr std::string_view store_name = "store.db";
 // The lock's and the record's replace's deadline.
-inline constexpr platform::Seconds deadline{5.0};
+inline constexpr qiven::platform::Seconds deadline{5.0};
 // A command's own memory, the store's operations' figure.
 inline constexpr std::size_t budget = store::operation_base;
 
@@ -154,10 +154,10 @@ void parse_record(std::string_view bytes, std::string_view op, std::string_view 
 // naming the error; nothing for one gone, its drive included.
 void left_behind(std::string_view old, std::string_view op);
 // condition's line into out, replaced; true where it is a warning.
-bool fact_line(Condition condition, const platform::Reading& reading, std::string_view volume, String& out);
+bool fact_line(Condition condition, const qiven::platform::Reading& reading, std::string_view volume, String& out);
 // A typed error's line, as much as fits in out; the view is out's.
 std::string_view error_line(const store::StoreError& error, std::span<char> out) noexcept;
-std::string_view error_line(const platform::PlatformError& error, std::span<char> out) noexcept;
+std::string_view error_line(const qiven::platform::PlatformError& error, std::span<char> out) noexcept;
 std::string_view error_line(const qiven::memory::MemoryError& error, std::span<char> out) noexcept;
 // An exception of the standard library's own (its heap refusing an
 // allocation in its file system reads, for one), and its line.
@@ -176,13 +176,13 @@ inline constexpr std::size_t line_bytes = 1600;
 // The command argv names, run on platform; its exit status. This header
 // declares location's templates on the platform; qiven3/location_impl.hpp
 // defines them, and instantiation files alone include it.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 int main(std::span<const std::string_view> argv, P& platform, const Hooks& hooks = Hooks{}) noexcept;
 
 // The store's directory, the recorded dir, into out, on out's arena:
 // StoreError location not_chosen where no record is, config where its
 // rules refuse it.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void store_dir(P& platform, String& out);
 
 }  // namespace qiven3::location

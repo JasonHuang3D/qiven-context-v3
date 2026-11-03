@@ -55,7 +55,7 @@
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "support/checked/stores.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::drive::wire {
 
@@ -195,9 +195,9 @@ private:
 
     void run(F& factory) {
         try {
-            platform::fake::Config config;
+            qiven::platform::fake::Config config;
             config.root = root_;
-            const auto fake = std::make_unique<platform::fake::FakePlatform>(config);
+            const auto fake = std::make_unique<qiven::platform::fake::FakePlatform>(config);
             const auto object = std::make_unique<typename F::Store>(factory.again(*fake));
             std::int64_t done = 0;
             for (const std::unique_ptr<Batch>& b : batches_) {

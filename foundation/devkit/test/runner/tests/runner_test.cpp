@@ -12,7 +12,7 @@
 
 #include "log/log.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/case_main/cases.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven/runner/runner.hpp"
@@ -167,7 +167,7 @@ QIVEN_CASE(runner, exception_fails) {
 
 QIVEN_CASE(runner, platform_error_named) {
     const Ran r = run(qiven_ctx, [](Context&) {
-        throw qiven3::platform::PlatformError(qiven3::platform::Code::busy, "replace", "the target is held");
+        throw qiven::platform::PlatformError(qiven::platform::Code::busy, "replace", "the target is held");
     });
     CHECK_EQ(r.status, qiven::runner::exit_fail);
     CHECK(holds(r.out, "platform error busy: the target is held\n"));

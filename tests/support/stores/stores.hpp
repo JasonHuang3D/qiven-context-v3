@@ -62,12 +62,12 @@
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/named.hpp"
 
 namespace qiven::test::stores {
 
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 
 // The tags. own names the one implementation whose layout or settings a
@@ -178,8 +178,8 @@ private:
         std::filesystem::create_directories(root);
         return root;
     }
-    static qiven3::platform::fake::Config config(const std::filesystem::path& root, std::uint64_t seed) {
-        qiven3::platform::fake::Config c;
+    static qiven::platform::fake::Config config(const std::filesystem::path& root, std::uint64_t seed) {
+        qiven::platform::fake::Config c;
         c.root = text(root);
         c.seed = seed;
         // A folder the fake reports synced, as a client's under %OneDrive%
@@ -240,7 +240,7 @@ private:
 
     T* site_;
     std::size_t heap_;
-    std::optional<qiven3::platform::fake::FakePages> pages_;  // before the state made over them
+    std::optional<qiven::platform::fake::FakePages> pages_;  // before the state made over them
     std::unique_ptr<qiven3::store::state::State> state_;
 };
 

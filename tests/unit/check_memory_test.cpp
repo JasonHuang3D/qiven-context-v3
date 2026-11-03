@@ -26,7 +26,7 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -40,7 +40,7 @@ namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 // A case: its fixture, its line, its record or none, and the allocations
 // its check takes.
@@ -89,7 +89,7 @@ std::size_t budget_of(const Case& c) { return budget_base + 8 * (c.line.size() +
 }  // namespace
 
 QIVEN_CASE(check, budget) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const std::vector<Case> all = cases(fake);
     CHECK_EQ(all.size(), 6U);
     for (const Case& c : all) {
@@ -113,7 +113,7 @@ QIVEN_CASE(check, budget) {
 
 QIVEN_CASE(check, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const std::vector<Case> all = cases(fake);
     CHECK_EQ(all.size(), 6U);
     std::vector<std::byte> pages(budget_base + 8 * 65536);

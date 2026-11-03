@@ -26,7 +26,7 @@
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -39,7 +39,7 @@ namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 using body::Code;
 using header::Slot;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Body = body::Body<Fake>;
 
 static_assert(sizeof(digest::Key<Fake>) == 32 + sizeof(void*), "a key's size is pinned: its 32 and its platform's");
@@ -128,7 +128,7 @@ std::string thrown(const Op& op) {
 }  // namespace
 
 QIVEN_CASE(body, fixtures) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
     std::size_t made = 0;
@@ -168,7 +168,7 @@ QIVEN_CASE(body, fixtures) {
 }
 
 QIVEN_CASE(body, refusals) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     canon::Basic<> v;
     fixtures::load_entries(v);
     const std::optional<fixtures::EntryView> a = fixtures::find_entry(v, "A");
@@ -244,7 +244,7 @@ QIVEN_CASE(body, refusals) {
 }
 
 QIVEN_CASE(body, key) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const std::size_t before = fake.calls().size();
     const digest::Key<Fake> key = digest::key_from_hex(fake, k0);
     // The decoded copy on the stack, wiped: the one platform call.

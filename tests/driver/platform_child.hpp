@@ -21,7 +21,7 @@
 #include "driver/platform_files.hpp"
 #include "driver/platform_ops.hpp"
 #include "qiven/memory/arena.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 
 namespace qiven3::drive::ops {
 
@@ -67,7 +67,7 @@ decltype(auto) with_command(ArgView request, F&& f) {
         }
     }
     const std::vector<std::pair<std::string_view, std::string_view>> env_views(env.begin(), env.end());
-    platform::Command command;
+    qiven::platform::Command command;
     command.argv = argv_views;
     command.cwd = cwd;
     command.env = env_views;
@@ -79,7 +79,7 @@ decltype(auto) with_command(ArgView request, F&& f) {
 
 template <class P>
 std::optional<Value> start(PlatformDrive<P>& d, qiven::memory::Arena&, ArgView request) {
-    return with_command(request, [&](const platform::Command& command) {
+    return with_command(request, [&](const qiven::platform::Command& command) {
         return std::optional<Value>(keep(d, d.children(), d.platform().start(command)));
     });
 }

@@ -10,11 +10,13 @@ from foundation.devkit.structure import layers, rules
 
 TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
-# Where core logic was read: src/, and memory's, matcher's and compute's library code, in src/ until their
-# moves (compute's fake, a library's since its move from tests/support/, with it).
+# Where core logic was read: src/, and memory's, matcher's, compute's and platform's library code, in src/
+# until their moves (compute's fake and platform's, each a library's since its move from tests/support/, with
+# them).
 OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/",
            "foundation/core/matcher/include/", "foundation/core/matcher/src/",
-           "foundation/services/compute/include/", "foundation/services/compute/src/")
+           "foundation/services/compute/include/", "foundation/services/compute/src/",
+           "foundation/system/platform/include/", "foundation/system/platform/src/")
 
 
 def files():
@@ -22,8 +24,8 @@ def files():
 
 
 def was_core(rel):
-    """Core logic as it was read, src/ its literal root, memory's, matcher's and compute's code at their new
-    places."""
+    """Core logic as it was read, src/ its literal root, memory's, matcher's, compute's and platform's code at
+    their new places."""
     return rel.startswith(OLD_SRC) and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
 
 
@@ -36,8 +38,8 @@ class Core(unittest.TestCase):
         self.assertEqual([rel for rel in held if not rules.is_core(rel, TREE)], [])
 
     def test_outside(self):
-        """No file outside src/ and memory's, matcher's and compute's code is core logic today: the runner, devkit's,
-        the vendored SQLite, system's, and test code are outside it."""
+        """No file outside src/ and memory's, matcher's, compute's and platform's code is core logic today: the
+        runner, devkit's, the vendored SQLite, system's, and test code are outside it."""
         self.assertEqual([rel for rel in files() if rel.endswith(CXX) and rules.is_core(rel, TREE)
                           and not was_core(rel)], [])
         runner = [rel for rel in files() if rel.startswith(rules.RUNNER) and rel.endswith(CXX)]

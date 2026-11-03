@@ -11,22 +11,22 @@
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/scan_case.hpp"
 
 namespace {
 
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven3::store::MemoryStore<Fake>;
 
 // The fake, the state's pages and the state, and the caller's arena; on
 // the heap.
 struct Rig {
     Rig()
-        : fake(qiven3::platform::fake::Config{}), heap(fake.pages(std::size_t{8} << 20U)),
+        : fake(qiven::platform::fake::Config{}), heap(fake.pages(std::size_t{8} << 20U)),
           state(heap.bytes(), qiven3::store::Limits{}), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
     Fake fake;
-    qiven3::platform::fake::FakePages heap;
+    qiven::platform::fake::FakePages heap;
     qiven3::store::state::State state;
     std::vector<std::byte> pages;
     qiven::memory::Arena arena;

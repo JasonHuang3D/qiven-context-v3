@@ -42,7 +42,7 @@
 #include "entry/content.hpp"
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 
@@ -71,7 +71,7 @@ std::string_view name(const Fault& fault) noexcept;
 
 // An entry part 1 admitted: its header, and its body unless it has none.
 // Move-only.
-template <platform::Platform P, typename A = std::allocator<char>>
+template <qiven::platform::Platform P, typename A = std::allocator<char>>
 class Entry {
 public:
     using Body = body::Body<P, A>;
@@ -168,7 +168,7 @@ constexpr std::optional<Fault> try_check(std::string_view line, std::optional<st
 // first fault thrown as its part's error. The body is built from the
 // record's parts, its key read back by key_from_hex, and held against the
 // header by body's check.
-template <platform::Platform P, typename A = std::allocator<char>>
+template <qiven::platform::Platform P, typename A = std::allocator<char>>
 Entry<P, A> check_entry(P& platform, std::string_view line, std::optional<std::string_view> record,
                         const A& allocator = A()) {
     header::Header<A> h(allocator);

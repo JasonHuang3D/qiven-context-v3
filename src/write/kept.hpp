@@ -52,7 +52,7 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "write/build.hpp"
 #include "write/refuse.hpp"
 
@@ -67,7 +67,7 @@ inline constexpr std::string_view kept_form = "qiven3-kept/1";
 // The highest n ten digits hold; one more is Refusal store_full [reading].
 inline constexpr std::uint64_t last = 9'999'999'999;
 // The platform's default wait, for the lock and the renames.
-inline constexpr platform::Seconds deadline{5.0};
+inline constexpr qiven::platform::Seconds deadline{5.0};
 // A stored header line's bound here: none reaches it, so one past it is
 // corrupt; each is parsed within the work span.
 inline constexpr std::size_t header_bytes = 4096;
@@ -142,20 +142,20 @@ qiven::memory::Inline<128> at(std::string_view name) noexcept;
 
 // kept/ made, one there no fault (create's exists; a file under the name
 // fails list next).
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void make(P& platform, std::string_view store, qiven::memory::Arena& arena) {
     qiven::memory::String dir{qiven::memory::Allocator<char>(arena)};
     join(store, {}, dir);
     try {
         platform.create(dir, true);
-    } catch (const platform::PlatformError& error) {
-        if (error.code != platform::Code::exists) {
+    } catch (const qiven::platform::PlatformError& error) {
+        if (error.code != qiven::platform::Code::exists) {
             throw;
         }
     }
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 std::uint64_t listed(P& platform, std::string_view store, qiven::memory::Arena& arena, qiven::memory::Vector<qiven::memory::String>& names) {
     qiven::memory::String dir{qiven::memory::Allocator<char>(arena)};
     join(store, {}, dir);
@@ -165,7 +165,7 @@ std::uint64_t listed(P& platform, std::string_view store, qiven::memory::Arena& 
 
 // Whether the store holds every id of the pending file at path: true all,
 // false none, a part Refusal corrupt.
-template <platform::Platform P, class H>
+template <qiven::platform::Platform P, class H>
 bool held(P& platform, std::string_view path, std::string_view name, H& holds, qiven::memory::Arena& arena,
           Hooks hooks) {
     qiven::memory::String data{qiven::memory::Allocator<char>(arena)};
@@ -184,11 +184,11 @@ bool held(P& platform, std::string_view path, std::string_view name, H& holds, q
 }
 
 // Whether the file at path was removed: the platform's error false.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 bool removed(P& platform, std::string_view path) {
     try {
         platform.remove(path);
-    } catch (const platform::PlatformError&) {
+    } catch (const qiven::platform::PlatformError&) {
         return false;
     }
     return true;
@@ -202,15 +202,15 @@ concept Holds = std::predicate<H&, std::string_view>;
 
 // The kept files' lock: kept/ made if absent, then kept/kept.lock held,
 // released by the handle's end. Held past wait: Refusal busy.
-template <platform::Platform P>
-auto lock(P& platform, std::string_view store, qiven::memory::Arena& arena, platform::Seconds wait = deadline) {
+template <qiven::platform::Platform P>
+auto lock(P& platform, std::string_view store, qiven::memory::Arena& arena, qiven::platform::Seconds wait = deadline) {
     detail::make(platform, store, arena);
     qiven::memory::String path{qiven::memory::Allocator<char>(arena)};
     detail::join(store, lock_name, path);
     try {
         return platform.lock(path, wait);
-    } catch (const platform::PlatformError& error) {
-        if (error.code == platform::Code::busy) {
+    } catch (const qiven::platform::PlatformError& error) {
+        if (error.code == qiven::platform::Code::busy) {
             throw Refusal{Code::busy, detail::at(lock_name)};
         }
         throw;
@@ -220,7 +220,7 @@ auto lock(P& platform, std::string_view store, qiven::memory::Arena& arena, plat
 // Step 1, under the lock: every temporary removed unread, every pending
 // file renamed kept or removed by its ids, as above; its kept name taken,
 // Refusal corrupt naming it.
-template <platform::Platform P, Holds H>
+template <qiven::platform::Platform P, Holds H>
 void settle(P& platform, std::string_view store, H& holds, qiven::memory::Arena& arena, Hooks hooks = {}) {
     qiven::memory::Vector<qiven::memory::String> names{qiven::memory::Allocator<qiven::memory::String>(arena)};
     static_cast<void>(detail::listed(platform, store, arena, names));
@@ -237,8 +237,8 @@ void settle(P& platform, std::string_view store, H& holds, qiven::memory::Arena&
         }
         try {
             platform.rename(path, file_name(got->n, Form::kept).view(), deadline);
-        } catch (const platform::PlatformError& error) {
-            if (error.code != platform::Code::exists) {
+        } catch (const qiven::platform::PlatformError& error) {
+            if (error.code != qiven::platform::Code::exists) {
                 throw;
             }
             throw Refusal{Code::corrupt, detail::at(name)};  // never moved: its first line names its n
@@ -248,7 +248,7 @@ void settle(P& platform, std::string_view store, H& holds, qiven::memory::Arena&
 
 // The next file's n: one past the highest name held. Past last: Refusal
 // store_full.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 std::uint64_t next(P& platform, std::string_view store, qiven::memory::Arena& arena) {
     qiven::memory::Vector<qiven::memory::String> names{qiven::memory::Allocator<qiven::memory::String>(arena)};
     const std::uint64_t top = detail::listed(platform, store, arena, names);
@@ -261,7 +261,7 @@ std::uint64_t next(P& platform, std::string_view store, qiven::memory::Arena& ar
 // Step 2: data written whole and flushed as <n>.tmp, then renamed
 // <n>.pending. A fault leaves no pending file; the <n>.tmp, or replace's
 // temporary, is left for the next step 1.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void keep(P& platform, std::string_view store, std::uint64_t n, std::string_view data, qiven::memory::Arena& arena) {
     qiven::memory::String path{qiven::memory::Allocator<char>(arena)};
     detail::join(store, file_name(n, Form::tmp).view(), path);
@@ -273,7 +273,7 @@ void keep(P& platform, std::string_view store, std::uint64_t n, std::string_view
 // Refusal from append removes the pending file and goes on (a fault of
 // that removal dropped: the next step 1 removes it, as it holds none of
 // the store's ids); any other error leaves it pending and goes on.
-template <platform::Platform P, class A>
+template <qiven::platform::Platform P, class A>
 void done(P& platform, std::string_view store, std::uint64_t n, A&& append, qiven::memory::Arena& arena) {
     qiven::memory::String path{qiven::memory::Allocator<char>(arena)};
     detail::join(store, file_name(n, Form::pending).view(), path);
@@ -288,7 +288,7 @@ void done(P& platform, std::string_view store, std::uint64_t n, A&& append, qive
 
 // The write command's and a later file's (--after) kept file, steps 1 to
 // 4 under the lock, the file's entries built; gives its n.
-template <platform::Platform P, Holds H, class A>
+template <qiven::platform::Platform P, Holds H, class A>
 std::uint64_t write(P& platform, std::string_view store, Command command, std::string_view writer,
                     std::span<const build::Built> built, H& holds, A&& append, qiven::memory::Arena& arena,
                     Hooks hooks = {}) {
@@ -306,7 +306,7 @@ std::uint64_t write(P& platform, std::string_view store, Command command, std::s
 
 // The import's kept file 0000000001 of writer import, by steps 2 to 4
 // alone: kept/ made if absent, no lock, no settle step.
-template <platform::Platform P, class A>
+template <qiven::platform::Platform P, class A>
 void import(P& platform, std::string_view store, std::span<const build::Built> built, A&& append,
             qiven::memory::Arena& arena) {
     detail::make(platform, store, arena);
@@ -320,7 +320,7 @@ void import(P& platform, std::string_view store, std::span<const build::Built> b
 
 // What the rebuild reads: the kept files' names, <n>.jsonl alone, in
 // order, into names, cleared first; each read whole and given to parse.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void kept_files(P& platform, std::string_view store, qiven::memory::Vector<qiven::memory::String>& names) {
     qiven::memory::String dir{names.get_allocator()};
     detail::join(store, {}, dir);

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
@@ -56,7 +56,7 @@ QIVEN_CASE(store_exchange, budget) {
 namespace {
 
 using qiven::memory::MemoryError;
-using qiven3::platform::PlatformError;
+using qiven::platform::PlatformError;
 using qiven3::store::Heads;
 using qiven3::store::RangeView;
 using qiven3::store::Sizes;

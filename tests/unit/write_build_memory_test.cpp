@@ -32,7 +32,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
@@ -44,7 +44,7 @@ namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::FakePlatform;
 
 // The reader's work span, the builder's, and the file's room.
 constexpr std::size_t budget = std::size_t{16} << 20U;
@@ -107,8 +107,8 @@ struct OneQuestion {
 };
 static_assert(wb::Fold<OneQuestion>);
 
-qiven3::platform::fake::Config config(const std::string& root = {}) {
-    qiven3::platform::fake::Config c;
+qiven::platform::fake::Config config(const std::string& root = {}) {
+    qiven::platform::fake::Config c;
     c.root = root;
     c.seed = 7;
     c.clock = std::chrono::time_point_cast<std::chrono::microseconds>(
@@ -293,8 +293,8 @@ QIVEN_CASE(write_build, platform_faults) {
         try {
             build(bytes, *arena, platform, [&] { platform.attach(&countdown); }, [&] { platform.attach(nullptr); },
                   left);
-        } catch (const qiven3::platform::PlatformError& e) {
-            left.clean = left.clean && e.code == qiven3::platform::Code::io;
+        } catch (const qiven::platform::PlatformError& e) {
+            left.clean = left.clean && e.code == qiven::platform::Code::io;
             ++errors;
             throw Failed{};
         }

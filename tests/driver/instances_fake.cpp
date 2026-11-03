@@ -46,21 +46,21 @@
 #include "driver/store_wire.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::drive {
 
-template class PlatformDrive<platform::fake::FakePlatform>;
+template class PlatformDrive<qiven::platform::fake::FakePlatform>;
 
 namespace {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Drive = PlatformDrive<Fake>;
 using Result = std::optional<Value>;
 using Pairs = std::vector<std::pair<std::string, std::string>>;
 
 void make(std::optional<Fake>& into, const Options& options) {
-    platform::fake::Config config;
+    qiven::platform::fake::Config config;
     config.root = *options.root;
     config.config_dir = options.config ? *options.config : *options.root + "/qiven3";
     config.seed = options.seed;
@@ -105,11 +105,11 @@ std::uint64_t times(ArgView request, std::string_view key) {
     if (n < -1) {
         throw RequestError(std::string(key) + ": a count, or -1 for ever");
     }
-    return n == -1 ? platform::fake::never : static_cast<std::uint64_t>(n);
+    return n == -1 ? qiven::platform::fake::never : static_cast<std::uint64_t>(n);
 }
 
 Result set_busy(Drive& d, qiven::memory::Arena&, ArgView request) {
-    d.platform().set_busy(platform::fake::Busy{times(request, "target"), times(request, "temporary"),
+    d.platform().set_busy(qiven::platform::fake::Busy{times(request, "target"), times(request, "temporary"),
                                                times(request, "publish"), times(request, "lock")});
     return std::nullopt;
 }
@@ -118,24 +118,24 @@ Result kept(Drive& d, qiven::memory::Arena&, ArgView) {
     return scalar(static_cast<std::int64_t>(d.platform().files().kept()));
 }
 
-platform::fake::FakeReading reading(ArgView request, std::string_view key) {
+qiven::platform::fake::FakeReading reading(ArgView request, std::string_view key) {
     const std::string name = text(request, key);
-    constexpr std::array<std::pair<std::string_view, platform::State>, 4> states = {{
-        {"on", platform::State::on},
-        {"off", platform::State::off},
-        {"locked", platform::State::locked},
-        {"unknown", platform::State::unknown},
+    constexpr std::array<std::pair<std::string_view, qiven::platform::State>, 4> states = {{
+        {"on", qiven::platform::State::on},
+        {"off", qiven::platform::State::off},
+        {"locked", qiven::platform::State::locked},
+        {"unknown", qiven::platform::State::unknown},
     }};
     for (const auto& [spelled, state] : states) {
         if (name == spelled) {
-            return platform::fake::FakeReading{state, "fake"};
+            return qiven::platform::fake::FakeReading{state, "fake"};
         }
     }
     throw RequestError(std::string(key) + ": on, off, locked or unknown");
 }
 
 Result set_facts(Drive& d, qiven::memory::Arena&, ArgView request) {
-    d.platform().set_default_facts(platform::fake::FakeFacts{text(request, "volume"), reading(request, "protection"),
+    d.platform().set_default_facts(qiven::platform::fake::FakeFacts{text(request, "volume"), reading(request, "protection"),
                                                              reading(request, "file_history"),
                                                              reading(request, "bitlocker")});
     return std::nullopt;
@@ -169,7 +169,7 @@ Result set_encoding(Drive& d, qiven::memory::Arena&, ArgView request) {
     if (name != "utf8" && name != "ascii") {
         throw RequestError("encoding: utf8 or ascii");
     }
-    d.platform().set_encoding(name == "ascii" ? platform::fake::Encoding::ascii : platform::fake::Encoding::utf8);
+    d.platform().set_encoding(name == "ascii" ? qiven::platform::fake::Encoding::ascii : qiven::platform::fake::Encoding::utf8);
     return std::nullopt;
 }
 
@@ -212,9 +212,9 @@ Result store_dir(Drive& d, qiven::memory::Arena& arena, ArgView) {
 // exit "code", whether it "hang"s, the stream it "flood"s, "out" or "err",
 // and what it "echo"es, "cwd" or "env"; the earlier ones dropped.
 Result set_programs(Drive& d, qiven::memory::Arena&, ArgView request) {
-    std::map<std::vector<std::string>, platform::fake::Program> programs;
+    std::map<std::vector<std::string>, qiven::platform::fake::Program> programs;
     for (const ArgView item : argument(request, "programs").as_array("programs")) {
-        platform::fake::Program program;
+        qiven::platform::fake::Program program;
         program.lines = item.find("lines") ? ops::strings(item, "lines") : std::vector<std::string>();
         program.err = item.find("err") ? text(item, "err") : std::string();
         const std::int64_t code = integer(item, "code", 0);

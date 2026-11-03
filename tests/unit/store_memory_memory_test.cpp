@@ -35,25 +35,25 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/memory.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
 
 using namespace qiven::test::records;
 namespace state = qiven3::store::state;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
 using qiven::memory::String;
 using qiven::memory::Vector;
-using qiven3::platform::PlatformError;
+using qiven::platform::PlatformError;
 using qiven3::store::Counts;
 using qiven3::store::EntryView;
 using qiven3::store::GuardView;
@@ -86,7 +86,7 @@ constexpr std::size_t import_heap = 23;
 // after ACC), and the caller's arena, fresh for each run.
 struct Bed {
     Bed()
-        : fake(qiven3::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
+        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
           heap2(fake.pages(state_bytes)), state2(heap2.bytes(), Limits{}), store(state, fake), other(state2, fake),
           first(chain(qiven_scope, implementer_lane, {"A", "B", "D"})),
           acc{rec("ACC", qiven_scope, implementer_lane, 4, "D")},
@@ -104,9 +104,9 @@ struct Bed {
     }
 
     Fake fake;
-    qiven3::platform::fake::FakePages heap;
+    qiven::platform::fake::FakePages heap;
     state::State state;
-    qiven3::platform::fake::FakePages heap2;
+    qiven::platform::fake::FakePages heap2;
     state::State state2;  // the import's
     Store store;
     Store other;

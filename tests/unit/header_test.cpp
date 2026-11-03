@@ -20,7 +20,7 @@
 #include "qiven3/canon.hpp"
 #include "qiven3/utc.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -32,7 +32,7 @@ namespace utc = qiven3::utc;
 using header::Code;
 using header::FieldsView;
 using header::Slot;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 // A's stored header line, as the fixtures hold it.
 constexpr std::string_view a_line =
@@ -282,7 +282,7 @@ QIVEN_CASE(header, refusals) {
 }
 
 QIVEN_CASE(header, stamp) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const auto set = [&fake](std::string_view at, std::int64_t micros) {
         fake.set_clock(std::chrono::time_point_cast<std::chrono::microseconds>(*utc::parse_at(at)) +
                        std::chrono::microseconds(micros));

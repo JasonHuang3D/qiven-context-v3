@@ -99,7 +99,7 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults" faults_ki
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/scan" scan)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/memory/tests" memory_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/matcher/tests" matcher_tests)
-add_subdirectory(support/fake_platform)
+add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/system/platform/tests" platform_tests)
 add_subdirectory(support/fixtures)
 add_subdirectory(support/stores)
 add_subdirectory(support/checked)

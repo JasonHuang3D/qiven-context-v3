@@ -24,7 +24,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
 #include "write/refuse.hpp"
@@ -35,7 +35,7 @@ namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace wr = qiven3::write::refuse;
 using qiven::memory::Arena;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
 const std::string home = "project:example";
@@ -202,8 +202,8 @@ struct FakeFold {
 static_assert(wb::Fold<FakeFold>);
 static_assert(wr::Fold<FakeFold>);
 
-qiven3::platform::fake::Config config() {
-    qiven3::platform::fake::Config c;
+qiven::platform::fake::Config config() {
+    qiven::platform::fake::Config c;
     c.seed = 7;
     c.clock = std::chrono::time_point_cast<std::chrono::microseconds>(
         std::chrono::sys_days{std::chrono::year{2026} / 10 / 29} + std::chrono::hours{8});

@@ -61,7 +61,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -75,7 +75,7 @@ namespace qiven3::store {
 // from the seq after its start, one record at a time. It borrows its store
 // object's gate: read while that object lives; once it closes or moves, the
 // gate raises StoreError closed, as SQLite's scan does.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class MemoryScan {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
@@ -178,7 +178,7 @@ private:
     std::size_t peak_ = 0;
 };
 
-template <platform::Platform P, class Rule = NoAdmit>
+template <qiven::platform::Platform P, class Rule = NoAdmit>
 class MemoryStore {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));

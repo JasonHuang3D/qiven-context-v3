@@ -6,12 +6,12 @@
 #include <string_view>
 
 #include "app/main_impl.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3 {
 namespace app {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 Fake fake_maker(std::optional<std::string_view> config_dir);
 [[noreturn]] void no_maker(std::optional<std::string_view> config_dir);

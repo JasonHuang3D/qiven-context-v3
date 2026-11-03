@@ -9,7 +9,7 @@ if(WIN32)
   qiven3_add_cases(qiven3_unit_win_process LABELS machine
     SOURCES win_process_test.cpp win_process_streams_test.cpp win_process_memory_test.cpp
             win_process_faults_test.cpp
-    LINK qiven_faults qiven3_platform_win)
+    LINK qiven_faults qiven_platform_windows)
   # The fixtures' win_process_case.hpp by its path under tests/, which qiven_faults gave before its move.
   target_include_directories(qiven3_unit_win_process PRIVATE "${PROJECT_SOURCE_DIR}/tests")
   add_dependencies(qiven3_unit_win_process qiven3-child)

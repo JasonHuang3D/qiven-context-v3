@@ -4,11 +4,11 @@
 
 #include "checked/stores.hpp"
 
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace qiven3::store {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 template class MemoryStore<Fake, checked::Rules<Fake>>;
 template class SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>;
@@ -26,7 +26,7 @@ static_assert(sizeof(checked::SQLiteStore<Fake>) == sizeof(SQLiteStore<Fake, NoH
 
 namespace qiven3::checked {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 // The ruled reads over each store's lent ones, and their scans.
 template class Ruled<store::MemoryStore<Fake, Rules<Fake>>>;

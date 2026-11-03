@@ -71,7 +71,7 @@
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
 #include "qiven/memory/arena.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven3/json.hpp"
 
@@ -209,7 +209,7 @@ std::string text(ArgView request, std::string_view key);
 std::int64_t integer(ArgView request, std::string_view key, std::optional<std::int64_t> fallback = {});
 bool flag(ArgView request, std::string_view key, bool fallback);
 // An integer argument of milliseconds, 5000 when absent, as Seconds.
-platform::Seconds deadline(ArgView request, std::string_view key);
+qiven::platform::Seconds deadline(ArgView request, std::string_view key);
 
 // The request's budget: its "budget" when given, else the stated one.
 std::size_t budget(ArgView request, std::size_t stated);

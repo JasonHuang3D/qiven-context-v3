@@ -43,7 +43,7 @@
 #include "store/errors.hpp"
 #include "store/memory.hpp"
 #include "support/checked/stores.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 
 namespace {
@@ -255,7 +255,7 @@ using Store = qiven3::checked::MemoryStore<Fake>;
 // forget of B), and an arena.
 struct Bed {
     Bed()
-        : fake(qiven3::platform::fake::Config{}), book(fake), heap(fake.pages(std::size_t{8} << 20U)),
+        : fake(qiven::platform::fake::Config{}), book(fake), heap(fake.pages(std::size_t{8} << 20U)),
           state(heap.bytes(), Limits{}), lane{book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")},
           e{book.stored("E")}, e_lines(views(e)), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {
         Store store(state, fake);
@@ -266,7 +266,7 @@ struct Bed {
     }
     Fake fake;
     Book book;
-    qiven3::platform::fake::FakePages heap;
+    qiven::platform::fake::FakePages heap;
     state::State state;
     std::vector<Stored> lane;
     std::vector<Stored> e;

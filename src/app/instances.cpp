@@ -1,5 +1,5 @@
 // qiven3: the binary's instantiation file. It instantiates the templates
-// qiven3 calls for its one adapter, platform::Current, and gives main the
+// qiven3 calls for its one adapter, qiven::platform::Current, and gives main the
 // adapter's maker, current(). Where no adapter is built there is no
 // Current: main is instantiated for current() alone, which throws, and the
 // binary exits 1, or 2 for a usage error (app/main.hpp).
@@ -19,26 +19,26 @@
 #include <string_view>
 
 #include "app/main_impl.hpp"
-#include "platform/current.hpp"
+#include "qiven/platform/current.hpp"
 #include "qiven3/location_impl.hpp"
 #include "wire/wire.hpp"
 
 namespace qiven3 {
 
 #if defined(_WIN32)
-template int location::main<platform::Current>(std::span<const std::string_view>, platform::Current&,
+template int location::main<qiven::platform::Current>(std::span<const std::string_view>, qiven::platform::Current&,
                                                const location::Hooks&) noexcept;
 #endif
 
-template int app::main(int, const char* const*, decltype(&platform::current)) noexcept;
+template int app::main(int, const char* const*, decltype(&qiven::platform::current)) noexcept;
 
 namespace {
 
-int run(int argc, const char* const* argv) noexcept { return app::main(argc, argv, &platform::current); }
+int run(int argc, const char* const* argv) noexcept { return app::main(argc, argv, &qiven::platform::current); }
 
 #if defined(_WIN32)
 int run_wide(int argc, const wchar_t* const* argv) noexcept {
-    return platform::win::run_utf8(argc, argv, &run, {wire::failed, app::refused});
+    return qiven::platform::win::run_utf8(argc, argv, &run, {wire::failed, app::refused});
 }
 #endif
 

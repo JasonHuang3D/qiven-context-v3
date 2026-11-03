@@ -10,4 +10,4 @@ target_include_directories(qiven3_unit_text PRIVATE "${PROJECT_SOURCE_DIR}/tests
 # each entry's digests and id.
 qiven3_add_cases(qiven3_unit_digest LABELS fast fake
   SOURCES digest_test.cpp digest_memory_test.cpp
-  LINK qiven_faults qiven3_platform_fake)
+  LINK qiven_faults qiven_platform_fake)

@@ -10,7 +10,7 @@
 
 #include "app/main.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/location_impl.hpp"
 #include "wire/wire.hpp"
 
@@ -42,7 +42,7 @@ int main(int argc, const char* const* argv, Make make) noexcept {
                 return location::main(command->arguments, platform);
             }
         }
-    } catch (const platform::PlatformError&) {
+    } catch (const qiven::platform::PlatformError&) {
         return unmade;
     } catch (const qiven::memory::MemoryError&) {
         return unmade;

@@ -38,7 +38,7 @@
 namespace qiven3::drive {
 namespace {
 
-using Fake = platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using Result = std::optional<Value>;
 namespace stores = qiven::test::ruled;
 using held::id_value;
@@ -502,7 +502,7 @@ Value StoreDrive<F>::run(const Entry& entry, ArgView request) {
         return ok_reply(call(none));
     }
     const std::size_t bytes = budget(request, entry.budget(request));
-    std::optional<platform::fake::FakePages> pages;
+    std::optional<qiven::platform::fake::FakePages> pages;
     if (bytes > 0) {
         pages.emplace(platform_.platform().pages(bytes));
     }

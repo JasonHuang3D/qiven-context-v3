@@ -95,7 +95,7 @@
 #include "entry/validator.hpp"
 #include "keys/keys.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
@@ -128,7 +128,7 @@ static_assert(sizeof(Hit) == 120, "Hit's size is pinned: an index and secret's h
 
 // What check admits: the store's read, the entries part 1 read, and the
 // content hits in order.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 struct Checked : stage::Checked {
     Checked(stage::Checked&& read, Vector<Entry<P>>&& parsed, Vector<Hit>&& found) noexcept
         : stage::Checked(std::move(read)), entries(std::move(parsed)), hits(std::move(found)) {}
@@ -156,7 +156,7 @@ inline void forget_kind(const AtView& at, std::size_t index, std::string_view li
 
 // An entry part 1 read, kept on the call's allocator: its header made again
 // from its fields, its id given, and its body from the record's parts.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars& allocator) {
     const header::Header<Chars>& h = e.header();
     header::FieldsView f;
@@ -190,7 +190,7 @@ Entry<P> keep(P& platform, const Entry<P>& e, const EntryView& line, const Chars
 
 // The secret check of one admitted entry: a header hit refused with no id,
 // the content's hits added to out.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void secrets(const AtView& at, std::size_t index, const Entry<P>& e, Vector<Hit>& out, const Chars& scratch) {
     canon::Basic<Chars> value(scratch);
     if (e.has_body()) {
@@ -216,7 +216,7 @@ void secrets(const AtView& at, std::size_t index, const Entry<P>& e, Vector<Hit>
 }
 
 // Whether entry i's hit is cleared (checked/clearing), unused.
-template <class V, platform::Platform P>
+template <class V, qiven::platform::Platform P>
 bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::string_view pattern, const AtView& at,
              const Chars& allocator) {
     const header::Header<Chars>& h = entries[i].header();
@@ -234,7 +234,7 @@ bool cleared(V& view, std::span<const Entry<P>> entries, std::size_t i, std::str
 }
 
 // The hits settled, in order, the first not cleared refused with no id.
-template <class V, platform::Platform P>
+template <class V, qiven::platform::Platform P>
 void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hits, const AtView& at,
             const Chars& allocator) {
     for (const Hit& hit : hits) {
@@ -246,7 +246,7 @@ void settle(V& view, std::span<const Entry<P>> entries, std::span<const Hit> hit
 }
 
 // Part 2 (validator's), its first fault refused.
-template <class V, platform::Platform P>
+template <class V, qiven::platform::Platform P>
 void part2(V& view, std::string_view scope, std::string_view lane, Expected expected,
            std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
     if (const std::optional<validator::RuleError> e =
@@ -264,7 +264,7 @@ void part2(V& view, std::string_view scope, std::string_view lane, Expected expe
 // a target of the call (in any scope, in the view's order), not forgotten,
 // not itself a target, and of a kind but the change kinds refused
 // StoreError whole_record naming the first forget of that target.
-template <class V, platform::Platform P>
+template <class V, qiven::platform::Platform P>
 void whole_record(V& view, std::span<const Entry<P>> entries, const AtView& at, const Chars& allocator) {
     const auto target = [&entries](std::size_t j) {
         return entries[j].header().text(Slot::target).value_or(std::string_view());
@@ -325,7 +325,7 @@ void same_heads(std::span<const LaneHead> source, std::span<const LaneHead> give
 // line on its work arena, the entry held until release and its keys given;
 // arrived, nothing (the store's bounds and chain run first); settled, the
 // line parsed again, then import_entry; heads, same_heads.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class Rules {
 public:
     template <class S>
@@ -420,7 +420,7 @@ private:
 
 // Part 1 of each line with the rules: the store's read, its entries and
 // hits returned.
-template <platform::Platform P, stage::Scratch S>
+template <qiven::platform::Platform P, stage::Scratch S>
 Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator,
                  S& scratch) {
     Rules<P> rules;
@@ -432,7 +432,7 @@ Checked<P> check(P& platform, std::span<const EntryView> lines, const AtView& at
 // The hits settled, part 2 and the maximum, inside the store's lock: the
 // rules' admit, then the store's staged; a refusal thrown. view gives
 // headers and contents parsed.
-template <stage::View V, platform::Platform P>
+template <stage::View V, qiven::platform::Platform P>
     requires validator::View<V, Chars>
 stage::Staged admit(V& view, std::string_view scope, std::string_view lane, Expected expected,
                     const Checked<P>& checked, const Limits& limits, const AtView& at, const Chars& allocator) {

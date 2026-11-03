@@ -33,20 +33,20 @@
 
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/errors.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
 namespace location = qiven3::location;
-using Fake = qiven3::platform::fake::FakePlatform;
-using qiven3::platform::State;
+using Fake = qiven::platform::fake::FakePlatform;
+using qiven::platform::State;
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -175,7 +175,7 @@ struct Bed {
     fs::path root;
     fs::path config_dir;
     fs::path record;
-    qiven3::platform::fake::Config c;
+    qiven::platform::fake::Config c;
     std::unique_ptr<Fake> fake;
     std::size_t mark = 0;
     std::string out;
@@ -383,8 +383,8 @@ QIVEN_CASE(location, init) {
         std::string got = "none";
         try {
             location::detail::record_bytes(std::chrono::floor<std::chrono::milliseconds>(clock_at), d, "init", bytes);
-        } catch (const qiven3::platform::PlatformError& e) {
-            got = e.code == qiven3::platform::Code::path ? "path" : "another";
+        } catch (const qiven::platform::PlatformError& e) {
+            got = e.code == qiven::platform::Code::path ? "path" : "another";
         }
         CHECK_EQ(got, std::string("path"));
     }
@@ -483,7 +483,7 @@ QIVEN_CASE(location, change) {
 
 QIVEN_CASE(location, output) {
     const auto b = std::make_unique<Bed>();
-    b->c.encoding = qiven3::platform::fake::Encoding::ascii;
+    b->c.encoding = qiven::platform::fake::Encoding::ascii;
     b->remake();
     const std::string dir = text(b->root) + std::string(1, static_cast<char>(fs::path::preferred_separator)) +
                             "caf\xc3\xab";
@@ -500,7 +500,7 @@ QIVEN_CASE(location, lock) {
     const auto b = std::make_unique<Bed>();
     fs::create_directories(b->config_dir);
     {
-        auto held = b->fake->lock(text(b->config_dir / "location.lock"), qiven3::platform::Seconds{1.0});
+        auto held = b->fake->lock(text(b->config_dir / "location.lock"), qiven::platform::Seconds{1.0});
         CHECK_EQ(b->run({"init", text(b->root / "s")}), location::refused);
         std::cout << "location.lock: held: " << b->out;
         CHECK(b->said("PlatformError busy") && !fs::exists(b->record) && !fs::exists(b->root / "s"));

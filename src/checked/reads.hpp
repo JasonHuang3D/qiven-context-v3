@@ -42,7 +42,7 @@
 #include "entry/header.hpp"
 #include "keys/keys.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
@@ -98,7 +98,7 @@ inline void body_key(const keys::KeysView& k, const Header& h, const WhereView& 
     }
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void part1_again(P& platform, std::size_t index, std::string_view line, std::optional<std::string_view> record,
                  const Chars& allocator, const WhereView& at) {
     try {
@@ -112,7 +112,7 @@ void part1_again(P& platform, std::size_t index, std::string_view line, std::opt
     }
 }
 
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 void check_body(P& platform, std::string_view id, std::string_view record, const Header& h, const Chars& allocator,
                 const WhereView& at) {
     namespace body = entry::body;

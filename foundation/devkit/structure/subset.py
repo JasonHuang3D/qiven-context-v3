@@ -78,7 +78,7 @@ ALLOWED = {
     # The entry's handlers' state, and memory/fail's kept cause, which the
     # terminate handler reads with nothing allocated.
     "B25": ("src/diag/", "foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail."),
-    "B30": ("src/platform/win/",),
+    "B30": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/"),
     # memory/fail's fail-fast, and the diagnostic entry, which ends a broken
     # process itself after its report: B31's two homes.
     "B31": ("foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail.", "src/diag/"),
@@ -99,7 +99,7 @@ CELLS = {
                                         "kept reachable under the system heap, which the case that runs it reads",
     ("B28", "foundation/devkit/test/runner/include/qiven/runner/core.hpp", "Case::name"): "a case's name, a view of "
         "the registering macro's string literals, which have static storage and outlive every Case",
-    ("B28", "src/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
+    ("B28", "foundation/system/platform/include/qiven/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
     ("B28", "foundation/services/compute/include/qiven/compute/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",

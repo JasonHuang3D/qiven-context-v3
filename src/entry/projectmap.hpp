@@ -50,7 +50,7 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "entry/served.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 
@@ -166,7 +166,7 @@ constexpr void check_map(const header::Header<A>& h, const canon::Basic<B>& cont
 // A map version's mark from its object's bytes: fresh when the keyed digest
 // of the bytes under the version's key is the object's, else stale. The
 // digest's text is written on allocator C, one allocation.
-template <platform::Platform P, typename A, typename B, typename C = std::allocator<char>>
+template <qiven::platform::Platform P, typename A, typename B, typename C = std::allocator<char>>
 served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& key,
                   std::string_view object_bytes, const C& allocator = C()) {
     const std::string_view held = detail::object_digest(h, content);
@@ -176,7 +176,7 @@ served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, co
 }
 
 // The object missing: stale.
-template <platform::Platform P, typename A, typename B>
+template <qiven::platform::Platform P, typename A, typename B>
 served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& /*key*/,
                   Missing /*object*/) {
     static_cast<void>(detail::object_digest(h, content));
@@ -184,7 +184,7 @@ served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, co
 }
 
 // No bytes read: unchecked.
-template <platform::Platform P, typename A, typename B>
+template <qiven::platform::Platform P, typename A, typename B>
 served::Mark mark(const header::Header<A>& h, const canon::Basic<B>& content, const digest::Key<P>& /*key*/,
                   std::nullopt_t /*object*/) {
     static_cast<void>(detail::object_digest(h, content));

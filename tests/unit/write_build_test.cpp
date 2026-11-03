@@ -32,7 +32,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
 
@@ -42,7 +42,7 @@ namespace wb = qiven3::write::build;
 namespace we = qiven3::write::entries;
 namespace fs = std::filesystem;
 using qiven::memory::Arena;
-using qiven3::platform::fake::FakePlatform;
+using qiven::platform::fake::FakePlatform;
 
 constexpr std::size_t mib = std::size_t{1} << 20U;
 
@@ -138,8 +138,8 @@ struct FakeFold {
 };
 static_assert(wb::Fold<FakeFold>);
 
-qiven3::platform::fake::Config config(const std::string& root = {}) {
-    qiven3::platform::fake::Config c;
+qiven::platform::fake::Config config(const std::string& root = {}) {
+    qiven::platform::fake::Config c;
     c.root = root;
     c.seed = 7;
     c.clock = std::chrono::time_point_cast<std::chrono::microseconds>(
@@ -342,7 +342,7 @@ QIVEN_CASE(write_build, reads_and_digests_a_path_piece) {
     const std::string edge = scratch.put("edge.txt", std::string(we::max_piece_bytes, 'y'));
     FakeFold fold;
     fold.currents.push_back(Row{"project:example", "unit-one-shape", id_of('3'), "2026-10-29T07:00:00.000Z", 1, "question"});
-    qiven3::platform::fake::Config c = config(scratch.root.generic_string());
+    qiven::platform::fake::Config c = config(scratch.root.generic_string());
     const std::string unread = (scratch.root / "absent.txt").generic_string();
     c.read_errors[unread] = "synthetic";
     FakePlatform platform(c);

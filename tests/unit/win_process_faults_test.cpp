@@ -32,14 +32,14 @@ using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::Countdown;
 using qiven::memory::MemoryError;
-using qiven3::platform::Ran;
+using qiven::platform::Ran;
 
 // "<code> <call>" for a fault's error, as the detail names the call failed
 // with error 31; "none thrown", or the detail where it names none.
 std::string seen_as(const Thrown& t) {
     constexpr std::string_view tail = ": ERROR_GEN_FAILURE (31)";
     if (t.detail.ends_with(tail)) {
-        return std::string(qiven3::platform::name(t.code)) + " " + t.detail.substr(0, t.detail.size() - tail.size());
+        return std::string(qiven::platform::name(t.code)) + " " + t.detail.substr(0, t.detail.size() - tail.size());
     }
     return t.detail;
 }

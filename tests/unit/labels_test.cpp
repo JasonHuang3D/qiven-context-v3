@@ -35,7 +35,7 @@
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -55,7 +55,7 @@ using labels::Result;
 using labels::Strength;
 using labels::Transcript;
 using labels::VersionView;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 
 constexpr std::string_view OWN = "implementer/s39";
 constexpr std::string_view OTHER = "reviewer/s70";
@@ -392,8 +392,8 @@ Held held(canon::Basic<>& all, std::string_view name) {
     return Held{header::parse_line(x->header), std::move(content), std::string(x->key.value_or(""))};
 }
 
-qiven3::platform::fake::Config seeded() {
-    qiven3::platform::fake::Config config;
+qiven::platform::fake::Config seeded() {
+    qiven::platform::fake::Config config;
     config.seed = 0;
     return config;
 }

@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"
@@ -169,7 +169,7 @@ QIVEN_CASE(store_sqlite, slots_refused) {
     std::string refused = "none";
     try {
         const Engine third(rig->fake);
-    } catch (const qiven3::platform::PlatformError&) {
+    } catch (const qiven::platform::PlatformError&) {
         refused = "PlatformError";
     }
     CHECK_EQ(refused, "PlatformError");

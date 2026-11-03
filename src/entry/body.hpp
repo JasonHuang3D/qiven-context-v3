@@ -47,7 +47,7 @@
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "qiven3/digest.hpp"
 
@@ -203,7 +203,7 @@ private:
 
 // A body: its content's canonical bytes and its id in one text, and its
 // key. Move-only.
-template <platform::Platform P, typename A = std::allocator<char>>
+template <qiven::platform::Platform P, typename A = std::allocator<char>>
 class Body {
 public:
     using allocator_type = A;
@@ -257,7 +257,7 @@ private:
 // content is parsed strictly and dropped: a content that is no object, or
 // an id off its syntax, is BodyError syntax; a content past 15 levels,
 // which the record's root would take past 16, ParseError depth.
-template <platform::Platform P, typename A = std::allocator<char>>
+template <qiven::platform::Platform P, typename A = std::allocator<char>>
 Body<P, A> make(std::string_view content, digest::Key<P> key, std::string_view id, const A& allocator = A()) {
     {
         json::Basic<A> value(allocator);
@@ -277,7 +277,7 @@ Body<P, A> make(std::string_view content, digest::Key<P> key, std::string_view i
 
 // A body read from its record. The record's value is parsed strictly and
 // dropped before the body is built; the key is read back by key_from_hex.
-template <platform::Platform P, typename A = std::allocator<char>>
+template <qiven::platform::Platform P, typename A = std::allocator<char>>
 Body<P, A> parse(P& platform, std::string_view data, const A& allocator = A()) {
     detail::RecordView r;
     {
@@ -299,7 +299,7 @@ Body<P, A> parse(P& platform, std::string_view data, const A& allocator = A()) {
 // A body against its header: its id the header's, and its content's digest
 // under its key the header's content, or BodyError body_mismatch. No
 // allocation.
-template <platform::Platform P, typename B, typename C>
+template <qiven::platform::Platform P, typename B, typename C>
 void check(const Body<P, B>& body, const header::Header<C>& h) {
     if (!digest::same(body.id(), h.value(header::Slot::id)) || !h.present(header::Slot::content)) {
         throw BodyError{Code::body_mismatch};

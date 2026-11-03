@@ -9,7 +9,7 @@
 # Each library once (qiven_executable): location, on Windows, brings the
 # entry, the matcher and base, and diag, linked last, brings memory.
 if(WIN32)
-  set(qiven3_child_links qiven3_location qiven3_platform_win)
+  set(qiven3_child_links qiven3_location qiven_platform_windows)
 else()
   set(qiven3_child_links qiven3_entry qiven_matcher qiven3_base)
 endif()

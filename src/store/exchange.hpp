@@ -61,7 +61,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "qiven3/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
@@ -191,7 +191,7 @@ private:
 };
 
 // The export's handle: its pages and its engine half. A move-only value.
-template <platform::Platform P>
+template <qiven::platform::Platform P>
 class SQLiteExport {
 public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
@@ -313,7 +313,7 @@ void truncate_wal(Connection& c) noexcept;
 
 // import: the source's heads on the first quarter of pages, then each
 // line, on the second, and its work, on the half left, each afresh.
-template <platform::Platform P, Source R, class H, class A>
+template <qiven::platform::Platform P, Source R, class H, class A>
 Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& heads, std::span<std::byte> pages,
                        Countdown* countdown, const WhereView& where, const Limits& limits, H& hooks,
                        std::size_t& peak, A& admit) {

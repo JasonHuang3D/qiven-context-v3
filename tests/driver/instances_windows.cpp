@@ -1,4 +1,4 @@
-// qiven3-drive-windows: the drive for the Windows adapter, platform::Current,
+// qiven3-drive-windows: the drive for the Windows adapter, qiven::platform::Current,
 // its instantiation file, built on Windows alone. It instantiates the
 // drive's platform half for the adapter, adds the adapter's own operation
 // and runs the request loop (driver/drive.hpp).
@@ -25,20 +25,20 @@
 
 #include "driver/platform_ops_impl.hpp"
 #include "driver/store_wire.hpp"
-#include "platform/current.hpp"
+#include "qiven/platform/current.hpp"
 #include "qiven3/location.hpp"
 #include "qiven3/location_impl.hpp"
 
 namespace qiven3::drive {
 
-template class PlatformDrive<platform::Current>;
+template class PlatformDrive<qiven::platform::Current>;
 
 namespace {
 
-using Drive = PlatformDrive<platform::Current>;
+using Drive = PlatformDrive<qiven::platform::Current>;
 using Result = std::optional<Value>;
 
-void make(std::optional<platform::Current>& into, const Options& options) {
+void make(std::optional<qiven::platform::Current>& into, const Options& options) {
     into.emplace(options.config ? std::optional<std::string_view>(*options.config) : std::nullopt);
 }
 
@@ -69,13 +69,13 @@ std::vector<const wchar_t*> pointers(const std::vector<std::wstring>& wide) {
 }
 
 std::size_t arguments_budget(ArgView request) {
-    return platform::win::WindowsArguments::bytes(pointers(wide_arguments(request)));
+    return qiven::platform::win::WindowsArguments::bytes(pointers(wide_arguments(request)));
 }
 
 Result arguments(Drive&, qiven::memory::Arena& arena, ArgView request) {
     const std::vector<std::wstring> wide = wide_arguments(request);
     const std::vector<const wchar_t*> given = pointers(wide);
-    const platform::win::WindowsArguments converted(given, arena);
+    const qiven::platform::win::WindowsArguments converted(given, arena);
     const std::span<const char* const> argv(converted.argv(), given.size() + 1);
     Value list = array();
     for (std::size_t i = 0; i < given.size(); ++i) {

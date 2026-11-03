@@ -48,7 +48,7 @@
 #include "store/memory.hpp"
 #include "store/memory_state.hpp"
 #include "store/sqlite_store.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/records.hpp"
 
 namespace {
@@ -62,7 +62,7 @@ using qiven3::store::LaneHead;
 using qiven3::store::Line;
 using qiven3::store::NoAdmit;
 using qiven3::store::Vector;
-using Fake = qiven3::platform::fake::FakePlatform;
+using Fake = qiven::platform::fake::FakePlatform;
 using qiven::test::records::lane_head;
 using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
@@ -84,8 +84,8 @@ std::string text(const fs::path& path) {
 
 // A scratch directory of the case's own, removed at its end, a fake on it.
 struct Site {
-    static qiven3::platform::fake::Config config(const fs::path& root) {
-        qiven3::platform::fake::Config out;
+    static qiven::platform::fake::Config config(const fs::path& root) {
+        qiven::platform::fake::Config out;
         out.root = text(root);
         out.seed = 7;
         return out;
@@ -344,7 +344,7 @@ std::string by_id(qiven::runner::Context& qiven_ctx, Store& s, std::string_view 
 
 // p on both stores, each store giving the same.
 void on_both(qiven::runner::Context& qiven_ctx, const Plan& p, const Counts& counts) {
-    const auto fake = std::make_unique<Fake>(qiven3::platform::fake::Config{});
+    const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
     auto fresh = fake->pages(state_bytes);
     const auto st = std::make_unique<qiven3::store::state::State>(heap.bytes(), p.limits);

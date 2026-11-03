@@ -78,7 +78,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "platform/platform.hpp"
+#include "qiven/platform/platform.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
@@ -258,7 +258,7 @@ inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index
 // Each line's keys from the admit hook, before any lock, the hook's given,
 // read and kept at their places, the store's bounds and kinds over the
 // keys; a refusal thrown.
-template <platform::Platform P, Scratch S, class A>
+template <qiven::platform::Platform P, Scratch S, class A>
 Checked read(P& platform, std::span<const EntryView> lines, const AtView& at, const Chars& allocator, S& scratch,
              A& admit) {
     if (at.op != Operation::append && at.op != Operation::forget && at.op != Operation::import_) {

@@ -43,7 +43,7 @@
 #include "qiven/runner/runner.hpp"
 #include "store/contract.hpp"
 #include "store/stage.hpp"
-#include "support/fake_platform/fake_platform.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/stage_book.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -108,7 +108,7 @@ std::size_t budget_of(const std::vector<EntryView>& lines) {
 }  // namespace
 
 QIVEN_CASE(store_stage, budget) {
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const Book book(fake);
     for (const Case& c : cases(book)) {
         fixtures::MemoryView view;
@@ -136,7 +136,7 @@ QIVEN_CASE(store_stage, budget) {
 
 QIVEN_CASE(store_stage, faults) {
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
-    Fake fake(qiven3::platform::fake::Config{});
+    Fake fake(qiven::platform::fake::Config{});
     const Book book(fake);
     std::vector<std::byte> pages(4U << 20U);
     qiven::memory::Countdown countdown;
