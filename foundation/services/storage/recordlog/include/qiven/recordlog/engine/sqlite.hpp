@@ -53,20 +53,20 @@ void presence(std::string_view path, bool create, const WhereView& at);
 // The directory of path, by its last separator, and whether it is one.
 [[nodiscard]] std::string_view directory_of(std::string_view path) noexcept;
 [[nodiscard]] bool is_directory(std::string_view path);
-// Step 3: application_id and user_version; another StoreCorrupt foreign or
-// version.
-void identify(Connection& c, const WhereView& at);
+// Step 3: application_id and user_version, against identity's; another
+// StoreCorrupt foreign or version.
+void identify(Connection& c, const Identity& identity, const WhereView& at);
 // Step 4: each setting written (on a read-only connection, all but
 // journal_mode), then each read back; the first that differs is StoreError
 // settings, its name and the value read in detail.
 void apply(Connection& c, bool read_only, const WhereView& at);
 // The first setting whose value read back differs, by its index in
-// settings; the identity apart, which identify reads. None: every one
+// settings; the identity, no setting, identify reads. None: every one
 // holds.
 [[nodiscard]] std::optional<std::size_t> differing(Connection& c, const WhereView& at);
-// Step 5: the schema, the meta rows and the identity in one BEGIN
-// IMMEDIATE transaction, then a TRUNCATE checkpoint.
-void create_schema(Connection& c, const WhereView& at);
+// Step 5: the schema, the meta rows and identity in one BEGIN IMMEDIATE
+// transaction, then a TRUNCATE checkpoint.
+void create_schema(Connection& c, const Identity& identity, const WhereView& at);
 // Step 6: BEGIN IMMEDIATE, a write that changes nothing, ROLLBACK.
 void probe(Connection& c, const WhereView& at);
 // Step 7: coherence, in one read transaction; StoreCorrupt incoherent or
@@ -87,9 +87,10 @@ inline constexpr Refused directory_refused = 1U << 4U;
 [[noreturn]] void reraise(Refused refused);
 // Steps 2 (the connection) to 7 on a file presence() passed, or that
 // create made (sqlite_create.hpp's made, which undoes a refused one); the
-// connection closed as a step's error leaves.
-[[nodiscard]] Connection connect(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at,
-                                 Opened& opened);
+// connection closed as a step's error leaves; identity the one create
+// writes and identify reads.
+[[nodiscard]] Connection connect(const qiven::memory::String& path, bool create, bool read_only,
+                                 const Identity& identity, const WhereView& at, Opened& opened);
 
 // A file's size in bytes, the path's UTF-8 bytes and a suffix after them
 // ("-wal", "-shm"); none when absent, not a regular file or unreadable

@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/cognition.hpp"
 #include "checked/stores.hpp"
 #include "entry/content_fields.hpp"
 #include "entry/header.hpp"
@@ -256,7 +257,8 @@ using Store = qiven3::checked::MemoryStore<Fake>;
 struct Bed {
     Bed()
         : fake(qiven::platform::fake::Config{}), book(fake), heap(fake.pages(std::size_t{8} << 20U)),
-          state(heap.bytes(), Limits{}), lane{book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")},
+          state(heap.bytes(), qiven3::checked::cognition_limits),
+          lane{book.stored("A"), book.stored("B"), book.stored("D"), book.stored("ACC")},
           e{book.stored("E")}, e_lines(views(e)), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {
         Store store(state, fake);
         const std::vector<EntryView> lines = views(lane);

@@ -17,6 +17,8 @@ using namespace qiven::test::sqlite_bed;
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
+namespace records = qiven::test::records;
+
 // The counts each step makes, pinned as measured on Windows; Linux's as Windows' change, not measured, where plain
 // records changed them, and the generic calls' as Windows'. The engine heap's, by its system's file layer, differs by system; elsewhere not compared.
 struct Pinned {
@@ -101,7 +103,8 @@ QIVEN_CASE(store_sqlite, counts) {
     b->engine->heap().attach(nullptr);
     b->store->attach(nullptr);
     CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
-    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
+    CHECK(Store::open(b->path, false, true, b->fake,
+                      records::suite_limits, records::suite_identity).verify() == b->store->verify());
 }
 #else
 QIVEN_CASE(store_sqlite, counts) { QIVEN_SKIP(unfaulted); }

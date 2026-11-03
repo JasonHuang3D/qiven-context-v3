@@ -31,6 +31,7 @@
 #include <system_error>
 #include <vector>
 
+#include "checked/cognition.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
@@ -168,7 +169,8 @@ struct Bed {
     // A store made at dir by the store itself, closed.
     void make_store(const fs::path& dir) {
         const qiven::recordlog::Engine<Fake> engine(*fake, 1);
-        auto s = qiven::recordlog::SQLiteStore<Fake>::open(text(dir / "store.db"), true, false, *fake);
+        auto s = qiven::recordlog::SQLiteStore<Fake>::open(text(dir / "store.db"), true, false, *fake,
+                qiven3::checked::cognition_limits, qiven3::checked::cognition_identity);
         static_cast<void>(s.close());
     }
 

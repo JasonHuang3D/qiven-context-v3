@@ -150,7 +150,8 @@ std::size_t Reader::pages_for(const Scopes& scopes, std::span<const AfterView> a
 }
 
 void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view file, std::string_view path,
-                  const Limits& limits, const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown) {
+                  const Limits& limits, const Identity& identity, const Scopes& scopes,
+                  std::span<const AfterView> after, Countdown* countdown) {
     owner_ = &owner;
     next_ = owner.first_;
     if (next_ != nullptr) {
@@ -183,7 +184,7 @@ void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view f
         c_ = Connection::open(name, true, at);
         peak_ = arena.peak();
     }
-    identify(c_, at);
+    identify(c_, identity, at);
     apply(c_, true, at);
     c_.exec("BEGIN", at);
     const Totals t = totals(c_, at);  // the first read: the snapshot

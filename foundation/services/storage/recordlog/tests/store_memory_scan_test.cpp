@@ -16,6 +16,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven::recordlog::MemoryStore<Fake>;
 
@@ -24,7 +26,7 @@ using Store = qiven::recordlog::MemoryStore<Fake>;
 struct Rig {
     Rig()
         : fake(qiven::platform::fake::Config{}), heap(fake.pages(std::size_t{8} << 20U)),
-          state(heap.bytes(), qiven::recordlog::Limits{}), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
+          state(heap.bytes(), records::suite_limits), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {}
     Fake fake;
     qiven::platform::fake::FakePages heap;
     qiven::recordlog::state::State state;

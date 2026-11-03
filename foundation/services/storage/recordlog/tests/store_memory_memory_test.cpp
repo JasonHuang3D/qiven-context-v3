@@ -45,6 +45,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 using namespace qiven::test::records;
 namespace state = qiven::recordlog::state;
 using Fake = qiven::platform::fake::FakePlatform;
@@ -86,8 +88,9 @@ constexpr std::size_t import_heap = 23;
 // after ACC), and the caller's arena, fresh for each run.
 struct Bed {
     Bed()
-        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
-          heap2(fake.pages(state_bytes)), state2(heap2.bytes(), Limits{}), store(state, fake), other(state2, fake),
+        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)),
+          state(heap.bytes(), records::suite_limits), heap2(fake.pages(state_bytes)),
+          state2(heap2.bytes(), records::suite_limits), store(state, fake), other(state2, fake),
           first(chain(qiven_scope, implementer_lane, {"A", "B", "D"})),
           acc{rec("ACC", qiven_scope, implementer_lane, 4, "D")},
           e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, first_lines(views(first)), acc_lines(views(acc)),

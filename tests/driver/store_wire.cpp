@@ -11,6 +11,7 @@
 #include <string_view>
 #include <vector>
 
+#include "checked/cognition.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 
@@ -187,7 +188,7 @@ Value error(const store::StoreError& e) {
 }
 
 store::Limits limits_of(ArgView request) {
-    store::Limits l;
+    store::Limits l = qiven3::checked::cognition_limits;
     const std::optional<ArgView> given = request.find("limits");
     if (!given) {
         return l;

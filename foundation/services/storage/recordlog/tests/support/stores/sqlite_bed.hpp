@@ -121,7 +121,8 @@ struct Bed {
 #endif
         return Chars(*call);
     }
-    void reopen() { store = std::make_unique<Store>(Store::open(path, false, false, fake)); }
+    void reopen() { store = std::make_unique<Store>(Store::open(path, false, false, fake,
+                                                                records::suite_limits, records::suite_identity)); }
     // A fresh engine heap, the store closed before and reopened after.
     void fresh_engine(bool open) {
         store.reset();
@@ -215,7 +216,8 @@ inline std::vector<Step> steps() {
 inline void add_steps(std::vector<Step>& out) {
     constexpr std::size_t base = qiven::recordlog::operation_base;
     out.push_back({"create", base, Sort::create, 1, {}, [](Bed& b, const Chars&) {
-                       b.store = std::make_unique<Store>(Store::open(b.path, true, false, b.fake));
+                       b.store = std::make_unique<Store>(Store::open(b.path, true, false, b.fake,
+                                                                     records::suite_limits, records::suite_identity));
                        return Ran{b.store->peak(), 0, "made"};
                    }});
     out.push_back({"append", 0, Sort::write, 1, {}, [](Bed& b, const Chars&) {
@@ -276,12 +278,14 @@ inline void add_reads(std::vector<Step>& out) {
                        return Ran{0, 0, std::to_string(b.store->purge().done)};
                    }});
     out.push_back({"open", base, Sort::read, 2, {}, [](Bed& b, const Chars&) {
-                       Store s = Store::open(b.path, false, false, b.fake);
+                       Store s = Store::open(b.path, false, false, b.fake,
+                                             records::suite_limits, records::suite_identity);
                        const bool done = s.close().done;
                        return Ran{s.peak(), 0, std::to_string(done)};
                    }});
     out.push_back({"read_only", base, Sort::read, 2, {}, [](Bed& b, const Chars&) {
-                       Store s = Store::open(b.path, false, true, b.fake);
+                       Store s = Store::open(b.path, false, true, b.fake,
+                                             records::suite_limits, records::suite_identity);
                        const bool done = s.close().done;
                        return Ran{s.peak(), 0, std::to_string(done)};
                    }});

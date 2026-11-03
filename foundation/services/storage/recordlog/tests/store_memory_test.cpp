@@ -72,8 +72,9 @@ constexpr std::size_t buffer_bytes = std::size_t{1} << 20U;
 struct Rig {
     Rig()
         : fake(qiven::platform::fake::Config{}), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
-          heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}), heap2(fake.pages(state_bytes)),
-          state2(heap2.bytes(), Limits{}), pages(buffer_bytes), arena(pages), chars(arena) {}
+          heap(fake.pages(state_bytes)), state(heap.bytes(), qiven::test::records::suite_limits),
+          heap2(fake.pages(state_bytes)), state2(heap2.bytes(), qiven::test::records::suite_limits),
+          pages(buffer_bytes), arena(pages), chars(arena) {}
     Fake fake;
     Recs lane;
     qiven::platform::fake::FakePages heap;
@@ -179,7 +180,7 @@ QIVEN_CASE(store_memory, smoke) {
     const auto rig = std::make_unique<Rig>();
     Store store(rig->state, rig->fake);
     CHECK(!store.read_only());
-    CHECK(store.limits() == Limits{});
+    CHECK(store.limits() == qiven::test::records::suite_limits);
     appends(qiven_ctx, store, rig->lane);
     reads(qiven_ctx, store, rig->lane, rig->chars);
 

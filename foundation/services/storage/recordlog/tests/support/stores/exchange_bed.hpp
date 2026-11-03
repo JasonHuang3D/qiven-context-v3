@@ -102,9 +102,11 @@ struct Bed {
     Bed()
         : root(fresh_root()), fake(config(root)), engine(std::make_unique<Engine>(fake)),
           from(text(root / "from" / "store.db")), into(text(root / "into" / "store.db")), call_pages(call_bytes) {
-        source = std::make_unique<Store>(Store::open(from, true, false, fake));
+        source = std::make_unique<Store>(Store::open(from, true, false, fake,
+                                                     records::suite_limits, records::suite_identity));
         fill();
-        target = std::make_unique<Store>(Store::open(into, true, false, fake));
+        target = std::make_unique<Store>(Store::open(into, true, false, fake,
+                                                     records::suite_limits, records::suite_identity));
         const Chars c = caller();
         auto whole = std::make_unique<Export>(source->export_(std::nullopt, {}));
         Vector<LaneHead> rows(c);
@@ -177,7 +179,8 @@ struct Bed {
         target.reset();
         std::error_code error;
         fs::remove_all(root / "into", error);
-        target = std::make_unique<Store>(Store::open(into, true, false, fake));
+        target = std::make_unique<Store>(Store::open(into, true, false, fake,
+                                                     records::suite_limits, records::suite_identity));
 #if defined(QIVEN_FAULTS)
         target->attach(attached);
 #endif
@@ -185,7 +188,8 @@ struct Bed {
     // The store imported into closed and opened again: its verify's counts.
     Counts reopened_target() {
         target.reset();
-        target = std::make_unique<Store>(Store::open(into, false, false, fake));
+        target = std::make_unique<Store>(Store::open(into, false, false, fake,
+                                                     records::suite_limits, records::suite_identity));
 #if defined(QIVEN_FAULTS)
         target->attach(attached);
 #endif
@@ -200,10 +204,12 @@ struct Bed {
         engine.reset();
         engine = std::make_unique<Engine>(fake);
         if (open_source) {
-            source = std::make_unique<Store>(Store::open(from, false, false, fake));
+            source = std::make_unique<Store>(Store::open(from, false, false, fake,
+                                                         records::suite_limits, records::suite_identity));
         }
         if (open_target) {
-            target = std::make_unique<Store>(Store::open(into, false, false, fake));
+            target = std::make_unique<Store>(Store::open(into, false, false, fake,
+                                                         records::suite_limits, records::suite_identity));
         }
     }
 

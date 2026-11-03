@@ -125,9 +125,11 @@ public:
     static constexpr const auto& SETTINGS = sqlite::settings;
 
     // Opens, or creates, the store at path (sqlite_store.hpp's steps); an
-    // Engine must be installed. Read-only, create is refused.
-    static SQLiteStore open(std::string_view path, bool create, bool read_only, P& platform,
-                            const Limits& limits = Limits{}, H hooks = H{});
+    // Engine must be installed. Read-only, create is refused. The limits
+    // and the file's identity are the caller's: create writes the
+    // identity, and an open or an export reads it back.
+    static SQLiteStore open(std::string_view path, bool create, bool read_only, P& platform, const Limits& limits,
+                            const Identity& identity, H hooks = H{});
 
     // The guard alone, on path resolved: StoreError location, checkout or
     // synced, naming "guard".
@@ -140,8 +142,8 @@ public:
     // A moved-from object is closed.
     SQLiteStore(SQLiteStore&& other) noexcept
         : platform_(other.platform_), pages_(std::move(other.pages_)), gate_(other.gate_), limits_(other.limits_),
-          path_(other.path_), connection_(std::move(other.connection_)), opened_(other.opened_),
-          purge_(other.purge_), last_(other.last_), countdown_(other.countdown_), peak_(other.peak_),
+          identity_(other.identity_), path_(other.path_), connection_(std::move(other.connection_)),
+          opened_(other.opened_), purge_(other.purge_), last_(other.last_), countdown_(other.countdown_), peak_(other.peak_),
           exports_(std::move(other.exports_)), hooks_(std::move(other.hooks_)) {
         other.gate_.close();
     }
@@ -151,6 +153,7 @@ public:
             pages_ = std::move(other.pages_);
             gate_ = other.gate_;
             limits_ = other.limits_;
+            identity_ = other.identity_;
             path_ = other.path_;
             connection_ = std::move(other.connection_);
             opened_ = other.opened_;
@@ -276,7 +279,8 @@ public:
     // Its own read-only connection on this object's file (exchange.hpp).
     sqlite::SQLiteExport<P> export_(Scopes scopes, std::span<const AfterView> after) {
         gate_.enter(Operation::export_, path_.view());
-        return {*platform_, exports_, connection_.filename(), path_.view(), limits_, scopes, after, countdown_};
+        return {*platform_, exports_, connection_.filename(), path_.view(), limits_, identity_, scopes, after,
+                countdown_};
     }
     // Into an empty store, all or nothing, on the object's own pages.
     // The admit hook's read, arrived, settled and heads inside the transaction.
@@ -347,9 +351,9 @@ public:
 #endif
 
 private:
-    SQLiteStore(P& platform, bool read_only, const Limits& limits, H hooks)
+    SQLiteStore(P& platform, bool read_only, const Limits& limits, const Identity& identity, H hooks)
         : platform_(&platform), pages_(platform.pages(operation_base)), gate_(read_only), limits_(limits),
-          hooks_(std::move(hooks)) {
+          identity_(identity), hooks_(std::move(hooks)) {
         if (pages_.bytes().size() < operation_base) {
             qiven::memory::fail_fast("store/sqlite: pages short of their request");
         }
@@ -433,6 +437,7 @@ private:
     Pages pages_;
     Gate gate_;
     Limits limits_;
+    Identity identity_;
     qiven::memory::Inline<path_bytes> path_;
     sqlite::Connection connection_;
     sqlite::Opened opened_;

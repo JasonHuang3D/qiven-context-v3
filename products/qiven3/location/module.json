@@ -17,6 +17,7 @@
         "memory",
         "entry",
         "recordlog",
+        "checked",
         "wire"
       ],
       "test_depends": [

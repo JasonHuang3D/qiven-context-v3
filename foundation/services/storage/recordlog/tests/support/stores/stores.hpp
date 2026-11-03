@@ -10,13 +10,16 @@
 //                       directory (fresh, or the root given) removed at
 //                       its end, the fake platform
 //                       over it, the engine heap once a SQLite factory asks
-//                       for it, and the caller's arena
+//                       for it, and the caller's arena; its limits and
+//                       file identity, the tests' own (records.hpp)
 //   MemoryOn<S, T>, SqliteOn<S, T, H>
 //                       the factories over a store type S and a Site type T
-//                       (a product's ruled factory binds its own)
+//                       (a product's ruled factory binds its own, and its
+//                       Site its own limits and identity)
 //   Memory, Sqlite<H>   a factory over one Site, for one state each:
 //     make(limits)      a new empty store, its object read-write (SQLite in
-//                       a directory of its own under the scratch root)
+//                       a directory of its own under the scratch root), the
+//                       Site's limits where none is given
 //     again()           a second object over the same state (SQLite: a new
 //                       connection to its file; in-memory: one sharing its
 //                       state and its lock); again(fake), on the fake given
@@ -64,6 +67,7 @@
 #include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "support/stores/named.hpp"
+#include "support/stores/records.hpp"
 
 namespace qiven::test::stores {
 
@@ -131,6 +135,11 @@ inline constexpr std::size_t arena_bytes = std::size_t{1} << 20U;
 
 class Site {
 public:
+    // The limits and the file identity its factories' stores take: the
+    // tests' own (records.hpp); a product's Site gives its own.
+    static constexpr qiven::recordlog::Limits limits = records::suite_limits;
+    static constexpr qiven::recordlog::Identity identity = records::suite_identity;
+
     explicit Site(std::uint64_t seed) : Site(seed, fresh()) {}
     // Over the root given, made where absent, and removed at its end as a
     // fresh one is (the drive's, under its --root).
@@ -216,7 +225,7 @@ public:
 
     [[nodiscard]] T& site() noexcept { return *site_; }
     // make() once a factory: a second call is a case's error.
-    Store make(const qiven::recordlog::Limits& limits = qiven::recordlog::Limits{}) {
+    Store make(const qiven::recordlog::Limits& limits = T::limits) {
         if (state_) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
@@ -257,21 +266,21 @@ public:
     explicit SqliteOn(T& site, H hooks = H{}) : site_(&site), hooks_(std::move(hooks)) { (void)site.engine(); }
 
     [[nodiscard]] T& site() noexcept { return *site_; }
-    Store make(const qiven::recordlog::Limits& limits = qiven::recordlog::Limits{}) {
+    Store make(const qiven::recordlog::Limits& limits = T::limits) {
         if (!path_.empty()) {
             throw std::logic_error("stores: a factory makes one state; take another factory");
         }
         directory_ = site_->next_directory();
         path_ = text(directory_ / "store.db");
         limits_ = limits;
-        return Store::open(path_, true, false, site_->fake(), limits_, hooks_);
+        return Store::open(path_, true, false, site_->fake(), limits_, T::identity, hooks_);
     }
-    Store again() { return Store::open(path(), false, false, site_->fake(), limits_, hooks_); }
-    Store again(Fake& on) { return Store::open(path(), false, false, on, limits_, hooks_); }
-    Store read_only() { return Store::open(path(), false, true, site_->fake(), limits_, hooks_); }
+    Store again() { return Store::open(path(), false, false, site_->fake(), limits_, T::identity, hooks_); }
+    Store again(Fake& on) { return Store::open(path(), false, false, on, limits_, T::identity, hooks_); }
+    Store read_only() { return Store::open(path(), false, true, site_->fake(), limits_, T::identity, hooks_); }
     Store reopen() { return again(); }
     // create over the state's file, which is there: StoreError exists (S17).
-    Store create() { return Store::open(path(), true, false, site_->fake(), limits_, hooks_); }
+    Store create() { return Store::open(path(), true, false, site_->fake(), limits_, T::identity, hooks_); }
     // The store's directory and file, for a case's scan or forgery.
     [[nodiscard]] const std::filesystem::path& directory() const noexcept { return directory_; }
     [[nodiscard]] const std::string& path() const {
@@ -286,7 +295,7 @@ private:
     H hooks_;
     std::filesystem::path directory_;
     std::string path_;
-    qiven::recordlog::Limits limits_{};
+    qiven::recordlog::Limits limits_ = T::limits;
 };
 
 // The plain stores, with no admit hook.

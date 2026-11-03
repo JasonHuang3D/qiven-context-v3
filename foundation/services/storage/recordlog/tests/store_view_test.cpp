@@ -41,6 +41,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 namespace fs = std::filesystem;
 namespace sqlite = qiven::recordlog::sqlite;
 namespace state = qiven::recordlog::state;
@@ -310,7 +312,7 @@ void order(qiven::runner::Context& qiven_ctx, S& store) {
 QIVEN_CASE(store_view, order_memory) {
     const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
-    const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+    const auto st = std::make_unique<state::State>(heap.bytes(), records::suite_limits);
     qiven::recordlog::MemoryStore<Fake> store(*st, *fake);
     order(qiven_ctx, store);
 }
@@ -322,11 +324,13 @@ QIVEN_CASE(store_view, order_sqlite) {
     using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "o" / "store.db");
     {
-        const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
+        const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake,
+                                                               records::suite_limits, records::suite_identity));
         order(qiven_ctx, *store);
         (void)store->close();
     }
-    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake,
+                                                           records::suite_limits, records::suite_identity));
     CHECK(again->verify() == ordered);
     const std::optional<qiven::recordlog::Head> head = again->head(qiven_scope, "implementer");
     CHECK(head.has_value() && head->seq == 3 && head->id.view() == "D");
@@ -336,7 +340,7 @@ QIVEN_CASE(store_view, order_sqlite) {
 QIVEN_CASE(store_view, memory) {
     const auto fake = std::make_unique<Fake>(qiven::platform::fake::Config{});
     auto heap = fake->pages(state_bytes);
-    const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+    const auto st = std::make_unique<state::State>(heap.bytes(), records::suite_limits);
     const Chain chain;
     {
         qiven::recordlog::MemoryStore<Fake> store(*st, *fake);
@@ -362,7 +366,8 @@ QIVEN_CASE(store_view, sqlite) {
     const Chain chain;
     using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "v" / "store.db");
-    const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake));
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, *fake,
+                                                           records::suite_limits, records::suite_identity));
     chain.write(*store);
     CHECK(store->verify() == Chain::held);
     std::vector<std::byte> pages(buffer_bytes);
@@ -378,7 +383,8 @@ QIVEN_CASE(store_view, sqlite) {
     sqlite::WriteView over(c, chars, &arenas, at, held);
     work(qiven_ctx, over, arenas, chars);
     (void)store->close();
-    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake));
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake,
+                                                           records::suite_limits, records::suite_identity));
     CHECK(again->verify() == Chain::held);
     (void)again->close();
 }

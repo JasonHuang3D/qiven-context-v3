@@ -54,6 +54,7 @@
 namespace {
 
 namespace fs = std::filesystem;
+namespace records = qiven::test::records;
 namespace sqlite = qiven::recordlog::sqlite;
 using qiven::recordlog::Counts;
 using qiven::recordlog::EntryView;
@@ -111,6 +112,12 @@ struct Site {
     qiven::recordlog::Engine<Fake> engine;
 };
 
+// The store at path on fake: the suite's identity, the suite's limits or those given.
+Store opened(std::string_view path, bool create, bool read_only, Fake& fake,
+             const qiven::recordlog::Limits& limits = records::suite_limits) {
+    return Store::open(path, create, read_only, fake, limits, records::suite_identity);
+}
+
 struct Given {
     std::string line;
     std::optional<std::string> record;
@@ -156,7 +163,7 @@ struct Plan {
     std::vector<Given> together;
     std::string_view refused;
     bool own = false;  // last, its own export imported
-    qiven::recordlog::Limits limits{};
+    qiven::recordlog::Limits limits = records::suite_limits;
 };
 
 std::array<EntryView, 1> one(const Given& g) {
@@ -294,14 +301,14 @@ std::string on_sqlite(qiven::runner::Context& qiven_ctx, const Plan& p, const Co
     const std::string to = text(site->root / "q" / "store.db");
     std::string gave;
     {
-        const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake, p.limits));
+        const auto s = std::make_unique<Store>(opened(path, true, false, site->fake, p.limits));
         Arena arena(pages);
         attempt(qiven_ctx, *s, p, arena);
         CHECK(s->verify() == counts);
         gave = given(*s, p, arena);
         (void)s->close();
     }
-    const auto again = std::make_unique<Store>(Store::open(path, false, false, site->fake));
+    const auto again = std::make_unique<Store>(opened(path, false, false, site->fake));
     Arena arena(pages);
     CHECK(again->verify() == counts);
     CHECK(given(*again, p, arena) == gave);
@@ -311,12 +318,12 @@ std::string on_sqlite(qiven::runner::Context& qiven_ctx, const Plan& p, const Co
         CHECK(view.header(g.keys.id, held) && std::string_view(held) == g.line);  // parsed by none
     }
     {
-        const auto t = std::make_unique<Store>(Store::open(to, true, false, site->fake));
+        const auto t = std::make_unique<Store>(opened(to, true, false, site->fake));
         moved(qiven_ctx, *again, *t, p, counts, gave);
         (void)t->close();
     }
     (void)again->close();
-    const auto t = std::make_unique<Store>(Store::open(to, false, false, site->fake));
+    const auto t = std::make_unique<Store>(opened(to, false, false, site->fake));
     std::vector<std::byte> more(page_bytes);
     Arena last(more);
     CHECK(t->verify() == counts);
@@ -348,7 +355,7 @@ void on_both(qiven::runner::Context& qiven_ctx, const Plan& p, const Counts& cou
     auto heap = fake->pages(state_bytes);
     auto fresh = fake->pages(state_bytes);
     const auto st = std::make_unique<qiven::recordlog::state::State>(heap.bytes(), p.limits);
-    const auto ft = std::make_unique<qiven::recordlog::state::State>(fresh.bytes(), qiven::recordlog::Limits{});
+    const auto ft = std::make_unique<qiven::recordlog::state::State>(fresh.bytes(), records::suite_limits);
     qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
     qiven::recordlog::MemoryStore<Fake> t(*ft, *fake);
     std::vector<std::byte> pages(page_bytes);
@@ -463,7 +470,7 @@ QIVEN_CASE(store_plain, lost_body) {
     for (std::size_t i = 0; i < forgeries.size(); ++i) {
         const std::string path = text(site->root / std::to_string(i) / "store.db");
         Arena arena(pages);
-        const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake));
+        const auto s = std::make_unique<Store>(opened(path, true, false, site->fake));
         write(*s, p, arena);
         sqlite::Connection::open(String(path, Chars(arena)), false, test_at).exec(forgeries.at(i), test_at);
         const std::string denied = "StoreCorrupt incoherent [a1]";
@@ -471,7 +478,7 @@ QIVEN_CASE(store_plain, lost_body) {
         CHECK_EQ(said([&] { (void)exported(*s, arena); }), denied);
         CHECK_EQ(said([&] { (void)s->verify(); }), denied);
         (void)s->close();
-        CHECK_EQ(said([&] { (void)Store::open(path, false, false, site->fake); }),
+        CHECK_EQ(said([&] { (void)opened(path, false, false, site->fake); }),
                  std::string("StoreCorrupt incoherent [body: the rows not the entries with a body key no forget "
                              "targets]"));
     }
@@ -492,13 +499,13 @@ QIVEN_CASE(store_plain, body_by_id) {
             CHECK_EQ(by_id(qiven_ctx, s, id, arena), std::string("none"));
         }
     };
-    const auto s = std::make_unique<Store>(Store::open(path, true, false, site->fake));
+    const auto s = std::make_unique<Store>(opened(path, true, false, site->fake));
     write(*s, p, arena);
     CHECK(s->verify() == counts);
     CHECK_EQ(by_id(qiven_ctx, *s, "a1", arena), std::string("held"));
     rest(*s);
     (void)s->close();
-    const auto again = std::make_unique<Store>(Store::open(path, false, false, site->fake));
+    const auto again = std::make_unique<Store>(opened(path, false, false, site->fake));
     CHECK(again->verify() == counts);
     rest(*again);
     sqlite::Connection::open(String(path, Chars(arena)), false, test_at).exec("DELETE FROM body WHERE id = 'a1'",
@@ -511,7 +518,7 @@ QIVEN_CASE(store_plain, body_by_id) {
     rest(*again);
     CHECK_EQ(said([&] { (void)again->verify(); }), denied);
     (void)again->close();
-    CHECK(said([&] { (void)Store::open(path, false, false, site->fake); }).starts_with("StoreCorrupt incoherent"));
+    CHECK(said([&] { (void)opened(path, false, false, site->fake); }).starts_with("StoreCorrupt incoherent"));
 }
 
 QIVEN_CASE(store_plain, sweep) {

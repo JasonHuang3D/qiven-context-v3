@@ -35,6 +35,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 namespace fs = std::filesystem;
 using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven::recordlog::SQLiteStore<Fake>;
@@ -209,7 +211,8 @@ bool same(const Vector<LaneHead>& a, const Vector<LaneHead>& b) {
 
 QIVEN_CASE(store_exchange, smoke) {
     const auto rig = std::make_unique<Rig>();
-    const auto source = std::make_unique<Store>(Store::open(rig->path("from"), true, false, rig->fake));
+    const auto source = std::make_unique<Store>(Store::open(rig->path("from"), true, false, rig->fake,
+                                                            records::suite_limits, records::suite_identity));
     fill(*source, rig->chars);
     const Counts held = source->verify();
     CHECK_EQ(held.entries, 7U);
@@ -225,7 +228,8 @@ QIVEN_CASE(store_exchange, smoke) {
     CHECK_EQ(rows.size(), 2U);
     CHECK_EQ(snapshot.forgets, 1U);
     CHECK(snapshot.volume == from);
-    const auto into = std::make_unique<Store>(Store::open(rig->path("into"), true, false, rig->fake));
+    const auto into = std::make_unique<Store>(Store::open(rig->path("into"), true, false, rig->fake,
+                                                          records::suite_limits, records::suite_identity));
     Vector<LaneHead> heads(rig->chars);
     const qiven::recordlog::Imported imported = into->import_(*whole, heads);
     CHECK(imported.counts == held);
@@ -257,13 +261,15 @@ QIVEN_CASE(store_exchange, smoke) {
     CHECK_EQ(drain(*none, nullptr), 0U);
 
     // The lines held with their keys imported; each import's store reopened.
-    const auto copied = std::make_unique<Store>(Store::open(rig->path("copied"), true, false, rig->fake));
+    const auto copied = std::make_unique<Store>(Store::open(rig->path("copied"), true, false, rig->fake,
+                                                            records::suite_limits, records::suite_identity));
     CHECK(copied->import_(copy, heads).counts == held);
     CHECK_EQ(heads.size(), copy.given.size());
     CHECK(copied->verify() == held);
     CHECK(copied->close().done && into->close().done);
     for (const std::string_view name : {"into", "copied"}) {
-        const auto reader = std::make_unique<Store>(Store::open(rig->path(name), false, true, rig->fake));
+        const auto reader = std::make_unique<Store>(Store::open(rig->path(name), false, true, rig->fake,
+                                                                records::suite_limits, records::suite_identity));
         CHECK(reader->verify() == held);
     }
 

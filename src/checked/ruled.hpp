@@ -120,13 +120,16 @@ public:
     Ruled(S&& store) noexcept : S(std::move(store)) {}
 
     // Opens, or creates, as S::open does, ruled: its path, create and
-    // read-only flags, platform and limits, then its hooks if given.
+    // read-only flags, platform, limits and file identity, then its hooks
+    // if given.
     template <class Platform, class... Hooks>
         requires requires(std::string_view path, bool flag, Platform& platform, const store::Limits& limits,
-                          Hooks&&... hooks) { S::open(path, flag, flag, platform, limits, std::forward<Hooks>(hooks)...); }
+                          const store::Identity& identity, Hooks&&... hooks) {
+            S::open(path, flag, flag, platform, limits, identity, std::forward<Hooks>(hooks)...);
+        }
     static Ruled open(std::string_view path, bool create, bool read_only, Platform& platform,
-                      const store::Limits& limits = store::Limits{}, Hooks&&... hooks) {
-        return Ruled(S::open(path, create, read_only, platform, limits, std::forward<Hooks>(hooks)...));
+                      const store::Limits& limits, const store::Identity& identity, Hooks&&... hooks) {
+        return Ruled(S::open(path, create, read_only, platform, limits, identity, std::forward<Hooks>(hooks)...));
     }
 
     void header(std::string_view id, Header& out) {

@@ -42,6 +42,7 @@
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/sqlite_store.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "support/stores/records.hpp"
 
 namespace qiven::test {
 void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::array<FaultRange, 4>& ranges);
@@ -49,6 +50,8 @@ void store_sqlite_create_refused(qiven::runner::Context& qiven_ctx, const std::a
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
+
+namespace records = qiven::test::records;
 
 namespace fs = std::filesystem;
 namespace sqlite = qiven::recordlog::sqlite;
@@ -109,7 +112,7 @@ struct Rig {
     [[nodiscard]] std::string create() {
         detail.clear();
         try {
-            Store s = Store::open(path, true, false, fake);
+            Store s = Store::open(path, true, false, fake, records::suite_limits, records::suite_identity);
             (void)s.close();
             return "made";
         } catch (const StoreError& e) {
@@ -186,7 +189,7 @@ Bounds measure(Rig& rig, Kind kind) {
         b.last.at(0) = c.calls();
         sqlite::apply(conn, false, at);
         b.last.at(1) = c.calls();
-        sqlite::create_schema(conn, at);
+        sqlite::create_schema(conn, records::suite_identity, at);
         b.last.at(2) = c.calls();
         sqlite::probe(conn, at);
         b.last.at(3) = c.calls();
@@ -238,7 +241,7 @@ void pass(qiven::runner::Context& qiven_ctx, Rig& rig, Kind kind, qiven::test::F
         part.enter<Typed>(c);
         rig.detail.clear();
         try {
-            made.emplace(Store::open(rig.path, true, false, rig.fake));
+            made.emplace(Store::open(rig.path, true, false, rig.fake, records::suite_limits, records::suite_identity));
         } catch (const StoreError& e) {
             ++raised[std::string(qiven::recordlog::name(e.kind()))];
             rig.detail = e.detail();

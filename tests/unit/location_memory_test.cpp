@@ -86,10 +86,10 @@ constexpr bool counts_pinned = false;
 constexpr std::string_view check_ops = "pages config_dir lock resolve pages resolve synced facts standard_output "
                                        "standard_output standard_output";
 constexpr std::array<Pinned, 9> pinned = {{
-    {Step::init_new, {25, 3, 102, 29}, {27, 3, 102, 29}, {24, 3, 102, 29},
+    {Step::init_new, {25, 3, 115,29}, {27, 3, 115,29}, {24, 3, 115,29},
      "now pages pages resolve synced pages resolve synced create create replace random_bytes standard_output "
      "standard_output"},
-    {Step::init_held, {25, 2, 81, 24}, {27, 2, 81, 24}, {25, 2, 81, 24},
+    {Step::init_held, {25, 2, 94,24}, {27, 2, 94,24}, {25, 2, 94,24},
      "now pages pages resolve synced replace random_bytes standard_output standard_output"},
     {Step::init_chosen, {5, 0, 0, 6}, {5, 0, 0, 6}, {5, 0, 0, 6}, "pages config_dir lock standard_output"},
     {Step::init_warned, {11, 1, 0, 14}, {10, 1, 0, 14}, {10, 1, 0, 14}, "standard_output"},
@@ -97,10 +97,10 @@ constexpr std::array<Pinned, 9> pinned = {{
      "pages config_dir lock read facts standard_output standard_output standard_output standard_output "
      "standard_output"},
     {Step::change_same, {25, 1, 0, 18}, {24, 1, 0, 18}, {22, 1, 0, 18}, "normcase normcase standard_output standard_output"},
-    {Step::change_new, {39, 3, 102, 33}, {39, 3, 102, 33}, {36, 3, 102, 33},
+    {Step::change_new, {39, 3, 115,33}, {39, 3, 115,33}, {36, 3, 115,33},
      "normcase normcase now pages pages resolve synced pages resolve synced create create standard_output replace "
      "random_bytes standard_output standard_output"},
-    {Step::change_held, {39, 2, 81, 28}, {39, 2, 81, 28}, {37, 2, 81, 28},
+    {Step::change_held, {39, 2, 94,28}, {39, 2, 94,28}, {37, 2, 94,28},
      "normcase normcase now pages pages resolve synced standard_output replace random_bytes standard_output "
      "standard_output"},
     {Step::change_left, {24, 1, 0, 17}, {22, 1, 0, 17}, {21, 1, 0, 17}, "normcase normcase standard_output"},

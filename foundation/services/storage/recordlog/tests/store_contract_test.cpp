@@ -28,8 +28,11 @@
 #include "qiven/runner/runner.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/errors.hpp"
+#include "support/stores/records.hpp"
 
 namespace {
+
+namespace records = qiven::test::records;
 
 namespace store = qiven::recordlog;
 using store::Operation;
@@ -215,7 +218,7 @@ private:
     [[nodiscard]] store::Volume volume() const noexcept { return store::measure(count_ * 100U, count_, limits_); }
 
     store::Gate gate_;
-    store::Limits limits_;
+    store::Limits limits_ = records::suite_limits;
     std::uint64_t count_ = 0;
     TokenOf<P == Plant::copyable> token_{};
 };
@@ -330,17 +333,15 @@ constexpr bool capabilities_vector() {
 }
 static_assert(capabilities_vector());
 
-// The format's numbers by default; the suite's smaller ones valid; ordered.
+// The suite's limits valid, and smaller ones; ordered.
 constexpr bool limits_vector() {
-    const store::Limits c15{};
     const store::Limits suite{64U * 1024U, 96U * 1024U, 128U * 1024U, 10, 15, 20};
     store::Limits disordered = suite;
     disordered.warning_count = 9;
     store::Limits zero = suite;
     zero.target_size = 0;
-    return c15.target_size == 536'870'912U && c15.warning_size == 671'088'640U && c15.max_size == 805'306'368U &&
-           c15.target_count == 400'000U && c15.warning_count == 480'000U && c15.max_count == 550'000U &&
-           store::valid(c15) && store::valid(suite) && !store::valid(disordered) && !store::valid(zero);
+    return store::valid(records::suite_limits) && store::valid(suite) && !store::valid(disordered) &&
+           !store::valid(zero);
 }
 static_assert(limits_vector());
 
@@ -424,7 +425,7 @@ std::size_t drive(S& s, qiven::memory::Arena& arena) {
     exported.close();
     n += s.size().volume.count == 4 ? 1U : 0U;
     n += s.verify().entries == 4 ? 1U : 0U;
-    n += s.limits() == store::Limits{} && !s.read_only() && !S::capabilities.durable ? 1U : 0U;
+    n += s.limits() == records::suite_limits && !s.read_only() && !S::capabilities.durable ? 1U : 0U;
     n += s.close().done ? 1U : 0U;
     return n;
 }
@@ -533,7 +534,7 @@ QIVEN_CASE(store_contract, faults) {
         const store::Line line(*arena);
         for (const Operation o : operations) {
             gate.enter(o, path);
-            sum +=store::measure(sum, 1, store::Limits{}).count + store::operation_budget(1).value_or(0);
+            sum +=store::measure(sum, 1, records::suite_limits).count + store::operation_budget(1).value_or(0);
         }
         sum += line.header.size();
         arena->attach(nullptr);

@@ -43,6 +43,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 using namespace qiven::test::records;
 namespace fs = std::filesystem;
 namespace sqlite = qiven::recordlog::sqlite;
@@ -181,7 +183,8 @@ struct Rig {
     }
     [[nodiscard]] std::string path(std::string_view name) const { return text(root / std::string(name) / "store.db"); }
     [[nodiscard]] std::unique_ptr<Store> made(std::string_view name) {
-        return std::make_unique<Store>(Store::open(path(name), true, false, fake));
+        return std::make_unique<Store>(Store::open(path(name), true, false, fake,
+                                                   records::suite_limits, records::suite_identity));
     }
     fs::path root;
     Fake fake;
@@ -218,7 +221,8 @@ std::vector<Rec> modules(std::size_t n) {
 
 // The store at path reopened read-only, its verify's counts.
 Counts reread(Rig& rig, const std::string& path) {
-    const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+    const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake,
+                                                            records::suite_limits, records::suite_identity));
     return reader->verify();
 }
 
@@ -328,7 +332,8 @@ QIVEN_CASE(store_exchange, busy) {
     Held held;
     held.add(claims(3), qiven_scope, implementer_lane);
     const auto into = rig->made("into");
-    const auto other = std::make_unique<Store>(Store::open(rig->path("into"), false, false, rig->fake));
+    const auto other = std::make_unique<Store>(Store::open(rig->path("into"), false, false, rig->fake,
+                                                           records::suite_limits, records::suite_identity));
     other->connection().exec("BEGIN IMMEDIATE", sqlite::site("hold", ""));
     Vector<LaneHead> heads(rig->chars);
     const auto start = std::chrono::steady_clock::now();
@@ -415,8 +420,10 @@ QIVEN_CASE(store_exchange, closing) {
     CHECK(from->close().done);
     CHECK(closed(*e3) && closed(*e5) && closed(*moved));
     // Its store object's move-assignment closes both objects' exports.
-    from = std::make_unique<Store>(Store::open(rig->path("from"), false, false, rig->fake));
-    auto other = std::make_unique<Store>(Store::open(rig->path("from"), false, true, rig->fake));
+    from = std::make_unique<Store>(Store::open(rig->path("from"), false, false, rig->fake,
+                                               records::suite_limits, records::suite_identity));
+    auto other = std::make_unique<Store>(Store::open(rig->path("from"), false, true, rig->fake,
+                                                     records::suite_limits, records::suite_identity));
     auto mine = std::make_unique<Export>(from->export_(std::nullopt, {}));
     auto theirs = std::make_unique<Export>(other->export_(std::nullopt, {}));
     *from = std::move(*other);
@@ -459,7 +466,9 @@ QIVEN_CASE(store_exchange, rollback) {
     big.add(modules(60), qiven_scope, reviewer_lane);
     std::uintmax_t seen = 0;
     const std::string path = rig->path("big");
-    auto probed = std::make_unique<Probed>(Probed::open(path, true, false, rig->fake, {}, Probe{&path, &seen, true}));
+    auto probed = std::make_unique<Probed>(Probed::open(path, true, false, rig->fake,
+                                                        records::suite_limits, records::suite_identity,
+                                                        Probe{&path, &seen, true}));
     CHECK_EQ(raised([&] { (void)probed->import_(big, heads); }), "StoreError internal");
     const std::uintmax_t spilled = seen;
     CHECK(spilled > 0U);
@@ -469,7 +478,9 @@ QIVEN_CASE(store_exchange, rollback) {
     probed.reset();
     // The heads refused by the admit hook at the end, after the spill.
     big.at = 0;
-    probed = std::make_unique<Probed>(Probed::open(path, false, false, rig->fake, {}, Probe{&path, &seen, false}));
+    probed = std::make_unique<Probed>(Probed::open(path, false, false, rig->fake,
+                                                   records::suite_limits, records::suite_identity,
+                                                   Probe{&path, &seen, false}));
     CHECK_EQ(raised([&] { (void)probed->import_(big, heads, HeadsRefused{}); }), "StoreError internal");
     CHECK_EQ(wal_bytes(path), 0U);
     CHECK(heads.empty());

@@ -4,6 +4,7 @@
 # rules as its one hook.
 add_library(qiven3_checked STATIC
   clearing.hpp
+  cognition.hpp
   rules.cpp
   rules.hpp
   stores.hpp

@@ -89,17 +89,24 @@ constexpr bool applicable(const Capabilities& have, const Capabilities& need) no
 }
 
 // The thresholds by size and by count, the store's limits: the target,
-// the warning and the maximum, the format's by default and smaller in
-// the suite.
+// the warning and the maximum, each the product's, given at open.
 inline constexpr std::uint64_t mib = std::uint64_t{1024} * 1024U;
 struct Limits {
-    std::uint64_t target_size = 512 * mib;
-    std::uint64_t warning_size = 640 * mib;
-    std::uint64_t max_size = 768 * mib;
-    std::uint64_t target_count = 400'000;
-    std::uint64_t warning_count = 480'000;
-    std::uint64_t max_count = 550'000;
+    std::uint64_t target_size;
+    std::uint64_t warning_size;
+    std::uint64_t max_size;
+    std::uint64_t target_count;
+    std::uint64_t warning_count;
+    std::uint64_t max_count;
     constexpr bool operator==(const Limits&) const = default;
+};
+// The SQLite store's file identity, the product's, given at open beside
+// the limits: create writes the two, and identify reads them back, another
+// value StoreCorrupt foreign (application_id) or version (user_version).
+struct Identity {
+    std::int64_t application_id;
+    std::int64_t user_version;
+    constexpr bool operator==(const Identity&) const = default;
 };
 // Each nonzero and each threshold at or under the next.
 constexpr bool valid(const Limits& l) noexcept {

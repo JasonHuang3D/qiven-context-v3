@@ -20,6 +20,11 @@
 //   owned(line)         an export's or a source's line as a record, its text
 //                       and keys owned
 //   Refusal, refused(f) what a StoreError f raised gives, or none
+//   suite_limits, suite_identity
+//                       the tests' own limits and file identity, which
+//                       every case's store takes: the limits the numbers
+//                       the cases compute against, the identity no
+//                       product's, so that a case reads back the one given
 //
 // Allocations: the standard's, the records' strings. thread: any.
 
@@ -37,6 +42,10 @@
 #include "qiven/recordlog/errors.hpp"
 
 namespace qiven::test::records {
+
+inline constexpr qiven::recordlog::Limits suite_limits{512 * qiven::recordlog::mib, 640 * qiven::recordlog::mib,
+                                                 768 * qiven::recordlog::mib, 400'000, 480'000, 550'000};
+inline constexpr qiven::recordlog::Identity suite_identity{0x71746573, 7};
 
 // A record's keys, owned.
 struct Keys {

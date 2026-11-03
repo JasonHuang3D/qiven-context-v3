@@ -226,21 +226,21 @@ bool is_directory(std::string_view path) {
     return fs::is_directory(path_of(path), error);
 }
 
-void identify(Connection& c, const WhereView& at) {
+void identify(Connection& c, const Identity& identity, const WhereView& at) {
     Text detail;
     const std::int64_t id = c.integer("PRAGMA application_id", at);
-    if (id != application_id) {
+    if (id != identity.application_id) {
         throw StoreError::corrupt(at.operation, at.path, Corrupt::foreign, detail.add("application_id ").number(id).view());
     }
     const std::int64_t version = c.integer("PRAGMA user_version", at);
-    if (version != user_version) {
+    if (version != identity.user_version) {
         throw StoreError::corrupt(at.operation, at.path, Corrupt::version, detail.add("user_version ").number(version).view());
     }
 }
 
 void apply(Connection& c, bool read_only, const WhereView& at) {
     for (const Setting& s : settings) {
-        if (s.when == When::create || (read_only && s.when == When::read_write)) {
+        if (read_only && s.when == When::read_write) {
             continue;
         }
         Text sql;
@@ -258,9 +258,6 @@ void apply(Connection& c, bool read_only, const WhereView& at) {
 std::optional<std::size_t> differing(Connection& c, const WhereView& at) {
     for (std::size_t i = 0; i < settings.size(); ++i) {
         const Setting& s = settings.at(i);
-        if (s.when == When::create) {
-            continue;
-        }
         Text value;
         if (value_of(c, s.name.view(), value, at) != s.value.view()) {
             return i;
@@ -269,18 +266,16 @@ std::optional<std::size_t> differing(Connection& c, const WhereView& at) {
     return std::nullopt;
 }
 
-void create_schema(Connection& c, const WhereView& at) {
+void create_schema(Connection& c, const Identity& identity, const WhereView& at) {
     c.exec("BEGIN IMMEDIATE", at);
     try {
         for (const std::string_view sql : schema) {
             c.exec(sql, at);
         }
-        for (const Setting& s : settings) {
-            if (s.when == When::create) {
-                Text sql;
-                c.exec(sql.add("PRAGMA ").add(s.name.view()).add(" = ").add(s.value.view()).view(), at);
-            }
-        }
+        Text id;
+        c.exec(id.add("PRAGMA application_id = ").number(identity.application_id).view(), at);
+        Text version;
+        c.exec(version.add("PRAGMA user_version = ").number(identity.user_version).view(), at);
         c.exec("COMMIT", at);
     } catch (...) {
         c.rollback();
@@ -382,14 +377,15 @@ void reraise(Refused refused) {
 namespace {
 
 // Steps 2 (the connection) to 7.
-Connection connected(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
+Connection connected(const qiven::memory::String& path, bool create, bool read_only, const Identity& identity,
+                     const WhereView& at, Opened& opened) {
     Connection c = Connection::open(path, read_only, at);
     if (!create) {
-        identify(c, at);
+        identify(c, identity, at);
     }
     apply(c, read_only, at);
     if (create) {
-        create_schema(c, at);
+        create_schema(c, identity, at);
     }
     if (!read_only) {
         probe(c, at);
@@ -400,8 +396,9 @@ Connection connected(const qiven::memory::String& path, bool create, bool read_o
 
 }  // namespace
 
-Connection connect(const qiven::memory::String& path, bool create, bool read_only, const WhereView& at, Opened& opened) {
-    return connected(path, create, read_only, at, opened);
+Connection connect(const qiven::memory::String& path, bool create, bool read_only, const Identity& identity,
+                   const WhereView& at, Opened& opened) {
+    return connected(path, create, read_only, identity, at, opened);
 }
 
 }  // namespace qiven::recordlog::sqlite

@@ -46,10 +46,7 @@ struct sqlite3_stmt;
 
 namespace qiven::recordlog::sqlite {
 
-// The file's identity and the engine's least version (STRICT, 3.37.0);
-// user_version 2 the schema with the body key's column, 1's files refused.
-inline constexpr std::int64_t application_id = 0x71763301;
-inline constexpr std::int64_t user_version = 2;
+// The engine's least version (STRICT, 3.37.0).
 inline constexpr int least_version = 3037000;
 // The busy wait, a connection's: 5 s; a purge's statements set 0.
 inline constexpr int busy_milliseconds = 5000;
@@ -82,10 +79,11 @@ constexpr WhereView site(std::string_view operation, std::string_view path, doub
     return at;
 }
 
-// When a setting is written: on every connection, and read back; on a
-// read-write one, a read-only one reading it back alone (journal_mode); or
-// at create, inside its transaction, and read at identify.
-enum class When : std::uint8_t { every, read_write, create };
+// When a setting is written: on every connection, and read back; or on a
+// read-write one, a read-only one reading it back alone (journal_mode).
+// The file's identity is no setting: create writes the one given, inside
+// its transaction, and identify reads it.
+enum class When : std::uint8_t { every, read_write };
 
 // A setting, its value as the engine reads it back, as text.
 struct Setting {
@@ -102,10 +100,9 @@ constexpr Setting setting(std::string_view name, std::string_view value, When wh
 // text's: page_size first, so that a new file takes it before WAL writes
 // its first page (on a file already made it changes nothing, and reads
 // back the file's own); journal_mode next, so that the rest apply in WAL;
-// busy_timeout as the wrapper sets it; the identity last. The engine's
-// build chooses none of these: each holds on a connection by this table
-// alone.
-inline constexpr std::array<Setting, 14> settings = {
+// busy_timeout as the wrapper sets it. The engine's build chooses none of
+// these: each holds on a connection by this table alone.
+inline constexpr std::array<Setting, 12> settings = {
     setting("page_size", "4096"),
     setting("journal_mode", "wal", When::read_write),
     setting("synchronous", "2"),
@@ -118,8 +115,6 @@ inline constexpr std::array<Setting, 14> settings = {
     setting("wal_autocheckpoint", "1000"),
     setting("cache_size", "-2000"),
     setting("busy_timeout", "5000"),
-    setting("application_id", "1903571713", When::create),
-    setting("user_version", "2", When::create),
 };
 
 // The engine's version number, as the library gives it.

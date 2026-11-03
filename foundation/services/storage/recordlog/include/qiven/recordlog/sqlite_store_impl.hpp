@@ -31,14 +31,14 @@ namespace qiven::recordlog {
 
 template <qiven::platform::Platform P, Hooks H, class Rule>
 SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, bool create, bool read_only, P& platform,
-                                                      const Limits& limits, H hooks) {
+                                                      const Limits& limits, const Identity& identity, H hooks) {
     if (!valid(limits)) {
         throw StoreError(Code::settings, sqlite::open_name, path, "limits");
     }
     if (create && read_only) {
         throw StoreError(Code::read_only, sqlite::open_name, path, "create");
     }
-    SQLiteStore store(platform, read_only, limits, std::move(hooks));
+    SQLiteStore store(platform, read_only, limits, identity, std::move(hooks));
     {
         qiven::memory::Arena arena(store.pages_.bytes());
         store.hook(arena);
@@ -54,8 +54,8 @@ SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, boo
             throw StoreError(Code::internal, sqlite::open_name, resolved, "no engine heap installed");
         }
         sqlite::presence(resolved, create, at);
-        store.connection_ = create ? sqlite::made(resolved, platform, at, store.opened_)
-                                   : sqlite::connect(resolved, false, read_only, at, store.opened_);
+        store.connection_ = create ? sqlite::made(resolved, platform, identity, at, store.opened_)
+                                   : sqlite::connect(resolved, false, read_only, identity, at, store.opened_);
         store.peak_ = arena.peak();
     }
     if (!read_only && store.opened_.pending()) {

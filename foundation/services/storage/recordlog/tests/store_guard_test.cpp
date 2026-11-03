@@ -489,7 +489,7 @@ QIVEN_CASE(store_guard, import_plain) {
     Arena arena(pages);
     {
         auto heap = fake->pages(state_bytes);
-        const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+        const auto st = std::make_unique<state::State>(heap.bytes(), records::suite_limits);
         qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
         CHECK(imports_plain(s, *book, arena));
         CHECK(appends_plain(s));
@@ -500,12 +500,14 @@ QIVEN_CASE(store_guard, import_plain) {
     using Store = qiven::recordlog::SQLiteStore<Fake>;
     const std::string path = text(scratch->root / "plain" / "store.db");
     {
-        const auto s = std::make_unique<Store>(Store::open(path, true, false, *disk));
+        const auto s = std::make_unique<Store>(Store::open(path, true, false, *disk,
+                                                           records::suite_limits, records::suite_identity));
         CHECK(imports_plain(*s, *book, arena));
         CHECK(appends_plain(*s));
         (void)s->close();
     }
-    const auto again = std::make_unique<Store>(Store::open(path, false, false, *disk));
+    const auto again = std::make_unique<Store>(Store::open(path, false, false, *disk,
+                                                           records::suite_limits, records::suite_identity));
     CHECK(again->verify() == (qiven::recordlog::Counts{4, 2, 1, 3}));
     (void)again->close();
 }
@@ -515,7 +517,7 @@ QIVEN_CASE(store_guard, memory) {
     const auto book = std::make_unique<const Book>();
     for (std::size_t k = 0; k < cases; ++k) {
         auto heap = fake->pages(state_bytes);
-        const auto st = std::make_unique<state::State>(heap.bytes(), Limits{});
+        const auto st = std::make_unique<state::State>(heap.bytes(), records::suite_limits);
         std::vector<std::byte> pages(std::size_t{1} << 20U);
         Arena arena(pages);
         qiven::recordlog::MemoryStore<Fake> s(*st, *fake);
@@ -544,7 +546,8 @@ QIVEN_CASE(store_guard, sqlite) {
         qiven::recordlog::Counts held;
         std::optional<qiven::recordlog::Head> head;
         {
-            const auto s = std::make_unique<Store>(Store::open(path, true, false, *fake));
+            const auto s = std::make_unique<Store>(Store::open(path, true, false, *fake,
+                                                               records::suite_limits, records::suite_identity));
             before(k, *s, *book, arena);
             held = s->verify();
             head = s->head(qs, mine);
@@ -555,7 +558,8 @@ QIVEN_CASE(store_guard, sqlite) {
             (void)s->close();
         }
         std::unique_ptr<Store> again;
-        if (const std::string o = said([&] { again = std::make_unique<Store>(Store::open(path, false, false, *fake)); });
+        if (const std::string o = said([&] { again = std::make_unique<Store>(Store::open(path, false, false, *fake,
+                records::suite_limits, records::suite_identity)); });
             !o.empty()) {
             std::cout << wants[k].name << ": reopen " << o << "\n";
         }

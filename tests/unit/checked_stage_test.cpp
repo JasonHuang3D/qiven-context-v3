@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "checked/cognition.hpp"
 #include "checked/rules.hpp"
 #include "checked/stores.hpp"
 #include "entry/body.hpp"
@@ -77,7 +78,8 @@ QIVEN_CASE(store_stage, append) {
     CHECK(checked.hits.empty());
     CHECK_EQ(checked.size, added(first));
     const stage::Staged staged =
-        qiven3::checked::admit(view, qiven_scope, implementer_lane, std::nullopt, checked, Limits{}, at(Operation::append), chars);
+        qiven3::checked::admit(view, qiven_scope, implementer_lane, std::nullopt, checked,
+                               qiven3::checked::cognition_limits, at(Operation::append), chars);
     CHECK_EQ(staged.head.id.view(), id_of(first[1]));
     CHECK_EQ(staged.head.seq, 2);
     CHECK_EQ(staged.count, 2U);
@@ -88,7 +90,8 @@ QIVEN_CASE(store_stage, append) {
     const std::vector<EntryView> more = views(second);
     const qiven3::checked::Checked<Fake> again = qiven3::checked::check(fake, std::span<const EntryView>(more), at(Operation::append), chars, scratch);
     const stage::Staged next =
-        qiven3::checked::admit(view, qiven_scope, implementer_lane, id_of(first[1]), again, Limits{}, at(Operation::append), chars);
+        qiven3::checked::admit(view, qiven_scope, implementer_lane, id_of(first[1]), again,
+                               qiven3::checked::cognition_limits, at(Operation::append), chars);
     CHECK_EQ(next.head.id.view(), id_of(second[0]));
     CHECK_EQ(next.head.seq, 3);
 }
@@ -105,7 +108,7 @@ QIVEN_CASE(store_stage, forget) {
     const Stored e = book.stored("E");
     const Stored a = book.stored("A");
     // A forget is never refused for size: past the maximum by count.
-    Limits small;
+    Limits small = qiven3::checked::cognition_limits;
     small.target_count = 1;
     small.warning_count = 1;
     small.max_count = 1;
@@ -290,7 +293,7 @@ QIVEN_CASE(store_stage, maximum) {
     const std::vector<Stored> call = {book.stored("A")};
     const std::vector<EntryView> lines = views(call);
     const qiven3::checked::Checked<Fake> checked = qiven3::checked::check(fake, std::span<const EntryView>(lines), at(Operation::append), chars, scratch);
-    Limits l;
+    Limits l = qiven3::checked::cognition_limits;
     l.target_count = 2;
     l.warning_count = 2;
     l.max_count = 2;
@@ -305,7 +308,7 @@ QIVEN_CASE(store_stage, maximum) {
     CHECK_EQ(count->code, std::string("store_full"));
     CHECK_EQ(count->count, 3U);
     CHECK_EQ(count->size, 100 + checked.size);
-    Limits s;
+    Limits s = qiven3::checked::cognition_limits;
     s.max_size = 100 + checked.size;
     s.warning_size = s.max_size;
     s.target_size = s.max_size;
@@ -452,7 +455,8 @@ QIVEN_CASE(store_stage, memory_export) {
         {[](Held& e) { e.content = false; }, id}};  // a record with no body key
     for (const auto& [forge, detail] : rows) {
         auto heap = bench->fake.pages(std::size_t{1} << 23U);
-        const auto st = std::make_unique<qiven::recordlog::state::State>(heap.bytes(), Limits{});
+        const auto st =
+            std::make_unique<qiven::recordlog::state::State>(heap.bytes(), qiven3::checked::cognition_limits);
         qiven3::checked::MemoryStore<Fake> ruled(*st, bench->fake);
         (void)ruled.append(lines.at(0).keys.scope, lines.at(0).keys.lane, std::nullopt, lines);
         forge(qiven::recordlog::state::Locked(*st, qiven::recordlog::state::Unbounded{}).data().held[0]);

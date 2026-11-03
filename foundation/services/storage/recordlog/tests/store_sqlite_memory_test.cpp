@@ -27,6 +27,7 @@ using namespace qiven::test::sqlite_bed;
 using qiven::memory::MemoryError;
 using qiven::platform::PlatformError;
 using qiven::recordlog::StoreError;
+namespace records = qiven::test::records;
 
 QIVEN_CASE(store_sqlite, budget) {
     const auto b = std::make_unique<Bed>();
@@ -49,7 +50,8 @@ QIVEN_CASE(store_sqlite, budget) {
                   << "\n";
     }
     CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
-    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
+    CHECK(Store::open(b->path, false, true, b->fake,
+                      records::suite_limits, records::suite_identity).verify() == b->store->verify());
 }
 
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
@@ -224,7 +226,8 @@ void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, st
         }
     }
     CHECK(b->store->verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));  // the course's
-    CHECK(Store::open(b->path, false, true, b->fake).verify() == b->store->verify());
+    CHECK(Store::open(b->path, false, true, b->fake,
+                      records::suite_limits, records::suite_identity).verify() == b->store->verify());
 }
 #else
 void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& /*qiven_ctx*/, std::string_view /*group*/, FaultRange) {

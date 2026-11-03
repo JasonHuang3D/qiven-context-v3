@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "checked/cognition.hpp"
 #include "driver/store_wire.hpp"
 #include "qiven/recordlog/engine/sqlite.hpp"
 #include "qiven/recordlog/exchange.hpp"
@@ -64,22 +65,28 @@ Value seam_write(store::sqlite::Connection& c, ArgView request) {
 }
 
 // Each setting the store applies, with the value the connection reads
-// back: busy_timeout by its pragma, as the wrapper sets it.
+// back: busy_timeout by its pragma, as the wrapper sets it; then the file
+// identity cognition's create writes, when "create".
 Value settings(store::sqlite::Connection& c, ArgView) {
     const store::WhereView at = store::sqlite::site("settings", "");
     constexpr std::array<std::string_view, 3> when = {"every", "read_write", "create"};
     Value out = array();
-    for (const store::sqlite::Setting& s : store::sqlite::settings) {
-        store::sqlite::Statement read = c.prepare("PRAGMA " + std::string(s.name.view()), at);
+    const auto row = [&](std::string_view name, std::string_view value, std::string_view written) {
+        store::sqlite::Statement read = c.prepare("PRAGMA " + std::string(name), at);
         Value item;
-        item.set("name", s.name.view());
-        item.set("value", s.value.view());
-        item.set("when", when.at(static_cast<std::size_t>(s.when)));
+        item.set("name", name);
+        item.set("value", value);
+        item.set("when", written);
         if (read.step(at)) {
             item.set("read", read.text(0));
         }
         out.push(item);
+    };
+    for (const store::sqlite::Setting& s : store::sqlite::settings) {
+        row(s.name.view(), s.value.view(), when.at(static_cast<std::size_t>(s.when)));
     }
+    row("application_id", std::to_string(qiven3::checked::cognition_identity.application_id), when.at(2));
+    row("user_version", std::to_string(qiven3::checked::cognition_identity.user_version), when.at(2));
     return out;
 }
 

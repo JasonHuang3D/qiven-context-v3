@@ -37,6 +37,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 using namespace qiven::test::records;
 namespace state = qiven::recordlog::state;
 using Fake = qiven::platform::fake::FakePlatform;
@@ -71,7 +73,8 @@ struct NoSource {
 // C (the reviewer's first), and an arena.
 struct Bed {
     Bed()
-        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)), state(heap.bytes(), Limits{}),
+        : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)),
+          state(heap.bytes(), records::suite_limits),
           lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
           e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, c{rec("C", qiven_scope, "reviewer", 1)},
           e_lines(views(e)), c_lines(views(c)), pages(std::size_t{1} << 20U), arena(pages), chars(arena) {

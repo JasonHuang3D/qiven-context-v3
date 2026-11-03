@@ -28,6 +28,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 namespace fs = std::filesystem;
 using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven::recordlog::SQLiteStore<Fake>;
@@ -90,12 +92,12 @@ std::string rowids(Store& store, const std::vector<std::string>& ids) {
 QIVEN_CASE(store_sqlite, scan_at_start) {
     const auto rig = std::make_unique<Rig>();
     const std::string path = text(rig->root / "s" / "store.db");
-    Store store = Store::open(path, true, false, rig->fake);
-    Store other = Store::open(path, false, false, rig->fake);
+    Store store = Store::open(path, true, false, rig->fake, records::suite_limits, records::suite_identity);
+    Store other = Store::open(path, false, false, rig->fake, records::suite_limits, records::suite_identity);
     qiven::test::scan_case::scan_ends_at_start(qiven_ctx, store, other, rig->chars);
     CHECK(store.close().done);
     CHECK(other.close().done);
-    Store reopened = Store::open(path, false, false, rig->fake);
+    Store reopened = Store::open(path, false, false, rig->fake, records::suite_limits, records::suite_identity);
     CHECK(reopened.verify() == qiven::test::scan_case::written);
 }
 
@@ -116,7 +118,7 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     namespace records = qiven::test::records;
     const auto rig = std::make_unique<Rig>();
     const std::string path = text(rig->root / "v" / "store.db");
-    Store store = Store::open(path, true, false, rig->fake);
+    Store store = Store::open(path, true, false, rig->fake, records::suite_limits, records::suite_identity);
     const scan_case::Lanes lanes;
     const std::vector<Rec>& mine = lanes.mine;
     const std::vector<Rec>& theirs = lanes.theirs;
@@ -153,6 +155,6 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     CHECK_EQ(scan_case::rest(whole, rig->chars), scan_case::cut({mine[1], mine[2], mine[3]}) +
                                                      scan_case::cut(theirs) + scan_case::cut(tester));
     CHECK(store.close().done);
-    Store reopened = Store::open(path, false, false, rig->fake);
+    Store reopened = Store::open(path, false, false, rig->fake, records::suite_limits, records::suite_identity);
     CHECK(reopened.verify() == (qiven::recordlog::Counts{8, 6, 1, 3}));
 }

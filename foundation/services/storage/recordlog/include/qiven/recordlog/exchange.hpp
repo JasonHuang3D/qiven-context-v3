@@ -123,9 +123,11 @@ public:
     ~Reader() { close(); }
 
     // The scope set and the seqs packed at pages' front, the connection
-    // on file, the snapshot read; linked into owner's list first.
+    // on file, identified against identity, the snapshot read; linked into
+    // owner's list first.
     void open(Exports& owner, std::span<std::byte> pages, std::string_view file, std::string_view path,
-              const Limits& limits, const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown);
+              const Limits& limits, const Identity& identity, const Scopes& scopes, std::span<const AfterView> after,
+              Countdown* countdown);
     Snapshot heads(std::span<const std::byte> pages, Vector<LaneHead>& rows);
     bool next(std::span<std::byte> pages, Line& line);
     void close() noexcept;
@@ -197,12 +199,12 @@ public:
     using Pages = decltype(std::declval<P&>().pages(std::size_t{}));
 
     SQLiteExport(P& platform, Exports& owner, std::string_view file, std::string_view path, const Limits& limits,
-                 const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown)
+                 const Identity& identity, const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown)
         : pages_(platform.pages(Reader::pages_for(scopes, after))) {
         if (pages_.bytes().size() < Reader::pages_for(scopes, after)) {
             qiven::memory::fail_fast("store/exchange: pages short of their request");
         }
-        reader_.open(owner, pages_.bytes(), file, path, limits, scopes, after, countdown);
+        reader_.open(owner, pages_.bytes(), file, path, limits, identity, scopes, after, countdown);
     }
     SQLiteExport(const SQLiteExport&) = delete;
     SQLiteExport& operator=(const SQLiteExport&) = delete;

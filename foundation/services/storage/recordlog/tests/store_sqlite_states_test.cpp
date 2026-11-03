@@ -37,6 +37,8 @@ using namespace qiven::test::sqlite_rig;
 
 namespace {
 
+namespace records = qiven::test::records;
+
 using qiven::memory::Vector;
 using qiven::recordlog::EntryView;
 using qiven::recordlog::GuardView;
@@ -114,7 +116,7 @@ void held(qiven::runner::Context& qiven_ctx, Store& store, const Course& course,
         CHECK_EQ(erased.size(), 1U);
         Vector<LaneHead> rows(chars);
         CHECK_EQ(reason(store.heads(std::nullopt, rows).purge), std::string("reader"));
-        Store other = Store::open(path, false, true, fake);
+        Store other = Store::open(path, false, true, fake, records::suite_limits, records::suite_identity);
         Vector<LaneHead> others(chars);
         const qiven::recordlog::Heads hs = other.heads(std::nullopt, others);
         CHECK_EQ(hs.forgets, 1U);
@@ -165,7 +167,8 @@ QIVEN_CASE(store_sqlite, pending) {
     const auto rig = std::make_unique<Rig>();
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "p" / "store.db");
-    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake));
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake,
+                                                           records::suite_limits, records::suite_identity));
     course->fill(*store);
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
@@ -190,7 +193,7 @@ QIVEN_CASE(store_sqlite, pending) {
     CHECK_EQ(arena.used(), 0U);
     const qiven::recordlog::Counts counts{5, 3, 1, 1};
     CHECK(store->verify() == counts);
-    CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
+    CHECK(Store::open(path, false, true, rig->fake, records::suite_limits, records::suite_identity).verify() == counts);
 }
 
 QIVEN_CASE(store_sqlite, forged) {
@@ -198,7 +201,7 @@ QIVEN_CASE(store_sqlite, forged) {
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "f" / "store.db");
     {
-        Store store = Store::open(path, true, false, rig->fake);
+        Store store = Store::open(path, true, false, rig->fake, records::suite_limits, records::suite_identity);
         course->fill(store);
         std::vector<std::byte> pages(std::size_t{1} << 16U);
         Arena arena(pages);
@@ -222,13 +225,16 @@ QIVEN_CASE(store_sqlite, forged) {
                 sql = cut == std::string_view::npos ? std::string_view() : sql.substr(cut + 2);
             }
         }
-        CHECK_EQ(raised([&] { (void)Store::open(path, false, false, rig->fake); }), std::string(f.refused));
+        CHECK_EQ(raised([&] { (void)Store::open(path, false, false, rig->fake,
+                                                records::suite_limits, records::suite_identity); }),
+                 std::string(f.refused));
     }
     std::error_code error;
     fs::remove(path + "-wal", error);
     fs::remove(path + "-shm", error);
     std::ofstream(path, std::ios::binary | std::ios::trunc) << base;
-    Store store = Store::open(path, false, false, rig->fake);  // the base again, as written
+    Store store = Store::open(path, false, false, rig->fake,
+                              records::suite_limits, records::suite_identity);  // the base again, as written
     CHECK(store.verify() == (qiven::recordlog::Counts{5, 3, 1, 1}));
 }
 
@@ -249,7 +255,8 @@ QIVEN_CASE(store_sqlite, second_engine) {
     const auto rig = std::make_unique<Rig>();
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "e" / "store.db");
-    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake));
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake,
+                                                           records::suite_limits, records::suite_identity));
     course->fill(*store);
     const Held before = held(*rig);
     const std::size_t calls = rig->fake.calls().size();
@@ -305,5 +312,5 @@ QIVEN_CASE(store_sqlite, second_engine) {
     CHECK(counts.entries == 5 && counts.forgets == 1 && counts.lanes == 1);
     CHECK_EQ(reason(store->close()), std::string("done"));
     CHECK_EQ(arena.used(), 0U);
-    CHECK(Store::open(path, false, true, rig->fake).verify() == counts);
+    CHECK(Store::open(path, false, true, rig->fake, records::suite_limits, records::suite_identity).verify() == counts);
 }

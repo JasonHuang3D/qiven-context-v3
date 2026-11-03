@@ -49,6 +49,8 @@
 
 namespace {
 
+namespace records = qiven::test::records;
+
 namespace fs = std::filesystem;
 using qiven::platform::fake::Config;
 using qiven::platform::fake::FakePlatform;
@@ -151,8 +153,8 @@ std::string raised(const F& f) {
 #define QIVEN_OWN_FRAME
 #endif
 QIVEN_OWN_FRAME std::string open_error(Rig& rig, const fs::path& path, bool create = false, bool read_only = false,
-                                        const Limits& limits = Limits{}) {
-    return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits); });
+                                        const Limits& limits = records::suite_limits) {
+    return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits, records::suite_identity); });
 }
 
 std::string bytes_of(const fs::path& path) {
@@ -179,12 +181,12 @@ void alter(const fs::path& path, std::string_view sql) {
 
 // SETTINGS, row by row, as the text's table gives them.
 void settings_table(qiven::runner::Context& qiven_ctx) {
-    constexpr std::array<std::string_view, 14> names = {
+    constexpr std::array<std::string_view, 12> names = {
         "page_size", "journal_mode", "synchronous", "secure_delete", "temp_store",
         "foreign_keys", "trusted_schema", "cell_size_check", "auto_vacuum", "wal_autocheckpoint",
-        "cache_size", "busy_timeout", "application_id", "user_version"};
-    constexpr std::array<std::string_view, 14> values = {
-        "4096", "wal", "2", "1", "2", "1", "0", "1", "0", "1000", "-2000", "5000", "1903571713", "2"};
+        "cache_size", "busy_timeout"};
+    constexpr std::array<std::string_view, 12> values = {
+        "4096", "wal", "2", "1", "2", "1", "0", "1", "0", "1000", "-2000", "5000"};
     CHECK_EQ(Store::SETTINGS.size(), names.size());
     for (std::size_t i = 0; i < names.size(); ++i) {
         CHECK_EQ(Store::SETTINGS.at(i).name.view(), names.at(i));
@@ -195,9 +197,9 @@ void settings_table(qiven::runner::Context& qiven_ctx) {
 // create, then what it made, read through the store's connection.
 QIVEN_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const fs::path path = rig.scratch.root / "a" / "store.db";
-    Store store = Store::open(text(path), true, false, rig.fake);
+    Store store = Store::open(text(path), true, false, rig.fake, records::suite_limits, records::suite_identity);
     CHECK(!store.read_only());
-    CHECK(store.limits() == Limits{});
+    CHECK(store.limits() == records::suite_limits);
     CHECK(fs::is_regular_file(path));
     CHECK(fs::exists(text(path) + "-wal"));
     CHECK_EQ(fs::file_size(text(path) + "-wal"), 0U);
@@ -206,8 +208,8 @@ QIVEN_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(!store.opened().pending());
     CHECK(store.opened_purge().done);
     sqlite::Connection& c = store.connection();
-    CHECK_EQ(c.integer("PRAGMA application_id", test_at), sqlite::application_id);
-    CHECK_EQ(c.integer("PRAGMA user_version", test_at), sqlite::user_version);
+    CHECK_EQ(c.integer("PRAGMA application_id", test_at), records::suite_identity.application_id);
+    CHECK_EQ(c.integer("PRAGMA user_version", test_at), records::suite_identity.user_version);
     CHECK(!sqlite::differing(c, test_at).has_value());
     CHECK_EQ(c.integer("SELECT count(*) FROM sqlite_schema WHERE type = 'table'", test_at), 4);
     CHECK_EQ(c.integer("SELECT count(*) FROM sqlite_schema WHERE type = 'index' AND sql IS NOT NULL", test_at), 2);
@@ -228,9 +230,9 @@ QIVEN_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
 // open again, read-write and read-only.
 QIVEN_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string path = text(rig.scratch.root / "a" / "store.db");
-    Store store = Store::open(path, false, false, rig.fake);
+    Store store = Store::open(path, false, false, rig.fake, records::suite_limits, records::suite_identity);
     CHECK(!sqlite::differing(store.connection(), test_at).has_value());
-    Store reader = Store::open(path, false, true, rig.fake);
+    Store reader = Store::open(path, false, true, rig.fake, records::suite_limits, records::suite_identity);
     CHECK(reader.read_only());
     CHECK(!sqlite::differing(reader.connection(), test_at).has_value());
     CHECK(raised([&] { (void)reader.append("project:qiven", "implementer", std::nullopt, {}); }) ==
@@ -250,7 +252,7 @@ QIVEN_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string foreign = bytes_of(root / "foreign.db");
     CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt foreign: application_id 0");
     CHECK(bytes_of(root / "foreign.db") == foreign);
-    alter(root / "foreign.db", "PRAGMA application_id = 1903571713");
+    alter(root / "foreign.db", "PRAGMA application_id = " + std::to_string(records::suite_identity.application_id));
     alter(root / "foreign.db", "PRAGMA user_version = 3");
     CHECK(open_error(rig, root / "foreign.db") == "StoreCorrupt version: user_version 3");
     // A store's file of version 1, before the body key's column: refused,
@@ -260,11 +262,11 @@ QIVEN_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string one = bytes_of(made);
     CHECK(open_error(rig, made) == "StoreCorrupt version: user_version 1");
     CHECK(bytes_of(made) == one && !fs::exists(text(made) + "-wal") && !fs::exists(text(made) + "-shm"));
-    alter(made, "PRAGMA user_version = 2");
+    alter(made, "PRAGMA user_version = " + std::to_string(records::suite_identity.user_version));
     write_file(root / "text.db", std::string(1024, 'x'));
     CHECK(open_error(rig, root / "text.db").starts_with("StoreCorrupt not_a_store"));
     CHECK(open_error(rig, root / "ro.db", true, true) == "StoreError read_only: create");
-    Limits wrong;
+    Limits wrong = records::suite_limits;
     wrong.max_count = 1;
     CHECK(open_error(rig, root / "l.db", true, false, wrong) == "StoreError settings: limits");
     CHECK(!fs::exists(root / "ro.db") && !fs::exists(root / "l.db"));
@@ -298,7 +300,7 @@ QIVEN_OWN_FRAME void incoherent(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(open_error(rig, path).starts_with("StoreCorrupt incoherent: meta: a row of another name"));
     alter(path, "DELETE FROM meta WHERE name = 'other'");
     {
-        Store store = Store::open(text(path), false, false, rig.fake);
+        Store store = Store::open(text(path), false, false, rig.fake, records::suite_limits, records::suite_identity);
         store.connection().exec("UPDATE meta SET value = value WHERE name = 'none'", test_at);
         CHECK_EQ(store.connection().changes(), 0);
         store.connection().exec("UPDATE meta SET value = value WHERE name = 'size'", test_at);
@@ -317,7 +319,8 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     Arena arena(pages);
     Vector<Id> erased{Chars(arena)};
     const std::string path = text(rig.scratch.root / "w" / "store.db");
-    const auto owned = std::make_unique<Store>(Store::open(path, true, false, rig.fake));  // past a frame's share
+    const auto owned = std::make_unique<Store>(Store::open(path, true, false, rig.fake,
+            records::suite_limits, records::suite_identity));  // past a frame's share
     Store& store = *owned;
     const std::vector<Rec> first = {lane[0], lane[1]};
     const std::vector<EntryView> first_lines = views(first);
@@ -370,7 +373,8 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const qiven::recordlog::Counts counts{5, 3, 1, 1};
     CHECK(store.verify() == counts);
     {
-        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake,
+                                                                records::suite_limits, records::suite_identity));
         CHECK_EQ(raised([&] { (void)reader->purge(); }), std::string("StoreError read_only"));
         CHECK(reader->verify() == counts);
         CHECK_EQ(reader->size().volume.count, 5U);
@@ -405,7 +409,8 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const Chars chars(arena);
     Vector<Id> erased(chars);
     const std::string path = text(rig.scratch.root / "r" / "store.db");
-    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig.fake));
+    const auto store = std::make_unique<Store>(Store::open(path, true, false, rig.fake,
+                                                           records::suite_limits, records::suite_identity));
     const std::vector<Rec> mine = chain(qiven_scope, implementer, {"A", "B"});
     const std::vector<Rec> theirs = chain(qiven_scope, reviewer, {"C", "M1", "M2"});
     (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
@@ -421,7 +426,8 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const qiven::recordlog::Counts counts{7, 3, 2, 2};
     CHECK(store->verify() == counts);
     {
-        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake));
+        const auto reader = std::make_unique<Store>(Store::open(path, false, true, rig.fake,
+                                                                records::suite_limits, records::suite_identity));
         CHECK(reader->verify() == counts);
     }
     CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));

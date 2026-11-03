@@ -10,25 +10,18 @@
   "parameters": [
     {
       "name": "limits",
-      "default": {
-        "target_size": 536870912,
-        "warning_size": 671088640,
-        "max_size": 805306368,
-        "target_count": 400000,
-        "warning_count": 480000,
-        "max_count": 550000
-      },
+      "default": null,
       "built": true
     },
     {
       "name": "application_id",
-      "default": 1903571713,
-      "built": false
+      "default": null,
+      "built": true
     },
     {
       "name": "user_version",
-      "default": 2,
-      "built": false
+      "default": null,
+      "built": true
     },
     {
       "name": "id_bytes",
