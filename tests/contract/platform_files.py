@@ -1,9 +1,11 @@
-"""The platform's cases P9, P19 and P25, each defined once over an adapter
+"""The platform's cases P9 and P25, each defined once over an adapter
 (contract/platform_cases.py names the binding's part): replace's and
 stage's files, through the drive's handles (driver/platform_files.hpp).
 
-Here: P9 (replace held), P19 (publish), P25 (not UTF-8) and a failed open
-making nothing, under faults (938). A holder is
+Here: P9 (replace held), P25 (not UTF-8) and a failed open making
+nothing, under faults (938). P19, publish, is platform's own
+(foundation/system/platform/tests/files_test.cpp and
+win_files_stage_test.cpp). A holder is
 the binding's hold(drive, **times): how often each call refuses before it
 succeeds, as a holder's handle released in time does, -1 held past any
 deadline; none given, none held. On the fake it is its busy counts;
@@ -22,9 +24,6 @@ from tests.drive.session import debug_library, has_faults
 # replace's temporary file beside its target, and stage's directory.
 TEMPORARY = re.compile(r"\.(?P<name>.+)\.[0-9a-f]{16}\.tmp")
 STAGING = re.compile(r"\.[0-9a-f]{16}\.tmp")
-
-# P19's files, by their relative paths.
-BAG = {"bagit.txt": b"BagIt-Version: 1.0\n", "data/headers.jsonl": b'{"id":"a"}\n'}
 
 # A Staged's open of "a/b/c.txt" under faults, by adapter: each platform
 # call failed in turn, as (call, code, operation). The fake's pages() is a
@@ -106,78 +105,6 @@ class PlatformFiles:
             self.assertIsNone(d.call("replace", path=str(target), data=b"twice".hex()))
             self.assertEqual(target.read_bytes(), b"twice")
             self.assertEqual(temporaries(root), [])
-            self.nothing_kept(d)
-
-    def staged_bag(self, d, directory):
-        """BAG staged in directory through stage: its Staged's id, and the
-        id of its last file, left open for publish to close."""
-        staged = d.call("stage", path=str(directory))["id"]
-        sinks = []
-        for path, data in BAG.items():
-            sink = d.call("staged_open", id=staged, path=path)["id"]
-            d.call("sink_write", id=sink, data=data.hex())
-            sinks.append(sink)
-        self.assertIsNone(d.call("sink_close", id=sinks[0]))
-        return staged, sinks[-1]
-
-    def test_P19_publish(self):
-        """BAG written through stage, then published; again with a file
-        inside held, released before the deadline, then held past it; then
-        onto a present name; open of ../x, publish of a/b."""
-        self.needs("files")
-        bags = Path(self.files_root()) / "bags"
-        bags.mkdir()
-        with self.drive() as d:
-            for name, times in (("one", 0), ("two", 3)):
-                with self.subTest(name=name, held=times):
-                    staged, open_sink = self.staged_bag(d, bags)
-                    self.hold(d, publish=times)
-                    self.assertIsNone(d.call("publish", id=staged, name=name))
-                    self.assertEqual(bag_of(bags / name), BAG)
-                    self.assertEqual(staging_left(bags), [])
-                    # publish closed it: a second close is none.
-                    self.assertIsNone(d.call("sink_close", id=open_sink))
-
-            # Held past the deadline: busy, nothing under the name; the
-            # discard publish made first stopped, naming what is left, which
-            # a discard after the release removes.
-            staged, open_sink = self.staged_bag(d, bags)
-            self.hold(d, publish=-1)
-            error = self.failure(d.call, "publish", id=staged, name="three", deadline=300)
-            self.assert_platform_error(error, "busy")
-            self.assertEqual(error.operation, "publish")
-            self.assertFalse((bags / "three").exists())
-            left = staging_left(bags)
-            self.assertEqual(len(left), 1, left)
-            # The detail names the staging directory left and, by its path
-            # inside it, the held file: of the files that could not be
-            # deleted, the first by that path, component by component in
-            # UTF-8's byte order, on every host and file system.
-            self.assertEqual(error.detail, f"rename: error 5 (ERROR_ACCESS_DENIED); left {left[0]}/bagit.txt, "
-                                           "delete: error 32 (ERROR_SHARING_VIOLATION)")
-            self.assertTrue((bags / left[0] / "bagit.txt").is_file())
-            self.hold(d)
-            self.assertIsNone(d.call("discard", id=staged))
-            self.assertEqual(staging_left(bags), [])
-            self.assertIsNone(d.call("sink_close", id=open_sink))
-
-            # Onto a present name: exists, the present one's bytes kept,
-            # the staging directory discarded first.
-            (bags / "one" / "bagit.txt").write_bytes(b"present")
-            staged, open_sink = self.staged_bag(d, bags)
-            self.assert_platform_error(self.failure(d.call, "publish", id=staged, name="one"), "exists")
-            self.assertEqual(bag_of(bags / "one"), {**BAG, "bagit.txt": b"present"})
-            self.assertEqual(staging_left(bags), [])
-            self.assertIsNone(d.call("discard", id=staged))
-            self.assertIsNone(d.call("sink_close", id=open_sink))
-
-            # A path that leaves the directory, and a name of two parts.
-            staged = d.call("stage", path=str(bags))["id"]
-            self.assert_platform_error(self.failure(d.call, "staged_open", id=staged, path="../x"), "path")
-            self.assert_platform_error(self.failure(d.call, "publish", id=staged, name="a/b"), "path")
-            self.assertIsNone(d.call("discard", id=staged))
-            self.assertEqual(sorted(p.name for p in bags.iterdir()), ["one", "two"])
-            self.assertFalse((bags.parent / "x").exists())
             self.nothing_kept(d)
 
     def test_P25_not_utf8(self):

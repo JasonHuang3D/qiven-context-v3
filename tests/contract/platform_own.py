@@ -2,9 +2,9 @@
 adapter (contract/platform_cases.py names the binding's part): on the
 fake they pass, on any other adapter they are not applicable.
 
-The fake lacks processes, so P11 to P15 and P20 run nothing on it
+The fake lacks processes, so P20 runs nothing on it
 (contract/platform_process.py); what its programs (set_programs) and its
-lock carry for those cases is checked here, through the drive: its
+lock carry for P11 to P15 and P20 is checked here, through the drive: its
 program's hang, flood and exit code reach the caller as deadline, output
 and the code; a killed program ended; a program found by its whole argv
 alone; start and run refusing a relative argv[0], a .cmd and a .bat; the

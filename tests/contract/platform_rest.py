@@ -1,8 +1,9 @@
 """The platform's cases P19 to P26, each defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
-Here: P23 and P24 (PlatformRest). P19 and P25 are the files'
-(contract/platform_files.py); P20 is the processes'
+Here: P23 and P24 (PlatformRest). P25 is the files'
+(contract/platform_files.py), P19 platform's own (files_test.cpp and
+win_files_stage_test.cpp there); P20 is the processes'
 (contract/platform_process.py); P21 and P22 are the machine's
 (contract/platform_machine.py). P26, standard_output to a pipe, is
 platform's own (foundation/system/platform/tests/win_process_streams_test.cpp).

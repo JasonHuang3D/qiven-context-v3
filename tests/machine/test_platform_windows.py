@@ -79,8 +79,7 @@ class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformOwn, Platf
 
 # The files' and processes' cases' skips: none. P20, the last of them to
 # skip, runs whole, its child half's two init runs over qiven3-child
-# init, after its lock half, timed; P11 to P15, P19 and P25 run
-# whole.
+# init, after its lock half, timed; P9 and P25 run whole.
 FILES_UNTIL = {}
 # The cases pinned running whole here, no skip: P20, its child half last.
 FILES_WHOLE = ("test_P20_lock",)
@@ -89,8 +88,7 @@ FILES_WHOLE = ("test_P20_lock",)
 class FilesUntil(unittest.TestCase):
     """Windows' files and processes cases run here, none skipping: P20
     whole, its lock half timed on a lock held by another handle, its child
-    half two init children at once; P19 and P25 run through stage, P11 to
-    P15 over qiven_platform_child."""
+    half two init children at once; P25 runs through stage."""
     ctest_labels = ("drive",)
 
     def setUp(self):

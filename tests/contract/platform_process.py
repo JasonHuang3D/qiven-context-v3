@@ -1,10 +1,12 @@
-"""The platform's cases P11 to P15 and P20, each defined once over an
-adapter (contract/platform_cases.py names the binding's part): start, run
-and a Child, through the drive's requests (driver/platform_child.hpp).
-P10, replace whole in a child killed between its write and its rename,
-is platform's own (foundation/system/platform/tests/win_process_test.cpp,
+"""The platform's case P20, defined once over an adapter
+(contract/platform_cases.py names the binding's part): start, run and a
+Child, through the drive's requests (driver/platform_child.hpp). P10,
+replace whole in a child killed between its write and its rename, is
+platform's own (foundation/system/platform/tests/win_process_test.cpp,
 and on the fake files_test.cpp there), as is a program's working
-directory (win_process_test.cpp and fake_process_test.cpp).
+directory (win_process_test.cpp and fake_process_test.cpp), and P11 to
+P15, the tree, the deadline, the caps, the environment and the
+arguments (win_process_test.cpp and win_process_streams_test.cpp).
 
 Each case needs processes, which the fake lacks: it checks that need
 first, so on the fake it is not applicable having run nothing, P20's lock
@@ -17,8 +19,7 @@ through the drive; a binding with PROCESSES false checks that run refuses
 a relative argv[0] (start), and the child half is skipped. P20's lock is
 the files', its holder the binding's hold() (contract/platform_files.py),
 timed where P20 runs; its child half's two init runs are qiven3-child
-init's, each location's init on the adapter. P11's supervisor is
-a drive holding the tree, killed by the test.
+init's, each location's init on the adapter.
 
 The readings where the text is silent run on every adapter, the fake's
 programs echoing their command as the child's forms print it: a caller's
@@ -43,11 +44,10 @@ MEMBER = 64 * 1024
 CALLS = {"fake": (2, 1), "windows": (24, 0)}
 # A child's environment: the allowlist's names v3's own holds.
 ALLOWLIST = ("SystemRoot", "SystemDrive", "TEMP", "TMP")
-# P11's bound in seconds; a tree's sleep, in ms, longer than any case;
-# P12's deadlines, by run and by start, in ms; P13's caps and its flood.
+# A process's bound to be gone, in seconds; a tree's sleep, in ms, longer
+# than any case; a flood, in bytes.
 GONE, LONG = 1.0, 60000
-DEADLINE, TREE_DEADLINE = 1000, 6000
-CAP, FLOOD = 4096, 100000
+FLOOD = 100000
 # The child's lines: a timeout, in ms, past a slow start here; one a
 # sleeping child is past.
 LINE_TIMEOUT, SHORT = 30000, 200
@@ -56,12 +56,11 @@ LINE_TIMEOUT, SHORT = 30000, 200
 HELD, PAST, SLACK = 0.15, 0.3, 1.0
 # The adapter's clock's tick, which a deadline may end short of.
 TICK = 0.016
-# P15's arguments: an empty one, one with spaces and quotes, one with e
-# diaeresis.
+# The fake's own arguments (contract/platform_own.py): an empty one, one
+# with spaces and quotes, one with e diaeresis.
 ARGS = ("", 'a "quoted" word, two  spaces', "\u00eb")
 # The cases needing processes, not applicable on the fake.
-CASES = ("test_P11_tree", "test_P12_deadline", "test_P13_caps", "test_P14_environment", "test_P15_argv",
-         "test_P20_lock")
+CASES = ("test_P20_lock",)
 
 
 def named(error, stream):
@@ -165,116 +164,6 @@ class PlatformProcess:
         for pid in pids:
             ran = d.call("run", argv=self.child("gone", pid, int(GONE * 1000)))
             self.assertEqual(bytes.fromhex(ran["out"]), b"gone\n", pid)
-
-    def failed_line(self, d, child):
-        """The error the child's lines end in, read through."""
-        for _ in range(FLOOD // 64 + 8):
-            try:
-                if d.call("child_read_line", id=child, timeout=LINE_TIMEOUT) is None:
-                    break
-            except DriveError as caught:
-                return caught
-        return self.fail("the child's lines ended with no error")
-
-    def test_P11_tree(self):
-        """A child starting a grandchild: kill(); a supervisor holding both,
-        killed: both gone within 1 s each time. The supervisor is a second
-        drive holding the child's tree, killed by the test."""
-        self.needs("processes")
-        self.child_half("a grandchild's tree killed, by kill() and by its supervisor's death")
-        with self.drive() as d:
-            child = d.call("start", argv=self.child("tree", LONG))["id"]
-            grandchild, own = self.tree(d, child)
-            began = time.monotonic()
-            d.call("child_kill", id=child)
-            self.assertEqual(d.call("child_wait", id=child), 1)
-            self.assertLess(time.monotonic() - began, GONE)
-            self.assert_gone(d, grandchild, own)
-            d.call("child_end", id=child)
-            supervisor = self.drive()
-            try:
-                held = supervisor.call("start", argv=self.child("tree", LONG))["id"]
-                grandchild, own = self.tree(supervisor, held)
-                supervisor.process.kill()
-                supervisor.process.wait(timeout=binaries.TIMEOUT)
-            finally:
-                supervisor.close(check=False)
-            self.assert_gone(d, grandchild, own)
-
-    def test_P12_deadline(self):
-        """A child sleeping past its deadline: deadline, by run no sooner
-        than it; by start, deadline at each next call; the tree gone."""
-        self.needs("processes")
-        self.child_half("a child sleeping past its deadline, its tree gone")
-        with self.drive() as d:
-            began = time.monotonic()
-            error = self.failure(d.call, "run", argv=self.child("sleep", LONG), deadline=DEADLINE)
-            self.assert_platform_error(error, "deadline")
-            self.assertGreaterEqual(time.monotonic() - began, DEADLINE / 1000 - TICK)
-            child = d.call("start", argv=self.child("tree", LONG), deadline=TREE_DEADLINE)["id"]
-            grandchild, own = self.tree(d, child)
-            for op in ("child_read_line", "child_read_line", "child_wait"):
-                with self.subTest(op=op):
-                    error = self.failure(d.call, op, id=child, timeout=LINE_TIMEOUT)
-                    self.assert_platform_error(error, "deadline")
-            self.assert_gone(d, grandchild, own)
-            d.call("child_end", id=child)
-
-    def test_P13_caps(self):
-        """A child printing past its out cap, then its err cap: output naming
-        the stream, by run, then by start from read_line and wait; the tree
-        gone."""
-        self.needs("processes")
-        self.child_half("a child printing past its out cap, then its err cap, its tree gone")
-        caps = {"out": CAP, "err": CAP}
-        with self.drive() as d:
-            for stream in ("out", "err"):
-                with self.subTest(stream=stream):
-                    error = self.failure(d.call, "run", argv=self.child("flood", stream, FLOOD, LONG), caps=caps)
-                    self.assert_platform_error(error, "output")
-                    self.assertTrue(named(error, stream), error)
-                    child = d.call("start", argv=self.child("tree", LONG, stream, FLOOD), caps=caps)["id"]
-                    grandchild, own = self.tree(d, child)
-                    d.call("child_write", id=child, data=b"go\n".hex())
-                    for error in (self.failed_line(d, child), self.failure(d.call, "child_wait", id=child)):
-                        self.assert_platform_error(error, "output")
-                        self.assertTrue(named(error, stream), error)
-                    self.assert_gone(d, grandchild, own)
-                    d.call("child_end", id=child)
-
-    def test_P14_environment(self):
-        """A child printing its environment's names, with one caller pair:
-        the allowlist's names present in v3's own, and the pair; nothing
-        else."""
-        self.needs("processes")
-        self.child_half("a child printing its environment's names")
-        name, value = "QIVEN3_PAIR", "a value"
-        with self.drive() as d:
-            ran = d.call("run", argv=self.child("env", name), env=[[name, value]])
-        lines = bytes.fromhex(ran["out"]).decode().splitlines()
-        own = [n for n in ALLOWLIST if os.environ.get(n) is not None]
-        self.assertEqual(sorted(n.casefold() for n in lines[:-1]), sorted(n.casefold() for n in [*own, name]), lines)
-        self.assertEqual(lines[-1], f"{name}={value}")
-
-    def test_P15_argv(self):
-        """An empty argument, one with spaces and quotes, one with e
-        diaeresis; a relative argv[0]; a .cmd: each argument as given, by
-        run and by start; start twice, by start and by run."""
-        self.needs("processes")
-        self.child_half("each argument read back by the child; a relative argv[0] and a .cmd, start")
-        given = [arg.encode().hex() for arg in ARGS]
-        script = self.files_root() / "script.cmd"
-        script.write_bytes(b"@echo ran\r\n")
-        with self.drive() as d:
-            self.assertEqual(bytes.fromhex(d.call("run", argv=self.child("argv", *ARGS))["out"]).decode().splitlines(),
-                             given)
-            child = d.call("start", argv=self.child("argv", *ARGS))["id"]
-            self.assertEqual(self.lines(d, child, len(ARGS)), given)
-            d.call("child_end", id=child)
-            for argv in (["qiven_platform_child", "sleep", "0"], [str(script)]):
-                for op in ("start", "run"):
-                    with self.subTest(argv0=argv[0], op=op):
-                        self.assert_platform_error(self.failure(d.call, op, argv=argv), "start")
 
     def test_P20_lock(self):
         """lock held, then released before the deadline; held past it:
