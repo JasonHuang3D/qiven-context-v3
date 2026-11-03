@@ -1,7 +1,17 @@
-// platform: the children of the platform's process cases (P10 to P15, P20's
-// child half and win/process' own cases), each started by the Windows
-// adapter's start. Each writes its streams by WriteFile, byte for byte, a
-// line ended by LF alone; a number is decimal. Its forms:
+// qiven_platform_child: the children of the platform's process cases (the
+// Windows adapter's, win_process_*_test.cpp, and a caller's over the
+// contract), each started by the Windows adapter's start, on Windows alone. Its first argument is the form, one
+// row of the table below: its name, its function and its usage line. An
+// unknown or missing form prints the usage lines on standard error and ends
+// with usage_status. Its entry is wmain: each argument converted from
+// UTF-16 by the Windows adapter (run_utf8), one that is not valid UTF-16
+// ending it with usage_status and an allocation refused there with
+// exception_status, with no line. run is noexcept, as run_utf8's entry is:
+// an exception ends the child there, by one line on standard error and
+// exception_status; a MemoryError's line names it.
+//
+// Each form writes its streams by WriteFile, byte for byte, a line ended by
+// LF alone; a number is decimal. Its forms:
 // - sleep MS: "pid <its id>" on out, then MS milliseconds asleep; exit 0.
 // - env [NAME...]: each name of its environment block a line, in the
 //   block's order; then each NAME given as "NAME=<value>", or "NAME unset".
@@ -19,7 +29,7 @@
 //   milliseconds: its temporary file written, flushed and closed, its
 //   rename retried every 50 ms, the time a kill falls between the write and
 //   the rename; past the deadline, the error's code on out ("busy"), exit 1.
-// - tree MS [exit|out BYTES|err BYTES]: "platform sleep MS" started by the
+// - tree MS [exit|out BYTES|err BYTES]: "sleep MS" started by the
 //   adapter's start, a grandchild in a job of its own nested in its
 //   parent's, its id on out as "grandchild <id>", then "pid <its id>"; then
 //   MS milliseconds asleep; with exit ended at once by _Exit(3), its job's
@@ -29,24 +39,9 @@
 //   before a cap is passed.
 // - gone PID MS: "gone" where the process PID ends within MS milliseconds
 //   or is none, else "running".
-// - init CONFIG DIR: "ready" on out; once its input gives a line or ends,
-//   location's init of DIR with --accept, on the adapter made with CONFIG
-//   as its configuration directory (instances.cpp instantiates location's
-//   main on it): init's lines on out, its exit status the child's. Two at
-//   once over one CONFIG are P20's child half.
-// A wrong argument ends it with child::usage_status and a line on err; a
-// failed call with 1. The forms run on Windows alone: elsewhere usage.
+// A wrong argument ends it with usage_status and a line on err; a failed
+// call with 1.
 
-#include <span>
-#include <string_view>
-
-#include "child/child.hpp"
-
-#if !defined(_WIN32)
-#include <cstdio>
-#endif
-
-#if defined(_WIN32)
 #include <windows.h>
 
 #include <algorithm>
@@ -54,22 +49,26 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <initializer_list>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
+#include "qiven/memory/memory.hpp"
 #include "qiven/platform/windows/windows.hpp"
-#include "qiven3/location.hpp"
-#endif
-
-namespace qiven3::child {
-
-#if defined(_WIN32)
 
 namespace {
+
+// The exit status of a caller's mistake: an unknown form, a wrong argument.
+constexpr int usage_status = 2;
+// The exit status of an exception that ends a form (run).
+constexpr int exception_status = 3;
 
 void put(DWORD stream, std::string_view bytes) {
     const HANDLE h = GetStdHandle(stream);
@@ -84,12 +83,12 @@ void put(DWORD stream, std::string_view bytes) {
 }
 
 int wrong(std::string_view why) {
-    put(STD_ERROR_HANDLE, std::string("qiven3-child platform: ").append(why).append("\n"));
+    put(STD_ERROR_HANDLE, std::string("qiven_platform_child: ").append(why).append("\n"));
     return usage_status;
 }
 
 int failed(std::string_view call) {
-    put(STD_ERROR_HANDLE, std::string("qiven3-child platform: ").append(call).append(" failed: ")
+    put(STD_ERROR_HANDLE, std::string("qiven_platform_child: ").append(call).append(" failed: ")
                               .append(std::to_string(GetLastError())).append("\n"));
     return 1;
 }
@@ -139,6 +138,16 @@ void pid_line(std::string_view label, std::uint64_t id) {
     put(STD_OUTPUT_HANDLE, std::string(label) + " " + std::to_string(id) + "\n");
 }
 
+int asleep(std::span<const std::string_view> args) {
+    const std::optional<std::uint64_t> ms = args.size() == 1 ? number(args[0]) : std::nullopt;
+    if (!ms) {
+        return wrong("sleep MS");
+    }
+    pid_line("pid", GetCurrentProcessId());
+    Sleep(static_cast<DWORD>(*ms));
+    return 0;
+}
+
 int env(std::span<const std::string_view> names) {
     wchar_t* const block = GetEnvironmentStringsW();
     if (block == nullptr) {
@@ -162,6 +171,32 @@ int env(std::span<const std::string_view> names) {
     return 0;
 }
 
+int cwd(std::span<const std::string_view> args) {
+    if (!args.empty()) {
+        return wrong("cwd");
+    }
+    std::wstring here(32767, L'\0');
+    const DWORD n = GetCurrentDirectoryW(static_cast<DWORD>(here.size()), here.data());
+    if (n == 0 || n >= here.size()) {
+        return failed("GetCurrentDirectoryW");
+    }
+    put(STD_OUTPUT_HANDLE, utf8(std::wstring_view(here.data(), n)) + "\n");
+    return 0;
+}
+
+int arguments(std::span<const std::string_view> args) {
+    for (const std::string_view arg : args) {
+        std::string line;
+        for (const char c : arg) {
+            constexpr std::string_view digits = "0123456789abcdef";
+            line.push_back(digits.at(static_cast<unsigned char>(c) >> 4U));
+            line.push_back(digits.at(static_cast<unsigned char>(c) & 15U));
+        }
+        put(STD_OUTPUT_HANDLE, line + "\n");
+    }
+    return 0;
+}
+
 int flood(std::span<const std::string_view> args) {
     const std::optional<std::uint64_t> bytes = args.size() >= 2 ? number(args[1]) : std::nullopt;
     const std::optional<std::uint64_t> ms = args.size() == 3 ? number(args[2]) : std::optional<std::uint64_t>(0);
@@ -179,6 +214,18 @@ int flood(std::span<const std::string_view> args) {
     }
     Sleep(static_cast<DWORD>(*ms));
     return 0;
+}
+
+int print(std::span<const std::string_view> args) {
+    const std::optional<std::string> out = args.size() == 3 ? unhex(args[0]) : std::nullopt;
+    const std::optional<std::string> err = args.size() == 3 ? unhex(args[1]) : std::nullopt;
+    const std::optional<std::uint64_t> code = args.size() == 3 ? number(args[2]) : std::nullopt;
+    if (!out || !err || !code) {
+        return wrong("print OUT ERR CODE");
+    }
+    put(STD_OUTPUT_HANDLE, *out);
+    put(STD_ERROR_HANDLE, *err);
+    return static_cast<int>(*code);
 }
 
 int cat(std::span<const std::string_view> args) {
@@ -241,7 +288,7 @@ int tree(std::span<const std::string_view> args) {
         return failed("GetModuleFileNameW");
     }
     const std::string program = utf8(std::wstring_view(self.data(), n));
-    const std::array<std::string_view, 4> argv = {program, "platform", "sleep", args[0]};
+    const std::array<std::string_view, 3> argv = {program, "sleep", args[0]};
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     qiven::memory::Arena arena{std::span<std::byte>(pages)};
     try {
@@ -290,102 +337,70 @@ int gone(std::span<const std::string_view> args) {
     return 0;
 }
 
-int init(std::span<const std::string_view> args) {
-    if (args.size() != 2) {
-        return wrong("init CONFIG DIR");
+// The table's row. run is a plain function, picked by the name argv gives
+// at run time.
+struct Form {
+    std::string_view name;
+    int (*run)(std::span<const std::string_view> args);
+    std::string_view usage;
+};
+
+constexpr std::array forms{
+    Form{"sleep", asleep, "sleep MS"},
+    Form{"env", env, "env [NAME...]"},
+    Form{"cwd", cwd, "cwd"},
+    Form{"argv", arguments, "argv [ARG...]"},
+    Form{"flood", flood, "flood out|err BYTES [MS]"},
+    Form{"print", print, "print OUT ERR CODE"},
+    Form{"cat", cat, "cat [CODE]"},
+    Form{"replace", replace, "replace PATH HEX MS"},
+    Form{"tree", tree, "tree MS [exit|out BYTES|err BYTES]"},
+    Form{"gone", gone, "gone PID MS"},
+};
+
+int usage(std::string_view why) {
+    std::string lines = std::string("qiven_platform_child: ").append(why).append("\n");
+    for (const Form& f : forms) {
+        lines.append("  qiven_platform_child ").append(f.usage).append("\n");
     }
-    put(STD_OUTPUT_HANDLE, "ready\n");
-    await_line();
-    const std::array<std::string_view, 5> argv = {"init", args[1], "--accept", "--config", args[0]};
+    put(STD_ERROR_HANDLE, lines);
+    return usage_status;
+}
+
+int run(int argc, const char* const* argv) noexcept {
     try {
-        qiven::platform::win::WindowsPlatform adapter(args[0]);
-        return location::main(std::span<const std::string_view>(argv), adapter);
-    } catch (const qiven::platform::PlatformError& error) {
-        put(STD_ERROR_HANDLE, std::string("qiven3-child platform: init: ").append(error.detail.view()).append("\n"));
-        return 1;
+        const std::span<const char* const> given(argv, argc > 0 ? static_cast<std::size_t>(argc) : 0U);
+        std::vector<std::string_view> args;
+        for (std::size_t i = 1; i < given.size(); ++i) {
+            args.emplace_back(given[i]);
+        }
+        if (args.empty()) {
+            return usage("no form");
+        }
+        for (const Form& f : forms) {
+            if (f.name == args.front()) {
+                return f.run(std::span<const std::string_view>(args).subspan(1));
+            }
+        }
+        return usage("an unknown form");
+    } catch (const qiven::memory::MemoryError& e) {
+        // Named as the runner names one: its code's name, its operation and
+        // its detail.
+        for (const std::string_view part : {std::string_view("qiven_platform_child: a memory error ended the form: "),
+                                            qiven::memory::name(e.code), std::string_view(" in "),
+                                            e.operation.view(), std::string_view(": "), e.detail.view(),
+                                            std::string_view("\n")}) {
+            static_cast<void>(std::fwrite(part.data(), 1, part.size(), stderr));
+        }
+        return exception_status;
+    } catch (...) {
+        std::fputs("qiven_platform_child: an exception ended the form\n", stderr);
+        return exception_status;
     }
 }
 
 }  // namespace
 
-int platform(std::span<const std::string_view> args) {
-    const std::string_view what = args.empty() ? std::string_view() : args[0];
-    const std::span<const std::string_view> rest = args.empty() ? args : args.subspan(1);
-    if (what == "sleep") {
-        const std::optional<std::uint64_t> ms = rest.size() == 1 ? number(rest[0]) : std::nullopt;
-        if (!ms) {
-            return wrong("sleep MS");
-        }
-        pid_line("pid", GetCurrentProcessId());
-        Sleep(static_cast<DWORD>(*ms));
-        return 0;
-    }
-    if (what == "env") {
-        return env(rest);
-    }
-    if (what == "cwd") {
-        std::wstring here(32767, L'\0');
-        const DWORD n = rest.empty() ? GetCurrentDirectoryW(static_cast<DWORD>(here.size()), here.data()) : 0;
-        if (!rest.empty()) {
-            return wrong("cwd");
-        }
-        if (n == 0 || n >= here.size()) {
-            return failed("GetCurrentDirectoryW");
-        }
-        put(STD_OUTPUT_HANDLE, utf8(std::wstring_view(here.data(), n)) + "\n");
-        return 0;
-    }
-    if (what == "argv") {
-        for (const std::string_view arg : rest) {
-            std::string line;
-            for (const char c : arg) {
-                constexpr std::string_view digits = "0123456789abcdef";
-                line.push_back(digits.at(static_cast<unsigned char>(c) >> 4U));
-                line.push_back(digits.at(static_cast<unsigned char>(c) & 15U));
-            }
-            put(STD_OUTPUT_HANDLE, line + "\n");
-        }
-        return 0;
-    }
-    if (what == "flood") {
-        return flood(rest);
-    }
-    if (what == "print") {
-        const std::optional<std::string> out = rest.size() == 3 ? unhex(rest[0]) : std::nullopt;
-        const std::optional<std::string> err = rest.size() == 3 ? unhex(rest[1]) : std::nullopt;
-        const std::optional<std::uint64_t> code = rest.size() == 3 ? number(rest[2]) : std::nullopt;
-        if (!out || !err || !code) {
-            return wrong("print OUT ERR CODE");
-        }
-        put(STD_OUTPUT_HANDLE, *out);
-        put(STD_ERROR_HANDLE, *err);
-        return static_cast<int>(*code);
-    }
-    if (what == "cat") {
-        return cat(rest);
-    }
-    if (what == "replace") {
-        return replace(rest);
-    }
-    if (what == "tree") {
-        return tree(rest);
-    }
-    if (what == "gone") {
-        return gone(rest);
-    }
-    if (what == "init") {
-        return init(rest);
-    }
-    return wrong("sleep|env|cwd|argv|flood|print|cat|replace|tree|gone|init: an unknown form");
+int wmain(int argc, wchar_t** argv) {
+    return qiven::platform::win::run_utf8(argc, argv, &run, {usage_status, exception_status});
 }
-
-#else
-
-int platform(std::span<const std::string_view> /*args*/) {
-    std::fputs("qiven3-child platform: the Windows adapter's children alone\n", stderr);
-    return usage_status;
-}
-
-#endif
-
-}  // namespace qiven3::child

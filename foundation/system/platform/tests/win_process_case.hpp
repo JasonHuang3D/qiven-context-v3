@@ -1,9 +1,9 @@
 #pragma once
 
-// win/process' cases' helpers (win_process_*_test.cpp): qiven3-child, which
+// win/process' cases' helpers (win_process_*_test.cpp): qiven_platform_child, which
 // the build puts beside the case binary, started by the adapter; a scratch
 // directory of the case's own; a PlatformError caught whole; an arena's
-// pages off the stack; text as hex, as `qiven3-child platform` prints it.
+// pages off the stack; text as hex, as `qiven_platform_child` prints it.
 //
 // thread: one
 
@@ -47,13 +47,13 @@ inline std::string text(const fs::path& path) {
     return out;
 }
 
-// qiven3-child beside this binary, by the C runtime's own program path.
+// qiven_platform_child beside this binary, by the C runtime's own program path.
 inline std::string child_program() {
     char* self = nullptr;
     if (_get_pgmptr(&self) != 0 || self == nullptr) {
         return "";
     }
-    return text(fs::path(self).parent_path() / "qiven3-child.exe");
+    return text(fs::path(self).parent_path() / "qiven_platform_child.exe");
 }
 
 // A scratch directory of the case's own, removed at its end.
@@ -61,7 +61,7 @@ struct Scratch {
     explicit Scratch(std::string_view name) {
         std::random_device draw;
         root = fs::temp_directory_path() /
-               ("qiven3-" + std::string(name) + "-" + std::to_string(draw()) + std::to_string(draw()));
+               ("qiven-" + std::string(name) + "-" + std::to_string(draw()) + std::to_string(draw()));
         fs::create_directories(root);
         root = fs::canonical(root);
     }
@@ -112,13 +112,13 @@ inline std::string hex(std::string_view bytes) {
     return out;
 }
 
-// A Command for `qiven3-child platform <args>`: its argv's strings, held
+// A Command for `qiven_platform_child <args>`: its argv's strings, held
 // here, and the views of them the Command takes.
 struct ChildView {
     explicit ChildView(std::vector<std::string> args, Seconds deadline = Seconds(60.0),
                        Caps caps = {1U << 20U, 1U << 20U})
         : given(std::move(args)) {
-        given.insert(given.begin(), {child_program(), "platform"});
+        given.insert(given.begin(), child_program());
         for (const std::string& s : given) {
             views.emplace_back(s);
         }
@@ -145,7 +145,7 @@ inline std::vector<std::string> lines(WindowsChild& child, String& line) {
     return out;
 }
 
-// What `qiven3-child platform gone <id> <ms>` answers: gone or running.
+// What `qiven_platform_child gone <id> <ms>` answers: gone or running.
 inline std::string gone(WindowsPlatform& platform, String& line, std::string_view id, int ms) {
     std::string pid(id);
     while (!pid.empty() && (pid.back() == '\n' || pid.back() == '\r')) {

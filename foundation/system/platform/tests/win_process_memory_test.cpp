@@ -22,7 +22,7 @@
 #include <utility>
 
 #include "qiven/runner/runner.hpp"
-#include "support/fixtures/win_process_case.hpp"
+#include "win_process_case.hpp"
 
 namespace {
 

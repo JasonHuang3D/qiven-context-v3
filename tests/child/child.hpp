@@ -21,7 +21,7 @@ inline constexpr int exception_status = 3;
 // probe: applies one facility to each input line (probe.cpp).
 int probe(std::span<const std::string_view> args);
 
-// platform: the process cases' children, on Windows (platform.cpp).
-int platform(std::span<const std::string_view> args);
+// init: location's init in a child, P20's child half, on Windows (init.cpp).
+int init(std::span<const std::string_view> args);
 
 }  // namespace qiven3::child

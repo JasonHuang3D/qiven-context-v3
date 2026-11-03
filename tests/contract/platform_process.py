@@ -8,12 +8,12 @@ half included. What the fake's programs carry (set_programs: a program
 found by its whole argv gives its lines, its err and its code, or hangs,
 or floods a stream) is the fake's own cases' (contract/platform_own.py).
 The Windows adapter's program, start and run are its module win/process',
-and the children its cases start are qiven3-child platform's, started
+and the children its cases start are qiven_platform_child's, started
 through the drive; a binding with PROCESSES false checks that run refuses
 a relative argv[0] (start), and the child half is skipped. P20's lock is
 the files', its holder the binding's hold() (contract/platform_files.py),
 timed where P20 runs; its child half's two init runs are qiven3-child
-platform init's, each location's init on the adapter. P11's supervisor is
+init's, each location's init on the adapter. P11's supervisor is
 a drive holding the tree, killed by the test.
 
 The readings where the text is silent run on every adapter, the fake's
@@ -139,9 +139,14 @@ class PlatformProcess:
             self.skipTest(f"until package 5: {what}: qiven3-child")
 
     def child(self, *args):
-        """The argv of qiven3-child's platform form args, its argv[0] the
+        """The argv of qiven_platform_child's form args, its argv[0] the
         build's."""
-        return [str(binaries.path("qiven3-child")), "platform", *map(str, args)]
+        return [str(binaries.path("qiven_platform_child")), *map(str, args)]
+
+    def init_child(self, config, chosen):
+        """The argv of qiven3-child's init of chosen over config, P20's child
+        half: location's init, not the platform's, its argv[0] the build's."""
+        return [str(binaries.path("qiven3-child")), "init", str(config), str(chosen)]
 
     def lines(self, d, child, n):
         """The child's next n lines, each without its LF."""
@@ -303,7 +308,7 @@ class PlatformProcess:
             child = d.call("start", argv=self.child("argv", *ARGS))["id"]
             self.assertEqual(self.lines(d, child, len(ARGS)), given)
             d.call("child_end", id=child)
-            for argv in (["qiven3-child", "platform", "sleep", "0"], [str(script)]):
+            for argv in (["qiven_platform_child", "sleep", "0"], [str(script)]):
                 for op in ("start", "run"):
                     with self.subTest(argv0=argv[0], op=op):
                         self.assert_platform_error(self.failure(d.call, op, argv=argv), "start")
@@ -326,7 +331,7 @@ class PlatformProcess:
         for each in chosen:
             each.mkdir()
         with self.drive() as d:
-            children = [d.call("start", argv=self.child("init", config, each), deadline=LONG)["id"]
+            children = [d.call("start", argv=self.init_child(config, each), deadline=LONG)["id"]
                         for each in chosen]
             for child in children:
                 self.assertEqual(self.lines(d, child, 1), ["ready"])
@@ -356,7 +361,7 @@ class PlatformProcess:
 
     def echo(self, d, form, *args):
         """The argv of a program printing its cwd or its environment, as
-        qiven3-child platform's form of that name: on the fake its program
+        qiven_platform_child's form of that name: on the fake its program
         echoing it (set_programs' "echo"), elsewhere the child."""
         if self.ADAPTER == "fake":
             return programs(self, d, echo={"echo": form, "args": args})["echo"]
@@ -400,7 +405,7 @@ class PlatformProcess:
     def test_past_timeout(self):
         """read_line and wait past their timeout: deadline, the tree left
         running, each again; then the Child's end stops it. On the fake its
-        hanging program; elsewhere qiven3-child's sleep, its process
+        hanging program; elsewhere qiven_platform_child's sleep, its process
         running after the timeouts and gone after the end."""
         with self.drive() as d:
             if self.ADAPTER == "fake":
@@ -427,7 +432,7 @@ class PlatformProcess:
         arena; under QIVEN_FAULTS, start's and read_line's arena
         allocations and the adapter's calls failed in turn, each a typed
         error, then done, the calls counted: on the fake over its programs,
-        elsewhere over qiven3-child."""
+        elsewhere over qiven_platform_child."""
         if self.ADAPTER != "fake":
             self.needs("processes")
             self.child_half("the Child requests' budgets and faults on a real child")

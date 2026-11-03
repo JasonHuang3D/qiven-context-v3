@@ -45,13 +45,9 @@
         "log",
         "diag"
       ],
-      "test_depends": [
-        "faults"
-      ],
+      "test_depends": [],
       "paths": [
         "tests/child/",
-        "tests/unit/child.cmake",
-        "tests/unit/win_process_*",
         "tests/drive/test_differential.py",
         "tests/drive/test_refs.py"
       ]

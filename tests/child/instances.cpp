@@ -1,5 +1,5 @@
 // qiven3-child's instantiation file: location's main on the Windows
-// adapter, which platform init's children run (platform.cpp), P20's two
+// adapter, which init's children run (init.cpp), P20's two
 // init runs at once. Elsewhere the child runs no location command and
 // this file instantiates nothing.
 

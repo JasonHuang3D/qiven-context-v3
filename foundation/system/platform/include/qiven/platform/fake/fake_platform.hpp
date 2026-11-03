@@ -218,7 +218,7 @@ public:
     void set_busy(const Busy& busy) noexcept { files_.set_busy(busy); }
     [[nodiscard]] FakeFiles& files() noexcept { return files_; }
     // From now: the facts of a path no prefix holds; the synced folders;
-    // the links resolve follows; the stream's encoding (the drive's own,
+    // the links resolve follows; the stream's encoding (a caller's own,
     // as its cases remake the fake).
     void set_default_facts(FakeFacts facts) noexcept { config_.default_facts = std::move(facts); }
     void set_synced(std::vector<std::pair<std::string, std::string>> synced) noexcept {

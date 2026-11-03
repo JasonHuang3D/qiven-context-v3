@@ -38,9 +38,7 @@ struct Subcommand {
 
 constexpr std::array subcommands{
     Subcommand{"probe", qiven3::child::probe, "probe match|parse|refs: one facility over each input line (probe.cpp)"},
-    Subcommand{"platform", qiven3::child::platform,
-               "platform sleep|env|argv|flood|print|cat|replace|tree|gone|init ...: "
-               "the process cases' children (platform.cpp)"},
+    Subcommand{"init", qiven3::child::init, "init CONFIG DIR: location's init in a child, P20's child half (init.cpp)"},
 };
 
 int usage(std::string_view why) {

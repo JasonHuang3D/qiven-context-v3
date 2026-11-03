@@ -1,6 +1,6 @@
 """The platform's cases on the Windows adapter, here, through
 qiven3-drive-windows: those needing neither processes nor machine, as on
-the fake, the process cases over qiven3-child platform's children, and the
+the fake, the process cases over qiven_platform_child's children, and the
 machine cases; the fake's own cases, not applicable here. Those that run
 qiven3, location's and P22, are in machine/test_platform_location.py.
 
@@ -51,7 +51,7 @@ class WindowsBinding(PlatformBinding):
     # win/files'; facts, synced and residual win/facts'; location's
     # commands run as the binary, qiven3 location ..., the drive answering
     # store_dir, the facts and the clock the system's; program, start and
-    # run are win/process', their children qiven3-child platform's;
+    # run are win/process', their children qiven_platform_child's;
     # program is the machine cases'.
     CREATE_READ = True
     SYSTEM_LOCATION = True
@@ -101,7 +101,7 @@ class Windows(WindowsBinding, PlatformCases, PlatformFiles, PlatformProcess, Pla
 
 # The files' and processes' cases' skips: none. P20, the last of them to
 # skip, runs whole, its child half's two init runs over qiven3-child
-# platform init, after its lock half, timed; P10 to P15, P19 and P25 run
+# init, after its lock half, timed; P10 to P15, P19 and P25 run
 # whole.
 FILES_UNTIL = {}
 # The cases pinned running whole here, no skip: P20, its child half last.
@@ -112,7 +112,7 @@ class FilesUntil(unittest.TestCase):
     """Windows' files and processes cases run here, none skipping: P20
     whole, its lock half timed on a lock held by another handle, its child
     half two init children at once; P19 and P25 run through stage, P10 to
-    P15 over qiven3-child."""
+    P15 over qiven_platform_child."""
     ctest_labels = ("drive",)
 
     def setUp(self):

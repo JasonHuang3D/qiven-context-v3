@@ -2,7 +2,7 @@
 // timeout; each cap, the error naming its stream alone and the tree killed;
 // the deadline killing the tree, each next call deadline until kill(); run
 // with its input, both streams and the exit code, and its errors named
-// run's. Each starts `qiven3-child platform` (platform.cpp): machine's.
+// run's. Each starts `qiven_platform_child` (child/child.cpp): machine's.
 
 #include <cstddef>
 #include <iostream>
@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "support/fixtures/win_process_case.hpp"
+#include "win_process_case.hpp"
 
 namespace {
 
@@ -195,7 +195,7 @@ QIVEN_CASE(win_process, run) {
         CHECK_EQ(std::string(ran.err), std::string("to err\n"));
 
         ChildView relative({"sleep", "0"});
-        relative.views.at(0) = "qiven3-child.exe";
+        relative.views.at(0) = "qiven_platform_child.exe";
         relative.command.argv = relative.views;
         const Thrown refused = thrown([&] { platform.run(relative.command, "", ran); });
         CHECK_EQ(refused.code, Code::start);

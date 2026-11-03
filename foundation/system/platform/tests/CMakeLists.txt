@@ -57,6 +57,32 @@ if(WIN32)
     LINK qiven_platform_windows)
 endif()
 
+# qiven_platform_child, on Windows alone: the children of the process
+# cases, win_process' below and a caller's over the contract, each a form
+# of its table
+# (child/child.cpp), its entry wmain by the adapter's run_utf8 (WIDE). It
+# links the adapter alone, and diag, last, brings memory.
+if(WIN32)
+  qiven_executable(qiven_platform_child SOURCES child/child.cpp LINK qiven_platform_windows WIDE)
+  target_compile_definitions(qiven_platform_child PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
+
+# windows/process' cases on the Windows adapter, on Windows alone: program;
+# start's refusals; each argument, the environment, the input, wait, kill
+# and the tree's descendants through qiven_platform_child; read_line, the
+# caps, the deadline and run; the heap counted by the binary's own
+# operator new, the jthreads' blocks included; each Win32 call and arena
+# allocation failed in turn. Their helpers are win_process_case.hpp.
+# machine: they start processes, so the full and asan presets run them,
+# not the fast or fake ones.
+if(WIN32)
+  qiven3_add_cases(qiven_platform_win_process_test LABELS machine
+    SOURCES win_process_test.cpp win_process_streams_test.cpp win_process_memory_test.cpp
+            win_process_faults_test.cpp
+    LINK qiven_faults qiven_platform_windows)
+  add_dependencies(qiven_platform_win_process_test qiven_platform_child)
+endif()
+
 # windows/facts' cases on the Windows adapter, on Windows alone, that read
 # no machine fact: the rules the compiler evaluates, the names, each
 # member's refusals and first failed call. fast and fake, as win_files'.

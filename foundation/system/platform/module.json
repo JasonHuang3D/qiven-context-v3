@@ -30,8 +30,7 @@
         "faults"
       ],
       "paths": [
-        "foundation/system/platform/",
-        "tests/support/fixtures/win_process_case.hpp"
+        "foundation/system/platform/"
       ]
     }
   ]

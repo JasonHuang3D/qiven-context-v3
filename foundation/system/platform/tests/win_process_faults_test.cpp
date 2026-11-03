@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "support/fixtures/win_process_case.hpp"
+#include "win_process_case.hpp"
 
 #if defined(QIVEN_FAULTS)
 

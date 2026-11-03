@@ -3,7 +3,7 @@
 // given; the environment the allowlist and the caller's pairs alone; write
 // and close_input; wait past its timeout and kill, the tree's descendants
 // gone by kill(), by the supervisor's death and by the Child's end. Each
-// starts `qiven3-child platform` (platform.cpp), so each is machine's.
+// starts `qiven_platform_child` (child/child.cpp), so each is machine's.
 
 #include <array>
 #include <cstddef>
@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "support/fixtures/win_process_case.hpp"
+#include "win_process_case.hpp"
 
 namespace {
 
@@ -45,7 +45,7 @@ QIVEN_CASE(win_process, program) {
         CHECK_EQ(file, std::string("cmd.exe"));
         CHECK(fs::is_regular_file(found));
         std::cout << "win_process.program: cmd " << out << ", peak " << arena.peak() << " B\n";
-        for (const std::string_view name : {"qiven3-no-such-program", "a\\cmd", "c:cmd", "cmd/x", "cmd.exe"}) {
+        for (const std::string_view name : {"qiven-no-such-program", "a\\cmd", "c:cmd", "cmd/x", "cmd.exe"}) {
             const Thrown t = thrown([&] { platform.program(name, out); });
             CHECK_EQ(t.code, Code::start);
             CHECK_EQ(t.operation, std::string("program"));
@@ -74,16 +74,16 @@ QIVEN_CASE(win_process, start_refusals) {
     };
     const std::vector<Refused> refused = {
         {{}, "", {}},
-        {{"qiven3-child.exe", "platform"}, "", {}},
+        {{"qiven_platform_child.exe"}, "", {}},
         {{script}, "", {}},
         {{batch}, "", {}},
         {{bad}, "", {}},
         {{missing}, "", {}},
-        {{child, "platform", "sleep", "0"}, "relative", {}},
-        {{child, "platform", "sleep", "0"}, none, {}},
-        {{child, "platform", "sleep", "0"}, "", no_name},
-        {{child, "platform", "sleep", "0"}, "", equals},
-        {{child, "platform", "sleep", "0"}, "", null},
+        {{child, "sleep", "0"}, "relative", {}},
+        {{child, "sleep", "0"}, none, {}},
+        {{child, "sleep", "0"}, "", no_name},
+        {{child, "sleep", "0"}, "", equals},
+        {{child, "sleep", "0"}, "", null},
     };
     for (const Refused& r : refused) {
         const Command command{r.argv, r.cwd, r.env, Seconds(5.0), Caps{1024, 1024}};
@@ -128,9 +128,9 @@ QIVEN_CASE(win_process, environment) {
     const auto pages = std::make_unique<Pages>();
     Arena arena(pages->bytes);
     using Pair = std::pair<std::string_view, std::string_view>;
-    const std::array<Pair, 2> pairs{Pair{"QIVEN3_PAIR", "v \xc3\xab"}, Pair{"temp", "C:\\given"}};
+    const std::array<Pair, 2> pairs{Pair{"QIVEN_PAIR", "v \xc3\xab"}, Pair{"temp", "C:\\given"}};
     {
-        ChildView run({"env", "QIVEN3_PAIR", "TEMP", "SystemRoot", "PATH"});
+        ChildView run({"env", "QIVEN_PAIR", "TEMP", "SystemRoot", "PATH"});
         run.command.env = pairs;
         WindowsChild child = platform.start(run.command);
         String line{Allocator<char>(arena)};
@@ -139,7 +139,7 @@ QIVEN_CASE(win_process, environment) {
         for (std::size_t i = 0; i + 4 < back.size(); ++i) {
             names.insert(back.at(i));
         }
-        std::set<std::string> expected = {"QIVEN3_PAIR\n", "temp\n"};
+        std::set<std::string> expected = {"QIVEN_PAIR\n", "temp\n"};
         for (const char* name : {"SystemRoot", "SystemDrive", "TMP"}) {
             char* value = nullptr;
             std::size_t n = 0;
@@ -151,7 +151,7 @@ QIVEN_CASE(win_process, environment) {
         CHECK(names == expected);
         CHECK_EQ(back.size(), expected.size() + 4);
         REQUIRE(back.size() >= 4);
-        CHECK_EQ(back.at(back.size() - 4), std::string("QIVEN3_PAIR=v \xc3\xab\n"));
+        CHECK_EQ(back.at(back.size() - 4), std::string("QIVEN_PAIR=v \xc3\xab\n"));
         CHECK_EQ(back.at(back.size() - 3), std::string("TEMP=C:\\given\n"));
         CHECK(back.at(back.size() - 2).starts_with("SystemRoot="));
         CHECK_EQ(back.at(back.size() - 1), std::string("PATH unset\n"));

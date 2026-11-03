@@ -100,7 +100,7 @@ struct Count {
 QIVEN_CASE(win_files_stage, memory) {
     const auto device = std::make_unique<std::random_device>();
     const fs::path root =
-        fs::temp_directory_path() / ("qiven3-win-stage-" + std::to_string((*device)()) + std::to_string((*device)()));
+        fs::temp_directory_path() / ("qiven-win-stage-" + std::to_string((*device)()) + std::to_string((*device)()));
     fs::create_directories(root);
     const fs::path bags = root / "bags";
     fs::create_directory(bags);

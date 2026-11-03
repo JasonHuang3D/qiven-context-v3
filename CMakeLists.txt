@@ -89,7 +89,8 @@ endif()
 
 # The analysis preset over the sources the analysis reads, by their paths
 # (qiven3_analysed): those under the analysed roots (tests/child/ holds
-# qiven3-child, the Windows adapter's children) and those under the layers'
+# qiven3-child, the tests' children, and a module's own tests/child/ its
+# children, as the platform's) and those under the layers'
 # trees outside a module's own tests/, whatever directory defines their
 # target. /analyze on each such source, then clang-tidy over
 # compile_commands.json, each source its own step after every target is

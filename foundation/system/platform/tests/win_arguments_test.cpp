@@ -30,7 +30,7 @@ constexpr int ran = 7;
 constexpr int other = 8;
 constexpr win::Utf8Statuses statuses{refused, faulted};
 
-// The entry: ran where it sees an empty name and "location", argv[argc]
+// The entry: ran where it sees an empty name and "argument", argv[argc]
 // null; other else.
 int entry(int argc, const char* const* argv) noexcept {
     if (argc != 2 || argv == nullptr) {
@@ -39,7 +39,7 @@ int entry(int argc, const char* const* argv) noexcept {
     const std::span<const char* const> given(argv, 3);
     const std::string_view name(given[0]);
     const std::string_view first(given[1]);
-    return name.empty() && first == "location" && given[2] == nullptr ? ran : other;
+    return name.empty() && first == "argument" && given[2] == nullptr ? ran : other;
 }
 
 // A string with a lone high surrogate inside.
@@ -65,15 +65,15 @@ int run(const std::vector<std::wstring>& texts) {
 // The name is not read: one that is not valid UTF-16 runs the entry, its
 // argv[0] empty.
 QIVEN_CASE(win_arguments, name_unread) {
-    CHECK_EQ(run({L"qiven3", L"location"}), ran);
-    CHECK_EQ(run({lone(L"qiven3"), L"location"}), ran);
+    CHECK_EQ(run({L"program", L"argument"}), ran);
+    CHECK_EQ(run({lone(L"program"), L"argument"}), ran);
 }
 
 // What it cannot read or is past a bound: refused, the entry not run.
 QIVEN_CASE(win_arguments, refused) {
-    CHECK_EQ(run({L"qiven3", lone(L"location")}), refused);
+    CHECK_EQ(run({L"program", lone(L"argument")}), refused);
     // 32,768 units after the name: past a command line's; 32,767 within.
-    CHECK_EQ(run({L"qiven3", std::wstring(win::command_line_units, L'a'), L"b"}), refused);
+    CHECK_EQ(run({L"program", std::wstring(win::command_line_units, L'a'), L"b"}), refused);
     CHECK_EQ(run({L"", std::wstring(win::command_line_units, L'a')}), other);
     CHECK_EQ(win::run_utf8(-1, nullptr, &entry, statuses), refused);
     CHECK_EQ(win::run_utf8(1, nullptr, &entry, statuses), refused);
@@ -85,8 +85,8 @@ QIVEN_CASE(win_arguments, refused) {
 // faulted, the entry not run; past them, the entry's status.
 QIVEN_CASE(win_arguments, faults) {
 #if defined(QIVEN_FAULTS)
-    const std::wstring name = L"qiven3";
-    const std::wstring first = L"location";
+    const std::wstring name = L"program";
+    const std::wstring first = L"argument";
     const std::vector<const wchar_t*> wide = {name.c_str(), first.c_str(), nullptr};
     qiven::memory::Countdown countdown;
     std::size_t k = 1;
