@@ -6,9 +6,11 @@
 #include <string_view>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace qiven3::wire {
+
+namespace utf = qiven::text::utf;
 
 std::string_view RequestView::operator[](std::size_t i) const noexcept {
     if (i >= arguments_.size()) {

@@ -17,16 +17,16 @@
 #include <string_view>
 
 #include "entry/header.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/utc.hpp"
-#include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/utc.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace header = qiven3::entry::header;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
 namespace utc = qiven3::utc;
 using header::Code;
@@ -206,7 +206,7 @@ std::string thrown(const Op& op) {
         op();
     } catch (const header::HeaderError& e) {
         return std::string(header::name(e.code));
-    } catch (const qiven3::ParseError&) {
+    } catch (const qiven::text::ParseError&) {
         return "parse";
     }
     return "none";

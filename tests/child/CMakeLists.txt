@@ -8,11 +8,11 @@
 # the engine, as qiven3 does. The platform's own children are its program's
 # (foundation/system/platform/tests/child/).
 # Each library once (qiven_executable): location, on Windows, brings the
-# entry, the matcher and base, and diag, linked last, brings memory.
+# entry, the matcher, text and base, and diag, linked last, brings memory.
 if(WIN32)
   set(qiven3_child_links qiven3_location qiven_platform_windows)
 else()
-  set(qiven3_child_links qiven3_entry qiven_matcher qiven3_base)
+  set(qiven3_child_links qiven3_entry qiven_matcher qiven_text qiven3_base)
 endif()
 qiven_executable(qiven3-child SOURCES main.cpp child.hpp probe.cpp init.cpp instances.cpp
   LINK ${qiven3_child_links} WIDE)

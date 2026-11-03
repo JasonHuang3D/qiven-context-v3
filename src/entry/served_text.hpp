@@ -23,9 +23,12 @@
 #include <string_view>
 
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::served {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 // A text's cost: its UTF-16 code units, a four-byte UTF-8 sequence two.
 constexpr std::size_t cost(std::string_view text) noexcept {

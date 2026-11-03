@@ -10,9 +10,11 @@
 
 namespace qiven3::entry::check {
 
+using qiven::text::ParseError;
+
 std::string_view name(const Fault& fault) noexcept {
     switch (fault.part) {
-        case Part::parse: return qiven3::name(static_cast<ParseCode>(fault.code));
+        case Part::parse: return qiven::text::name(static_cast<ParseCode>(fault.code));
         case Part::header: return header::name(static_cast<header::Code>(fault.code));
         case Part::body: return body::name(static_cast<body::Code>(fault.code));
         case Part::content: return content::name(fault.error.code);

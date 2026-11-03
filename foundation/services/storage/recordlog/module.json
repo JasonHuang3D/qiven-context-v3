@@ -55,6 +55,7 @@
         "memory",
         "sqlite",
         "platform",
+        "text",
         "base"
       ],
       "test_depends": [

@@ -20,10 +20,10 @@
 #include "entry/check.hpp"
 #include "entry/content.hpp"
 #include "entry/header.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
-#include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -32,7 +32,7 @@ namespace check = qiven3::entry::check;
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace content = qiven3::entry::content;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 using check::Fault;
@@ -193,10 +193,10 @@ constexpr Want admission(std::string_view name) { return Want{name, true, Part::
 constexpr std::array<Want, 20> wants = {
     admission("an entry"),
     admission("its header alone"),
-    refusal("the line's bom before the record's fault", Part::parse, qiven3::ParseCode::bom),
-    refusal("the record's parse fault", Part::parse, qiven3::ParseCode::not_canonical),
-    refusal("the record's parse fault before the header's lane", Part::parse, qiven3::ParseCode::not_canonical),
-    refusal("the record's parse fault before a root no object", Part::parse, qiven3::ParseCode::bom),
+    refusal("the line's bom before the record's fault", Part::parse, qiven::text::ParseCode::bom),
+    refusal("the record's parse fault", Part::parse, qiven::text::ParseCode::not_canonical),
+    refusal("the record's parse fault before the header's lane", Part::parse, qiven::text::ParseCode::not_canonical),
+    refusal("the record's parse fault before a root no object", Part::parse, qiven::text::ParseCode::bom),
     refusal("a root no object, with a record", Part::header, header::Code::syntax),
     refusal("a root no object, alone", Part::header, header::Code::syntax),
     refusal("the header's lane before the record's layout", Part::header, header::Code::lane),
@@ -277,8 +277,8 @@ template <typename Op>
 std::string thrown(const Op& op) {
     try {
         op();
-    } catch (const qiven3::ParseError& e) {
-        return "parse " + std::string(qiven3::name(e.code));
+    } catch (const qiven::text::ParseError& e) {
+        return "parse " + std::string(qiven::text::name(e.code));
     } catch (const header::HeaderError& e) {
         return "header " + std::string(header::name(e.code));
     } catch (const body::BodyError& e) {
@@ -466,10 +466,13 @@ QIVEN_CASE(check, large) {
 
 QIVEN_CASE(check, raise) {
     // Each part's fault thrown as its error, and named as the format does.
-    CHECK_EQ(thrown([] { check::raise(Fault{Part::parse, static_cast<std::uint8_t>(qiven3::ParseCode::floating), {}}); }),
+    CHECK_EQ(thrown([] {
+                 check::raise(Fault{Part::parse, static_cast<std::uint8_t>(qiven::text::ParseCode::floating), {}});
+             }),
              "parse float");
-    CHECK_EQ(std::string(check::name(Fault{Part::parse, static_cast<std::uint8_t>(qiven3::ParseCode::floating), {}})),
-             "float");
+    CHECK_EQ(
+        std::string(check::name(Fault{Part::parse, static_cast<std::uint8_t>(qiven::text::ParseCode::floating), {}})),
+        "float");
     CHECK_EQ(thrown([] { check::raise(Fault{Part::header, static_cast<std::uint8_t>(header::Code::lane), {}}); }),
              "header lane");
     CHECK_EQ(thrown([] { check::raise(Fault{Part::body, static_cast<std::uint8_t>(body::Code::body_mismatch), {}}); }),

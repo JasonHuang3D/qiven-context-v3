@@ -28,15 +28,15 @@
 #include "entry/header.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace {
 
 namespace check = qiven3::entry::check;
-namespace canon = qiven3::canon;
-using qiven3::ParseCode;
-using qiven3::ParseError;
+namespace canon = qiven::text::canon;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using Fake = qiven::platform::fake::FakePlatform;

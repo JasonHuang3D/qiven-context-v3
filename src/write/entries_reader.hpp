@@ -14,10 +14,13 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "write/entries.hpp"
 
 namespace qiven3::write::entries::detail {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 // Each content check's span, an arena made over it afresh [proposal]: the
 // stand-in of at most 65,536 bytes, its header and the check's own.

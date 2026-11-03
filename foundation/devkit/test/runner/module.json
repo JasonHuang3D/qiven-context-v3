@@ -15,11 +15,10 @@
       "depends": [
         "memory",
         "log",
-        "base"
+        "text"
       ],
       "test_depends": [
         "diag",
-        "base",
         "platform",
         "case_main"
       ],

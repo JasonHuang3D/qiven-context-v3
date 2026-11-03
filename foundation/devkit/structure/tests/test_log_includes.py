@@ -1,5 +1,5 @@
-"""K15: in the link graph's modules, json's header (qiven3/json.hpp, and
-json_bytes.hpp behind it) is included by canon, log and json's own files
+"""K15: in the link graph's modules, json's header (qiven/text/json.hpp,
+and json_bytes.hpp behind it) is included by text's and log's files
 alone, and log names no scan: core reaches the format's bytes through
 canon, and log writes its lines through json::encode alone. The files read:
 the C++ files of the trees tools/trees.json names, each of a
@@ -18,11 +18,10 @@ from pathlib import Path
 from foundation.devkit.structure.lexer import includes, lex
 from foundation.devkit.structure import layers, rules
 
-HEADERS = ("qiven3/json.hpp", "qiven3/json_bytes.hpp")
-# The files that may include them, by the table's modules: the log's, and canon's and json's own files in
-# the base module, which holds the format.
-LOG = "log"
-BASE, OWN = "base", ("canon.", "json.", "json_bytes.")
+HEADERS = ("qiven/text/json.hpp", "qiven/text/json_bytes.hpp")
+# The modules whose files may include them, by the table's modules: the log's, and text's, which holds
+# json and canon.
+LOG, TEXT = "log", "text"
 RESOLVE, INCLUDE_ROOTS = layers.MODULES["resolve"], layers.MODULES["include_roots"]
 
 
@@ -32,8 +31,7 @@ def read(rel, tree):
 
 
 def allowed(rel, tree):
-    module = tree.module(rel)
-    return module == LOG or (module == BASE and rel.rsplit("/", 1)[-1].startswith(OWN))
+    return tree.module(rel) in (LOG, TEXT)
 
 
 def findings(root):

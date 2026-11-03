@@ -43,10 +43,13 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace qiven3::write::entries {
+
+namespace json = qiven::text::json;
+using qiven::text::ParseCode;
 
 inline constexpr std::string_view form_value = "qiven3-entries/1";
 inline constexpr std::size_t max_bytes = std::size_t{16} << 20U;  // [proposal]

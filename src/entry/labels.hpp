@@ -56,9 +56,12 @@
 #include "entry/kinds.hpp"
 #include "entry/refs.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::labels {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 using fold::Method;
 using fold::Result;

@@ -31,12 +31,12 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
-#include "qiven/platform/fake/fake_platform.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -352,7 +352,7 @@ private:
     }
 
     Fake* fake_;
-    qiven3::canon::Basic<> value_;
+    qiven::text::canon::Basic<> value_;
 };
 
 // A case's fake, book, operation arena and scratch, made on the heap so

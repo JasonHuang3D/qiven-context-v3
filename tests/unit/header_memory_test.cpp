@@ -13,17 +13,17 @@
 #include <vector>
 
 #include "entry/header.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace header = qiven3::entry::header;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
 using header::FieldsView;
 using header::Slot;

@@ -24,7 +24,7 @@
 #include "entry/kinds.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
@@ -68,10 +68,10 @@ void contents(const we::File& f) {
         for (const we::Site& s : f.sites(f.entries()[i])) {
             fills.push_back(s.hole == we::Hole::piece ? we::detail::stand_digest : we::detail::stand_id);
         }
-        qiven3::json::Value out{qiven::memory::Allocator<char>(arena)};
+        qiven::text::json::Value out{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, fills, out);
         std::string bytes;
-        qiven3::json::encode(out, bytes);
+        qiven::text::json::encode(out, bytes);
         if (bytes.size() > qiven3::entry::kinds::content_limit) {
             finding("a content read past its bound");
         }

@@ -21,9 +21,9 @@
 #include "entry/header.hpp"
 #include "entry/secret.hpp"
 #include "qiven/matcher/matcher.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/patterns.hpp"
 
@@ -33,8 +33,8 @@ namespace secret = qiven3::entry::secret;
 namespace header = qiven3::entry::header;
 namespace matcher = qiven::matcher;
 namespace content = qiven3::entry::content;
-namespace canon = qiven3::canon;
-namespace json = qiven3::json;
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 

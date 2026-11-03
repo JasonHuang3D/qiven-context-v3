@@ -20,11 +20,14 @@
 #include "entry/projectmap_files.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/utc.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::location {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 namespace {
 

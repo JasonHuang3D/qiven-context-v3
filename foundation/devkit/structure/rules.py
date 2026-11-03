@@ -193,16 +193,17 @@ EXEMPT = {
 }
 # B12: the modules and targets that never reach backup or forgetting.
 B12_FILES = ("src/keys/", "src/store/", "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
-             "src/qiven3/canon.", "src/qiven3/digest.", "src/qiven3/location.", "src/wire/")
+             "foundation/core/text/", "src/qiven3/digest.", "src/qiven3/location.", "src/wire/")
 B12_TARGETS = frozenset(("qiven3_store", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
                          "qiven3_bundle", "qiven3_reader", "qiven_platform", "qiven_platform_windows",
-                         "qiven_platform_current", "qiven3_base", "qiven3_location", "qiven3_wire"))
+                         "qiven_platform_current", "qiven_text", "qiven3_base", "qiven3_location", "qiven3_wire"))
 B12_HEADERS = ("src/backup/", "src/forget/")
 B12_LINKS = ("qiven3_forget", "qiven3_backup")
 # B13: the reader's includes and its targets' links.
 B13_HEADERS = ("src/store/", "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.",
                "src/bundle/")
-B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven3_base"))
+B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven_text",
+                         "qiven3_base"))
 B13_LINKS = ("qiven_sqlite", "qiven3_store", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
              "qiven3_bundle", "qiven3_backup")
 # Core logic: every product target but the adapters, current and compute's.
@@ -214,10 +215,10 @@ NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current"
                               "qiven_compute", "qiven_compute_fake", "qiven3_diag", "qiven3_diag_entry",
                               "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
                               "qiven3_diag_entry_poisoned",
-                              # memory, the base and the log again on the debug runtime, for
+                              # memory, text and the log again on the debug runtime, for
                               # qiven3-fault-crtdbg alone: their objects name that runtime, which the
                               # records do not read; the release copies are read.
-                              "qiven_memory_crtdbg", "qiven3_base_crtdbg", "qiven3_log_crtdbg"))
+                              "qiven_memory_crtdbg", "qiven_text_crtdbg", "qiven3_log_crtdbg"))
 CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven3_keys"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("foundation/system/platform/include/qiven/platform/current.hpp",

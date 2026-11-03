@@ -63,11 +63,13 @@
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "write/build.hpp"
 #include "write/entries.hpp"
 
 namespace qiven3::write::refuse {
+
+namespace json = qiven::text::json;
 
 // Every refusal code of the entries' commands, one list: the reader's and
 // the builder's (form, invalid), the store's append (secret, head_conflict,

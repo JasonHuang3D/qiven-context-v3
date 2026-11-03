@@ -85,9 +85,12 @@
 #include "keys/keys.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::validator {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 // The codes, in the order validate reads them.
 enum class Code : std::uint8_t { parent, seq, target, at_order, reference, forgotten_target, identity, map_evidence };

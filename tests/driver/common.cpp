@@ -23,7 +23,7 @@
 #include "driver/drive.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/current.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/utf.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "qiven/compute/hal.hpp"
@@ -36,6 +36,11 @@
 
 
 namespace qiven3::drive {
+
+namespace utf = qiven::text::utf;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
+
 namespace {
 
 std::optional<std::string> config_of(ArgView request) {
@@ -200,7 +205,7 @@ Value parse(std::string_view line) {
         }
         json::scan(line, json::max_depth, request);
     } catch (const ParseError& error) {
-        throw RequestError("the request: " + std::string(qiven3::name(error.code)));
+        throw RequestError("the request: " + std::string(qiven::text::name(error.code)));
     }
     // What json reads and canonical JSON has not: canon's walk refuses
     // them in the strict parser.

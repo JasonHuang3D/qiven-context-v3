@@ -3,7 +3,7 @@
 qiven_executable(qiven3-fault SOURCES fault.cpp fault_assert.cpp LINK qiven3_log)
 
 # qiven3-fault-crtdbg: the same plants on the debug runtime (/MTd, _DEBUG)
-# in every Windows build, with memory, the base, the log and the entry
+# in every Windows build, with memory, text, the log and the entry
 # built again on it, for the debug build's assertion report. Under a
 # sanitizer, whose report stands for the entry's, the cases are skipped and
 # the binary not built.
@@ -18,12 +18,12 @@ if(MSVC AND NOT QIVEN_SANITIZE)
     target_link_libraries(${name}_crtdbg PUBLIC ${ARGN} PRIVATE qiven_build)
   endfunction()
   qiven3_crtdbg_library(qiven_memory foundation/core/memory)
-  qiven3_crtdbg_library(qiven3_base src/qiven3 qiven_memory_crtdbg)
-  qiven3_crtdbg_library(qiven3_log src/log qiven3_base_crtdbg qiven_memory_crtdbg)
+  qiven3_crtdbg_library(qiven_text foundation/core/text qiven_memory_crtdbg)
+  qiven3_crtdbg_library(qiven3_log src/log qiven_text_crtdbg qiven_memory_crtdbg)
   qiven3_diag_targets(_crtdbg qiven_memory_crtdbg)
   qiven_executable(qiven3-fault-crtdbg SOURCES fault.cpp fault_assert.cpp LINK qiven3_log_crtdbg
     DIAG _crtdbg)
-  foreach(target IN ITEMS qiven_memory_crtdbg qiven3_base_crtdbg qiven3_log_crtdbg qiven3_diag_crtdbg
+  foreach(target IN ITEMS qiven_memory_crtdbg qiven_text_crtdbg qiven3_log_crtdbg qiven3_diag_crtdbg
                           qiven3_diag_entry_crtdbg qiven3-fault-crtdbg)
     set_target_properties(${target} PROPERTIES MSVC_RUNTIME_LIBRARY MultiThreadedDebug)
     target_compile_definitions(${target} PRIVATE _DEBUG)

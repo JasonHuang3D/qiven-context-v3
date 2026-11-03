@@ -5,7 +5,7 @@
 // (driver/platform_ops.hpp, in its instantiation file), with the HAL's fake.
 // Each reads a request a line from its standard input and writes a reply a
 // line to its standard output, each one JSON value in canonical form
-// (qiven3/json.hpp): keys sorted, no space, integers in decimal within
+// (qiven/text/json.hpp): keys sorted, no space, integers in decimal within
 // plus or minus 2^53 - 1, no float. A request also holds no null and no
 // lone surrogate escape, as canonical JSON has none. Bytes cross as
 // lowercase hexadecimal strings.
@@ -70,16 +70,18 @@
 
 #include "log/catalogue.hpp"
 #include "log/log.hpp"
+#include "qiven/case_main/journal.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/case_main/journal.hpp"
-#include "qiven3/json.hpp"
+#include "qiven/text/json.hpp"
 
 #if defined(QIVEN3_DRIVE_HAL)
 #include "driver/hal_ops.hpp"
 #endif
 
 namespace qiven3::drive {
+
+namespace json = qiven::text::json;
 
 // The drive's own configuration leaf, which its adapter_for, current and
 // Windows adapter pass: the Windows adapter's location, without --config,

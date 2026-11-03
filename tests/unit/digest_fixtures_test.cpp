@@ -19,20 +19,20 @@
 #include <string_view>
 #include <vector>
 
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
-#include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
-namespace json = qiven3::json;
+namespace json = qiven::text::json;
 namespace fixtures = qiven::test::fixtures;
 using digest::Field;
 using fixtures::Code;
@@ -267,8 +267,8 @@ QIVEN_CASE(fixtures, layout_refused) {
     bool parse_thrown = false;
     try {
         fixtures::parse_entries("{\"entries\": [],\"files\":[]}", v);
-    } catch (const qiven3::ParseError& e) {
-        parse_thrown = e.code == qiven3::ParseCode::not_canonical;
+    } catch (const qiven::text::ParseError& e) {
+        parse_thrown = e.code == qiven::text::ParseCode::not_canonical;
     }
     CHECK(parse_thrown);
     CHECK(v.empty());

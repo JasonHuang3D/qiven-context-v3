@@ -62,7 +62,7 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "store/codes.hpp"
 #include "store/contract.hpp"
 #include "store/engine/sqlite.hpp"

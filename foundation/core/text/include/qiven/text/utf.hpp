@@ -5,8 +5,8 @@
 // written as Python's backslashreplace writes them. Every function is pure
 // and constexpr, a template on the container it writes into, so its vectors
 // run in constant evaluation too; it reads by index, with no pointer
-// arithmetic. The parser's typed error, ParseError, is declared here, the
-// lowest module that throws it; json and canon throw it too.
+// arithmetic. The parser's typed error, ParseError, is declared here, in
+// the lowest of text's units that throws it; json and canon throw it too.
 //
 // thread: none
 
@@ -19,7 +19,7 @@
 
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3 {
+namespace qiven::text {
 
 // The strict parser's codes, in the order of its steps.
 enum class ParseCode : std::uint8_t {
@@ -249,4 +249,4 @@ constexpr void backslashreplace(std::u16string_view name, S& out) {
 }
 
 }  // namespace utf
-}  // namespace qiven3
+}  // namespace qiven::text

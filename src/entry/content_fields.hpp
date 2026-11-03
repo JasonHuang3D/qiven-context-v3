@@ -48,11 +48,15 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven/text/utf.hpp"
 #include "qiven3/utc.hpp"
-#include "qiven3/utf.hpp"
 
 namespace qiven3::entry::content {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+namespace utf = qiven::text::utf;
 
 // The codes, in the table's order: the first decides.
 enum class Code : std::uint8_t {

@@ -59,10 +59,13 @@
 #include "entry/labels.hpp"
 #include "entry/served_text.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/utc.hpp"
 
 namespace qiven3::entry::served {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 enum class Code : std::uint8_t { kind, state, mark, content };
 inline constexpr std::array<std::string_view, 4> code_names = {"kind", "state", "mark", "content"};

@@ -26,19 +26,18 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   target_include_directories(qiven_memory_poisoned PUBLIC "${qiven_memory_dir}/include")
   target_link_libraries(qiven_memory_poisoned PRIVATE qiven_build)
 
-  # The entry's targets, the base and the log the runner's log takes, and
+  # The entry's targets, the text and the log the runner's log takes, and
   # the platform whose codes it names, over the poisoned memory, so that one
   # copy of memory is linked.
   qiven3_diag_targets(_poisoned qiven_memory_poisoned)
   qiven_platform_targets(_poisoned qiven_memory_poisoned)
-  foreach(pair IN ITEMS "qiven3_base;qiven3;qiven_memory_poisoned"
-                        "qiven3_log;log;qiven3_base_poisoned;qiven_memory_poisoned")
+  foreach(pair IN ITEMS "qiven_text;foundation/core/text;qiven_memory_poisoned"
+                        "qiven3_log;src/log;qiven_text_poisoned;qiven_memory_poisoned")
     list(POP_FRONT pair name dir)
     get_target_property(sources ${name} SOURCES)
-    list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/src/${dir}/")
+    list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/${dir}/")
     add_library(${name}_poisoned STATIC ${sources})
-    # Its include directories as its library's, the platform contract's the
-    # base's digest reads among them.
+    # Its include directories as its library's.
     get_target_property(includes ${name} INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${name}_poisoned PUBLIC ${includes})
     target_link_libraries(${name}_poisoned PUBLIC ${pair} PRIVATE qiven_build)
@@ -57,7 +56,7 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   target_include_directories(qiven_memory_test_poisoned PRIVATE
     "${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults/include")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
-  set_target_properties(qiven_memory_poisoned qiven3_base_poisoned qiven3_log_poisoned qiven_platform_poisoned
+  set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven3_log_poisoned qiven_platform_poisoned
     qiven3_runner_poisoned qiven_memory_test_poisoned
     qiven_memory_free_demo_poisoned qiven3_diag_poisoned qiven3_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()

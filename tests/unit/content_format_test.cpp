@@ -24,15 +24,15 @@
 #include "entry/content.hpp"
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace {
 
 namespace content = qiven3::entry::content;
 namespace header = qiven3::entry::header;
 namespace kinds = qiven3::entry::kinds;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 using content::Code;
 using content::ContentError;
 

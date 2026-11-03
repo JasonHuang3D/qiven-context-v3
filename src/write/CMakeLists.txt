@@ -19,4 +19,5 @@ add_library(qiven3_write STATIC
   refuse.hpp
 )
 target_include_directories(qiven3_write PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(qiven3_write PUBLIC qiven3_entry qiven_matcher qiven3_base qiven_memory PRIVATE qiven_build)
+target_link_libraries(qiven3_write PUBLIC qiven3_entry qiven_matcher qiven_text qiven3_base qiven_memory
+  PRIVATE qiven_build)

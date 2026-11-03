@@ -24,7 +24,7 @@
       "layer": "foundation",
       "depends": [
         "memory",
-        "base"
+        "text"
       ],
       "test_depends": [
         "platform",

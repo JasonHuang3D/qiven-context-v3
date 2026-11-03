@@ -25,16 +25,16 @@
 #include <string_view>
 #include <vector>
 
-#include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/vectors.hpp"
 
 namespace {
 
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
-namespace json = qiven3::json;
+namespace json = qiven::text::json;
 using qiven::test::vectors::Context;
 using qiven::test::vectors::Entry;
 using qiven::test::vectors::from_hex;
@@ -137,8 +137,8 @@ std::string members_fault(const Value& v, const GroupView& g) {
 std::string verify(Context& c, std::string_view line) {
     try {
         Value v;
-        if (const std::optional<qiven3::ParseCode> code = canon::try_parse(line, v)) {
-            return "the line refused: " + std::string(qiven3::name(*code));
+        if (const std::optional<qiven::text::ParseCode> code = canon::try_parse(line, v)) {
+            return "the line refused: " + std::string(qiven::text::name(*code));
         }
         if (v.kind(0) != json::Kind::object) {
             return "the line not an object";

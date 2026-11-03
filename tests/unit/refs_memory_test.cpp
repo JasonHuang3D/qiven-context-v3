@@ -17,17 +17,17 @@
 #include <vector>
 
 #include "entry/refs.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace {
 
 namespace refs = qiven3::entry::refs;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;

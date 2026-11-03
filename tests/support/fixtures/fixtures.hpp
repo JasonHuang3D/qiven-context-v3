@@ -1,6 +1,6 @@
 #pragma once
 
-// fixtures: the files of tests/fixtures/, loaded through qiven3::canon::parse, and
+// fixtures: the files of tests/fixtures/, loaded through qiven::text::canon::parse, and
 // those of tests/vectors/, given as their bytes (vector_bytes).
 // Configure compiles each file into the binary as its bytes
 // (support/fixtures/CMakeLists.txt), so that a case reads no path and
@@ -29,12 +29,12 @@
 #include <utility>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven::test::fixtures {
 
-namespace json = qiven3::json;
-namespace canon = qiven3::canon;
+namespace json = qiven::text::json;
+namespace canon = qiven::text::canon;
 
 // The compiled-in bytes of tests/fixtures/<file>, or none for a name the
 // build lacks; the files the build holds, by index, in name order.
@@ -106,13 +106,13 @@ constexpr std::uint8_t octet(std::string_view text, std::size_t i) noexcept {
 // which holds the first want of them; the members' values are the
 // caller's to check.
 template <typename A, std::size_t N>
-constexpr bool members(const qiven3::json::Basic<A>& v, qiven3::json::Index at, const std::array<std::string_view, N>& names,
-                       std::size_t want) {
-    if (v.kind(at) != qiven3::json::Kind::object) {
+constexpr bool members(const qiven::text::json::Basic<A>& v, qiven::text::json::Index at,
+                       const std::array<std::string_view, N>& names, std::size_t want) {
+    if (v.kind(at) != qiven::text::json::Kind::object) {
         return false;
     }
     std::size_t seen = 0;
-    for (qiven3::json::Index k = at + 1; k < v.next(at); k = v.next(k + 1)) {
+    for (qiven::text::json::Index k = at + 1; k < v.next(at); k = v.next(k + 1)) {
         bool known = false;
         for (std::size_t n = 0; n < N; ++n) {
             known = known || v.text(k) == names[n];
@@ -128,17 +128,18 @@ constexpr bool members(const qiven3::json::Basic<A>& v, qiven3::json::Index at, 
 }
 
 template <typename A>
-constexpr bool string_at(const qiven3::json::Basic<A>& v, std::optional<qiven3::json::Index> at) {
-    return !at || v.kind(*at) == qiven3::json::Kind::string;
+constexpr bool string_at(const qiven::text::json::Basic<A>& v, std::optional<qiven::text::json::Index> at) {
+    return !at || v.kind(*at) == qiven::text::json::Kind::string;
 }
 
 // The items of array at, by index: item i's node.
 template <typename A>
-constexpr qiven3::json::Index item(const qiven3::json::Basic<A>& v, qiven3::json::Index at, std::size_t i) {
-    if (v.kind(at) != qiven3::json::Kind::array || i >= v.count(at)) {
+constexpr qiven::text::json::Index item(const qiven::text::json::Basic<A>& v, qiven::text::json::Index at,
+                                        std::size_t i) {
+    if (v.kind(at) != qiven::text::json::Kind::array || i >= v.count(at)) {
         qiven::memory::fail_fast("fixtures: an item past its array");
     }
-    qiven3::json::Index k = at + 1;
+    qiven::text::json::Index k = at + 1;
     for (std::size_t n = 0; n < i; ++n) {
         k = v.next(k);
     }
@@ -146,9 +147,9 @@ constexpr qiven3::json::Index item(const qiven3::json::Basic<A>& v, qiven3::json
 }
 
 template <typename A>
-constexpr qiven3::json::Index array_of(const qiven3::json::Basic<A>& v, std::string_view name) {
-    const std::optional<qiven3::json::Index> at = v.find(0, name);
-    if (!at || v.kind(*at) != qiven3::json::Kind::array) {
+constexpr qiven::text::json::Index array_of(const qiven::text::json::Basic<A>& v, std::string_view name) {
+    const std::optional<qiven::text::json::Index> at = v.find(0, name);
+    if (!at || v.kind(*at) != qiven::text::json::Kind::array) {
         qiven::memory::fail_fast("fixtures: a value of no entries.json layout");
     }
     return *at;
@@ -157,8 +158,9 @@ constexpr qiven3::json::Index array_of(const qiven3::json::Basic<A>& v, std::str
 // The member name of object at, which the layout holds: one missing ends
 // the process.
 template <typename A>
-constexpr qiven3::json::Index found(const qiven3::json::Basic<A>& v, qiven3::json::Index at, std::string_view name) {
-    const std::optional<qiven3::json::Index> i = v.find(at, name);
+constexpr qiven::text::json::Index found(const qiven::text::json::Basic<A>& v, qiven::text::json::Index at,
+                                         std::string_view name) {
+    const std::optional<qiven::text::json::Index> i = v.find(at, name);
     if (!i) {
         qiven::memory::fail_fast("fixtures: a member of no entries.json layout");
     }
@@ -166,22 +168,23 @@ constexpr qiven3::json::Index found(const qiven3::json::Basic<A>& v, qiven3::jso
 }
 
 template <typename A>
-constexpr std::optional<LoadError> entry_layout(const qiven3::json::Basic<A>& v, qiven3::json::Index entries, std::size_t i) {
-    const qiven3::json::Index at = item(v, entries, i);
+constexpr std::optional<LoadError> entry_layout(const qiven::text::json::Basic<A>& v, qiven::text::json::Index entries,
+                                                std::size_t i) {
+    const qiven::text::json::Index at = item(v, entries, i);
     // name and header first: the two each entry holds.
     constexpr std::array<std::string_view, 4> names{"name", "header", "key", "content"};
     if (!members(v, at, names, 2)) {
         return LoadError{Code::entry, i};
     }
-    const std::optional<qiven3::json::Index> key = v.find(at, "key");
-    const std::optional<qiven3::json::Index> content = v.find(at, "content");
+    const std::optional<qiven::text::json::Index> key = v.find(at, "key");
+    const std::optional<qiven::text::json::Index> content = v.find(at, "content");
     if (!string_at(v, v.find(at, "name")) || !string_at(v, v.find(at, "header")) || !string_at(v, key) ||
         !string_at(v, content) || key.has_value() != content.has_value() ||
         (key && (v.text(*key).size() != 2 * key_bytes_size || !hex(v.text(*key))))) {
         return LoadError{Code::entry, i};
     }
     for (std::size_t j = 0; j < i; ++j) {
-        const qiven3::json::Index other = item(v, entries, j);
+        const qiven::text::json::Index other = item(v, entries, j);
         if (v.text(detail::found(v, other, "name")) == v.text(detail::found(v, at, "name"))) {
             return LoadError{Code::entry, i};
         }
@@ -190,14 +193,15 @@ constexpr std::optional<LoadError> entry_layout(const qiven3::json::Basic<A>& v,
 }
 
 template <typename A>
-constexpr std::optional<LoadError> file_layout(const qiven3::json::Basic<A>& v, qiven3::json::Index at, std::size_t i) {
+constexpr std::optional<LoadError> file_layout(const qiven::text::json::Basic<A>& v, qiven::text::json::Index at,
+                                               std::size_t i) {
     constexpr std::array<std::string_view, 4> names{"bytes", "path", "repository", "version"};
     if (!members(v, at, names, 4)) {
         return LoadError{Code::file, i};
     }
-    const qiven3::json::Index version = detail::found(v, at, "version");
+    const qiven::text::json::Index version = detail::found(v, at, "version");
     if (!string_at(v, v.find(at, "bytes")) || !string_at(v, v.find(at, "path")) ||
-        !string_at(v, v.find(at, "repository")) || v.kind(version) != qiven3::json::Kind::integer ||
+        !string_at(v, v.find(at, "repository")) || v.kind(version) != qiven::text::json::Kind::integer ||
         v.integer(version) < 1 || !hex(v.text(detail::found(v, at, "bytes")))) {
         return LoadError{Code::file, i};
     }
@@ -209,19 +213,20 @@ constexpr std::optional<LoadError> file_layout(const qiven3::json::Basic<A>& v, 
 // The first item, in document order, whose layout is not entries.json's,
 // or none.
 template <typename A>
-constexpr std::optional<LoadError> layout(const qiven3::json::Basic<A>& v) {
+constexpr std::optional<LoadError> layout(const qiven::text::json::Basic<A>& v) {
     constexpr std::array<std::string_view, 2> names{"entries", "files"};
-    if (v.empty() || !detail::members(v, 0, names, 2) || v.kind(detail::found(v, 0, "entries")) != qiven3::json::Kind::array ||
-        v.kind(detail::found(v, 0, "files")) != qiven3::json::Kind::array) {
+    if (v.empty() || !detail::members(v, 0, names, 2) ||
+        v.kind(detail::found(v, 0, "entries")) != qiven::text::json::Kind::array ||
+        v.kind(detail::found(v, 0, "files")) != qiven::text::json::Kind::array) {
         return LoadError{Code::root, 0};
     }
-    const qiven3::json::Index entries = detail::found(v, 0, "entries");
+    const qiven::text::json::Index entries = detail::found(v, 0, "entries");
     for (std::size_t i = 0; i < v.count(entries); ++i) {
         if (const std::optional<LoadError> fault = detail::entry_layout(v, entries, i)) {
             return fault;
         }
     }
-    const qiven3::json::Index files = detail::found(v, 0, "files");
+    const qiven::text::json::Index files = detail::found(v, 0, "files");
     for (std::size_t i = 0; i < v.count(files); ++i) {
         if (const std::optional<LoadError> fault = detail::file_layout(v, detail::item(v, files, i), i)) {
             return fault;
@@ -233,29 +238,29 @@ constexpr std::optional<LoadError> layout(const qiven3::json::Basic<A>& v) {
 // data's value into out, parsed strictly and its layout checked: canon's
 // ParseError, or LoadError for the layout; out replaced only on success.
 template <typename A>
-constexpr void parse_entries(std::string_view data, qiven3::json::Basic<A>& out) {
-    qiven3::json::Basic<A> value(out.allocator());
-    qiven3::canon::parse(data, value);
+constexpr void parse_entries(std::string_view data, qiven::text::json::Basic<A>& out) {
+    qiven::text::json::Basic<A> value(out.allocator());
+    qiven::text::canon::parse(data, value);
     if (const std::optional<LoadError> fault = layout(value)) {
         throw *fault;
     }
     out = std::move(value);
 }
 
-// tests/fixtures/<file> into out through qiven3::canon::parse: LoadError no_file
+// tests/fixtures/<file> into out through qiven::text::canon::parse: LoadError no_file
 // for a name the build lacks, else canon's faults.
 template <typename A>
-void load(std::string_view file, qiven3::json::Basic<A>& out) {
+void load(std::string_view file, qiven::text::json::Basic<A>& out) {
     const std::optional<std::string_view> data = bytes(file);
     if (!data) {
         throw LoadError{Code::no_file, 0};
     }
-    qiven3::canon::parse(*data, out);
+    qiven::text::canon::parse(*data, out);
 }
 
 // tests/fixtures/entries.json into out, its layout checked.
 template <typename A>
-void load_entries(qiven3::json::Basic<A>& out) {
+void load_entries(qiven::text::json::Basic<A>& out) {
     const std::optional<std::string_view> data = bytes("entries.json");
     if (!data) {
         throw LoadError{Code::no_file, 0};
@@ -266,26 +271,26 @@ void load_entries(qiven3::json::Basic<A>& out) {
 // A loaded entries.json's entries and files, by index or by name; an
 // index past the count ends the process.
 template <typename A>
-constexpr std::size_t entry_count(const qiven3::json::Basic<A>& v) {
+constexpr std::size_t entry_count(const qiven::text::json::Basic<A>& v) {
     return v.count(detail::array_of(v, "entries"));
 }
 
 template <typename A>
-constexpr EntryView entry(const qiven3::json::Basic<A>& v, std::size_t i) {
-    const qiven3::json::Index at = detail::item(v, detail::array_of(v, "entries"), i);
+constexpr EntryView entry(const qiven::text::json::Basic<A>& v, std::size_t i) {
+    const qiven::text::json::Index at = detail::item(v, detail::array_of(v, "entries"), i);
     EntryView e{v.text(detail::found(v, at, "name")), std::nullopt, std::nullopt,
                 v.text(detail::found(v, at, "header"))};
-    if (const std::optional<qiven3::json::Index> key = v.find(at, "key")) {
+    if (const std::optional<qiven::text::json::Index> key = v.find(at, "key")) {
         e.key = v.text(*key);
     }
-    if (const std::optional<qiven3::json::Index> content = v.find(at, "content")) {
+    if (const std::optional<qiven::text::json::Index> content = v.find(at, "content")) {
         e.content = v.text(*content);
     }
     return e;
 }
 
 template <typename A>
-constexpr std::optional<EntryView> find_entry(const qiven3::json::Basic<A>& v, std::string_view name) {
+constexpr std::optional<EntryView> find_entry(const qiven::text::json::Basic<A>& v, std::string_view name) {
     for (std::size_t i = 0; i < entry_count(v); ++i) {
         const EntryView e = entry(v, i);
         if (e.name == name) {
@@ -296,13 +301,13 @@ constexpr std::optional<EntryView> find_entry(const qiven3::json::Basic<A>& v, s
 }
 
 template <typename A>
-constexpr std::size_t mapped_count(const qiven3::json::Basic<A>& v) {
+constexpr std::size_t mapped_count(const qiven::text::json::Basic<A>& v) {
     return v.count(detail::array_of(v, "files"));
 }
 
 template <typename A>
-constexpr FileView mapped(const qiven3::json::Basic<A>& v, std::size_t i) {
-    const qiven3::json::Index at = detail::item(v, detail::array_of(v, "files"), i);
+constexpr FileView mapped(const qiven::text::json::Basic<A>& v, std::size_t i) {
+    const qiven::text::json::Index at = detail::item(v, detail::array_of(v, "files"), i);
     return FileView{v.text(*v.find(at, "repository")), v.text(*v.find(at, "path")),
                     v.integer(*v.find(at, "version")), v.text(*v.find(at, "bytes"))};
 }

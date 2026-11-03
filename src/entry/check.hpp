@@ -43,10 +43,14 @@
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 
 namespace qiven3::entry::check {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+using qiven::text::ParseCode;
 
 // The parts in part 1's order, each with its own codes.
 enum class Part : std::uint8_t { parse, header, body, content };

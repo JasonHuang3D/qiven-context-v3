@@ -15,9 +15,11 @@
 #include <string_view>
 
 #include "log/log.hpp"
-#include "qiven3/json.hpp"
+#include "qiven/text/json.hpp"
 
 namespace qiven3::log {
+
+namespace json = qiven::text::json;
 
 // A line's head: borrowed for one event.
 struct HeadView {

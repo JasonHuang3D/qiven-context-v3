@@ -15,7 +15,7 @@
       "depends": [],
       "test_depends": [
         "memory",
-        "base",
+        "text",
         "log",
         "platform",
         "diag",

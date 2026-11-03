@@ -1,8 +1,8 @@
 // canon's cases: the strict parser's refusals, each code reached by the
 // specification's vectors, Chinese among them; the accepted vectors and
 // their round trips (parse, then canonical, gives the bytes back); the
-// encoder's escapes; the walk of a value built in memory; the key rule by
-// place and the layout the registry takes; and the bounds.
+// encoder's escapes; the walk of a value built in memory; and the bounds.
+// The key rule by place and a layout taken whole are canon_rules_test.cpp's.
 
 #include <array>
 #include <cstddef>
@@ -13,22 +13,24 @@
 #include <string_view>
 #include <vector>
 
-#include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace {
 
-using qiven3::ParseCode;
-using qiven3::ParseError;
-namespace canon = qiven3::canon;
-namespace json = qiven3::json;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 using Std = canon::Basic<>;
 using W = json::Writer<std::allocator<char>>;
 
-// The specification's vectors: the content digests' objects, as their hex
-// gives them and with the ASCII escapes the text shows; and entries'
-// canonical lines, English and Chinese, each with its size. Non-ASCII
-// bytes are octal escapes, so the source stays ASCII.
+// The specification's vectors cv2 and cv3, as their hex gives them and
+// with the ASCII escapes the text shows; and the canonical lines of a
+// catalogue of the cases' own, books' records and their cards, English and
+// Chinese: nesting, arrays, escapes, integers to the bounds and hex
+// strings, each with its size. Non-ASCII bytes are octal escapes, so the
+// source stays ASCII.
 namespace cv {
 
 // cv2: key order and integer bounds; cv3: every escape the encoder emits.
@@ -50,71 +52,66 @@ struct Line {
 };
 
 inline constexpr std::array<Line, 7> lines{{
-    {"A content",
-     "{\"admit\":{\"mistake\":\"A parser built on json.loads would keep the last of two equal keys.\","
-     "\"underivable\":\"A probe of the interpreter, not written in any repository.\"},\"band\":\"high"
-     "\",\"claim\":\"Python's json.loads accepts a duplicate key by default.\",\"episode\":{\"client\""
-     ":\"claude-code\",\"session\":\"00000000-0000-4000-8000-000000000039\"},\"evidence\":[{\"command"
-     "\":\"python -I probe_dup.py\",\"digest\":\"hmac-sha256:5731583eea0d4d7677815b2dea880419d212b0063"
-     "5f3a2724dee3e9dc7cd3c2e\",\"type\":\"output\"}],\"subject\":\"entity:cpython\"}",
-     511},
-    {"A header",
-     "{\"at\":\"2026-10-17T09:30:00.000Z\",\"basis\":\"claimed\",\"content\":\"hmac-sha256:df0388fc101"
-     "c4c0bc038ea2dc231dd5fadc5376af843e48755de9f638096be5e\",\"id\":\"sha256:902380391ae283f1a88e038c"
-     "f525aea22d5e4ed0ca3f852c8acdf43457b3b119\",\"kind\":\"claim\",\"lane\":\"implementer\",\"scope\""
-     ":\"project:qiven\",\"seq\":1,\"tag\":\"qiven-entry/1\",\"writer\":\"implementer/s39\"}",
-     336},
-    {"D content",
-     "{\"admit\":{\"mistake\":\"A report would carry claims with no evidence pointer.\",\"underivable"
-     "\":\"The owner's instruction, said in a session, not in a repository.\"},\"band\":\"core\",\"epi"
-     "sode\":{\"client\":\"claude-code\",\"session\":\"00000000-0000-4000-8000-000000000039\"},\"subje"
-     "ct\":\"activity:write-report\",\"words\":\"Give each claim its evidence pointer or mark it unver"
-     "ified.\"}",
-     360},
-    {"L1 content",
-     "{\"admit\":{\"mistake\":\"A test would pass on one interpreter and fail on the next pin.\",\"und"
-     "erivable\":\"\345\234\250\344\274\232\350\257\235\344\270\255\350\247\202\345\257\237\345\210"
-     "\260\347\232\204\347\273\223\346\236\234\357\274\214\346\262\241\346\234\211\345\206\231\350\277"
-     "\233\344\273\273\344\275\225\344\273\223\345\272\223\343\200\202\"},\"band\":\"normal\",\"episod"
-     "e\":{\"client\":\"claude-code\",\"session\":\"00000000-0000-4000-8000-000000000042\"},\"evidence"
-     "\":[{\"command\":\"python -I --version\",\"digest\":\"hmac-sha256:0427965c77d19ad3af90f88a2e288a"
-     "fa35e68082d468838b50d416e1e5e38474\",\"type\":\"output\"}],\"lesson\":\"\345\234\250 3.14.7 \344"
-     "\270\212\357\274\214str.isspace \346\214\211 Unicode 16.0.0 \345\210\244\346\226\255\357\274\233"
-     "pin the interpreter in every test.\",\"pins\":[{\"name\":\"python\",\"type\":\"tool\",\"version"
-     "\":\"3.14.7\"},{\"name\":\"PYTHONUTF8\",\"type\":\"env\"}],\"subject\":\"entity:cpython\",\"trig"
-     "ger\":{\"activities\":[\"pin-interpreter\"]},\"when\":{\"quality\":\"exact\",\"time\":\"2026-10-"
-     "17T05:00:00.000Z\"}}",
-     745},
-    {"L1 header",
-     "{\"at\":\"2026-10-17T05:02:10.000Z\",\"basis\":\"claimed\",\"content\":\"hmac-sha256:ca3d1e31fad"
-     "36dce7c2a27c4015091cf85bf069b5929103d6169bc1b2dca8cf3\",\"id\":\"sha256:dbc3708cf045a0a4032f26cd"
-     "c403298992821d648136a203a419002cf218334c\",\"kind\":\"lesson\",\"lane\":\"learner\",\"scope\":\""
-     "project:qiven\",\"seq\":1,\"tag\":\"qiven-entry/1\",\"writer\":\"learner/s42\"}",
-     329},
-    {"L2 content",
-     "{\"admit\":{\"mistake\":\"A lesson pinned to 3.14.7 would be served after the re-pin to 3.15.0."
-     "\",\"underivable\":\"\346\215\242\347\211\210\346\234\254\345\220\216\351\207\215\346\226\260"
-     "\350\277\220\350\241\214\347\232\204\350\276\223\345\207\272\357\274\214\346\262\241\346\234\211"
-     "\345\206\231\350\277\233\344\273\273\344\275\225\344\273\223\345\272\223\343\200\202\"},\"band\""
-     ":\"normal\",\"episode\":{\"client\":\"claude-code\",\"session\":\"00000000-0000-4000-8000-000000"
-     "000043\"},\"evidence\":[{\"id\":\"sha256:dbc3708cf045a0a4032f26cdc403298992821d648136a203a419002"
-     "cf218334c\",\"type\":\"entry\"},{\"command\":\"python -I --version\",\"digest\":\"hmac-sha256:9b"
-     "2b49164905577f1312bffc2f690e450a2152c95c432fa0c52cc01047bef814\",\"type\":\"output\"}],\"lesson"
-     "\":\"On 3.15.0, str.isspace follows Unicode 17.0.0 and holds the same 29 code points; \346\257"
-     "\217\344\270\252\346\265\213\350\257\225\344\273\215\345\233\272\345\256\232\350\247\243\351\207"
-     "\212\345\231\250\343\200\202\",\"pins\":[{\"name\":\"python\",\"type\":\"tool\",\"version\":\"3."
-     "15.0\"},{\"name\":\"PYTHONUTF8\",\"type\":\"env\"}],\"subject\":\"entity:cpython\",\"trigger\":{"
-     "\"activities\":[\"pin-interpreter\"]},\"when\":{\"quality\":\"session\",\"time\":\"2026-10-17T09"
-     ":00:00.000Z\"}}",
-     876},
-    {"L2 header",
-     "{\"at\":\"2026-10-17T09:40:00.000Z\",\"basis\":\"claimed\",\"content\":\"hmac-sha256:c5d45ae33ec"
-     "18accb198b6f5a70d5b5421d84e96047d0f2c632ba932c542c356\",\"id\":\"sha256:566240684567f8e028910644"
-     "9dddd847ec44a665313c8e09b32c5d48480f31c7\",\"kind\":\"lesson\",\"lane\":\"learner\",\"parent\":"
-     "\"sha256:dbc3708cf045a0a4032f26cdc403298992821d648136a203a419002cf218334c\",\"scope\":\"project:"
-     "qiven\",\"seq\":2,\"tag\":\"qiven-entry/1\",\"target\":\"sha256:dbc3708cf045a0a4032f26cdc4032989"
-     "92821d648136a203a419002cf218334c\",\"writer\":\"learner/s43\"}",
-     495},
+    {"A record",
+     "{\"authors\":[{\"name\":\"Donald E. Knuth\",\"role\":\"author\"}],\"edition\":3,\"files\":[{\"bytes"
+     "\":1048576,\"checksum\":\"sha256:3a370511089bf3469e8fdce4d4c63bbacff333f50851acc2e94cd8aa040a5314\","
+     "\"kind\":\"scan\"}],\"loan\":{\"days\":21,\"renewals\":[7,7]},\"note\":\"Its first chapter is called"
+     " \\\"Basic Concepts\\\".\",\"shelf\":{\"offset\":-4,\"room\":\"north\",\"row\":12},\"title\":\"The A"
+     "rt of Computer Programming, Volume 1\",\"year\":1997}",
+     398},
+    {"A card",
+     "{\"added\":\"2026-10-17T09:30:00.000Z\",\"clerk\":\"desk/s39\",\"copies\":2,\"number\":\"sha256:67d1"
+     "9c28b4e8e1fb37e6f0d049dd6fea17c226daba6e9d4c6c72f5d6e148763d\",\"record\":\"sha256:dfcd931fd5a5b0b5f"
+     "a28a4dfbb4ece7b239e1337d56c98616239e36c4ca871d2\",\"series\":\"catalogue/1\",\"status\":\"on-shelf\""
+     "}",
+     275},
+    {"B record",
+     "{\"authors\":[{\"name\":\"Edsger W. Dijkstra\",\"role\":\"author\"}],\"note\":\"Typed, then scanned."
+     "\\nThe pages run 1 to 87.\",\"pages\":{\"first\":1,\"last\":87,\"missing\":[]},\"path\":\"C:\\\\book"
+     "s\\\\ewd249.pdf\",\"tags\":[\"structured\",\"proof\",\"goto\"],\"title\":\"Notes on Structured Progr"
+     "amming\",\"year\":1970}",
+     278},
+    {"C record",
+     "{\"authors\":[{\"name\":\"\346\233\271\351\233\252\350\212\271\",\"role\":\"\344\275\234\350\200\205"
+     "\"},{\"name\":\"\351\253\230\351\271\227\",\"role\":\"\347\273\255\344\271\246\"}],\"files\":[{\"byt"
+     "es\":2621440,\"checksum\":\"sha256:11375d46fb9bc5538c724627e1199f01faca3422fba9c3881b80d3b9d1ab2835"
+     "\",\"kind\":\"text\"}],\"loan\":{\"days\":14,\"renewals\":[-1,0,1]},\"summary\":\"\344\273\245\350"
+     "\264\276\343\200\201\345\217\262\343\200\201\347\216\213\343\200\201\350\226\233\345\233\233\345\244"
+     "\247\345\256\266\346\227\217\344\270\272\350\203\214\346\231\257\357\274\214\345\206\231\344\270\200"
+     "\344\270\252\345\256\266\346\227\217\347\232\204\345\205\264\350\241\260\343\200\202\",\"tags\":[\""
+     "\345\217\244\345\205\270\",\"\345\260\217\350\257\264\",\"\346\270\205\344\273\243\"],\"title\":\""
+     "\347\272\242\346\245\274\346\242\246\",\"volumes\":[[1,2,3,4],[5,6],[]],\"year\":1791}",
+     437},
+    {"C card",
+     "{\"added\":\"2026-10-17T05:02:10.000Z\",\"clerk\":\"desk/s42\",\"copies\":1,\"number\":\"sha256:3cbf"
+     "1e229597d349d200bfbfa24580c6a68e44bf7a2bbda5eaa591f8052da070\",\"record\":\"sha256:9864b420ee93a4648"
+     "43eca2c86092143cbee338c38ba96040357f094707ccfc8\",\"series\":\"catalogue/1\",\"status\":\"\345\234"
+     "\250\346\236\266\"}",
+     273},
+    {"D record",
+     "{\"authors\":[{\"name\":\"\346\233\271\351\233\252\350\212\271\",\"role\":\"\344\275\234\350\200\205"
+     "\"},{\"name\":\"\351\253\230\351\271\227\",\"role\":\"\347\273\255\344\271\246\"},{\"name\":\"\344"
+     "\270\255\345\233\275\350\211\272\346\234\257\347\240\224\347\251\266\351\231\242\347\272\242\346\245"
+     "\274\346\242\246\347\240\224\347\251\266\346\211\200\",\"role\":\"\346\240\241\346\263\250\"}],\"loa"
+     "n\":{\"days\":7,\"limits\":{\"fine\":-9007199254740991,\"per_year\":4},\"renewals\":[]},\"note\":\""
+     "\347\254\254\344\270\200\350\241\214\357\274\232\345\211\215\345\205\253\345\215\201\345\233\236\\n"
+     "\347\254\254\344\272\214\350\241\214\357\274\232\345\220\216\345\233\233\345\215\201\345\233\236\\t"
+     "\\\"\347\250\213\351\253\230\346\234\254\\\"\\\\\347\273\255\",\"see\":[{\"number\":\"sha256:3cbf1e2"
+     "29597d349d200bfbfa24580c6a68e44bf7a2bbda5eaa591f8052da070\",\"type\":\"card\"},{\"bytes\":3145728,\""
+     "checksum\":\"sha256:5f8be010416a6946f6957db332c8ec3933e28c72f7b0a36e79caa9cdfb3a238b\",\"type\":\"fi"
+     "le\"}],\"shelf\":{\"offset\":9007199254740991,\"room\":\"east\",\"row\":3},\"summary\":\"This editio"
+     "n replaces the 1791 text on the shelf; \346\257\217\344\270\200\345\233\236\347\232\204\346\263\250"
+     "\351\207\212\351\203\275\346\224\276\345\234\250\345\233\236\346\234\253\343\200\202\",\"title\":\""
+     "\347\272\242\346\245\274\346\242\246\357\274\210\346\240\241\346\263\250\346\234\254\357\274\211\","
+     "\"volumes\":[[1,2],[3,4]],\"year\":2008}",
+     764},
+    {"D card",
+     "{\"added\":\"2026-10-17T09:40:00.000Z\",\"clerk\":\"desk/s43\",\"copies\":3,\"number\":\"sha256:3a7e"
+     "1230080ad843a7e0ae2ce5084dedcd283e7b2e7b7f73b368183335d48187\",\"parent\":\"sha256:3cbf1e229597d349d"
+     "200bfbfa24580c6a68e44bf7a2bbda5eaa591f8052da070\",\"record\":\"sha256:0426f993eac3449c6c6773ce4fa56e"
+     "268b1245174bcee64c2d4dfa7944aba97d\",\"replaces\":\"sha256:3cbf1e229597d349d200bfbfa24580c6a68e44bf7"
+     "a2bbda5eaa591f8052da070\",\"series\":\"catalogue/2\",\"status\":\"on-shelf\"}",
+     443},
 }};
 
 }  // namespace cv
@@ -133,7 +130,7 @@ std::optional<ParseCode> code(std::string_view data, const K& rule = K{}, canon:
     return canon::try_parse(data, v, rule, layout);
 }
 
-std::string shown(std::optional<ParseCode> c) { return c ? std::string(qiven3::name(*c)) : "accepted"; }
+std::string shown(std::optional<ParseCode> c) { return c ? std::string(qiven::text::name(*c)) : "accepted"; }
 
 struct Row {
     std::string data;
@@ -286,7 +283,7 @@ QIVEN_CASE(canon, accepted_round_trips) {
         // Chinese raw, and a value of each kind.
         "{\"a\":\"\xe8\xae\xb0\xe5\xbf\x86\"}",
         R"({"a":[true,false,0,-1,"",{}],"b":{"c":[[]]}})",
-        // The content digests' objects, and the entries' lines.
+        // The specification's vectors; the catalogue's lines below.
         "{}",
         std::string(cv::cv2),
         std::string(cv::cv3),
@@ -304,7 +301,7 @@ QIVEN_CASE(canon, accepted_round_trips) {
 }
 
 QIVEN_CASE(canon, encoder) {
-    // The digests' objects as the text shows them, with ASCII escapes:
+    // The specification's vectors as its text shows them, ASCII escapes:
     // not canonical as given; their canonical bytes are the hex's.
     const std::array<std::string_view, 2> escaped = {cv::cv2_escaped, cv::cv3_escaped};
     const std::array<std::string_view, 2> bytes = {cv::cv2, cv::cv3};

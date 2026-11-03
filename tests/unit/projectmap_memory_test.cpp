@@ -18,20 +18,20 @@
 #include "entry/header.hpp"
 #include "entry/projectmap.hpp"
 #include "entry/projectmap_files.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
-#include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/view.hpp"
 
 namespace {
 
 namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;

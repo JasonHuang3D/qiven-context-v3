@@ -69,13 +69,16 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "qiven3/utc.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
 namespace qiven3::write::build {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 using entries::EntriesError;
 using entries::File;

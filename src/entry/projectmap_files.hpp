@@ -57,9 +57,13 @@
 #include "entry/served.hpp"
 #include "entry/validator.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::projectmap {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+using qiven::text::ParseCode;
 
 // The shape's codes, after canon's: parse holds canon's.
 enum class FileCode : std::uint8_t { parse, unknown_field, missing, type, syntax };
@@ -147,7 +151,8 @@ constexpr bool control(std::string_view text) noexcept {
     return false;
 }
 
-// The key rules, by place.
+// The key rules, by place: a map file's keys, each by its place, bound
+// into canon's parse as its KeyRule at compile time.
 struct RegistryKeys {
     constexpr bool operator()(std::string_view key, const canon::PlaceView& place) const noexcept {
         return place.level == 1 ? repository(key) : canon::key_syntax(key);
@@ -391,6 +396,8 @@ struct Parser {
     template <typename A>
     static constexpr std::optional<FileError> registry(std::string_view data, Registry<A>& out, System system) {
         canon::Basic<A> v(out.value_allocator());
+        // The registry is taken in any layout: canon's comparison with the
+        // canonical bytes is skipped.
         if (const std::optional<ParseCode> p = canon::try_parse(data, v, RegistryKeys{}, canon::Layout::any)) {
             return FileError{FileCode::parse, *p};
         }

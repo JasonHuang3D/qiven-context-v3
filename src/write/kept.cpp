@@ -11,9 +11,11 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace qiven3::write::kept {
+
+using qiven::text::ParseError;
 
 namespace {
 

@@ -43,11 +43,14 @@
 #include "keys/keys.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 
 namespace qiven3::checked::reads {
+
+namespace canon = qiven::text::canon;
+using qiven::text::ParseError;
 
 using Chars = qiven::memory::Allocator<char>;
 

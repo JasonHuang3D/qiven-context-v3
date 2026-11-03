@@ -7,9 +7,9 @@
 //
 // thread: none
 
-#include "qiven3/json.hpp"
+#include "qiven/text/json.hpp"
 
-namespace qiven3::json {
+namespace qiven::text::json {
 namespace detail {
 
 constexpr bool space(char c) noexcept { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
@@ -593,4 +593,4 @@ constexpr void scan(std::string_view data, std::size_t depth, Basic<A>& out) {
     }
 }
 
-}  // namespace qiven3::json
+}  // namespace qiven::text::json

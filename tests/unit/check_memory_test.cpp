@@ -20,13 +20,13 @@
 #include "entry/body.hpp"
 #include "entry/check.hpp"
 #include "entry/header.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
-#include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -34,7 +34,7 @@ namespace {
 namespace check = qiven3::entry::check;
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Allocator;

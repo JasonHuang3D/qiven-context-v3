@@ -12,20 +12,20 @@
 #include <string_view>
 #include <vector>
 
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace {
 
-using qiven3::ParseCode;
-using qiven3::ParseError;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
-namespace utf = qiven3::utf;
+namespace utf = qiven::text::utf;
 
 // The UTF-16 units of a valid text, the order RFC 8785 sorts by.
 std::u16string utf16(std::string_view text) {
@@ -138,7 +138,7 @@ QIVEN_CASE(utf, order_vectors) {
         {"a_b", "aa", -1, -1},
         {"", "a", -1, -1},
         {"\xc3\xa9", "z", 1, 1},
-        {"project:b", "project:a-z", 1, 1},
+        {"shelf:b", "shelf:a-z", 1, 1},
         {"\xef\xbf\xbd", "\xf0\x9f\x98\x80", -1, 1},
         {"\xee\x80\x80", "\xf0\x90\x80\x80", -1, 1},
     }};

@@ -49,10 +49,14 @@
 
 #include "entry/header.hpp"
 #include "qiven/matcher/matcher.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace qiven3::entry::refs {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+namespace utf = qiven::text::utf;
 
 // The codes refs gives, in content's code order.
 enum class Code : std::uint8_t { unknown_field, missing, type, empty, too_long, syntax };

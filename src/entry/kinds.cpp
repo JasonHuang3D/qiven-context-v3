@@ -5,7 +5,7 @@
 
 #include "entry/kinds_identity.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven3::entry::kinds {
 

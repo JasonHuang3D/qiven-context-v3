@@ -20,10 +20,10 @@
 #include "entry/projectmap.hpp"
 #include "entry/projectmap_files.hpp"
 #include "entry/served.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
-#include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -31,7 +31,7 @@ namespace {
 namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
 namespace served = qiven3::entry::served;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 using Fake = qiven::platform::fake::FakePlatform;

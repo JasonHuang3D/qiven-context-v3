@@ -27,9 +27,9 @@
 
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/utf.hpp"
 
-namespace qiven3::json {
+namespace qiven::text::json {
 
 enum class Kind : std::uint8_t { null, boolean, integer, string, array, object };
 
@@ -342,7 +342,7 @@ constexpr Basic<A> Basic<A>::of(const T& scalar) const {
 
 using Value = Basic<qiven::memory::Allocator<char>>;
 
-}  // namespace qiven3::json
+}  // namespace qiven::text::json
 
-#include "qiven3/json_bytes.hpp"
+#include "qiven/text/json_bytes.hpp"
 

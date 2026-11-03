@@ -40,12 +40,16 @@
 #include "entry/kinds.hpp"
 #include "entry/validator.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "store/contract.hpp"
 #include "store/errors.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::checked::clearing {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+using qiven::text::ParseError;
 
 using Chars = qiven::memory::Allocator<char>;
 using keys::Id;

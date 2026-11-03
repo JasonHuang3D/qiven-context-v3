@@ -15,6 +15,7 @@
       "depends": [
         "keys",
         "matcher",
+        "text",
         "base",
         "memory",
         "platform"

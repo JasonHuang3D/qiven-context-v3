@@ -23,11 +23,11 @@
 #include "entry/header.hpp"
 #include "entry/labels.hpp"
 #include "entry/served.hpp"
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -36,7 +36,7 @@ namespace served = qiven3::entry::served;
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace labels = qiven3::entry::labels;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;

@@ -11,22 +11,22 @@
 #include <string_view>
 #include <vector>
 
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/json.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/json.hpp"
+#include "qiven/text/utf.hpp"
 
 namespace {
 
-using qiven3::ParseCode;
-using qiven3::ParseError;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryError;
-namespace json = qiven3::json;
-namespace utf = qiven3::utf;
+namespace json = qiven::text::json;
+namespace utf = qiven::text::utf;
 using Std = json::Basic<>;
 
 std::optional<ParseCode> code(std::string_view text) {
@@ -89,7 +89,7 @@ QIVEN_CASE(json, edge_pass_codes) {
     for (const Row& r : rows) {
         const std::optional<ParseCode> got = code(r.text);
         if (!CHECK(got == r.code)) {
-            qiven_ctx.out << "  vector " << r.text << ": " << (got ? qiven3::name(*got) : "accepted") << "\n";
+            qiven_ctx.out << "  vector " << r.text << ": " << (got ? qiven::text::name(*got) : "accepted") << "\n";
         }
     }
     // The thrown form.
@@ -101,7 +101,7 @@ QIVEN_CASE(json, edge_pass_codes) {
         thrown = e.code == ParseCode::syntax;
     }
     CHECK(thrown);
-    CHECK(qiven3::name(ParseCode::floating) == "float");
+    CHECK(qiven::text::name(ParseCode::floating) == "float");
 }
 
 QIVEN_CASE(json, edge_walk_values) {

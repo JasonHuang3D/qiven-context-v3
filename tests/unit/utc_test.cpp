@@ -24,17 +24,17 @@
 #include <format>
 #endif
 
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/utc.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
 namespace utc = qiven3::utc;
 using qiven::memory::Allocator;
@@ -213,9 +213,9 @@ QIVEN_CASE(utc, shift) {
     fixtures::load_entries(entries);
     canon::Basic<> content;
     canon::parse(*fixtures::find_entry(entries, "L1")->content, content);
-    const std::optional<qiven3::json::Index> when = content.find(0, "when");
+    const std::optional<qiven::text::json::Index> when = content.find(0, "when");
     CHECK(when.has_value());
-    const std::optional<qiven3::json::Index> time = content.find(*when, "time");
+    const std::optional<qiven::text::json::Index> time = content.find(*when, "time");
     CHECK(time.has_value());
     const std::string_view text = content.text(*time);
     CHECK_EQ(std::string(text), std::string("2026-10-17T05:00:00.000Z"));

@@ -11,11 +11,11 @@
 #include <string_view>
 #include <vector>
 
+#include "qiven/faults/faults.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace {
 
@@ -24,7 +24,7 @@ using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
 using qiven::memory::MemoryError;
 using qiven::memory::String;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 
 std::string repeat(std::string_view s, std::size_t n) {
     std::string out;

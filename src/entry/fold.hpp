@@ -53,10 +53,12 @@
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/utc.hpp"
 
 namespace qiven3::entry::fold {
+
+namespace canon = qiven::text::canon;
 
 // A check's method and result, read from its content; none elsewhere.
 enum class Method : std::uint8_t { none, test, rerun, transcript, review };

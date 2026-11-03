@@ -16,14 +16,14 @@
 #include <utility>
 #include <vector>
 
-#include "qiven3/canon.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/text/canon.hpp"
 
 namespace qiven::test::vectors {
 
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 using Fake = qiven::platform::fake::FakePlatform;
-using Value = qiven3::canon::Basic<>;
+using Value = qiven::text::canon::Basic<>;
 
 std::string_view text(const Value& v, std::string_view key);
 std::optional<std::string_view> maybe_text(const Value& v, std::string_view key);

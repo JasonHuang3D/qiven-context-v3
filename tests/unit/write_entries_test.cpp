@@ -21,8 +21,8 @@
 #include "entry/content_fields.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
@@ -122,9 +122,9 @@ std::string outcome(std::string_view bytes, std::size_t arena_bytes = 8 * mib) {
     }
 }
 
-std::string encoded(const qiven3::json::Value& v) {
+std::string encoded(const qiven::text::json::Value& v) {
     std::string out;
-    qiven3::json::encode(v, out);
+    qiven::text::json::encode(v, out);
     return out;
 }
 
@@ -181,7 +181,7 @@ QIVEN_CASE(write_entries, fills_the_holes) {
         for (const we::Site& s : f.sites(f.entries()[i])) {
             fills.push_back(s.hole == we::Hole::piece ? std::string_view(digest) : std::string_view(id));
         }
-        qiven3::json::Value out{qiven::memory::Allocator<char>(arena)};
+        qiven::text::json::Value out{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, fills, out);
         const std::string text = encoded(out);
         CHECK(text.find("\"piece\"") == std::string::npos);
@@ -194,7 +194,7 @@ QIVEN_CASE(write_entries, fills_the_holes) {
         for (const we::Site& s : f.sites(f.entries()[i])) {
             stand.push_back(s.hole == we::Hole::piece ? we::detail::stand_digest : we::detail::stand_id);
         }
-        qiven3::json::Value standing{qiven::memory::Allocator<char>(arena)};
+        qiven::text::json::Value standing{qiven::memory::Allocator<char>(arena)};
         we::build_content(f, i, stand, standing);
         CHECK(r.standing_size(f.entries()[i]) == encoded(standing).size());
     }

@@ -96,12 +96,15 @@
 #include "keys/keys.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 #include "store/contract.hpp"
 #include "store/stage.hpp"
 
 namespace qiven3::checked {
+
+namespace canon = qiven::text::canon;
+using qiven::text::ParseCode;
 
 namespace stage = store::stage;
 namespace header = entry::header;

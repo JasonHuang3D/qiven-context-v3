@@ -8,8 +8,8 @@
 // null, surrogate, nonchar, key_syntax; and the comparison of the bytes
 // with the value's canonical ones, not_canonical. canonical walks a value
 // the same way, then writes its canonical bytes. A key's rule is a
-// KeyRule, bound at compile time: Syntax by default, or a map file's
-// keys by their place; Layout::any skips the comparison. Neither function
+// KeyRule, bound at compile time: Syntax by default, or a caller's rule by
+// the key's place; Layout::any skips the comparison. Neither function
 // recurses: the walk keeps the levels open in a fixed array of 16. Each is
 // constexpr and a template on the allocator, so its vectors run in
 // constant evaluation too; it reads by index, with no pointer arithmetic.
@@ -28,10 +28,10 @@
 #include <utility>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven3/json.hpp"
-#include "qiven3/utf.hpp"
+#include "qiven/text/json.hpp"
+#include "qiven/text/utf.hpp"
 
-namespace qiven3::canon {
+namespace qiven::text::canon {
 
 // A value is json's tape; canon reads and writes it.
 template <typename A = std::allocator<char>>
@@ -85,7 +85,8 @@ struct Syntax {
 static_assert(KeyRule<Syntax>);
 
 // Whether parse compares the bytes with the value's canonical ones (step
-// 6), or takes any layout, as the registry does.
+// 6), or takes any layout: the bytes' value taken whole, however they are
+// laid out.
 enum class Layout : std::uint8_t { canonical, any };
 
 namespace detail {
@@ -268,4 +269,4 @@ constexpr void parse(std::string_view data, json::Basic<A>& out, const K& rule =
     }
 }
 
-}  // namespace qiven3::canon
+}  // namespace qiven::text::canon

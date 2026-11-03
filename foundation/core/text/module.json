@@ -5,10 +5,23 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/qiven3/canon.hpp",
+  "contract": "foundation/core/text/include/qiven/text/canon.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
+    {
+      "name": "text",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/text/"
+      ]
+    },
     {
       "name": "base",
       "layer": "foundation",
@@ -21,17 +34,10 @@
       ],
       "paths": [
         "src/qiven3/CMakeLists.txt",
-        "src/qiven3/canon.*",
         "src/qiven3/digest.*",
-        "src/qiven3/json*",
         "src/qiven3/qiven3.*",
         "src/qiven3/utc.hpp",
-        "src/qiven3/utf.*",
         "tests/unit/base.cmake",
-        "tests/unit/utf_test.cpp",
-        "tests/unit/json_test.cpp",
-        "tests/unit/json_memory_test.cpp",
-        "tests/unit/canon_*",
         "tests/unit/constant_test.cpp",
         "tests/unit/digest_test.cpp",
         "tests/unit/digest_memory_test.cpp",

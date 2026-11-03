@@ -36,8 +36,8 @@
 #include "entry/labels.hpp"
 #include "entry/refs.hpp"
 #include "entry/served.hpp"
-#include "qiven3/canon.hpp"
 #include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -46,7 +46,7 @@ namespace served = qiven3::entry::served;
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
 namespace labels = qiven3::entry::labels;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace fixtures = qiven::test::fixtures;
 using served::Mark;
 using served::MapMark;

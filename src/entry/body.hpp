@@ -48,10 +48,15 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 
 namespace qiven3::entry::body {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
+using qiven::text::ParseCode;
+using qiven::text::ParseError;
 
 // The codes, in the order parse reads them, then check's.
 enum class Code : std::uint8_t { unknown_key, missing_key, syntax, body_mismatch };

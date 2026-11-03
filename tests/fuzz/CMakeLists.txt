@@ -77,7 +77,7 @@ if(QIVEN_SANITIZE MATCHES "fuzzer")
     set(dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     file(MAKE_DIRECTORY "${dir}/corpus" "${dir}/artifacts")
     qiven_executable(qiven3_fuzz_${target} SOURCES ${target}/target.cpp
-      LINK qiven3_write qiven3_entry qiven3_wire qiven3_base qiven_platform_fake)
+      LINK qiven3_write qiven3_entry qiven3_wire qiven_text qiven3_base qiven_platform_fake)
     target_compile_definitions(qiven3_fuzz_${target} PRIVATE QIVEN3_FUZZ_BINARY)
     # libFuzzer's main, here alone (foundation/devkit/build/sanitize.cmake): MSVC's
     # /fsanitize=fuzzer on the target's own object names it to the link.

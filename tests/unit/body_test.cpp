@@ -23,10 +23,10 @@
 #include "entry/header.hpp"
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven3/canon.hpp"
-#include "qiven3/digest.hpp"
-#include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
+#include "qiven/runner/runner.hpp"
+#include "qiven/text/canon.hpp"
+#include "qiven3/digest.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
@@ -34,7 +34,7 @@ namespace {
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace matcher = qiven::matcher;
-namespace canon = qiven3::canon;
+namespace canon = qiven::text::canon;
 namespace digest = qiven3::digest;
 namespace fixtures = qiven::test::fixtures;
 using body::Code;
@@ -64,7 +64,7 @@ constexpr std::string edited(std::string_view text, std::string_view from, std::
 }
 
 constexpr std::optional<Code> code_of(std::string_view record) {
-    qiven3::json::Basic<> v;
+    qiven::text::json::Basic<> v;
     canon::parse(record, v);
     return body::detail::layout(v);
 }
@@ -119,8 +119,8 @@ std::string thrown(const Op& op) {
         op();
     } catch (const body::BodyError& e) {
         return std::string(body::name(e.code));
-    } catch (const qiven3::ParseError& e) {
-        return e.code == qiven3::ParseCode::depth ? "depth" : "parse";
+    } catch (const qiven::text::ParseError& e) {
+        return e.code == qiven::text::ParseCode::depth ? "depth" : "parse";
     }
     return "none";
 }

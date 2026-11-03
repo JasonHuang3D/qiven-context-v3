@@ -51,10 +51,13 @@
 #include "entry/kinds.hpp"
 #include "entry/served.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven3/canon.hpp"
+#include "qiven/text/canon.hpp"
 #include "qiven3/digest.hpp"
 
 namespace qiven3::entry::projectmap {
+
+namespace canon = qiven::text::canon;
+namespace json = qiven::text::json;
 
 // The rules' and the mark's codes.
 enum class Code : std::uint8_t { kind, reference, object, at };
