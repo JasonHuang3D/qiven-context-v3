@@ -13,7 +13,7 @@ any drive-letter path (X:\\dir, X:/dir) or its /x/dir form whose first
 directory is a profile's root, Users or Documents and Settings, in any case:
 read from the text alone, never from what this machine's drives hold, so it
 reads the same on every host. A documented example value a fixture holds is
-listed in rules.EXAMPLES with its source, exempt by exact value.
+listed in lists.EXAMPLES with its source, exempt by exact value.
 
 The names are read when the test runs as well: the user's from USERNAME,
 USER, LOGNAME, the profile's last directory and the login, the computer's
@@ -32,7 +32,7 @@ import shutil
 import sys
 import unittest
 
-from foundation.devkit.structure import rules
+from foundation.devkit.structure import lists, rules
 
 # The secret check's twelve patterns, in its table's order, each written as
 # the table writes it.
@@ -206,7 +206,7 @@ def content_findings(root, files, paths, names=()):
             if path in lower:
                 found.append((rel, "a path of this machine"))
         for match in list(DRIVE.finditer(text)) + list(POSIX.finditer(text)):
-            if profile_root(match.group(2)) and token_at(text, match.start()) not in rules.EXAMPLES:
+            if profile_root(match.group(2)) and token_at(text, match.start()) not in lists.EXAMPLES:
                 found.append((rel, DRIVE_FINDING))
         if named and named.search(text):
             found.append((rel, "a name of this machine"))

@@ -1,5 +1,6 @@
-"""The structure rules, B1, B2, B5 to B17 and B32, as data, and one checker,
-which also runs the safe subset's token rules, B18 to B31 (subset.py).
+"""The checker of the structure rules, B1, B2, B5 to B17 and B32, whose
+lists lists.py holds; it also runs the safe subset's token rules, B18 to B31
+(subset.py).
 
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
@@ -8,226 +9,31 @@ identifiers and #include directives from the sources by the rules' lexer
 regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
 file's bytes for those git cannot fix. check() applies every rule to v3's
-tree and gives its findings. STATED holds the
-allowances the text states beyond the rows' cells, each with its reason;
-an allowance the text lacks has no place here.
+tree and gives its findings.
 """
 
 import os
-import re
 from collections import namedtuple
 from pathlib import Path
 
 from foundation.devkit.structure import layers, subset
 from foundation.devkit.structure.lexer import lex
+from foundation.devkit.structure.lists import (
+    ADAPTER_HEADERS, ALLOWANCES, ALLOWED, B12_FILES, B12_HEADERS, B12_LINKS, B12_TARGETS, B13_HEADERS, B13_LINKS,
+    B13_OPEN, B13_TARGETS, B17_HEADERS, B17_NAMES, B32_BYTES, CONTRACT, CORE_NAMED, CRT_IO_HEADERS, CXX_SOURCES,
+    ENGINE, EXEMPT, FS_PREFIX, FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES, LIBRARY_SHAPES, LINKER_NAMES,
+    LOAD_NAMES, LOAD_PREFIX, NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS, PLATFORM_WRITES, PROCESS_NAMES,
+    SDK_DIRS, SPAWN_EXEC, STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES, WRITE_NAMES)
 from foundation.devkit.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the size, line-end, content and import tests read here too.
 from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
 
 ROOT = Path(__file__).resolve().parents[3]
 VENDORED = "foundation/system/sqlite/src/sqlite3.c"
-STRUCTURE = "foundation/devkit/structure/"
 # The runner's directory, from the table: its headers every case includes.
 RUNNER = layers.of(ROOT).directory("runner")
-# The test kit's directory: the runner, the case main and the kit's other modules, whose headers cases include.
-KIT = "foundation/devkit/test/"
 
 Finding = namedtuple("Finding", "rule where kind detail")
-
-# The content rule's documented example values, each exempt by exact value,
-# with its source: a drive-letter path into a profile's root.
-EXAMPLES = {
-    "C:/Users/ABC": "normcase's first vector, by CPython's ntpath and LCMapStringEx "
-                    "(foundation/system/platform/tests/win_platform_test.cpp)",
-    "c:\\users\\abc": "that vector's normcase, as the case module writes it",
-}
-
-# The C++ standard library's headers, C++20's and the C library's in both forms.
-STD_HEADERS = frozenset("""
-algorithm any array atomic barrier bit bitset charconv chrono codecvt compare complex concepts
-condition_variable coroutine deque exception execution filesystem format forward_list fstream
-functional future initializer_list iomanip ios iosfwd iostream istream iterator latch limits list
-locale map memory memory_resource mutex new numbers numeric optional ostream queue random ranges
-ratio regex scoped_allocator semaphore set shared_mutex source_location span sstream stack stdexcept
-stop_token streambuf string string_view strstream syncstream system_error thread tuple type_traits
-typeindex typeinfo unordered_map unordered_set utility valarray variant vector version
-cassert cctype cerrno cfenv cfloat cinttypes climits clocale cmath csetjmp csignal cstdarg cstddef
-cstdint cstdio cstdlib cstring ctime cuchar cwchar cwctype
-assert.h ctype.h errno.h fenv.h float.h inttypes.h limits.h locale.h math.h setjmp.h signal.h
-stdarg.h stddef.h stdint.h stdio.h stdlib.h string.h time.h uchar.h wchar.h wctype.h
-""".split())
-# The Windows SDK's directories of operating system headers (B5, B17).
-SDK_DIRS = ("um", "shared", "winrt", "cppwinrt")
-
-# B17: core logic's direct includes, copied from the platform's include
-# boundary, which changes first; then sqlite3.h in B1's module alone, and
-# v3's own headers outside foundation/system/platform/ and foundation/services/compute/, a
-# library's of core to products or the test tree's (layers.py), with the
-# contract's.
-B17_HEADERS = frozenset("""
-algorithm array atomic bit charconv chrono cmath compare concepts condition_variable cstddef cstdint
-cstring deque exception filesystem format fstream functional initializer_list iterator limits map
-memory mutex numeric optional queue ranges set shared_mutex span sstream stdexcept stop_token string
-string_view system_error thread tuple type_traits unordered_map unordered_set utility variant vector
-""".split())
-CONTRACT = "foundation/system/platform/include/qiven/platform/platform.hpp"
-# B17's names: the C runtime's that open a file to write, write, rename,
-# delete, start a process or read or set the environment, each with its
-# wide form; not fwrite or fputc, which every reading object names.
-B17_NAMES = frozenset("""
-fopen fopen_s _fsopen freopen freopen_s _fdopen tmpfile _open _sopen _sopen_s _creat _write _chsize
-_chsize_s _locking rename remove _unlink _mkdir _rmdir system _popen getenv _dupenv_s _putenv _putenv_s
-_wfopen _wfopen_s _wfsopen _wfreopen _wfreopen_s _wfdopen _wopen _wsopen _wsopen_s _wcreat _wrename
-_wremove _wunlink _wmkdir _wrmdir _wsystem _wpopen _wgetenv _wdupenv_s _wputenv _wputenv_s
-""".split())
-SPAWN_EXEC = ("_spawn", "_wspawn", "_exec", "_wexec")
-FS_PREFIX = "__std_fs_"
-# Core's reads' six __std_fs_ names.
-FS_READS = frozenset("__std_fs_" + n for n in (
-    "get_stats", "directory_iterator_open", "directory_iterator_advance", "directory_iterator_close",
-    "convert_narrow_to_wide", "convert_wide_to_narrow"))
-# Names the linker defines itself, which no object or library does: the
-# image's base, which an x64 jump table at /O2 names.
-LINKER_NAMES = frozenset(("__ImageBase",))
-WRITE_CLASSES = ("basic_ofstream", "basic_fstream", "_Recursive_dir_enum_impl")
-STREAM_MODES = frozenset(("out", "app", "trunc", "noreplace"))
-STREAM_TYPES = frozenset(("openmode", "filebuf", "basic_filebuf"))
-# B14's writes: B17's file names but the environment's and the processes'.
-WRITE_NAMES = frozenset(n for n in B17_NAMES if "env" not in n and "system" not in n and "popen" not in n)
-
-# B2, B6, B7, B8, B10.
-GIT_LITERALS = frozenset(("git", "git.exe"))
-GIT_PREFIXES = ("git ", "refs/", "GIT_", "GCM_")
-GIT_LOWER_PREFIXES = tuple(p.lower() for p in GIT_PREFIXES)  # is_git's, read in any case
-GIT_COMMANDS = frozenset(("cat-file", "rev-parse", "hash-object", "ls-tree", "commit-tree", "ls-remote",
-                          "update-ref", "fast-import"))
-# B32: in a text file, the bytes git cannot fix: a CR before no LF, and each control byte but tab and LF.
-B32_BYTES = re.compile(rb"\r(?!\n)|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-CRT_IO_HEADERS = frozenset(("io.h", "direct.h", "process.h", "conio.h"))
-PROCESS_NAMES = frozenset(("system", "_wsystem", "_popen", "_wpopen", "ShellExecuteW", "ShellExecuteExW",
-                           "WinExec", "fork", "posix_spawn"))
-NET_HEADERS = ("winsock2.h", "ws2tcpip.h", "winhttp.h", "wininet.h", "sys/socket.h", "netdb.h")
-NET_LIBS = frozenset(("ws2_32", "winhttp", "wininet"))
-LOAD_NAMES = frozenset(("GetProcAddress", "dlopen", "dlsym", "sqlite3_load_extension"))
-LOAD_PREFIX = "LoadLibrary"
-# B13: the platform's calls that write.
-PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "remove", "rename", "lock"))
-RECORDLOG, ENGINE = "foundation/services/storage/recordlog/", "foundation/services/storage/sqlite/"  # store, wrapper
-
-# Where each rule allows what it finds: path prefixes and target names.
-ALLOWED = {
-    "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", *layers.VENDORED, "qiven_storage_sqlite"),
-    "B2": ("foundation/system/platform/src/windows/process.",),
-    # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
-    # and its variants' (src/diag/CMakeLists.txt).
-    "B5": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
-           layers.CHILD, "qiven_platform_windows", "src/diag/", "qiven3_diag",
-           "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
-    "B11": ("tests/compat/r",),
-    "B14": (f"{layers.SUPPORT}goldens",),
-    "B16": ("src/app/main.", "qiven3"),
-    **subset.ALLOWED,
-}
-# The allowances the text states beyond the rows' cells, (rule, file, what),
-# each with its reason; the subset's cells' are subset.CELLS. A file or a
-# what ending in / is a prefix, a file ending in . a module's files, and a
-# what a type's its members too. B1's what is the text, B1's include and link
-# rules taking none; B5's the header or the import, B6's and B9's the header,
-# B17's the header its include finding names.
-STATED = {
-    ("B1", "foundation/system/sqlite/README.md", "sqlite3"): "the vendored SQLite's module's page, which names its "
-                                                             "contract, the vendored header",
-    ("B1", "foundation/system/sqlite/module.json", "sqlite3"): "that module's table file, whose contract is the "
-                                                               "vendored header's path",
-    ("B1", "foundation/system/sqlite/CMakeLists.txt", "sqlite3"): "that module's build file: the pin of the "
-                                                                  "vendored source's and header's digests, and "
-                                                                  "its one target over them",
-    ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
-                                                                 "files' version, source, digests and options",
-    ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
-                                                  "its absence: its text alone, and B1's include still refused",
-    ("B9", "src/diag/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
-                                     "and its report hook",
-    ("B9", "src/diag/", "signal.h"): "the diagnostic entry's handlers on Linux",
-    ("B9", "src/diag/", "execinfo.h"): "the diagnostic entry's backtrace on Linux",
-    ("B9", "src/diag/", "unistd.h"): "the diagnostic entry's write and _exit on Linux",
-    ("B9", "src/diag/", "mman.h"): "the diagnostic entry's alternate stack on Linux",
-    ("B9", "src/diag/", "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
-    ("B9", layers.TESTS, KIT): "the test kit's public headers, which the cases and the drives include",
-    ("B9", layers.TESTS, layers.SUPPORT): "the test tree's own headers, which its sources include",
-    ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
-    ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
-    ("B9", KIT, KIT): "the test kit's headers, which its modules and their own cases include",
-    ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
-                                            "heap's blocks B19 allows memory/arena and memory/pool",
-    ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
-    ("B9", "foundation/core/memory/include/qiven/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
-                                                         "memory's allocators hold, "
-                                                         "sanitizer/asan_interface.h, included under the "
-                                                         "sanitizer alone",
-    ("B17", "foundation/core/memory/include/qiven/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
-    ("B17", "foundation/system/platform/include/qiven/platform/names.hpp",
-     "foundation/system/platform/include/qiven/platform/files.hpp"): "files.hpp's list, remove and rename, moved "
-                                                                     "out of it for the 600-line bound; included "
-                                                                     "only by the adapter, the fakes and their "
-                                                                     "tests",
-    ("B6", "tests/driver/common.cpp", "io.h"): "_setmode, the drives' binary standard streams: the C "
-                                               "runtime opens them in text mode, and freopen with no "
-                                               "path fails",
-    ("B9", "tests/driver/common.cpp", "io.h"): "as B6's",
-    ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
-    ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
-                                                         "that reaches the diagnostic entry's report hook",
-    ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
-    ("B5", "tools/git_shim.c", "windows.h"): "the tests' counting shim on Windows, which loop_shim.py builds by cl and "
-                                            "CMake never: its log, its environment and the real program's start",
-}
-ALLOWANCES = (*subset.CELLS, *STATED)
-# The directories a rule reads none of, every rule of it, each by prefix with
-# its reason; every other allowance above is by exact path, a prefix ending in
-# / or . or a target's name.
-EXEMPT = {
-    "B1": {STRUCTURE: "the structure checks, which name what they forbid: sqlite3 in B1's text rule, its include "
-                      "and its link, as data and in their cases' scratch files"},
-    "B2": {STRUCTURE: "as B1's: the git names and CreateProcessW B2's rules refuse"},
-    "B14": {STRUCTURE: "as B1's: the goldens path B14's literal rule refuses"},
-}
-# B12: the modules and targets that never reach backup or forgetting.
-B12_FILES = (RECORDLOG, "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
-             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.", "src/wire/")
-B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
-                         "qiven3_bundle", "qiven3_reader", "qiven_platform", "qiven_platform_windows",
-                         "qiven_platform_current", "qiven_text", "qiven_time", "qiven_digest", "qiven3_format",
-                         "qiven3_location", "qiven3_wire"))
-B12_HEADERS = ("src/backup/", "src/forget/")
-B12_LINKS = ("qiven3_forget", "qiven3_backup")
-# B13: the reader's includes and its targets' links.
-B13_HEADERS = (RECORDLOG, "src/backup/", "src/forget/", "src/qiven3/mapcheck.", "src/entry/secret.", "src/bundle/")
-B13_OPEN = ("src/bundle/layout.", RECORDLOG + "include/qiven/recordlog/keys.")  # under B13_HEADERS, open to it
-B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven_text",
-                         "qiven_time", "qiven_digest", "qiven3_format"))
-B13_LINKS = ("qiven_sqlite", "qiven_recordlog", "qiven3_forget", "qiven3_secret", "qiven3_mapcheck",
-             "qiven3_bundle", "qiven3_backup")
-# Core logic: every product target but the adapters, current and compute's.
-NOT_CORE = ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
-            "foundation/system/platform/src/fake/", "foundation/system/platform/include/qiven/platform/fake/",
-            "foundation/system/platform/include/qiven/platform/current.", "foundation/system/platform/src/current.",
-            "foundation/services/compute/", "src/diag/")
-NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current", "qiven_platform_fake",
-                              "qiven_compute", "qiven_compute_fake", "qiven3_diag", "qiven3_diag_entry",
-                              "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
-                              "qiven3_diag_entry_poisoned",
-                              # memory, text and the log again on the debug runtime, for
-                              # qiven3-fault-crtdbg alone: their objects name that runtime, which the
-                              # records do not read; the release copies are read.
-                              "qiven_memory_crtdbg", "qiven_text_crtdbg", "qiven3_log_crtdbg"))
-CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven_recordlog_keys"))
-# An instantiation file may add its binary's one adapter header.
-ADAPTER_HEADERS = frozenset(("foundation/system/platform/include/qiven/platform/current.hpp",
-                             "foundation/system/platform/include/qiven/platform/windows/windows.hpp",
-                             "foundation/system/platform/include/qiven/platform/fake/fake_platform.hpp"))
-LIBRARY_SHAPES = frozenset(("octagon", "doubleoctagon", "tripleoctagon", "pentagon", "hexagon"))
-CXX_SOURCES = layers.CXX
 
 
 def under(path, prefixes):
