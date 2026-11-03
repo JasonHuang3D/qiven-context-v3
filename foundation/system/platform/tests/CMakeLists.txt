@@ -24,6 +24,12 @@ qiven3_add_cases(qiven_platform_fake_process_test LABELS fast fake
   SOURCES fake_process_test.cpp
   LINK qiven_platform_fake)
 
+# current's choice of the build's adapter, on every system: a system with
+# no adapter built refused, naming it (P1's); the build's own chosen.
+qiven3_add_cases(qiven_platform_current_test LABELS fast fake
+  SOURCES current_test.cpp
+  LINK qiven_platform_current)
+
 # windows/files' cases on the Windows adapter, on Windows alone: create,
 # read, remove_directory, replace and lock on real files in each case's
 # scratch directory under the job's temporary directory, and list, remove

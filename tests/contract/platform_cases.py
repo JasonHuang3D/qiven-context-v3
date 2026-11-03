@@ -1,4 +1,4 @@
-"""The platform's cases P1 to P9, each defined once over an adapter.
+"""The platform's drive cases, each defined once over an adapter.
 
 A binding (contract/test_platform_fake.py, machine/test_platform_windows.py)
 mixes these into a TestCase with its adapter: ADAPTER, the name it gives;
@@ -12,7 +12,8 @@ the files' cases, hold(drive, **times), its holders
 kind), a holder's own times, taken and released. A case needing a tag the adapter lacks is
 not applicable, a skip with the reason.
 
-Here: P1 and P2. P3 to P8 and P16 are location's
+Here: P2; P1, current's choice, is platform's own
+(foundation/system/platform/tests/current_test.cpp). P3 to P8 and P16 are location's
 (contract/platform_location.py), P9, P19 and P25 the files'
 (contract/platform_files.py), P10 to P15 and P20 the processes'
 (contract/platform_process.py), P17, P18, P21 and P22 the machine's
@@ -21,13 +22,10 @@ contract/platform_own.py.
 """
 
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
 from tests.drive.session import FAKE, Drive, DriveError, environment
-
-SYSTEMS = {"win32": "windows", "linux": "linux", "darwin": "macos"}
 
 
 class PlatformBinding:
@@ -72,23 +70,6 @@ class PlatformBinding:
 
 
 class PlatformCases:
-    def test_P1_unsupported(self):
-        """adapter_for("linux"), and the call current() makes: unsupported,
-        naming the system."""
-        with self.drive() as d:
-            error = self.failure(d.call, "adapter_for", system="linux")
-            self.assert_platform_error(error, "unsupported")
-            self.assertIn("linux", error.detail)
-            system = SYSTEMS.get(sys.platform, "unknown")
-            if system == "windows":
-                self.assertEqual(d.call("current"), "windows")
-                self.assertEqual(d.call("adapter_for", system="windows"), "windows")
-            else:
-                error = self.failure(d.call, "current")
-                self.assert_platform_error(error, "unsupported")
-                self.assertIn(system, error.detail)
-            self.assertEqual(d.call("name"), self.ADAPTER)
-
     def test_P2_configuration(self):
         """The override; the default location under LOCALAPPDATA moved, unset
         and relative; config_dir(create=true) missing, present, a file in

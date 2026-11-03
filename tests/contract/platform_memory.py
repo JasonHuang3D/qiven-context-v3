@@ -116,14 +116,6 @@ class PlatformMemory:
                     self.assertEqual((short["error"]["kind"], short["error"]["code"]), ("memory", "budget"), short)
                     self.assertEqual((short["memory"]["left"], short["held"]), (0, 0), short)
 
-    def test_adapter_for(self):
-        """adapter_for, the call current() makes, takes no arena of the
-        drive's and holds nothing after."""
-        with self.drive() as d:
-            reply = d.reply("adapter_for", system="linux")
-            self.assertNotIn("memory", reply)
-            self.assertEqual(reply["held"], 0)
-
     def test_faults(self):
         """Under QIVEN_FAULTS, each operation's K-th allocation, and its
         K-th platform call, failed for K from 1 until it completes: each
