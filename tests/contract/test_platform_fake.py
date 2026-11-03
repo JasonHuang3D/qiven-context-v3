@@ -3,7 +3,7 @@ qiven3-drive-fake.
 
 The fake has files and its own cases ("own: fake", contract/platform_own.py:
 its programs, by set_programs, and its lock), and lacks processes and
-machine, so P10 to P15 and P20 run nothing on it. Its files' operations
+machine, so P11 to P15 and P20 run nothing on it. Its files' operations
 write under its root alone.
 """
 
@@ -70,7 +70,7 @@ class FakeMachineSkips(unittest.TestCase):
 
 
 class FakeProcessSkips(unittest.TestCase):
-    """Fake's cases P10 to P15 and P20 run here on a binding whose drive and
+    """Fake's cases P11 to P15 and P20 run here on a binding whose drive and
     files' root fail the case if reached: each not applicable, by its
     reason, having run nothing."""
     ctest_labels = ("fake",)

@@ -2,53 +2,29 @@
 adapter (contract/platform_cases.py names the binding's part): on the
 fake they pass, on any other adapter they are not applicable.
 
-The fake lacks processes, so P10 to P15 and P20 run nothing on it
+The fake lacks processes, so P11 to P15 and P20 run nothing on it
 (contract/platform_process.py); what its programs (set_programs) and its
 lock carry for those cases is checked here, through the drive: its
 program's hang, flood and exit code reach the caller as deadline, output
-and the code; replace failed at each of its calls, as a kill there would
-end it; a killed program ended; a program found by its whole argv alone;
-start and run refusing a relative argv[0], a .cmd and a .bat; the lock
-held and released.
+and the code; a killed program ended; a program found by its whole argv
+alone; start and run refusing a relative argv[0], a .cmd and a .bat; the
+lock held and released. replace failed at each of its calls, as a kill
+there would end it (P10's on the fake), is platform's own
+(foundation/system/platform/tests/files_test.cpp).
 """
 
 import time
 
-from tests.contract.platform_process import ARGS, NEW, OLD, lock_half, named, programs
-from tests.drive.session import has_faults
+from tests.contract.platform_process import ARGS, lock_half, named, programs
 
-# replace's calls, its fault points: its pages, replace, its temporary
-# name's random_bytes, the write and the rename.
-REPLACE_CALLS = 5
 # The fake's refusals: each argv[0] one of its programs, so the refusal alone
 # keeps it from running, then its detail.
 NOT_ABSOLUTE, NO_SHELL = "argv[0] is not absolute", "argv[0] is a .cmd or a .bat: no shell runs it"
-CASES = ("test_own_replace_killed", "test_own_kill_ended", "test_own_hang_deadline", "test_own_flood_output",
-         "test_own_exit_code", "test_own_argv_found", "test_own_argv_refused", "test_own_lock")
+CASES = ("test_own_kill_ended", "test_own_hang_deadline", "test_own_flood_output", "test_own_exit_code",
+         "test_own_argv_found", "test_own_argv_refused", "test_own_lock")
 
 
 class PlatformOwn:
-    def test_own_replace_killed(self):
-        """Under QIVEN_FAULTS, each of replace's calls failed in turn, as a
-        child killed there ends it: PlatformError, the old bytes whole
-        after each; then the new bytes, nothing kept (P10's on the fake)."""
-        self.needs("own: fake")
-        if not has_faults():
-            self.skipTest("not applicable: built without QIVEN_FAULTS")
-        target = self.files_root() / "killed.txt"
-        target.write_bytes(OLD)
-        with self.drive() as d:
-            for k in range(1, 100):
-                reply = d.reply("replace", path=str(target), data=NEW.hex(), fault={"k": k, "of": "platform"})
-                if not reply["fault"]["fired"]:
-                    break
-                self.assertEqual((reply["ok"], reply["error"]["kind"]), (False, "platform"), reply)
-                self.assertEqual(target.read_bytes(), OLD, k)
-            self.assertTrue(reply["ok"], reply)
-            self.assertEqual(k, REPLACE_CALLS + 1, reply)
-            self.assertEqual(target.read_bytes(), NEW)
-            self.assertEqual(d.call("kept"), 0)
-
     def test_own_kill_ended(self):
         """A program that never ends, killed: its stream ends and its wait
         answers 1 within 1 s; kill() again, idempotent; the Child ended, a

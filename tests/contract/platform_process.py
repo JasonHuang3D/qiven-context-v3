@@ -1,6 +1,10 @@
-"""The platform's cases P10 to P15 and P20, each defined once over an
+"""The platform's cases P11 to P15 and P20, each defined once over an
 adapter (contract/platform_cases.py names the binding's part): start, run
 and a Child, through the drive's requests (driver/platform_child.hpp).
+P10, replace whole in a child killed between its write and its rename,
+is platform's own (foundation/system/platform/tests/win_process_test.cpp,
+and on the fake files_test.cpp there), as is a program's working
+directory (win_process_test.cpp and fake_process_test.cpp).
 
 Each case needs processes, which the fake lacks: it checks that need
 first, so on the fake it is not applicable having run nothing, P20's lock
@@ -17,9 +21,9 @@ init's, each location's init on the adapter. P11's supervisor is
 a drive holding the tree, killed by the test.
 
 The readings where the text is silent run on every adapter, the fake's
-programs echoing their command as the child's forms print it: an empty
-cwd is v3's own working directory; a caller's environment pair replaces
-the allowlist's entry of the same name; read_line and wait past their
+programs echoing their command as the child's forms print it: a caller's
+environment pair replaces the allowlist's entry of the same name;
+read_line and wait past their
 timeout answer deadline and leave the tree running, which the Child's end
 stops.
 """
@@ -29,7 +33,6 @@ import os
 import re
 import time
 
-from tests.contract.platform_files import temporaries
 from tests.drive import binaries
 from tests.drive.session import DriveError, debug_library, has_faults
 
@@ -38,9 +41,6 @@ MEMBER = 64 * 1024
 # start, read_line's pages; on the Windows adapter start's 24 Win32 calls,
 # none in read_line.
 CALLS = {"fake": (2, 1), "windows": (24, 0)}
-# How often P10's child is killed on an adapter with processes; its bytes.
-KILLS = 20
-OLD, NEW = b"the old bytes, whole\n", b"the new bytes\n"
 # A child's environment: the allowlist's names v3's own holds.
 ALLOWLIST = ("SystemRoot", "SystemDrive", "TEMP", "TMP")
 # P11's bound in seconds; a tree's sleep, in ms, longer than any case;
@@ -60,8 +60,8 @@ TICK = 0.016
 # diaeresis.
 ARGS = ("", 'a "quoted" word, two  spaces', "\u00eb")
 # The cases needing processes, not applicable on the fake.
-CASES = ("test_P10_replace_killed", "test_P11_tree", "test_P12_deadline", "test_P13_caps",
-         "test_P14_environment", "test_P15_argv", "test_P20_lock")
+CASES = ("test_P11_tree", "test_P12_deadline", "test_P13_caps", "test_P14_environment", "test_P15_argv",
+         "test_P20_lock")
 
 
 def named(error, stream):
@@ -175,43 +175,6 @@ class PlatformProcess:
             except DriveError as caught:
                 return caught
         return self.fail("the child's lines ended with no error")
-
-    def written(self, directory, size):
-        """Waits for replace's temporary file in directory to hold size
-        bytes, then two of its rename's tries more."""
-        until = time.monotonic() + LINE_TIMEOUT / 1000
-        while time.monotonic() < until:
-            left = temporaries(directory)
-            if left and (directory / left[0]).stat().st_size == size:
-                time.sleep(0.1)
-                return
-            time.sleep(0.005)
-        self.fail(f"no temporary file of {size} bytes in {directory}")
-
-    def test_P10_replace_killed(self):
-        """A child killed between its write and its rename, 20 times: the old
-        bytes whole each time. The child's replace is the adapter's, its
-        target held by a reader of the child's own so that the rename waits;
-        the kill comes once the temporary file holds the new bytes, which it
-        leaves, alone."""
-        self.needs("processes")
-        self.child_half(f"a child killed between replace's write and its rename, {KILLS} times")
-        target = self.files_root() / "killed.txt"
-        target.write_bytes(OLD)
-        with self.drive() as d:
-            for k in range(KILLS):
-                with self.subTest(kill=k):
-                    child = d.call("start", argv=self.child("replace", target, NEW.hex(), LONG))["id"]
-                    self.assertEqual(self.lines(d, child, 1), ["held"])
-                    self.written(target.parent, len(NEW))
-                    d.call("child_kill", id=child)
-                    self.assertEqual(d.call("child_wait", id=child), 1)
-                    d.call("child_end", id=child)
-                    self.assertEqual(target.read_bytes(), OLD)
-                    left = temporaries(target.parent)
-                    self.assertEqual(len(left), 1, left)
-                    self.assertEqual((target.parent / left[0]).read_bytes(), NEW)
-                    (target.parent / left[0]).unlink()
 
     def test_P11_tree(self):
         """A child starting a grandchild: kill(); a supervisor holding both,
@@ -360,31 +323,13 @@ class PlatformProcess:
         return out
 
     def echo(self, d, form, *args):
-        """The argv of a program printing its cwd or its environment, as
+        """The argv of a program printing its environment, as
         qiven_platform_child's form of that name: on the fake its program
         echoing it (set_programs' "echo"), elsewhere the child."""
         if self.ADAPTER == "fake":
             return programs(self, d, echo={"echo": form, "args": args})["echo"]
         self.child_half(f"a child printing its {form}")
         return self.child(form, *args)
-
-    def test_cwd(self):
-        """An empty cwd: the program runs in v3's own working directory; a
-        given one: in it; by run and by start, on every adapter."""
-        own, given = self.files_root() / "own", self.files_root() / "given"
-        own.mkdir()
-        given.mkdir()
-        with self.drive(cwd=str(own)) as d:
-            argv = self.echo(d, "cwd")
-            for cwd, where in (("", own), (str(given), given)):
-                with self.subTest(cwd=cwd):
-                    ran = d.call("run", argv=argv, cwd=cwd)
-                    (line,) = bytes.fromhex(ran["out"]).decode().splitlines()
-                    self.assertTrue(os.path.samefile(line, where), (line, where))
-                    child = d.call("start", argv=argv, cwd=cwd)["id"]
-                    (line,) = self.lines(d, child, 1)
-                    self.assertTrue(os.path.samefile(line, where), (line, where))
-                    d.call("child_end", id=child)
 
     def test_environment_replaced(self):
         """A caller's pair of an allowlist name, ASCII letters folded,

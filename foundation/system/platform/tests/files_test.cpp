@@ -3,9 +3,9 @@
 // scratch directory of each case's own, the busy counts driving the
 // retries, the fake's clock counting the waits (P9, P19, P20's lock and
 // P25's replace and open, as files defines them); stage's bound at its
-// edge; an open whose record's insert throws, nothing left; each system
-// call and each platform call failed in turn, a typed error with nothing
-// left.
+// edge; an open whose record's insert throws, nothing left; replace's calls
+// failed in turn, the old bytes whole after each (P10's); each system call
+// and each platform call failed in turn, a typed error with nothing left.
 
 #include <algorithm>
 #include <array>
@@ -439,6 +439,44 @@ QIVEN_CASE(files, lock) {
     CHECK(!fs::exists(scratch.root / "location.lock"));  // the fake's locks are in memory
     CHECK(thrown([&] { fake.lock("relative.lock", five); }).first == Code::path);
     CHECK_EQ(fake.files().kept(), 0U);
+}
+
+// replace's calls failed in turn, as a kill there would end it: a typed
+// error, the old bytes whole after each and no temporary file left; then
+// the new bytes, nothing kept (P10's on the fake).
+QIVEN_CASE(files, replace_killed) {
+#if defined(QIVEN_FAULTS)
+    const Scratch scratch;
+    FakePlatform fake(scratch.config());
+    qiven::memory::Countdown countdown;
+    const fs::path target = scratch.root / "killed.txt";
+    const std::string old_bytes = "the old bytes, whole\n";
+    const std::string new_bytes = "the new bytes\n";
+    write_bytes(target, old_bytes);
+    fake.attach(&countdown);
+    std::size_t k = 1;
+    for (; k < 100; ++k) {
+        countdown.arm(k);
+        const auto t = thrown([&] { fake.replace(text(target), new_bytes, five); });
+        const bool fired = countdown.fired();
+        countdown.disarm();
+        if (!fired) {
+            CHECK_EQ(t.second, std::string("none thrown"));
+            break;
+        }
+        CHECK(t.second != "none thrown");
+        CHECK_EQ(bytes_of(target), old_bytes);
+        CHECK_EQ(listing(scratch.root), std::string("killed.txt"));
+    }
+    fake.attach(nullptr);
+    std::cout << "files.replace_killed: completed at " << k << "\n";
+    CHECK_EQ(k, 5U);
+    CHECK_EQ(bytes_of(target), new_bytes);
+    CHECK_EQ(listing(scratch.root), std::string("killed.txt"));
+    CHECK_EQ(fake.files().kept(), 0U);
+#else
+    QIVEN_SKIP("not applicable: built without QIVEN_FAULTS");
+#endif
 }
 
 // Each system call and each platform call failed in turn: a typed error,

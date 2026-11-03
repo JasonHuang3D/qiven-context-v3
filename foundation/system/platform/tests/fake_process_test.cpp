@@ -1,16 +1,20 @@
 // The fake's processes held to their contract: start and run refuse a
 // relative argv[0], a .cmd and a .bat with start, before any program is
 // looked up; a Child's read_line keeps its line when an allocation fails,
-// the next call reading it whole.
+// the next call reading it whole; a program's working directory, the
+// caller's or the one given.
 
 #include <array>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <random>
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -74,6 +78,55 @@ std::pair<Code, std::string> thrown(Op&& op) {
     }
     return {Code::io, "none thrown"};
 }
+
+std::string text(const fs::path& path) {
+    std::string out;
+    for (const char8_t c : path.u8string()) {
+        out.push_back(static_cast<char>(c));
+    }
+    return out;
+}
+
+// The path a line names, its LF dropped.
+fs::path named(std::string_view line) {
+    if (line.ends_with('\n')) {
+        line.remove_suffix(1);
+    }
+    return fs::path(std::u8string(line.begin(), line.end()));
+}
+
+// A scratch directory of the case's own, removed at its end.
+struct Scratch {
+    Scratch() {
+        const auto device = std::make_unique<std::random_device>();
+        std::random_device& draw = *device;
+        root = fs::temp_directory_path() / ("qiven-fake-process-" + std::to_string(draw()) + std::to_string(draw()));
+        fs::create_directories(root);
+    }
+    Scratch(const Scratch&) = delete;
+    Scratch& operator=(const Scratch&) = delete;
+    Scratch(Scratch&&) = delete;
+    Scratch& operator=(Scratch&&) = delete;
+    ~Scratch() {
+        std::error_code error;
+        fs::remove_all(root, error);
+    }
+    fs::path root;
+};
+
+// The working directory moved for the guard's life, then put back.
+struct Here {
+    explicit Here(const fs::path& to) : was(fs::current_path()) { fs::current_path(to); }
+    Here(const Here&) = delete;
+    Here& operator=(const Here&) = delete;
+    Here(Here&&) = delete;
+    Here& operator=(Here&&) = delete;
+    ~Here() {
+        std::error_code error;
+        fs::current_path(was, error);
+    }
+    fs::path was;
+};
 
 }  // namespace
 
@@ -186,4 +239,43 @@ QIVEN_CASE(fake_process, read_line_kept) {
     std::cout << "fake_process.read_line_kept: the line's allocations " << k - 1 << "\n";
     CHECK(k > 1 && k <= 8);
 #endif
+}
+
+// A program's working directory, the fake's program echoing it as the
+// Windows adapter's child prints it: an empty cwd the caller's own, a given
+// one itself; by run and by start.
+QIVEN_CASE(fake_process, cwd) {
+    const Scratch scratch;
+    const fs::path own = scratch.root / "own";
+    const fs::path given = scratch.root / "given";
+    fs::create_directory(own);
+    fs::create_directory(given);
+    FakePlatform fake{Config{}};
+    const std::string echo = absolute("echo.exe");
+    Program echoing;
+    echoing.echo = "cwd";
+    std::map<std::vector<std::string>, Program> programs;
+    programs[{echo}] = echoing;
+    fake.set_programs(std::move(programs));
+    const std::array<std::string_view, 1> argv{echo};
+    std::vector<std::byte> pages(64 * 1024);  // on the heap: past the frame bound
+    Arena arena(pages);
+    {
+        const Here here(own);
+        const std::string given_text = text(given);
+        for (const auto& [cwd, where] : {std::pair<std::string_view, fs::path>{"", own}, {given_text, given}}) {
+            Command command = of(argv);
+            command.cwd = cwd;
+            Ran ran(arena);
+            fake.run(command, "", ran);
+            CHECK_EQ(ran.code, 0);
+            CHECK(fs::equivalent(named(std::string_view(ran.out)), where));
+            auto child = fake.start(command);
+            String line{Allocator<char>(arena)};
+            REQUIRE(child.read_line(five, line));
+            CHECK(fs::equivalent(named(std::string_view(line)), where));
+            CHECK(!child.read_line(five, line));
+        }
+    }
+    CHECK_EQ(arena.used(), 0U);
 }

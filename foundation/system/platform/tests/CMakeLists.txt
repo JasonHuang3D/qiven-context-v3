@@ -9,7 +9,8 @@ set(qiven_platform_src "${qiven_platform_dir}/src")
 # files' cases on the fake: its pure checks evaluated by the compiler;
 # replace, stage and lock on real files in each case's scratch directory,
 # the fake's busy counts driving the retries (P9, P19, P20's lock, P25's
-# replace and open); stage's bound at its edge, each end freeing a slot;
+# replace and open); replace's calls failed in turn, the old bytes whole
+# after each (P10's); stage's bound at its edge, each end freeing a slot;
 # list, remove and rename (files_names_test.cpp), list's names counted on
 # their arena; each system and platform call failed in turn.
 qiven3_add_cases(qiven_platform_files_test LABELS fast fake
@@ -19,7 +20,8 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # The fake's processes held to their contract: start and run refusing a
 # relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
 # its line on a failed allocation, by the budget and, under QIVEN_FAULTS,
-# each of the line's allocations failed in turn. And its own members
+# each of the line's allocations failed in turn; a program's working
+# directory, the caller's or the one given. And its own members
 # beyond files (fake_platform_test.cpp): config_dir's location made only by
 # create, and its errors (P2's); normcase folding ASCII letters alone
 # (P29's); wipe zeroing, each call recorded (P30's).
@@ -84,11 +86,12 @@ endif()
 # start's refusals; each argument, the environment, the input, wait, kill
 # and the tree's descendants through qiven_platform_child; read_line, the
 # caps, the deadline and run; standard_output to a pipe, the child's, in
-# the code page's bytes (P26's); the heap counted by the binary's own
-# operator new, the jthreads' blocks included; each Win32 call and arena
-# allocation failed in turn. Their helpers are win_process_case.hpp.
-# machine: they start processes, so the full and asan presets run them,
-# not the fast or fake ones.
+# the code page's bytes (P26's); the working directory; replace whole in
+# a child killed between its write and its rename (P10's); the heap
+# counted by the binary's own operator new, the jthreads' blocks included;
+# each Win32 call and arena allocation failed in turn. Their helpers are
+# win_process_case.hpp. machine: they start processes, so the full and
+# asan presets run them, not the fast or fake ones.
 if(WIN32)
   qiven3_add_cases(qiven_platform_win_process_test LABELS machine
     SOURCES win_process_test.cpp win_process_streams_test.cpp win_process_memory_test.cpp
