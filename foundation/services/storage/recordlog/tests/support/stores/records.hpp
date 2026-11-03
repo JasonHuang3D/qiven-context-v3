@@ -45,7 +45,7 @@ namespace qiven::test::records {
 
 inline constexpr qiven::recordlog::Limits suite_limits{512 * qiven::recordlog::mib, 640 * qiven::recordlog::mib,
                                                  768 * qiven::recordlog::mib, 400'000, 480'000, 550'000};
-inline constexpr qiven::recordlog::Identity suite_identity{0x71746573, 7};
+inline constexpr qiven::recordlog::Identity suite_identity{0x71746573};
 
 // A record's keys, owned.
 struct Keys {

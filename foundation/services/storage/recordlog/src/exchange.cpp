@@ -144,7 +144,8 @@ std::size_t Reader::pages_for(const Scopes& scopes, std::span<const AfterView> a
     const std::optional<std::size_t> packed = set && seqs ? qiven::memory::add(*set, *seqs) : std::nullopt;
     const std::optional<std::size_t> all = packed ? qiven::memory::add(*packed, operation_base) : std::nullopt;
     if (!all) {
-        throw qiven::memory::MemoryError::budget("store/exchange", std::numeric_limits<std::size_t>::max(), after.size(), 0);
+        throw qiven::memory::MemoryError::budget("recordlog/exchange", std::numeric_limits<std::size_t>::max(),
+                                                 after.size(), 0);
     }
     return *all;
 }
@@ -152,6 +153,12 @@ std::size_t Reader::pages_for(const Scopes& scopes, std::span<const AfterView> a
 void Reader::open(Exports& owner, std::span<std::byte> pages, std::string_view file, std::string_view path,
                   const Limits& limits, const Identity& identity, const Scopes& scopes,
                   std::span<const AfterView> after, Countdown* countdown) {
+    if (!valid(limits)) {
+        throw StoreError(Code::settings, name(Operation::export_), path, "limits");
+    }
+    if (!valid(identity)) {
+        throw StoreError(Code::settings, name(Operation::export_), path, "application_id");
+    }
     owner_ = &owner;
     next_ = owner.first_;
     if (next_ != nullptr) {

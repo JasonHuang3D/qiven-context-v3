@@ -14,7 +14,7 @@ namespace qiven::test::seams {
 namespace {
 
 // A name's bytes as a file name: letters, digits and - as they are, every
-// other byte %XX, so that "project:qiven" names a file on each system.
+// other byte %XX, so that "group:primary" names a file on each system.
 std::string escaped(std::string_view name) {
     static constexpr std::string_view hex = "0123456789abcdef";
     std::string out;

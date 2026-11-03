@@ -2,13 +2,14 @@
 // write the store refuses itself, whatever its hook, followed by verify
 // and, on SQLite, a reopen and verify again, the counts and the head as
 // before the write. append_forget: a forget appended, forget_path;
-// forget_accept: a forget given an accept, forget_kind; forget_unheld, _twice,
+// forget_plain: a forget given a record not a forget, forget_kind;
+// forget_unheld, _twice,
 // _forgotten, _scope: a forget whose target is not held, is the call's twice,
 // is forgotten, or is of another scope, target; import_gap, import_parent:
 // an import's line with a seq gap, seq, or a parent not its lane's head,
 // parent; head_parent, head_seq: on a lane with a head, a parent not the
-// head, parent, and a seq not one past it with the right parent (past part
-// 1, refused by the order alone), seq; other_scope, other_lane: an entry
+// head, parent, and a seq not one past it with the right parent (refused
+// by the order alone), seq; other_scope, other_lane: an entry
 // whose scope or lane is not the call's, parent; append_unheld: an entry
 // whose target is not held, target; import_unheld: an import's forget whose
 // target is not held, target; import_forgotten, import_bare: an import
@@ -19,7 +20,7 @@
 // no id); body_unrecorded: a body key with no record, body_missing;
 // record_unkeyed: a record with no body key, body_mismatch.
 // append_forget_body, forget_body, import_forget_body: a forget with a body
-// key and a record appended, given to forget or imported, content;
+// key and a record appended, given to forget or imported, forget_body;
 // append_forget_bare, forget_bare, import_forget_bare: a forget with no
 // target key, target. A verify or a reopen refusing is printed. import_plain:
 // an import, then an append, with no admit hook over plain keys of lines no
@@ -77,9 +78,9 @@ using Arena = qiven::memory::Arena;
 using Chars = qiven::memory::Allocator<char>;
 using Fake = qiven::platform::fake::FakePlatform;
 
-constexpr std::string_view qs = "project:qiven";
+constexpr std::string_view qs = "group:primary";
 constexpr std::string_view away_scope = "person";
-constexpr std::string_view mine = "implementer";
+constexpr std::string_view mine = "lane-one";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 
 // A StoreError's code (or full reason, or entry code), index, field, id and
@@ -113,16 +114,17 @@ std::optional<Refusal> refused(const F& f) {
     return std::nullopt;
 }
 
-// The records the cases write: implementer's chain A, B, D and ACC
-// (accepting D), E forgetting B; C on reviewer's lane, revising A.
+// The records the cases write: lane one's chain A, B, D and ACC
+// (targeting D), E a forget of B; C on lane two, targeting A; AWAY on
+// lane one in another scope.
 struct Book {
-    Rec a = rec("A", qs, mine, 1, std::nullopt, "claim");
-    Rec b = rec("B", qs, mine, 2, "A", "claim");
-    Rec d = rec("D", qs, mine, 3, "B", "direction");
-    Rec acc = records::targeting(rec("ACC", qs, mine, 4, "D", "accept"), "D");
+    Rec a = rec("A", qs, mine, 1, std::nullopt, "alpha");
+    Rec b = rec("B", qs, mine, 2, "A", "alpha");
+    Rec d = rec("D", qs, mine, 3, "B", "beta");
+    Rec acc = records::targeting(rec("ACC", qs, mine, 4, "D", "epsilon"), "D");
     Rec e = records::forget("E", qs, mine, 5, "ACC", "B");
-    Rec c = records::targeting(rec("C", qs, "reviewer", 1, std::nullopt, "claim"), "A");
-    Rec away = rec("AWAY", away_scope, mine, 1, std::nullopt, "claim");
+    Rec c = records::targeting(rec("C", qs, "lane-two", 1, std::nullopt, "alpha"), "A");
+    Rec away = rec("AWAY", away_scope, mine, 1, std::nullopt, "alpha");
 };
 
 std::string text(const fs::path& path) {
@@ -183,7 +185,7 @@ struct ListSource {
     }
 };
 
-// A forget on implementer's lane like E, with its target, parent and seq
+// A forget on lane one like E, with its target, parent and seq
 // as given, its id of them.
 Rec forget_of(std::string_view target, std::string_view parent, std::int64_t seq) {
     const std::string id = "F-" + std::string(target) + "-" + std::to_string(seq);
@@ -198,7 +200,7 @@ struct Want {
 };
 constexpr std::size_t cases = 29;
 constexpr Want wants[cases] = {
-    {"append_forget", "forget_path", 0}, {"forget_accept", "forget_kind", 0}, {"forget_unheld", "target", 0},
+    {"append_forget", "forget_path", 0}, {"forget_plain", "forget_kind", 0}, {"forget_unheld", "target", 0},
     {"forget_twice", "target", 1},       {"forget_forgotten", "target", 0},   {"forget_scope", "target", 0},
     {"import_gap", "seq", 1},            {"import_parent", "parent", 1},      {"head_parent", "parent", 0},
     {"head_seq", "seq", 0},              {"other_scope", "parent", 0},        {"other_lane", "parent", 0},
@@ -206,9 +208,9 @@ constexpr Want wants[cases] = {
     {"import_bare", "body_missing", 1},  {"long_id", "too_long", 0},          {"long_scope", "too_long", 0},
     {"long_lane", "too_long", 0},        {"long_parent", "too_long", 0},      {"long_target", "too_long", 0},
     {"body_unrecorded", "body_missing", 0}, {"record_unkeyed", "body_mismatch", 0},
-    {"append_forget_body", "content", 0},   {"forget_body", "content", 0},
-    {"append_forget_bare", "target", 0},    {"forget_bare", "target", 0},
-    {"import_forget_body", "content", 4},   {"import_forget_bare", "target", 4}};
+    {"append_forget_body", "forget_body", 0}, {"forget_body", "forget_body", 0},
+    {"append_forget_bare", "target", 0},      {"forget_bare", "target", 0},
+    {"import_forget_body", "forget_body", 4}, {"import_forget_bare", "target", 4}};
 
 // Case k's held state, written on s.
 template <class S>
@@ -345,7 +347,7 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         lines = {again(id_of(book.away), acc, seq_of(e))};
         return forget(Expected(acc), {GuardView{qs, mine, acc}, GuardView{away_scope, mine, id_of(book.away)}});
     case 6:
-        lines = {a, rec("B", qs, mine, 3, "A", "claim")};
+        lines = {a, rec("B", qs, mine, 3, "A", "alpha")};
         return import();
     case 7:
         lines = {a, book.d};
@@ -354,7 +356,7 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         lines = {book.d};
         return append(qs, mine, Expected(id_of(a)));
     case 9:
-        lines = {rec("B", qs, mine, 5, "A", "claim")};
+        lines = {rec("B", qs, mine, 5, "A", "alpha")};
         return append(qs, mine, Expected(id_of(a)));
     case 10:
         lines = {a};

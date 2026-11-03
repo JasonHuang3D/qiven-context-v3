@@ -38,8 +38,8 @@ using qiven::recordlog::Code;
 using qiven::recordlog::StoreError;
 using records::Rec;
 
-constexpr std::string_view at_scope = "project:qiven";
-constexpr std::string_view at_lane = "implementer";
+constexpr std::string_view at_scope = "group:primary";
+constexpr std::string_view at_lane = "lane-one";
 
 // A writing case's end: verify counts `entries`, the object closes, and
 // where durable a reopened object's verify counts them again.
@@ -100,22 +100,22 @@ void scan_case(qiven::runner::Context& qiven_ctx, F& f) {
 // One entry of a scope set: one ending in `*` holds the scopes its bytes
 // before the `*` begin, `*` alone every scope, any other the scope it
 // equals; a scope set holds what one of its entries holds.
-static_assert(qiven::recordlog::in_scope("project:q*", "project:qiven"));
-static_assert(qiven::recordlog::in_scope("project:qiven*", "project:qiven"));
-static_assert(!qiven::recordlog::in_scope("project:q", "project:qiven"));
-static_assert(!qiven::recordlog::in_scope("project:qiven", "project:q"));
+static_assert(qiven::recordlog::in_scope("group:p*", "group:primary"));
+static_assert(qiven::recordlog::in_scope("group:primary*", "group:primary"));
+static_assert(!qiven::recordlog::in_scope("group:p", "group:primary"));
+static_assert(!qiven::recordlog::in_scope("group:primary", "group:p"));
 static_assert(qiven::recordlog::in_scope("*", "") && qiven::recordlog::in_scope("*", "person"));
 static_assert(qiven::recordlog::in_scope("a*", "a*") && !qiven::recordlog::in_scope("a*", "b*"));
 static_assert(qiven::recordlog::in_scope("person", "person") && !qiven::recordlog::in_scope("person", "persons"));
 static_assert(qiven::recordlog::in_scopes(std::nullopt, "life"));
 
 // A scope set's prefix entries, through heads and an export's heads alike:
-// one lane in each of four project scopes, the last of the scope's bound,
+// one lane in each of four group scopes, the last of the scope's bound,
 // each its own record, and each set holding the lanes its entries match.
 template <class F>
 void prefix_case(qiven::runner::Context& qiven_ctx, F& f) {
-    const std::string longest = "project:q" + std::string(qiven::recordlog::scope_bytes - 9, 'a');
-    const std::vector<std::string> scopes = {"project:qiven", "project:quill", "project:other", longest};
+    const std::string longest = "group:p" + std::string(qiven::recordlog::scope_bytes - 7, 'a');
+    const std::vector<std::string> scopes = {"group:primary", "group:plume", "group:other", longest};
     const auto store = std::make_unique<typename F::Store>(f.make());
     for (const std::string& scope : scopes) {
         const std::vector<Rec> one = {records::rec("P" + std::to_string(&scope - scopes.data()), scope, at_lane, 1)};
@@ -128,9 +128,9 @@ void prefix_case(qiven::runner::Context& qiven_ctx, F& f) {
         std::size_t lanes;
     };
     const std::vector<Want> wants = {
-        {{"project:q*"}, 3},     {{"project:qiven*"}, 1}, {{"project:qiven"}, 1},
-        {{"project:q"}, 0},      {{"*"}, 4},              {{"project:*"}, 4},
-        {{"project:other", "project:qu*"}, 2},            {{"project:qiven-*"}, 0},
+        {{"group:p*"}, 3},       {{"group:primary*"}, 1}, {{"group:primary"}, 1},
+        {{"group:p"}, 0},        {{"*"}, 4},              {{"group:*"}, 4},
+        {{"group:other", "group:pl*"}, 2},                {{"group:primary-*"}, 0},
         {{past}, 1},             {{beyond}, 0},           {{}, 0},
     };
     qiven::memory::Vector<qiven::recordlog::LaneHead> rows(f.site().chars());

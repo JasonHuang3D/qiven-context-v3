@@ -1,7 +1,8 @@
 // sqlite: the writes of append and forget, through the connection wrapper
-// (connection.hpp): part 2's view of the transaction, the head's check, forget's
-// guard, whole records and erasure, the inserts, the head moved, meta added
-// to, and size's figures. This file names nothing of the engine's own.
+// (connection.hpp): the admit hook's and the guards' view of the
+// transaction, the head's check, forget's guard, whole records and
+// erasure, the inserts, the head moved, meta added to, and size's figures.
+// This file names nothing of the engine's own.
 
 #include <algorithm>
 #include <array>

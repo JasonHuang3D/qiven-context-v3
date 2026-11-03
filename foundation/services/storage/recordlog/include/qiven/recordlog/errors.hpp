@@ -6,11 +6,12 @@
 // every error a store operation raises and a mapping returns any of them.
 // Each kind carries the base's operation, store path and detail, and its
 // own fields: HeadConflict scope, lane, expected and actual; EntryInvalid
-// the entry's index, its id, its code, the field's path and, for `secret`,
-// the pattern's name; NotFound the id; StoreBusy the seconds waited;
-// StoreLocked its cause; StoreCorrupt and StoreFull their codes, StoreFull
-// the size, the count and the maximum by size and by count; StoreNotEmpty
-// the count. An expected or actual head of none is empty.
+// the entry's index, its id, its code, the field's path and, where an admit
+// hook gives one, the name of the rule it refused by; NotFound the id;
+// StoreBusy the seconds waited; StoreLocked its cause; StoreCorrupt and
+// StoreFull their codes, StoreFull the size, the count and the maximum by
+// size and by count; StoreNotEmpty the count. An expected or actual head
+// of none is empty.
 //
 // Text is held in place, each field cut at a code point past its bytes; an
 // EntryInvalid keeps the id it is given, whatever its code: a raiser that
@@ -65,7 +66,7 @@ constexpr std::string_view name(Full code) noexcept { return full_names[static_c
 
 // Each text field's bytes: an operation's name; a store's path; the detail,
 // as a platform error's; a scope and a lane by their syntaxes; an id; an
-// entry's code; a field's path, as content's; a pattern's name.
+// entry's code; a field's path, as content's; a hook rule's name.
 inline constexpr std::size_t operation_bytes = 16;
 inline constexpr std::size_t path_bytes = 512;
 inline constexpr std::size_t detail_bytes = 256;

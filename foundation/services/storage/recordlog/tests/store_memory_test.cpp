@@ -1,7 +1,7 @@
 // store/memory's smoke cases over plain records (records.hpp) with no admit
 // hook, on the fake. smoke: the in-memory store meets the contract's
 // concept; an append of
-// implementer's lane in two calls, the head, a header, a body record,
+// lane one in two calls, the head, a header, a body record,
 // forgotten, heads, size and a scan, whole and after a seq; a
 // HeadConflict, nothing written; a second object over the same state sees
 // the appends; a read-only one refuses append and serves head; NotFound;
@@ -61,17 +61,17 @@ static_assert(qiven::recordlog::Store<Store>, "the in-memory store meets the con
 static_assert(!Store::capabilities.durable && !Store::capabilities.files && !Store::capabilities.processes,
               "the in-memory store declares no capability");
 
-constexpr std::string_view qiven_scope = "project:qiven";
-constexpr std::string_view implementer_lane = "implementer";
-constexpr std::string_view reviewer_lane = "reviewer";
+constexpr std::string_view group_scope = "group:primary";
+constexpr std::string_view lane_one = "lane-one";
+constexpr std::string_view lane_two = "lane-two";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t buffer_bytes = std::size_t{1} << 20U;
 
-// The fake, implementer's lane of A, B, D and ACC, the state's pages and
+// The fake, lane one of A, B, D and ACC, the state's pages and
 // the state, and the caller's arena.
 struct Rig {
     Rig()
-        : fake(qiven::platform::fake::Config{}), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
+        : fake(qiven::platform::fake::Config{}), lane(chain(group_scope, lane_one, {"A", "B", "D", "ACC"})),
           heap(fake.pages(state_bytes)), state(heap.bytes(), qiven::test::records::suite_limits),
           heap2(fake.pages(state_bytes)), state2(heap2.bytes(), qiven::test::records::suite_limits),
           pages(buffer_bytes), arena(pages), chars(arena) {}
@@ -109,7 +109,7 @@ void appends(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane) 
     CHECK_EQ(store.size().volume.count, 0U);
     const Recs first = {lane[0], lane[1]};
     const std::vector<EntryView> lines = views(first);
-    const Written w = store.append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(lines));
+    const Written w = store.append(group_scope, lane_one, std::nullopt, std::span<const EntryView>(lines));
     CHECK_EQ(w.head.id.view(), id_of(first[1]));
     CHECK_EQ(w.head.seq, 2);
     CHECK_EQ(w.volume.count, 2U);
@@ -118,13 +118,13 @@ void appends(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane) 
     const Recs second = {lane[2]};
     const std::vector<EntryView> more = views(second);
     CHECK(raised([&] {
-              (void)store.append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(more));
+              (void)store.append(group_scope, lane_one, std::nullopt, std::span<const EntryView>(more));
           }).starts_with("HeadConflict"));
     CHECK(raised([&] {
-              (void)store.append(qiven_scope, implementer_lane, id_of(first[0]), std::span<const EntryView>(more));
+              (void)store.append(group_scope, lane_one, id_of(first[0]), std::span<const EntryView>(more));
           }).starts_with("HeadConflict"));
     CHECK_EQ(store.size().volume.count, 2U);
-    const Written w2 = store.append(qiven_scope, implementer_lane, id_of(first[1]), std::span<const EntryView>(more));
+    const Written w2 = store.append(group_scope, lane_one, id_of(first[1]), std::span<const EntryView>(more));
     CHECK_EQ(w2.head.seq, 3);
     CHECK_EQ(w2.volume.count, 3U);
     CHECK_EQ(w2.volume.size, added(first) + added(second));
@@ -134,10 +134,10 @@ void appends(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane) 
 void reads(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, const Chars& chars) {
     const Rec& a = lane[0];
     const Rec& d = lane[2];
-    const std::optional<qiven::recordlog::Head> head = store.head(qiven_scope, implementer_lane);
+    const std::optional<qiven::recordlog::Head> head = store.head(group_scope, lane_one);
     REQUIRE(head.has_value());
     CHECK_EQ(head->id.view(), id_of(d));
-    CHECK(!store.head(qiven_scope, "reviewer").has_value());
+    CHECK(!store.head(group_scope, "lane-two").has_value());
     String h(chars);
     store.header(id_of(a), h);
     CHECK_EQ(std::string_view(h), a.line);  // A's line, as given
@@ -153,10 +153,10 @@ void reads(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, co
     const Heads hs = store.heads(std::nullopt, rows);
     REQUIRE(rows.size() == 1U);
     CHECK_EQ(rows[0].head.id.view(), id_of(d));
-    CHECK_EQ(rows[0].scope.view(), qiven_scope);
+    CHECK_EQ(rows[0].scope.view(), group_scope);
     CHECK_EQ(hs.forgets, 0U);
-    const std::array<std::string_view, 1> star = {"project:*"};
-    const std::array<std::string_view, 1> elsewhere = {"project:other"};
+    const std::array<std::string_view, 1> star = {"group:*"};
+    const std::array<std::string_view, 1> elsewhere = {"group:other"};
     (void)store.heads(std::span<const std::string_view>(star), rows);
     CHECK_EQ(rows.size(), 1U);
     (void)store.heads(std::span<const std::string_view>(elsewhere), rows);
@@ -167,7 +167,7 @@ void reads(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, co
     CHECK_EQ(all[0], id_of(a));
     CHECK_EQ(all[2], id_of(d));
     RangeView after;
-    after.scope = qiven_scope;
+    after.scope = group_scope;
     after.after = 2;
     const std::vector<std::string> tail = scanned(store, after, chars);
     REQUIRE(tail.size() == 1U);
@@ -186,11 +186,11 @@ QIVEN_CASE(store_memory, smoke) {
 
     // A second object over the state, and a read-only one.
     Store again(rig->state, rig->fake);
-    CHECK_EQ(again.head(qiven_scope, implementer_lane)->seq, 3);
+    CHECK_EQ(again.head(group_scope, lane_one)->seq, 3);
     Store reader(rig->state, rig->fake, true);
     CHECK(reader.read_only());
-    CHECK_EQ(reader.head(qiven_scope, implementer_lane)->seq, 3);
-    CHECK_EQ(raised([&] { (void)reader.append(qiven_scope, implementer_lane, std::nullopt, {}); }),
+    CHECK_EQ(reader.head(group_scope, lane_one)->seq, 3);
+    CHECK_EQ(raised([&] { (void)reader.append(group_scope, lane_one, std::nullopt, {}); }),
              std::string("StoreError read_only"));
     const Counts counts = store.verify();
     CHECK_EQ(counts.entries, 3U);
@@ -199,7 +199,7 @@ QIVEN_CASE(store_memory, smoke) {
     CHECK_EQ(counts.lanes, 1U);
 
     CHECK(store.close().done);
-    CHECK_EQ(raised([&] { (void)store.head(qiven_scope, implementer_lane); }), std::string("StoreError closed"));
+    CHECK_EQ(raised([&] { (void)store.head(group_scope, lane_one); }), std::string("StoreError closed"));
     CHECK_EQ(again.size().volume.count, 3U);
 }
 
@@ -234,8 +234,8 @@ struct ListSource {
     }
 };
 
-// E: a forget of B on implementer's lane after ACC.
-Rec forget_e() { return forget("E", qiven_scope, implementer_lane, 5, "ACC", "B"); }
+// E: a forget of B on lane one after ACC.
+Rec forget_e() { return forget("E", group_scope, lane_one, 5, "ACC", "B"); }
 
 // forget_kind, the guard's conflicts, then B forgotten by E.
 void forgets(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, const Chars& chars) {
@@ -250,14 +250,14 @@ void forgets(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, 
     const std::string head(rows[0].head.id.view());
     Vector<Id> erased(chars);
     const auto forget = [&](const std::vector<EntryView>& entries) {
-        return store.forget(qiven_scope, implementer_lane, head, entries, guard, erased);
+        return store.forget(group_scope, lane_one, head, entries, guard, erased);
     };
     CHECK_EQ(raised([&] { (void)forget(wrong); }), std::string("StoreError forget_kind"));
     const std::vector<GuardView> full = guard;
     guard.clear();
     CHECK(raised([&] { (void)forget(lines); }).starts_with("HeadConflict"));
     guard = full;
-    guard.push_back(GuardView{qiven_scope, "learner", head});
+    guard.push_back(GuardView{group_scope, "learner", head});
     CHECK(raised([&] { (void)forget(lines); }).starts_with("HeadConflict"));
     guard = full;
     const std::uint64_t size = store.size().volume.size;
@@ -272,21 +272,22 @@ void forgets(qiven::runner::Context& qiven_ctx, Store& store, const Recs& lane, 
     CHECK(!store.body(id_of(b), record));
 }
 
-// Reviewer's lane of C, M1 and M2; then M2 and M1 forgotten in one call
-// (a forget of M1 alone refused whole_record is checked's case).
+// Lane two of C, M1 and M2; then M2 and M1 forgotten in one call (a
+// forget of M1 alone refused whole_record is an admit hook's rule, not the
+// store's).
 void records(qiven::runner::Context& qiven_ctx, Store& store, const Chars& chars) {
-    const Recs lane = chain(qiven_scope, reviewer_lane, {"C", "M1", "M2"});
+    const Recs lane = chain(group_scope, lane_two, {"C", "M1", "M2"});
     const std::vector<EntryView> held = views(lane);
-    (void)store.append(qiven_scope, reviewer_lane, std::nullopt, held);
-    const Rec f2 = forget("X2", qiven_scope, reviewer_lane, 4, "M2", "M2");
-    const Rec f3 = forget("X3", qiven_scope, reviewer_lane, 5, "X2", "M1");
+    (void)store.append(group_scope, lane_two, std::nullopt, held);
+    const Rec f2 = forget("X2", group_scope, lane_two, 4, "M2", "M2");
+    const Rec f3 = forget("X3", group_scope, lane_two, 5, "X2", "M1");
     Vector<LaneHead> rows(chars);
     const std::vector<GuardView> guard = guard_of(store, rows);
     Vector<Id> erased(chars);
     CHECK_EQ(store.size().volume.count, 8U);
     const Recs whole = {f2, f3};
     const std::vector<EntryView> whole_lines = views(whole);
-    const Written w = store.forget(qiven_scope, reviewer_lane, id_of(lane[2]), whole_lines, guard, erased);
+    const Written w = store.forget(group_scope, lane_two, id_of(lane[2]), whole_lines, guard, erased);
     CHECK_EQ(w.head.seq, 5);
     CHECK_EQ(erased.size(), 2U);
     CHECK(store.forgotten(id_of(lane[1])) && store.forgotten(id_of(lane[2])));
@@ -352,7 +353,7 @@ QIVEN_CASE(store_memory, exchange) {
         auto scan = store.scan(RangeView{});
         Record h(rig->chars);
         std::size_t n = scan.next(h) ? 1U : 0U;
-        (void)store.append(qiven_scope, implementer_lane, id_of(lane[2]), acc_lines);
+        (void)store.append(group_scope, lane_one, id_of(lane[2]), acc_lines);
         while (scan.next(h)) {
             ++n;
         }
@@ -370,7 +371,7 @@ QIVEN_CASE(store_memory, exchange) {
     CHECK_EQ(before.ids.size(), 4U);
     CHECK(before.b_body && !before.b_forgotten);
     CHECK_EQ(kept(rig->state), 3U);
-    const std::array<std::string_view, 1> star = {"project:*"};
+    const std::array<std::string_view, 1> star = {"group:*"};
     CHECK_EQ(store.heads(std::span<const std::string_view>(star), rows).forgets, 3U);
     early.close();
     CHECK_EQ(kept(rig->state), 0U);
@@ -386,7 +387,7 @@ QIVEN_CASE(store_memory, exchange) {
     bad.lines = {lane[0], lane[1], lane[2], lane[3], forget_e()};
     // Pushed, not assigned from a list: g++ 13 under the sanitizers takes
     // the list's copy for a read past its one head (-Warray-bounds).
-    bad.given.push_back(lane_head(qiven_scope, implementer_lane, id_of(bad.lines.back()), 5));
+    bad.given.push_back(lane_head(group_scope, lane_one, id_of(bad.lines.back()), 5));
     Vector<LaneHead> wrote(rig->chars);
     const std::optional<Refusal> refusal = refused([&] { (void)other.import_(bad, wrote); });
     REQUIRE(refusal.has_value());
@@ -399,7 +400,7 @@ QIVEN_CASE(store_memory, exchange) {
     CHECK_EQ(wrote.size(), 2U);
     CHECK(other.verify() == counts);
     CHECK(other.forgotten(id_of(lane[1])));
-    const std::array<qiven::recordlog::AfterView, 1> from = {qiven::recordlog::AfterView{qiven_scope, implementer_lane, 2}};
+    const std::array<qiven::recordlog::AfterView, 1> from = {qiven::recordlog::AfterView{group_scope, lane_one, 2}};
     auto tail = store.export_(std::nullopt, from);
     CHECK_EQ(lines_of(tail), counts.entries - 2U);
     tail.close();

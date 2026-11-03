@@ -189,7 +189,7 @@ public:
     MemoryStore(state::State& s, P& platform, bool read_only = false)
         : state_(&s), platform_(&platform), pages_(platform.pages(operation_base)), gate_(read_only) {
         if (pages_.bytes().size() < operation_base) {
-            qiven::memory::fail_fast("store/memory: pages short of their request");
+            qiven::memory::fail_fast("recordlog/memory: pages short of their request");
         }
     }
     MemoryStore(const MemoryStore&) = delete;
@@ -495,7 +495,7 @@ private:
         }
         extra.emplace(platform_->pages(budget));
         if (extra->bytes().size() < budget) {
-            qiven::memory::fail_fast("store/memory: pages short of their request");
+            qiven::memory::fail_fast("recordlog/memory: pages short of their request");
         }
         return extra->bytes().first(budget);
     }

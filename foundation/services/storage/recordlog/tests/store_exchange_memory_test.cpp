@@ -20,8 +20,8 @@ QIVEN_CASE(store_exchange, budget) {
     const auto b = std::make_unique<Bed>();
     CHECK_EQ(sqlite::Reader::pages_for(b->scopes, b->after), own_bytes + 57U + 98U);
     CHECK_EQ(sqlite::Reader::pages_for(std::nullopt, {}), own_bytes);
-    const std::vector<std::string_view> three = {"project:a", "project:b", "project:c"};
-    const std::vector<AfterView> two = {AfterView{"project:a", "x", 1}, AfterView{"project:b", "y", 2}};
+    const std::vector<std::string_view> three = {"group:a", "group:b", "group:c"};
+    const std::vector<AfterView> two = {AfterView{"group:a", "x", 1}, AfterView{"group:b", "y", 2}};
     CHECK_EQ(sqlite::Reader::pages_for(three, two), own_bytes + (3U * 57U) + (2U * 98U));
     for (const Step& s : steps()) {
         b->fresh_engine(s.side != Side::importing, s.side == Side::importing);

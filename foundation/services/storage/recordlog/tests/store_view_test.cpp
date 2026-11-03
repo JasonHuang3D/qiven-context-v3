@@ -1,7 +1,7 @@
 // store's view cases, the generic calls in both stores: the in-memory
 // store's view over its state and the SQLite store's over its connection,
 // on the fake, after one chain of plain records on two lanes (A, B, D and
-// ACC on implementer, C, M1, M2 and ACC2 on reviewer), verified after the
+// ACC on lane one, C, M1, M2 and ACC2 on lane two), verified after the
 // write and, on SQLite, reopened and verified again. line(id) and header(id)
 // give a held record's line byte-equal, body(id) its body record, each false
 // for an id not held; held_in(id, scope)
@@ -10,8 +10,8 @@
 // the ids whose target is it, in the order written, none in another scope
 // or for an id no record targets, and targets(id) the same in every
 // scope; keyed(scope, kind) a scope's ids of a
-// kind, a target or none, in (lane, seq) order, a revision of the kind
-// among them, none in another scope; contains(bytes) whether a held line holds
+// kind, a target or none, in (lane, seq) order, one targeting another of
+// the kind among them, none in another scope; contains(bytes) whether a held line holds
 // them. Each list is cleared first. order_memory, order_sqlite: the
 // store's own order with no admit hook, a parent not the lane's head
 // refused parent and a seq not one past it seq, the chain in order
@@ -60,7 +60,7 @@ using Arena = qiven::memory::Arena;
 using Fake = qiven::platform::fake::FakePlatform;
 using Chars = qiven::memory::Allocator<char>;
 
-constexpr std::string_view qiven_scope = "project:qiven";
+constexpr std::string_view group_scope = "group:primary";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t buffer_bytes = std::size_t{1} << 20U;
 
@@ -97,23 +97,24 @@ struct Scratch {
     fs::path root;
 };
 
-// The chain, written by the store given: implementer's lane (claims A and
-// B, direction D, ACC accepting D), then reviewer's (C a claim revising A,
-// maps M1 and M2 revising it, ACC2 accepting D); every record bodied.
+// The chain, written by the store given: lane one (A and B of kind alpha,
+// D of beta, ACC of epsilon targeting D), then lane two (C of alpha
+// targeting A, M1 and M2 of gamma, M2 targeting M1, ACC2 of epsilon
+// targeting D); every record bodied. No record is of kind delta.
 struct Chain {
     Chain()
-        : mine{rec("A", qiven_scope, "implementer", 1, std::nullopt, "claim"),
-               rec("B", qiven_scope, "implementer", 2, "A", "claim"),
-               rec("D", qiven_scope, "implementer", 3, "B", "direction"),
-               targeting(rec("ACC", qiven_scope, "implementer", 4, "D", "accept"), "D")},
-          theirs{targeting(rec("C", qiven_scope, "reviewer", 1, std::nullopt, "claim"), "A"),
-                 rec("M1", qiven_scope, "reviewer", 2, "C", "map"),
-                 targeting(rec("M2", qiven_scope, "reviewer", 3, "M1", "map"), "M1"),
-                 targeting(rec("ACC2", qiven_scope, "reviewer", 4, "M2", "accept"), "D")} {}
+        : mine{rec("A", group_scope, "lane-one", 1, std::nullopt, "alpha"),
+               rec("B", group_scope, "lane-one", 2, "A", "alpha"),
+               rec("D", group_scope, "lane-one", 3, "B", "beta"),
+               targeting(rec("ACC", group_scope, "lane-one", 4, "D", "epsilon"), "D")},
+          theirs{targeting(rec("C", group_scope, "lane-two", 1, std::nullopt, "alpha"), "A"),
+                 rec("M1", group_scope, "lane-two", 2, "C", "gamma"),
+                 targeting(rec("M2", group_scope, "lane-two", 3, "M1", "gamma"), "M1"),
+                 targeting(rec("ACC2", group_scope, "lane-two", 4, "M2", "epsilon"), "D")} {}
     template <class S>
     void write(S& store) const {
-        (void)store.append(qiven_scope, "implementer", std::nullopt, views(mine));
-        (void)store.append(qiven_scope, "reviewer", std::nullopt, views(theirs));
+        (void)store.append(group_scope, "lane-one", std::nullopt, views(mine));
+        (void)store.append(group_scope, "lane-two", std::nullopt, views(theirs));
     }
     // The counts the chain's write holds.
     static constexpr qiven::recordlog::Counts held{8, 8, 0, 2};
@@ -157,24 +158,24 @@ void calls(qiven::runner::Context& qiven_ctx, V& view, const Chain& chain, const
     CHECK(view.header(id_of(m1), line) && std::string_view(line) == m1.line && !view.header(none, line));
     CHECK(view.body(id_of(a), line) && std::string_view(line) == *a.record && !view.body(none, line));
 
-    CHECK(view.held_in(id_of(a), qiven_scope) && view.held_in(id_of(acc2), qiven_scope));
-    CHECK(!view.held_in(id_of(a), "person") && !view.held_in(none, qiven_scope));
-    CHECK(!view.held_in(id_of(a), qiven_scope.substr(0, qiven_scope.size() - 1)));
-    CHECK(!view.held_in(id_of(a), std::string(qiven_scope) + "*"));
+    CHECK(view.held_in(id_of(a), group_scope) && view.held_in(id_of(acc2), group_scope));
+    CHECK(!view.held_in(id_of(a), "person") && !view.held_in(none, group_scope));
+    CHECK(!view.held_in(id_of(a), group_scope.substr(0, group_scope.size() - 1)));
+    CHECK(!view.held_in(id_of(a), std::string(group_scope) + "*"));
 
     Vector<Id> out(chars);
     out.push_back(Id::of(none));
-    view.targets(id_of(a), qiven_scope, out);
+    view.targets(id_of(a), group_scope, out);
     CHECK(ids(out) == ids_of({&c}));
-    view.targets(id_of(d), qiven_scope, out);
+    view.targets(id_of(d), group_scope, out);
     CHECK(ids(out) == ids_of({&acc, &acc2}));
-    view.targets(id_of(m1), qiven_scope, out);
+    view.targets(id_of(m1), group_scope, out);
     CHECK(ids(out) == ids_of({&m2}));
-    view.targets(id_of(b), qiven_scope, out);
+    view.targets(id_of(b), group_scope, out);
     CHECK(out.empty());
     view.targets(id_of(a), "person", out);
     CHECK(out.empty());
-    view.targets(none, qiven_scope, out);
+    view.targets(none, group_scope, out);
     CHECK(out.empty());
 
     out.push_back(Id::of(none));
@@ -189,48 +190,48 @@ void calls(qiven::runner::Context& qiven_ctx, V& view, const Chain& chain, const
     view.targets(none, out);
     CHECK(out.empty());
 
-    view.keyed(qiven_scope, "claim", out);
+    view.keyed(group_scope, "alpha", out);
     CHECK(ids(out) == ids_of({&a, &b, &c}));
-    view.keyed(qiven_scope, "direction", out);
+    view.keyed(group_scope, "beta", out);
     CHECK(ids(out) == ids_of({&d}));
-    view.keyed(qiven_scope, "map", out);
+    view.keyed(group_scope, "gamma", out);
     CHECK(ids(out) == ids_of({&m1, &m2}));
-    view.keyed(qiven_scope, "check", out);
+    view.keyed(group_scope, "delta", out);
     CHECK(out.empty());
-    view.keyed(qiven_scope, "accept", out);
+    view.keyed(group_scope, "epsilon", out);
     CHECK(ids(out) == ids_of({&acc, &acc2}));
-    view.keyed("person", "claim", out);
+    view.keyed("person", "alpha", out);
     CHECK(out.empty());
 
     CHECK(view.contains(id_of(m2)));
-    CHECK(view.contains("kind:direction"));
+    CHECK(view.contains("kind:beta"));
     CHECK(!view.contains(none));
     CHECK(!view.contains("kind:forget"));
 
     // each_keyed: keyed's ids in its order, all walked when f never stops,
     // the walk ended at the first f stops at.
-    for (const std::string_view kind : {"claim", "direction", "map", "check", "accept"}) {
-        view.keyed(qiven_scope, kind, out);
+    for (const std::string_view kind : {"alpha", "beta", "gamma", "delta", "epsilon"}) {
+        view.keyed(group_scope, kind, out);
         std::vector<std::string> walked;
-        CHECK(!view.each_keyed(qiven_scope, kind, [&](const Id& id) {
+        CHECK(!view.each_keyed(group_scope, kind, [&](const Id& id) {
             walked.emplace_back(id.view());
             return false;
         }));
         CHECK(walked == ids(out));
     }
     std::vector<std::string> first;
-    CHECK(view.each_keyed(qiven_scope, "claim", [&](const Id& id) {
+    CHECK(view.each_keyed(group_scope, "alpha", [&](const Id& id) {
         first.emplace_back(id.view());
         return true;
     }));
     CHECK(first == ids_of({&a}));
     std::vector<std::string> second;
-    CHECK(view.each_keyed(qiven_scope, "claim", [&](const Id& id) {
+    CHECK(view.each_keyed(group_scope, "alpha", [&](const Id& id) {
         second.emplace_back(id.view());
         return second.size() == 2;
     }));
     CHECK(second == ids_of({&a, &b}));
-    CHECK(!view.each_keyed("person", "claim", [](const Id&) { return true; }));
+    CHECK(!view.each_keyed("person", "alpha", [](const Id&) { return true; }));
 
     // work with no scratch: the view's allocator.
     CHECK(&view.work().arena() == &chars.arena());
@@ -285,13 +286,13 @@ constexpr qiven::recordlog::Counts ordered{3, 3, 0, 1};
 template <class S>
 void order(qiven::runner::Context& qiven_ctx, S& store) {
     using qiven::recordlog::NoAdmit;
-    const std::vector<Rec> chain = qiven::test::records::chain(qiven_scope, "implementer", {"A", "B", "D"});
+    const std::vector<Rec> chain = qiven::test::records::chain(group_scope, "lane-one", {"A", "B", "D"});
     const std::vector<Rec> skip_first = {chain[1]};
     const std::vector<Rec> skip_second = {chain[0], chain[2]};
-    const std::vector<Rec> late = {rec("A", qiven_scope, "implementer", 2)};
+    const std::vector<Rec> late = {rec("A", group_scope, "lane-one", 2)};
     const auto one = [&](const std::vector<Rec>& list) {
         const auto lines = views(list);
-        return refused([&] { (void)store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{}); });
+        return refused([&] { (void)store.append(group_scope, "lane-one", std::nullopt, lines, NoAdmit{}); });
     };
     const auto first = one(skip_first);
     CHECK(first.has_value() && first->code == "parent" && first->index == 0U);
@@ -301,7 +302,7 @@ void order(qiven::runner::Context& qiven_ctx, S& store) {
     CHECK(seq.has_value() && seq->code == "seq" && seq->index == 0U);
     CHECK(store.verify() == qiven::recordlog::Counts{});
     const auto lines = views(chain);
-    const qiven::recordlog::Written w = store.append(qiven_scope, "implementer", std::nullopt, lines, NoAdmit{});
+    const qiven::recordlog::Written w = store.append(group_scope, "lane-one", std::nullopt, lines, NoAdmit{});
     CHECK_EQ(w.head.id.view(), id_of(chain.back()));
     CHECK(w.head.seq == 3);
     CHECK(store.verify() == ordered);
@@ -332,7 +333,7 @@ QIVEN_CASE(store_view, order_sqlite) {
     const auto again = std::make_unique<Store>(Store::open(path, false, false, *fake,
                                                            records::suite_limits, records::suite_identity));
     CHECK(again->verify() == ordered);
-    const std::optional<qiven::recordlog::Head> head = again->head(qiven_scope, "implementer");
+    const std::optional<qiven::recordlog::Head> head = again->head(group_scope, "lane-one");
     CHECK(head.has_value() && head->seq == 3 && head->id.view() == "D");
     (void)again->close();
 }

@@ -1,8 +1,8 @@
-// store/errors' cases: each kind made with its fields and read back, its
-// code given for its own kind alone, an EntryInvalid of code `secret` keeping
-// the id it is given, fields cut at a code point, the names in the text's spelling,
-// evaluated by the compiler (the widths against the entry's are checked's
-// cases); each kind's message line, its detail, its seconds, and a line
+// recordlog/errors' cases: each kind made with its fields and read back,
+// its code given for its own kind alone, an EntryInvalid of a hook's code
+// keeping the id it is given, fields cut at a code point, the names in the
+// text's spelling and the detail's width, evaluated by the compiler; each
+// kind's message line, its detail, its seconds, and a line
 // cut at a code point; an error thrown by value and caught by its type;
 // the fault run, over no allocation and no platform call. The runner's
 // count after each case holds too.
@@ -54,18 +54,18 @@ constexpr bool base_vector() {
 static_assert(base_vector());
 
 constexpr bool conflict_vector() {
-    constexpr StoreError e = StoreError::head_conflict("append", path, "project:qiven", "writer", id_a, "");
-    return e.kind() == Kind::head_conflict && !e.code() && e.scope() == "project:qiven" && e.lane() == "writer" &&
+    constexpr StoreError e = StoreError::head_conflict("append", path, "group:primary", "writer", id_a, "");
+    return e.kind() == Kind::head_conflict && !e.code() && e.scope() == "group:primary" && e.lane() == "writer" &&
            e.expected() == id_a && e.actual().empty() && e.detail().empty();
 }
 static_assert(conflict_vector());
 
 constexpr bool invalid_vectors() {
     constexpr StoreError e = StoreError::entry_invalid("append", path, 2, id_a, "parent", "parent");
-    constexpr StoreError s = StoreError::entry_invalid("append", path, 0, id_b, "secret", "content.text", "github_token");
+    constexpr StoreError s = StoreError::entry_invalid("append", path, 0, id_b, "hook_rule", "record.part", "rule_one");
     return e.kind() == Kind::entry_invalid && e.index() == 2 && e.id() == id_a && e.entry_code() == "parent" &&
-           e.field() == "parent" && e.pattern().empty() && s.id() == id_b && s.entry_code() == "secret" &&
-           s.field() == "content.text" && s.pattern() == "github_token" && s.index() == 0;
+           e.field() == "parent" && e.pattern().empty() && s.id() == id_b && s.entry_code() == "hook_rule" &&
+           s.field() == "record.part" && s.pattern() == "rule_one" && s.index() == 0;
 }
 static_assert(invalid_vectors());
 
@@ -125,7 +125,7 @@ static_assert(store::name(Cause::not_writable) == "not_writable" && store::name(
 static_assert(store::name(Corrupt::not_a_store) == "not_a_store" && store::name(Corrupt::forgotten_body) == "forgotten_body");
 static_assert(store::name(Full::disk_full) == "disk_full");
 
-// The widths against what fills them (the entry's, checked_reads' case).
+// The detail's width against a platform error's detail, which fills it.
 static_assert(store::detail_bytes == qiven::platform::detail_bytes);
 
 // Each kind's line, made and checked away from the case's frame.
@@ -145,9 +145,9 @@ const std::array<LineVector, 11>& line_vectors() {
          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
         {StoreError::head_conflict("forget", path, "life", "writer", "", ""),
          "HeadConflict: forget data/store.db; scope life, lane writer, expected none, actual none"},
-        {StoreError::entry_invalid("append", path, 0, "", "secret", "content.text", "aws_access_key"),
-         "EntryInvalid secret: append data/store.db; entry 0, id none, field content.text, pattern "
-         "aws_access_key"},
+        {StoreError::entry_invalid("append", path, 0, "", "hook_rule", "record.part", "rule_two"),
+         "EntryInvalid hook_rule: append data/store.db; entry 0, id none, field record.part, pattern "
+         "rule_two"},
         {StoreError::not_found("header", path, id_b),
          "NotFound: header data/store.db; id "
          "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},

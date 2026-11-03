@@ -124,8 +124,8 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     const std::vector<Rec>& theirs = lanes.theirs;
     const std::vector<Rec>& tester = lanes.tester;
     const std::vector<Rec>& forgets = lanes.forgets;
-    (void)store.append(scan_case::scope, scan_case::implementer, std::nullopt, records::views(mine));
-    (void)store.append(scan_case::scope, scan_case::reviewer, std::nullopt, records::views(theirs));
+    (void)store.append(scan_case::scope, scan_case::lane_one, std::nullopt, records::views(mine));
+    (void)store.append(scan_case::scope, scan_case::lane_two, std::nullopt, records::views(theirs));
     (void)store.append(scan_case::scope, "tester", std::nullopt, records::views(tester));
     CHECK_EQ(qiven::test::seams::write(store, "UPDATE entry SET rowid = rowid + 1000 WHERE rowid > 1"), 0);
     std::vector<std::string> ids;
@@ -143,11 +143,11 @@ QIVEN_CASE(store_sqlite, scan_vacuum_keeps_rowids) {
     const std::string& acc = records::id_of(mine[3]);
     const std::string& m1 = records::id_of(theirs[1]);
     const std::vector<qiven::recordlog::GuardView> guard = {
-        qiven::recordlog::GuardView{scan_case::scope, scan_case::implementer, acc},
-        qiven::recordlog::GuardView{scan_case::scope, scan_case::reviewer, m1},
+        qiven::recordlog::GuardView{scan_case::scope, scan_case::lane_one, acc},
+        qiven::recordlog::GuardView{scan_case::scope, scan_case::lane_two, m1},
         qiven::recordlog::GuardView{scan_case::scope, "tester", ids.back()}};
     qiven::recordlog::Vector<qiven::recordlog::Id> erased(rig->chars);
-    CHECK(store.forget(scan_case::scope, scan_case::implementer, acc, records::views(forgets), guard, erased)
+    CHECK(store.forget(scan_case::scope, scan_case::lane_one, acc, records::views(forgets), guard, erased)
               .purge.done);
     CHECK_EQ(qiven::test::seams::read(store, "SELECT value FROM meta WHERE name = 'vacuumed'").value_or(-1),
              std::int64_t{1});

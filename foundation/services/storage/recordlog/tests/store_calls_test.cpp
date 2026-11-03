@@ -42,8 +42,8 @@ using qiven::recordlog::GuardView;
 using qiven::recordlog::Id;
 using records::Rec;
 
-constexpr std::string_view qs = "project:qiven";
-constexpr std::string_view other_scope = "project:other";
+constexpr std::string_view qs = "group:primary";
+constexpr std::string_view other_scope = "group:other";
 
 // A writing case's end: verify counts entries, the object closes, and
 // where durable a reopened object's verify counts them again.
@@ -129,7 +129,7 @@ void answers(qiven::runner::Context& qiven_ctx, S& store, const std::string& a1,
     CHECK_EQ(keyed(qs, "forget"), std::string("F"));
     CHECK_EQ(keyed(qs, "absent"), std::string());
     CHECK_EQ(keyed(other_scope, "note"), std::string("T1 T2"));
-    CHECK_EQ(keyed("project:none", "note"), std::string());
+    CHECK_EQ(keyed("group:none", "note"), std::string());
 }
 
 template <class F>

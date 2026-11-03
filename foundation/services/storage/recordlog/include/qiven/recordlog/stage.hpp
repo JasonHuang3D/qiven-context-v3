@@ -2,14 +2,13 @@
 
 // stage: the store's steps of an append, a forget or an import: each
 // entry's keys from the admit hook, kept; the store's own guards and order
-// over them; the maximum. The rules of cognition are an admit hook's (the
-// contract's Admit and AdmitImport), the product's; at append and forget
-// the store runs none of them and reads no line. Its own guards run
-// whatever hook it is given, so that it never commits a state its verify
-// or open refuses. At import too the store reads no line: it takes each
-// line's keys from the hook's read. With NoAdmit the store runs no rule of
-// cognition's: it reads no line and no body, its guards over the keys
-// alone.
+// over them; the maximum. A product's rules are the admit hook's (the
+// contract's Admit and AdmitImport); at append and forget the store runs
+// none of them and reads no line. Its own guards run whatever hook it is
+// given, so that it never commits a state its verify or open refuses. At
+// import too the store reads no line: it takes each line's keys from the
+// hook's read. With NoAdmit no rule but the store's own runs: it reads no
+// line and no body, its guards over the keys alone.
 //
 // read(platform, lines, at, allocator, scratch, admit), before any lock,
 // entry by entry: the hook's given before the first line; then each line's
@@ -19,9 +18,9 @@
 // EntryInvalid too_long, the key's name as its field (a seq below 1 is
 // next's: seq); a body key with no record body_missing, a record with no
 // body key body_mismatch; a forget with no target key target, with a body
-// key content (part 1's codes); at forget a kind but forget StoreError
+// key forget_body; at forget a kind but forget StoreError
 // forget_kind, its detail naming the entry, at append a forget
-// EntryInvalid forget_path (header.kind); the keys kept, then the hook's
+// EntryInvalid forget_path (field kind); the keys kept, then the hook's
 // kept. It returns the kept entries and the bytes the lines add: each
 // header line and body record with its LF, and each kind.
 //
@@ -186,7 +185,7 @@ inline void next(std::string_view id, std::optional<std::string_view> parent, st
 }
 // The store's bounds over one entry's keys, and a record with no body key
 // refused body_mismatch, then a forget with no target key target, with a
-// body key content; the id key, or none where it is past its bound.
+// body key forget_body; the id key, or none where it is past its bound.
 inline std::string_view bounds(const KeysView& k, const EntryView& line, std::size_t index, const AtView& at) {
     const std::string_view id = Id::fits(k.id) ? k.id : std::string_view();
     const auto bound = [&](bool fits, std::string_view field) {
@@ -212,7 +211,7 @@ inline std::string_view bounds(const KeysView& k, const EntryView& line, std::si
         refuse(at, index, id, "target");
     }
     if (k.kind == "forget" && k.body) {
-        refuse(at, index, id, "content");
+        refuse(at, index, id, "forget_body");
     }
     return id;
 }
@@ -228,7 +227,7 @@ inline KeptView keep(const KeysView& k, const EntryView& line, std::size_t index
         refuse_kind(at, index);
     }
     if (at.op == Operation::append && k.kind == "forget") {
-        refuse(at, index, id, "forget_path", "header.kind");
+        refuse(at, index, id, "forget_path", "kind");
     }
     KeptView out;
     out.id = Id::of(k.id);

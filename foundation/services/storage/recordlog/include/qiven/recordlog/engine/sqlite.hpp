@@ -53,8 +53,8 @@ void presence(std::string_view path, bool create, const WhereView& at);
 // The directory of path, by its last separator, and whether it is one.
 [[nodiscard]] std::string_view directory_of(std::string_view path) noexcept;
 [[nodiscard]] bool is_directory(std::string_view path);
-// Step 3: application_id and user_version, against identity's; another
-// StoreCorrupt foreign or version.
+// Step 3: application_id against identity's, user_version against the
+// record log's schema_version; another StoreCorrupt foreign or version.
 void identify(Connection& c, const Identity& identity, const WhereView& at);
 // Step 4: each setting written (on a read-only connection, all but
 // journal_mode), then each read back; the first that differs is StoreError
@@ -172,7 +172,8 @@ bool keyed_of(Connection& c, std::string_view scope, std::string_view kind, F& f
     return false;
 }
 
-// Part 2's view of the transaction (stage::View): the head, a header line's
+// The admit hook's and the guards' view of the transaction (stage::View):
+// the head, a header line's
 // and a body record's bytes by id, the forgotten set, the generic calls by
 // the keys held (a line, targets, keyed ids, each walked on its cursor by
 // each_keyed, a byte search), a work allocator (the scratch's next arena,

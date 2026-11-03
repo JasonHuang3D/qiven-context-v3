@@ -101,18 +101,24 @@ struct Limits {
     constexpr bool operator==(const Limits&) const = default;
 };
 // The SQLite store's file identity, the product's, given at open beside
-// the limits: create writes the two, and identify reads them back, another
-// value StoreCorrupt foreign (application_id) or version (user_version).
+// the limits: create writes its application_id, and identify reads it
+// back, another value StoreCorrupt foreign.
 struct Identity {
     std::int64_t application_id;
-    std::int64_t user_version;
     constexpr bool operator==(const Identity&) const = default;
 };
+// The record log's schema version, its own: the SQLite file's user_version,
+// which create writes and identify requires, another StoreCorrupt version.
+// 2, the schema with the body key's column; a file of 1 is refused.
+inline constexpr std::int64_t schema_version = 2;
 // Each nonzero and each threshold at or under the next.
 constexpr bool valid(const Limits& l) noexcept {
     return l.target_size > 0 && l.target_size <= l.warning_size && l.warning_size <= l.max_size &&
            l.target_count > 0 && l.target_count <= l.warning_count && l.warning_count <= l.max_count;
 }
+// An application_id but 0, the value of any SQLite file no application
+// has tagged.
+constexpr bool valid(const Identity& i) noexcept { return i.application_id != 0; }
 
 // The size, the bytes of every header line and body record held, each with
 // its LF, and of each kind; the count, the header lines; and their state: past the target,

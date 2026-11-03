@@ -19,11 +19,6 @@
       "built": true
     },
     {
-      "name": "user_version",
-      "default": null,
-      "built": true
-    },
-    {
       "name": "id_bytes",
       "default": 71,
       "built": false

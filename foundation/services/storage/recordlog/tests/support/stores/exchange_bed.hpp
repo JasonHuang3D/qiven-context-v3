@@ -2,9 +2,9 @@
 
 // store/exchange's budgets, counts and fault runs, on the fake, over a scratch directory of the case's own, the
 // plain SQLite store over plain records (records.hpp): a source store with two lanes and a forget (A, B, D and
-// ACC on implementer's lane, C and M1 on reviewer's, B forgotten by E), its lines held with their keys as an
+// ACC on lane one, C and M1 on lane two, B forgotten by E), its lines held with their keys as an
 // import's source, and an empty store to import them into. The steps:
-// export, an export of the scope set project:* from seq 2 of implementer's lane made and closed; heads, its
+// export, an export of the scope set group:* from seq 2 of lane one made and closed; heads, its
 // heads read; next, its lines read whole; import, the held lines into the empty store; verify, of the source.
 // budget: each step's counted peak within 1 MiB (an export's pages 1 MiB plus 57 bytes a scope and 98 a seq),
 // and the engine's peak, its heap's and its page cache's slots', on a fresh engine heap for each step, within
@@ -61,9 +61,9 @@ using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven::recordlog::Engine<Fake>;
 
-inline constexpr std::string_view qiven_scope = "project:qiven";
-inline constexpr std::string_view implementer_lane = "implementer";
-inline constexpr std::string_view reviewer_lane = "reviewer";
+inline constexpr std::string_view group_scope = "group:primary";
+inline constexpr std::string_view lane_one = "lane-one";
+inline constexpr std::string_view lane_two = "lane-two";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 inline constexpr Counts source_counts{7, 5, 1, 2};  // verify's, of the source and an import of it
 inline constexpr std::string_view unfaulted =
@@ -151,17 +151,17 @@ struct Bed {
     }
 
     void fill() {
-        const std::vector<Rec> mine = records::chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"});
-        const std::vector<Rec> theirs = records::chain(qiven_scope, reviewer_lane, {"C", "M1"});
-        const std::vector<Rec> forgets = {records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")};
-        (void)source->append(qiven_scope, implementer_lane, std::nullopt, views(mine));
-        (void)source->append(qiven_scope, reviewer_lane, std::nullopt, views(theirs));
-        const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer_lane, "ACC"},
-                                              GuardView{qiven_scope, reviewer_lane, "M1"}};
+        const std::vector<Rec> mine = records::chain(group_scope, lane_one, {"A", "B", "D", "ACC"});
+        const std::vector<Rec> theirs = records::chain(group_scope, lane_two, {"C", "M1"});
+        const std::vector<Rec> forgets = {records::forget("E", group_scope, lane_one, 5, "ACC", "B")};
+        (void)source->append(group_scope, lane_one, std::nullopt, views(mine));
+        (void)source->append(group_scope, lane_two, std::nullopt, views(theirs));
+        const std::vector<GuardView> guard = {GuardView{group_scope, lane_one, "ACC"},
+                                              GuardView{group_scope, lane_two, "M1"}};
         std::vector<std::byte> pages(std::size_t{1} << 16U);
         Arena arena(pages);
         Vector<Id> erased{Chars(arena)};
-        (void)source->forget(qiven_scope, implementer_lane, "ACC", views(forgets), guard, erased);
+        (void)source->forget(group_scope, lane_one, "ACC", views(forgets), guard, erased);
     }
 
     // A fresh caller's arena.
@@ -222,9 +222,9 @@ struct Bed {
     std::unique_ptr<Store> target;
     std::unique_ptr<Export> x;
     Held held;
-    static constexpr std::array<std::string_view, 1> set = {"project:*"};
+    static constexpr std::array<std::string_view, 1> set = {"group:*"};
     qiven::recordlog::Scopes scopes{set};
-    std::vector<AfterView> after = {AfterView{qiven_scope, implementer_lane, 2}};
+    std::vector<AfterView> after = {AfterView{group_scope, lane_one, 2}};
     std::vector<std::byte> call_pages;
     std::optional<Arena> call;
     std::size_t heads_left = 0;  // the caller's heads after a refused import

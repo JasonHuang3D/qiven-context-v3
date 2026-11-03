@@ -71,8 +71,8 @@ using qiven::recordlog::Record;
 using qiven::recordlog::Sizes;
 using Store = MemoryStore<Fake>;
 
-constexpr std::string_view qiven_scope = "project:qiven";
-constexpr std::string_view implementer_lane = "implementer";
+constexpr std::string_view group_scope = "group:primary";
+constexpr std::string_view lane_one = "lane-one";
 constexpr std::size_t state_bytes = std::size_t{8} << 20U;
 constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 // An import grows the state's rows and its target keys' room as its lines
@@ -91,11 +91,11 @@ struct Bed {
         : fake(qiven::platform::fake::Config{}), heap(fake.pages(state_bytes)),
           state(heap.bytes(), records::suite_limits), heap2(fake.pages(state_bytes)),
           state2(heap2.bytes(), records::suite_limits), store(state, fake), other(state2, fake),
-          first(chain(qiven_scope, implementer_lane, {"A", "B", "D"})),
-          acc{rec("ACC", qiven_scope, implementer_lane, 4, "D")},
-          e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, first_lines(views(first)), acc_lines(views(acc)),
+          first(chain(group_scope, lane_one, {"A", "B", "D"})),
+          acc{rec("ACC", group_scope, lane_one, 4, "D")},
+          e{forget("E", group_scope, lane_one, 5, "ACC", "B")}, first_lines(views(first)), acc_lines(views(acc)),
           e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
-          guard{GuardView{qiven_scope, implementer_lane, acc_id}}, call_pages(call_bytes) {}
+          guard{GuardView{group_scope, lane_one, acc_id}}, call_pages(call_bytes) {}
 
     // A fresh caller's arena.
     Chars caller() {
@@ -163,15 +163,15 @@ std::vector<Step> steps() {
                        return Peaks{};
                    }});
     out.push_back({"append", 0, true, {1, 14, 0, 1}, [](Bed& b, const Chars&) {
-                       (void)b.store.append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
+                       (void)b.store.append(group_scope, lane_one, std::nullopt, b.first_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
     out.push_back({"append_acc", 0, true, {1, 6, 0, 1},[](Bed& b, const Chars&) {
-                       (void)b.store.append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
+                       (void)b.store.append(group_scope, lane_one, b.d_id, b.acc_lines);
                        return Peaks{b.store.peak(), 0};
                    }});
     out.push_back({"head", base, false, {}, [](Bed& b, const Chars&) {
-                       (void)b.store.head(qiven_scope, implementer_lane);
+                       (void)b.store.head(group_scope, lane_one);
                        return Peaks{};
                    }});
     out.push_back({"heads", base, false, {0, 0, 1, 0}, [](Bed& b, const Chars& c) {
@@ -206,7 +206,7 @@ std::vector<Step> steps() {
                    }});
     out.push_back({"forget", 0, true, {2, 5, 1, 1}, [](Bed& b, const Chars& c) {
                        Vector<Id> erased(c);
-                       (void)b.store.forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
+                       (void)b.store.forget(group_scope, lane_one, b.acc_id, b.e_lines, b.guard, erased);
                        return Peaks{b.store.peak(), b.call->peak()};
                    }});
     out.push_back({"purge", base, false, {}, [](Bed& b, const Chars&) {
@@ -483,15 +483,15 @@ QIVEN_CASE(store_memory, faults_rest) { faults_part(qiven_ctx, 3); }
 // The body's bytes, 64 KiB.
 constexpr std::size_t max_body = std::size_t{64} << 10U;
 
-// A record of a 64 KiB body on reviewer's lane: its append within 1 MiB
+// A record of a 64 KiB body on lane two: its append within 1 MiB
 // plus 4 times its lines, its import into the second state and verify
 // within 1 MiB.
 QIVEN_CASE(store_memory, maximum) {
     const auto b = std::make_unique<Bed>();
-    const std::vector<Rec> mx = {big("MX", qiven_scope, "reviewer", 1, std::nullopt, max_body)};
+    const std::vector<Rec> mx = {big("MX", group_scope, "lane-two", 1, std::nullopt, max_body)};
     const std::vector<EntryView> lines = views(mx);
     const std::optional<Refusal> r =
-        refused([&] { (void)b->store.append(qiven_scope, "reviewer", std::nullopt, lines); });
+        refused([&] { (void)b->store.append(group_scope, "lane-two", std::nullopt, lines); });
     if (r) {
         std::cout << "store_memory.maximum: refused " << r->code << " " << r->detail << "\n";
     }

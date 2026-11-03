@@ -3,9 +3,9 @@
 # are tests/, added by tests/CMakeLists.txt.
 
 # qiven_recordlog_keys: a record's keys, Id and Head, the most entries one
-# call takes and a scope set's match, below the store and the entry, which
-# both name them; a header alone (keys.hpp), the standard library its one
-# include.
+# call takes and a scope set's match, below the store, which names them; a
+# header alone (keys.hpp), the standard library its one include, so that
+# the keys are named without the store.
 add_library(qiven_recordlog_keys INTERFACE)
 target_include_directories(qiven_recordlog_keys INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 

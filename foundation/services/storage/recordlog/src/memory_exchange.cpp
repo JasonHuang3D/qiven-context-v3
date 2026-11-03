@@ -83,7 +83,7 @@ void close_exports(Data& d, std::uint64_t owner) noexcept {
 void import_one(Data& d, const EntryView& line, Rows<Link>& links) {
     const std::size_t at = d.held.size();
     if (at >= max_entries) {
-        throw qiven::memory::MemoryError::budget("store/memory", max_entries, at + 1U, at);
+        throw qiven::memory::MemoryError::budget("recordlog/memory", max_entries, at + 1U, at);
     }
     const auto i = static_cast<std::uint32_t>(at);
     std::uint64_t bytes = stage::detail::sum(line.line.size(), 1 + line.keys.kind.size());

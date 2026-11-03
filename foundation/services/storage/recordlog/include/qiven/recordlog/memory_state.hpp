@@ -1,10 +1,12 @@
 #pragma once
 
 // memory_state: the in-memory store's state, which every store object the
-// factory makes over it shares, and the view part 2 reads under its lock.
+// factory makes over it shares, and the view the admit hook and the store's
+// guards read under its lock.
 //
 // The state: each entry held by id, as bytes (its header line, its body
-// record or none, its content's digest or none), in the order appended;
+// record or none, its kind) with its keys (its seq, lane and target, the
+// first forget of it, whether it has a body key), in the order appended;
 // the ids sorted, for a lookup by id; each lane with its ids in seq order
 // and its head; the size, the count and the forget entries held. Its
 // memory is a qiven::memory::Heap over pages its maker takes from the platform
@@ -22,16 +24,17 @@
 // body; while an export is open the bytes stay in place, the entry marked
 // with none, until the last export closes.
 //
-// StateView is part 2's view over the data, its reads on the operation's
-// allocator: the head, a header line's and a body record's bytes as held,
-// parsing none, the forgotten set and forget_of, the size and count; the
-// generic calls by the keys held (a line, targets, keyed ids, each walked
-// in place by each_keyed, a byte search) and a work allocator.
+// StateView is the hook's and the guards' view over the data, its reads on
+// the operation's allocator: the head, a header line's and a body record's
+// bytes as held, parsing none, the forgotten set and forget_of, the size
+// and count; the generic calls by the keys held (a line, targets, keyed
+// ids, each walked in place by each_keyed, a byte search) and a work
+// allocator.
 //
-// Allocations. The state's on its heap: an entry's line, record and
-// content digest, three; the ids' and a lane's room as they grow; a lane's
-// scope and name, two. A view's on its allocator: header canon's four and
-// one; body one where the buffer is short; a list's room as it grows;
+// Allocations. The state's on its heap: an entry's line, record and kind,
+// three; the ids' and a lane's room as they grow; a lane's scope and name,
+// two. A view's on its allocator: a line's, a header's or a body's one
+// where the buffer is short; a list's room as it grows;
 // each_keyed none. work: the view's scratch's next arena where given (its
 // arena's peak counted, each given back at the next), else its allocator.
 // Platform calls: none (the pages are the maker's).
@@ -315,7 +318,8 @@ private:
     std::size_t peak_ = 0;
 };
 
-// Part 2's view over the data, while the lock is held.
+// The admit hook's and the guards' view over the data, while the lock is
+// held.
 class StateView {
 public:
     // scratch: where given, work's arenas, afresh at each call.

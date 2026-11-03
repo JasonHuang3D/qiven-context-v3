@@ -85,7 +85,8 @@ inline std::size_t budget_of(std::span<const EntryView> entries) {
     const std::optional<std::size_t> lines = given(entries);
     const std::optional<std::size_t> b = lines ? operation_budget(*lines) : std::nullopt;
     if (!b) {
-        throw qiven::memory::MemoryError::budget("store/memory", std::numeric_limits<std::size_t>::max(), entries.size(), 0);
+        throw qiven::memory::MemoryError::budget("recordlog/memory", std::numeric_limits<std::size_t>::max(),
+                                                 entries.size(), 0);
     }
     return *b;
 }
@@ -180,7 +181,7 @@ Imported import_source(P& platform, State& s, R& source, Vector<LaneHead>& heads
     const stage::AtView at{op, {}};
     const std::size_t quarter = import_line_bytes;
     if (pages.size() < 4 * quarter) {
-        qiven::memory::fail_fast("store/memory: an import's pages short of an operation's");
+        qiven::memory::fail_fast("recordlog/memory: an import's pages short of an operation's");
     }
     qiven::memory::Arena kept(pages.first(quarter));
     hook(kept, countdown);

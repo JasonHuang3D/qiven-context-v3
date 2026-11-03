@@ -1,6 +1,6 @@
 // store/sqlite's refused create (store_sqlite_create_test.cpp), its fault
 // runs in parts (qiven/faults/parts.hpp): create_refused_part1 to
-// _part127. A run costs about the same at any point of any pass: the create
+// _part129. A run costs about the same at any point of any pass: the create
 // refused there, the check that nothing is left, a second create and the
 // directory's removal, all on files. A part is its runs, six at most, so
 // that a part stays a few seconds on every job, and within its bound when
@@ -31,12 +31,12 @@ struct Stretch {
 };
 
 // The passes: 0 the platform's calls (6), 1 the arena's allocations (2), 2
-// the engine calls (95), 3 the engine heap's allocations (650 on Windows,
-// 640 on Linux), each to its completing run.
+// the engine calls (112), 3 the engine heap's allocations (653 on Windows,
+// 643 on Linux), each to its completing run.
 constexpr std::array<Stretch, 4> stretches = {{
     {0, 1, 1, 6},    // the platform's 6
     {1, 1, 1, 6},    // the arena's 2, the engine calls' first 4
-    {2, 5, 95, 6},   // the engine calls from k 5
+    {2, 5, 107, 6},  // the engine calls from k 5
     {3, 1, 649, 6},  // the heap's
 }};
 
@@ -61,7 +61,7 @@ constexpr qiven::test::FaultParts<count()> cut() {
 }
 
 constexpr auto parts = cut();
-static_assert(parts.whole() && parts.from.size() == 127);
+static_assert(parts.whole() && parts.from.size() == 129);
 
 void create_part(qiven::runner::Context& qiven_ctx, std::size_t i) {
     CHECK(qiven::test::registered("store_sqlite.create_refused", parts.from.size()));
@@ -198,3 +198,5 @@ QIVEN3_FAULT_PART(store_sqlite, create_refused, 124, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 125, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 126, create_part)
 QIVEN3_FAULT_PART(store_sqlite, create_refused, 127, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 128, create_part)
+QIVEN3_FAULT_PART(store_sqlite, create_refused, 129, create_part)

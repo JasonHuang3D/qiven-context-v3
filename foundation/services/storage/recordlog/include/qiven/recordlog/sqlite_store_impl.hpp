@@ -35,6 +35,9 @@ SQLiteStore<P, H, Rule> SQLiteStore<P, H, Rule>::open(std::string_view path, boo
     if (!valid(limits)) {
         throw StoreError(Code::settings, sqlite::open_name, path, "limits");
     }
+    if (!valid(identity)) {
+        throw StoreError(Code::settings, sqlite::open_name, path, "application_id");
+    }
     if (create && read_only) {
         throw StoreError(Code::read_only, sqlite::open_name, path, "create");
     }
@@ -155,7 +158,7 @@ template <qiven::platform::Platform P, Hooks H, class Rule>
 std::int64_t SQLiteStore<P, H, Rule>::delta(std::uint64_t added, std::uint64_t dropped) {
     constexpr auto most = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
     if (added > most || dropped > most) {
-        throw qiven::memory::MemoryError::budget("store/sqlite", most, std::max(added, dropped), 0);
+        throw qiven::memory::MemoryError::budget("recordlog/sqlite", most, std::max(added, dropped), 0);
     }
     return static_cast<std::int64_t>(added) - static_cast<std::int64_t>(dropped);
 }
@@ -166,7 +169,7 @@ std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> en
     const std::optional<std::size_t> lines = given(entries);
     const std::optional<std::size_t> budget = lines ? operation_budget(*lines) : std::nullopt;
     if (!budget) {
-        throw qiven::memory::MemoryError::budget("store/sqlite", std::numeric_limits<std::size_t>::max(),
+        throw qiven::memory::MemoryError::budget("recordlog/sqlite", std::numeric_limits<std::size_t>::max(),
                                           entries.size(), 0);
     }
     if (*budget <= operation_base) {
@@ -174,7 +177,7 @@ std::span<std::byte> SQLiteStore<P, H, Rule>::room(std::span<const EntryView> en
     }
     extra.emplace(platform_->pages(*budget));
     if (extra->bytes().size() < *budget) {
-        qiven::memory::fail_fast("store/sqlite: pages short of their request");
+        qiven::memory::fail_fast("recordlog/sqlite: pages short of their request");
     }
     return extra->bytes().first(*budget);
 }

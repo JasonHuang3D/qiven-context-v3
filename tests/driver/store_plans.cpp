@@ -86,7 +86,7 @@ Value settings(store::sqlite::Connection& c, ArgView) {
         row(s.name.view(), s.value.view(), when.at(static_cast<std::size_t>(s.when)));
     }
     row("application_id", std::to_string(qiven3::checked::cognition_identity.application_id), when.at(2));
-    row("user_version", std::to_string(qiven3::checked::cognition_identity.user_version), when.at(2));
+    row("user_version", std::to_string(store::schema_version), when.at(2));
     return out;
 }
 

@@ -107,7 +107,7 @@ private:
         }
         const std::optional<std::size_t> n = qiven::memory::mul(engine_budget, connections);
         if (!n || connections == 0) {
-            throw qiven::memory::MemoryError::budget("store/sqlite", engine_budget, connections, 0);
+            throw qiven::memory::MemoryError::budget("recordlog/sqlite", engine_budget, connections, 0);
         }
         return *n;
     }
@@ -126,8 +126,9 @@ public:
 
     // Opens, or creates, the store at path (sqlite_store.hpp's steps); an
     // Engine must be installed. Read-only, create is refused. The limits
-    // and the file's identity are the caller's: create writes the
-    // identity, and an open or an export reads it back.
+    // and the file's identity are the caller's, limits not valid() or an
+    // application_id of 0 StoreError settings before any file is touched:
+    // create writes the identity, and an open or an export reads it back.
     static SQLiteStore open(std::string_view path, bool create, bool read_only, P& platform, const Limits& limits,
                             const Identity& identity, H hooks = H{});
 
@@ -172,7 +173,8 @@ public:
     ~SQLiteStore() = default;
 
     // The text's steps 1 to 7: check outside the transaction, then BEGIN
-    // IMMEDIATE, the head, part 2, the rows, COMMIT, a purge's attempt.
+    // IMMEDIATE, the head, the admit hook's admit and the store's guards,
+    // the rows, COMMIT, a purge's attempt.
     // The admit hook's given, read and kept before BEGIN IMMEDIATE, its
     // admit after the head and the guard, with the transaction's view.
     template <class A = Rule>
@@ -355,7 +357,7 @@ private:
         : platform_(&platform), pages_(platform.pages(operation_base)), gate_(read_only), limits_(limits),
           identity_(identity), hooks_(std::move(hooks)) {
         if (pages_.bytes().size() < operation_base) {
-            qiven::memory::fail_fast("store/sqlite: pages short of their request");
+            qiven::memory::fail_fast("recordlog/sqlite: pages short of their request");
         }
 #if defined(QIVEN_FAULTS)
         countdown_ = sqlite::arenas_countdown();

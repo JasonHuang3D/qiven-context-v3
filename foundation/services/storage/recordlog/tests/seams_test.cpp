@@ -28,8 +28,8 @@ namespace records = qiven::test::records;
 using qiven::recordlog::Kind;
 using qiven::recordlog::StoreError;
 
-constexpr std::string_view at_scope = "project:qiven";
-constexpr std::string_view at_lane = "implementer";
+constexpr std::string_view at_scope = "group:primary";
+constexpr std::string_view at_lane = "lane-one";
 
 struct Recorder {
     std::string steps;
@@ -117,5 +117,5 @@ QIVEN_CASE(seams, naive_store) {
     const std::vector<std::string> lines = store.lines(at_scope, at_lane);
     REQUIRE(lines.size() == 2U);
     CHECK_EQ(lines[0].substr(0, a[0].line.size()), a[0].line);
-    CHECK(store.lines(at_scope, "reviewer").empty());
+    CHECK(store.lines(at_scope, "lane-two").empty());
 }

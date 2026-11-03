@@ -61,3 +61,7 @@ later changes to be made again; the commit after it shows every line cut with th
   and the drive's `sink_close` (`tests/driver/platform_files.hpp`, `platform_ops.hpp`,
   `platform_ops_impl.hpp`), with their operation names (`tests/driver/common.cpp`), each sent by no case. Last commit `19eb790`:
   `git restore --source=19eb790 -- tests/driver/instances_fake.cpp tests/driver/platform_files.hpp tests/driver/platform_ops.hpp tests/driver/platform_ops_impl.hpp tests/driver/common.cpp`
+- **The fake platform's `set_found`, used by nothing (1723):** `FakePlatform::set_found`, the setter of the paths
+  `program(name)` gives, called by no code once the drive's request that sent it left; `Config::found` stays, the
+  fake's own. Last commit `5756392`:
+  `git restore --source=5756392 -- foundation/system/platform/include/qiven/platform/fake/fake_platform.hpp`

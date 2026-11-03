@@ -60,9 +60,9 @@ using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Export = sqlite::SQLiteExport<Fake>;
 using Engine = qiven::recordlog::Engine<Fake>;
 
-constexpr std::string_view qiven_scope = "project:qiven";
-constexpr std::string_view implementer_lane = "implementer";
-constexpr std::string_view reviewer_lane = "reviewer";
+constexpr std::string_view group_scope = "group:primary";
+constexpr std::string_view lane_one = "lane-one";
+constexpr std::string_view lane_two = "lane-two";
 constexpr std::size_t own_bytes = qiven::recordlog::operation_base;
 constexpr std::size_t max_body = std::size_t{64} << 10U;
 
@@ -194,26 +194,26 @@ struct Rig {
     Chars chars;
 };
 
-// A chain of n records on implementer's lane from seq 1, each with a body;
+// A chain of n records on lane one from seq 1, each with a body;
 // ids of one width: records of one size.
-std::vector<Rec> claims(std::size_t n) {
+std::vector<Rec> plain_chain(std::size_t n) {
     std::vector<Rec> out;
     for (std::size_t i = 0; i < n; ++i) {
         const std::optional<std::string_view> parent =
             i == 0 ? std::nullopt : std::optional<std::string_view>(id_of(out.back()));
-        out.push_back(rec("c" + std::to_string(1000000 + i), qiven_scope, implementer_lane,
+        out.push_back(rec("c" + std::to_string(1000000 + i), group_scope, lane_one,
                           static_cast<std::int64_t>(i) + 1, parent));
     }
     return out;
 }
 
-// A chain of n records on reviewer's lane from seq 1, each of a 64 KiB body.
-std::vector<Rec> modules(std::size_t n) {
+// A chain of n records on lane two from seq 1, each of a 64 KiB body.
+std::vector<Rec> body_chain(std::size_t n) {
     std::vector<Rec> out;
     for (std::size_t i = 0; i < n; ++i) {
         const std::optional<std::string_view> parent =
             i == 0 ? std::nullopt : std::optional<std::string_view>(id_of(out.back()));
-        out.push_back(big("m" + std::to_string(100 + i), qiven_scope, reviewer_lane, static_cast<std::int64_t>(i) + 1,
+        out.push_back(big("m" + std::to_string(100 + i), group_scope, lane_two, static_cast<std::int64_t>(i) + 1,
                           parent, max_body));
     }
     return out;
@@ -243,7 +243,7 @@ std::pair<std::size_t, std::size_t> drain(Export& e) {
     }
 }
 
-// A lane of claims appended in batches of 50, its export imported
+// A lane of plain records appended in batches of 50, its export imported
 // straight into an empty store; the export's, import's and verify's
 // peaks.
 struct Peaks {
@@ -254,13 +254,13 @@ struct Peaks {
     bool same = false;  // verify's counts equal
 };
 Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
-    const std::vector<Rec> lane = claims(n);
+    const std::vector<Rec> lane = plain_chain(n);
     auto from = rig.made(std::string(name) + "-from");
     for (std::size_t i = 0; i < n; i += 50) {
         const std::vector<Rec> batch(lane.begin() + static_cast<std::ptrdiff_t>(i),
                                         lane.begin() + static_cast<std::ptrdiff_t>(std::min(n, i + 50)));
         const std::optional<std::string> parent = i == 0 ? std::nullopt : std::optional(id_of(lane[i - 1]));
-        (void)from->append(qiven_scope, implementer_lane, parent, views(batch));
+        (void)from->append(group_scope, lane_one, parent, views(batch));
     }
     auto into = rig.made(std::string(name) + "-into");
     Peaks p;
@@ -283,10 +283,10 @@ Peaks round_trip(Rig& rig, std::size_t n, std::string_view name) {
 
 QIVEN_CASE(store_exchange, maximum) {
     const auto rig = std::make_unique<Rig>();
-    const std::vector<Rec> mx = modules(1);
+    const std::vector<Rec> mx = body_chain(1);
     REQUIRE(mx[0].record->size() == max_body);
     const auto from = rig->made("from");
-    (void)from->append(qiven_scope, reviewer_lane, std::nullopt, views(mx));
+    (void)from->append(group_scope, lane_two, std::nullopt, views(mx));
     auto x = std::make_unique<Export>(from->export_(std::nullopt, {}));
     const auto [lines, caller] = drain(*x);
     CHECK_EQ(lines, 1U);
@@ -330,7 +330,7 @@ QIVEN_CASE(store_exchange, large) {
 QIVEN_CASE(store_exchange, busy) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(claims(3), qiven_scope, implementer_lane);
+    held.add(plain_chain(3), group_scope, lane_one);
     const auto into = rig->made("into");
     const auto other = std::make_unique<Store>(Store::open(rig->path("into"), false, false, rig->fake,
                                                            records::suite_limits, records::suite_identity));
@@ -352,7 +352,7 @@ QIVEN_CASE(store_exchange, busy) {
 QIVEN_CASE(store_exchange, threads) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(claims(3), qiven_scope, implementer_lane);
+    held.add(plain_chain(3), group_scope, lane_one);
     const auto from = rig->made("from");
     Vector<LaneHead> written(rig->chars);
     (void)from->import_(held, written);
@@ -385,7 +385,7 @@ QIVEN_CASE(store_exchange, threads) {
 QIVEN_CASE(store_exchange, closing) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(claims(4), qiven_scope, implementer_lane);
+    held.add(plain_chain(4), group_scope, lane_one);
     auto from = rig->made("from");
     Vector<LaneHead> rows(rig->chars);
     (void)from->import_(held, rows);
@@ -441,11 +441,11 @@ QIVEN_CASE(store_exchange, closing) {
 QIVEN_CASE(store_exchange, rollback) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(claims(5), qiven_scope, implementer_lane);
+    held.add(plain_chain(5), group_scope, lane_one);
     held.fail_at = 3;
     const auto into = rig->made("into");
     Vector<LaneHead> heads(rig->chars);
-    heads.push_back(lane_head(qiven_scope, implementer_lane, id_of(claims(1)[0]), 1));
+    heads.push_back(lane_head(group_scope, lane_one, id_of(plain_chain(1)[0]), 1));
     bool threw = false;
     try {
         (void)into->import_(held, heads);
@@ -463,7 +463,7 @@ QIVEN_CASE(store_exchange, rollback) {
 
     // 60 entries of 64 KiB: their pages spill into the -wal before COMMIT.
     Held big;
-    big.add(modules(60), qiven_scope, reviewer_lane);
+    big.add(body_chain(60), group_scope, lane_two);
     std::uintmax_t seen = 0;
     const std::string path = rig->path("big");
     auto probed = std::make_unique<Probed>(Probed::open(path, true, false, rig->fake,
@@ -500,10 +500,10 @@ QIVEN_CASE(store_exchange, rollback) {
 QIVEN_CASE(store_exchange, not_empty) {
     const auto rig = std::make_unique<Rig>();
     Held held;
-    held.add(claims(2), qiven_scope, implementer_lane);
+    held.add(plain_chain(2), group_scope, lane_one);
     const auto into = rig->made("into");
-    const std::vector<Rec> one = claims(1);
-    (void)into->append(qiven_scope, implementer_lane, std::nullopt, views(one));
+    const std::vector<Rec> one = plain_chain(1);
+    (void)into->append(group_scope, lane_one, std::nullopt, views(one));
     const Counts before = into->verify();
     Vector<LaneHead> heads(rig->chars);
     CHECK_EQ(raised([&] { (void)into->import_(held, heads); }), "StoreNotEmpty ");

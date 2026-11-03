@@ -233,7 +233,7 @@ void identify(Connection& c, const Identity& identity, const WhereView& at) {
         throw StoreError::corrupt(at.operation, at.path, Corrupt::foreign, detail.add("application_id ").number(id).view());
     }
     const std::int64_t version = c.integer("PRAGMA user_version", at);
-    if (version != identity.user_version) {
+    if (version != schema_version) {
         throw StoreError::corrupt(at.operation, at.path, Corrupt::version, detail.add("user_version ").number(version).view());
     }
 }
@@ -275,7 +275,7 @@ void create_schema(Connection& c, const Identity& identity, const WhereView& at)
         Text id;
         c.exec(id.add("PRAGMA application_id = ").number(identity.application_id).view(), at);
         Text version;
-        c.exec(version.add("PRAGMA user_version = ").number(identity.user_version).view(), at);
+        c.exec(version.add("PRAGMA user_version = ").number(schema_version).view(), at);
         c.exec("COMMIT", at);
     } catch (...) {
         c.rollback();

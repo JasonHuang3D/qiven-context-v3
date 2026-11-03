@@ -36,10 +36,10 @@ TYPED = ("store", "memory", "platform")
 # pass of KINDS by its place and its k; a part runs the points from its own
 # up to the next part's, the last to its pass's completing create. The
 # platform's, the arena's and the engine calls' to k 23; the engine calls'
-# from k 24, 48 and 71; the engine heap's 25 k a part: half the stretches
+# from k 24, 48, 71 and 94; the engine heap's 25 k a part: half the stretches
 # a CI Windows job ran in up to 28.2 s, so that each part takes 20 s or
 # under there.
-S28_PARTS = ((0, 1), (2, 24), (2, 48), (2, 71), *((3, k) for k in range(1, 627, 25)))
+S28_PARTS = ((0, 1), (2, 24), (2, 48), (2, 71), (2, 94), *((3, k) for k in range(1, 627, 25)))
 
 
 def s28_range(part, kind):

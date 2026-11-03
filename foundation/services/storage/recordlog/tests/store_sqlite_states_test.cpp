@@ -52,27 +52,27 @@ using qiven::recordlog::RangeView;
 using qiven::recordlog::Written;
 using Store = qiven::recordlog::SQLiteStore<Fake>;
 
-constexpr std::string_view qiven_scope = "project:qiven";
-constexpr std::string_view implementer_lane = "implementer";
+constexpr std::string_view group_scope = "group:primary";
+constexpr std::string_view lane_one = "lane-one";
 
 std::string bytes_of(const fs::path& path) {
     std::ifstream in(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
 }
 
-// A store holding A, B, D and ACC on the implementer's lane, plain
+// A store holding A, B, D and ACC on lane one, plain
 // records, the purge done; its records kept for the cases' later calls,
 // E a forget of B.
 struct Course {
     Course()
-        : lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})), first{lane[0], lane[1], lane[2]},
-          acc{lane[3]}, e{qiven::test::records::forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")},
+        : lane(chain(group_scope, lane_one, {"A", "B", "D", "ACC"})), first{lane[0], lane[1], lane[2]},
+          acc{lane[3]}, e{qiven::test::records::forget("E", group_scope, lane_one, 5, "ACC", "B")},
           again{lane[0]}, first_lines(views(first)), acc_lines(views(acc)),
           e_lines(views(e)), again_lines(views(again)), acc_id(id_of(acc[0])), e_id(id_of(e[0])),
-          guard{GuardView{qiven_scope, implementer_lane, acc_id}} {}
+          guard{GuardView{group_scope, lane_one, acc_id}} {}
     void fill(Store& store) const {
-        (void)store.append(qiven_scope, implementer_lane, std::nullopt, first_lines);
-        (void)store.append(qiven_scope, implementer_lane, id_of(first[2]), acc_lines);
+        (void)store.append(group_scope, lane_one, std::nullopt, first_lines);
+        (void)store.append(group_scope, lane_one, id_of(first[2]), acc_lines);
     }
     std::vector<Rec> lane;
     std::vector<Rec> first;
@@ -110,7 +110,7 @@ void held(qiven::runner::Context& qiven_ctx, Store& store, const Course& course,
         reader.exec("BEGIN", test_at);
         (void)reader.integer("SELECT count(*) FROM entry", test_at);
         Vector<Id> erased(chars);
-        const Written w = store.forget(qiven_scope, implementer_lane, course.acc_id, course.e_lines, course.guard,
+        const Written w = store.forget(group_scope, lane_one, course.acc_id, course.e_lines, course.guard,
                                        erased);
         CHECK_EQ(reason(w.purge), std::string("reader"));
         CHECK_EQ(erased.size(), 1U);
@@ -129,7 +129,7 @@ void held(qiven::runner::Context& qiven_ctx, Store& store, const Course& course,
     CHECK_EQ(reason(store.purge()), std::string("writer"));
     const auto start = std::chrono::steady_clock::now();
     const std::string busy = raised([&] {
-        (void)store.append(qiven_scope, implementer_lane, course.e_id, course.again_lines);
+        (void)store.append(group_scope, lane_one, course.e_id, course.again_lines);
     });
     const auto waited = std::chrono::steady_clock::now() - start;
     std::cout << "store_sqlite.pending: " << busy << " after "
@@ -179,16 +179,16 @@ QIVEN_CASE(store_sqlite, pending) {
         Vector<LaneHead> rows(chars);
         CHECK_EQ(reason(store->heads(std::nullopt, rows).purge), std::string("done"));
     }
-    CHECK_EQ(scanned(*store, RangeView{qiven_scope, std::nullopt, std::nullopt}, chars), 5U);
-    CHECK_EQ(scanned(*store, RangeView{std::nullopt, implementer_lane, std::nullopt}, chars), 5U);
-    CHECK_EQ(scanned(*store, RangeView{qiven_scope, implementer_lane, 3}, chars), 2U);
+    CHECK_EQ(scanned(*store, RangeView{group_scope, std::nullopt, std::nullopt}, chars), 5U);
+    CHECK_EQ(scanned(*store, RangeView{std::nullopt, lane_one, std::nullopt}, chars), 5U);
+    CHECK_EQ(scanned(*store, RangeView{group_scope, lane_one, 3}, chars), 2U);
     CHECK_EQ(scanned(*store, RangeView{std::nullopt, std::nullopt, 99}, chars), 0U);
-    CHECK_EQ(scanned(*store, RangeView{"project:other", std::nullopt, std::nullopt}, chars), 0U);
-    CHECK_EQ(scanned(*store, RangeView{std::nullopt, "reviewer", std::nullopt}, chars), 0U);
+    CHECK_EQ(scanned(*store, RangeView{"group:other", std::nullopt, std::nullopt}, chars), 0U);
+    CHECK_EQ(scanned(*store, RangeView{std::nullopt, "lane-two", std::nullopt}, chars), 0U);
     const std::string overlong(qiven::recordlog::scope_bytes + 1, 'p');
     CHECK_EQ(scanned(*store, RangeView{overlong, std::nullopt, std::nullopt}, chars), 0U);
     CHECK(raised([&] {
-        (void)store->append(qiven_scope, implementer_lane, course->acc_id, course->again_lines);
+        (void)store->append(group_scope, lane_one, course->acc_id, course->again_lines);
     }).starts_with("HeadConflict"));
     CHECK_EQ(arena.used(), 0U);
     const qiven::recordlog::Counts counts{5, 3, 1, 1};
@@ -207,7 +207,7 @@ QIVEN_CASE(store_sqlite, forged) {
         Arena arena(pages);
         Vector<Id> erased{Chars(arena)};
         const Written w =
-            store.forget(qiven_scope, implementer_lane, course->acc_id, course->e_lines, course->guard, erased);
+            store.forget(group_scope, lane_one, course->acc_id, course->e_lines, course->guard, erased);
         CHECK(w.purge.done);
         (void)store.close();
     }
@@ -301,11 +301,11 @@ QIVEN_CASE(store_sqlite, second_engine) {
     std::vector<std::byte> bytes(std::size_t{1} << 16U);
     Arena arena(bytes);
     const Chars chars(arena);
-    CHECK_EQ(scanned(*store, RangeView{qiven_scope, implementer_lane, std::nullopt}, chars), 4U);
+    CHECK_EQ(scanned(*store, RangeView{group_scope, lane_one, std::nullopt}, chars), 4U);
     {
         Vector<Id> erased{chars};
         const Written w =
-            store->forget(qiven_scope, implementer_lane, course->acc_id, course->e_lines, course->guard, erased);
+            store->forget(group_scope, lane_one, course->acc_id, course->e_lines, course->guard, erased);
         CHECK(w.purge.done);
     }
     const qiven::recordlog::Counts counts = store->verify();

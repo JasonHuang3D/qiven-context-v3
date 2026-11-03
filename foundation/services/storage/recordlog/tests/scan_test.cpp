@@ -23,13 +23,13 @@ namespace records = qiven::test::records;
 QIVEN_CASE(scan, store_directory) {
     const auto site = stores::site();
     stores::Sqlite<> f(*site);
-    const std::vector<records::Rec> a = records::chain("project:qiven", "implementer", {"A"});
+    const std::vector<records::Rec> a = records::chain("group:primary", "lane-one", {"A"});
     const std::string content = a[0].record.value_or("");
     REQUIRE(content.size() >= 12U);
     const std::vector<scan::Pattern> patterns = scan::marker("content", content.substr(0, 12));
     {
         auto store = f.make();
-        (void)store.append("project:qiven", "implementer", std::nullopt, records::views(a));
+        (void)store.append("group:primary", "lane-one", std::nullopt, records::views(a));
         const scan::Report open = scan::scan(f.directory(), patterns);
         CHECK(open.lists("store.db"));
         CHECK(!open.hits.empty());

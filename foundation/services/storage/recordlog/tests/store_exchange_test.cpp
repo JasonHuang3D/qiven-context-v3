@@ -7,7 +7,9 @@
 // lines held with their keys imported, verify's counts the source's; each
 // import's store reopened read-only and verified; an export closed by its
 // own close, by its store object's move and close; each export statement's
-// plan.
+// plan. store_exchange.settings: an export's reader given limits not
+// valid() or an application_id of 0, StoreError settings naming which,
+// on a file not there, before it opens one; given the store's, none.
 
 #include <cstddef>
 #include <cstdint>
@@ -55,9 +57,9 @@ using qiven::test::records::views;
 
 static_assert(qiven::recordlog::Export<Export>);
 
-constexpr std::string_view held_scope = "project:qiven";
-constexpr std::string_view first_lane = "implementer";
-constexpr std::string_view second_lane = "reviewer";
+constexpr std::string_view held_scope = "group:primary";
+constexpr std::string_view first_lane = "lane-one";
+constexpr std::string_view second_lane = "lane-two";
 
 std::string text(const fs::path& path) {
     std::string out;
@@ -248,13 +250,13 @@ QIVEN_CASE(store_exchange, smoke) {
     const std::vector<AfterView> after = {AfterView{held_scope, first_lane, 2}};
     auto later = std::make_unique<Export>(source->export_(std::nullopt, after));
     CHECK_EQ(drain(*later, nullptr), 5U);
-    const std::vector<std::string_view> projects = {"project:*"};
+    const std::vector<std::string_view> projects = {"group:*"};
     auto all = std::make_unique<Export>(source->export_(projects, {}));
     Held copy;
     (void)all->heads(rows);
     copy.given.assign(rows.begin(), rows.end());
     CHECK_EQ(drain(*all, &copy), 7U);
-    const std::vector<std::string_view> others = {"project:other"};
+    const std::vector<std::string_view> others = {"group:other"};
     auto none = std::make_unique<Export>(source->export_(others, {}));
     CHECK_EQ(none->heads(rows).forgets, 0U);
     CHECK_EQ(rows.size(), 0U);
@@ -281,4 +283,32 @@ QIVEN_CASE(store_exchange, smoke) {
     CHECK_EQ(drain(*last, nullptr), 7U);
     CHECK(moved->close().done);
     CHECK_EQ(raised([&] { (void)last->heads(rows); }), "StoreError closed");
+}
+
+QIVEN_CASE(store_exchange, settings) {
+    const auto rig = std::make_unique<Rig>();
+    const std::string file = rig->path("from");
+    const auto source = std::make_unique<Store>(
+        Store::open(file, true, false, rig->fake, records::suite_limits, records::suite_identity));
+    qiven::recordlog::sqlite::Exports owner;
+    const auto exported = [&](std::string_view at, const qiven::recordlog::Limits& limits,
+                              const qiven::recordlog::Identity& identity) {
+        try {
+            const Export opened(rig->fake, owner, at, at, limits, identity, std::nullopt, {}, nullptr);
+        } catch (const StoreError& e) {
+            return std::string(qiven::recordlog::name(e.kind())) + " " +
+                   (e.code() ? std::string(qiven::recordlog::name(*e.code())) : std::string()) + ": " +
+                   std::string(e.detail());
+        }
+        return std::string("none");
+    };
+    // Each refused on a file that is not there: before the reader opens it.
+    const std::string none = rig->path("none");
+    qiven::recordlog::Limits wrong = records::suite_limits;
+    wrong.max_count = 1;
+    CHECK_EQ(exported(none, wrong, records::suite_identity), "StoreError settings: limits");
+    CHECK_EQ(exported(none, records::suite_limits, qiven::recordlog::Identity{0}),
+             "StoreError settings: application_id");
+    CHECK(!fs::exists(none));
+    CHECK_EQ(exported(file, records::suite_limits, records::suite_identity), "none");
 }

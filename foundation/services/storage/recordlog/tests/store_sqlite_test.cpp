@@ -8,8 +8,9 @@
 // byte-equal, another version, a store's of version 1 left byte-equal, a
 // file that is no database; the guard's
 // checkout (a .git directory, then a file) and synced folder, by open and
-// alone; incoherent meta; create read-only and invalid limits refused; a
-// second engine heap refused while one is installed. store_sqlite.writes,
+// alone; incoherent meta; create read-only, invalid limits and an
+// application_id of 0 refused; a second engine heap refused while one is
+// installed. store_sqlite.writes,
 // over plain records: append, a HeadConflict, size and its figures;
 // forget's kind, guard and erasure; each purge done, meta's vacuumed and
 // purged at forgets; verify, and a read-only reopen's, its purge refused,
@@ -69,6 +70,7 @@ using qiven::recordlog::GuardView;
 using qiven::recordlog::Id;
 using qiven::recordlog::Vector;
 using qiven::recordlog::Written;
+using qiven::recordlog::Identity;
 using qiven::recordlog::Limits;
 using qiven::recordlog::Operation;
 using qiven::recordlog::StoreError;
@@ -153,8 +155,9 @@ std::string raised(const F& f) {
 #define QIVEN_OWN_FRAME
 #endif
 QIVEN_OWN_FRAME std::string open_error(Rig& rig, const fs::path& path, bool create = false, bool read_only = false,
-                                        const Limits& limits = records::suite_limits) {
-    return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits, records::suite_identity); });
+                                        const Limits& limits = records::suite_limits,
+                                        const Identity& identity = records::suite_identity) {
+    return raised([&] { (void)Store::open(text(path), create, read_only, rig.fake, limits, identity); });
 }
 
 std::string bytes_of(const fs::path& path) {
@@ -209,7 +212,7 @@ QIVEN_OWN_FRAME void created(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(store.opened_purge().done);
     sqlite::Connection& c = store.connection();
     CHECK_EQ(c.integer("PRAGMA application_id", test_at), records::suite_identity.application_id);
-    CHECK_EQ(c.integer("PRAGMA user_version", test_at), records::suite_identity.user_version);
+    CHECK_EQ(c.integer("PRAGMA user_version", test_at), qiven::recordlog::schema_version);
     CHECK(!sqlite::differing(c, test_at).has_value());
     CHECK_EQ(c.integer("SELECT count(*) FROM sqlite_schema WHERE type = 'table'", test_at), 4);
     CHECK_EQ(c.integer("SELECT count(*) FROM sqlite_schema WHERE type = 'index' AND sql IS NOT NULL", test_at), 2);
@@ -235,7 +238,7 @@ QIVEN_OWN_FRAME void reopened(qiven::runner::Context& qiven_ctx, Rig& rig) {
     Store reader = Store::open(path, false, true, rig.fake, records::suite_limits, records::suite_identity);
     CHECK(reader.read_only());
     CHECK(!sqlite::differing(reader.connection(), test_at).has_value());
-    CHECK(raised([&] { (void)reader.append("project:qiven", "implementer", std::nullopt, {}); }) ==
+    CHECK(raised([&] { (void)reader.append("group:primary", "lane-one", std::nullopt, {}); }) ==
           "StoreError read_only");
     Store moved = std::move(store);
     CHECK(moved.verify() == qiven::recordlog::Counts{});
@@ -262,14 +265,23 @@ QIVEN_OWN_FRAME void refused(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string one = bytes_of(made);
     CHECK(open_error(rig, made) == "StoreCorrupt version: user_version 1");
     CHECK(bytes_of(made) == one && !fs::exists(text(made) + "-wal") && !fs::exists(text(made) + "-shm"));
-    alter(made, "PRAGMA user_version = " + std::to_string(records::suite_identity.user_version));
+    alter(made, "PRAGMA user_version = " + std::to_string(qiven::recordlog::schema_version));
     write_file(root / "text.db", std::string(1024, 'x'));
     CHECK(open_error(rig, root / "text.db").starts_with("StoreCorrupt not_a_store"));
     CHECK(open_error(rig, root / "ro.db", true, true) == "StoreError read_only: create");
     Limits wrong = records::suite_limits;
     wrong.max_count = 1;
     CHECK(open_error(rig, root / "l.db", true, false, wrong) == "StoreError settings: limits");
-    CHECK(!fs::exists(root / "ro.db") && !fs::exists(root / "l.db"));
+    // An application_id of 0, any untagged file's, refused as the limits
+    // are: at create no file made, at open the store's file left unchanged.
+    const Identity untagged{0};
+    CHECK(open_error(rig, root / "i.db", true, false, records::suite_limits, untagged) ==
+          "StoreError settings: application_id");
+    const std::string held = bytes_of(made);
+    CHECK(open_error(rig, made, false, false, records::suite_limits, untagged) ==
+          "StoreError settings: application_id");
+    CHECK(bytes_of(made) == held && !fs::exists(text(made) + "-wal") && !fs::exists(text(made) + "-shm"));
+    CHECK(!fs::exists(root / "ro.db") && !fs::exists(root / "l.db") && !fs::exists(root / "i.db"));
 }
 
 // The guard: a checkout by a .git directory, then a file, and a synced
@@ -309,12 +321,12 @@ QIVEN_OWN_FRAME void incoherent(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(open_error(rig, path) == "none");
 }
 
-constexpr std::string_view qiven_scope = "project:qiven";
-constexpr std::string_view implementer = "implementer";
-constexpr std::string_view reviewer = "reviewer";
+constexpr std::string_view group_scope = "group:primary";
+constexpr std::string_view lane_one = "lane-one";
+constexpr std::string_view lane_two = "lane-two";
 
 void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
-    const std::vector<Rec> lane = chain(qiven_scope, implementer, {"A", "B", "D", "ACC"});
+    const std::vector<Rec> lane = chain(group_scope, lane_one, {"A", "B", "D", "ACC"});
     std::vector<std::byte> pages(std::size_t{1} << 16U);
     Arena arena(pages);
     Vector<Id> erased{Chars(arena)};
@@ -324,7 +336,7 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     Store& store = *owned;
     const std::vector<Rec> first = {lane[0], lane[1]};
     const std::vector<EntryView> first_lines = views(first);
-    const Written w = store.append(qiven_scope, implementer, std::nullopt, first_lines);
+    const Written w = store.append(group_scope, lane_one, std::nullopt, first_lines);
     CHECK_EQ(w.head.id.view(), id_of(first[1]));
     CHECK_EQ(w.head.seq, 2);
     CHECK_EQ(w.volume.count, 2U);
@@ -333,12 +345,12 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(store.peak() > 0 && store.peak() <= *qiven::recordlog::operation_budget(*qiven::recordlog::given(first_lines)));
     const std::vector<Rec> later = {lane[2]};
     const std::vector<EntryView> later_lines = views(later);
-    CHECK(raised([&] { (void)store.append(qiven_scope, implementer, std::nullopt, later_lines); })
+    CHECK(raised([&] { (void)store.append(group_scope, lane_one, std::nullopt, later_lines); })
               .starts_with("HeadConflict"));
-    CHECK_EQ(store.append(qiven_scope, implementer, id_of(first[1]), later_lines).head.seq, 3);
+    CHECK_EQ(store.append(group_scope, lane_one, id_of(first[1]), later_lines).head.seq, 3);
     const std::vector<Rec> acc = {lane[3]};
     const std::vector<EntryView> acc_lines = views(acc);
-    (void)store.append(qiven_scope, implementer, id_of(later[0]), acc_lines);
+    (void)store.append(group_scope, lane_one, id_of(later[0]), acc_lines);
     const auto sizes = std::make_unique<const qiven::recordlog::Sizes>(store.size());  // past a frame's share
     CHECK_EQ(sizes->volume.count, 4U);
     CHECK_EQ(sizes->volume.size, added(first) + added(later) + added(acc));
@@ -347,16 +359,16 @@ void writes(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(sizes->view()[0].value >= 512U && sizes->view()[3].value > 0U);
 
     const std::vector<Rec> wrong = {lane[0]};
-    const std::vector<Rec> call = {forget("E", qiven_scope, implementer, 5, "ACC", "B")};
+    const std::vector<Rec> call = {forget("E", group_scope, lane_one, 5, "ACC", "B")};
     const std::vector<EntryView> wrong_lines = views(wrong);
     const std::vector<EntryView> call_lines = views(call);
     const std::string head = id_of(acc[0]);
-    const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, head}};
-    CHECK(raised([&] { (void)store.forget(qiven_scope, implementer, head, wrong_lines, guard, erased); })
+    const std::vector<GuardView> guard = {GuardView{group_scope, lane_one, head}};
+    CHECK(raised([&] { (void)store.forget(group_scope, lane_one, head, wrong_lines, guard, erased); })
               .starts_with("StoreError forget_kind"));
-    CHECK(raised([&] { (void)store.forget(qiven_scope, implementer, head, call_lines, {}, erased); })
+    CHECK(raised([&] { (void)store.forget(group_scope, lane_one, head, call_lines, {}, erased); })
               .starts_with("HeadConflict"));
-    const Written f = store.forget(qiven_scope, implementer, head, call_lines, guard, erased);
+    const Written f = store.forget(group_scope, lane_one, head, call_lines, guard, erased);
     CHECK_EQ(f.head.id.view(), id_of(call[0]));
     CHECK_EQ(f.volume.count, 5U);
     CHECK_EQ(f.volume.size, sizes->volume.size - (first[1].record->size() + 1U) + added({call[0]}));
@@ -401,7 +413,7 @@ std::string cut(const std::vector<Rec>& lines) {
     return ids;
 }
 
-// Two lanes, reviewer's M2 and M1 forgotten; each read; then a body row
+// Two lanes, lane two's M2 and M1 forgotten; each read; then a body row
 // deleted under the store.
 void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     std::vector<std::byte> pages(std::size_t{1} << 17U);
@@ -411,18 +423,18 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     const std::string path = text(rig.scratch.root / "r" / "store.db");
     const auto store = std::make_unique<Store>(Store::open(path, true, false, rig.fake,
                                                            records::suite_limits, records::suite_identity));
-    const std::vector<Rec> mine = chain(qiven_scope, implementer, {"A", "B"});
-    const std::vector<Rec> theirs = chain(qiven_scope, reviewer, {"C", "M1", "M2"});
-    (void)store->append(qiven_scope, implementer, std::nullopt, views(mine));
-    (void)store->append(qiven_scope, reviewer, std::nullopt, views(theirs));
-    const auto f2 = std::make_unique<const Rec>(forget("X2", qiven_scope, reviewer, 4, "M2", "M2"));
-    const auto f3 = std::make_unique<const Rec>(forget("X3", qiven_scope, reviewer, 5, "X2", "M1"));
+    const std::vector<Rec> mine = chain(group_scope, lane_one, {"A", "B"});
+    const std::vector<Rec> theirs = chain(group_scope, lane_two, {"C", "M1", "M2"});
+    (void)store->append(group_scope, lane_one, std::nullopt, views(mine));
+    (void)store->append(group_scope, lane_two, std::nullopt, views(theirs));
+    const auto f2 = std::make_unique<const Rec>(forget("X2", group_scope, lane_two, 4, "M2", "M2"));
+    const auto f3 = std::make_unique<const Rec>(forget("X3", group_scope, lane_two, 5, "X2", "M1"));
     const std::string a = id_of(mine[0]);
     const std::string b = id_of(mine[1]);
     const std::string m2 = id_of(theirs[2]);
-    const std::vector<GuardView> guard = {GuardView{qiven_scope, implementer, b}, GuardView{qiven_scope, reviewer, m2}};
+    const std::vector<GuardView> guard = {GuardView{group_scope, lane_one, b}, GuardView{group_scope, lane_two, m2}};
     const std::vector<Rec> forgets = {*f2, *f3};
-    (void)store->forget(qiven_scope, reviewer, m2, views(forgets), guard, erased);
+    (void)store->forget(group_scope, lane_two, m2, views(forgets), guard, erased);
     const qiven::recordlog::Counts counts{7, 3, 2, 2};
     CHECK(store->verify() == counts);
     {
@@ -430,13 +442,13 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
                                                                 records::suite_limits, records::suite_identity));
         CHECK(reader->verify() == counts);
     }
-    CHECK(store->head(qiven_scope, implementer).value().seq == 2 && !store->head(qiven_scope, "nobody"));
+    CHECK(store->head(group_scope, lane_one).value().seq == 2 && !store->head(group_scope, "nobody"));
     Vector<qiven::recordlog::LaneHead> rows(chars);
     const auto all = std::make_unique<const qiven::recordlog::Heads>(store->heads(std::nullopt, rows));
     REQUIRE(rows.size() == 2U);
-    CHECK(rows[1].lane.view() == reviewer && rows[1].head.seq == 5);
+    CHECK(rows[1].lane.view() == lane_two && rows[1].head.seq == 5);
     CHECK(all->forgets == 2U && all->purge.done);
-    const std::array<std::string_view, 2> sets = {"person", "project:*"};
+    const std::array<std::string_view, 2> sets = {"person", "group:*"};
     CHECK(store->heads(std::span(sets).first(1), rows).forgets == 0U && rows.empty());
     CHECK(store->heads(std::span(sets).last(1), rows).forgets == 2U && rows.size() == 2U);
 
@@ -458,7 +470,7 @@ void reads(qiven::runner::Context& qiven_ctx, Rig& rig) {
     CHECK(raised([&] { (void)store->forgotten(none); }).starts_with("NotFound"));
 
     CHECK_EQ(scanned(*store, chars, {}), cut(mine) + cut(theirs) + cut(forgets));
-    CHECK_EQ(scanned(*store, chars, {qiven_scope, reviewer, 2}), cut({theirs[2], *f2, *f3}));
+    CHECK_EQ(scanned(*store, chars, {group_scope, lane_two, 2}), cut({theirs[2], *f2, *f3}));
     CHECK_EQ(scanned(*store, chars, {std::nullopt, std::nullopt, 4}), cut({*f3}));
     CHECK_EQ(scanned(*store, chars, {"person", std::nullopt, std::nullopt}), std::string());
 

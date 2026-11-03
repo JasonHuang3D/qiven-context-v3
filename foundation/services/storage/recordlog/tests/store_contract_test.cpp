@@ -5,7 +5,7 @@
 // not close, an import of one source type, read_only not const, a hook
 // missing); the operations' names, what a read-only store serves and the
 // kinds each raises; the capabilities' applicability; the size limits,
-// their volume and the maximum; the budgets. At run time: the minimal store driven through
+// their volume and the maximum; the file identity's; the budgets. At run time: the minimal store driven through
 // the concept, each operation once; the gate's three refusals in order;
 // a line's strings on the caller's arena; the fault run over none. The
 // runner's count after each case holds too.
@@ -345,6 +345,13 @@ constexpr bool limits_vector() {
 }
 static_assert(limits_vector());
 
+// The suite's identity valid; an application_id of 0, an untagged file's,
+// not.
+constexpr bool identity_vector() {
+    return store::valid(records::suite_identity) && !store::valid(store::Identity{0});
+}
+static_assert(identity_vector());
+
 // Past a threshold, by size or by count apart; at it, not past.
 constexpr bool volume_vector() {
     const store::Limits l{100, 150, 200, 10, 15, 20};
@@ -405,8 +412,8 @@ std::size_t drive(S& s, qiven::memory::Arena& arena) {
     const std::array<store::EntryView, 2> entries = {store::EntryView{"{}", "{}"},
                                                      store::EntryView{"{}", std::nullopt}};
     std::size_t n = 0;
-    n += s.append("person", "implementer", std::nullopt, entries).head.seq == 2 ? 1U : 0U;
-    n += s.head("person", "implementer").has_value() ? 1U : 0U;
+    n += s.append("person", "lane-one", std::nullopt, entries).head.seq == 2 ? 1U : 0U;
+    n += s.head("person", "lane-one").has_value() ? 1U : 0U;
     n += s.heads(std::nullopt, rows).purge.done ? 1U : 0U;
     try {
         s.header(id_a, line);
@@ -417,7 +424,7 @@ std::size_t drive(S& s, qiven::memory::Arena& arena) {
     n += s.forgotten(id_a) ? 0U : 1U;
     auto scan = s.scan(store::RangeView{});
     n += scan.next(scanned) ? 0U : 1U;
-    n += s.forget("person", "implementer", id_a, entries, {}, erased).head.seq == 4 ? 1U : 0U;
+    n += s.forget("person", "lane-one", id_a, entries, {}, erased).head.seq == 4 ? 1U : 0U;
     n += s.purge().done ? 1U : 0U;
     auto exported = s.export_(std::nullopt, {});
     n += exported.heads(rows).forgets == 0 ? 1U : 0U;

@@ -29,7 +29,7 @@ std::size_t run_of(std::span<const Held> rows, std::size_t from, std::uint32_t l
 }  // namespace
 
 void exhausted(std::size_t request, const qiven::memory::Heap& heap) {
-    throw qiven::memory::MemoryError::budget("store/memory", heap.budget(), request, heap.used());
+    throw qiven::memory::MemoryError::budget("recordlog/memory", heap.budget(), request, heap.used());
 }
 
 void busy(Operation op, std::string_view path) {
@@ -45,7 +45,7 @@ State::State(std::span<std::byte> pages, const Limits& limits) : data_(pages), l
 #if defined(QIVEN_FAULTS)
 void attach(State& state, qiven::memory::Countdown* countdown) noexcept {
     if (!state.mutex_.try_lock_for(busy_wait)) {
-        qiven::memory::fail_fast("store/memory: the state's lock held past its wait at attach");
+        qiven::memory::fail_fast("recordlog/memory: the state's lock held past its wait at attach");
     }
     state.data_.heap.attach(countdown);
     state.mutex_.unlock();
@@ -137,7 +137,7 @@ Held make_held(Data& d, std::string_view line, std::optional<std::string_view> r
 void Batch::add(Data& d, std::string_view line, std::optional<std::string_view> record, const KeysView& k) {
     const std::size_t at = d.held.size() + rows_.size();
     if (at >= max_entries) {
-        throw qiven::memory::MemoryError::budget("store/memory", max_entries, at + 1U, d.held.size());
+        throw qiven::memory::MemoryError::budget("recordlog/memory", max_entries, at + 1U, d.held.size());
     }
     Held e = make_held(d, line, record, k);
     if (const std::optional<std::string_view> t = k.target) {

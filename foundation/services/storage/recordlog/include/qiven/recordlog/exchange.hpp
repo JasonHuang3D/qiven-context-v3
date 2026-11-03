@@ -122,9 +122,11 @@ public:
     Reader& operator=(Reader&& other) noexcept;
     ~Reader() { close(); }
 
-    // The scope set and the seqs packed at pages' front, the connection
-    // on file, identified against identity, the snapshot read; linked into
-    // owner's list first.
+    // The limits and the identity checked as open checks them, before the
+    // file is touched (limits not valid() or an application_id of 0
+    // StoreError settings); the scope set and the seqs packed at pages'
+    // front, the connection on file, identified against identity, the
+    // snapshot read; linked into owner's list first.
     void open(Exports& owner, std::span<std::byte> pages, std::string_view file, std::string_view path,
               const Limits& limits, const Identity& identity, const Scopes& scopes, std::span<const AfterView> after,
               Countdown* countdown);
@@ -202,7 +204,7 @@ public:
                  const Identity& identity, const Scopes& scopes, std::span<const AfterView> after, Countdown* countdown)
         : pages_(platform.pages(Reader::pages_for(scopes, after))) {
         if (pages_.bytes().size() < Reader::pages_for(scopes, after)) {
-            qiven::memory::fail_fast("store/exchange: pages short of their request");
+            qiven::memory::fail_fast("recordlog/exchange: pages short of their request");
         }
         reader_.open(owner, pages_.bytes(), file, path, limits, identity, scopes, after, countdown);
     }
@@ -227,8 +229,9 @@ private:
     Reader reader_;  // ends first: its connection closed
 };
 
-// The final view of an import: part 2's view of the transaction, and the
-// first forget held of an id, in the order inserted.
+// The final view of an import: the view of the transaction the admit hook
+// and the store's guards read, and the first forget held of an id, in the
+// order inserted.
 class ImportView {
 public:
     ImportView(Connection& c, const Chars& allocator, const WhereView& at) noexcept
@@ -322,7 +325,7 @@ Imported import_source(P& platform, Connection& c, R& source, Vector<LaneHead>& 
     const stage::AtView at{Operation::import_, where.path};
     const std::size_t quarter = import_line_bytes;
     if (pages.size() < 4 * quarter) {
-        qiven::memory::fail_fast("store/exchange: an import's pages short of an operation's");
+        qiven::memory::fail_fast("recordlog/exchange: an import's pages short of an operation's");
     }
     qiven::memory::Arena kept(pages.first(quarter));
     attach_to(kept, countdown);

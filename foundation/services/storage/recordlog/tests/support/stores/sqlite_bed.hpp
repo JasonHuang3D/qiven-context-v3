@@ -59,8 +59,8 @@ using Fake = qiven::platform::fake::FakePlatform;
 using Store = qiven::recordlog::SQLiteStore<Fake>;
 using Engine = qiven::recordlog::Engine<Fake>;
 
-inline constexpr std::string_view qiven_scope = "project:qiven";
-inline constexpr std::string_view implementer_lane = "implementer";
+inline constexpr std::string_view group_scope = "group:primary";
+inline constexpr std::string_view lane_one = "lane-one";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 inline constexpr std::string_view unfaulted =
     "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
@@ -82,11 +82,11 @@ inline std::string bytes_of(const fs::path& path) {
 // store, its steps' lines and the caller's arena; on the heap.
 struct Bed {
     Bed()
-        : root(fresh_root()), fake(config(root)), lane(chain(qiven_scope, implementer_lane, {"A", "B", "D", "ACC"})),
+        : root(fresh_root()), fake(config(root)), lane(chain(group_scope, lane_one, {"A", "B", "D", "ACC"})),
           engine(std::make_unique<Engine>(fake)), path(text(root / "s" / "store.db")), first{lane[0], lane[1], lane[2]},
-          acc{lane[3]}, e{forget("E", qiven_scope, implementer_lane, 5, "ACC", "B")}, first_lines(views(first)),
+          acc{lane[3]}, e{forget("E", group_scope, lane_one, 5, "ACC", "B")}, first_lines(views(first)),
           acc_lines(views(acc)), e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
-          guard{GuardView{qiven_scope, implementer_lane, acc_id}}, call_pages(call_bytes) {}
+          guard{GuardView{group_scope, lane_one, acc_id}}, call_pages(call_bytes) {}
     Bed(const Bed&) = delete;
     Bed& operator=(const Bed&) = delete;
     Bed(Bed&&) = delete;
@@ -222,11 +222,11 @@ inline void add_steps(std::vector<Step>& out) {
                    }});
     out.push_back({"append", 0, Sort::write, 1, {}, [](Bed& b, const Chars&) {
                        const Written w =
-                           b.store->append(qiven_scope, implementer_lane, std::nullopt, b.first_lines);
+                           b.store->append(group_scope, lane_one, std::nullopt, b.first_lines);
                        return Ran{b.store->peak(), 0, written(w)};
                    }});
     out.push_back({"append_acc", 0, Sort::write, 1, {}, [](Bed& b, const Chars&) {
-                       const Written w = b.store->append(qiven_scope, implementer_lane, b.d_id, b.acc_lines);
+                       const Written w = b.store->append(group_scope, lane_one, b.d_id, b.acc_lines);
                        return Ran{b.store->peak(), 0, written(w)};
                    }});
 }
@@ -234,7 +234,7 @@ inline void add_steps(std::vector<Step>& out) {
 inline void add_reads(std::vector<Step>& out) {
     constexpr std::size_t base = qiven::recordlog::operation_base;
     out.push_back({"head", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
-                       const auto h = b.store->head(qiven_scope, implementer_lane);
+                       const auto h = b.store->head(group_scope, lane_one);
                        return Ran{0, 0, h ? std::string(h->id.view()) : "none"};
                    }});
     out.push_back({"heads", base, Sort::read, 1, {}, [](Bed& b, const Chars& c) {
@@ -271,7 +271,7 @@ inline void add_reads(std::vector<Step>& out) {
     out.push_back({"forget", 0, Sort::write, 1, {}, [](Bed& b, const Chars& c) {
                        Vector<qiven::recordlog::Id> erased(c);
                        const Written w =
-                           b.store->forget(qiven_scope, implementer_lane, b.acc_id, b.e_lines, b.guard, erased);
+                           b.store->forget(group_scope, lane_one, b.acc_id, b.e_lines, b.guard, erased);
                        return Ran{b.store->peak(), b.call->peak(), written(w) + " " + std::to_string(erased.size())};
                    }});
     out.push_back({"purge", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
@@ -314,17 +314,17 @@ inline void add_calls(std::vector<Step>& out) {
                    }});
     out.push_back({"targets", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
                        Vector<qiven::recordlog::Id> list(c);
-                       b.store->targets(id_of(b.first[1]), qiven_scope, list);
+                       b.store->targets(id_of(b.first[1]), group_scope, list);
                        return Ran{b.store->peak(), b.call->peak(), ids(list)};
                    }});
     out.push_back({"keyed", base, Sort::read, 1, {}, [ids](Bed& b, const Chars& c) {
                        Vector<qiven::recordlog::Id> list(c);
-                       b.store->keyed(qiven_scope, "note", list);
+                       b.store->keyed(group_scope, "note", list);
                        return Ran{b.store->peak(), b.call->peak(), ids(list)};
                    }});
     out.push_back({"each_keyed", base, Sort::read, 1, {}, [](Bed& b, const Chars&) {
                        std::size_t n = 0;
-                       const bool stopped = b.store->each_keyed(qiven_scope, "note", [&n](const qiven::recordlog::Id&) {
+                       const bool stopped = b.store->each_keyed(group_scope, "note", [&n](const qiven::recordlog::Id&) {
                            return ++n == 2;
                        });
                        return Ran{b.store->peak(), 0, std::to_string(stopped) + std::to_string(n)};

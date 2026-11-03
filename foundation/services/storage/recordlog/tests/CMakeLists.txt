@@ -20,7 +20,7 @@ add_library(qiven_recordlog_seams STATIC
 target_include_directories(qiven_recordlog_seams PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(qiven_recordlog_seams PUBLIC qiven_recordlog PRIVATE qiven_build)
 
-# errors' cases: each kind with its fields and its code, `secret`
+# errors' cases: each kind with its fields and its code, a hook's code
 # with no id, the cuts at a code point and the names, evaluated by the
 # compiler; each kind's line; an error thrown and caught; the fault run
 # over none.
@@ -38,7 +38,7 @@ qiven3_add_cases(qiven_recordlog_codes_test LABELS fast fake
 # contract's cases: a minimal store, scan and export the concepts
 # accept and a plant of each that they refuse; the names, read-only's
 # operations, the kinds each raises, the capabilities' applicability, the
-# limits and volume and the budgets, evaluated by the compiler; the minimal store
+# limits, the identity and volume and the budgets, evaluated by the compiler; the minimal store
 # driven through the concept; the gate's refusals in order; a line on the
 # caller's arena; the fault run over none.
 qiven3_add_cases(qiven_recordlog_contract_test LABELS fast fake
@@ -63,8 +63,8 @@ qiven3_add_cases(qiven_recordlog_calls_test LABELS fast fake
   LINK qiven_faults qiven_recordlog_stores)
 
 # store's own guards in both stores with no admit hook, on the fake: a
-# forget appended, a forget given an accept, a forget's target not
-# erasable, an import's seq gap and wrong parent, the order on a lane with
+# forget appended, a forget given a record not a forget, a forget's target
+# not erasable, an import's seq gap and wrong parent, the order on a lane with
 # a head and an entry of another scope or lane; each refusal followed by
 # verify and, on SQLite, a reopen, the state as before.
 qiven3_add_cases(qiven_recordlog_guard_test LABELS fast fake
@@ -111,7 +111,8 @@ qiven3_add_cases(qiven_recordlog_sqlite_test LABELS fast fake
 # exchange's cases: the SQLite store's export, import and verify on
 # the fake over a scratch directory; its smoke case: a round trip, a
 # second import refused, an export from seqs and of a scope set, a refused
-# import leaving nothing, an export closed by its store object; the
+# import leaving nothing, an export closed by its store object; an
+# export's reader refusing limits and an identity as open does; the
 # budgets, counts and fault runs of export, heads, next, import and verify;
 # a maximum entry and a large lane; StoreBusy and StoreNotEmpty at import,
 # the thread gate, the exports' closing, import's rollback and checkpoint;

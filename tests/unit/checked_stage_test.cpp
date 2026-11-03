@@ -154,7 +154,7 @@ QIVEN_CASE(store_stage, forget) {
     REQUIRE(path.has_value());
     CHECK_EQ(path->code, std::string("forget_path"));
     CHECK_EQ(path->id, std::string(id_of(e)));
-    CHECK_EQ(path->field, std::string("header.kind"));
+    CHECK_EQ(path->field, std::string("kind"));
 }
 
 QIVEN_CASE(store_stage, secret) {

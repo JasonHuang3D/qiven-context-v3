@@ -16,12 +16,13 @@
 // forgotten or a forget false, by a copy, a lent read and a transaction's view.
 // sweep: a body (a record, of no bytes, none, a key or a record alone) by x1 (a
 // note, of t1; a forget of none, of t1; a bare forget of t1, the body t1's), by
-// append or forget, and by import. own_export: empty or not (a ruled store's
-// own export is checked's case). entry_bound: an entry at entry_bytes by
+// append or forget, and by import. own_export: empty or not (a store's own
+// export under an admit hook is the hook's to take). entry_bound: an entry at entry_bytes by
 // append, import and forget committed and moved, a byte past refused.
 // kind_bound: a kind past its bytes refused; its bytes counted, StoreFull.
 // cross_scope_target, self_target: a target in another scope, or itself, held
-// by append and by import alike, committed and moved (checked's to refuse).
+// by append and by import alike, committed and moved (an admit hook's to
+// refuse).
 
 #include <array>
 #include <cstddef>
@@ -525,7 +526,7 @@ QIVEN_CASE(store_plain, sweep) {
     const std::array<std::pair<bool, std::optional<std::string>>, 5> bodies = {
         {{true, "record"}, {true, ""}, {false, {}}, {true, {}}, {false, "record"}}};
     const std::array<std::string_view, 2> ways = {"..TC. ..TC. ..T.T LLTCl MMMMm", "..TCf ..TCf ..TfT LLTC. MMMMm"};
-    constexpr std::array codes = {"target", "content", "body_missing", "body_mismatch", "forgotten_body"};
+    constexpr std::array codes = {"target", "forget_body", "body_missing", "body_mismatch", "forgotten_body"};
     for (std::size_t n = 0; n < 50; ++n) {
         const bool import = n % 2 == 1;
         const std::size_t k = (n / 2) % 5;
