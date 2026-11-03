@@ -1,7 +1,6 @@
 """The platform's machine cases P17, P18, P21 and P22, each defined once
-over an adapter (contract/platform_cases.py names the binding's part),
-beside P26 (contract/platform_rest.py): this machine's facts and code
-page, its residual rows, the program search and the guard's path forms,
+over an adapter (contract/platform_cases.py names the binding's part):
+this machine's facts and code page, its residual rows, the program search and the guard's path forms,
 each value as measured here.
 
 Each needs machine, which the fake lacks: on the fake each is not

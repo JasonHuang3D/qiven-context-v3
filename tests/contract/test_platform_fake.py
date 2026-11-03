@@ -3,14 +3,13 @@ qiven3-drive-fake.
 
 The fake has files and its own cases ("own: fake", contract/platform_own.py:
 its programs, by set_programs, and its lock), and lacks processes and
-machine, so P10 to P15 and P20 run nothing on it. Its configuration
-location with no override is the drive's, "<root>/qiven3"; its files'
-operations write under its root alone.
+machine, so P10 to P15 and P20 run nothing on it. Its files' operations
+write under its root alone.
 """
 
 import unittest
 
-from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_cases import PlatformBinding
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_location import PlatformLocation
@@ -19,7 +18,7 @@ from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import CASES as PROCESS_CASES
 from tests.contract.platform_process import PlatformProcess
-from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
+from tests.contract.platform_rest import PlatformRest
 from tests.drive.session import FAKE
 
 
@@ -41,9 +40,6 @@ class FakeBinding(PlatformBinding):
             args += ["--seed", seed]
         return args
 
-    def default_config(self):
-        return f"{self.root()}/qiven3"
-
     def files_root(self):
         return self.root()
 
@@ -52,12 +48,12 @@ class FakeBinding(PlatformBinding):
         d.call("set_busy", **times)
 
 
-class Fake(FakeBinding, PlatformCases, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn,
-           PlatformRest, PlatformLast, PlatformMemory, unittest.TestCase):
+class Fake(FakeBinding, PlatformLocation, PlatformFiles, PlatformProcess, PlatformOwn, PlatformRest,
+           PlatformLast, PlatformMemory, unittest.TestCase):
     ctest_labels = ("fake",)
 
 
-class FakeMachine(FakeBinding, PlatformMachine, PlatformForms, PlatformRestMachine, unittest.TestCase):
+class FakeMachine(FakeBinding, PlatformMachine, PlatformForms, unittest.TestCase):
     """The machine cases, not applicable on the fake: label machine, not fake."""
     ctest_labels = ("machine",)
 

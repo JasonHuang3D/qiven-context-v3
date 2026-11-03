@@ -255,9 +255,6 @@ class Drive:
         raise AssertionError(f"{op}: {of} faults past {limit}")
 
     # The platform's operations used by the cases, bytes as bytes.
-    def config_dir(self, create=False):
-        return self.call("config_dir", create=create)
-
     def random_bytes(self, n):
         return bytes.fromhex(self.call("random_bytes", n=n))
 

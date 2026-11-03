@@ -4,8 +4,7 @@ the fake, the process cases over qiven_platform_child's children, and the
 machine cases; the fake's own cases, not applicable here. Those that run
 qiven3, location's and P22, are in machine/test_platform_location.py.
 
-Its configuration location with no override is LocalAppData's qiven3, the
-known folder read here through the system's own call. Each case's drive
+Each case's drive
 holds as many handles at its end as before it; HandleCount plants a leak.
 The files' holders are real handles (machine/windows_holds.py).
 """
@@ -13,7 +12,7 @@ The files' holders are real handles (machine/windows_holds.py).
 import sys
 import unittest
 
-from tests.contract.platform_cases import PlatformBinding, PlatformCases
+from tests.contract.platform_cases import PlatformBinding
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_last import PlatformLast
 from tests.contract.platform_machine import PlatformMachine, skip_reasons
@@ -21,27 +20,9 @@ from tests.contract.platform_memory import PlatformMemory
 from tests.contract.platform_own import CASES as OWN_CASES
 from tests.contract.platform_own import PlatformOwn
 from tests.contract.platform_process import PlatformProcess
-from tests.contract.platform_rest import PlatformRest, PlatformRestMachine
+from tests.contract.platform_rest import PlatformRest
 from tests.drive.session import WINDOWS, Drive
 from tests.machine.windows_holds import HeldDrive
-
-
-def local_app_data():
-    """The known folder LocalAppData, by SHGetKnownFolderPath."""
-    import ctypes
-    import uuid
-
-    folder_id = (ctypes.c_ubyte * 16).from_buffer_copy(
-        uuid.UUID("f1b32785-6fba-4fcf-9d55-7b8e7f157091").bytes_le)
-    found = ctypes.c_wchar_p()
-    shell32 = ctypes.WinDLL("shell32")
-    status = shell32.SHGetKnownFolderPath(ctypes.byref(folder_id), 0, None, ctypes.byref(found))
-    try:
-        if status != 0 or found.value is None:
-            raise OSError(f"SHGetKnownFolderPath: HRESULT {status & 0xFFFFFFFF:#010x}")
-        return found.value
-    finally:
-        ctypes.WinDLL("ole32").CoTaskMemFree(found)
 
 
 class WindowsBinding(PlatformBinding):
@@ -74,9 +55,6 @@ class WindowsBinding(PlatformBinding):
             args += ["--config", config]
         return args
 
-    def default_config(self):
-        return local_app_data() + "\\qiven3"
-
     def files_root(self):
         return self.scratch
 
@@ -94,8 +72,8 @@ class WindowsBinding(PlatformBinding):
         return d.holder_times(kind)
 
 
-class Windows(WindowsBinding, PlatformCases, PlatformFiles, PlatformProcess, PlatformOwn,
-              PlatformRest, PlatformLast, PlatformMemory, PlatformMachine, PlatformRestMachine, unittest.TestCase):
+class Windows(WindowsBinding, PlatformFiles, PlatformProcess, PlatformOwn, PlatformRest, PlatformLast,
+              PlatformMemory, PlatformMachine, unittest.TestCase):
     pass
 
 

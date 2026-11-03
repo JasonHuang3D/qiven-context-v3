@@ -3,9 +3,11 @@
 
 Here: P27 (create and read, and two drives' creates racing, and
 remove_directory, create's counterpart for a directory, and list, remove
-and rename, the kept files' members), P28 (pages),
-P29 (normcase) and P30 (wipe, which digest.Key's ends and moves call;
-its unit cases count those calls on the fake). The Windows adapter's
+and rename, the kept files' members) and P28 (pages). P29 (normcase) and
+P30 (wipe, which digest.Key's ends and moves call; its unit cases count
+those calls on the fake) are platform's own
+(foundation/system/platform/tests/win_platform_test.cpp and
+fake_platform_test.cpp there). The Windows adapter's
 create and read are its module win/files', in package 5; until then a
 binding with CREATE_READ false checks that each answers unsupported, and
 the case is skipped.
@@ -17,19 +19,6 @@ from pathlib import Path
 
 from tests.drive.session import has_faults
 
-# normcase's vectors: each path, and its form on the Windows adapter, by
-# LCMapStringEx's invariant lowercase with '/' as '\'.
-NORMCASE = (
-    ("C:/Users/ABC", "c:\\users\\abc"),
-    ("D:\\\u00c4\\\u00d6x", "d:\\\u00e4\\\u00f6x"),
-    ("C:\\\u0130", "c:\\\u0130"),
-    ("C:\\\u01c5", "c:\\\u01c5"),
-    ("C:\\\u00df", "c:\\\u00df"),
-    ("C:\\\u03a3\u03a3", "c:\\\u03c3\u03c3"),
-    ("C:\\\uff21", "c:\\\uff41"),
-    ("C:\\\U00010400", "c:\\\U00010428"),
-)
-
 # P27's race: the paths two drives create at once, and how long a drive
 # waits for the other at each.
 RACES = 64
@@ -37,11 +26,6 @@ GATE_S = 30
 
 # Every byte value, a CRLF and the C runtime's end of text among them.
 WHOLE = bytes(range(256)) + b"\r\n\x1a\x00tail"
-
-
-def ascii_folded(path):
-    """The fake's form: ASCII letters alone folded."""
-    return "".join(chr(ord(c) + 32) if "A" <= c <= "Z" else c for c in path)
 
 
 class PlatformLast:
@@ -231,23 +215,3 @@ class PlatformLast:
             last = d.call("pages", n=1)
             self.assertEqual(last["size"], 4096)
             d.call("pages_free", id=last["id"])
-
-    def test_P29_normcase(self):
-        """normcase of the text's paths: on the adapter, the table's forms;
-        on the fake, ASCII letters alone folded."""
-        with self.drive() as d:
-            for path, folded in NORMCASE:
-                with self.subTest(path=path):
-                    expected = ascii_folded(path) if self.ADAPTER == "fake" else folded
-                    self.assertEqual(d.call("normcase", path=path), expected)
-            self.assertEqual(d.call("normcase", path=""), "")
-
-    def test_P30_wipe(self):
-        """wipe of 32 bytes the drive filled with 0xa5, then of an empty
-        span: the 32 bytes read back zero; nothing for the empty span, no
-        error."""
-        with self.drive() as d:
-            self.assertEqual(d.call("wipe", n=32), "00" * 32)
-            self.assertEqual(d.call("wipe", n=0), "")
-            if self.ADAPTER == "fake":
-                self.assertEqual(d.call("calls").count("wipe"), 2)

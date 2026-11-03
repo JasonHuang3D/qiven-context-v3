@@ -29,6 +29,9 @@
 //   milliseconds: its temporary file written, flushed and closed, its
 //   rename retried every 50 ms, the time a kill falls between the write and
 //   the rename; past the deadline, the error's code on out ("busy"), exit 1.
+// - stdout HEX: "acp <the ANSI code page>" on err, then HEX's bytes, as
+//   UTF-8, written by the adapter's standard_output() to out; exit 0, or
+//   the error's code on err and 1.
 // - tree MS [exit|out BYTES|err BYTES]: "sleep MS" started by the
 //   adapter's start, a grandchild in a job of its own nested in its
 //   parent's, its id on out as "grandchild <id>", then "pid <its id>"; then
@@ -268,6 +271,22 @@ int replace(std::span<const std::string_view> args) {
     return status;
 }
 
+int standard_output(std::span<const std::string_view> args) {
+    const std::optional<std::string> text = args.size() == 1 ? unhex(args[0]) : std::nullopt;
+    if (!text) {
+        return wrong("stdout HEX");
+    }
+    put(STD_ERROR_HANDLE, "acp " + std::to_string(GetACP()) + "\n");
+    try {
+        qiven::platform::win::WindowsPlatform adapter(std::nullopt);
+        adapter.standard_output().write(*text);
+    } catch (const qiven::platform::PlatformError& error) {
+        put(STD_ERROR_HANDLE, std::string(qiven::platform::name(error.code)) + "\n");
+        return 1;
+    }
+    return 0;
+}
+
 // Until the input gives a line or ends.
 void await_line() {
     char byte = 0;
@@ -354,6 +373,7 @@ constexpr std::array forms{
     Form{"print", print, "print OUT ERR CODE"},
     Form{"cat", cat, "cat [CODE]"},
     Form{"replace", replace, "replace PATH HEX MS"},
+    Form{"stdout", standard_output, "stdout HEX"},
     Form{"tree", tree, "tree MS [exit|out BYTES|err BYTES]"},
     Form{"gone", gone, "gone PID MS"},
 };

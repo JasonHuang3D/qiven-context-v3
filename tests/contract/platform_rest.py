@@ -1,17 +1,15 @@
 """The platform's cases P19 to P26, each defined once over an adapter
 (contract/platform_cases.py names the binding's part).
 
-Here: P23 and P24 (PlatformRest), and P26 (PlatformRestMachine, apart, as
-it needs machine). P19 and P25 are the files' (contract/platform_files.py);
-P20 is the processes' (contract/platform_process.py); P21 and P22 are
-the machine's (contract/platform_machine.py).
+Here: P23 and P24 (PlatformRest). P19 and P25 are the files'
+(contract/platform_files.py); P20 is the processes'
+(contract/platform_process.py); P21 and P22 are the machine's
+(contract/platform_machine.py). P26, standard_output to a pipe, is
+platform's own (foundation/system/platform/tests/win_process_streams_test.cpp).
 """
 
-import json
 import time
 from datetime import datetime, timedelta, timezone
-
-from tests.drive.session import once
 
 # The fake's blocks: seed 1's first two, seed 2's first.
 SEED_1 = ("783825822a6f9e62da2190e828e4c9d2576e5977e3a0b3620b092dfb9e9996fa",
@@ -20,10 +18,6 @@ SEED_2 = "1309ac3f4e41512820fbf259ae492bb686480eb4a7f5fa4bbc38215266ad984c"
 
 CLOCK_MS = 1_792_229_400_123
 CLOCK_AT = "2026-10-17T09:30:00.123Z"
-
-# P26: the text, and the bytes a pipe gets in this machine's code page.
-CODE_PAGE_TEXT = "aë中¢€\U0001f600\n"
-CODE_PAGE_BYTES = bytes.fromhex("613fd6d03f80aaa13f0d0a")
 
 
 def printed(ms):
@@ -67,16 +61,3 @@ class PlatformRest:
         self.assertGreaterEqual(now["ms"], before - 1000)
         self.assertLessEqual(now["ms"], after + 1000)
         self.assertEqual(now["at"], printed(now["ms"]))
-
-
-class PlatformRestMachine:
-    def test_P26_code_page(self):
-        """stdout() to a pipe: the code page's bytes, '?' for a character it
-        lacks, CRLF for LF."""
-        self.needs("machine")
-        ran = once(self.drive_args(), {"op": "stdout", "text": CODE_PAGE_TEXT}, drive=self.DRIVE)
-        self.assertEqual(ran.status, 0, ran.err)
-        self.assertEqual(ran.out[:len(CODE_PAGE_BYTES)], CODE_PAGE_BYTES)
-        reply = ran.out[len(CODE_PAGE_BYTES):]
-        self.assertEqual(len(reply.splitlines()), 1, reply)
-        self.assertTrue(json.loads(reply)["ok"], reply)

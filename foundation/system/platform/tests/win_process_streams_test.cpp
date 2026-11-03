@@ -2,8 +2,9 @@
 // timeout; each cap, the error naming its stream alone and the tree killed;
 // the deadline killing the tree, each next call deadline until kill(); run
 // with its input, both streams and the exit code, and its errors named
-// run's. Each starts `qiven_platform_child` (child/child.cpp): machine's.
+// run's; standard_output() to a pipe in the code page's bytes. Each starts `qiven_platform_child` (child/child.cpp): machine's.
 
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <memory>
@@ -211,6 +212,41 @@ QIVEN_CASE(win_process, run) {
             CHECK_EQ(late.operation, std::string("run"));
             CHECK(took >= 0.99 && took < 10.0);
         }
+    }
+    CHECK_EQ(arena.used(), 0U);
+}
+
+// standard_output() to a pipe, the child's out under run: each character in
+// the ANSI code page's bytes, one '?' for a character it lacks, never a
+// look-alike, CRLF for LF. The text: 'a', U+00EB, U+4E2D, U+00A2, U+20AC,
+// U+E000 (a private-use character code page 936 maps), U+1F600 and LF.
+// The bytes pinned are code page 936's, this machine's; on another page
+// the 'a' first and the CRLF last alone. code_page() gives "cp<n>".
+QIVEN_CASE(win_process, standard_output) {
+    WindowsPlatform platform(std::nullopt);
+    const auto pages = std::make_unique<Pages>();
+    Arena arena(pages->bytes);
+    {
+        const std::string_view given = "a\xc3\xab\xe4\xb8\xad\xc2\xa2\xe2\x82\xac\xee\x80\x80\xf0\x9f\x98\x80\n";
+        Ran ran(arena);
+        platform.run(ChildView({"stdout", hex(given)}).command, "", ran);
+        CHECK_EQ(ran.code, 0);
+        const std::string err(ran.err);
+        const std::string out(ran.out);
+        std::cout << "win_process.standard_output: " << err.substr(0, err.find('\n')) << ", " << hex(out) << "\n";
+        REQUIRE(out.size() >= 3);
+        CHECK_EQ(out.front(), 'a');
+        CHECK(out.ends_with("\r\n"));
+        if (err == "acp 936\n") {
+            CHECK_EQ(hex(out), std::string("613fd6d03f80aaa13f0d0a"));
+        }
+
+        String page{Allocator<char>(arena)};
+        platform.code_page(page);
+        const std::string_view number = std::string_view(page).substr(std::min<std::size_t>(page.size(), 2));
+        CHECK(std::string_view(page).starts_with("cp"));
+        CHECK(!number.empty() && number.front() != '0' &&
+              number.find_first_not_of("0123456789") == std::string_view::npos);
     }
     CHECK_EQ(arena.used(), 0U);
 }

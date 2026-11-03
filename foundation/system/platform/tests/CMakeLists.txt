@@ -19,9 +19,12 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # The fake's processes held to their contract: start and run refusing a
 # relative argv[0], a .cmd and a .bat before any lookup; read_line keeping
 # its line on a failed allocation, by the budget and, under QIVEN_FAULTS,
-# each of the line's allocations failed in turn.
+# each of the line's allocations failed in turn. And its own members
+# beyond files (fake_platform_test.cpp): config_dir's location made only by
+# create, and its errors (P2's); normcase folding ASCII letters alone
+# (P29's); wipe zeroing, each call recorded (P30's).
 qiven3_add_cases(qiven_platform_fake_process_test LABELS fast fake
-  SOURCES fake_process_test.cpp
+  SOURCES fake_process_test.cpp fake_platform_test.cpp
   LINK qiven_platform_fake)
 
 # current's choice of the build's adapter, on every system: a system with
@@ -57,10 +60,13 @@ endif()
 # windows/arguments' run_utf8, wmain's body, on Windows alone: the
 # program's name not read; what it cannot read or past a bound refused;
 # under QIVEN_FAULTS the pages' call and each allocation failed in turn, a
-# fault's status apart. fast and fake, as win_files'.
+# fault's status apart. And the adapter's own members in this process
+# (win_platform_test.cpp): config_dir's override and its default location,
+# which LOCALAPPDATA does not move (P2's); normcase's forms (P29's); wipe's
+# zeros (P30's). fast and fake, as win_files'.
 if(WIN32)
   qiven3_add_cases(qiven_platform_win_arguments_test LABELS fast fake
-    SOURCES win_arguments_test.cpp
+    SOURCES win_arguments_test.cpp win_platform_test.cpp
     LINK qiven_platform_windows)
 endif()
 
@@ -77,7 +83,8 @@ endif()
 # windows/process' cases on the Windows adapter, on Windows alone: program;
 # start's refusals; each argument, the environment, the input, wait, kill
 # and the tree's descendants through qiven_platform_child; read_line, the
-# caps, the deadline and run; the heap counted by the binary's own
+# caps, the deadline and run; standard_output to a pipe, the child's, in
+# the code page's bytes (P26's); the heap counted by the binary's own
 # operator new, the jthreads' blocks included; each Win32 call and arena
 # allocation failed in turn. Their helpers are win_process_case.hpp.
 # machine: they start processes, so the full and asan presets run them,
