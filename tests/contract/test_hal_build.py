@@ -1,7 +1,9 @@
 """H6: the core without the HAL. The nohal preset's build, QIVEN_HAL off,
 holds no HAL target and no HAL operation, and lists every test the build
 with the HAL lists but compute's own cases (compute.*), which it does not
-build; its whole suite passing is the case's run.
+build; its whole suite passing is the case's run. The git tests (label
+loop), which one build a system lists (QIVEN3_LOOP_TESTS,
+foundation/devkit/test/runner/list_tests.py), are left out of both lists.
 
 What the build builds, its targets and the sources it compiles, is its
 build.ninja's statements but the configure's own: its rerun, whose inputs
@@ -23,6 +25,7 @@ from tests.drive.session import FAKE, has_hal
 
 HAL_TARGETS = re.compile(rb"qiven_compute|\bhal\.cpp|fake_hal\.cpp|hal_ops\.cpp")
 LISTED = re.compile(r"^add_test\(\[==\[(.+?)\]==\]", re.MULTILINE)
+LABELS = re.compile(r'^set_tests_properties\(\[==\[(.+?)\]==\] PROPERTIES LABELS "([^"]*)"', re.MULTILINE)
 STATEMENT = re.compile(rb"build (.+?)(?<!\$): (\S+)(.*)")  # outputs, rule, inputs
 PATHS = re.compile(rb"(?<!\$) +")  # ninja escapes a path's own space as "$ "
 
@@ -53,11 +56,14 @@ def built(build):
 
 
 def listed(build):
-    """The tests a build's listing step registered with CTest."""
+    """The tests a build's listing step registered with CTest but the git
+    tests, those labelled loop."""
     listing = Path(build) / "tests" / "ctest_tests.cmake"
     if not listing.is_file():
         raise AssertionError(f"the build lists no tests yet: {listing}")
-    return set(LISTED.findall(listing.read_text(encoding="utf-8")))
+    text = listing.read_text(encoding="utf-8")
+    git = {name for name, labels in LABELS.findall(text) if "loop" in labels.split(";")}
+    return set(LISTED.findall(text)) - git
 
 
 class NoHal(unittest.TestCase):
