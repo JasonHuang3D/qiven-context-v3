@@ -1,11 +1,10 @@
 #pragma once
 
-// matcher: the patterns' and syntaxes' matcher, linear in the string.
-// compile reads a pattern of Python's re, in the subset the syntaxes and
-// the secret check's patterns write, into a position automaton; hit says
-// whether it matches a string's bytes: anywhere, as re.search does; or, a
-// pattern printed ^...$, the whole value, as re.fullmatch does with what
-// lies between. The subset: printable ASCII literals; a backslash before
+// matcher: a matcher of a subset of regular expressions, linear in the
+// string. compile reads a pattern of Python's re, in the subset below, into
+// a position automaton; hit says whether it matches a string's bytes:
+// anywhere, as re.search does; or, a pattern printed ^...$, the whole
+// value, as re.fullmatch does with what lies between. The subset: printable ASCII literals; a backslash before
 // punctuation, and \t, \n, \r; bracket classes, with ranges and ^; groups,
 // ( ) and (?: ); |; the greedy quantifiers *, +, ?, {n}, {n,} and {n,m};
 // and, first in a search pattern alone, one negative lookbehind of one

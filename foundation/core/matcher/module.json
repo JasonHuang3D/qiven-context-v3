@@ -16,7 +16,7 @@
         "memory"
       ],
       "test_depends": [
-        "case_main"
+        "faults"
       ],
       "paths": [
         "foundation/core/matcher/"

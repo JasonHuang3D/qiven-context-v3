@@ -5,8 +5,8 @@
 // runs (text), so that no file holds a live-looking token. Each names its
 // pattern by its index in the secret check's table and says whether it
 // hits; the tables' fixtures first, English and Chinese text among them,
-// then the clearing fixtures, which their patterns hit. matcher's cases
-// and secret's read the same.
+// then the clearing fixtures, which their patterns hit. secret's cases read
+// them.
 //
 // thread: none
 
