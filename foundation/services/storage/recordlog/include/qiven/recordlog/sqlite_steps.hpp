@@ -247,7 +247,7 @@ public:
     // f(id) for each id keyed gives, in its order, until f gives true:
     // whether it did. No list held: the statement's cursor walked.
     template <class F>
-    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+    bool each_keyed(std::string_view scope, std::string_view kind, const F& f) {
         return keyed_of(*c_, scope, kind, f, at_);
     }
     // A work allocator: the scratch's next arena, the last one's blocks
@@ -353,7 +353,7 @@ public:
     // step; false at the end, step not called. A step's throw leaves the
     // scan at that record.
     template <class Step>
-        requires std::invocable<Step&, const Record&, const Chars&>
+        requires std::invocable<Step, const Record&, const Chars&>
     bool next(Step&& step) {
         qiven::memory::Arena arena(pages_);
 #if defined(QIVEN_FAULTS)
@@ -366,7 +366,7 @@ public:
         if (!fetch(r)) {
             return false;
         }
-        step(std::as_const(r), chars);
+        std::forward<Step>(step)(std::as_const(r), chars);
         past(r);
         peak_ = std::max(peak_, arena.peak());
         return true;

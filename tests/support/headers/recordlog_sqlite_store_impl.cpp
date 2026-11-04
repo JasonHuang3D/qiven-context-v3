@@ -12,9 +12,9 @@ namespace qiven::recordlog {
 using Fake = qiven::platform::fake::FakePlatform;
 
 template Written SQLiteStore<Fake, NoHooks>::append(std::string_view, std::string_view, Expected,
-                                                    std::span<const EntryView>, NoAdmit&&);
+                                                    std::span<const EntryView>, NoAdmit&);
 template Written SQLiteStore<Fake, NoHooks>::forget(std::string_view, std::string_view, Expected,
                                                     std::span<const EntryView>, std::span<const GuardView>,
-                                                    Vector<Id>&, NoAdmit&&);
+                                                    Vector<Id>&, NoAdmit&);
 
 }  // namespace qiven::recordlog

@@ -115,7 +115,7 @@ public:
     // the step; false at the end, step not called. A step's throw leaves
     // the scan at that record. The step calls no store.
     template <class Step>
-        requires std::invocable<Step&, const Record&, const state::Chars&>
+        requires std::invocable<Step, const Record&, const state::Chars&>
     bool next(Step&& step) {
         qiven::memory::Arena arena(pages_.bytes().first(operation_base));
 #if defined(QIVEN_FAULTS)
@@ -127,7 +127,7 @@ public:
         const bool more = advance([&](const state::Data& d, std::uint32_t i) {
             Record r(chars);
             state::record_of(d, i, r);
-            step(std::as_const(r), chars);
+            std::forward<Step>(step)(std::as_const(r), chars);
         });
         if (more) {
             peak_ = std::max(peak_, arena.peak());
@@ -149,7 +149,7 @@ private:
         while (lanes_ && lane_ < lanes_->size()) {
             const Pos& p = (*lanes_)[lane_];
             if (at_ < p.end) {
-                give(d, d.lanes[p.lane].ids[at_]);
+                std::forward<Give>(give)(d, d.lanes[p.lane].ids[at_]);
                 ++at_;
                 return true;
             }
@@ -216,12 +216,13 @@ public:
     ~MemoryStore() = default;
 
     // The admit hook's given, read and kept on the call's pages before the
-    // lock, its admit inside it with the state's view.
-    template <class A = Rule>
+    // lock, its admit inside it with the state's view. The hook is the
+    // caller's, in and out; a call with none gives a Rule made in place.
+    template <class A>
         requires HookOf<A, Rule> &&
                  Admit<std::remove_cvref_t<A>, P, state::StateView, stage::KeptView, state::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries, A&& admit = A{}) {
+                   std::span<const EntryView> entries, A& admit) {
         constexpr Operation op = Operation::append;
         static_assert(Admit<NoAdmit, P, state::StateView, stage::KeptView, state::ScratchView>);
         gate_.enter(op, {});
@@ -249,6 +250,11 @@ public:
         peak_ = kept.peak() + scratch.peak();
         return Written{entries.empty() ? now.value_or(Head{}) : staged.head,
                        measure(d.size, d.count, state_->limits()), Purge{}};
+    }
+    Written append(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries) {
+        Rule admit{};
+        return append(scope, lane, expected, entries, admit);
     }
 
     std::optional<Head> head(std::string_view scope, std::string_view lane) {
@@ -297,19 +303,19 @@ public:
     // false so. A step's throw leaves the object as it was, its peak too.
     // The step calls no store.
     template <class Step>
-        requires std::invocable<Step&, std::string_view, const state::Chars&>
+        requires std::invocable<Step, std::string_view, const state::Chars&>
     void header(std::string_view id, Step&& step) {
         lend(Operation::header, id, [&step](const state::Held& e, const state::Chars& chars) {
-            step(std::string_view(e.line), chars);
+            std::forward<Step>(step)(std::string_view(e.line), chars);
             return true;
         });
     }
     template <class Step>
-        requires std::invocable<Step&, std::string_view, const std::string_view*, const state::Chars&>
+        requires std::invocable<Step, std::string_view, const std::string_view*, const state::Chars&>
     bool body(std::string_view id, Step&& step) {
         return lend(Operation::body, id, [&step](const state::Held& e, const state::Chars& chars) {
             const std::string_view record(e.body);
-            step(std::string_view(e.line), e.has_body ? &record : nullptr, chars);
+            std::forward<Step>(step)(std::string_view(e.line), e.has_body ? &record : nullptr, chars);
             return e.has_body;
         });
     }
@@ -348,8 +354,8 @@ public:
     // the lock, until f gives true: whether it did. No list held; f's throw
     // leaves the object as it was. f calls no store.
     template <class F>
-        requires std::is_invocable_r_v<bool, F&, const Id&>
-    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        requires std::is_invocable_r_v<bool, const F&, const Id&>
+    bool each_keyed(std::string_view scope, std::string_view kind, const F& f) {
         return look(Operation::scan, [&](state::StateView& v) { return v.each_keyed(scope, kind, f); });
     }
 
@@ -361,12 +367,12 @@ public:
     // As append, but forget entries alone, every lane as the guard expects
     // it and whole records; the targets' bodies dropped, their ids into
     // erased; never refused for size or count.
-    template <class A = Rule>
+    template <class A>
         requires HookOf<A, Rule> &&
                  Admit<std::remove_cvref_t<A>, P, state::StateView, stage::KeptView, state::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
-                   A&& admit = A{}) {
+                   A& admit) {
         constexpr Operation op = Operation::forget;
         gate_.enter(op, {});
         std::optional<Pages> extra;
@@ -403,6 +409,11 @@ public:
         return Written{entries.empty() ? now.value_or(Head{}) : staged.head,
                        measure(d.size, d.count, state_->limits()), Purge{}};
     }
+    Written forget(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
+        Rule admit{};
+        return forget(scope, lane, expected, entries, guard, erased, admit);
+    }
 
     // Done at once: a forget drops its bodies as it commits.
     Purge purge() {
@@ -418,10 +429,11 @@ public:
     }
 
     // Into an empty state, all or nothing; the heads it wrote into heads.
-    // The admit hook's read, arrived, settled and heads inside the lock.
-    template <Source R, class A = Rule>
+    // The admit hook's read, arrived, settled and heads inside the lock; the
+    // hook as append's.
+    template <Source R, class A>
         requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, P, state::StateView>
-    Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
+    Imported import_(R& source, Vector<LaneHead>& heads, A& admit) {
         constexpr Operation op = Operation::import_;
         static_assert(AdmitImport<NoAdmit, P, state::StateView>);
         gate_.enter(op, {});
@@ -442,6 +454,11 @@ public:
         const Imported in = state::import_source(*platform_, *state_, source, heads, own(), countdown_, peak, admit);
         peak_ = peak.sum();
         return in;
+    }
+    template <Source R>
+    Imported import_(R& source, Vector<LaneHead>& heads) {
+        Rule admit{};
+        return import_(source, heads, admit);
     }
 
     Sizes size() {
@@ -514,7 +531,7 @@ private:
         qiven::memory::Arena arena(own());
         hook(arena);
         const state::Locked lock(*state_, op, {});
-        const bool has = give(held(lock.data(), op, id), state::Chars(arena));
+        const bool has = std::forward<Give>(give)(held(lock.data(), op, id), state::Chars(arena));
         peak_ = arena.peak();
         return has;
     }
@@ -528,7 +545,7 @@ private:
         hook(arena);
         const state::Locked lock(*state_, op, {});
         state::StateView view(lock.data(), state::Chars(arena));
-        const bool has = give(view);
+        const bool has = std::forward<Give>(give)(view);
         peak_ = arena.peak();
         return has;
     }

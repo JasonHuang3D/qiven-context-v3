@@ -66,7 +66,6 @@ using qiven::recordlog::Id;
 using qiven::recordlog::LaneHead;
 using qiven::recordlog::Limits;
 using qiven::recordlog::Line;
-using qiven::recordlog::NoAdmit;
 using qiven::recordlog::Vector;
 using records::id_of;
 using records::lane_head;
@@ -219,23 +218,23 @@ void before(std::size_t k, S& s, const Book& book, Arena& arena) {
     const std::vector<Rec> chain = {a, book.b, book.d, book.acc};
     if (k == 1) {
         const std::vector<Rec> three = {a, book.b, book.d};
-        (void)s.append(qs, mine, std::nullopt, views(three), NoAdmit{});
+        (void)s.append(qs, mine, std::nullopt, views(three));
     } else if (k <= 5 || (k >= 23 && k <= 26)) {
-        (void)s.append(qs, mine, std::nullopt, views(chain), NoAdmit{});
+        (void)s.append(qs, mine, std::nullopt, views(chain));
     } else if (k == 8 || k == 9 || k == 12) {
         const std::vector<Rec> first = {a};
-        (void)s.append(qs, mine, std::nullopt, views(first), NoAdmit{});
+        (void)s.append(qs, mine, std::nullopt, views(first));
     }
     if (k == 4) {
         const std::vector<Rec> e = {book.e};
         const std::string& acc = id_of(book.acc);
         const std::vector<GuardView> guard = {GuardView{qs, mine, acc}};
         Vector<Id> erased{Chars(arena)};
-        (void)s.forget(qs, mine, Expected(acc), views(e), guard, erased, NoAdmit{});
+        (void)s.forget(qs, mine, Expected(acc), views(e), guard, erased);
     }
     if (k == 5) {
         const std::vector<Rec> away = {book.away};
-        (void)s.append(away_scope, mine, std::nullopt, views(away), NoAdmit{});
+        (void)s.append(away_scope, mine, std::nullopt, views(away));
     }
 }
 
@@ -248,11 +247,11 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
     const std::string& d = id_of(book.d);
     std::vector<Rec> lines;
     const auto append = [&](std::string_view scope, std::string_view lane, Expected expected) {
-        return refused([&] { (void)s.append(scope, lane, expected, views(lines), NoAdmit{}); });
+        return refused([&] { (void)s.append(scope, lane, expected, views(lines)); });
     };
     const auto forget = [&](Expected expected, std::vector<GuardView> guard) {
         Vector<Id> erased{Chars(arena)};
-        return refused([&] { (void)s.forget(qs, mine, expected, views(lines), guard, erased, NoAdmit{}); });
+        return refused([&] { (void)s.forget(qs, mine, expected, views(lines), guard, erased); });
     };
     const auto import = [&](ListSource::Change last = nullptr) {
         ListSource src;
@@ -260,7 +259,7 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         src.last = last;
         src.given.push_back(lane_head(qs, mine, id_of(lines.back()), seq_of(lines.back())));
         Vector<LaneHead> wrote{Chars(arena)};
-        return refused([&] { (void)s.import_(src, wrote, NoAdmit{}); });
+        return refused([&] { (void)s.import_(src, wrote); });
     };
     const auto again = [](std::string_view target, std::string_view parent, std::int64_t seq) {
         return forget_of(target, parent, seq);
@@ -273,7 +272,7 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         lines = {a};
         std::vector<EntryView> given = views(lines);
         f(given[0]);
-        return refused([&] { (void)s.append(qs, mine, std::nullopt, given, NoAdmit{}); });
+        return refused([&] { (void)s.append(qs, mine, std::nullopt, given); });
     };
     // E, its keys changed by f, with A's record where bodied: appended (op
     // 'a') or given to forget ('f') on A, B, D and ACC, or imported after
@@ -298,9 +297,9 @@ std::optional<Refusal> write(std::size_t k, S& s, const Book& book, Arena& arena
         Vector<Id> erased{Chars(arena)};
         return refused([&] {
             if (op == 'a') {
-                (void)s.append(qs, mine, Expected(acc), v, NoAdmit{});
+                (void)s.append(qs, mine, Expected(acc), v);
             } else {
-                (void)s.forget(qs, mine, Expected(acc), v, guard, erased, NoAdmit{});
+                (void)s.forget(qs, mine, Expected(acc), v, guard, erased);
             }
         });
     };
@@ -451,7 +450,7 @@ bool imports_plain(S& s, const Book& book, Arena& arena) {
                  {"line three", std::nullopt, KeysView{"p3", "plain", "two", "forget", 1, {}, "p2", false}}};
     src.given = {lane_head("plain", "one", "p2", 2), lane_head("plain", "two", "p3", 1)};
     Vector<LaneHead> wrote{Chars(arena)};
-    const qiven::recordlog::Imported in = s.import_(src, wrote, NoAdmit{});
+    const qiven::recordlog::Imported in = s.import_(src, wrote);
     const std::optional<qiven::recordlog::Head> one = s.head("plain", "one");
     const std::optional<qiven::recordlog::Head> two = s.head("plain", "two");
     bool ok = in.counts == qiven::recordlog::Counts{3, 1, 1, 2} && wrote.size() == 2 && one && one->id.view() == "p2" &&
@@ -478,7 +477,7 @@ template <class S>
 bool appends_plain(S& s) {
     const std::array<EntryView, 1> lines = {
         EntryView{"line four", "record four", qiven::recordlog::KeysView{"p4", "plain", "three", "note", 1, {}, {}, true}}};
-    (void)s.append("plain", "three", std::nullopt, lines, NoAdmit{});
+    (void)s.append("plain", "three", std::nullopt, lines);
     return s.verify() == qiven::recordlog::Counts{4, 2, 1, 3};
 }
 

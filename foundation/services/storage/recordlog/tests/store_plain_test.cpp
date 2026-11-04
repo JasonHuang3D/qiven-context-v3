@@ -62,7 +62,6 @@ using qiven::recordlog::EntryView;
 using qiven::recordlog::KeysView;
 using qiven::recordlog::LaneHead;
 using qiven::recordlog::Line;
-using qiven::recordlog::NoAdmit;
 using qiven::recordlog::Vector;
 using Fake = qiven::platform::fake::FakePlatform;
 using qiven::test::records::lane_head;
@@ -183,10 +182,10 @@ void write(S& s, const Plan& p, Arena& arena) {
     if (p.import) {
         PlainSource source{p.heads, &p.lines};
         Vector<LaneHead> rows{Chars(arena)};
-        (void)s.import_(source, rows, NoAdmit{});
+        (void)s.import_(source, rows);
     } else {
         for (const Given& g : p.lines) {
-            (void)s.append(g.keys.scope, g.keys.lane, g.keys.parent, one(g), NoAdmit{});
+            (void)s.append(g.keys.scope, g.keys.lane, g.keys.parent, one(g));
         }
     }
     if (!p.together.empty()) {
@@ -194,14 +193,14 @@ void write(S& s, const Plan& p, Arena& arena) {
         for (const Given& g : p.together) {
             call.push_back(one(g)[0]);
         }
-        (void)s.append("plain", "one", {}, std::span<const EntryView>(call), NoAdmit{});
+        (void)s.append("plain", "one", {}, std::span<const EntryView>(call));
     }
     if (p.forget) {
         const KeysView& k = p.forget->keys;
         const KeysView& last = p.lines.back().keys;  // the one lane held
         const std::array<qiven::recordlog::GuardView, 1> guard = {{{last.scope, last.lane, last.id}}};
         Vector<qiven::recordlog::Id> erased{Chars(arena)};
-        (void)s.forget(k.scope, k.lane, k.parent, one(*p.forget), guard, erased, NoAdmit{});
+        (void)s.forget(k.scope, k.lane, k.parent, one(*p.forget), guard, erased);
     }
     if (p.own) {
         own_import(s, arena);

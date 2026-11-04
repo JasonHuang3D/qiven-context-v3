@@ -180,9 +180,9 @@ void StandardOutput::write(std::string_view utf8) { platform_->write_output(utf8
 // paths, its flag set when it is not UTF-8 or past 32,767 units; then
 // stage's table.
 WindowsPlatform::WindowsPlatform(std::string_view leaf, std::size_t open_bound,
-                                 std::optional<std::string_view> config_dir) {
-    overridden_ = config_dir.has_value();
-    const std::string_view text = overridden_ ? *config_dir : leaf;
+                                 std::optional<std::string_view> config_dir)
+    : overridden_(config_dir.has_value()) {
+    const std::string_view text = config_dir.value_or(leaf);
     bool& bad = overridden_ ? bad_override_ : bad_leaf_;
     std::size_t extra = 0;
     if (text.size() > static_cast<std::size_t>(INT_MAX)) {

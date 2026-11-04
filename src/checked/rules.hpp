@@ -347,6 +347,9 @@ public:
     template <stage::Scratch S>
     void read(P& platform, const AtView& at, std::size_t index, const EntryView& line, keys::KeysView& out,
               const Chars& kept, S& scratch) {
+        if (!entries_) {
+            qiven::memory::fail_fast("Rules::read: a line read before given");
+        }
         {
             const Entry<P> e = part1(platform, at, index, line, Chars(scratch()));
             entries_->push_back(detail::keep(platform, e, line, kept));
@@ -357,6 +360,9 @@ public:
     template <class S>
     void kept(const AtView& at, std::size_t index, const stage::KeptView& /*e*/, const Chars& /*kept*/, S& scratch) {
         if (at.op == Operation::append) {
+            if (!entries_ || !hits_) {
+                qiven::memory::fail_fast("Rules::kept: an entry kept before given");
+            }
             detail::secrets(at, index, (*entries_)[index], *hits_, Chars(scratch()));
         }
     }
@@ -367,8 +373,8 @@ public:
             qiven::memory::fail_fast("stage::admit: an operation but append and forget");
         }
         reads::ParsedView<V> view(bytes, reads::WhereView{at.op, at.path});
-        const std::span<const Entry<P>> entries = entries_ ? std::span<const Entry<P>>(*entries_)
-                                                           : std::span<const Entry<P>>();
+        const std::span<const Entry<P>> none;  // no entries: given did not run
+        const std::span<const Entry<P>> entries = entries_ ? std::span<const Entry<P>>(*entries_) : none;
         if (hits_) {
             detail::settle(view, entries, std::span<const Hit>(*hits_), at, allocator);
         }

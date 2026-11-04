@@ -285,14 +285,13 @@ constexpr qiven::recordlog::Counts ordered{3, 3, 0, 1};
 
 template <class S>
 void order(qiven::runner::Context& qiven_ctx, S& store) {
-    using qiven::recordlog::NoAdmit;
     const std::vector<Rec> chain = qiven::test::records::chain(group_scope, "lane-one", {"A", "B", "D"});
     const std::vector<Rec> skip_first = {chain[1]};
     const std::vector<Rec> skip_second = {chain[0], chain[2]};
     const std::vector<Rec> late = {rec("A", group_scope, "lane-one", 2)};
     const auto one = [&](const std::vector<Rec>& list) {
         const auto lines = views(list);
-        return refused([&] { (void)store.append(group_scope, "lane-one", std::nullopt, lines, NoAdmit{}); });
+        return refused([&] { (void)store.append(group_scope, "lane-one", std::nullopt, lines); });
     };
     const auto first = one(skip_first);
     CHECK(first.has_value() && first->code == "parent" && first->index == 0U);
@@ -302,7 +301,7 @@ void order(qiven::runner::Context& qiven_ctx, S& store) {
     CHECK(seq.has_value() && seq->code == "seq" && seq->index == 0U);
     CHECK(store.verify() == qiven::recordlog::Counts{});
     const auto lines = views(chain);
-    const qiven::recordlog::Written w = store.append(group_scope, "lane-one", std::nullopt, lines, NoAdmit{});
+    const qiven::recordlog::Written w = store.append(group_scope, "lane-one", std::nullopt, lines);
     CHECK_EQ(w.head.id.view(), id_of(chain.back()));
     CHECK(w.head.seq == 3);
     CHECK(store.verify() == ordered);

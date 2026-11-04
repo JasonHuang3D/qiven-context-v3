@@ -369,7 +369,10 @@ template <class V>
 void targets(V& view, std::span<const KeptView> entries, const AtView& at) {
     for (std::size_t i = 0; i < entries.size(); ++i) {
         const std::optional<Id>& t = entries[i].target;
-        bool held = !t;
+        if (!t) {
+            continue;  // no target: nothing to hold
+        }
+        bool held = false;
         for (std::size_t j = 0; j <= i && !held; ++j) {
             held = entries[j].id == *t;
         }

@@ -155,7 +155,7 @@ struct Bed {
         std::error_code error;
         fs::remove(path + "-wal", error);
         fs::remove(path + "-shm", error);
-        std::ofstream(path, std::ios::binary | std::ios::trunc) << kept_db;
+        std::ofstream(path, std::ios::binary) << kept_db;  // out added by the stream: "wb", truncating
         reopen();
     }
 

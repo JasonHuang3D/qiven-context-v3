@@ -160,7 +160,7 @@ public:
     // the order put, into out, cleared first; whether a held header's line
     // holds bytes.
     template <typename F>
-    constexpr bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+    constexpr bool each_keyed(std::string_view scope, std::string_view kind, const F& f) {
         ++reads_;
         using header::Slot;
         for (const Held& e : held_) {

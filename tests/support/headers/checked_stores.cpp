@@ -14,7 +14,7 @@ using Fake = qiven::platform::fake::FakePlatform;
 template class MemoryStore<Fake, checked::Rules<Fake>>;
 template class SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>;
 template Imported SQLiteStore<Fake, NoHooks, checked::Rules<Fake>>::import_(detail::SourceArchetype&, Vector<LaneHead>&,
-                                                                            checked::Rules<Fake>&&);
+                                                                            checked::Rules<Fake>&);
 
 static_assert(Store<checked::MemoryStore<Fake>>);
 static_assert(Store<checked::SQLiteStore<Fake>>);

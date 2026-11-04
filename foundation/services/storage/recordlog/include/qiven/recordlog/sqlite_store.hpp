@@ -176,14 +176,21 @@ public:
     // IMMEDIATE, the head, the admit hook's admit and the store's guards,
     // the rows, COMMIT, a purge's attempt.
     // The admit hook's given, read and kept before BEGIN IMMEDIATE, its
-    // admit after the head and the guard, with the transaction's view.
-    template <class A = Rule>
+    // admit after the head and the guard, with the transaction's view. The
+    // hook is the caller's, in and out; a call with none gives a Rule made
+    // in place.
+    template <class A>
         requires HookOf<A, Rule> &&
                  Admit<std::remove_cvref_t<A>, P, sqlite::WriteView, stage::KeptView, sqlite::ScratchView>
     Written append(std::string_view scope, std::string_view lane, Expected expected,
-                   std::span<const EntryView> entries, A&& admit = A{}) {
+                   std::span<const EntryView> entries, A& admit) {
         static_assert(Admit<NoAdmit, P, sqlite::WriteView, stage::KeptView, sqlite::ScratchView>);
         return write(Operation::append, scope, lane, expected, entries, {}, nullptr, admit);
+    }
+    Written append(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries) {
+        Rule admit{};
+        return append(scope, lane, expected, entries, admit);
     }
     std::optional<Head> head(std::string_view scope, std::string_view lane) {
         gate_.enter(Operation::head, path_.view());
@@ -208,16 +215,16 @@ public:
     // The reads lent to a caller's step, as the memory store's: the bytes
     // and the step's on an arena over the own pages, reset after the step.
     template <class Step>
-        requires std::invocable<Step&, std::string_view, const sqlite::Chars&>
+        requires std::invocable<Step, std::string_view, const sqlite::Chars&>
     void header(std::string_view id, Step&& step) {
         lend(Operation::header, id, [&step](std::string_view line, const std::string_view*, const sqlite::Chars& c) {
-            step(line, c);
+            std::forward<Step>(step)(line, c);
         });
     }
     template <class Step>
-        requires std::invocable<Step&, std::string_view, const std::string_view*, const sqlite::Chars&>
+        requires std::invocable<Step, std::string_view, const std::string_view*, const sqlite::Chars&>
     bool body(std::string_view id, Step&& step) {
-        return lend(Operation::body, id, step);
+        return lend(Operation::body, id, std::forward<Step>(step));
     }
     bool forgotten(std::string_view id) {
         gate_.enter(Operation::forgotten, path_.view());
@@ -252,8 +259,8 @@ public:
     // statement's cursor, until f gives true: whether it did. No list held;
     // f's throw ends the statement, the object as it was. f calls no store.
     template <class F>
-        requires std::is_invocable_r_v<bool, F&, const Id&>
-    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+        requires std::is_invocable_r_v<bool, const F&, const Id&>
+    bool each_keyed(std::string_view scope, std::string_view kind, const F& f) {
         gate_.enter(Operation::scan, path_.view());
         const bool stopped = sqlite::keyed_of(connection_, scope, kind, f, site_of(Operation::scan));
         peak_ = 0;
@@ -266,13 +273,18 @@ public:
     }
     // As append, with the guard, whole records and each target's body
     // erased, its id into erased; never refused for size or count.
-    template <class A = Rule>
+    template <class A>
         requires HookOf<A, Rule> &&
                  Admit<std::remove_cvref_t<A>, P, sqlite::WriteView, stage::KeptView, sqlite::ScratchView>
     Written forget(std::string_view scope, std::string_view lane, Expected expected,
                    std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased,
-                   A&& admit = A{}) {
+                   A& admit) {
         return write(Operation::forget, scope, lane, expected, entries, guard, &erased, admit);
+    }
+    Written forget(std::string_view scope, std::string_view lane, Expected expected,
+                   std::span<const EntryView> entries, std::span<const GuardView> guard, Vector<Id>& erased) {
+        Rule admit{};
+        return forget(scope, lane, expected, entries, guard, erased, admit);
     }
     Purge purge() {
         gate_.enter(Operation::purge, path_.view());
@@ -285,10 +297,11 @@ public:
                 countdown_};
     }
     // Into an empty store, all or nothing, on the object's own pages.
-    // The admit hook's read, arrived, settled and heads inside the transaction.
-    template <Source R, class A = Rule>
+    // The admit hook's read, arrived, settled and heads inside the
+    // transaction; the hook as append's.
+    template <Source R, class A>
         requires HookOf<A, Rule> && AdmitImport<std::remove_cvref_t<A>, P, sqlite::ImportView>
-    Imported import_(R& source, Vector<LaneHead>& heads, A&& admit = A{}) {
+    Imported import_(R& source, Vector<LaneHead>& heads, A& admit) {
         constexpr Operation op = Operation::import_;
         static_assert(AdmitImport<NoAdmit, P, sqlite::ImportView>);
         const std::span<std::byte> pages = own(op);
@@ -296,6 +309,11 @@ public:
         where.place = Place::import_;
         return sqlite::import_source(*platform_, connection_, source, heads, pages, countdown_, where, limits_,
                                      hooks_, peak_, admit);
+    }
+    template <Source R>
+    Imported import_(R& source, Vector<LaneHead>& heads) {
+        Rule admit{};
+        return import_(source, heads, admit);
     }
     // meta's size and count against the limits; the engine's figures and
     // the files' sizes.
@@ -421,7 +439,7 @@ private:
         String held(chars);
         const bool has = bytes(op, id, &line, op == Operation::body ? &held : nullptr);
         const std::string_view record(held);
-        give(std::string_view(line), has ? &record : nullptr, chars);
+        std::forward<Give>(give)(std::string_view(line), has ? &record : nullptr, chars);
         peak_ = arena.peak();
         return has;
     }

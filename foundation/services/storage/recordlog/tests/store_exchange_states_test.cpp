@@ -481,7 +481,8 @@ QIVEN_CASE(store_exchange, rollback) {
     probed = std::make_unique<Probed>(Probed::open(path, false, false, rig->fake,
                                                    records::suite_limits, records::suite_identity,
                                                    Probe{&path, &seen, false}));
-    CHECK_EQ(raised([&] { (void)probed->import_(big, heads, HeadsRefused{}); }), "StoreError internal");
+    HeadsRefused refusing;
+    CHECK_EQ(raised([&] { (void)probed->import_(big, heads, refusing); }), "StoreError internal");
     CHECK_EQ(wal_bytes(path), 0U);
     CHECK(heads.empty());
     CHECK(probed->verify() == Counts{});

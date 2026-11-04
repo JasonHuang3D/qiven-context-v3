@@ -348,7 +348,7 @@ public:
     // whether it did. No list held: the scope's lanes walked by name in
     // place, the next the least name past the last.
     template <class F>
-    bool each_keyed(std::string_view scope, std::string_view kind, F&& f) {
+    bool each_keyed(std::string_view scope, std::string_view kind, const F& f) {
         const Data& d = *data_;
         std::optional<std::string_view> last;
         for (;;) {
