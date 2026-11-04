@@ -1,7 +1,7 @@
 // events' unit for the analysis preset: the report's events read with a
 // head and a line callable of the kinds the report gives them.
 
-#include "../../../foundation/system/diag/src/events.hpp"
+#include "events.hpp"
 
 #include <cstdint>
 #include <string_view>

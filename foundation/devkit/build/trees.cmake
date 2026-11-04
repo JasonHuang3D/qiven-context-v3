@@ -127,7 +127,7 @@ endfunction()
 
 # qiven_test_target(<dir> <target> <out>): TRUE where target, defined in
 # dir, has own sources, read by qiven_source_path, and each is test code.
-# A header's unit (tests/support/headers/CMakeLists.txt) reads as the header
+# A header's unit (header_units.cmake's qiven_header_targets) reads as the header
 # it stands for, its source property QIVEN_HEADER.
 function(qiven_test_target dir target out)
   set(${out} FALSE PARENT_SCOPE)

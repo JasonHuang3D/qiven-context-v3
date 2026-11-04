@@ -5,7 +5,7 @@
 #include <new>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven/memory/poison.hpp"
+#include "poison.hpp"
 
 namespace qiven::memory {
 

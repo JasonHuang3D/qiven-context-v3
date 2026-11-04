@@ -7,7 +7,7 @@
 // instead. asan.*: a touch of a freed block, of a heap block's header, of an
 // arena's block after the arena's end, past its cursor or in its padding,
 // which AddressSanitizer reports, the blocks the system heap's under
-// QIVEN_SYSTEM_HEAP, or poisoned in the span (qiven/memory/poison.hpp); each
+// QIVEN_SYSTEM_HEAP, or poisoned in the span (memory's src/poison.hpp); each
 // skipped where no tool would see it. A case that ends prints "not caught";
 // one that passes its wrong free prints "past the wrong free" first.
 
@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
-#include "qiven/memory/poison.hpp"
+#include "poison.hpp"
 #include "qiven/memory/pool.hpp"
 #include "qiven/runner/runner.hpp"
 

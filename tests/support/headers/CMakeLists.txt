@@ -1,54 +1,28 @@
 # qiven3_headers and qiven3_test_headers, the analysis presets' alone: a
-# translation unit for each header the analysis reads (under an analysed root
-# of tools/trees.json or a layer's tree, by the root CMakeLists.txt) with no
-# source of its own, so that /analyze and clang-tidy read the header and its
-# templates' bodies, which a source reads only where it includes the header
-# and instantiates them. Each unit includes its header and instantiates its
-# templates with the types the code gives them: the fake platform, v3's
-# allocator and the standard's, the stores' default hooks. Object libraries:
-# compiled, and taken by no binary.
+# translation unit for each of the product's headers the analysis reads
+# (under an analysed root of tools/trees.json or a product's tree, by the
+# root CMakeLists.txt) with no source of its own, so that /analyze and
+# clang-tidy read the header and its templates' bodies, which a source reads
+# only where it includes the header and instantiates them. Each unit
+# includes its header and instantiates its templates with the types the code
+# gives them: the fake platform, v3's allocator and the standard's, the
+# stores' default hooks. The foundation's units lie in their modules, in
+# qiven_headers and qiven_test_headers (the root CMakeLists.txt); the product's
+# stay here until its own move.
 #
-# A unit stands for its header (QIVEN_HEADER, read by qiven_test_target),
-# and takes its analysis by that header: one of test code, by the one reader,
-# compiles in qiven3_test_headers, whose units are all test code, under test
-# code's rule set and configuration; any other in qiven3_headers.
-#
-# The units, their names and the errors are foundation/devkit/build/header_units.cmake's
-# (qiven_header_units), which every configure with an interpreter runs
-# (tests/CMakeLists.txt): a unit's name carries its header's module, and
-# configure fails on such a header with no unit, on two headers of one unit,
-# on a unit no such header wants, and on a unit that does not include its
-# header (an own source that does not include it, or that no target
-# compiles, stands in for none).
+# The pair is qiven_header_targets', a unit's analysis by its header: one of
+# test code compiles in qiven3_test_headers, any other in qiven3_headers.
+# The units, their names and places and the errors are
+# foundation/devkit/build/header_units.cmake's (qiven_header_units), which
+# every configure with an interpreter runs (the root CMakeLists.txt): a
+# unit's name carries its header's module, and configure fails on such a header
+# with no unit, on two headers of one unit, on a unit no such header wants,
+# and on a unit that does not include its header (an own source that does
+# not include it, or that no target compiles, stands in for none).
 
-set(qiven_library_units "")
-set(qiven_test_units "")
-foreach(pair IN LISTS qiven_header_units_of)
-  if(pair MATCHES "^(.+)=tests/support/headers/(.+)$")
-    set(header "${CMAKE_MATCH_1}")
-    set(unit "${CMAKE_MATCH_2}")
-    if(unit IN_LIST qiven_header_units)
-      set_source_files_properties("${unit}" PROPERTIES QIVEN_HEADER "${header}")
-      qiven_test_path("${header}" test)
-      if(test STREQUAL "")
-        list(APPEND qiven_library_units "${unit}")
-      else()
-        list(APPEND qiven_test_units "${unit}")
-      endif()
-    endif()
-  endif()
-endforeach()
-add_library(qiven3_headers OBJECT ${qiven_library_units})
-add_library(qiven3_test_headers OBJECT ${qiven_test_units})
-# faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,
-# where the build does not.
-set_source_files_properties(faults_faults.cpp PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
+qiven_header_targets(qiven3_headers qiven3_test_headers "tests/support/headers/")
 foreach(target IN ITEMS qiven3_headers qiven3_test_headers)
   target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/tests")
   target_link_libraries(${target} PRIVATE qiven3_checked qiven_recordlog qiven_recordlog_stores qiven_platform_fake qiven3_fixtures qiven_faults
     qiven_log qiven_diag qiven_transport qiven_runner qiven_case_main qiven_build)
 endforeach()
-list(LENGTH qiven_library_units qiven_count)
-list(LENGTH qiven_test_units qiven_test_count)
-message(STATUS "qiven: header-only headers: ${qiven_count} in qiven3_headers, "
-  "${qiven_test_count} in qiven3_test_headers")

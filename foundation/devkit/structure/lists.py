@@ -146,11 +146,11 @@ STATED = {
     ("B17", "foundation/core/memory/include/qiven/memory/memory.hpp", "new"): "placement new for "
                                                                        "begin_lifetimes, which B20 "
                                                                        "allows memory alone",
-    ("B9", "foundation/core/memory/include/qiven/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
+    ("B9", "foundation/core/memory/src/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
                                                          "memory's allocators hold, "
                                                          "sanitizer/asan_interface.h, included under the "
                                                          "sanitizer alone",
-    ("B17", "foundation/core/memory/include/qiven/memory/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
+    ("B17", "foundation/core/memory/src/poison.hpp", "sanitizer/asan_interface.h"): "as B9's",
     ("B17", "foundation/system/platform/include/qiven/platform/names.hpp",
      "foundation/system/platform/include/qiven/platform/files.hpp"): "files.hpp's list, remove and rename, moved "
                                                                      "out of it for the 600-line bound; included "

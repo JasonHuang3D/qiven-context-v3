@@ -8,7 +8,7 @@
 // heap, freed at its free, so AddressSanitizer bounds and poisons it; the
 // span still bounds the count of slots, so the counts and the budget are
 // the same as without the option. Without it, under AddressSanitizer, the
-// span is poisoned but for the slots held (qiven/memory/poison.hpp): each freed
+// span is poisoned but for the slots held (memory's src/poison.hpp): each freed
 // slot, the slots not yet cut, and every heap block's header.
 //
 // Pool: thread: one. Heap: thread: shared; its mutex guards its counts, its

@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven/memory/poison.hpp"
+#include "poison.hpp"
 
 // A block is an offset into the span, indexed through it. A pointer given
 // back is found in constant time from its offset in the span: placed inside

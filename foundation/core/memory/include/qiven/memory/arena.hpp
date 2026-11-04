@@ -10,7 +10,7 @@
 // bounds and poisons it; the cursor still runs through the span, so the
 // counts and the budget are the same as without the option. Without it,
 // under AddressSanitizer, the span is poisoned but for the blocks held
-// (qiven/memory/poison.hpp): its padding, the space past the cursor and each
+// (memory's src/poison.hpp): its padding, the space past the cursor and each
 // block given back.
 //
 // thread: one

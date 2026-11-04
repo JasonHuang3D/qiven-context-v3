@@ -4,7 +4,7 @@
 # The mechanism is the runner's (foundation/devkit/test/runner/cases.cmake),
 # included before every module's tests, which call its qiven_add_cases; its
 # listing step, qiven_list_tests, runs after them. This file is the wiring:
-# the kit's and each module's test directories, the header units, the
+# the kit's and each module's test directories, the product's header units, the
 # binaries the drives run, which the listing waits for, and the structure
 # records.
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/cases.cmake")
@@ -30,13 +30,9 @@ add_subdirectory(support/checked)
 if(QIVEN_HAL)
   add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/compute/tests" compute_tests)
 endif()
-# The header units' rule on every configure with an interpreter, not the
-# analysis's alone: a header the analysis reads with no
-# unit fails it (foundation/devkit/build/header_units.cmake). The analysis compiles
-# the units it gives.
-if(Python3_EXECUTABLE OR QIVEN_ANALYZE STREQUAL "analysis")
-  qiven_header_units("${PROJECT_SOURCE_DIR}" qiven_header_units)
-endif()
+# The product's header units, the analysis's alone, in their pair
+# (support/headers/); the units' rule, which gives them, and the
+# foundation's pair are the root CMakeLists.txt's.
 if(QIVEN_ANALYZE STREQUAL "analysis")
   add_subdirectory(support/headers)
 endif()

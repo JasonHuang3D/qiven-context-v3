@@ -9,13 +9,17 @@ qiven_add_cases(qiven_memory_test LABELS fast fake
 
 qiven_executable(qiven_memory_fail_demo SOURCES fail_demo.cpp LINK qiven_case_main)
 
-# The frees that end the process, which test_free.py runs.
+# The frees that end the process, which test_free.py runs. The poisoning,
+# memory's private header, by its name from memory's own src/.
 qiven_executable(qiven_memory_free_demo SOURCES free_demo.cpp LINK qiven_case_main)
+cmake_path(GET CMAKE_CURRENT_SOURCE_DIR PARENT_PATH qiven_memory_src)
+cmake_path(APPEND qiven_memory_src "src")
+target_include_directories(qiven_memory_free_demo PRIVATE "${qiven_memory_src}")
 
 # Under AddressSanitizer with QIVEN_SYSTEM_HEAP, memory's own code, the
 # runner over it, memory's cases and the frees' demo are built a second time
 # without the option: the blocks are the span's own, which the allocators
-# poison but for what they hand out (qiven/memory/poison.hpp), so the code
+# poison but for what they hand out (memory's src/poison.hpp), so the code
 # that places a block runs under the sanitizer. test_free.py runs both
 # binaries; every other target keeps the system heap.
 if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
@@ -48,6 +52,7 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   target_include_directories(qiven_memory_test_poisoned PRIVATE
     "${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults/include")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven_runner_poisoned DIAG _poisoned)
+  target_include_directories(qiven_memory_free_demo_poisoned PRIVATE "${qiven_memory_src}")
   set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven_log_poisoned qiven_platform_poisoned
     qiven_runner_poisoned qiven_memory_test_poisoned
     qiven_memory_free_demo_poisoned qiven_diag_ring_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned

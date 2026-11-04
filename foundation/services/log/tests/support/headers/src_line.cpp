@@ -1,7 +1,7 @@
 // line's unit for the analysis preset: the header, and encode_line into
 // v3's string and the standard's, the two its callers give it.
 
-#include "../../../foundation/services/log/src/line.hpp"
+#include "line.hpp"
 
 #include <string>
 

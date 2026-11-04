@@ -10,7 +10,7 @@ add_library(qiven_memory STATIC
   include/qiven/memory/fail.hpp
   src/memory.cpp
   include/qiven/memory/memory.hpp
-  include/qiven/memory/poison.hpp
+  src/poison.hpp
   src/pool.cpp
   include/qiven/memory/pool.hpp
 )

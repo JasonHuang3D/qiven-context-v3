@@ -1,4 +1,4 @@
-// matcher_basic's unit for the analysis preset: the automaton over the
+// basic's unit for the analysis preset: the automaton over the
 // standard allocator, the constant-evaluated vectors' type; matcher.cpp
 // compiles it over v3's.
 

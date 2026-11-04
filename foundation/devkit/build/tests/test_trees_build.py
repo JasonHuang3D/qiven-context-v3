@@ -92,7 +92,7 @@ def scene():
                 "m_x.cpp": "m/x.hpp", "scene_only.cpp": "qiven/scene/only.hpp",
                 "scene_src_detail.cpp": "../../../kits/scene/src/detail.hpp", "support_m_x.cpp": "support/m/x.hpp"}
     files.update({unit + name: f'#include "{header}"\n' for name, header in includes.items()})
-    return files, sorted(includes)
+    return files, sorted(unit + name for name in includes)
 
 
 class TreesBuild(unittest.TestCase):
@@ -231,7 +231,7 @@ class TreesBuild(unittest.TestCase):
             self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp (its own source {own} "
                           "does not include it)", errors)
             files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
-            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
+            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{unit}{name}.cpp"])))
         for header, name in (("src/m/t.h", "m_t"), ("kits/scene/src/thing.hxx", "scene_src_thing"),
                              ("tests/support/m/u.hh", "support_m_u")):
             files, wanted = scene()
@@ -240,7 +240,7 @@ class TreesBuild(unittest.TestCase):
             self.assertNotEqual(status, 0, header)
             self.assertIn(f"the header-only header {header} has no unit, {unit}{name}.cpp", errors)
             files[f"{unit}{name}.cpp"] = f'#include "../../../{header}"\n'
-            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{name}.cpp"])))
+            self.assertEqual(self.units(files)[:2], (0, sorted([*wanted, f"{unit}{name}.cpp"])))
 
     def test_every_suffix(self):
         """A header of every suffix wants a unit; a source of every suffix, beside it or in src/, is its own."""
@@ -284,7 +284,7 @@ class TreesBuild(unittest.TestCase):
             self.assertIn(f"the header-only header src/m/y.hpp has no unit, {unit}m_y.cpp (its own source src/m/y.cpp "
                           f"is not listed: {why})", errors)
             files[f"{unit}m_y.cpp"] = '#include "m/y.hpp"\n'
-            self.assertEqual(self.units(files)[:2], (0, sorted([*scene()[1], "m_y.cpp"])), text)
+            self.assertEqual(self.units(files)[:2], (0, sorted([*scene()[1], f"{unit}m_y.cpp"])), text)
         files, _ = scene()
         files["kits/scene/CMakeLists.txt"] = 'set(dir src)\nadd_library(scene src/scene.cpp "${dir}/seen.cpp")\n'
         self.assertIn("(its own source kits/scene/src/seen.cpp is not listed: kits/scene/CMakeLists.txt names neither "
@@ -536,9 +536,12 @@ class TreesBuild(unittest.TestCase):
         answer), one file for each directory and each directory one file;
         no step names the test configuration itself, and no other step a
         composed one. The list comes from the compile statements, not the steps.
-        Each header's unit compiles in the target its header gives it by the
-        one reader of test code; qiven3_test_headers is test code's, and
-        qiven3_headers not."""
+        Each header's unit compiles in the pair its place gives it, the
+        foundation's (qiven_headers, qiven_test_headers) for a unit in a
+        module's tests/support/headers/, the product's (qiven3_headers,
+        qiven3_test_headers) for one in tests/support/headers/, and in the
+        pair's target its header gives it by the one reader of test code;
+        each pair's test target is test code's, and its other not."""
         tool, tidy = cmake(), clang_tidy()
         if tool is None or tidy is None or shutil.which("cl") is None:
             self.skipTest("no cmake, clang-tidy or cl: the analysis preset configures under vcvars")
@@ -564,11 +567,13 @@ class TreesBuild(unittest.TestCase):
                 base = key(build) if source.startswith(key(build) + os.sep) else key(str(ROOT))
                 homes.setdefault(config, set()).add(os.path.relpath(os.path.dirname(source), base))
         through = shown("through", defines=(f"Python3_EXECUTABLE={Path(sys.executable).as_posix()}",))
-        wanted = {Path(unit).name: "qiven3_test_headers" if LOOP["test_path"](header, HOMES) else "qiven3_headers"
-                  for header, unit in through.items() if unit.startswith("tests/support/headers/")}
-        self.assertEqual({Path(source).name: target for target, source in compiled
-                          if target in ("qiven3_headers", "qiven3_test_headers")}, wanted)
-        self.assertEqual(targets & {"qiven3_headers", "qiven3_test_headers"}, {"qiven3_test_headers"})
+        pairs = {True: ("qiven3_headers", "qiven3_test_headers"), False: ("qiven_headers", "qiven_test_headers")}
+        wanted = {key(unit): pairs[unit.startswith("tests/support/headers/")][bool(LOOP["test_path"](header, HOMES))]
+                  for header, unit in through.items() if re.search(r"(^|/)tests/support/headers/[^/]+$", unit)}
+        names = {*pairs[True], *pairs[False]}
+        self.assertEqual({os.path.relpath(key(source), key(str(ROOT))): target for target, source in compiled
+                          if target in names}, wanted)
+        self.assertEqual(targets & names, {"qiven_test_headers", "qiven3_test_headers"})
         steps = {}
         for line in ninja.splitlines():
             if "clang-tidy" in line and "--quiet" in line:

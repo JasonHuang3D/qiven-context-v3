@@ -1,4 +1,4 @@
-// matcher_read's unit for the analysis preset: the builder, compile and hit
+// read's unit for the analysis preset: the builder, compile and hit
 // over the standard allocator, the constant-evaluated vectors' type;
 // matcher.cpp compiles them over v3's.
 

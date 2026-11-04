@@ -2,7 +2,6 @@
 
 layer core, status built
 
-- **Awaiting the analysis:** its header's unit for the analysis, `tests/support/headers/time_utc.cpp` (over `qiven/time/utc.hpp`), stays under `tests/support/headers/` until the analysis is taken up after the foundation's reconstruction; its place is settled then.
 - **Holds:** the target `qiven_time`, a header alone over the standard library: `utc`: a time as milliseconds since 1970 UTC (`Millis`), read from and printed as its `at`, and a date, read; its own tests (`tests/`), over texts and times they write themselves: utc's vectors, evaluated by the compiler and again at run time, the zone the C runtime reads, `print_at`'s budget and its fault run, in `qiven_time_test`, and `test_utc.py`, which runs those cases under two zones
 - **Never holds:** a time zone, the system clock, or a product's concept
 - **Contract:** `foundation/core/time/include/qiven/time/utc.hpp`

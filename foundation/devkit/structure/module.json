@@ -14,8 +14,6 @@
       "layer": "tooling",
       "depends": [],
       "test_depends": [
-        "faults",
-        "recordlog",
         "checked",
         "write",
         "location",
@@ -33,7 +31,6 @@
     {
       "from": "structure",
       "to": [
-        "recordlog",
         "checked",
         "write",
         "location",
@@ -41,7 +38,7 @@
         "driver",
         "child"
       ],
-      "until": "the analysis is taken up after the foundation's reconstruction, which settles the place of the header units under tests/support/headers/ and of poison.hpp"
+      "until": "the product's header units under tests/support/headers/ leave structure's row for a row of the product's tests table"
     }
   ]
 }

@@ -40,7 +40,38 @@ add_subdirectory(src/app)
 if(QIVEN_HAL)
   add_subdirectory(foundation/services/compute)
 endif()
+# The header units' rule on every configure with an interpreter, not the
+# analysis's alone: a header the analysis reads with no unit fails it
+# (foundation/devkit/build/header_units.cmake). The analysis compiles the
+# units it gives, the foundation's in their pair below, the product's in
+# its own (tests/support/headers/).
+if(Python3_EXECUTABLE OR QIVEN_ANALYZE STREQUAL "analysis")
+  qiven_header_units("${PROJECT_SOURCE_DIR}" qiven_header_units)
+endif()
 add_subdirectory(tests)
+# The foundation's units, each in its module's tests/support/headers/, in
+# one pair, qiven_headers and qiven_test_headers, over foundation targets
+# alone (qiven_header_targets): here, the composition's, which names every
+# module's targets and stays with the foundation, since no one module
+# holds a target over every module's units and tests/CMakeLists.txt leaves
+# with the product. Made before the lists of targets below, which name it.
+if(QIVEN_ANALYZE STREQUAL "analysis")
+  qiven_header_targets(qiven_headers qiven_test_headers "foundation/")
+  # faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,
+  # where the build does not.
+  set_source_files_properties("${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults/tests/support/headers/faults.cpp"
+    PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
+  # A private header's unit includes it by its name from its module's src/,
+  # which the pair is given privately (qiven_header_units_dirs: memory's, diag's
+  # and log's).
+  list(TRANSFORM qiven_header_units_dirs PREPEND "${PROJECT_SOURCE_DIR}/" OUTPUT_VARIABLE qiven_private_dirs)
+  foreach(target IN ITEMS qiven_headers qiven_test_headers)
+    target_include_directories(${target} PRIVATE ${qiven_private_dirs})
+    target_link_libraries(${target} PRIVATE qiven_memory qiven_matcher qiven_text qiven_time qiven_diag
+      qiven_platform_fake qiven_log qiven_storage_sqlite qiven_recordlog qiven_recordlog_stores qiven_runner
+      qiven_case_main qiven_faults qiven_build)
+  endforeach()
+endif()
 
 # binaries.txt: each binary qiven_executable made, one file a line; and
 # executables.txt, every executable target of CMake's own records, each
@@ -99,7 +130,7 @@ endif()
 # target. /analyze on each such source, then clang-tidy over
 # compile_commands.json, each source its own step after every target is
 # built, by .clang-tidy, on the headers of the same trees. A header with no
-# source of its own is read through its unit in tests/support/headers/.
+# source of its own is read through its unit (qiven_header_units).
 if(QIVEN_ANALYZE STREQUAL "analysis")
   set(qiven_tidy_targets "")
   set(qiven_tidy_sources "")
@@ -154,12 +185,12 @@ if(QIVEN_ANALYZE STREQUAL "analysis")
   file(GLOB_RECURSE qiven_tidy_inputs CONFIGURE_DEPENDS ${qiven_tidy_globs})
   # clang-tidy's header filters, from the same trees and rule, under this
   # checkout alone: .clang-tidy names none.
-  set(qiven_headers "")
+  set(qiven_tidy_headers "")
   foreach(header IN LISTS qiven_tidy_inputs)
     file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${header}")
-    list(APPEND qiven_headers "${rel}")
+    list(APPEND qiven_tidy_headers "${rel}")
   endforeach()
-  qiven_header_filters("${PROJECT_SOURCE_DIR}" "${qiven_headers}" qiven_filter qiven_exclude)
+  qiven_header_filters("${PROJECT_SOURCE_DIR}" "${qiven_tidy_headers}" qiven_filter qiven_exclude)
   set(qiven_filter_args "--header-filter=${qiven_filter}")
   if(qiven_exclude)
     list(APPEND qiven_filter_args "--exclude-header-filter=${qiven_exclude}")
