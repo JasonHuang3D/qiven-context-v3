@@ -179,7 +179,7 @@ private:
         std::vector<std::random_device> device(1);
         std::random_device& draw = device.front();
         std::filesystem::path out =
-            std::filesystem::temp_directory_path() / ("qiven3-stores-" + std::to_string(draw()) + std::to_string(draw()));
+            std::filesystem::temp_directory_path() / ("qiven-stores-" + std::to_string(draw()) + std::to_string(draw()));
         std::filesystem::create_directories(out);
         return out;
     }

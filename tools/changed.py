@@ -50,12 +50,12 @@ def named(env, name):
 
 
 def vcvars_env():
-    """The environment vcvars64.bat sets up, QIVEN3_PYTHON this interpreter."""
-    vcvars = os.environ.get("QIVEN3_VCVARS")
+    """The environment vcvars64.bat sets up, QIVEN_PYTHON this interpreter."""
+    vcvars = os.environ.get("QIVEN_VCVARS")
     if not vcvars:
         where = Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
         if not where.is_file():
-            raise CannotRun("vswhere.exe is missing; name vcvars64.bat by QIVEN3_VCVARS")
+            raise CannotRun("vswhere.exe is missing; name vcvars64.bat by QIVEN_VCVARS")
         status, text = capture([str(where), "-latest", "-products", "*", "-requires",
                                 "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"])
         if status != 0 or not text.strip():
@@ -74,7 +74,7 @@ def vcvars_env():
         key, sep, value = line.partition("=")
         if sep and key:
             env[key] = value
-    env["QIVEN3_PYTHON"] = sys.executable
+    env["QIVEN_PYTHON"] = sys.executable
     return env
 
 

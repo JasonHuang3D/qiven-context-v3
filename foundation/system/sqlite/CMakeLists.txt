@@ -15,15 +15,15 @@ foreach(pin IN LISTS QIVEN_SQLITE_SHA256)
   list(GET pin 1 qiven_pinned)
   set(qiven_path "${CMAKE_CURRENT_SOURCE_DIR}/${qiven_file}")
   if(NOT EXISTS "${qiven_path}")
-    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} is missing")
+    message(FATAL_ERROR "qiven: foundation/system/sqlite/${qiven_file} is missing")
   endif()
   file(SHA256 "${qiven_path}" qiven_digest)
   if(NOT qiven_digest STREQUAL qiven_pinned)
-    message(FATAL_ERROR "qiven3: foundation/system/sqlite/${qiven_file} has SHA-256 ${qiven_digest}; "
+    message(FATAL_ERROR "qiven: foundation/system/sqlite/${qiven_file} has SHA-256 ${qiven_digest}; "
       "the pin is ${qiven_pinned}")
   endif()
 endforeach()
-message(STATUS "qiven3: SQLite's amalgamation holds its pinned digests")
+message(STATUS "qiven: SQLite's amalgamation holds its pinned digests")
 
 #
 # Compiled as C at its own level: MSVC /W3 without /WX, at which the pinned

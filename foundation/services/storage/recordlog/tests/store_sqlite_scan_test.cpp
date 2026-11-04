@@ -58,7 +58,7 @@ struct Rig {
     static fs::path fresh() {
         const auto device = std::make_unique<std::random_device>();
         std::random_device& draw = *device;
-        fs::path out = fs::temp_directory_path() / ("qiven3-sqlite-s-" + std::to_string(draw()) + std::to_string(draw()));
+        fs::path out = fs::temp_directory_path() / ("qiven-sqlite-s-" + std::to_string(draw()) + std::to_string(draw()));
         fs::create_directories(out);
         return out;
     }

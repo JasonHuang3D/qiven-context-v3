@@ -101,7 +101,7 @@ struct Bed {
     static fs::path fresh_root() {
         const auto device = std::make_unique<std::random_device>();
         std::random_device& draw = *device;
-        fs::path out = fs::temp_directory_path() / ("qiven3-sqlite-m-" + std::to_string(draw()) +
+        fs::path out = fs::temp_directory_path() / ("qiven-sqlite-m-" + std::to_string(draw()) +
                                                     std::to_string(draw()));
         fs::create_directories(out);
         return out;

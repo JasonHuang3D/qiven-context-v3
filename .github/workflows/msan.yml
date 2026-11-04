@@ -69,7 +69,7 @@ jobs:
         env:
           PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
-          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          echo "QIVEN_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
           command -v ninja || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ninja-build; }
 
       # The LLVM release the library is built from is the image's clang++'s,
@@ -81,7 +81,7 @@ jobs:
           for tool in clang clang++; do
             echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
           done
-          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          "$QIVEN_PYTHON" -I -c "import sys; print('CPython', sys.version)"
           cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
           release="$(clang++ --version | sed -n 's/.*clang version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | sed -n 1p)"
           [ -n "$release" ] || { echo "msan: clang++ --version names no release"; exit 1; }
@@ -90,7 +90,7 @@ jobs:
           symbolizer="$(command -v llvm-symbolizer || command -v "llvm-symbolizer-${release%%.*}" || true)"
           echo "msan: symbolizer ${symbolizer:-none}"
           if [ -n "$symbolizer" ]; then echo "MSAN_SYMBOLIZER_PATH=$symbolizer" >> "$GITHUB_ENV"; fi
-          echo "QIVEN3_TRIAL_START=$(date +%s)" >> "$GITHUB_ENV"
+          echo "QIVEN_TRIAL_START=$(date +%s)" >> "$GITHUB_ENV"
 
       # libc++ with libc++abi inside it, static, so that every binary links
       # them with no run-time search path; the unwinder is the system's.
@@ -128,7 +128,7 @@ jobs:
           echo "msan: the install: $(cd "$prefix" && find include/c++/v1/__config_site lib -maxdepth 1 -type f | sort | tr '\n' ' ')"
           echo "msan: libc++.a defines __cxa_throw ($abi), references _Unwind_RaiseException ($unwind)"
           echo "msan: libc++ $LLVM_SOURCE_VERSION built under MemorySanitizer in $((SECONDS - start)) s, $calls references to its runtime"
-          echo "QIVEN3_LIBCXX=$prefix" >> "$GITHUB_ENV"
+          echo "QIVEN_LIBCXX=$prefix" >> "$GITHUB_ENV"
 
       # On a failure, each failed probe of CMake's configure log, at most 5
       # and 80 lines each: its check, the flags it ran under, and its compile
@@ -201,7 +201,7 @@ jobs:
           FAKE: ${{ steps.fake.outcome }}
           CXX: ${{ steps.cxx.outcome }}
         run: |
-          minutes=$(( ($(date +%s) - ${QIVEN3_TRIAL_START:-$(date +%s)}) / 60 ))
+          minutes=$(( ($(date +%s) - ${QIVEN_TRIAL_START:-$(date +%s)}) / 60 ))
           {
             echo "msan trial: libc++ ${LLVM_SOURCE_VERSION:-unread} $LIBCXX; configure $CONFIGURE; build $BUILD; fake $FAKE; cxx $CXX"
             echo "msan trial: $minutes minutes from the toolchain's check, of the job's 60"

@@ -45,7 +45,7 @@
     {"tool": "clang-tidy", "check": "cppcoreguidelines-avoid-do-while", "scope": "every file",
      "reason": "Style, holding no property."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-macro-usage", "scope": "every file",
-     "reason": "Style, holding no property; QIVEN3_CALL and the thread-safety attributes are macros."},
+     "reason": "Style, holding no property; QIVEN_CASE and the thread-safety attributes are macros."},
     {"tool": "clang-tidy", "check": "bugprone-easily-swappable-parameters", "scope": "every file",
      "reason": "A heuristic, holding no property."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-bounds-constant-array-index", "scope": "every file",

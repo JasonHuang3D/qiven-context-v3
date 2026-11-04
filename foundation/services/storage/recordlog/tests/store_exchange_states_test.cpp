@@ -170,7 +170,7 @@ struct Rig {
     static fs::path fresh() {
         const auto device = std::make_unique<std::random_device>();
         std::random_device& draw = *device;
-        const std::string name = "qiven3-exchange-s-" + std::to_string(draw()) + std::to_string(draw());
+        const std::string name = "qiven-exchange-s-" + std::to_string(draw()) + std::to_string(draw());
         fs::path out = fs::temp_directory_path() / name;
         fs::create_directories(out);
         return out;

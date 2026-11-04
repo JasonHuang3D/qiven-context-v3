@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RuleSet Name="qiven3 analysis" Description="The native recommended rules, the Core Guidelines checker and its lifetime rules" ToolsVersion="17.0">
+<RuleSet Name="qiven analysis" Description="The native recommended rules, the Core Guidelines checker and its lifetime rules" ToolsVersion="17.0">
   <Include Path="NativeRecommendedRules.ruleset" Action="Default" />
   <Include Path="CppCoreCheckRules.ruleset" Action="Default" />
   <Include Path="CppCoreCheckLifetimeRules.ruleset" Action="Default" />

@@ -1,8 +1,8 @@
 # Memory's own tests: the cases of memory, arena, pool and its frees, each
 # case its own CTest test; fail_fast's demo, which test_fail.py runs; and the
 # frees that end the process, which test_free.py runs. Added by
-# tests/CMakeLists.txt, where qiven_add_cases, qiven_faults and
-# qiven_case_main are made.
+# tests/CMakeLists.txt; qiven_add_cases is made in the runner's cases.cmake,
+# qiven_faults and qiven_case_main in the kit's faults and case_main.
 qiven_add_cases(qiven_memory_test LABELS fast fake
   SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp
   LINK qiven_faults)
@@ -50,5 +50,5 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven_runner_poisoned DIAG _poisoned)
   set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven_log_poisoned qiven_platform_poisoned
     qiven_runner_poisoned qiven_memory_test_poisoned
-    qiven_memory_free_demo_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
+    qiven_memory_free_demo_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned PROPERTIES QIVEN_POISONED ON)
 endif()

@@ -133,7 +133,7 @@ jobs:
           PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          "QIVEN3_PYTHON=$env:PYTHON_PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "QIVEN_PYTHON=$env:PYTHON_PATH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           $script = Join-Path $env:RUNNER_TEMP 'vcvars.cmd'
@@ -154,7 +154,7 @@ jobs:
           (Get-Command cl.exe).Source; (Get-Command cmake.exe).Source; (Get-Command ninja.exe).Source
           cmd.exe /d /c "cl.exe 2>&1" | Select-Object -First 1
           if ('${{ matrix.analysis }}' -eq 'true') { & (Join-Path $env:ProgramFiles 'LLVM\bin\clang-tidy.exe') --version }
-          & $env:QIVEN3_PYTHON -I -c "import sys; print('CPython', sys.version)"
+          & $env:QIVEN_PYTHON -I -c "import sys; print('CPython', sys.version)"
           ninja --version; ctest --version; cmake --version
 
       - name: Configure (${{ matrix.preset }})
@@ -186,13 +186,13 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           $check = Join-Path $env:RUNNER_TEMP 'clean_check.py'
           Set-Content -LiteralPath $check -Value $env:CLEAN_CHECK -Encoding utf8
-          & $env:QIVEN3_PYTHON -I $check build/ci $env:GITHUB_WORKSPACE $env:RUNNER_TEMP
+          & $env:QIVEN_PYTHON -I $check build/ci $env:GITHUB_WORKSPACE $env:RUNNER_TEMP
 
       - name: The structure tests, B1 to B31, the safe subset's token rules among them
         if: ${{ !cancelled() && steps.msvc.outcome == 'success' && matrix.analysis }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          cmake --preset ci-windows -B build/ci-structure -DQIVEN3_STRUCTURE=ON
+          cmake --preset ci-windows -B build/ci-structure -DQIVEN_STRUCTURE=ON
           cmake --build build/ci-structure
           ctest --test-dir build/ci-structure --output-on-failure --no-tests=error -R '^foundation[.]devkit[.]structure[.]' -LE '^analysis$'
 
@@ -233,7 +233,7 @@ jobs:
         env:
           PYTHON_PATH: ${{ steps.python.outputs.python-path }}
         run: |
-          echo "QIVEN3_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+          echo "QIVEN_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
           command -v ninja || { sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends ninja-build; }
 
       - name: The image and the tools this job runs
@@ -244,7 +244,7 @@ jobs:
           for tool in gcc g++ clang clang++; do
             echo "$tool: $(command -v "$tool" || echo none) $("$tool" --version 2>/dev/null | sed -n 1p || true)"
           done
-          "$QIVEN3_PYTHON" -I -c "import sys; print('CPython', sys.version)"
+          "$QIVEN_PYTHON" -I -c "import sys; print('CPython', sys.version)"
           cmake --version | sed -n 1p; ctest --version | sed -n 1p; ninja --version
 
       - name: Configure (${{ matrix.preset }})
@@ -272,4 +272,4 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.preset == 'linux-plain' }}
         run: |
           printf '%s' "$CLEAN_CHECK" > "$RUNNER_TEMP/clean_check.py"
-          "$QIVEN3_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          "$QIVEN_PYTHON" -I "$RUNNER_TEMP/clean_check.py" build/ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"

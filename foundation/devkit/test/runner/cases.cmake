@@ -20,7 +20,7 @@ set(QIVEN_SKIP_CODE 125)
 # tools/ one and each under the layers' trees of tools/trees.json, in sorted
 # path order (tools/loop_modules.py). A path ending in / holds every file
 # under it, any other is a pattern on the whole path, * any run of characters.
-qiven3_table_globs("${PROJECT_SOURCE_DIR}" qiven_table_globs)
+qiven_table_globs("${PROJECT_SOURCE_DIR}" qiven_table_globs)
 file(GLOB_RECURSE qiven_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
      RELATIVE "${PROJECT_SOURCE_DIR}" ${qiven_table_globs})
 list(APPEND qiven_table_files module.json tools/module.json)
@@ -149,11 +149,11 @@ function(qiven_list_tests)
   set(qiven_python_files "")
   if(Python3_EXECUTABLE)
     set(qiven_python_args -D "PYTHON=${Python3_EXECUTABLE}")
-    if(QIVEN_LOOP_TESTS AND NOT QIVEN3_STRUCTURE)
+    if(QIVEN_LOOP_TESTS AND NOT QIVEN_STRUCTURE)
       list(APPEND qiven_python_args -D "LOOP=ON")
     endif()
     # every tree the listing discovers in (foundation/devkit/test/runner/list_tests.py)
-    qiven3_python_globs("${PROJECT_SOURCE_DIR}" qiven_python_globs)
+    qiven_python_globs("${PROJECT_SOURCE_DIR}" qiven_python_globs)
     file(GLOB_RECURSE qiven_python_files CONFIGURE_DEPENDS ${qiven_python_globs})
   else()
     message(STATUS "qiven: no interpreter named; the Python tests are not registered")

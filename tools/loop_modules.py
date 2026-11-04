@@ -64,7 +64,7 @@ ROOTS = tuple(TREE_FILE["included"])  # the include directories the build gives,
 
 
 def test_path(path, homes=()):
-    """The one reader of test code, trees.cmake's qiven3_test_path in CMake:
+    """The one reader of test code, trees.cmake's qiven_test_path in CMake:
     a path under the top-level tests/ as it stands; under the tests/ of a
     module directory, one of homes (each holding a table file), as the
     top-level tree would hold it, so that a file keeps its checks as it

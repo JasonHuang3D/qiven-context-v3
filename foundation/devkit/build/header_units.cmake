@@ -2,12 +2,12 @@
 # own, the unit of tests/support/headers/ it compiles through, and the rule's
 # errors. Included by trees.cmake, whose functions and trees it reads, so
 # whatever includes trees.cmake (the root CMakeLists.txt, trees.cmake's own
-# SHOW=units and SHOW=through) has qiven3_header_units.
+# SHOW=units and SHOW=through) has qiven_header_units.
 
 # The structure checks' C++ lexer, which reads the header names a unit includes.
-get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexer.py" ABSOLUTE)
+get_filename_component(qiven_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexer.py" ABSOLUTE)
 
-# qiven3_header_unit(<root> <header> <unit> <own>): the unit in
+# qiven_header_unit(<root> <header> <unit> <own>): the unit in
 # tests/support/headers/ of header, from the root, and the path of the source
 # that is its own besides <name> under a source suffix beside it (empty where
 # none). Under a layer's tree, the name of its module (the nearest directory
@@ -16,19 +16,19 @@ get_filename_component(qiven3_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexe
 # suffix); under an analysed root outside the layers, the root's last name
 # and _ where the root is no walked tree, then its path under the root; / as
 # _, .cpp for its suffix, as every unit is named.
-function(qiven3_header_unit root header unit own)
+function(qiven_header_unit root header unit own)
   set(${own} "" PARENT_SCOPE)
   set(name "")
   set(found FALSE)
-  foreach(layer IN LISTS qiven3_layers)
-    qiven3_under("${header}" "${layer}" under)
+  foreach(layer IN LISTS qiven_layers)
+    qiven_under("${header}" "${layer}" under)
     if(NOT under)
       continue()
     endif()
     get_filename_component(module "${header}" DIRECTORY)
     while(NOT EXISTS "${root}/${module}/module.json")
       if(module STREQUAL layer)
-        message(FATAL_ERROR "qiven3: the header ${header} lies in no module")
+        message(FATAL_ERROR "qiven: the header ${header} lies in no module")
       endif()
       get_filename_component(module "${module}" DIRECTORY)
     endwhile()
@@ -36,8 +36,8 @@ function(qiven3_header_unit root header unit own)
     string(JSON name GET "${text}" name)
     string(LENGTH "${module}/" at)
     string(SUBSTRING "${header}" ${at} -1 inner)
-    if(inner MATCHES "^include/qiven/[^/]+/(.+)${qiven3_header_suffix}")
-      qiven3_own_source("${root}" "${module}/src/${CMAKE_MATCH_1}" source)
+    if(inner MATCHES "^include/qiven/[^/]+/(.+)${qiven_header_suffix}")
+      qiven_own_source("${root}" "${module}/src/${CMAKE_MATCH_1}" source)
       set(${own} "${source}" PARENT_SCOPE)
       set(inner "${CMAKE_MATCH_1}.cpp")
     endif()
@@ -46,10 +46,10 @@ function(qiven3_header_unit root header unit own)
     break()
   endforeach()
   if(NOT found)
-    foreach(tree IN LISTS qiven3_analysed)
-      qiven3_under("${header}" "${tree}" under)
+    foreach(tree IN LISTS qiven_analysed)
+      qiven_under("${header}" "${tree}" under)
       if(under)
-        if(NOT tree IN_LIST qiven3_walked)
+        if(NOT tree IN_LIST qiven_walked)
           get_filename_component(name "${tree}" NAME)
           string(APPEND name "_")
         endif()
@@ -60,37 +60,37 @@ function(qiven3_header_unit root header unit own)
       endif()
     endforeach()
   endif()
-  string(REGEX REPLACE "${qiven3_header_suffix}" ".cpp" name "${name}")
+  string(REGEX REPLACE "${qiven_header_suffix}" ".cpp" name "${name}")
   string(REPLACE "/" "_" name "${name}")
   set(${unit} "${name}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_includes(<root> <sources> <out>): <source>|<file> for each file,
+# qiven_includes(<root> <sources> <out>): <source>|<file> for each file,
 # from the root, that a source, from the root, includes. The structure
 # checks' C++ lexer reads the header names of its #include lines; each
 # resolves as the build's include roots give it: a quoted name from the
 # source's directory first, then from the trees' included roots, then from
 # the include/ of each module under the layers.
-function(qiven3_includes root sources out)
+function(qiven_includes root sources out)
   set(${out} "" PARENT_SCOPE)
   list(REMOVE_ITEM sources "")
   if(NOT sources)
     return()
   elseif(NOT Python3_EXECUTABLE)
-    message(FATAL_ERROR "qiven3: no interpreter (Python3_EXECUTABLE) to read the includes of the header units")
+    message(FATAL_ERROR "qiven: no interpreter (Python3_EXECUTABLE) to read the includes of the header units")
   endif()
   if(NOT CMAKE_SCRIPT_MODE_FILE)  # the sources and the lexer that reads them
     list(TRANSFORM sources PREPEND "${root}/" OUTPUT_VARIABLE read)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${read} "${qiven3_lexer}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${read} "${qiven_lexer}")
   endif()
-  execute_process(COMMAND "${Python3_EXECUTABLE}" -I "${qiven3_lexer}" ${sources} WORKING_DIRECTORY "${root}"
+  execute_process(COMMAND "${Python3_EXECUTABLE}" -I "${qiven_lexer}" ${sources} WORKING_DIRECTORY "${root}"
     OUTPUT_VARIABLE found RESULT_VARIABLE status)
   if(NOT status EQUAL 0)
-    message(FATAL_ERROR "qiven3: the lexer could not read the header units' includes: ${status}")
+    message(FATAL_ERROR "qiven: the lexer could not read the header units' includes: ${status}")
   endif()
-  qiven3_table_globs("${root}" tables)
+  qiven_table_globs("${root}" tables)
   file(GLOB_RECURSE tables RELATIVE "${root}" ${tables})
-  set(roots ${qiven3_included})
+  set(roots ${qiven_included})
   foreach(table IN LISTS tables)
     get_filename_component(dir "${table}" DIRECTORY)
     if(IS_DIRECTORY "${root}/${dir}/include")
@@ -121,9 +121,9 @@ function(qiven3_includes root sources out)
   set(${out} ${included} PARENT_SCOPE)
 endfunction()
 
-# qiven3_any_case(<word> <out>): a regular expression matching word in either
+# qiven_any_case(<word> <out>): a regular expression matching word in either
 # case, as CMake reads a command's name.
-function(qiven3_any_case word out)
+function(qiven_any_case word out)
   set(pattern "")
   string(LENGTH "${word}" length)
   math(EXPR last "${length} - 1")
@@ -140,7 +140,7 @@ function(qiven3_any_case word out)
   set(${out} "${pattern}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_listed(<root> <source> <out>): TRUE where the CMakeLists.txt nearest
+# qiven_listed(<root> <source> <out>): TRUE where the CMakeLists.txt nearest
 # above source, from the root, names it as a path from that file's directory,
 # alone or after a variable's directory (}/), once its comments and its source
 # properties are stripped: each set_source_files_properties(...) and each
@@ -149,7 +149,7 @@ endfunction()
 # configure's targets alone cannot tell. Else FALSE, with <out>_in the list
 # read, from the root ("" where no CMakeLists.txt is above it), and <out>_as
 # the name looked for.
-function(qiven3_listed root source out)
+function(qiven_listed root source out)
   set(${out} FALSE PARENT_SCOPE)
   set(${out}_in "" PARENT_SCOPE)
   set(${out}_as "" PARENT_SCOPE)
@@ -166,9 +166,9 @@ function(qiven3_listed root source out)
   endif()
   file(READ "${file}" text)
   string(REGEX REPLACE "#[^\n]*" "" text "${text}")
-  qiven3_any_case("set_source_files_properties" properties)
-  qiven3_any_case("set_property" property)
-  qiven3_any_case("SOURCE" keyword)
+  qiven_any_case("set_source_files_properties" properties)
+  qiven_any_case("set_property" property)
+  qiven_any_case("SOURCE" keyword)
   string(REGEX REPLACE "${properties}[^)]*[)]" "" text "${text}")
   string(REGEX REPLACE "${property}[ \t\r\n]*[(][ \t\r\n]*${keyword}[ \t\r\n][^)]*[)]" "" text "${text}")
   set(name "${source}")
@@ -185,43 +185,43 @@ function(qiven3_listed root source out)
   endif()
 endfunction()
 
-# qiven3_header_units(<root> <out>): the units of tests/support/headers/ of
+# qiven_header_units(<root> <out>): the units of tests/support/headers/ of
 # the checkout at root, one for each header of a suffix of
-# qiven3_header_suffixes the analysis reads (under an analysed root or a
+# qiven_header_suffixes the analysis reads (under an analysed root or a
 # layer's tree, no vendored file) that has no source of its own, so that the analysis reads it
 # whatever includes it: an own source stands in for a unit where its target
-# compiles it (qiven3_listed) and it includes its header (qiven3_includes).
+# compiles it (qiven_listed) and it includes its header (qiven_includes).
 # An error names each such header with no unit, two headers of one unit, a
 # unit no such header wants, and a unit that does not include its header.
 # <out>_of: header=unit for each such header, unit the source, from the root,
 # it compiles through (trees.cmake's SHOW=through prints it).
 # Every configure with an interpreter runs it (tests/CMakeLists.txt).
-function(qiven3_header_units root out)
+function(qiven_header_units root out)
   set(depends "")
   if(NOT CMAKE_SCRIPT_MODE_FILE)
     set(depends CONFIGURE_DEPENDS)
   endif()
   file(GLOB units RELATIVE "${root}/tests/support/headers" ${depends} "${root}/tests/support/headers/*.cpp")
-  qiven3_header_globs("${root}" globs ${qiven3_analysed} ${qiven3_layers})
+  qiven_header_globs("${root}" globs ${qiven_analysed} ${qiven_layers})
   file(GLOB_RECURSE headers RELATIVE "${root}" ${depends} ${globs})
   list(REMOVE_DUPLICATES headers)
   list(SORT headers)
   set(reads "")
   set(owns "")
   foreach(header IN LISTS headers)
-    qiven3_analysed("${header}" read)
+    qiven_analysed("${header}" read)
     if(NOT read)
       continue()
     endif()
-    string(REGEX REPLACE "${qiven3_header_suffix}" "" stem "${header}")
-    qiven3_own_source("${root}" "${stem}" beside)
+    string(REGEX REPLACE "${qiven_header_suffix}" "" stem "${header}")
+    qiven_own_source("${root}" "${stem}" beside)
     if(NOT beside)
-      qiven3_header_unit("${root}" "${header}" unit beside)
+      qiven_header_unit("${root}" "${header}" unit beside)
     endif()
     if(NOT beside)
       set(beside "-")
     else()
-      qiven3_listed("${root}" "${beside}" listed)
+      qiven_listed("${root}" "${beside}" listed)
       if(NOT listed)  # an own source its list does not name stands in for no unit
         set(beside "?${beside}|${listed_in}|${listed_as}")
       endif()
@@ -232,7 +232,7 @@ function(qiven3_header_units root out)
   set(sources ${owns})
   list(FILTER sources EXCLUDE REGEX "^[-?]")
   list(TRANSFORM units PREPEND "tests/support/headers/" OUTPUT_VARIABLE paths)
-  qiven3_includes("${root}" "${sources};${paths}" included)
+  qiven_includes("${root}" "${sources};${paths}" included)
   set(wanted "")
   set(owners "")
   set(through "")
@@ -250,24 +250,24 @@ function(qiven3_header_units root out)
     elseif(NOT own STREQUAL "-")
       set(not_own " (its own source ${own} does not include it)")
     endif()
-    qiven3_header_unit("${root}" "${header}" unit ignored)
+    qiven_header_unit("${root}" "${header}" unit ignored)
     list(APPEND through "${header}=tests/support/headers/${unit}")
     list(FIND wanted "${unit}" at)
     if(at GREATER -1)
       list(GET owners ${at} other)
-      message(SEND_ERROR "qiven3: the headers ${other} and ${header} share the unit tests/support/headers/${unit}")
+      message(SEND_ERROR "qiven: the headers ${other} and ${header} share the unit tests/support/headers/${unit}")
     elseif(NOT unit IN_LIST units)
       message(SEND_ERROR
-        "qiven3: the header-only header ${header} has no unit, tests/support/headers/${unit}${not_own}")
+        "qiven: the header-only header ${header} has no unit, tests/support/headers/${unit}${not_own}")
     elseif(NOT "tests/support/headers/${unit}|${header}" IN_LIST included)
-      message(SEND_ERROR "qiven3: the unit tests/support/headers/${unit} does not include its header ${header}")
+      message(SEND_ERROR "qiven: the unit tests/support/headers/${unit} does not include its header ${header}")
     endif()
     list(APPEND wanted "${unit}")
     list(APPEND owners "${header}")
   endforeach()
   foreach(unit IN LISTS units)
     if(NOT unit IN_LIST wanted)
-      message(SEND_ERROR "qiven3: tests/support/headers/${unit} is no header-only header's unit")
+      message(SEND_ERROR "qiven: tests/support/headers/${unit} is no header-only header's unit")
     endif()
   endforeach()
   list(REMOVE_DUPLICATES wanted)

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RuleSet Name="qiven3 analysis, test code" Description="analysis.ruleset, and the rules off in the targets whose sources are all test code" ToolsVersion="17.0">
+<RuleSet Name="qiven analysis, test code" Description="analysis.ruleset, and the rules off in the targets whose sources are all test code" ToolsVersion="17.0">
   <Include Path="analysis.ruleset" Action="Default" />
 </RuleSet>

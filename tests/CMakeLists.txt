@@ -35,7 +35,7 @@ endif()
 # unit fails it (foundation/devkit/build/header_units.cmake). The analysis compiles
 # the units it gives.
 if(Python3_EXECUTABLE OR QIVEN_ANALYZE STREQUAL "analysis")
-  qiven3_header_units("${PROJECT_SOURCE_DIR}" qiven3_header_units)
+  qiven_header_units("${PROJECT_SOURCE_DIR}" qiven_header_units)
 endif()
 if(QIVEN_ANALYZE STREQUAL "analysis")
   add_subdirectory(support/headers)
@@ -52,6 +52,6 @@ qiven_list_tests(qiven_runner_demo qiven_memory_fail_demo qiven_memory_free_demo
   qiven_diag_fault_import)
 
 # The structure records, the structure preset alone.
-if(QIVEN3_STRUCTURE)
+if(QIVEN_STRUCTURE)
   add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/structure" structure)
 endif()

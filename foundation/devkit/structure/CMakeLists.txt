@@ -1,4 +1,4 @@
-# The structure records (QIVEN3_STRUCTURE, the structure preset): after
+# The structure records (QIVEN_STRUCTURE, the structure preset): after
 # every target is built, records.py reruns each compile command with
 # /showIncludes, reads each object's symbols and the runtimes' names with
 # dumpbin and the link edges with CMake's --graphviz, into
@@ -8,10 +8,10 @@
 # and tools/loop_git.py and tools/loop_table.py the reader loads, are the
 # step's inputs.
 if(NOT MSVC)
-  message(FATAL_ERROR "qiven3: QIVEN3_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
+  message(FATAL_ERROR "qiven3: QIVEN_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
 endif()
 if(NOT Python3_EXECUTABLE)
-  message(FATAL_ERROR "qiven3: QIVEN3_STRUCTURE writes its records with the interpreter: name it")
+  message(FATAL_ERROR "qiven3: QIVEN_STRUCTURE writes its records with the interpreter: name it")
 endif()
 get_filename_component(qiven3_linker_dir "${CMAKE_LINKER}" DIRECTORY)
 find_program(QIVEN3_DUMPBIN dumpbin HINTS "${qiven3_linker_dir}" REQUIRED)

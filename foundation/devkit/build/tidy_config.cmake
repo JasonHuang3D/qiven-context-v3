@@ -5,36 +5,36 @@
 # (clang-tidy) and PATHFILE, it prints each source's composed file, as
 # tests/drive/test_trees_build.py reads it.
 
-# qiven3_tidy_inherits(<file> <tidy> <out>): TRUE where file inherits from the
+# qiven_tidy_inherits(<file> <tidy> <out>): TRUE where file inherits from the
 # directory above it, as tidy itself reads its InheritParentConfig, in every
 # form: tidy's dump of file over a probe's configuration shows the probe's
 # check. A file tidy cannot read, which a run would skip with only a line on
 # stderr, stops the configure.
-function(qiven3_tidy_inherits file tidy out)
+function(qiven_tidy_inherits file tidy out)
   set(probe "${PROJECT_BINARY_DIR}/tidy/inherit")
-  file(WRITE "${probe}/.clang-tidy" "Checks: qiven3-inherited\n")
+  file(WRITE "${probe}/.clang-tidy" "Checks: qiven-inherited\n")
   execute_process(COMMAND "${tidy}" "--config-file=${file}" --dump-config "${probe}/probe.cpp" --
     OUTPUT_VARIABLE text ERROR_VARIABLE errors RESULT_VARIABLE failed)
   if(failed OR NOT errors STREQUAL "" OR NOT text MATCHES "\nChecks:")
-    message(FATAL_ERROR "qiven3: ${tidy} does not read ${file}: ${errors}")
+    message(FATAL_ERROR "qiven: ${tidy} does not read ${file}: ${errors}")
   endif()
   set(inherits FALSE)
-  if(text MATCHES "qiven3-inherited")
+  if(text MATCHES "qiven-inherited")
     set(inherits TRUE)
   endif()
   set(${out} "${inherits}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_tidy_chain(<dir> <test> <tidy> <out>): the configurations tidy reads
+# qiven_tidy_chain(<dir> <test> <tidy> <out>): the configurations tidy reads
 # for a source of dir under test, the first read first: dir's nearest
 # .clang-tidy in the checkout and its parents' while each inherits
-# (qiven3_tidy_inherits), the root's first, then test.
-function(qiven3_tidy_chain dir test tidy out)
+# (qiven_tidy_inherits), the root's first, then test.
+function(qiven_tidy_chain dir test tidy out)
   set(chain "${test}")
   set(file "${test}")
   set(done FALSE)
   while(file)
-    qiven3_tidy_inherits("${file}" "${tidy}" inherit)
+    qiven_tidy_inherits("${file}" "${tidy}" inherit)
     set(file "")
     while(inherit AND NOT file AND NOT done)
       if(EXISTS "${dir}/.clang-tidy")
@@ -51,14 +51,14 @@ function(qiven3_tidy_chain dir test tidy out)
   set(${out} "${chain}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_tidy_options(<dump> <out> <config>...): dump's text, a dumped
+# qiven_tidy_options(<dump> <out> <config>...): dump's text, a dumped
 # configuration, with its CheckOptions block holding every CheckOptions
 # entry of each config too, in the map form or the list of key and value,
 # a later entry winning on a key, as clang-tidy merges them: the dump holds
 # only the options its enabled checks store, never the analyzer's
 # (clang-analyzer-<checker>:<option>). A value is kept as written; a form
 # neither reads (a flow, a multi-line value) is an error, not an entry lost.
-function(qiven3_tidy_options dump out)
+function(qiven_tidy_options dump out)
   set(keys "")
   set(before "")
   set(after "")
@@ -92,14 +92,14 @@ function(qiven3_tidy_options dump out)
         set(key "${CMAKE_MATCH_1}")
         set(value "${CMAKE_MATCH_2}")
       elseif(line MATCHES "^CheckOptions:" OR (in AND line MATCHES "^[ \t]"))
-        message(FATAL_ERROR "qiven3: ${config}: a CheckOptions line not read: ${line}")
+        message(FATAL_ERROR "qiven: ${config}: a CheckOptions line not read: ${line}")
       else()
         set(in FALSE)
         string(APPEND kept "${line}\n")
       endif()
       if(NOT value STREQUAL "")
         if(NOT value MATCHES "^('.*'|\".*\"|[^'\"|>{[&*!%@`].*)$")
-          message(FATAL_ERROR "qiven3: ${config}: a CheckOptions value not read: ${line}")
+          message(FATAL_ERROR "qiven: ${config}: a CheckOptions value not read: ${line}")
         endif()
         list(FIND keys "${key}" i)
         if(i EQUAL -1)
@@ -115,7 +115,7 @@ function(qiven3_tidy_options dump out)
     endif()
   endforeach()
   if(before STREQUAL "")
-    message(FATAL_ERROR "qiven3: ${dump} holds no CheckOptions")
+    message(FATAL_ERROR "qiven: ${dump} holds no CheckOptions")
   endif()
   set(block "CheckOptions:\n")
   set(i 0)
@@ -127,27 +127,27 @@ function(qiven3_tidy_options dump out)
   set(${out} "${before}${block}${after}" PARENT_SCOPE)
 endfunction()
 
-# qiven3_tidy_test_config(<source> <test> <tidy> <out>): the file a test source's
-# clang-tidy step names, in out: its directory's configurations (qiven3_tidy_dir,
-# qiven3_tidy_chain) with test's lines over it, as tidy dumps them, their every
-# CheckOptions entry kept (qiven3_tidy_options), in the build tree's
+# qiven_tidy_test_config(<source> <test> <tidy> <out>): the file a test source's
+# clang-tidy step names, in out: its directory's configurations (qiven_tidy_dir,
+# qiven_tidy_chain) with test's lines over it, as tidy dumps them, their every
+# CheckOptions entry kept (qiven_tidy_options), in the build tree's
 # tidy/config/, rewritten only when it changes. Named by path, it rests on no
 # search up from the source's path, which finds none for a source generated in a
 # build tree outside the checkout.
-function(qiven3_tidy_test_config source test tidy out)
-  qiven3_tidy_dir("${source}" dir)
+function(qiven_tidy_test_config source test tidy out)
+  qiven_tidy_dir("${source}" dir)
   get_filename_component(name "${source}" NAME)
   execute_process(COMMAND "${tidy}" "--config-file=${test}" --dump-config "${dir}/${name}" --
     OUTPUT_VARIABLE text ERROR_VARIABLE errors RESULT_VARIABLE failed)
   if(failed OR NOT text MATCHES "\nChecks:")
-    message(FATAL_ERROR "qiven3: ${tidy} gives no configuration for ${dir}/${name}: ${errors}")
+    message(FATAL_ERROR "qiven: ${tidy} gives no configuration for ${dir}/${name}: ${errors}")
   endif()
   file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}")
   string(MAKE_C_IDENTIFIER "${rel}" id)
   set(config "${PROJECT_BINARY_DIR}/tidy/config/test_${id}.clang-tidy")
   file(WRITE "${config}.dump" "${text}")
-  qiven3_tidy_chain("${dir}" "${test}" "${tidy}" chain)
-  qiven3_tidy_options("${config}.dump" text ${chain})
+  qiven_tidy_chain("${dir}" "${test}" "${tidy}" chain)
+  qiven_tidy_options("${config}.dump" text ${chain})
   file(WRITE "${config}.composed" "${text}")
   file(COPY_FILE "${config}.composed" "${config}" ONLY_IF_DIFFERENT)
   set(${out} "${config}" PARENT_SCOPE)
@@ -159,7 +159,7 @@ if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
   set(PROJECT_BINARY_DIR "${BUILD}")
   file(STRINGS "${PATHFILE}" paths)
   foreach(path IN LISTS paths)
-    qiven3_tidy_test_config("${path}" "${ROOT}/foundation/devkit/build/analysis-test.clang-tidy" "${TIDY}" config)
+    qiven_tidy_test_config("${path}" "${ROOT}/foundation/devkit/build/analysis-test.clang-tidy" "${TIDY}" config)
     message("${path}=${config}")
   endforeach()
 endif()

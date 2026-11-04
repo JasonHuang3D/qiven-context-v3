@@ -42,7 +42,7 @@ class TestTargets(unittest.TestCase):
                 self.skipTest(f"{name}: pinned, and {build} does not define it")
 
     def test_every_preset_records_its_name(self):
-        """The base preset alone states QIVEN3_PRESET, as the preset's own
+        """The base preset alone states QIVEN_PRESET, as the preset's own
         name, and every preset one can configure inherits from it."""
         presets = {item["name"]: item for item in json.loads(real("CMakePresets.json"))["configurePresets"]}
 
@@ -51,7 +51,7 @@ class TestTargets(unittest.TestCase):
             parents = [parents] if isinstance(parents, str) else parents
             return name == "base" or any(reaches_base(parent) for parent in parents)
 
-        stating = {name: item["cacheVariables"]["QIVEN3_PRESET"] for name, item in presets.items()
-                   if "QIVEN3_PRESET" in item.get("cacheVariables", {})}
+        stating = {name: item["cacheVariables"]["QIVEN_PRESET"] for name, item in presets.items()
+                   if "QIVEN_PRESET" in item.get("cacheVariables", {})}
         self.assertEqual(stating, {"base": "${presetName}"})
         self.assertEqual([name for name in presets if not reaches_base(name)], [])

@@ -365,7 +365,7 @@ class TreesBuild(unittest.TestCase):
 
     def test_one_reader(self):
         """CMake and Python read test code alike, and so the analysis's choice,
-        CMake's qiven3_analysed and the structure checks' (B27's) reader,
+        CMake's qiven_analysed and the structure checks' (B27's) reader,
         layers.Layers.analysed: every file of the tree, and files planted
         under a tests/ that is a module's, nested in one, or of no module's
         directory."""

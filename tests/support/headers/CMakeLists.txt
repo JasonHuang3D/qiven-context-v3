@@ -8,13 +8,13 @@
 # allocator and the standard's, the stores' default hooks. Object libraries:
 # compiled, and taken by no binary.
 #
-# A unit stands for its header (QIVEN3_HEADER, read by qiven3_test_target),
+# A unit stands for its header (QIVEN_HEADER, read by qiven_test_target),
 # and takes its analysis by that header: one of test code, by the one reader,
 # compiles in qiven3_test_headers, whose units are all test code, under test
 # code's rule set and configuration; any other in qiven3_headers.
 #
 # The units, their names and the errors are foundation/devkit/build/header_units.cmake's
-# (qiven3_header_units), which every configure with an interpreter runs
+# (qiven_header_units), which every configure with an interpreter runs
 # (tests/CMakeLists.txt): a unit's name carries its header's module, and
 # configure fails on such a header with no unit, on two headers of one unit,
 # on a unit no such header wants, and on a unit that does not include its
@@ -23,13 +23,13 @@
 
 set(qiven3_library_units "")
 set(qiven3_test_units "")
-foreach(pair IN LISTS qiven3_header_units_of)
+foreach(pair IN LISTS qiven_header_units_of)
   if(pair MATCHES "^(.+)=tests/support/headers/(.+)$")
     set(header "${CMAKE_MATCH_1}")
     set(unit "${CMAKE_MATCH_2}")
-    if(unit IN_LIST qiven3_header_units)
-      set_source_files_properties("${unit}" PROPERTIES QIVEN3_HEADER "${header}")
-      qiven3_test_path("${header}" test)
+    if(unit IN_LIST qiven_header_units)
+      set_source_files_properties("${unit}" PROPERTIES QIVEN_HEADER "${header}")
+      qiven_test_path("${header}" test)
       if(test STREQUAL "")
         list(APPEND qiven3_library_units "${unit}")
       else()

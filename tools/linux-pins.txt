@@ -13,7 +13,7 @@
 # and their dependencies; each tool is found on PATH by its versioned name.
 # libcxx-msan is libc++ with libc++abi within it, built from llvm-source
 # by clang-18 under MemorySanitizer with origins as msan.yml builds it; the
-# linux-msan preset reads its prefix from QIVEN3_LIBCXX.
+# linux-msan preset reads its prefix from QIVEN_LIBCXX.
 # Each deb's digest is the archive index's, checked on the downloaded .deb
 # before it was installed, with no recommended package: the compilers' and
 # their dependencies; make (CPython's build); m4 and bzip2, which served a

@@ -66,7 +66,7 @@ class Layers:
         return MODULES["under_tests"](rel, self.dirs)
 
     def analysed(self, rel):
-        """Whether the analysis reads rel, as trees.cmake's qiven3_analysed
+        """Whether the analysis reads rel, as trees.cmake's qiven_analysed
         rules: under an analysed root, as it stands or as the top-level
         tests/ would hold it, or under a layer's tree and no test code; never
         a vendored file."""

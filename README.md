@@ -53,7 +53,7 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython
   3.15.0. Run them from a shell that `vcvars64.bat -vcvars_ver=14.44.35207`
   has set up. CI's presets leave the option off.
-- Name the interpreter by the environment variable `QIVEN3_PYTHON`, or in an
+- Name the interpreter by the environment variable `QIVEN_PYTHON`, or in an
   untracked `CMakeUserPresets.json` by a preset that inherits one of these
   and sets the cache variable `Python3_EXECUTABLE`. No machine path is ever
   committed.

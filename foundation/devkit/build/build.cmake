@@ -3,7 +3,7 @@
 # CMakeLists.txt after project(), before any target.
 option(QIVEN_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
 option(QIVEN_HAL "Build qiven_compute, its fake and its cases" ON)
-option(QIVEN3_STRUCTURE "Write the records the structure tests read" OFF)
+option(QIVEN_STRUCTURE "Write the records the structure tests read" OFF)
 option(QIVEN_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
 option(QIVEN_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)
 set(QIVEN_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address, fuzzer,address; elsewhere address,undefined, thread, fuzzer,address,undefined or memory")
@@ -47,7 +47,7 @@ if(NOT MSVC AND NOT APPLE)
   include(CheckPIESupported)
   check_pie_supported(OUTPUT_VARIABLE qiven_pie_output LANGUAGES C CXX)
   if(NOT CMAKE_C_LINK_PIE_SUPPORTED OR NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
-    message(FATAL_ERROR "qiven3: the toolchain does not link position-independent executables: "
+    message(FATAL_ERROR "qiven: the toolchain does not link position-independent executables: "
       "${qiven_pie_output}")
   endif()
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -86,8 +86,8 @@ set(QIVEN_PIN_CMAKE 4.4.3)
 set(QIVEN_PIN_NINJA 1.13.2)
 set(QIVEN_PIN_PYTHON 3.15.0)
 
-message(STATUS "qiven3: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-message(STATUS "qiven3: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
+message(STATUS "qiven: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "qiven: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
 # The C++ compiler's id in the cache, where K11 reads it: clang's sanitizer
 # runtimes, not gcc's, link a residual (foundation/devkit/structure/imports.py).
 set(QIVEN_CXX_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}" CACHE INTERNAL "the C++ compiler's CMake id")
@@ -112,7 +112,7 @@ if(QIVEN_PIN_TOOLS)
       endif()
     endif()
     if(NOT qiven_held)
-      message(FATAL_ERROR "qiven3: the ${lang} compiler is ${qiven_id} ${qiven_version}; "
+      message(FATAL_ERROR "qiven: the ${lang} compiler is ${qiven_id} ${qiven_version}; "
         "the pin is ${qiven_pinned}")
     endif()
   endforeach()
@@ -122,27 +122,27 @@ if(QIVEN_PIN_TOOLS)
     # reads the running system under Ninja, not the SDK the compiler uses.
     string(REGEX REPLACE "[\\/]+$" "" qiven_sdk "$ENV{WindowsSDKVersion}")
     if(NOT qiven_sdk STREQUAL QIVEN_PIN_SDK)
-      message(FATAL_ERROR "qiven3: the toolchain's environment names the Windows SDK "
+      message(FATAL_ERROR "qiven: the toolchain's environment names the Windows SDK "
         "'${qiven_sdk}'; the pin is ${QIVEN_PIN_SDK}")
     endif()
   endif()
   if(NOT CMAKE_VERSION VERSION_EQUAL QIVEN_PIN_CMAKE)
-    message(FATAL_ERROR "qiven3: CMake is ${CMAKE_VERSION}; the pin is ${QIVEN_PIN_CMAKE}")
+    message(FATAL_ERROR "qiven: CMake is ${CMAKE_VERSION}; the pin is ${QIVEN_PIN_CMAKE}")
   endif()
   if(NOT CMAKE_GENERATOR STREQUAL "Ninja")
-    message(FATAL_ERROR "qiven3: the generator is ${CMAKE_GENERATOR}; the pin is Ninja")
+    message(FATAL_ERROR "qiven: the generator is ${CMAKE_GENERATOR}; the pin is Ninja")
   endif()
   execute_process(COMMAND "${CMAKE_MAKE_PROGRAM}" --version
     OUTPUT_VARIABLE qiven_ninja OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE qiven_ninja_status)
   if(NOT qiven_ninja_status EQUAL 0 OR NOT qiven_ninja VERSION_EQUAL QIVEN_PIN_NINJA)
-    message(FATAL_ERROR "qiven3: Ninja is '${qiven_ninja}'; the pin is ${QIVEN_PIN_NINJA}")
+    message(FATAL_ERROR "qiven: Ninja is '${qiven_ninja}'; the pin is ${QIVEN_PIN_NINJA}")
   endif()
   if(NOT Python3_EXECUTABLE)
-    message(FATAL_ERROR "qiven3: name the interpreter, CPython ${QIVEN_PIN_PYTHON}, "
+    message(FATAL_ERROR "qiven: name the interpreter, CPython ${QIVEN_PIN_PYTHON}, "
       "by Python3_EXECUTABLE (see README.md)")
   endif()
-  message(STATUS "qiven3: pinned tools hold: SDK ${qiven_sdk}, CMake ${CMAKE_VERSION}, Ninja ${qiven_ninja}")
+  message(STATUS "qiven: pinned tools hold: SDK ${qiven_sdk}, CMake ${CMAKE_VERSION}, Ninja ${qiven_ninja}")
 endif()
 
 # The interpreter: the pin exactly with QIVEN_PIN_TOOLS; else, as on CI,
@@ -153,7 +153,7 @@ elseif(Python3_EXECUTABLE)
   find_package(Python3 3.15 REQUIRED COMPONENTS Interpreter)
 endif()
 if(Python3_EXECUTABLE)
-  message(STATUS "qiven3: interpreter CPython ${Python3_VERSION}")
+  message(STATUS "qiven: interpreter CPython ${Python3_VERSION}")
 endif()
 
 # The flags of every core and test target, through qiven_build. RTTI is
@@ -234,7 +234,7 @@ check_cxx_source_compiles("
 int main() { return 0; }" QIVEN_CPLUSPLUS_20)
 unset(CMAKE_REQUIRED_FLAGS)
 if(NOT QIVEN_CPLUSPLUS_20)
-  message(FATAL_ERROR "qiven3: __cplusplus is below 202002 under the build's flags")
+  message(FATAL_ERROR "qiven: __cplusplus is below 202002 under the build's flags")
 endif()
 
 # The sanitizers, libFuzzer's main on the fuzz targets alone.
@@ -286,12 +286,12 @@ int main() { return 0; }" QIVEN_WINDOWS_FLOOR)
   unset(CMAKE_REQUIRED_DEFINITIONS)
   unset(CMAKE_REQUIRED_FLAGS)
   if(NOT QIVEN_WINDOWS_FLOOR)
-    message(FATAL_ERROR "qiven3: the build's flags do not set NTDDI_VERSION 0x0A000010 (NTDDI_WIN11_GE) "
+    message(FATAL_ERROR "qiven: the build's flags do not set NTDDI_VERSION 0x0A000010 (NTDDI_WIN11_GE) "
       "and _WIN32_WINNT and WINVER 0x0A00 (_WIN32_WINNT_WIN10), Windows 11 24H2's floor")
   endif()
 elseif(APPLE)
   if(NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "15.0")
-    message(FATAL_ERROR "qiven3: CMAKE_OSX_DEPLOYMENT_TARGET is '${CMAKE_OSX_DEPLOYMENT_TARGET}', "
+    message(FATAL_ERROR "qiven: CMAKE_OSX_DEPLOYMENT_TARGET is '${CMAKE_OSX_DEPLOYMENT_TARGET}', "
       "not macOS 15.0's floor")
   endif()
   add_compile_options(-Wunguarded-availability -Werror=unguarded-availability)
@@ -311,7 +311,7 @@ if(MSVC)
     string(REGEX REPLACE "/+$" "" qiven_sdk_dir "${qiven_sdk_dir}")
     list(APPEND qiven_path_maps "${qiven_sdk_dir}=sdk")
   else()
-    message(WARNING "qiven3: WindowsSdkDir is unset: the SDK's paths stay unmapped")
+    message(WARNING "qiven: WindowsSdkDir is unset: the SDK's paths stay unmapped")
   endif()
   add_compile_options(/experimental:deterministic /Brepro)
   foreach(map IN LISTS qiven_path_maps)
@@ -340,7 +340,7 @@ else()
   endforeach()
 endif()
 list(JOIN qiven_path_maps ", " qiven_maps_text)
-message(STATUS "qiven3: paths mapped: ${qiven_maps_text}")
+message(STATUS "qiven: paths mapped: ${qiven_maps_text}")
 
 # Static analysis of v3's own sources, never a vendored file, every finding an
 # error under /WX. stack: C6262 alone, a frame past 4,096 bytes. analysis:
@@ -348,7 +348,7 @@ message(STATUS "qiven3: paths mapped: ${qiven_maps_text}")
 # compile_commands.json (below). The rule sets list each rule turned off
 # with its reason.
 if(QIVEN_ANALYZE AND NOT MSVC)
-  message(FATAL_ERROR "qiven3: QIVEN_ANALYZE is MSVC's; gcc and clang check frames by -Wframe-larger-than")
+  message(FATAL_ERROR "qiven: QIVEN_ANALYZE is MSVC's; gcc and clang check frames by -Wframe-larger-than")
 endif()
 if(QIVEN_ANALYZE STREQUAL "stack")
   target_compile_options(qiven_build INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:/analyze;/analyze:stacksize4096;/analyze:ruleset${CMAKE_CURRENT_LIST_DIR}/stack.ruleset>")
@@ -359,7 +359,7 @@ elseif(QIVEN_ANALYZE STREQUAL "analysis")
   file(TO_CMAKE_PATH "$ENV{VSINSTALLDIR}" qiven_vs_dir)
   set(qiven_rule_sets "${qiven_vs_dir}/Team Tools/Static Analysis Tools/Rule Sets")
   if(NOT EXISTS "${qiven_rule_sets}/CppCoreCheckRules.ruleset")
-    message(FATAL_ERROR "qiven3: no CppCoreCheckRules.ruleset under VSINSTALLDIR; configure from the toolset's environment")
+    message(FATAL_ERROR "qiven: no CppCoreCheckRules.ruleset under VSINSTALLDIR; configure from the toolset's environment")
   endif()
   # On the targets of src/ and tests/support/ alone (below).
   set(qiven_analysis_options /analyze /analyze:pluginEspXEngine.dll
@@ -376,17 +376,17 @@ elseif(QIVEN_ANALYZE STREQUAL "analysis")
   find_program(QIVEN_CLANG_TIDY clang-tidy HINTS "$ENV{ProgramFiles}/LLVM/bin" REQUIRED)
   execute_process(COMMAND "${QIVEN_CLANG_TIDY}" --version OUTPUT_VARIABLE qiven_tidy_version)
   string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" qiven_tidy_version "${qiven_tidy_version}")
-  message(STATUS "qiven3: clang-tidy ${qiven_tidy_version}")
+  message(STATUS "qiven: clang-tidy ${qiven_tidy_version}")
 elseif(QIVEN_ANALYZE)
-  message(FATAL_ERROR "qiven3: QIVEN_ANALYZE is '${QIVEN_ANALYZE}'; it is empty, stack or analysis")
+  message(FATAL_ERROR "qiven: QIVEN_ANALYZE is '${QIVEN_ANALYZE}'; it is empty, stack or analysis")
 endif()
 
 # Both options change the memory package's types, so every target sees them;
-# QIVEN_SYSTEM_HEAP all but the targets with QIVEN3_POISONED set, memory's
+# QIVEN_SYSTEM_HEAP all but the targets with QIVEN_POISONED set, memory's
 # own code and cases built a second time on the span's own blocks
 # (tests/unit/CMakeLists.txt).
 if(QIVEN_SYSTEM_HEAP)
-  add_compile_definitions($<$<NOT:$<BOOL:$<TARGET_PROPERTY:QIVEN3_POISONED>>>:QIVEN_SYSTEM_HEAP>)
+  add_compile_definitions($<$<NOT:$<BOOL:$<TARGET_PROPERTY:QIVEN_POISONED>>>:QIVEN_SYSTEM_HEAP>)
 endif()
 if(QIVEN_FAULTS)
   add_compile_definitions(QIVEN_FAULTS)
@@ -402,12 +402,12 @@ if(QIVEN_LOG_MIN STREQUAL "")
 elseif(QIVEN_LOG_MIN MATCHES "^(trace|debug|info|warn|error)$")
   set(qiven_log_level "${QIVEN_LOG_MIN}")
 else()
-  message(FATAL_ERROR "qiven3: QIVEN_LOG_MIN is '${QIVEN_LOG_MIN}'; it is empty, trace, debug, info, warn or error")
+  message(FATAL_ERROR "qiven: QIVEN_LOG_MIN is '${QIVEN_LOG_MIN}'; it is empty, trace, debug, info, warn or error")
 endif()
 set(QIVEN_LOG_LEVEL "${qiven_log_level}" CACHE INTERNAL "The log's minimum level in effect")
 add_compile_definitions(QIVEN_LOG_MIN=${qiven_log_level})
 
-message(STATUS "qiven3: QIVEN_HAL ${QIVEN_HAL}, QIVEN3_STRUCTURE ${QIVEN3_STRUCTURE}, "
+message(STATUS "qiven: QIVEN_HAL ${QIVEN_HAL}, QIVEN_STRUCTURE ${QIVEN_STRUCTURE}, "
   "QIVEN_SYSTEM_HEAP ${QIVEN_SYSTEM_HEAP}, QIVEN_FAULTS ${QIVEN_FAULTS}")
 
 # Every binary in one directory: the tests find each there, and the
