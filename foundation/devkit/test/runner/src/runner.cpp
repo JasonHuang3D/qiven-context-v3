@@ -17,8 +17,12 @@ std::vector<Case>& registry() {
     return cases;
 }
 
-Registrar::Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) {
-    registry().push_back(Case{name, logged, fn, serial});
+Registrar::Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) noexcept {
+    try {
+        registry().push_back(Case{name, logged, fn, serial});
+    } catch (...) {
+        qiven::memory::fail_fast("runner::Registrar: the registry could not take a case");
+    }
 }
 
 namespace {
@@ -38,13 +42,32 @@ bool named(std::ostream& out) {
     return false;
 }
 
-}  // namespace
-
-NamerRegistrar::NamerRegistrar(Namer namer) {
-    if (std::find(namers().begin(), namers().end(), namer) == namers().end()) {
-        namers().push_back(namer);
+// An empty list of Counted's, made in place in the caller's member; an
+// allocation failure of its own ends by the fail-fast.
+template <class List>
+List empty_list() noexcept {
+    try {
+        return List();
+    } catch (...) {
+        qiven::memory::fail_fast("runner::Counted: a list of its allocators could not be made");
     }
 }
+
+}  // namespace
+
+NamerRegistrar::NamerRegistrar(Namer namer) noexcept {
+    try {
+        if (std::find(namers().begin(), namers().end(), namer) == namers().end()) {
+            namers().push_back(namer);
+        }
+    } catch (...) {
+        qiven::memory::fail_fast("runner::NamerRegistrar: the namers could not take a namer");
+    }
+}
+
+Counted::Counted() noexcept
+    : arenas_(empty_list<decltype(arenas_)>()), pools_(empty_list<decltype(pools_)>()),
+      heaps_(empty_list<decltype(heaps_)>()) {}
 
 qiven::memory::Arena& Counted::arena(std::size_t bytes) {
     Owned<qiven::memory::Arena>& owned = arenas_.emplace_back(bytes);

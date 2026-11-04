@@ -84,7 +84,7 @@ void sample_counted_none_held(Context& qiven_ctx) {
     qiven::memory::Arena& arena = qiven_ctx.counted.arena(4096);
     const qiven::memory::String text("a text past the string's own small buffer",
                                       qiven::memory::Allocator<char>(arena));
-    CHECK(arena.used() > 0);
+    CHECK(arena.used() > text.size());
     qiven::memory::Pool& pool = qiven_ctx.counted.pool(32, 4096);
     pool.free(pool.allocate());
     qiven::memory::Heap& heap = qiven_ctx.counted.heap(8192);

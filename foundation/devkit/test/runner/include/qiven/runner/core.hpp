@@ -47,7 +47,9 @@ inline constexpr int exit_skip = 125;
 // as many bytes as asked.
 class Counted {
 public:
-    Counted() noexcept = default;
+    // Holds nothing; an allocation failure of its lists' own (MSVC's
+    // checked iterators allocate each deque's proxy) ends by the fail-fast.
+    Counted() noexcept;
     Counted(const Counted&) = delete;
     Counted& operator=(const Counted&) = delete;
     Counted(Counted&&) = delete;
@@ -104,8 +106,9 @@ struct Case {
 // Every case of this binary, in the order of registration.
 std::vector<Case>& registry();
 
+// Adds a case to the registry; an allocation failure ends by the fail-fast.
 struct Registrar {
-    Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial);
+    Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) noexcept;
 };
 
 // What a case's end is given to: the log the case ran with, the case, its
@@ -120,8 +123,9 @@ using Ended = void (*)(qiven::log::Log& log, const Case& c, int status, std::chr
 // NamerRegistrar), the first to give true naming the error.
 using Namer = bool (*)(std::ostream& out);
 
+// Adds a namer once; an allocation failure ends by the fail-fast.
 struct NamerRegistrar {
-    explicit NamerRegistrar(Namer namer);
+    explicit NamerRegistrar(Namer namer) noexcept;
 };
 
 // Thrown by QIVEN_SKIP: the case does not apply, for the reason given.

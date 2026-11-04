@@ -62,6 +62,8 @@
      "reason": "B26: memory alone places and frees blocks by offset, with its own cases, fault runs and poisoning under AddressSanitizer."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-avoid-non-const-global-variables", "scope": "foundation/core/memory/",
      "reason": "B25's allowance: memory/fail keeps fail_fast's cause at namespace scope, for the diagnostic entry's terminate handler, which reads it with nothing allocated."},
+    {"tool": "clang-tidy", "check": "cppcoreguidelines-avoid-non-const-global-variables", "scope": "foundation/devkit/test/runner/tests/",
+     "reason": "B25's allowance: the runner's own cases' two state globals, reached and held_slots, each by its name, which a sample case sets and the case that runs it reads."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-type-union-access", "scope": "foundation/system/platform/src/windows/",
      "reason": "B23: a Win32 structure's own union is read here alone (OVERLAPPED, LARGE_INTEGER, PROPVARIANT)."},
     {"tool": "clang-tidy", "check": "cppcoreguidelines-pro-type-vararg", "scope": "foundation/services/storage/sqlite/src/",
