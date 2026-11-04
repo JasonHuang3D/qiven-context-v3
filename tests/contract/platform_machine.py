@@ -1,6 +1,6 @@
 """The platform's machine cases P17, P18, P21 and P22, each defined once
 over an adapter (contract/platform_cases.py names the binding's part):
-this machine's facts and code page, its residual rows, the program search and the guard's path forms,
+this machine's facts, its residual rows, the program search and the guard's path forms,
 each value as measured here.
 
 Each needs machine, which the fake lacks: on the fake each is not
@@ -26,9 +26,8 @@ from tests.drive.session import environment
 
 CASES = ("test_P17_facts_here", "test_P18_residual_here", "test_P21_program", "test_P22_forms_here")
 
-# P17: each fixed drive's facts here, and the code page.
+# P17: each fixed drive's facts here.
 FACTS_HERE = {"protection": ("unknown", "admin_only"), "file_history": ("off", None), "bitlocker": ("off", None)}
-CODE_PAGE = "cp936"
 # P18: each row's name and applies here, in the rows' order.
 RESIDUAL_HERE = (("restore_points", "unknown"), ("file_history", "no"), ("pagefile", "yes"),
                  ("hibernation", "no"), ("crash_dumps", "yes"), ("encryption", "yes"))
@@ -76,11 +75,11 @@ class Waiting:
 
 class PlatformMachine(Waiting):
     def test_P17_facts_here(self):
-        """code_page(); facts of a temporary directory on each fixed drive:
-        protection unknown (admin_only), File History and BitLocker off."""
+        """Facts of a temporary directory on each fixed drive: protection
+        unknown (admin_only), File History and BitLocker off. The code page
+        is left out: the console this runs under decides it, which the case
+        cannot set; its form is pinned by platform's own case."""
         self.needs("machine")
-        with self.drive() as d:
-            self.assertEqual(d.code_page(), CODE_PAGE)
         self.waiting(self.FACTS, "facts: win/facts", "facts", path=str(self.scratch))
         fixed = [letter for letter, kind in logical_drives().items() if kind == 3]
         self.assertIn("C", fixed)
