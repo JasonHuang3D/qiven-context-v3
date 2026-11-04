@@ -189,11 +189,13 @@ B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qive
                          "qiven_time", "qiven_digest", "qiven3_format"))
 B13_LINKS = ("qiven_sqlite", "qiven_storage_sqlite", "qiven_recordlog", "qiven3_forget", "qiven3_secret",
              "qiven3_mapcheck", "qiven3_bundle", "qiven3_backup")
-# Core logic: every product target but the adapters, current and compute's.
+# Core logic: every product target but the adapters, current and compute's,
+# and diag's files that call the system; the ring and the rest of diag are core.
 NOT_CORE = ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
             "foundation/system/platform/src/fake/", "foundation/system/platform/include/qiven/platform/fake/",
             "foundation/system/platform/include/qiven/platform/current.", "foundation/system/platform/src/current.",
-            "foundation/services/compute/", DIAG)
+            "foundation/services/compute/", DIAG + "src/diag_linux.cpp", DIAG + "src/diag_windows.cpp",
+            DIAG + "src/entry.cpp", DIAG + "src/out.cpp", DIAG + "src/signal.")
 NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current", "qiven_platform_fake",
                               "qiven_compute", "qiven_compute_fake", "qiven_diag", "qiven_diag_entry",
                               "qiven_diag_crtdbg", "qiven_diag_entry_crtdbg", "qiven_diag_poisoned",

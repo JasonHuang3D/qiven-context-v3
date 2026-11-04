@@ -417,7 +417,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 # qiven_executable(<name> SOURCES <source>... [LINK <target>...] [DIAG <suffix>] [WIDE])
 # Every executable of the build, and the one add_executable: its sources,
 # linked with LINK and the diagnostic entry's object library, whose object
-# it takes and which links qiven_diag, the entry point qiven3_entry on
+# it takes and which links qiven_diag, the entry point qiven_diag_start on
 # Windows, and the binary listed in the build's binaries.txt. DIAG names a
 # variant of the entry's targets (foundation/system/diag/CMakeLists.txt),
 # for a binary on another runtime or memory.
@@ -440,7 +440,7 @@ function(qiven_executable name)
   add_executable(${name} ${arg_SOURCES})
   target_link_libraries(${name} PRIVATE qiven_build ${arg_LINK} ${entry})
   if(MSVC)
-    target_link_options(${name} PRIVATE /ENTRY:qiven3_entry)
+    target_link_options(${name} PRIVATE /ENTRY:qiven_diag_start)
   endif()
   set_property(GLOBAL APPEND PROPERTY QIVEN_BINARIES ${name})
 endfunction()

@@ -20,7 +20,7 @@ extern "C" DWORD wmainCRTStartup(LPVOID);
 extern "C" DWORD mainCRTStartup(LPVOID);
 #endif
 
-extern "C" __declspec(safebuffers) DWORD qiven3_entry(LPVOID peb) {
+extern "C" __declspec(safebuffers) DWORD qiven_diag_start(LPVOID peb) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 #if defined(QIVEN_WIDE_MAIN)
     return wmainCRTStartup(peb);
@@ -60,7 +60,7 @@ const First first;
 #include <cstdlib>
 #include <string_view>
 
-extern "C" __attribute__((constructor(101))) void qiven3_entry() {
+extern "C" __attribute__((constructor(101))) void qiven_diag_start() {
     qiven::diag::install();
     const char* value = std::getenv("QIVEN_DIAG_PROBE");
     if (value != nullptr && std::string_view(value) == "1") {

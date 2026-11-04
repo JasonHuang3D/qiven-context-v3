@@ -59,8 +59,9 @@ def is_instantiation(path):
 def is_core(path, tree):
     """Core logic, by layer in the tree's table: a library's file of a
     module of core to products (layers.Layers.library()), not devkit's, layer
-    0, nor test code nor a vendor's; the adapters, current, compute and the
-    diagnostic entry apart (NOT_CORE), and the instantiation files."""
+    0, nor test code nor a vendor's; the adapters, current, compute and
+    diag's files that call the system apart (NOT_CORE), and the
+    instantiation files."""
     return tree.library(path) and not under(path, NOT_CORE) and not is_instantiation(path)
 
 
