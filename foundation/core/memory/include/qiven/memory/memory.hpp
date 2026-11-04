@@ -1,10 +1,10 @@
 #pragma once
 
 // memory: v3's allocator type and containers over an arena, the budget's
-// error, bounded text, the lock, checked sizes and, under QIVEN_FAULTS, the
-// failing countdown. Ownership is single and scoped: an arena lends its
-// bytes to the containers of one operation and takes them all back at its
-// end.
+// error, bounded text, the lock, checked sizes, objects begun on lent bytes
+// and, under QIVEN_FAULTS, the failing countdown. Ownership is single and
+// scoped: an arena lends its bytes to the containers of one operation and
+// takes them all back at its end.
 //
 // thread: one, but Mutex, which is shared by the threads that lock it.
 
@@ -13,8 +13,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <mutex>
+#include <new>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -72,6 +75,37 @@ constexpr std::array<T, N> each_value() {
     return []<std::size_t... I>(std::index_sequence<I...>) {
         return std::array<T, N>{((void)I, T())...};
     }(std::make_index_sequence<N>());
+}
+
+// count value-initialized T begun on the caller's bytes by placement new,
+// which B20 allows in memory alone, on the bytes' front: those objects. The
+// bytes stay the caller's, lent, and so does their release; so does the
+// objects' destruction, owed before the bytes' release unless T is
+// trivially destructible. The bytes hold count T from their first byte,
+// which is at a multiple of alignof(T); bytes that do not, or a count
+// whose bytes overflow, are a broken invariant, ended by fail_fast. T's
+// value-initialization throws nothing, which T is constrained to, and so
+// this throws nothing.
+template <typename T>
+    requires std::is_nothrow_default_constructible_v<T>
+[[nodiscard]] std::span<T> begin_lifetimes(std::span<std::byte> bytes, std::size_t count) noexcept {
+    if (count == 0) {
+        return {};
+    }
+    // std::align moves `at` only when the first byte is not aligned, and
+    // gives null when the bytes cannot hold the objects.
+    void* at = bytes.data();
+    std::size_t space = bytes.size();
+    const std::optional<std::size_t> need = mul(count, sizeof(T));
+    if (!need || std::align(alignof(T), *need, at, space) != bytes.data()) {
+        fail_fast("qiven::memory::begin_lifetimes: bytes that cannot hold the objects");
+    }
+    // Each object begun on its own bytes' address; the first byte's address,
+    // laundered, reaches them all.
+    for (std::size_t i = 0; i < count; ++i) {
+        ::new (static_cast<void*>(&bytes[i * sizeof(T)])) T();
+    }
+    return std::span<T>(std::launder(static_cast<T*>(at)), count);
 }
 
 // At most N bytes of text held in place, cut at a code point: a cut never

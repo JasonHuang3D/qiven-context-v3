@@ -12,7 +12,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <new>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -93,10 +92,9 @@ void WindowsFiles::take_slots(std::size_t open_bound) {
                             Detail("a table past the address space: ").number(open_bound).add(" slots"));
     }
     WindowsPages pages = platform_->pages(*bytes);
-    const std::span<Slot> slots(static_cast<Slot*>(pages.address()), open_bound);
-    for (Slot& slot : slots) {
-        ::new (static_cast<void*>(&slot)) Slot{};  // the pages' zero bytes are no objects
-    }
+    // The pages' zero bytes are no objects. A Slot is trivially
+    // destructible: the table's slots end with its pages.
+    const std::span<Slot> slots = qiven::memory::begin_lifetimes<Slot>(pages.bytes(), open_bound);
     slot_pages_ = std::move(pages);
     slots_ = slots;
 }

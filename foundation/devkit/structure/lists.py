@@ -143,6 +143,9 @@ STATED = {
     ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
+    ("B17", "foundation/core/memory/include/qiven/memory/memory.hpp", "new"): "placement new for "
+                                                                       "begin_lifetimes, which B20 "
+                                                                       "allows memory alone",
     ("B9", "foundation/core/memory/include/qiven/memory/poison.hpp", "asan_interface.h"): "AddressSanitizer's poisoning calls on what "
                                                          "memory's allocators hold, "
                                                          "sanitizer/asan_interface.h, included under the "
