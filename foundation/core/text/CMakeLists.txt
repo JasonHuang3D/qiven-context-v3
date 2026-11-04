@@ -7,8 +7,7 @@
 #
 # qiven_text_targets(<suffix> <memory target>) makes qiven_text with the
 # suffix, over the memory target given: "" over qiven_memory, and the
-# variants built on another memory (memory's tests' _poisoned, the faults'
-# _crtdbg).
+# variant built on another memory (memory's tests' _poisoned).
 function(qiven_text_targets suffix memory)
   set(dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
   add_library(qiven_text${suffix} STATIC

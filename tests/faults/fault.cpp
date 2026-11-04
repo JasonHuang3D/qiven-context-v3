@@ -19,9 +19,9 @@
 //              library stops before the read
 //   span-in    the same read in bounds, span's control; exit 0
 //
-// Before its plant each run keeps a Log's crash buffer and ends 20
-// operations "plant" in it, more than the report's 16 events, which so
-// end with the last op.end.
+// Before its plant each run keeps a crash buffer of its own and pushes in
+// it 20 lines, operations 1 to 20 "plant" ended "ok", each a JSON object,
+// more than the report's 16 events, which so end with the last.
 
 #include <array>
 #include <chrono>
@@ -31,14 +31,14 @@
 #include <cstdlib>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <vector>
 
-#include "log/log.hpp"
 #include "qiven/diag/diag.hpp"
 #include "qiven/diag/out.hpp"
-#include "qiven/memory/arena.hpp"
+#include "qiven/diag/ring.hpp"
 #include "qiven/memory/fail.hpp"
 
 #ifdef _MSC_VER
@@ -53,15 +53,28 @@ namespace {
 
 constexpr std::size_t frame_bytes = 4000;
 constexpr std::uint64_t operations = 20;
+// A line's bound with its '\n': the longest, operation 20's, takes 57.
+constexpr std::size_t line_bytes = 64;
 
-// The Log's pages, its ring's and its events', and the arena's padding.
-alignas(std::max_align_t) std::array<std::byte, qiven3::log::Log::ring_bytes + qiven3::log::Log::event_bytes + 256>
-    pages{};
+// The ring's span: every line held, none evicted.
+std::array<char, operations * line_bytes> storage{};
 
-// A Log's ring kept for the report while it lives.
+// The ring's lines, operations 1 to 20 ended: false when it refuses one.
+bool fill(qiven::diag::Ring& ring) {
+    for (std::uint64_t op = 1; op <= operations; ++op) {
+        const std::string line =
+            R"({"event":"op.end","name":"plant","op":)" + std::to_string(op) + R"(,"outcome":"ok"})";
+        if (!ring.push(line)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A ring kept for the report while it lives.
 class Kept {
 public:
-    explicit Kept(const qiven3::log::Log& log) noexcept : ring_(log.ring()) { qiven::diag::keep(ring_); }
+    explicit Kept(const qiven::diag::Ring& ring) noexcept : ring_(ring) { qiven::diag::keep(ring_); }
     Kept(const Kept&) = delete;
     Kept& operator=(const Kept&) = delete;
     Kept(Kept&&) = delete;
@@ -165,11 +178,11 @@ QIVEN3_PLANT int plant_out() {
 
 int main(int argc, char** argv) {
     const std::string_view plant = argc == 2 ? argv[1] : "";
-    qiven::memory::Arena arena(pages);
-    qiven3::log::Log lg(arena, qiven3::log::Count(1U), "qiven3-fault");
-    const Kept kept(lg);
-    for (std::uint64_t i = 0; i < operations; ++i) {
-        qiven3::log::begin(lg, "plant").end("ok", qiven3::log::Count(0U));
+    qiven::diag::Ring ring(storage);
+    const Kept kept(ring);
+    if (!fill(ring)) {
+        std::fputs("qiven3-fault: the ring refused a line\n", stderr);
+        return 1;
     }
     if (plant == "null") {
         return plant_null();

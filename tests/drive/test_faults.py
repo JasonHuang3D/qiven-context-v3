@@ -28,8 +28,9 @@ libstdc++'s hardened check), whose cause is then the signal. K3 runs in
 qiven3-fault-crtdbg on Windows, on the debug runtime; in a Debug build,
 whose qiven3-fault is on that runtime too, K4's fclose reports the
 runtime's own assertion before its invalid parameter, status 3. Each
-run keeps a Log's ring and ends 20 operations in it first: the events
-are the last 16 lines, op.end of operation 20 the last. Under a sanitizer,
+run keeps a ring of its own and pushes 20 lines in it first, operations
+1 to 20 ended: the events are the last 16 lines, op.end of operation 20
+the last. Under a sanitizer,
 whose report stands for the entry's, every case is skipped. Dumps are in
 the build's dumps/, where the watcher sends them.
 """

@@ -1,30 +1,22 @@
 # qiven3-fault, the diagnostic entry's planted faults (fault.cpp), which
-# tests/drive/test_faults.py runs; never a CTest test itself.
-qiven_executable(qiven3-fault SOURCES fault.cpp fault_assert.cpp LINK qiven3_log)
+# tests/drive/test_faults.py runs; never a CTest test itself. It fills a
+# ring of its own and links the entry alone, memory through it.
+qiven_executable(qiven3-fault SOURCES fault.cpp fault_assert.cpp)
 
 # qiven3-fault-crtdbg: the same plants on the debug runtime (/MTd, _DEBUG)
-# in every Windows build, with memory, text, the log and the entry
-# built again on it, for the debug build's assertion report. Under a
-# sanitizer, whose report stands for the entry's, the cases are skipped and
-# the binary not built.
+# in every Windows build, with memory and the entry built again on it, for
+# the debug build's assertion report. Under a sanitizer, whose report
+# stands for the entry's, the cases are skipped and the binary not built.
 if(MSVC AND NOT QIVEN_SANITIZE)
-  # A library again over its own sources, linking the variants given.
-  function(qiven3_crtdbg_library name dir)
-    get_target_property(sources ${name} SOURCES)
-    list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/${dir}/")
-    add_library(${name}_crtdbg STATIC ${sources})
-    get_target_property(includes ${name} INTERFACE_INCLUDE_DIRECTORIES)
-    target_include_directories(${name}_crtdbg PUBLIC ${includes})
-    target_link_libraries(${name}_crtdbg PUBLIC ${ARGN} PRIVATE qiven_build)
-  endfunction()
-  qiven3_crtdbg_library(qiven_memory foundation/core/memory)
-  qiven_text_targets(_crtdbg qiven_memory_crtdbg)
-  qiven3_crtdbg_library(qiven3_log src/log qiven_diag_crtdbg qiven_text_crtdbg qiven_memory_crtdbg)
+  get_target_property(qiven_memory_sources qiven_memory SOURCES)
+  get_target_property(qiven_memory_dir qiven_memory SOURCE_DIR)
+  list(TRANSFORM qiven_memory_sources PREPEND "${qiven_memory_dir}/")
+  add_library(qiven_memory_crtdbg STATIC ${qiven_memory_sources})
+  target_include_directories(qiven_memory_crtdbg PUBLIC "${qiven_memory_dir}/include")
+  target_link_libraries(qiven_memory_crtdbg PRIVATE qiven_build)
   qiven_diag_targets(_crtdbg qiven_memory_crtdbg)
-  qiven_executable(qiven3-fault-crtdbg SOURCES fault.cpp fault_assert.cpp LINK qiven3_log_crtdbg
-    DIAG _crtdbg)
-  foreach(target IN ITEMS qiven_memory_crtdbg qiven_text_crtdbg qiven3_log_crtdbg qiven_diag_crtdbg
-                          qiven_diag_entry_crtdbg qiven3-fault-crtdbg)
+  qiven_executable(qiven3-fault-crtdbg SOURCES fault.cpp fault_assert.cpp DIAG _crtdbg)
+  foreach(target IN ITEMS qiven_memory_crtdbg qiven_diag_crtdbg qiven_diag_entry_crtdbg qiven3-fault-crtdbg)
     set_target_properties(${target} PROPERTIES MSVC_RUNTIME_LIBRARY MultiThreadedDebug)
     target_compile_definitions(${target} PRIVATE _DEBUG)
   endforeach()
