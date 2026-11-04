@@ -56,8 +56,8 @@ def stray_calls(root):
 def probe_problem(command):
     """None when the binary's entry answers its probe, else what it gave."""
     env = dict(os.environ, QIVEN_DIAG_PROBE="1")
-    # The test tree's library, which qiven3-fault-import imports, by the
-    # loader's path on Linux: the binary holds no run path (K11).
+    # The test tree's library, which qiven_diag_fault_import imports, by
+    # the loader's path on Linux: the binary holds no run path (K11).
     env["LD_LIBRARY_PATH"] = str(Path(command[0]).parent)
     done = subprocess.run(command, capture_output=True, env=env, stdin=subprocess.DEVNULL,
                           timeout=binaries.TIMEOUT, check=False)

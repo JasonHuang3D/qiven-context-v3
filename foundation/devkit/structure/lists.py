@@ -155,8 +155,9 @@ STATED = {
                                                "path fails",
     ("B9", "tests/driver/common.cpp", "io.h"): "as B6's",
     ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
-    ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
-                                                         "that reaches the diagnostic entry's report hook",
+    ("B9", DIAG + "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the "
+                                                                "one that reaches the diagnostic entry's report "
+                                                                "hook",
     ("B9", DIAG + "src/out.cpp", "fcntl.h"): "open, for the file QIVEN_LOG names, on Linux",
     ("B5", "tools/git_shim.c", "windows.h"): "the tests' counting shim on Windows, which loop_shim.py builds by cl and "
                                             "CMake never: its log, its environment and the real program's start",
@@ -201,9 +202,9 @@ NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current"
                               "qiven_compute", "qiven_compute_fake", "qiven_diag", "qiven_diag_entry",
                               "qiven_diag_crtdbg", "qiven_diag_entry_crtdbg", "qiven_diag_poisoned",
                               "qiven_diag_entry_poisoned",
-                              # memory again on the debug runtime, for qiven3-fault-crtdbg alone:
-                              # its objects name that runtime, which the records do not read; the
-                              # release copy is read.
+                              # memory again on the debug runtime, for qiven_diag_fault_crtdbg
+                              # alone: its objects name that runtime, which the records do not
+                              # read; the release copy is read.
                               "qiven_memory_crtdbg"))
 CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven_recordlog_keys"))
 # An instantiation file may add its binary's one adapter header.

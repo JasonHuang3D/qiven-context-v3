@@ -1,5 +1,5 @@
 """The watcher's hang path (tools/watch.py, tools/debuggers.py): K8, the
-plant `hang` of qiven3-fault, its main thread and one more each blocked
+plant `hang` of qiven_diag_fault, its main thread and one more each blocked
 for ever, under a limit of 3 s, ends with the watcher's hang line, every
 thread's stack, both threads' holding plant_hang (in a build with no PDB
 beside its binaries, both threads' sleep called from the binary's own
@@ -34,11 +34,11 @@ from unittest import mock
 
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, POLL, sanitized, windows_of
-from tests.drive.test_faults import FAULT
 from tools import debuggers
 from tools import status as status_table
 
 WINDOWS = sys.platform == "win32"
+FAULT = "qiven_diag_fault"
 LIMIT = 3
 AFTER = 30.0  # the watcher's seconds past the limit at most
 HANG_LINES = 200
@@ -288,7 +288,7 @@ class Hang(unittest.TestCase):
             header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
             text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
         else:
-            header = 'Thread {i} (Thread 0x7f00 (LWP {i}) "qiven3-fault"):'
+            header = 'Thread {i} (Thread 0x7f00 (LWP {i}) "qiven_diag_fault"):'
             text = ""
         text += "".join(header.format(i=i + 1) + "\n" + "#0 frame\n" * 3 for i in range(20))
         threads, lines = debuggers.hang_lines(text)

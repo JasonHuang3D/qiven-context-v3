@@ -1,5 +1,5 @@
-"""K20: the standard library's hardened mode, run. qiven3-fault span reads
-index 1 of a span over the first of two elements; each library stops the
+"""K20: the standard library's hardened mode, run. qiven_diag_fault span
+reads index 1 of a span over the first of two elements; each library stops the
 process before the read, in every build, sanitizers' included:
 - libc++ (linux-msan, against the prefix's libc++ under MemorySanitizer):
   the extensive mode's trap, SIGILL. The case asserts that the trap fires,
@@ -21,10 +21,10 @@ import unittest
 
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option, run_watched
-from tests.drive.test_faults import FAULT
 from tools import status as status_table
 
 WINDOWS = sys.platform == "win32"
+FAULT = "qiven_diag_fault"
 BEFORE = "span: reading"
 AFTER = "span: read "  # the line after the read: "span: read past the end" or "span: read in bounds"
 FAIL_FAST = 0xC0000409

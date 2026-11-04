@@ -127,7 +127,6 @@ endif()
 add_subdirectory(driver)
 add_subdirectory(child)
 add_subdirectory(unit)
-add_subdirectory(faults)
 add_subdirectory(fuzz)
 
 # The AddressSanitizer runtime beside each test binary: every binary is
@@ -200,7 +199,7 @@ add_custom_command(OUTPUT "${qiven3_tests_file}"
     -D "ADDR2LINE=${CMAKE_ADDR2LINE}"
     -P "${qiven3_runner_dir}/ctest_tests.cmake"
   DEPENDS ${qiven3_case_binaries} ${qiven3_fuzz_binaries} qiven_runner_demo qiven_memory_fail_demo qiven_memory_free_demo
-    qiven3-fault qiven3-fault-import
+    qiven_diag_fault qiven_diag_fault_import
     ${qiven3_runtime_files} "${qiven3_inputs_file}"
     "${qiven3_runner_dir}/ctest_tests.cmake" "${qiven3_runner_dir}/list_tests.py" ${qiven3_python_files}
     # the table's reader, which labels each test by its module, git's door and the table's reading it loads,

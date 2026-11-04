@@ -9,7 +9,7 @@
 # qiven_diag_targets(<suffix> <memory target>) makes both targets, named
 # with the suffix, over the memory target given: "" over qiven_memory, and
 # the variants of the binaries built on another runtime or another memory
-# (memory's tests' _poisoned, the faults' _crtdbg).
+# (memory's tests' _poisoned, the fault program's _crtdbg, tests/faults/).
 function(qiven_diag_targets suffix memory)
   set(dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
   set(sources "${dir}/src/diag.cpp" "${dir}/include/qiven/diag/diag.hpp" "${dir}/src/events.hpp"

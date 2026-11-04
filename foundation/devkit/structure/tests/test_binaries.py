@@ -3,7 +3,8 @@ libraries, Windows' API sets among Windows' own, or its preset's residual,
 read by foundation/devkit/structure/imports.py
 from its bytes; on Linux it names its loader, holds no run path, and needs
 no glibc symbol version past the floor's, GLIBC_2.39. The control:
-qiven3-fault-import, which imports the test tree's own library, is caught.
+qiven_diag_fault_import, which imports the test tree's own library, is
+caught.
 On macOS Mach-O is not read, so K11's binaries are skipped there: a
 residual."""
 
@@ -17,8 +18,8 @@ from foundation.devkit.structure import imports
 
 WINDOWS = sys.platform == "win32"
 SYSTEM = "windows" if WINDOWS else "linux"
-PLANTED = "qiven3-fault-import"
-PLANTED_LIBRARY = "qiven3_fault_lib.dll" if WINDOWS else "libqiven3_fault_lib.so"
+PLANTED = "qiven_diag_fault_import"
+PLANTED_LIBRARY = "qiven_diag_fault_lib.dll" if WINDOWS else "libqiven_diag_fault_lib.so"
 LOADER = "/lib64/ld-linux-x86-64.so.2"
 MACOS = sys.platform == "darwin"
 

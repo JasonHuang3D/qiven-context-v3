@@ -1,9 +1,9 @@
 """The diagnostic entry's planted faults, K1 to K5, K7 and K9: each plant of
-qiven3-fault, run behind the watcher (tools/watch.py), ends with its cause
-as the report's first line, its stack, its status named by the table
-(K12), no window, within the bounds; K6, qiven3-fault-import copied alone,
-its library missing at load; and K18, the Linux handlers' object calling
-only the async-signal-safe list.
+qiven_diag_fault (tests/faults/), run behind the watcher (tools/watch.py),
+ends with its cause as the report's first line, its stack, its status named
+by the table (K12), no window, within the bounds; K6,
+qiven_diag_fault_import copied alone, its library missing at load; and K18,
+the Linux handlers' object calling only the async-signal-safe list.
 
 The report, on standard error:
 
@@ -25,12 +25,12 @@ address each, which the watcher symbolizes: a frame of the binary's own
 gets its function and line appended, plant_<plant> among them. K3's and
 K4's library writes its own line before the report (glibc's assertion,
 libstdc++'s hardened check), whose cause is then the signal. K3 runs in
-qiven3-fault-crtdbg on Windows, on the debug runtime; in a Debug build,
-whose qiven3-fault is on that runtime too, K4's fclose reports the
-runtime's own assertion before its invalid parameter, status 3. Each
-run keeps a ring of its own and pushes 20 lines in it first, operations
-1 to 20 ended: the events are the last 16 lines, op.end of operation 20
-the last. Under a sanitizer,
+qiven_diag_fault_crtdbg on Windows, on the debug runtime; in a Debug build,
+whose qiven_diag_fault is on that runtime too, K4's fclose reports the
+runtime's own assertion before its invalid parameter, status 3. Each run
+first keeps a ring of its own and pushes in it 20 lines, operations 1 to
+20 ended: the events are the last 16 lines, op.end of operation 20 the
+last. Under a sanitizer,
 whose report stands for the entry's, every case is skipped. Dumps are in
 the build's dumps/, where the watcher sends them.
 """
@@ -51,10 +51,10 @@ from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, TIME_BOUND, build_option, run_watched, sanitized
 from tools import status as status_table
 
-FAULT = "qiven3-fault"
-CRTDBG = "qiven3-fault-crtdbg"
-IMPORT = "qiven3-fault-import"
-LIBRARY = "qiven3_fault_lib.dll" if sys.platform == "win32" else "libqiven3_fault_lib.so"
+FAULT = "qiven_diag_fault"
+CRTDBG = "qiven_diag_fault_crtdbg"
+IMPORT = "qiven_diag_fault_import"
+LIBRARY = "qiven_diag_fault_lib.dll" if sys.platform == "win32" else "libqiven_diag_fault_lib.so"
 LINES_BOUND = 60
 FRAMES_MAX = 32
 EVENTS_MAX = 16
@@ -247,7 +247,7 @@ class Faults(unittest.TestCase):
         self.plant("failfast")
 
     def test_K6_import(self):
-        """qiven3-fault-import copied alone: its library missing at load, the
+        """qiven_diag_fault_import copied alone: its library missing at load, the
         watcher's line names it; beside its library it exits 0."""
         expected = 0xC0000135 if WINDOWS else 127
         with tempfile.TemporaryDirectory() as top:
@@ -292,7 +292,7 @@ class Faults(unittest.TestCase):
 
     def test_report_problems_control(self):
         """The shape check's control: a report cut after its stack is caught."""
-        cut = ["fatal: abort", "fatal: stack 1", "  #0 qiven3-fault!plant_abort+0x9"]
+        cut = ["fatal: abort", "fatal: stack 1", "  #0 qiven_diag_fault!plant_abort+0x9"]
         self.assertNotEqual(report_problems(cut, "abort", "control"), [])
         self.assertNotEqual(report_problems(["abort"], "abort", "control"), [])
         # Its events: one line fewer than the count, or one not JSON, is caught.
@@ -327,11 +327,11 @@ class Signal(unittest.TestCase):
         """The copy compiled by the build's own command for signal.cpp, its
         flags all kept (the hardening's among them), its source and object
         the copy's and no dependency file written into the build."""
-        source = binaries.ROOT / "src" / "diag" / "signal.cpp"
+        source = binaries.ROOT / "foundation" / "system" / "diag" / "src" / "signal.cpp"
         with tempfile.TemporaryDirectory() as top:
             copy = Path(top) / "signal.cpp"
-            copy.write_bytes(source.read_bytes() + b"\n#include <cstdlib>\nvoid* qiven3_planted();\n"
-                             b"void* qiven3_planted() { return std::malloc(1); }\n")
+            copy.write_bytes(source.read_bytes() + b"\n#include <cstdlib>\nvoid* qiven_planted();\n"
+                             b"void* qiven_planted() { return std::malloc(1); }\n")
             obj = Path(top) / "signal.o"
             argv, directory = control_command(source, copy, obj)
             done = subprocess.run(argv, cwd=directory, capture_output=True, timeout=binaries.TIMEOUT, check=False)

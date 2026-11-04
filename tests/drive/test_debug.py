@@ -1,5 +1,5 @@
 """The debugger agents can drive, tools/debug.py: K16, the transcript on
-qiven3-fault's plant `watch`, which writes a counter three times in
+qiven_diag_fault's plant `watch`, which writes a counter three times in
 plant_watch: the break, the watch's stops, the locals with the counter, a
 stack frame plant_watch, within the bounds; its control, --lines 5, the
 transcript cut at 5 lines with its last line. K17, debug.py dump on K1's
@@ -33,12 +33,13 @@ from pathlib import Path
 
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
-from tests.drive.test_faults import FAULT
 from tools import debuggers
 
 WINDOWS = sys.platform == "win32"
+FAULT = "qiven_diag_fault"
 DEBUG = Path(__file__).resolve().parents[2] / "tools" / "debug.py"
-SOURCE = Path(__file__).resolve().parents[1] / "faults" / "fault.cpp"
+SOURCE = (Path(__file__).resolve().parents[2] / "foundation" / "system" / "diag" / "tests" / "faults"
+          / "fault.cpp")
 LAST = re.compile(r"^debug: (?P<outcome>.+), (?P<stops>\d+) stops, (?P<lines>\d+) lines, (?P<seconds>[\d.]+) s$")
 COUNTER = re.compile(r"\bcounter = (?P<value>\S+)$")
 STOP = re.compile(r"^stop (?P<n>\d+): ")
@@ -136,9 +137,8 @@ class Debug(unittest.TestCase):
         self.symbols()
         if not WINDOWS:
             return self.core()
-        from tests.drive.test_faults import run_plant
         dumps = binaries.directory("QIVEN_BUILD") / "dumps"
-        _, _, err, _, _ = run_plant(FAULT, "null")
+        _, _, err, _, _ = binaries.run_watched([self.fault, "null"], "K1")
         name = next(line.removeprefix("fatal: dump ") for line in err.decode("utf-8", "replace").splitlines()
                     if line.startswith("fatal: dump "))
         code, lines = debug("dump", dumps / name, "--symbols", self.fault.parent)

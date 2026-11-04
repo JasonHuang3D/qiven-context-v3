@@ -1,7 +1,8 @@
-// qiven3-fault <plant>: the planted faults of the diagnostic entry's cases,
-// each in its own function plant_<plant>, which the report's stack names;
-// tests/drive/test_faults.py runs each. On Windows qiven3-fault-crtdbg is
-// the same file on the debug runtime, for the debug build's assertion.
+// qiven_diag_fault <plant>: the planted faults of the diagnostic entry's
+// cases, each in its own function plant_<plant>, which the report's stack
+// names; foundation/system/diag/tests/test_faults.py runs each. On Windows
+// qiven_diag_fault_crtdbg is the same file on the debug runtime, for the
+// debug build's assertion.
 //
 //   null       a read through a null pointer
 //   abort      std::abort()
@@ -42,9 +43,9 @@
 #include "qiven/memory/fail.hpp"
 
 #ifdef _MSC_VER
-#define QIVEN3_PLANT __declspec(noinline)
+#define QIVEN_PLANT __declspec(noinline)
 #else
-#define QIVEN3_PLANT __attribute__((noinline))
+#define QIVEN_PLANT __attribute__((noinline))
 #endif
 
 int plant_assert();
@@ -87,14 +88,14 @@ private:
 
 }  // namespace
 
-QIVEN3_PLANT int plant_null() {
+QIVEN_PLANT int plant_null() {
     int* volatile none = nullptr;
     return *none;
 }
 
-QIVEN3_PLANT int plant_abort() { std::abort(); }
+QIVEN_PLANT int plant_abort() { std::abort(); }
 
-QIVEN3_PLANT int plant_parameter() {
+QIVEN_PLANT int plant_parameter() {
 #ifdef _WIN32
     std::FILE* volatile none = nullptr;
     // Not a tail call, so that this frame stays in the stack.
@@ -111,7 +112,7 @@ QIVEN3_PLANT int plant_parameter() {
 // Index 1 of a span over the first of two elements, or 0, the control.
 // Standard error is unbuffered: the line before the read is written, and
 // the line after it, naming the element read, only if the read happened.
-QIVEN3_PLANT int plant_span(std::size_t index) {
+QIVEN_PLANT int plant_span(std::size_t index) {
     const std::array<int, 2> both{1, 2};
     const std::span<const int> first(both.data(), 1);
     const volatile std::size_t at = index;
@@ -121,7 +122,7 @@ QIVEN3_PLANT int plant_span(std::size_t index) {
     return 0;
 }
 
-QIVEN3_PLANT int plant_overflow(int depth) {
+QIVEN_PLANT int plant_overflow(int depth) {
     volatile char frame[frame_bytes];
     frame[static_cast<std::size_t>(depth) % frame_bytes] = static_cast<char>(depth);
     volatile bool again = true;
@@ -131,12 +132,12 @@ QIVEN3_PLANT int plant_overflow(int depth) {
     return frame[1];
 }
 
-QIVEN3_PLANT int plant_exception() { throw std::out_of_range("plant"); }
+QIVEN_PLANT int plant_exception() { throw std::out_of_range("plant"); }
 
-QIVEN3_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
+QIVEN_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 
 // Blocks the calling thread for ever.
-[[noreturn]] QIVEN3_PLANT void wait_for_ever() {
+[[noreturn]] QIVEN_PLANT void wait_for_ever() {
     for (;;) {
         std::this_thread::sleep_for(std::chrono::hours(1));
     }
@@ -144,7 +145,7 @@ QIVEN3_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 
 // Both threads' stacks hold plant_hang: the main thread's frame, and the
 // other's lambda, which plant_hang's name qualifies.
-[[noreturn]] QIVEN3_PLANT int plant_hang() {
+[[noreturn]] QIVEN_PLANT int plant_hang() {
     std::thread other([] { wait_for_ever(); });
     wait_for_ever();
 }
@@ -153,13 +154,13 @@ QIVEN3_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 // unoptimized so that the debugger finds it at each of its lines.
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma optimize("", off)
-#define QIVEN3_UNOPTIMIZED
+#define QIVEN_UNOPTIMIZED
 #elif defined(__clang__)
-#define QIVEN3_UNOPTIMIZED [[clang::optnone]]
+#define QIVEN_UNOPTIMIZED [[clang::optnone]]
 #else
-#define QIVEN3_UNOPTIMIZED [[gnu::optimize("O0")]]
+#define QIVEN_UNOPTIMIZED [[gnu::optimize("O0")]]
 #endif
-QIVEN3_UNOPTIMIZED QIVEN3_PLANT int plant_watch() {
+QIVEN_UNOPTIMIZED QIVEN_PLANT int plant_watch() {
     volatile std::uint64_t counter;
     counter = 1;  // the break's line
     counter = 2;
@@ -170,7 +171,7 @@ QIVEN3_UNOPTIMIZED QIVEN3_PLANT int plant_watch() {
 #pragma optimize("", on)
 #endif
 
-QIVEN3_PLANT int plant_out() {
+QIVEN_PLANT int plant_out() {
     qiven::diag::Out out = qiven::diag::Out::from_environment();
     const bool wrote = out.write("out: plant\n") && out.write("out: plant\n");
     return wrote && !out.failed() ? 0 : 1;
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
     qiven::diag::Ring ring(storage);
     const Kept kept(ring);
     if (!fill(ring)) {
-        std::fputs("qiven3-fault: the ring refused a line\n", stderr);
+        std::fputs("qiven_diag_fault: the ring refused a line\n", stderr);
         return 1;
     }
     if (plant == "null") {
@@ -218,7 +219,7 @@ int main(int argc, char** argv) {
         return plant_span(plant == "span" ? 1 : 0);
     }
     std::fputs(
-        "usage: qiven3-fault null|abort|assert|parameter|overflow|exception|failfast|out|hang|watch|span|span-in\n",
+        "usage: qiven_diag_fault null|abort|assert|parameter|overflow|exception|failfast|out|hang|watch|span|span-in\n",
         stderr);
     return 2;
 }
