@@ -25,16 +25,16 @@ class Exemptions(unittest.TestCase):
 
 class TestTargets(unittest.TestCase):
     """The targets the build gives test code's analysis, by its own reader
-    (test-targets.txt in QIVEN3_BUILD's tree), are the list's test_code
+    (test-targets.txt in QIVEN_BUILD's tree), are the list's test_code
     targets; a pinned one a preset does not define (defined-targets.txt) is
     skipped by its name only where the list's not_defined names that target
     and the preset the tree records (preset.txt)."""
     ctest_labels = ("fake",)
 
     def test_build(self):
-        build = os.environ.get("QIVEN3_BUILD")
+        build = os.environ.get("QIVEN_BUILD")
         if not build:
-            self.skipTest("no QIVEN3_BUILD: run by ctest")
+            self.skipTest("no QIVEN_BUILD: run by ctest")
         found, absent = exemptions.targets(ROOT, Path(build))
         self.assertEqual(found, [])
         for name in absent:

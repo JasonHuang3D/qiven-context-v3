@@ -30,7 +30,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 CLOCK_US = 1_792_229_400_123_000
 AT = "2026-10-17T09:30:00.123Z"

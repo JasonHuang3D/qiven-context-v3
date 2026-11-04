@@ -44,26 +44,22 @@ import signal
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
-from tests.drive.session import build_option
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import LINE_POINTS, TIME_BOUND, build_option, run_watched, sanitized
 from tools import status as status_table
 
 FAULT = "qiven3-fault"
 CRTDBG = "qiven3-fault-crtdbg"
 IMPORT = "qiven3-fault-import"
 LIBRARY = "qiven3_fault_lib.dll" if sys.platform == "win32" else "libqiven3_fault_lib.so"
-TIME_BOUND = 10.0
 LINES_BOUND = 60
-LINE_POINTS = 300
 FRAMES_MAX = 32
 EVENTS_MAX = 16
 OPERATIONS = 20
 DUMP_MAX = 64 * 1024 * 1024
-POLL = 0.1
 WINDOWS = sys.platform == "win32"
 
 # plant: (case, binary, Windows cause pattern, Windows status).
@@ -88,79 +84,15 @@ LINUX = {
 }
 
 
-def sanitized():
-    return bool(build_option("QIVEN_SANITIZE"))
-
-
 def debug_runtime():
     """Whether the build's binaries are on the debug runtime: a Debug build."""
     return WINDOWS and build_option("CMAKE_BUILD_TYPE") == "Debug"
-
-
-def windows_of(pid):
-    """The visible top-level windows of process `pid` and of its children,
-    the watcher's case among them."""
-    import ctypes
-    from ctypes import wintypes
-
-    class Entry(ctypes.Structure):  # PROCESSENTRY32W
-        _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD), ("pid", wintypes.DWORD),
-                    ("heap", ctypes.c_size_t), ("module", wintypes.DWORD), ("threads", wintypes.DWORD),
-                    ("parent", wintypes.DWORD), ("priority", ctypes.c_long), ("flags", wintypes.DWORD),
-                    ("file", wintypes.WCHAR * 260)]
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
-    pids, entry = {pid}, Entry()
-    entry.size = ctypes.sizeof(Entry)
-    more = kernel32.Process32FirstW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
-    while more:
-        if entry.parent == pid:
-            pids.add(entry.pid)
-        more = kernel32.Process32NextW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
-    kernel32.CloseHandle(wintypes.HANDLE(snapshot))
-    user32 = ctypes.WinDLL("user32", use_last_error=True)
-    found = []
-    proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-
-    def each(hwnd, _):
-        owner = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
-        if owner.value in pids and user32.IsWindowVisible(hwnd):
-            found.append(hwnd)
-        return True
-
-    user32.EnumWindows(proc(each), 0)
-    return found
 
 
 def run_plant(binary, plant, env=None):
     """Runs a plant behind the watcher: its status, out, err, seconds, and
     the windows seen."""
     return run_watched([binaries.path(binary), plant], PLANTS[plant][0], env)
-
-
-def run_watched(command, name, env=None, cwd=None):
-    """Runs a command behind the watcher, under the time bound: the
-    watcher's status, out, err, seconds, and the windows seen."""
-    start = time.monotonic()
-    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        process = subprocess.Popen(binaries.watched(command, name, TIME_BOUND), stdin=subprocess.DEVNULL,
-                                   stdout=out, stderr=err, env=env, cwd=cwd)
-        seen = []
-        while process.poll() is None:
-            if WINDOWS:
-                seen += windows_of(process.pid)
-            if time.monotonic() - start > TIME_BOUND + 20:
-                process.kill()
-                break
-            time.sleep(POLL)
-        status = process.wait()
-        seconds = time.monotonic() - start
-        out.seek(0)
-        err.seek(0)
-        return status, out.read(), binaries.unbounded(err.read()), seconds, seen
 
 
 def report_problems(lines, cause, case):
@@ -244,7 +176,7 @@ class Faults(unittest.TestCase):
             # The debug runtime's own assertion in fclose reaches its hook first.
             cause, status = r"assertion failed: stream\.valid\(\), \S*fclose\.cpp:\d+", 3
         number, linux_cause, preface = LINUX[plant]
-        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         ran, out, err, seconds, seen = run_plant(binary, plant)
         text = err.decode("utf-8", "replace")
         lines = text.splitlines()
@@ -335,7 +267,7 @@ class Faults(unittest.TestCase):
         # The control: beside its library the binary loads and exits 0.
         env = dict(os.environ)
         if not WINDOWS:
-            env["LD_LIBRARY_PATH"] = str(binaries.directory("QIVEN3_BIN"))
+            env["LD_LIBRARY_PATH"] = str(binaries.directory("QIVEN_BIN"))
         ran, _, err, _, _ = run_watched([binaries.path(IMPORT)], "K6.control", env)
         self.assertEqual((ran, err.decode("utf-8", "replace").splitlines()[-1:]), (0, ["status: 0 passed"]))
 
@@ -386,7 +318,7 @@ class Signal(unittest.TestCase):
             self.skipTest("a sanitizer's instrumentation calls its own runtime")
 
     def test_K18_safe(self):
-        obj = (binaries.directory("QIVEN3_BUILD") / "foundation" / "system" / "diag" / "CMakeFiles" / "qiven_diag.dir"
+        obj = (binaries.directory("QIVEN_BUILD") / "foundation" / "system" / "diag" / "CMakeFiles" / "qiven_diag.dir"
                / "src" / "signal.cpp.o")
         self.assertTrue(obj.is_file(), obj)
         self.assertEqual(undefined(obj) - SAFE, set())
@@ -411,7 +343,7 @@ def control_command(source, copy, obj):
     """The build's compile command for source, from its
     compile_commands.json, compiling copy into obj instead: (argv, its
     directory). The dependency file's options are dropped."""
-    entries = json.loads((binaries.directory("QIVEN3_BUILD") / "compile_commands.json").read_text(encoding="utf-8"))
+    entries = json.loads((binaries.directory("QIVEN_BUILD") / "compile_commands.json").read_text(encoding="utf-8"))
     entry = next(e for e in entries if Path(e["file"]).resolve() == source.resolve())
     given = entry.get("arguments") or shlex.split(entry["command"])
     argv, skip = [], False

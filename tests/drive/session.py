@@ -16,12 +16,11 @@ import json
 import os
 import re
 import subprocess
-import sys
 import tempfile
 import threading
 from pathlib import Path
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 # The two drives: the fake's, built on every system, and the Windows
 # adapter's, built on Windows alone.
@@ -78,33 +77,6 @@ def wire(request):
                        separators=(",", ":")) + "\n").encode("utf-8")
 
 
-def build_option(name, build=None):
-    """A cache variable of a build directory (QIVEN3_BUILD's by default), or
-    None when the build's cache does not set it."""
-    build = Path(build) if build else binaries.directory("QIVEN3_BUILD")
-    cache = build / "CMakeCache.txt"
-    if not cache.is_file():
-        return None
-    for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith(name + ":"):
-            return line.split("=", 1)[1].strip()
-    return None
-
-
-def has_faults(build=None):
-    """Whether the build has QIVEN_FAULTS on, which is off unless set."""
-    value = build_option("QIVEN_FAULTS", build)
-    return value is not None and value.upper() in ("ON", "1", "TRUE", "YES", "Y")
-
-
-def debug_library(build=None):
-    """Whether the build uses MSVC's debug library, whose debug iterators
-    give each container a proxy that its constructor from an allocator,
-    noexcept, takes from the allocator: a budget or a fault met there ends
-    the process, so the budgets' plants and the fault sweeps do not apply."""
-    return sys.platform == "win32" and (build_option("CMAKE_BUILD_TYPE", build) or "") == "Debug"
-
-
 def handle_count(pid):
     """The process's handle count, by GetProcessHandleCount; Windows alone."""
     import ctypes
@@ -142,12 +114,6 @@ def warm_requests():
             {"op": "program", "name": "cmd"}, {"op": "residual", "paths": [where]},
             {"op": "run", "argv": [cmd, "/c", "exit"]}]
     return once + once + [{"op": "pages", "n": 1}]
-
-
-def has_hal(build=None):
-    """Whether the build has the HAL: QIVEN_HAL is on unless set off."""
-    value = build_option("QIVEN_HAL", build)
-    return value is None or value.upper() not in ("OFF", "0", "FALSE", "NO", "N")
 
 
 class Drive:

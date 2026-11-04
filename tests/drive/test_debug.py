@@ -31,8 +31,9 @@ import time
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
-from tests.drive.test_faults import FAULT, LINE_POINTS, sanitized
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
+from tests.drive.test_faults import FAULT
 from tools import debuggers
 
 WINDOWS = sys.platform == "win32"
@@ -136,7 +137,7 @@ class Debug(unittest.TestCase):
         if not WINDOWS:
             return self.core()
         from tests.drive.test_faults import run_plant
-        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         _, _, err, _, _ = run_plant(FAULT, "null")
         name = next(line.removeprefix("fatal: dump ") for line in err.decode("utf-8", "replace").splitlines()
                     if line.startswith("fatal: dump "))
@@ -155,7 +156,7 @@ class Debug(unittest.TestCase):
         start = time.time()
         status, _, err, _, _ = run_watched([self.fault, "hang"], "K17", LIMIT)
         self.assertEqual(status, 124, err)
-        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         written = [p for p in dumps.glob(f"{FAULT}-*-hang.core") if p.stat().st_mtime >= start - 1
                    and any(line.startswith("Saved corefile ") and line.endswith(p.name) for line in err)]
         self.assertEqual(len(written), 1, (written, err))
@@ -207,7 +208,7 @@ class Debug(unittest.TestCase):
     def test_case(self):
         """case reads the test's command from the build's list, the watcher
         dropped: the runner's own test binary, to its end."""
-        build = binaries.directory("QIVEN3_BUILD")
+        build = binaries.directory("QIVEN_BUILD")
         code, lines = debug("case", "runner.counted_held", "--build", build)
         self.assertEqual(self.bounded(lines)["outcome"], "exited 0 passed", lines)
         self.assertEqual(code, 0, lines)

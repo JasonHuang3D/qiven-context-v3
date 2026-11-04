@@ -20,8 +20,9 @@ import re
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
-from tests.drive.session import FAKE, has_hal
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import has_hal
+from tests.drive.session import FAKE
 
 HAL_TARGETS = re.compile(rb"qiven_compute|\bhal\.cpp|fake_hal\.cpp|hal_ops\.cpp")
 LISTED = re.compile(r"^add_test\(\[==\[(.+?)\]==\]", re.MULTILINE)
@@ -68,7 +69,7 @@ def listed(build):
 
 class NoHal(unittest.TestCase):
     def test_H6_core_without_it(self):
-        here = binaries.directory("QIVEN3_BUILD")
+        here = binaries.directory("QIVEN_BUILD")
         build = here if not has_hal(here) else here.parent / "nohal"
         if not (build / "CMakeCache.txt").is_file():
             self.skipTest(f"the nohal build is absent: no {build.name} beside {here.name}; "

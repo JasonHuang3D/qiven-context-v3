@@ -3,7 +3,7 @@ fault the drives run, it runs the case and names how it ended.
 
     python -I -X faulthandler tools/watch.py --limit <s> --name <test> -- <command>...
 
-- With QIVEN3_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
+- With QIVEN_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
   build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
   directory made; and QIVEN_WATCHER to its own process id. Then it runs
   the command, which inherits its standard input and output.
@@ -80,7 +80,7 @@ def safe_name(name):
 
 def environment(name):
     env = dict(os.environ, QIVEN_WATCHER=str(os.getpid()))
-    build = os.environ.get("QIVEN3_BUILD")
+    build = os.environ.get("QIVEN_BUILD")
     if build:
         dumps, logs = Path(build) / "dumps", Path(build) / "logs"
         dumps.mkdir(exist_ok=True)
@@ -244,7 +244,7 @@ def hang(process, command, env, limit):
 def bound(process):
     """Bounds the build's dumps/, keeping the case's own, and names each
     dump removed."""
-    build = os.environ.get("QIVEN3_BUILD")
+    build = os.environ.get("QIVEN_BUILD")
     lines = DUMPS["bound"](Path(build) / "dumps", process.pid) if build else []
     if lines:
         print("\n".join(lines), file=sys.stderr, flush=True)

@@ -23,6 +23,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.test.runner import binaries
 from tests.drive import session
 
 CPU = {"id": "cpu0", "back_end": "cpu", "name": "the CPU", "memory": 1 << 20}
@@ -118,7 +119,7 @@ MISTAKE = ({"op": "hal_fake", "devices": [CPU]},
 
 def minimum():
     """The build's minimum level."""
-    return session.build_option("QIVEN_LOG_LEVEL") or "info"
+    return binaries.build_option("QIVEN_LOG_LEVEL") or "info"
 
 
 def report_events(err):
@@ -161,7 +162,7 @@ class K14(unittest.TestCase):
         return lines
 
     def test_K14_fake(self):
-        hal = session.has_hal()
+        hal = binaries.has_hal()
         root = self.place / "root"
         root.mkdir()
         sent = requests(self.secret, self.cognition, root, hal=hal)
@@ -176,7 +177,7 @@ class K14(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform == "win32", "not applicable: the Windows drive is Windows's alone")
     def test_K14_windows(self):
-        hal = session.has_hal()
+        hal = binaries.has_hal()
         sent = requests(self.secret, self.cognition, self.place, windows=True, hal=hal)
         log = self.place / "windows.jsonl"
         ran = self.drive(session.WINDOWS, ["--hal", "fake"] if hal else [], sent, log)
@@ -184,9 +185,9 @@ class K14(unittest.TestCase):
         self.check_log(log, sent)
 
     def test_K14_report(self):
-        if not session.has_hal():
+        if not binaries.has_hal():
             self.skipTest("not applicable: the HAL is off, so no caller's mistake ends a drive")
-        if session.build_option("QIVEN_SANITIZE"):
+        if binaries.build_option("QIVEN_SANITIZE"):
             self.skipTest("not applicable: under a sanitizer its report stands for the entry's")
         root = self.place / "root"
         root.mkdir()

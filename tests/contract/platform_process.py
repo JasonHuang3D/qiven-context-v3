@@ -33,8 +33,9 @@ stops.
 import json
 import os
 
-from tests.drive import binaries
-from tests.drive.session import DriveError, debug_library, has_faults
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import debug_library, has_faults
+from tests.drive.session import DriveError
 
 MEMBER = 64 * 1024
 # Each adapter's calls, its fault points: on the fake start's pages and

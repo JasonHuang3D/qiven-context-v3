@@ -11,8 +11,8 @@ import sys
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
-from tests.drive.session import build_option
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import build_option
 from foundation.devkit.structure import imports
 
 WINDOWS = sys.platform == "win32"
@@ -24,7 +24,7 @@ MACOS = sys.platform == "darwin"
 
 
 def listed():
-    build = binaries.directory("QIVEN3_BUILD")
+    build = binaries.directory("QIVEN_BUILD")
     text = (build / "binaries.txt").read_text(encoding="utf-8")
     return [Path(line).resolve() for line in text.splitlines() if line.strip()]
 

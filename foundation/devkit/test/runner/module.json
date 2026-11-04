@@ -39,10 +39,8 @@
         "tests/CMakeLists.txt",
         "tests/__init__.py",
         "tests/drive/__init__.py",
-        "tests/drive/binaries.py",
         "tests/drive/session.py",
-        "tests/unit/CMakeLists.txt",
-        "tools/status.py"
+        "tests/unit/CMakeLists.txt"
       ]
     }
   ]

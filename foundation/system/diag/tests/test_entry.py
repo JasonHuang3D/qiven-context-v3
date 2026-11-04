@@ -16,7 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 ROOT = binaries.ROOT
 PROBE = b"diag: entry\n"
@@ -70,7 +70,7 @@ class Entry(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_K10_listed(self):
-        build = binaries.directory("QIVEN3_BUILD")
+        build = binaries.directory("QIVEN_BUILD")
         made = executables(build)
         self.assertTrue(made, "the file API recorded no executable")
         self.assertEqual(sorted(n for n, f in made.items() if f not in listed(build)), [])
@@ -79,7 +79,7 @@ class Entry(unittest.TestCase):
         self.assertEqual(stray_calls(ROOT), [])
 
     def test_K10_probe(self):
-        build = binaries.directory("QIVEN3_BUILD")
+        build = binaries.directory("QIVEN_BUILD")
         problems = [probe_problem([str(f)]) for f in sorted(listed(build))]
         self.assertEqual([p for p in problems if p], [])
 

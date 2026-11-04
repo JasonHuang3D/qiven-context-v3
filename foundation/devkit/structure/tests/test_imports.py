@@ -13,7 +13,7 @@ from foundation.devkit.structure.tests.test_boundaries import WINDOWS, holds
 
 RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
 METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree and tools/
-RUNNER = "foundation.devkit.test.runner"  # the runner's Python half, the skip of a unittest run
+RUNNER = "foundation.devkit.test.runner"  # the runner's Python half: a run's skip, the build's binaries and options
 
 
 def python_findings(root, files):

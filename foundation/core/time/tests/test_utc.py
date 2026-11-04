@@ -10,7 +10,7 @@ import subprocess
 import unittest
 
 from tests import SKIP_CODE
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 CASES = "qiven_time_test"
 # Each zone and the offset from UTC, in seconds, it gives the C runtime.

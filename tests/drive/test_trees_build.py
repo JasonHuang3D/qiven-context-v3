@@ -29,7 +29,7 @@ HOMES = {home.rpartition("/")[0] for home in LOOP["tree"](ROOT)[0]["homes"].valu
 
 def cmake():
     """The cmake beside the ctest that runs the test, else the one on PATH."""
-    ctest = os.environ.get("QIVEN3_CTEST")
+    ctest = os.environ.get("QIVEN_CTEST")
     if ctest and Path(ctest).is_file():
         return str(Path(ctest).with_name("cmake" + (".exe" if sys.platform == "win32" else "")))
     return shutil.which("cmake")

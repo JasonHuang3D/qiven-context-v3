@@ -18,7 +18,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 from tools.loop_modules import CXX_SUFFIXES, TREES
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -84,7 +84,7 @@ class Floors(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_windows_commands(self):
-        path = binaries.directory("QIVEN3_BUILD") / "compile_commands.json"
+        path = binaries.directory("QIVEN_BUILD") / "compile_commands.json"
         entries = json.loads(path.read_bytes().decode("utf-8"))
         self.assertEqual(database_findings(entries, WINDOWS), [])
 

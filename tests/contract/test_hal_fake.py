@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 from tests.contract.hal_memory import HalMemory
-from tests.drive.session import Drive, has_hal
+from foundation.devkit.test.runner.binaries import has_hal
+from tests.drive.session import Drive
 
 
 class Fake(HalMemory, unittest.TestCase):

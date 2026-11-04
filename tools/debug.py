@@ -6,8 +6,8 @@
     python -I tools/debug.py dump <file> [--symbols <directory>] [bounds]
 
 - case runs a CTest test's command, read from the build's test list
-  (ctest --show-only=json-v1; the build --build, else QIVEN3_BUILD; ctest
-  QIVEN3_CTEST, else on PATH), the watcher in front of it dropped, with
+  (ctest --show-only=json-v1; the build --build, else QIVEN_BUILD; ctest
+  QIVEN_CTEST, else on PATH), the watcher in front of it dropped, with
   the test's environment and working directory; run runs a binary.
 - Actions. Before the run: --break <function> (a bare name in the binary's
   module) or <file>:<line>, and --watch <expression>, a write watch of 8
@@ -282,9 +282,9 @@ def is_dump(path):
 def ctest_command(test, build):
     """The test's (command, environment, working directory), the watcher
     in front of it dropped, from the build's test list."""
-    ctest = os.environ.get("QIVEN3_CTEST") or shutil.which("ctest")
+    ctest = os.environ.get("QIVEN_CTEST") or shutil.which("ctest")
     if not ctest:
-        raise CannotRun("no ctest: set QIVEN3_CTEST or put it on PATH")
+        raise CannotRun("no ctest: set QIVEN_CTEST or put it on PATH")
     try:
         done = subprocess.run([ctest, "--show-only=json-v1", "--test-dir", str(build)], capture_output=True,
                               stdin=subprocess.DEVNULL, timeout=120, check=False)
@@ -326,7 +326,7 @@ def parse(argv):
     shapes = {"case": commands.add_parser("case"), "run": commands.add_parser("run"),
               "dump": commands.add_parser("dump")}
     shapes["case"].add_argument("test")
-    shapes["case"].add_argument("--build", help="the build directory (default: QIVEN3_BUILD)")
+    shapes["case"].add_argument("--build", help="the build directory (default: QIVEN_BUILD)")
     shapes["dump"].add_argument("file")
     shapes["dump"].add_argument("--symbols", help="the binaries' directory (default: the dump's on Windows; "
                                 "on Linux the binary the core's notes name)")
@@ -367,9 +367,9 @@ def target(args):
         return [str(Path(args.file).resolve())], symbols, None, None, None
     env, cwd = None, None
     if args.mode == "case":
-        build = args.build or os.environ.get("QIVEN3_BUILD")
+        build = args.build or os.environ.get("QIVEN_BUILD")
         if not build:
-            raise CannotRun("no build: give --build or set QIVEN3_BUILD")
+            raise CannotRun("no build: give --build or set QIVEN_BUILD")
         command, env, cwd = ctest_command(args.test, build)
     else:
         command = args.command

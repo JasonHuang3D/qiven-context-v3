@@ -6,7 +6,7 @@ clean file passes both. Each tool compiles the plant by the analysis
 build's command for a source of src/, so that dropping a check from
 .clang-tidy or analysis.ruleset fails its rule's case.
 
-Run on the analysis build (QIVEN3_BUILD) after it is built, from the
+Run on the analysis build (QIVEN_BUILD) after it is built, from the
 toolset's environment, which both tools read the system's headers from:
 ctest --preset analysis. On any other build each case is skipped. B18, B20,
 B24, B27 and B29 to B31 have no tool's half: their tokens are
@@ -72,7 +72,7 @@ CLEAN = ("#include <span>\n"
 
 
 def build_directory():
-    value = os.environ.get("QIVEN3_BUILD")
+    value = os.environ.get("QIVEN_BUILD")
     return Path(value) if value else None
 
 
@@ -91,7 +91,7 @@ def is_analysis(build):
     return build is not None and cache(build).get("QIVEN_ANALYZE") == "analysis"
 
 
-ANALYSIS = unittest.skipUnless(is_analysis(build_directory()), "not the analysis build (QIVEN3_BUILD)")
+ANALYSIS = unittest.skipUnless(is_analysis(build_directory()), "not the analysis build (QIVEN_BUILD)")
 
 
 def template(database):

@@ -134,9 +134,9 @@ def machine_paths():
     parent = os.path.normpath(rules.ROOT.parent)
     found = {str(rules.ROOT), parent, sys.prefix, sys.base_prefix, os.path.dirname(sys.executable)}
     for name in ("USERPROFILE", "HOME", "VCToolsInstallDir", "VCINSTALLDIR", "VSINSTALLDIR", "WindowsSdkDir",
-                 "UniversalCRTSdkDir", "QIVEN3_CTEST"):
+                 "UniversalCRTSdkDir", "QIVEN_CTEST"):
         if os.environ.get(name):
-            found.add(os.environ[name] if name != "QIVEN3_CTEST" else os.path.dirname(os.environ[name]))
+            found.add(os.environ[name] if name != "QIVEN_CTEST" else os.path.dirname(os.environ[name]))
     for tool in ("cmake", "ninja", "cl"):
         if shutil.which(tool):
             found.add(os.path.dirname(shutil.which(tool)))

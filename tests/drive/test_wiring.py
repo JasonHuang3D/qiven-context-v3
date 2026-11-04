@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from tests import SKIP_CODE
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 from tools import loop_modules
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
@@ -81,7 +81,7 @@ def case_limits():
     """Each case binary's own limit, by its file, from the build's listing
     inputs (tests/case_binaries.txt), where it states one."""
     found = {}
-    inputs = binaries.directory("QIVEN3_BUILD") / "tests" / "case_binaries.txt"
+    inputs = binaries.directory("QIVEN_BUILD") / "tests" / "case_binaries.txt"
     for line in inputs.read_text(encoding="utf-8").splitlines():
         _, limit, binary = line.split("\t")
         if limit:
@@ -133,8 +133,8 @@ class PythonSide(unittest.TestCase):
 def ctest_tests(*args):
     """This build's tests, by ctest -N: each name to its command and properties."""
     ran = binaries.run_file(
-        binaries.tool("QIVEN3_CTEST"),
-        ["--test-dir", binaries.directory("QIVEN3_BUILD"), "-N", "--show-only=json-v1", *args],
+        binaries.tool("QIVEN_CTEST"),
+        ["--test-dir", binaries.directory("QIVEN_BUILD"), "-N", "--show-only=json-v1", *args],
     )
     if ran.status != 0:
         raise AssertionError(ran.err.decode("utf-8", "replace"))

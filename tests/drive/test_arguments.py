@@ -23,8 +23,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.drive import binaries
-from tests.drive.session import WINDOWS, Drive, DriveError, has_faults
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import has_faults
+from tests.drive.session import WINDOWS, Drive, DriveError
 
 POINTER = 8
 UNITS = 32767

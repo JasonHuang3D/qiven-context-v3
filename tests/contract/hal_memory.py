@@ -10,7 +10,7 @@ cases (foundation/services/compute/tests/).
 
 import struct
 
-from tests.drive.session import debug_library, has_faults
+from foundation.devkit.test.runner.binaries import debug_library, has_faults
 
 GIB = 1 << 30
 GPU = {"id": "gpu0", "back_end": "cuda", "name": "a GPU of 12 GiB", "memory": 12 * GIB}

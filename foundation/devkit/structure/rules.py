@@ -387,7 +387,7 @@ def check(records, root=None):
 
 def records_directory():
     """The structure build's records: this build's, else the structure preset's."""
-    build = os.environ.get("QIVEN3_BUILD")
+    build = os.environ.get("QIVEN_BUILD")
     if build and (Path(build) / "structure" / "index.json").is_file():
         return Path(build) / "structure"
     return ROOT / "build" / "structure" / "structure"

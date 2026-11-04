@@ -26,7 +26,7 @@ import re
 import time
 import unittest
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 from foundation.devkit.structure.tests.test_content import PATTERNS
 
 CHILD = "qiven3-child"

@@ -25,6 +25,7 @@
         "tools/git_shim.*",
         "tools/linux-pins.txt",
         "tools/loop*",
+        "tools/status.py",
         "tools/trees.json",
         "tools/watch.py",
         "tools/windows-pins.txt",

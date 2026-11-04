@@ -11,7 +11,7 @@ so a repeat is refused whatever its cause."""
 
 import unittest
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 from foundation.devkit.structure import links
 
 # The links that failed on macOS, by their targets' names.
@@ -30,7 +30,7 @@ class Links(unittest.TestCase):
     maxDiff = None  # every line found, named whole
 
     def test_build(self):
-        lines = links.read(binaries.directory("QIVEN3_BUILD"))
+        lines = links.read(binaries.directory("QIVEN_BUILD"))
         named = {stem(output) for output in lines}
         self.assertEqual([name for name in FIVE if name not in named], [], "a link the check must read")
         self.assertEqual(links.twice(lines), {})

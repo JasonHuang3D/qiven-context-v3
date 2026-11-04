@@ -7,7 +7,7 @@ import signal
 import sys
 import unittest
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 DEMO = "qiven_memory_fail_demo"
 

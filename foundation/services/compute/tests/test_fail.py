@@ -9,8 +9,8 @@ import signal
 import sys
 import unittest
 
-from tests.drive import binaries
-from tests.drive.session import has_hal
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import has_hal
 
 DEMO = "qiven_compute_fail_demo"
 

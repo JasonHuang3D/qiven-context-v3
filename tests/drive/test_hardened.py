@@ -19,9 +19,9 @@ import signal
 import sys
 import unittest
 
-from tests.drive import binaries
-from tests.drive.session import build_option
-from tests.drive.test_faults import FAULT, run_watched
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import build_option, run_watched
+from tests.drive.test_faults import FAULT
 from tools import status as status_table
 
 WINDOWS = sys.platform == "win32"

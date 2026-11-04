@@ -22,7 +22,7 @@ shim's real git, never a shim, and adds its log's lines to that shim's.
 A real git in any git-shim directory, whichever run's or build's, is a
 shim, which would run itself: the run is refused before it starts any.
 
-On Windows the shim is built once a build, under QIVEN3_BUILD's git-shim
+On Windows the shim is built once a build, under QIVEN_BUILD's git-shim
 directory by its source's digest, else in the run's own directory; a
 build made at once by two runs keeps the first one renamed into place.
 """
@@ -46,10 +46,10 @@ PLACE = "git-shim"  # the name of each directory a shim stands in, every run's
 
 def built(top):
     """The directory holding the Windows shim, built by cl: a build's own
-    cache when QIVEN3_BUILD names one, else under top."""
+    cache when QIVEN_BUILD names one, else under top."""
     source = HERE / "git_shim.c"
     digest = hashlib.sha256(source.read_bytes()).hexdigest()[:16]
-    build = os.environ.get("QIVEN3_BUILD")
+    build = os.environ.get("QIVEN_BUILD")
     home = Path(build) / PLACE if build else top / PLACE
     final = home / digest
     if (final / PROGRAM).is_file():

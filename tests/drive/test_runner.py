@@ -6,8 +6,8 @@ import sys
 import unittest
 
 from tests import SKIP_CODE
-from tests.drive import binaries
-from tests.drive.session import build_option
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import build_option
 
 DEMO = "qiven_runner_demo"
 

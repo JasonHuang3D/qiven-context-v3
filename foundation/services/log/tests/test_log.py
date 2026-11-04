@@ -16,7 +16,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.drive import binaries
+from foundation.devkit.test.runner import binaries
 
 TRACE = b"k13.trace-marker"
 CONTROL = b"k13.info-control"
@@ -27,7 +27,7 @@ BUILD_TIMEOUT = 300
 
 def level():
     """The build's minimum level, as its cache holds it."""
-    cache = binaries.directory("QIVEN3_BUILD") / "CMakeCache.txt"
+    cache = binaries.directory("QIVEN_BUILD") / "CMakeCache.txt"
     for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("QIVEN_LOG_LEVEL:"):
             return line.split("=", 1)[1].strip()
@@ -38,8 +38,8 @@ def build(target):
     """cmake --build of the build's directory for one target: its status and
     its output."""
     suffix = ".exe" if sys.platform == "win32" else ""
-    cmake = binaries.tool("QIVEN3_CTEST").with_name("cmake" + suffix)
-    done = subprocess.run([str(cmake), "--build", str(binaries.directory("QIVEN3_BUILD")), "--target", target],
+    cmake = binaries.tool("QIVEN_CTEST").with_name("cmake" + suffix)
+    done = subprocess.run([str(cmake), "--build", str(binaries.directory("QIVEN_BUILD")), "--target", target],
                           capture_output=True, timeout=BUILD_TIMEOUT, check=False)
     return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
 
@@ -81,7 +81,7 @@ class Field(unittest.TestCase):
 
     @staticmethod
     def objects():
-        build_dir = binaries.directory("QIVEN3_BUILD")
+        build_dir = binaries.directory("QIVEN_BUILD")
         return [p for p in build_dir.rglob("qiven_log_plant.dir/*") if p.is_file() and
                 p.suffix in (".obj", ".o")]
 

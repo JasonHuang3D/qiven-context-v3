@@ -32,8 +32,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tests.drive import binaries
-from tests.drive.test_faults import FAULT, LINE_POINTS, POLL, sanitized, windows_of
+from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.binaries import LINE_POINTS, POLL, sanitized, windows_of
+from tests.drive.test_faults import FAULT
 from tools import debuggers
 from tools import status as status_table
 
@@ -134,7 +135,7 @@ def ci_environment(root, **changes):
     """This environment as a CI job's (GITHUB_ACTIONS "true"), the build
     root/build (made), the names changed without regard to case."""
     (root / "build").mkdir()
-    changes ={debuggers.CI_VARIABLE: "true", "QIVEN3_BUILD": str(root / "build"), **changes}
+    changes ={debuggers.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
     names = {name.upper() for name in changes}
     return {**{k: v for k, v in os.environ.items() if k.upper() not in names}, **changes}
 
@@ -151,7 +152,7 @@ class HangStacks(unittest.TestCase):
             self.fail(f"the debugger: {e}")
         if reason is not None:
             self.skipTest(reason)
-        dumps = binaries.directory("QIVEN3_BUILD") / "dumps"
+        dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         start = time.time()
         status, _, err, seconds, seen = run_watched([binaries.path(FAULT), "hang"], "K8", LIMIT)
         text = "\n".join(err)
