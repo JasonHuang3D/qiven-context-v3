@@ -17,18 +17,18 @@
 #include <exception>
 #include <string_view>
 
-#include "diag/diag.hpp"
-#include "diag/signal.hpp"
+#include "qiven/diag/diag.hpp"
+#include "signal.hpp"
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3::diag {
+namespace qiven::diag {
 
 namespace {
 
 #ifdef __linux__
-// The process QIVEN3_WATCHER names, by its decimal id, or 0.
+// The process QIVEN_WATCHER names, by its decimal id, or 0.
 unsigned long watcher() noexcept {
-    const char* value = std::getenv("QIVEN3_WATCHER");
+    const char* value = std::getenv("QIVEN_WATCHER");
     if (value == nullptr) {
         return 0;
     }
@@ -50,7 +50,7 @@ unsigned long watcher() noexcept {
 }  // namespace
 
 void thread_start() noexcept {
-#ifndef QIVEN3_SANITIZED
+#ifndef QIVEN_SANITIZED
     // Each thread's alternate stack, for a handler of a stack overflow.
     constexpr std::size_t alternate_bytes = 64 * 1024;
     stack_t now{};
@@ -77,7 +77,7 @@ void install() noexcept {
     // backtrace loads its library on its first call: before any fault.
     std::array<void*, 1> one{};
     backtrace(one.data(), 1);
-#ifndef QIVEN3_SANITIZED
+#ifndef QIVEN_SANITIZED
     // Under a sanitizer its own report stands for the handlers'.
     thread_start();
     struct sigaction action{};
@@ -97,13 +97,13 @@ void install() noexcept {
 #endif
 }
 
-void keep(const log::Ring& ring) noexcept {
+void keep(const Ring& ring) noexcept {
     if (!detail::keep_ring(ring)) {
         qiven::memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
     }
 }
 
-void drop(const log::Ring& ring) noexcept {
+void drop(const Ring& ring) noexcept {
     if (!detail::drop_ring(ring)) {
         qiven::memory::fail_fast("diag::drop: a ring not kept");
     }
@@ -116,4 +116,4 @@ void fatal(std::string_view cause, End /*end*/) noexcept { report(cause, SIGABRT
 
 }  // namespace detail
 
-}  // namespace qiven3::diag
+}  // namespace qiven::diag

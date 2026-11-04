@@ -102,6 +102,7 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/matcher/tests" matcher_t
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/text/tests" text_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/time/tests" time_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/digest/tests" digest_tests)
+add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/system/diag/tests" diag_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/system/platform/tests" platform_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/storage/sqlite/tests" storage_sqlite_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/storage/recordlog/tests" recordlog_tests)

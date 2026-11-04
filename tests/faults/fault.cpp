@@ -35,9 +35,9 @@
 #include <thread>
 #include <vector>
 
-#include "diag/diag.hpp"
-#include "diag/out.hpp"
 #include "log/log.hpp"
+#include "qiven/diag/diag.hpp"
+#include "qiven/diag/out.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 
@@ -61,15 +61,15 @@ alignas(std::max_align_t) std::array<std::byte, qiven3::log::Log::ring_bytes + q
 // A Log's ring kept for the report while it lives.
 class Kept {
 public:
-    explicit Kept(const qiven3::log::Log& log) noexcept : ring_(log.ring()) { qiven3::diag::keep(ring_); }
+    explicit Kept(const qiven3::log::Log& log) noexcept : ring_(log.ring()) { qiven::diag::keep(ring_); }
     Kept(const Kept&) = delete;
     Kept& operator=(const Kept&) = delete;
     Kept(Kept&&) = delete;
     Kept& operator=(Kept&&) = delete;
-    ~Kept() { qiven3::diag::drop(ring_); }
+    ~Kept() { qiven::diag::drop(ring_); }
 
 private:
-    const qiven3::log::Ring& ring_;
+    const qiven::diag::Ring& ring_;
 };
 
 }  // namespace
@@ -158,7 +158,7 @@ QIVEN3_UNOPTIMIZED QIVEN3_PLANT int plant_watch() {
 #endif
 
 QIVEN3_PLANT int plant_out() {
-    qiven3::diag::Out out = qiven3::diag::Out::from_environment();
+    qiven::diag::Out out = qiven::diag::Out::from_environment();
     const bool wrote = out.write("out: plant\n") && out.write("out: plant\n");
     return wrote && !out.failed() ? 0 : 1;
 }

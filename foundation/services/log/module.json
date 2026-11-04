@@ -29,18 +29,15 @@
       "name": "log",
       "layer": "foundation",
       "depends": [
+        "diag",
         "text",
         "memory"
       ],
-      "test_depends": [
-        "diag"
-      ],
+      "test_depends": [],
       "paths": [
         "src/log/",
         "tests/unit/log.cmake",
         "tests/unit/log_*",
-        "tests/unit/ring_test.cpp",
-        "tests/unit/events_test.cpp",
         "tests/drive/test_log.py",
         "tests/drive/test_log_secret.py"
       ]

@@ -3,7 +3,7 @@ events.
 
 The drives run each operation with a request holding a sentinel secret and
 a cognition sentinel, both built when the test runs, in its texts and, as
-hexadecimal, in its bytes; no line of the log's file (QIVEN3_LOG) holds
+hexadecimal, in its bytes; no line of the log's file (QIVEN_LOG) holds
 either, as text or as hexadecimal. A run the HAL fake ends by a caller's
 mistake (H8) writes the entry's report with the last events, which hold
 neither. Each request is an operation of the log: its op.end is there, and
@@ -142,7 +142,7 @@ class K14(unittest.TestCase):
 
     def drive(self, name, args, sent, log):
         """The drive run on sent with its log in log: its run."""
-        env = session.environment(QIVEN3_LOG=str(log))
+        env = session.environment(QIVEN_LOG=str(log))
         return session.once(args, *sent, drive=name, env=env)
 
     def check_log(self, log, sent):

@@ -2,8 +2,8 @@
 
 layer services, status built
 
-- **Awaiting a split:** two parts leave: the drive's events (`drive.request`, `drive.reply` in `src/log/catalogue.hpp`) for qiven3's own catalogue; the ring (`src/log/ring.hpp`, the crash buffer diag's handler reads) for `foundation/system/diag`
-- **Holds:** levelled JSON lines into a crash ring, events by descriptor of a catalogue, operations' ids, the drain
+- **Awaiting a split:** one part leaves: the drive's events (`drive.request`, `drive.reply` in `src/log/catalogue.hpp`) for qiven3's own catalogue
+- **Holds:** levelled JSON lines into a crash ring, diag's (`qiven/diag/ring.hpp`, reached through `qiven_diag`), events by descriptor of a catalogue, operations' ids, the drain
 - **Never holds:** run-time text in a line; a product's events but the drive's two, until they leave
 - **Contract:** `src/log/log.hpp`
 - **Files:** not yet in this directory: its files are the `present` paths of module.json; its contract's header moves to `include/qiven/log/log.hpp`.
@@ -12,4 +12,4 @@ layer services, status built
 - **Refuses:** an event outside a catalogue; a field of another type; an event below the build's minimum compiles to nothing
 - **Words:**
   - `catalogue`: the events a binary may write, each a descriptor of a name, a level and fields
-  - `ring`: the bounded buffer of the last lines, read on a crash
+  - `ring`: the bounded buffer of the last lines, read on a crash; diag's

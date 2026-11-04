@@ -13,7 +13,7 @@
 // into the ring alone: a main drains the Log into its output.
 //
 // thread: one (a Log and its Ops stay in the thread that made them; the
-// ring's reader is the exception, log/ring.hpp).
+// ring's reader is the exception, qiven/diag/ring.hpp, diag's).
 
 #include <array>
 #include <chrono>
@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "log/ring.hpp"
+#include "qiven/diag/ring.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
@@ -254,7 +254,7 @@ public:
             drained_ = ring_.first();
             dropped(lost);
         }
-        const RingView v = ring_.since(drained_);
+        const qiven::diag::RingView v = ring_.since(drained_);
         drained_ = ring_.next();
         bool ok = true;
         for (const std::string_view part : {v.older, v.newer}) {
@@ -266,7 +266,7 @@ public:
     }
 
     // The crash buffer, for diag::keep.
-    [[nodiscard]] const Ring& ring() const noexcept { return ring_; }
+    [[nodiscard]] const qiven::diag::Ring& ring() const noexcept { return ring_; }
     // The events dropped by a failed allocation.
     [[nodiscard]] std::uint64_t failed() const noexcept { return failed_; }
     // The largest bytes an event's arena took, padding included.
@@ -288,7 +288,7 @@ private:
     qiven::memory::Arena* parent_;
     std::span<char> ring_storage_;
     std::span<std::byte> pages_;
-    Ring ring_;
+    qiven::diag::Ring ring_;
     std::uint64_t number_;
     std::uint64_t ops_ = 0;
     std::uint64_t drained_ = 0;

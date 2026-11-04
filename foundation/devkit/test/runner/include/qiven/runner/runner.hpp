@@ -4,7 +4,7 @@
 // case with the runner (qiven/runner/core.hpp) as "group.name", that name also
 // the log's Name, made from the literal, for the case's case.end in the
 // process's log (qiven_case_main's main.cpp: the main of every case binary,
-// which holds the log, drains it into the output QIVEN3_LOG names, and
+// which holds the log, drains it into the output QIVEN_LOG names, and
 // names a PlatformError a case lets out).
 
 #include <chrono>

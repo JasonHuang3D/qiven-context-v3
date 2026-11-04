@@ -1,10 +1,10 @@
-#include "diag/diag.hpp"
+#include "qiven/diag/diag.hpp"
 
 #include <exception>
 
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3::diag::detail {
+namespace qiven::diag::detail {
 
 void Line::put(char c) noexcept {
     if (cut_) {
@@ -98,4 +98,4 @@ void on_terminate() {
     fatal(cause.view(), End::abort);
 }
 
-}  // namespace qiven3::diag::detail
+}  // namespace qiven::diag::detail

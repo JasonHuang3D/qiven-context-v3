@@ -3,9 +3,9 @@ fault the drives run, it runs the case and names how it ended.
 
     python -I -X faulthandler tools/watch.py --limit <s> --name <test> -- <command>...
 
-- With QIVEN3_BUILD naming the build, it sets QIVEN3_DUMP_DIR to the
-  build's dumps/ and QIVEN3_LOG to the build's logs/<test>.jsonl, each
-  directory made; and QIVEN3_WATCHER to its own process id. Then it runs
+- With QIVEN3_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
+  build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
+  directory made; and QIVEN_WATCHER to its own process id. Then it runs
   the command, which inherits its standard input and output.
 - On Windows it first sets its own error mode as the diagnostic entry's
   first stage does; the case inherits it, so that a library missing at
@@ -79,14 +79,14 @@ def safe_name(name):
 
 
 def environment(name):
-    env = dict(os.environ, QIVEN3_WATCHER=str(os.getpid()))
+    env = dict(os.environ, QIVEN_WATCHER=str(os.getpid()))
     build = os.environ.get("QIVEN3_BUILD")
     if build:
         dumps, logs = Path(build) / "dumps", Path(build) / "logs"
         dumps.mkdir(exist_ok=True)
         logs.mkdir(exist_ok=True)
-        env["QIVEN3_DUMP_DIR"] = str(dumps)
-        env["QIVEN3_LOG"] = str(logs / (safe_name(name) + ".jsonl"))
+        env["QIVEN_DUMP_DIR"] = str(dumps)
+        env["QIVEN_LOG"] = str(logs / (safe_name(name) + ".jsonl"))
     return env
 
 
@@ -228,7 +228,7 @@ def hang(process, command, env, limit):
     none) and "its dump <file>" or "no dump", then, by a CI image's
     debugger, ", by the image's cdb <version> at <path>, unpinned (CI)"."""
     binary = shutil.which(command[0]) or command[0]
-    dumps = env.get("QIVEN3_DUMP_DIR")
+    dumps = env.get("QIVEN_DUMP_DIR")
     try:
         threads, lines, how = DEBUGGERS["hang_stacks"](process.pid, binary, dumps)
     except DEBUGGERS["NotFound"] as e:

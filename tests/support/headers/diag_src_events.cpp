@@ -1,12 +1,12 @@
 // events' unit for the analysis preset: the report's events read with a
 // head and a line callable of the kinds the report gives them.
 
-#include "diag/events.hpp"
+#include "../../../foundation/system/diag/src/events.hpp"
 
 #include <cstdint>
 #include <string_view>
 
-namespace qiven3::diag::detail {
+namespace qiven::diag::detail {
 
 std::uint64_t counted_events(const Rings& rings) noexcept {
     std::uint64_t lines = 0;
@@ -17,4 +17,4 @@ std::uint64_t counted_events(const Rings& rings) noexcept {
     return lines + points;
 }
 
-}  // namespace qiven3::diag::detail
+}  // namespace qiven::diag::detail

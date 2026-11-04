@@ -18,7 +18,7 @@ namespace qiven::test {
 class Lines {
 public:
     explicit Lines(std::string_view bytes) { add(bytes); }
-    explicit Lines(const qiven3::log::RingView& view) {
+    explicit Lines(const qiven::diag::RingView& view) {
         add(view.older);
         add(view.newer);
     }

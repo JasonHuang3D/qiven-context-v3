@@ -1,14 +1,14 @@
-#include "log/ring.hpp"
+#include "qiven/diag/ring.hpp"
 
 #include <algorithm>
 
 #include "qiven/memory/fail.hpp"
 
-namespace qiven3::log {
+namespace qiven::diag {
 
 Ring::Ring(std::span<char> storage) noexcept : storage_(storage) {
     if (storage.size() < 2 || storage.size() > max_bytes) {
-        qiven::memory::fail_fast("log::Ring: a span under 2 bytes or past 1 MiB");
+        qiven::memory::fail_fast("diag::Ring: a span under 2 bytes or past 1 MiB");
     }
 }
 
@@ -17,7 +17,7 @@ void Ring::evict(State& s) const noexcept {
     const std::string_view held = piece(s.head, end);
     const std::size_t newline = held.find('\n');
     if (newline == std::string_view::npos) {
-        qiven::memory::fail_fast("log::Ring: a held line without its end");
+        qiven::memory::fail_fast("diag::Ring: a held line without its end");
     }
     s.head += newline + 1;
     if (s.wrap != 0 && s.head == s.wrap) {
@@ -91,4 +91,4 @@ RingView Ring::since(std::uint64_t seq) const noexcept {
     return v;
 }
 
-}  // namespace qiven3::log
+}  // namespace qiven::diag

@@ -1,4 +1,4 @@
-// The report's events (diag/events.hpp): the kept rings' table, at most 8,
+// The report's events (src/events.hpp): the kept rings' table, at most 8,
 // none kept twice; the events, the rings' lines in their slots' order, each
 // ring's oldest first, the last 16 in all, a ring's two pieces in order;
 // and the cut at a code point's start, by constant evaluation. The reader
@@ -12,20 +12,20 @@
 #include <string_view>
 #include <vector>
 
-#include "diag/events.hpp"
-#include "log/ring.hpp"
+#include "../src/events.hpp"
+#include "qiven/diag/ring.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::diag::detail::cut;
-using qiven3::diag::detail::events;
-using qiven3::diag::detail::events_max;
-using qiven3::diag::detail::hold;
-using qiven3::diag::detail::release;
-using qiven3::diag::detail::Rings;
-using qiven3::diag::detail::rings_max;
-using qiven3::log::Ring;
+using qiven::diag::detail::cut;
+using qiven::diag::detail::events;
+using qiven::diag::detail::events_max;
+using qiven::diag::detail::hold;
+using qiven::diag::detail::release;
+using qiven::diag::detail::Rings;
+using qiven::diag::detail::rings_max;
+using qiven::diag::Ring;
 
 static_assert(cut("abc", 3) == "abc");
 static_assert(cut("abc", 2) == "ab");
@@ -143,6 +143,6 @@ QIVEN_CASE(events, cut_long) {
     CHECK(hold(rings, big.ring));
     const Seen got = seen(rings);
     REQUIRE(got.lines.size() == 1U);
-    CHECK_EQ(got.lines[0].size(), qiven3::diag::detail::event_points);
+    CHECK_EQ(got.lines[0].size(), qiven::diag::detail::event_points);
     CHECK(release(rings, big.ring));
 }

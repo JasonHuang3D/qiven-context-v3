@@ -1,4 +1,4 @@
-#include "diag/out.hpp"
+#include "qiven/diag/out.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -15,13 +15,13 @@
 #include <cstdlib>
 #endif
 
-namespace qiven3::diag {
+namespace qiven::diag {
 
 Out Out::from_environment() noexcept {
     Out out;
 #ifdef _WIN32
     std::array<wchar_t, 1024> name{};
-    const DWORD got = GetEnvironmentVariableW(L"QIVEN3_LOG", name.data(), static_cast<DWORD>(name.size()));
+    const DWORD got = GetEnvironmentVariableW(L"QIVEN_LOG", name.data(), static_cast<DWORD>(name.size()));
     const std::wstring_view value(name.data(), got < name.size() ? got : 0);
     if (got >= name.size()) {
         out.failed_ = true;
@@ -35,7 +35,7 @@ Out Out::from_environment() noexcept {
         out.handle_ = out.owned_ ? file : nullptr;
     }
 #else
-    const char* name = std::getenv("QIVEN3_LOG");
+    const char* name = std::getenv("QIVEN_LOG");
     const std::string_view value = name != nullptr ? std::string_view(name) : std::string_view();
     if (value == "-") {
         out.handle_ = STDERR_FILENO;
@@ -102,4 +102,4 @@ bool Out::write(std::string_view bytes) noexcept {
     return true;
 }
 
-}  // namespace qiven3::diag
+}  // namespace qiven::diag

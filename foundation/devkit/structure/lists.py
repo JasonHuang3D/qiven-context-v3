@@ -91,16 +91,17 @@ LOAD_PREFIX = "LoadLibrary"
 # B13: the platform's calls that write.
 PLATFORM_WRITES = frozenset(("replace", "stage", "create", "remove_directory", "remove", "rename", "lock"))
 RECORDLOG, ENGINE = "foundation/services/storage/recordlog/", "foundation/services/storage/sqlite/"  # store, wrapper
+DIAG = "foundation/system/diag/"  # the diagnostic entry
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
     "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", *layers.VENDORED, "qiven_storage_sqlite"),
     "B2": ("foundation/system/platform/src/windows/process.",),
-    # src/diag/: the diagnostic entry's Windows headers, its link to dbghelp
-    # and its variants' (src/diag/CMakeLists.txt).
+    # diag: the diagnostic entry's Windows headers, its link to dbghelp and
+    # its variants' (foundation/system/diag/CMakeLists.txt).
     "B5": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
-           layers.CHILD, "qiven_platform_windows", "src/diag/", "qiven3_diag",
-           "qiven3_diag_crtdbg", "qiven3_diag_poisoned"),
+           layers.CHILD, "qiven_platform_windows", DIAG, "qiven_diag",
+           "qiven_diag_crtdbg", "qiven_diag_poisoned"),
     "B11": ("tests/compat/r",),
     "B14": (f"{layers.SUPPORT}goldens",),
     "B16": ("src/app/main.", "qiven3"),
@@ -124,13 +125,13 @@ STATED = {
                                                                  "files' version, source, digests and options",
     ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
                                                   "its absence: its text alone, and B1's include still refused",
-    ("B9", "src/diag/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
-                                     "and its report hook",
-    ("B9", "src/diag/", "signal.h"): "the diagnostic entry's handlers on Linux",
-    ("B9", "src/diag/", "execinfo.h"): "the diagnostic entry's backtrace on Linux",
-    ("B9", "src/diag/", "unistd.h"): "the diagnostic entry's write and _exit on Linux",
-    ("B9", "src/diag/", "mman.h"): "the diagnostic entry's alternate stack on Linux",
-    ("B9", "src/diag/", "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
+    ("B9", DIAG, "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
+                              "and its report hook",
+    ("B9", DIAG, "signal.h"): "the diagnostic entry's handlers on Linux",
+    ("B9", DIAG, "execinfo.h"): "the diagnostic entry's backtrace on Linux",
+    ("B9", DIAG, "unistd.h"): "the diagnostic entry's write and _exit on Linux",
+    ("B9", DIAG, "mman.h"): "the diagnostic entry's alternate stack on Linux",
+    ("B9", DIAG, "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
     ("B9", layers.TESTS, KIT): "the test kit's public headers, which the cases and the drives include",
     ("B9", layers.TESTS, layers.SUPPORT): "the test tree's own headers, which its sources include",
     ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
@@ -156,7 +157,7 @@ STATED = {
     ("B9", "tests/driver/common.cpp", "fcntl.h"): "_O_BINARY, _setmode's mode, as io.h's",
     ("B9", "tests/faults/fault_assert.cpp", "crtdbg.h"): "_ASSERTE, the debug runtime's assertion, the one "
                                                          "that reaches the diagnostic entry's report hook",
-    ("B9", "src/diag/out.cpp", "fcntl.h"): "open, for the file QIVEN3_LOG names, on Linux",
+    ("B9", DIAG + "src/out.cpp", "fcntl.h"): "open, for the file QIVEN_LOG names, on Linux",
     ("B5", "tools/git_shim.c", "windows.h"): "the tests' counting shim on Windows, which loop_shim.py builds by cl and "
                                             "CMake never: its log, its environment and the real program's start",
 }
@@ -192,11 +193,11 @@ B13_LINKS = ("qiven_sqlite", "qiven_storage_sqlite", "qiven_recordlog", "qiven3_
 NOT_CORE = ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
             "foundation/system/platform/src/fake/", "foundation/system/platform/include/qiven/platform/fake/",
             "foundation/system/platform/include/qiven/platform/current.", "foundation/system/platform/src/current.",
-            "foundation/services/compute/", "src/diag/")
+            "foundation/services/compute/", DIAG)
 NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current", "qiven_platform_fake",
-                              "qiven_compute", "qiven_compute_fake", "qiven3_diag", "qiven3_diag_entry",
-                              "qiven3_diag_crtdbg", "qiven3_diag_entry_crtdbg", "qiven3_diag_poisoned",
-                              "qiven3_diag_entry_poisoned",
+                              "qiven_compute", "qiven_compute_fake", "qiven_diag", "qiven_diag_entry",
+                              "qiven_diag_crtdbg", "qiven_diag_entry_crtdbg", "qiven_diag_poisoned",
+                              "qiven_diag_entry_poisoned",
                               # memory, text and the log again on the debug runtime, for
                               # qiven3-fault-crtdbg alone: their objects name that runtime, which the
                               # records do not read; the release copies are read.

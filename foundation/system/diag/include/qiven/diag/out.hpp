@@ -1,6 +1,6 @@
 #pragma once
 
-// out: a main's output for its log's drain: standard error when QIVEN3_LOG
+// out: a main's output for its log's drain: standard error when QIVEN_LOG
 // is "-", the file it names, appended to, when it names one, and nothing
 // when it is unset or empty. Each write goes to the system at once.
 //
@@ -8,11 +8,11 @@
 
 #include <string_view>
 
-namespace qiven3::diag {
+namespace qiven::diag {
 
 class Out {
 public:
-    // The output QIVEN3_LOG names; a file that cannot be opened writes
+    // The output QIVEN_LOG names; a file that cannot be opened writes
     // nothing, and failed() says so.
     static Out from_environment() noexcept;
 
@@ -41,4 +41,4 @@ private:
     bool failed_ = false;
 };
 
-}  // namespace qiven3::diag
+}  // namespace qiven::diag

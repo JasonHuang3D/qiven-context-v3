@@ -347,11 +347,11 @@ class Faults(unittest.TestCase):
         self.assertEqual(status_table.line(-31), "status: signal 31 unnamed")
 
     def test_no_dump_dir(self):
-        """With QIVEN3_DUMP_DIR unset the report says so: dump none. The
+        """With QIVEN_DUMP_DIR unset the report says so: dump none. The
         plant runs alone, the watcher setting the variable."""
         if not WINDOWS:
             self.skipTest("Linux writes no minidump")
-        env = {k: v for k, v in os.environ.items() if k != "QIVEN3_DUMP_DIR"}
+        env = {k: v for k, v in os.environ.items() if k != "QIVEN_DUMP_DIR"}
         ran = subprocess.run([str(binaries.path(FAULT)), "failfast"], capture_output=True, env=env,
                              timeout=binaries.TIMEOUT, check=False)
         self.assertEqual(ran.returncode, 0xC0000409)
@@ -385,7 +385,8 @@ class Signal(unittest.TestCase):
             self.skipTest("a sanitizer's instrumentation calls its own runtime")
 
     def test_K18_safe(self):
-        obj = binaries.directory("QIVEN3_BUILD") / "src" / "diag" / "CMakeFiles" / "qiven3_diag.dir" / "signal.cpp.o"
+        obj = (binaries.directory("QIVEN3_BUILD") / "foundation" / "system" / "diag" / "CMakeFiles" / "qiven_diag.dir"
+               / "src" / "signal.cpp.o")
         self.assertTrue(obj.is_file(), obj)
         self.assertEqual(undefined(obj) - SAFE, set())
 
@@ -426,14 +427,14 @@ def control_command(source, copy, obj):
 
 
 class Out(unittest.TestCase):
-    """diag::Out, through the plant out: standard error for QIVEN3_LOG=-, the
+    """diag::Out, through the plant out: standard error for QIVEN_LOG=-, the
     file it names, appended to, and nothing when it is unset."""
     ctest_labels = ("fake",)
 
     def run_out(self, value):
-        env = {k: v for k, v in os.environ.items() if k != "QIVEN3_LOG"}
+        env = {k: v for k, v in os.environ.items() if k != "QIVEN_LOG"}
         if value is not None:
-            env["QIVEN3_LOG"] = value
+            env["QIVEN_LOG"] = value
         done = subprocess.run([str(binaries.path(FAULT)), "out"], capture_output=True, env=env,
                               timeout=binaries.TIMEOUT, check=False)
         self.assertEqual(done.returncode, 0, done.stderr)

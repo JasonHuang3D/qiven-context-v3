@@ -2,7 +2,7 @@
 
 // A main's log in the test tree: a Log over pages its main gives once, its
 // ring kept for the crash report while it lives, and drained into the
-// output QIVEN3_LOG names (qiven3::diag::Out). The runner's main and the drives'
+// output QIVEN_LOG names (qiven::diag::Out). The runner's main and the drives'
 // request loop each hold one, the process's one Log.
 //
 // thread: one (the Log's)
@@ -11,9 +11,9 @@
 #include <cstddef>
 #include <span>
 
-#include "diag/diag.hpp"
-#include "diag/out.hpp"
 #include "log/log.hpp"
+#include "qiven/diag/diag.hpp"
+#include "qiven/diag/out.hpp"
 #include "qiven/memory/arena.hpp"
 
 namespace qiven::test {
@@ -33,8 +33,8 @@ public:
     Journal(Pages& pages, qiven3::log::Name binary)
         : arena_(std::span<std::byte>(pages.data)),
           log_(arena_, qiven3::log::Count(1U), binary),
-          out_(qiven3::diag::Out::from_environment()) {
-        qiven3::diag::keep(log_.ring());
+          out_(qiven::diag::Out::from_environment()) {
+        qiven::diag::keep(log_.ring());
     }
     Journal(const Journal&) = delete;
     Journal& operator=(const Journal&) = delete;
@@ -43,7 +43,7 @@ public:
     // The last lines drained, and the ring no longer kept.
     ~Journal() {
         drain();
-        qiven3::diag::drop(log_.ring());
+        qiven::diag::drop(log_.ring());
     }
 
     [[nodiscard]] qiven3::log::Log& log() noexcept { return log_; }
@@ -54,7 +54,7 @@ public:
 private:
     qiven::memory::Arena arena_;
     qiven3::log::Log log_;
-    qiven3::diag::Out out_;
+    qiven::diag::Out out_;
 };
 
 }  // namespace qiven::test

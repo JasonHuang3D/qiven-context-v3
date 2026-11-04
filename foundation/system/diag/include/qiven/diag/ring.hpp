@@ -1,6 +1,6 @@
 #pragma once
 
-// ring: the crash buffer, whole lines over a span its Log takes once from
+// ring: the crash buffer, whole lines over a span its owner takes once from
 // its binary's arena. A line goes in with its '\n' and never wraps: when the
 // span's end is near, the next line starts at its front, and the oldest
 // lines are evicted whole, first, until it fits. The held lines are so at
@@ -14,7 +14,7 @@
 // may read it from a handler. Of what the writer has published, the reader
 // sees whole lines alone.
 //
-// thread: one writer, the Log's thread; lines() from any thread or a
+// thread: one writer, its owner's thread; lines() from any thread or a
 // signal handler, which sees what the last release store committed.
 
 #include <atomic>
@@ -24,7 +24,7 @@
 #include <span>
 #include <string_view>
 
-namespace qiven3::log {
+namespace qiven::diag {
 
 // The held lines, the older piece first, each piece whole lines ending in
 // '\n'. Borrowed from the ring: valid until the ring's next push.
@@ -111,4 +111,4 @@ static_assert(std::atomic<std::uint64_t>::is_always_lock_free, "the ring's state
 static_assert(sizeof(Ring) == 40, "Ring's size is pinned: the span, the state and the two counts");
 #endif
 
-}  // namespace qiven3::log
+}  // namespace qiven::diag

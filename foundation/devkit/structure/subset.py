@@ -75,14 +75,16 @@ ALLOWED = {
     "B19": ("foundation/core/memory/include/qiven/memory/arena.", "foundation/core/memory/src/arena.", "foundation/core/memory/include/qiven/memory/pool.", "foundation/core/memory/src/pool."),
     "B20": ("foundation/core/memory/",),
     # The diagnostic entry's dump thread, which lives as long as the process.
-    "B24": ("src/diag/",),
+    "B24": ("foundation/system/diag/",),
     # The entry's handlers' state, and memory/fail's kept cause, which the
     # terminate handler reads with nothing allocated.
-    "B25": ("src/diag/", "foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail."),
+    "B25": ("foundation/system/diag/", "foundation/core/memory/include/qiven/memory/fail.",
+            "foundation/core/memory/src/fail."),
     "B30": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/"),
     # memory/fail's fail-fast, and the diagnostic entry, which ends a broken
     # process itself after its report: B31's two homes.
-    "B31": ("foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail.", "src/diag/"),
+    "B31": ("foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail.",
+            "foundation/system/diag/"),
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares
@@ -111,8 +113,9 @@ CELLS = {
     ("B28", "foundation/core/memory/include/qiven/memory/pool.hpp", "Heap"): "as Arena's",
     ("B28", "src/log/log.hpp", "Name"): "a literal's text, which lasts as long as the process: a Name is made in "
                                         "constant evaluation alone",
-    ("B28", "src/log/ring.hpp", "Ring"): "the span its Log takes from its binary's arena, which outlives the Log, "
-                                         "the ring's owner",
+    ("B28", "foundation/system/diag/include/qiven/diag/ring.hpp", "Ring"): "the span its Log takes from its "
+                                                                           "binary's arena, which outlives the Log, "
+                                                                           "the ring's owner",
     ("B28", "src/log/log.hpp", "Log"): "the ring's span and the events' pages, blocks of its binary's arena, "
                                        "which outlives the Log and takes them back at its end",
 }

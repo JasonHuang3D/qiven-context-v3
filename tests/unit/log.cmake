@@ -1,7 +1,7 @@
-# The log's cases: log, ring, the report's events, the static half's, and
-# K13's binary half, whose binary tests/drive/test_log.py reads.
+# The log's cases: log, the static half's, and K13's binary half, whose
+# binary tests/drive/test_log.py reads.
 qiven3_add_cases(qiven3_unit_log LABELS fast fake
-  SOURCES log_test.cpp log_static.cpp log_k13.cpp ring_test.cpp events_test.cpp
+  SOURCES log_test.cpp log_static.cpp log_k13.cpp
   LINK qiven_faults)
 
 # K13's planted field (log_plant.cpp): the control in every build, the plant

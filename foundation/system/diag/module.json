@@ -5,7 +5,7 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/diag/diag.hpp",
+  "contract": "foundation/system/diag/include/qiven/diag/diag.hpp",
   "adopted": "2026-10-31",
   "parameters": [],
   "present": [
@@ -13,22 +13,12 @@
       "name": "diag",
       "layer": "foundation",
       "depends": [
-        "memory",
-        "log"
+        "memory"
       ],
       "test_depends": [],
       "paths": [
-        "src/diag/"
+        "foundation/system/diag/"
       ]
-    }
-  ],
-  "exceptions": [
-    {
-      "from": "diag",
-      "to": [
-        "log"
-      ],
-      "until": "diag moves with the log's ring"
     }
   ]
 }

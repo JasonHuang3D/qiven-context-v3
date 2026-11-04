@@ -1,4 +1,4 @@
-// log::Ring's cases: whole lines in order, the oldest evicted whole, never
+// diag::Ring's cases: whole lines in order, the oldest evicted whole, never
 // a line across the span's end, since() from a line on, and the lines it
 // refuses; over every span from 2 to 48 bytes, each with lines of every
 // length that fits.
@@ -9,13 +9,13 @@
 #include <string_view>
 #include <vector>
 
-#include "log/ring.hpp"
+#include "qiven/diag/ring.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-using qiven3::log::Ring;
-using qiven3::log::RingView;
+using qiven::diag::Ring;
+using qiven::diag::RingView;
 
 // The n-th line of a run: its number, then letters to its length.
 std::string line_of(std::uint64_t n, std::size_t length) {

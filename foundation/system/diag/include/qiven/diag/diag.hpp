@@ -26,11 +26,9 @@
 #include <cstdint>
 #include <string_view>
 
-namespace qiven3::log {
-class Ring;
-}  // namespace qiven3::log
+namespace qiven::diag {
 
-namespace qiven3::diag {
+class Ring;  // the crash buffer (ring.hpp)
 
 // Sets the error mode, the C runtime's reports and every handler. Under a
 // sanitizer the fault handlers stay uninstalled, its own report standing;
@@ -42,12 +40,12 @@ void install() noexcept;
 void thread_start() noexcept;
 
 // Keeps a crash buffer for the report, whose last lines it writes under
-// "fatal: events" (diag/events.hpp). At most 8 rings in a process; a
+// "fatal: events" (src/events.hpp). At most 8 rings in a process; a
 // ninth, or one kept twice, is a broken invariant. The ring outlives its
 // keeping: drop it before its end.
-void keep(const log::Ring& ring) noexcept;
+void keep(const Ring& ring) noexcept;
 // Ends a ring's keeping; a ring not kept is a broken invariant.
-void drop(const log::Ring& ring) noexcept;
+void drop(const Ring& ring) noexcept;
 
 namespace detail {
 
@@ -92,4 +90,4 @@ enum class End : std::uint8_t { abort, fail_fast };
 
 }  // namespace detail
 
-}  // namespace qiven3::diag
+}  // namespace qiven::diag

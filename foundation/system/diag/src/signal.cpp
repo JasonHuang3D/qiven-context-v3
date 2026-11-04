@@ -3,7 +3,7 @@
 // backtrace and backtrace_symbols_fd, which install() loads before any
 // fault, and lock-free atomics; K18 reads its object's undefined symbols
 // against that list. The kept rings' table is here, which the report reads
-// by diag/events.hpp's inline reader. Nothing is allocated, and no stdio,
+// by events.hpp's inline reader. Nothing is allocated, and no stdio,
 // lock, exception or json is used: each line is built in a buffer on the stack, the
 // alternate one in a handler. No checked member of the standard library
 // is called either (indexing, substr, remove_prefix), since the hardened
@@ -12,7 +12,7 @@
 // backtrace_symbols_fd's raw lines, which the watcher symbolizes after the
 // exit.
 
-#include "diag/signal.hpp"
+#include "signal.hpp"
 
 #include <execinfo.h>
 #include <unistd.h>
@@ -25,9 +25,9 @@
 #include <iterator>
 #include <string_view>
 
-#include "diag/events.hpp"
+#include "events.hpp"
 
-namespace qiven3::diag::detail {
+namespace qiven::diag::detail {
 
 namespace {
 
@@ -197,9 +197,9 @@ void claim(int number) noexcept {
 
 }  // namespace
 
-bool keep_ring(const log::Ring& ring) noexcept { return hold(rings, ring); }
+bool keep_ring(const Ring& ring) noexcept { return hold(rings, ring); }
 
-bool drop_ring(const log::Ring& ring) noexcept { return release(rings, ring); }
+bool drop_ring(const Ring& ring) noexcept { return release(rings, ring); }
 
 void on_signal(int number, siginfo_t* info, void* context) noexcept {
     claim(number);
@@ -224,4 +224,4 @@ void report(std::string_view cause, int number) noexcept {
     finish(number);
 }
 
-}  // namespace qiven3::diag::detail
+}  // namespace qiven::diag::detail

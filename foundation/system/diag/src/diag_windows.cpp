@@ -1,7 +1,7 @@
 // diag on Windows: the second stage of the entry (entry.cpp holds the
 // first), the handlers, and the report: the faulting thread writes the
 // cause, then hands over to the dump thread, which walks the stack by
-// dbghelp, writes the minidump where QIVEN3_DUMP_DIR names, and ends the
+// dbghelp, writes the minidump where QIVEN_DUMP_DIR names, and ends the
 // report; the faulting thread waits at most 5 s and ends the process.
 
 #include <windows.h>
@@ -16,15 +16,15 @@
 #include <exception>
 #include <span>
 
-#include "diag/diag.hpp"
-#include "diag/events.hpp"
+#include "qiven/diag/diag.hpp"
+#include "events.hpp"
 #include "qiven/memory/fail.hpp"
 
 #if !defined(_M_X64)
 #error "diag_windows.cpp walks x64 stacks alone"
 #endif
 
-namespace qiven3::diag {
+namespace qiven::diag {
 
 namespace {
 
@@ -182,7 +182,7 @@ struct DumpPath {
 bool dump_path(DumpPath& out) noexcept {
     // The directory straight into the path, so that one frame holds two
     // buffers at most.
-    const DWORD got = GetEnvironmentVariableW(L"QIVEN3_DUMP_DIR", out.path.data(), static_cast<DWORD>(path_max));
+    const DWORD got = GetEnvironmentVariableW(L"QIVEN_DUMP_DIR", out.path.data(), static_cast<DWORD>(path_max));
     std::array<wchar_t, path_max> self{};
     const DWORD length = GetModuleFileNameW(nullptr, self.data(), static_cast<DWORD>(self.size()));
     if (got == 0 || got >= path_max || length == 0 || length >= self.size()) {
@@ -422,20 +422,20 @@ void start_dump_thread() noexcept {
 
 }  // namespace
 
-void keep(const log::Ring& ring) noexcept {
+void keep(const Ring& ring) noexcept {
     if (!detail::hold(rings, ring)) {
         qiven::memory::fail_fast("diag::keep: a ring kept twice, or past 8 rings");
     }
 }
 
-void drop(const log::Ring& ring) noexcept {
+void drop(const Ring& ring) noexcept {
     if (!detail::release(rings, ring)) {
         qiven::memory::fail_fast("diag::drop: a ring not kept");
     }
 }
 
 void thread_start() noexcept {
-#ifndef QIVEN3_SANITIZED
+#ifndef QIVEN_SANITIZED
     ULONG guarantee = stack_guarantee;
     SetThreadStackGuarantee(&guarantee);
 #endif
@@ -453,7 +453,7 @@ void install() noexcept {
 #endif
     _set_invalid_parameter_handler(on_parameter);
     std::set_terminate(detail::on_terminate);
-#ifndef QIVEN3_SANITIZED
+#ifndef QIVEN_SANITIZED
     std::signal(SIGABRT, on_abort);
     state.previous = SetUnhandledExceptionFilter(on_exception);
     thread_start();
@@ -469,4 +469,4 @@ void fatal(std::string_view cause, End end) noexcept {
 
 }  // namespace detail
 
-}  // namespace qiven3::diag
+}  // namespace qiven::diag

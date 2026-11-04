@@ -40,7 +40,7 @@
 // drive.request with its bytes, error.typed for a typed error, drive.reply
 // with its status ("ok" or the error's kind) and bytes, and op.end with its
 // outcome ("ok", the typed error's code, or the kind) and its arena's peak;
-// the log is drained after each reply into the output QIVEN3_LOG names. No
+// the log is drained after each reply into the output QIVEN_LOG names. No
 // field holds a request's text.
 //
 // The adapter is made at its first platform operation, so an adapter that

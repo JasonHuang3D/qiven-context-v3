@@ -3,7 +3,7 @@ of CMake's records (executables.txt, each directory's executable targets,
 which the root CMakeLists.txt reads from CMake after every directory) is
 listed in the build's binaries.txt, which qiven_executable writes; no CMakeLists.txt or CMake file but build.cmake's
 qiven_executable calls add_executable; and each listed binary, started
-with QIVEN3_DIAG_PROBE=1, prints "diag: entry" from its entry, before main,
+with QIVEN_DIAG_PROBE=1, prints "diag: entry" from its entry, before main,
 and exits 0. The controls: a planted add_executable, and a binary without
 the entry, this interpreter, each caught.
 """
@@ -55,7 +55,7 @@ def stray_calls(root):
 
 def probe_problem(command):
     """None when the binary's entry answers its probe, else what it gave."""
-    env = dict(os.environ, QIVEN3_DIAG_PROBE="1")
+    env = dict(os.environ, QIVEN_DIAG_PROBE="1")
     # The test tree's library, which qiven3-fault-import imports, by the
     # loader's path on Linux: the binary holds no run path (K11).
     env["LD_LIBRARY_PATH"] = str(Path(command[0]).parent)

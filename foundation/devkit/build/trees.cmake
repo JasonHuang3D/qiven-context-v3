@@ -100,13 +100,9 @@ endfunction()
 
 # qiven3_source_path(<dir> <source> <out>): a source of a target defined in
 # dir, from the root, as qiven3_analysed reads it: a generated one as its
-# directory's own; empty for the diagnostic entry's objects, which every
-# executable takes (qiven_executable) and are none of its own sources.
+# directory's own.
 function(qiven3_source_path dir source out)
   set(${out} "" PARENT_SCOPE)
-  if(source MATCHES "^[$]<TARGET_OBJECTS:qiven3_diag_entry[A-Za-z0-9_]*>$")
-    return()
-  endif()
   get_filename_component(source "${source}" ABSOLUTE BASE_DIR "${dir}")
   qiven3_under("${source}" "${PROJECT_BINARY_DIR}" generated)
   if(generated)
