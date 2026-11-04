@@ -23,7 +23,9 @@
         "text",
         "memory"
       ],
-      "test_depends": [],
+      "test_depends": [
+        "faults"
+      ],
       "paths": [
         "foundation/services/log/"
       ]
