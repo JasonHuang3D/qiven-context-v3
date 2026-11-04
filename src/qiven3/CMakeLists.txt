@@ -11,5 +11,5 @@ add_library(qiven3_location STATIC
 )
 target_include_directories(qiven3_location PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(qiven3_location
-  PUBLIC qiven_recordlog qiven3_entry qiven_platform qiven3_wire qiven_text qiven_time qiven_memory
+  PUBLIC qiven_recordlog qiven3_entry qiven_platform qiven_transport qiven_text qiven_time qiven_memory
   PRIVATE qiven_build)

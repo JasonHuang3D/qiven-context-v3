@@ -20,11 +20,11 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace {
 
-namespace wire = qiven3::wire;
+namespace wire = qiven::transport;
 using qiven::platform::fake::Config;
 using qiven::platform::fake::FakePlatform;
 

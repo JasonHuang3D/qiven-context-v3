@@ -1,4 +1,4 @@
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -8,7 +8,7 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/text/utf.hpp"
 
-namespace qiven3::wire {
+namespace qiven::transport {
 
 namespace utf = qiven::text::utf;
 
@@ -48,4 +48,4 @@ std::optional<RequestView> read_request(int argc, const char* const* argv, const
     return RequestView(arguments, total);
 }
 
-}  // namespace qiven3::wire
+}  // namespace qiven::transport

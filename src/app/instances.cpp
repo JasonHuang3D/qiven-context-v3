@@ -23,9 +23,11 @@
 #include "app/main_impl.hpp"
 #include "qiven/platform/current.hpp"
 #include "qiven3/location_impl.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace qiven3 {
+
+namespace wire = qiven::transport;
 
 #if defined(_WIN32)
 template int location::main<qiven::platform::Current>(std::span<const std::string_view>, qiven::platform::Current&,

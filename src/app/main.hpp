@@ -3,7 +3,7 @@
 // main: the qiven3 binary's subcommands, its adapter and its exit status.
 // `qiven3 location ARGUMENTS`, the store location's commands, takes the
 // arguments after its name. main reads the command line through the
-// per-call wire (wire/wire.hpp) within the binary's bounds: a request the
+// per-call wire (qiven/transport/wire.hpp) within the binary's bounds: a request the
 // wire cannot read, an argument not UTF-8 or past a bound (more than
 // max_arguments arguments among them), exits 2 with no line, the wire's
 // own failure. It then makes the platform by the maker its binary gives
@@ -39,10 +39,12 @@
 #include <span>
 #include <string_view>
 
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace qiven3 {
 namespace app {
+
+namespace wire = qiven::transport;
 
 // The binary's own exit statuses; a subcommand's are its own.
 inline constexpr int refused = 1;

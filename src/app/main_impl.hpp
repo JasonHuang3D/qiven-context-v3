@@ -12,10 +12,12 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven3/location_impl.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace qiven3 {
 namespace app {
+
+namespace wire = qiven::transport;
 
 template <typename Make>
 int main(int argc, const char* const* argv, Make make) noexcept {

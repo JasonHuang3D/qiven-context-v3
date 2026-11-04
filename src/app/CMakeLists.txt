@@ -4,5 +4,5 @@
 # it links current and adapter_for, which a main alone links. Its entry
 # on Windows is wmain (WIDE), its arguments taken as UTF-16.
 qiven_executable(qiven3 SOURCES main.cpp main.hpp main_impl.hpp instances.cpp
-  LINK qiven3_location qiven3_wire qiven_platform_current WIDE)
+  LINK qiven3_location qiven_transport qiven_platform_current WIDE)
 target_include_directories(qiven3 PRIVATE "${PROJECT_SOURCE_DIR}/src")

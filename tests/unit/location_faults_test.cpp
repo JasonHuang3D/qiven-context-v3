@@ -30,7 +30,7 @@
 #include "qiven3/location.hpp"
 #include "qiven/recordlog/sqlite_steps.hpp"
 #include "support/fixtures/location_bed.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace {
 using namespace qiven::test::location_bed;
@@ -39,7 +39,7 @@ using namespace qiven::test::location_bed;
 #if defined(QIVEN_FAULTS) && (!defined(_ITERATOR_DEBUG_LEVEL) || _ITERATOR_DEBUG_LEVEL == 0)
 namespace {
 
-namespace wire = qiven3::wire;
+namespace wire = qiven::transport;
 
 struct Typed {};
 struct Untyped {};
@@ -107,7 +107,7 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven::t
             return;
         }
         if (code == qiven3::location::refused || code == Bed::expected(s) ||
-            (code == qiven3::wire::failed && kind == Kind::platform)) {
+            (code == qiven::transport::failed && kind == Kind::platform)) {
             throw Typed{};
         }
         throw Untyped{};
@@ -117,7 +117,7 @@ void pass(qiven::runner::Context& qiven_ctx, Bed& b, Step s, Kind kind, qiven::t
             return true;
         }
         // No step's own status is the wire's.
-        const bool unwritten = fired && code == qiven3::wire::failed;
+        const bool unwritten = fired && code == qiven::transport::failed;
         bool held = b.fake->lent() == lent && b.config_clean() &&
                     (unwritten ? unwritten_held(b, s, from) : b.record_held(s, code));
         if (unwritten) {
@@ -312,7 +312,7 @@ std::size_t unwritten_runs(qiven::runner::Context& qiven_ctx, Bed& b, Step s) {
             c.arm(k);
             const int code = b.run(s);
             b.fake->attach(nullptr);
-            hit = c.fired() && code == qiven3::wire::failed && b.fake->calls().size() == at + i + 1 &&
+            hit = c.fired() && code == qiven::transport::failed && b.fake->calls().size() == at + i + 1 &&
                   b.fake->calls().back() == "standard_output";
             c.disarm();
         }

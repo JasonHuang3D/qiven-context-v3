@@ -17,7 +17,7 @@
 // unreadable (old_unreadable, naming the error); then, as at init, a
 // store.db in the directory opened as it is, or a store created there,
 // then the record written, last, by replace. A change moves, copies and
-// deletes no file. Output goes through the wire's answer (wire/wire.hpp)
+// deletes no file. Output goes through the wire's answer (qiven/transport/wire.hpp)
 // to standard_output(): the check's lines, then the record, then
 // `recorded`, naming the directory. A line the wire cannot write ends the
 // command at once with status 2 and no further line, what the system took

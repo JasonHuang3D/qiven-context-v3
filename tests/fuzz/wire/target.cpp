@@ -22,11 +22,11 @@
 #include <string_view>
 #include <vector>
 
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace {
 
-namespace wire = qiven3::wire;
+namespace wire = qiven::transport;
 
 constexpr std::size_t none = std::numeric_limits<std::size_t>::max();
 constexpr std::size_t header = 3;

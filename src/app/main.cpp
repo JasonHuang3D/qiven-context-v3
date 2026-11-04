@@ -6,10 +6,12 @@
 #include <string_view>
 
 #include "qiven3/location.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace qiven3 {
 namespace app {
+
+namespace wire = qiven::transport;
 
 std::optional<CommandView> command(const wire::RequestView& request, Views& views) noexcept {
     const std::size_t given = request.size();

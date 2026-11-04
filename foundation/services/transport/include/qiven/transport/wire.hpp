@@ -35,7 +35,7 @@
 #include <span>
 #include <string_view>
 
-namespace qiven3::wire {
+namespace qiven::transport {
 
 // The exit status of the wire's own failures.
 inline constexpr int failed = 2;
@@ -106,4 +106,4 @@ template <Output P>
     return status;
 }
 
-}  // namespace qiven3::wire
+}  // namespace qiven::transport

@@ -173,11 +173,12 @@ EXEMPT = {
 }
 # B12: the modules and targets that never reach backup or forgetting.
 B12_FILES = (RECORDLOG, "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
-             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.", "src/wire/")
+             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.",
+             "foundation/services/transport/")
 B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
                          "qiven3_bundle", "qiven3_reader", "qiven_platform", "qiven_platform_windows",
                          "qiven_platform_current", "qiven_text", "qiven_time", "qiven_digest", "qiven3_format",
-                         "qiven3_location", "qiven3_wire"))
+                         "qiven3_location", "qiven_transport"))
 B12_HEADERS = ("src/backup/", "src/forget/")
 B12_LINKS = ("qiven3_forget", "qiven3_backup")
 # B13: the reader's includes and its targets' links.

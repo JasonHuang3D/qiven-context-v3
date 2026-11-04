@@ -19,11 +19,12 @@
 #include "qiven3/location.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/sqlite_store.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 namespace qiven3::location {
 
 namespace store = qiven::recordlog;
+namespace wire = qiven::transport;
 
 namespace detail {
 

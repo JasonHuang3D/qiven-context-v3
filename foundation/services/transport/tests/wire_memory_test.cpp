@@ -22,18 +22,18 @@
 
 #include "qiven/platform/platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "wire/wire.hpp"
+#include "qiven/transport/wire.hpp"
 
 // MemorySanitizer's and ThreadSanitizer's runtimes define operator new in
 // the binary themselves, so that no other may: there the count is not
 // applicable, and the cases say so.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) || __has_feature(thread_sanitizer)
-#define QIVEN3_RUNTIME_NEW 1
+#define QIVEN_RUNTIME_NEW 1
 #endif
 #endif
 
-#if !defined(QIVEN3_RUNTIME_NEW)
+#if !defined(QIVEN_RUNTIME_NEW)
 namespace {
 
 // Each call of operator new in this binary, all threads.
@@ -85,11 +85,11 @@ void operator delete(void* p, std::size_t, std::align_val_t align) noexcept { ::
 
 namespace {
 
-namespace wire = qiven3::wire;
+namespace wire = qiven::transport;
 
 constexpr std::size_t most = std::numeric_limits<std::size_t>::max();
 
-#if !defined(QIVEN3_RUNTIME_NEW)
+#if !defined(QIVEN_RUNTIME_NEW)
 constexpr bool counted = true;
 
 // operator new's calls since the last asking.

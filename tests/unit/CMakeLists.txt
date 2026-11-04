@@ -4,6 +4,5 @@
 include("${CMAKE_CURRENT_SOURCE_DIR}/entry.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/secret.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/write.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/wire.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/checked.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/location.cmake")
