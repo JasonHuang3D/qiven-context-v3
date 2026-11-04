@@ -35,7 +35,8 @@ def files():
 
 def was_core(rel):
     """Core logic as it was read, src/ its literal root, memory's, matcher's, text's, time's, digest's,
-    format's, compute's and platform's code at their new places."""
+    format's, the entry's, compute's, platform's, recordlog's, storage_sqlite's, diag's, log's and transport's
+    code at their new places."""
     return rel.startswith(OLD_SRC) and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
 
 
@@ -48,9 +49,9 @@ class Core(unittest.TestCase):
         self.assertEqual([rel for rel in held if not rules.is_core(rel, TREE)], [])
 
     def test_outside(self):
-        """No file outside src/ and memory's, matcher's, text's, time's, digest's, format's, compute's and
-        platform's code is core logic today: the runner, devkit's, the vendored SQLite, system's, and test code
-        are outside it."""
+        """No file outside src/ and memory's, matcher's, text's, time's, digest's, format's, the entry's,
+        compute's, platform's, recordlog's, storage_sqlite's, diag's, log's and transport's code is core logic
+        today: the runner, devkit's, the vendored SQLite, system's, and test code are outside it."""
         self.assertEqual([rel for rel in files() if rel.endswith(CXX) and rules.is_core(rel, TREE)
                           and not was_core(rel)], [])
         runner = [rel for rel in files() if rel.startswith(rules.RUNNER) and rel.endswith(CXX)]

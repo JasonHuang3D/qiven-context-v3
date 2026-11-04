@@ -137,6 +137,9 @@ STATED = {
     ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
     ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
     ("B9", KIT, KIT): "the test kit's headers, which its modules and their own cases include",
+    ("B9", "foundation/system/platform/tests/", "foundation/system/platform/tests/win_process_case.hpp"):
+        "the process cases' shared header, which platform's process cases include: tests/support/fixtures/'s "
+        "header, moved to platform's own tests/ with them (3469a57)",
     ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
@@ -172,25 +175,32 @@ EXEMPT = {
     "B2": {STRUCTURE: "as B1's: the git names and CreateProcessW B2's rules refuse"},
     "B14": {STRUCTURE: "as B1's: the goldens path B14's literal rule refuses"},
 }
-# B12: the modules and targets that never reach backup or forgetting.
-B12_FILES = (RECORDLOG, "src/entry/", "src/bundle/", "src/reader/", "foundation/system/platform/",
+# B12 and B13 name what exists alone: the reader's, the bundle's, backup's,
+# forgetting's and the map check's paths and targets come back with each
+# module's row when it is built. A target is matched by its exact name, a
+# variant by its own.
+# B12: the modules and targets that never reach backup or forgetting; its
+# headers and links none until those modules are built.
+B12_FILES = (RECORDLOG, "src/entry/", "products/qiven3/entry/", "foundation/system/platform/",
              "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.",
              "foundation/services/transport/")
-B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven3_layout",
-                         "qiven3_bundle", "qiven3_reader", "qiven_platform", "qiven_platform_windows",
-                         "qiven_platform_current", "qiven_text", "qiven_time", "qiven_digest", "qiven3_format",
-                         "qiven3_location", "qiven_transport"))
-B12_HEADERS = ("src/backup/", "src/forget/")
-B12_LINKS = ("qiven3_forget", "qiven3_backup")
-# B13: the reader's includes and its targets' links.
-B13_HEADERS = (RECORDLOG, ENGINE + "include/qiven/storage_sqlite/", "src/backup/", "src/forget/",
-               "src/qiven3/mapcheck.", "src/entry/secret.", "src/bundle/")
-B13_OPEN = ("src/bundle/layout.", RECORDLOG + "include/qiven/recordlog/keys.",  # under B13_HEADERS, open to it
+B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven_platform",
+                         "qiven_platform_windows", "qiven_platform_current", "qiven_text", "qiven_time",
+                         "qiven_digest", "qiven3_format", "qiven3_location", "qiven_transport"))
+B12_HEADERS = ()
+B12_LINKS = ()
+# B13: the reader's includes and its targets' links, the reader's part
+# built today the entry: its files by path, the secret check's out of them
+# (structure's records give a target's compiled sources alone, not its
+# headers).
+B13_FILES = ("src/entry/", "products/qiven3/entry/")
+B13_SECRET = ("src/entry/secret.",)
+B13_HEADERS = (RECORDLOG, ENGINE + "include/qiven/storage_sqlite/", "src/entry/secret.")
+B13_OPEN = (RECORDLOG + "include/qiven/recordlog/keys.",  # under B13_HEADERS, open to it
             RECORDLOG + "include/qiven/recordlog/values.")
-B13_TARGETS = frozenset(("qiven3_reader", "qiven3_layout", "qiven3_entry", "qiven_matcher", "qiven_text",
-                         "qiven_time", "qiven_digest", "qiven3_format"))
-B13_LINKS = ("qiven_sqlite", "qiven_storage_sqlite", "qiven_recordlog", "qiven3_forget", "qiven3_secret",
-             "qiven3_mapcheck", "qiven3_bundle", "qiven3_backup")
+B13_TARGETS = frozenset(("qiven3_entry", "qiven_matcher", "qiven_text", "qiven_time", "qiven_digest",
+                         "qiven3_format"))
+B13_LINKS = frozenset(("qiven_sqlite", "qiven_storage_sqlite", "qiven_recordlog", "qiven3_secret"))
 # Core logic: every product target but the adapters, current and compute's,
 # and diag's files that call the system; the ring and the rest of diag are core.
 NOT_CORE = ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
@@ -206,7 +216,9 @@ NOT_CORE_TARGETS = frozenset(("qiven_platform_windows", "qiven_platform_current"
                               # alone: its objects name that runtime, which the records do not
                               # read; the release copy is read.
                               "qiven_memory_crtdbg"))
-CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven_recordlog_keys"))
+# B17's core targets that hold no object, by name: time a header alone, of
+# core by its table (foundation/core/time/module.json).
+CORE_NAMED = frozenset(("qiven_build", "qiven_sqlite", "qiven_recordlog_keys", "qiven_time"))
 # An instantiation file may add its binary's one adapter header.
 ADAPTER_HEADERS = frozenset(("foundation/system/platform/include/qiven/platform/current.hpp",
                              "foundation/system/platform/include/qiven/platform/windows/windows.hpp",

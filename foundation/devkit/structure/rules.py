@@ -19,11 +19,12 @@ from pathlib import Path
 from foundation.devkit.structure import layers, subset
 from foundation.devkit.structure.lexer import lex
 from foundation.devkit.structure.lists import (
-    ADAPTER_HEADERS, ALLOWANCES, ALLOWED, B12_FILES, B12_HEADERS, B12_LINKS, B12_TARGETS, B13_HEADERS, B13_LINKS,
-    B13_OPEN, B13_TARGETS, B17_HEADERS, B17_NAMES, B32_BYTES, CONTRACT, CORE_NAMED, CRT_IO_HEADERS, CXX_SOURCES,
-    ENGINE, EXEMPT, FS_PREFIX, FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES, LIBRARY_SHAPES, LINKER_NAMES,
-    LOAD_NAMES, LOAD_PREFIX, NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS, PLATFORM_WRITES, PROCESS_NAMES,
-    SDK_DIRS, SPAWN_EXEC, STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES, WRITE_NAMES)
+    ADAPTER_HEADERS, ALLOWANCES, ALLOWED, B12_FILES, B12_HEADERS, B12_LINKS, B12_TARGETS, B13_FILES, B13_HEADERS,
+    B13_LINKS, B13_OPEN, B13_SECRET, B13_TARGETS, B17_HEADERS, B17_NAMES, B32_BYTES, CONTRACT, CORE_NAMED,
+    CRT_IO_HEADERS, CXX_SOURCES, ENGINE, EXEMPT, FS_PREFIX, FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES,
+    LIBRARY_SHAPES, LINKER_NAMES, LOAD_NAMES, LOAD_PREFIX, NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS,
+    PLATFORM_WRITES, PROCESS_NAMES, SDK_DIRS, SPAWN_EXEC, STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES,
+    WRITE_NAMES)
 from foundation.devkit.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the size, line-end, content and import tests read here too.
 from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
@@ -266,7 +267,8 @@ def direct_include(by, path, kind, name, out):
     if rel is not None:
         if under(by, B12_FILES) and under(rel, B12_HEADERS):
             out.add("B12", by, detail=f"includes {rel}")
-        if by.startswith("src/reader/") and under(rel, B13_HEADERS) and not rel.startswith(B13_OPEN):
+        if under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \
+                and not rel.startswith(B13_OPEN):
             out.add("B13", by, detail=f"includes {rel}")
         if rel == "src/qiven3/mapcheck.hpp":
             out.add("B16", by, detail="includes the map check")
@@ -363,11 +365,11 @@ def link_rules(records, out):
                 out.add("B17", target, "link", f"a core target links {dep}", force=True)
     for target in sorted(shapes):
         reached = records.closure(target)
-        if target in B12_TARGETS and any(d.startswith(B12_LINKS) for d in reached):
+        if target in B12_TARGETS and any(d in B12_LINKS for d in reached):
             out.add("B12", target, detail="reaches backup or forgetting")
-        if target in B13_TARGETS and any(d.startswith(B13_LINKS) for d in reached):
+        if target in B13_TARGETS and any(d in B13_LINKS for d in reached):
             out.add("B13", target, detail="the reader's target reaches " + ", ".join(
-                sorted(d for d in reached if d.startswith(B13_LINKS))))
+                sorted(d for d in reached if d in B13_LINKS)))
 
 
 def check(records, root=None):

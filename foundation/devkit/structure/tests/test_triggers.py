@@ -157,7 +157,7 @@ VERSION = re.compile(r"(?<![\w.])\d+\.\d+(?:\.\d+)*(?![\w.])")
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{40,}(?![0-9a-fA-F])")
 VERSIONED_TOOL = re.compile(r"(?<![\w-])(gcc|g\+\+|clang|clang\+\+|clang-tidy|llvm-[a-z]+|cl)-\d+")
 PINNING = re.compile(r"sha256sum\s+(-c|--check)|shasum\b.*\s-c\b|Get-FileHash|certutil|-vcvars_ver|"
-                     r"QIVEN_PIN_TOOLS|QIVEN3_COMPILER_LINE|version_info\s*\[")
+                     r"QIVEN_PIN_TOOLS|version_info\s*\[")
 SETTING = re.compile(r"\bsysctl\b|/proc/sys/|\breg(\.exe)?\s+add\b|\b(Set|New)-ItemProperty\b|\bbcdedit\b|"
                      r"\bdefaults\s+write\b|\bpowercfg\b|\bSet-MpPreference\b|\bupdate-alternatives\b")
 CTEST_PRESETS = {"fake", "ci-analysis"}
@@ -255,7 +255,7 @@ def preset_findings(text):
         preset = configure[name]
         for key, value in sorted(preset.get("cacheVariables", {}).items()):
             value = str(value.get("value", "") if isinstance(value, dict) else value)
-            if key in ("QIVEN_PIN_TOOLS", "QIVEN3_COMPILER_LINE") or "VERSION" in key:
+            if key == "QIVEN_PIN_TOOLS" or "VERSION" in key:
                 found.append(f"preset {name}: sets {key}")
             if key.endswith("_COMPILER") and not re.fullmatch(r"cl|gcc|g\+\+|clang|clang\+\+", value):
                 found.append(f"preset {name}: {key} {value}, not the image's")

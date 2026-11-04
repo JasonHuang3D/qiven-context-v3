@@ -21,8 +21,8 @@
 # header (an own source that does not include it, or that no target
 # compiles, stands in for none).
 
-set(qiven3_library_units "")
-set(qiven3_test_units "")
+set(qiven_library_units "")
+set(qiven_test_units "")
 foreach(pair IN LISTS qiven_header_units_of)
   if(pair MATCHES "^(.+)=tests/support/headers/(.+)$")
     set(header "${CMAKE_MATCH_1}")
@@ -31,15 +31,15 @@ foreach(pair IN LISTS qiven_header_units_of)
       set_source_files_properties("${unit}" PROPERTIES QIVEN_HEADER "${header}")
       qiven_test_path("${header}" test)
       if(test STREQUAL "")
-        list(APPEND qiven3_library_units "${unit}")
+        list(APPEND qiven_library_units "${unit}")
       else()
-        list(APPEND qiven3_test_units "${unit}")
+        list(APPEND qiven_test_units "${unit}")
       endif()
     endif()
   endif()
 endforeach()
-add_library(qiven3_headers OBJECT ${qiven3_library_units})
-add_library(qiven3_test_headers OBJECT ${qiven3_test_units})
+add_library(qiven3_headers OBJECT ${qiven_library_units})
+add_library(qiven3_test_headers OBJECT ${qiven_test_units})
 # faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,
 # where the build does not.
 set_source_files_properties(faults_faults.cpp PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
@@ -48,7 +48,7 @@ foreach(target IN ITEMS qiven3_headers qiven3_test_headers)
   target_link_libraries(${target} PRIVATE qiven3_checked qiven_recordlog qiven_recordlog_stores qiven_platform_fake qiven3_fixtures qiven_faults
     qiven_log qiven_diag qiven_transport qiven_runner qiven_case_main qiven_build)
 endforeach()
-list(LENGTH qiven3_library_units qiven3_count)
-list(LENGTH qiven3_test_units qiven3_test_count)
-message(STATUS "qiven3: header-only headers: ${qiven3_count} in qiven3_headers, "
-  "${qiven3_test_count} in qiven3_test_headers")
+list(LENGTH qiven_library_units qiven_count)
+list(LENGTH qiven_test_units qiven_test_count)
+message(STATUS "qiven: header-only headers: ${qiven_count} in qiven3_headers, "
+  "${qiven_test_count} in qiven3_test_headers")

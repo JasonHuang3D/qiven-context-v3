@@ -106,6 +106,12 @@ CELLS = {
                                                      "views of the caller's text and buffers, passed by const "
                                                      "reference into start() or run() and used within that call",
     ("B28", "foundation/services/compute/include/qiven/compute/hal.hpp", "Launch"): "as Command's: the HAL's kernel request, passed into run()",
+    ("B28", "foundation/services/storage/sqlite/include/qiven/storage_sqlite/connection.hpp", "Site"): "as "
+        "Command's: a wrapper call's site, views of its caller's operation and path, passed by const reference "
+        "into that call and used within it, an EngineError copying them into its own fields",
+    ("B28", "foundation/system/platform/include/qiven/platform/windows/files.hpp", "WindowsFiles::slots_"): "the "
+        "slot table, a span on the pages slot_pages_ holds, the object's own member declared before it, so "
+        "that the pages outlive the span; WindowsFiles is neither copied nor moved",
     ("B28", "foundation/core/memory/include/qiven/memory/arena.hpp", "Arena"): "the span of pages its owner lends, a platform Pages value that "
                                               "outlives the arena, which ends before its pages; memory sits "
                                               "below the platform and cannot hold that type",

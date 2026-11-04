@@ -8,28 +8,28 @@
 # and tools/loop_git.py and tools/loop_table.py the reader loads, are the
 # step's inputs.
 if(NOT MSVC)
-  message(FATAL_ERROR "qiven3: QIVEN_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
+  message(FATAL_ERROR "qiven: QIVEN_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
 endif()
 if(NOT Python3_EXECUTABLE)
-  message(FATAL_ERROR "qiven3: QIVEN_STRUCTURE writes its records with the interpreter: name it")
+  message(FATAL_ERROR "qiven: QIVEN_STRUCTURE writes its records with the interpreter: name it")
 endif()
-get_filename_component(qiven3_linker_dir "${CMAKE_LINKER}" DIRECTORY)
-find_program(QIVEN3_DUMPBIN dumpbin HINTS "${qiven3_linker_dir}" REQUIRED)
+get_filename_component(qiven_linker_dir "${CMAKE_LINKER}" DIRECTORY)
+find_program(QIVEN_DUMPBIN dumpbin HINTS "${qiven_linker_dir}" REQUIRED)
 
 # Every built target of the project, so that the records follow each build.
-set(qiven3_built "")
-set(qiven3_files "")
-set(qiven3_dirs "${PROJECT_SOURCE_DIR}")
-while(qiven3_dirs)
-  list(POP_FRONT qiven3_dirs dir)
+set(qiven_built "")
+set(qiven_files "")
+set(qiven_dirs "${PROJECT_SOURCE_DIR}")
+while(qiven_dirs)
+  list(POP_FRONT qiven_dirs dir)
   get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
-  list(APPEND qiven3_dirs ${subdirs})
+  list(APPEND qiven_dirs ${subdirs})
   get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
   foreach(target IN LISTS targets)
     get_target_property(type ${target} TYPE)
     if(type MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|EXECUTABLE)$")
-      list(APPEND qiven3_built ${target})
-      list(APPEND qiven3_files "$<TARGET_FILE:${target}>")
+      list(APPEND qiven_built ${target})
+      list(APPEND qiven_files "$<TARGET_FILE:${target}>")
     endif()
   endforeach()
 endwhile()
@@ -37,23 +37,23 @@ endwhile()
 # Each configure rewrites compile_commands.json, its content the same or
 # not; the records depend on a copy that changes only with the content, so
 # that a configure that changed nothing leaves them as they are.
-set(qiven3_commands "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json")
-add_custom_command(OUTPUT "${qiven3_commands}"
+set(qiven_commands "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json")
+add_custom_command(OUTPUT "${qiven_commands}"
   COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${PROJECT_BINARY_DIR}/compile_commands.json"
-    "${qiven3_commands}"
+    "${qiven_commands}"
   DEPENDS "${PROJECT_BINARY_DIR}/compile_commands.json"
   COMMENT "Copying the compile commands the records follow"
   VERBATIM)
 
-set(qiven3_index "${PROJECT_BINARY_DIR}/structure/index.json")
-add_custom_command(OUTPUT "${qiven3_index}"
+set(qiven_index "${PROJECT_BINARY_DIR}/structure/index.json")
+add_custom_command(OUTPUT "${qiven_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
-    "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN3_DUMPBIN}"
-  DEPENDS ${qiven3_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
+    "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN_DUMPBIN}"
+  DEPENDS ${qiven_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/loop_git.py"
     "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
-    "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven3_commands}"
+    "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven_commands}"
   COMMENT "Writing the structure records"
   VERBATIM)
-add_custom_target(qiven3_structure_records ALL DEPENDS "${qiven3_index}")
-add_dependencies(qiven3_structure_records ${qiven3_built})
+add_custom_target(qiven_structure_records ALL DEPENDS "${qiven_index}")
+add_dependencies(qiven_structure_records ${qiven_built})
