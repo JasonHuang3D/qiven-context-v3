@@ -2,7 +2,7 @@
 holds no HAL target and no HAL operation, and lists every test the build
 with the HAL lists but compute's own cases (compute.*), which it does not
 build; its whole suite passing is the case's run. The git tests (label
-loop), which one build a system lists (QIVEN3_LOOP_TESTS,
+loop), which one build a system lists (QIVEN_LOOP_TESTS,
 foundation/devkit/test/runner/list_tests.py), are left out of both lists.
 
 What the build builds, its targets and the sources it compiles, is its

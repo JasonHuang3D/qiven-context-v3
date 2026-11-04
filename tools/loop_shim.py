@@ -3,7 +3,7 @@ git by a name PATH resolves is counted: the shim (tools/git_shim.c, built
 by the toolset's cl, on Windows; tools/git_shim.sh on Linux) stands first
 on PATH under git's program name, logs each start and runs the real git,
 PATH's before the shim. foundation/devkit/test/runner/ctest_tests.cmake runs every Python
-test so on the build QIVEN3_LOOP_TESTS names, one a system, whose fake
+test so on the build QIVEN_LOOP_TESTS names, one a system, whose fake
 selection is the one that starts git.
 
 Usage: python -I tools/loop_shim.py [--git] -- COMMAND...

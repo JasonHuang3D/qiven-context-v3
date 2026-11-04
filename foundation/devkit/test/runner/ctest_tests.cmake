@@ -21,17 +21,17 @@ set(OTHER_LIMIT 300)
 set(AFTER_LIMIT 30)
 set(environment "QIVEN_BIN=${BIN};QIVEN_BUILD=${BUILD};QIVEN_CTEST=${CTEST}")
 if(ADDR2LINE)
-  string(APPEND environment ";QIVEN3_ADDR2LINE=${ADDR2LINE}")
+  string(APPEND environment ";QIVEN_ADDR2LINE=${ADDR2LINE}")
 endif()
 if(DEFINED PYTHON)
   file(TO_CMAKE_PATH "${PYTHON}" PYTHON)
 endif()
 
-# qiven3_add_test(<name> <labels;...> <serial> <directory> <limit> <command>...):
+# qiven_add_test(<name> <labels;...> <serial> <directory> <limit> <command>...):
 # one test, behind the watcher where there is an interpreter, and its
 # properties; <directory> is its working directory, or empty; <limit> its
 # own seconds, or empty for its labels'.
-function(qiven3_add_test name labels serial directory limit)
+function(qiven_add_test name labels serial directory limit)
   if("${name}" IN_LIST seen)
     message(FATAL_ERROR "two tests are named ${name}")
   endif()
@@ -96,7 +96,7 @@ foreach(entry IN LISTS entries)
     if(CMAKE_MATCH_2)
       set(serial TRUE)
     endif()
-    qiven3_add_test("${name}" "${binary_labels}" ${serial} "" "${binary_limit}" "${binary}" --run "${name}")
+    qiven_add_test("${name}" "${binary_labels}" ${serial} "" "${binary_limit}" "${binary}" --run "${name}")
     math(EXPR cases "${cases} + 1")
   endforeach()
 endforeach()
@@ -111,7 +111,7 @@ if(DEFINED FUZZ)
     if(NOT entry MATCHES "^([a-z]+)	([^	]+)	([^	]+)	([^	]+)$")
       message(FATAL_ERROR "a malformed line of ${FUZZ}: ${entry}")
     endif()
-    qiven3_add_test("fuzz.${CMAKE_MATCH_1}" "cxx;fuzz" TRUE "" "" "${CMAKE_MATCH_2}" -max_total_time=60
+    qiven_add_test("fuzz.${CMAKE_MATCH_1}" "cxx;fuzz" TRUE "" "" "${CMAKE_MATCH_2}" -max_total_time=60
       -timeout=10 "-artifact_prefix=${CMAKE_MATCH_4}/" "${CMAKE_MATCH_3}")
     math(EXPR fuzz_targets "${fuzz_targets} + 1")
   endforeach()
@@ -173,11 +173,11 @@ if(DEFINED PYTHON)
       endif()
       set(test_command ${shim_words} -- ${test_command})
     endif()
-    qiven3_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}" ${test_command})
+    qiven_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()
 endif()
 
 file(WRITE "${OUT}" "${body}")
-message(STATUS "qiven3: ${cases} C++ cases, ${fuzz_targets} fuzz targets and ${python_tests} Python tests "
+message(STATUS "qiven: ${cases} C++ cases, ${fuzz_targets} fuzz targets and ${python_tests} Python tests "
   "listed for CTest")

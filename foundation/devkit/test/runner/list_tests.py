@@ -5,7 +5,7 @@ serial, and its own limit.
 Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
 [--loop]. The git tests, of a class whose ctest_git is true, those
 that start git, are listed with --loop alone, which one build a system
-gives (QIVEN3_LOOP_TESTS), labelled loop and fake alone, so that the git
+gives (QIVEN_LOOP_TESTS), labelled loop and fake alone, so that the git
 they start is started in that build's fake selection alone; there
 every Python test runs behind the counting shim (tools/loop_shim.py),
 which fails a test of no such class that starts git. Each

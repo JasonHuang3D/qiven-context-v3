@@ -6,7 +6,7 @@
 # once used; a header hit; part 2's first fault; the maximum by count and
 # by size; at import part 1 alone, the final view's codes and
 # head_mismatch; its budgets and fault runs.
-qiven3_add_cases(qiven3_unit_checked_stage LABELS fast fake
+qiven_add_cases(qiven3_unit_checked_stage LABELS fast fake
   SOURCES checked_stage_test.cpp checked_stage_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_checked qiven_recordlog)
 
@@ -18,7 +18,7 @@ qiven3_add_cases(qiven3_unit_checked_stage LABELS fast fake
 # in memory and in SQLite; memory_references and sqlite_references, moved
 # from the stores' cases: a map's 24 references, the most its lists hold,
 # appended within its budget on each ruled store.
-qiven3_add_cases(qiven3_unit_checked_clearing LABELS fast fake
+qiven_add_cases(qiven3_unit_checked_clearing LABELS fast fake
   SOURCES checked_clearing_test.cpp
   LINK qiven3_checked_stores)
 
@@ -29,6 +29,6 @@ qiven3_add_cases(qiven3_unit_checked_clearing LABELS fast fake
 # export imported, empty and not, in memory and in SQLite; a held line or
 # body record changed, and a state forged, under the lock; a SQLite
 # export's lines imported with heads short of theirs, head_mismatch.
-qiven3_add_cases(qiven3_unit_checked_reads LABELS fast fake
+qiven_add_cases(qiven3_unit_checked_reads LABELS fast fake
   SOURCES checked_reads_test.cpp
   LINK qiven3_checked_stores)

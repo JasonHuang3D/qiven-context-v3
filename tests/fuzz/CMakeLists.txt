@@ -66,7 +66,7 @@ std::span<const std::uint8_t> kept_bytes(std::size_t i) noexcept { return spans[
 }  // namespace qiven3::fuzz
 ")
 
-qiven3_add_cases(qiven3_fuzz_regress LABELS fast fake
+qiven_add_cases(qiven3_fuzz_regress LABELS fast fake
   SOURCES regress_test.cpp entries_seeds_test.cpp "${regress_source}" digest/target.cpp entries/target.cpp
     entry/target.cpp wire/target.cpp
   LINK qiven_platform_fake qiven3_write qiven3_entry qiven_transport)
@@ -87,7 +87,7 @@ if(QIVEN_SANITIZE MATCHES "fuzzer")
       target_link_options(qiven3_fuzz_${target} PRIVATE -fsanitize=fuzzer)
     endif()
     string(APPEND fuzz_lines "${target}\t$<TARGET_FILE:qiven3_fuzz_${target}>\t${dir}/corpus\t${dir}/artifacts\n")
-    set_property(GLOBAL APPEND PROPERTY QIVEN3_FUZZ_BINARIES qiven3_fuzz_${target})
+    set_property(GLOBAL APPEND PROPERTY QIVEN_FUZZ_BINARIES qiven3_fuzz_${target})
     if(Python3_EXECUTABLE)
       file(GLOB target_kept CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${target}/regress/*")
       add_custom_command(OUTPUT "${dir}/seeded"

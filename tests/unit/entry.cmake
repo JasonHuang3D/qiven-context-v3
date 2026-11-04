@@ -1,19 +1,19 @@
 # The fixtures' cases, with L1's and L2's evidence digests (digest's
 # lessons case), each under its lesson's key through format's keyed.
-qiven3_add_cases(qiven3_unit_digest_fixtures LABELS fast fake
+qiven_add_cases(qiven3_unit_digest_fixtures LABELS fast fake
   SOURCES digest_fixtures_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures)
 
 # utc over the entry's fixture: L1's 8-hour shift through support/fixtures;
 # utc's own cases are time's (foundation/core/time/tests/).
-qiven3_add_cases(qiven3_unit_utc LABELS fast fake
+qiven_add_cases(qiven3_unit_utc LABELS fast fake
   SOURCES utc_test.cpp
   LINK qiven_faults qiven_time qiven3_fixtures)
 
 # header's cases: A's refusals and the codes' order, the syntaxes, make and
 # line, stamp, evaluated by the compiler and again at run time over
 # tests/fixtures/; its budgets and fault runs.
-qiven3_add_cases(qiven3_unit_header LABELS fast fake
+qiven_add_cases(qiven3_unit_header LABELS fast fake
   SOURCES header_test.cpp header_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
 
@@ -21,7 +21,7 @@ qiven3_add_cases(qiven3_unit_header LABELS fast fake
 # their places, evaluated by the compiler; every fixture body made, written,
 # read back and checked against its header; the refusals' body rows; the
 # key's hex; its budgets and fault runs.
-qiven3_add_cases(qiven3_unit_body LABELS fast fake
+qiven_add_cases(qiven3_unit_body LABELS fast fake
   SOURCES body_test.cpp body_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
 
@@ -29,7 +29,7 @@ qiven3_add_cases(qiven3_unit_body LABELS fast fake
 # limits, when and pins, a direction's clears, the common fields' carriage
 # and record identity, evaluated by the compiler; identity over every
 # fixture entry; no allocation, counted and under the fault run.
-qiven3_add_cases(qiven3_unit_kinds LABELS fast fake
+qiven_add_cases(qiven3_unit_kinds LABELS fast fake
   SOURCES kinds_test.cpp kinds_memory_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -37,7 +37,7 @@ qiven3_add_cases(qiven3_unit_kinds LABELS fast fake
 # type of reference and each code in order, evaluated by the compiler; the
 # limits at their bounds; every reference, subject and path of the
 # fixtures; the compiles counted, under the budget and the fault run.
-qiven3_add_cases(qiven3_unit_refs LABELS fast fake
+qiven_add_cases(qiven3_unit_refs LABELS fast fake
   SOURCES refs_test.cpp refs_memory_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -50,7 +50,7 @@ qiven3_add_cases(qiven3_unit_refs LABELS fast fake
 # format's changes (limits, detail, for_lane, question_id, closes, item,
 # when on retire); the compiles counted, under the budget and the fault
 # run.
-qiven3_add_cases(qiven3_unit_content LABELS fast fake
+qiven_add_cases(qiven3_unit_content LABELS fast fake
   SOURCES content_test.cpp content_memory_test.cpp content_usage_test.cpp content_format_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -59,7 +59,7 @@ qiven3_add_cases(qiven3_unit_content LABELS fast fake
 # scope alone, evaluated by the compiler; every fixture entry with its
 # record and with none, the refusals of A, the parser's on the line and the
 # record, a content past 65,536 bytes; its budgets and fault runs.
-qiven3_add_cases(qiven3_unit_check LABELS fast fake
+qiven_add_cases(qiven3_unit_check LABELS fast fake
   SOURCES check_test.cpp check_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
 
@@ -73,7 +73,7 @@ qiven3_add_cases(qiven3_unit_check LABELS fast fake
 # chain rules as each line arrives and part 2's other rules in the final
 # view, a second forget and a whole record among them, evaluated by the
 # compiler; the fixtures imported whole, their budgets and fault runs.
-qiven3_add_cases(qiven3_unit_validator LABELS fast fake
+qiven_add_cases(qiven3_unit_validator LABELS fast fake
   SOURCES validator_test.cpp validator_memory_test.cpp validator_import_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -81,7 +81,7 @@ qiven3_add_cases(qiven3_unit_validator LABELS fast fake
 # turn and "active", evaluated by the compiler; the
 # fold's faults; FA2's status change and the scope's order over the
 # fixtures; its one allocation counted, under the budget and the fault run.
-qiven3_add_cases(qiven3_unit_fold LABELS fast fake
+qiven_add_cases(qiven3_unit_fold LABELS fast fake
   SOURCES fold_test.cpp fold_memory_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -90,7 +90,7 @@ qiven3_add_cases(qiven3_unit_fold LABELS fast fake
 # unequal check, a reflection writer's lesson lifted and the longest labels, evaluated by the compiler; a label past its
 # capacity; FA2's model entry over the fixtures, with a stub transcript
 # reader; no allocation, under the budget and the fault run.
-qiven3_add_cases(qiven3_unit_labels LABELS fast fake
+qiven_add_cases(qiven3_unit_labels LABELS fast fake
   SOURCES labels_test.cpp labels_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
 
@@ -101,7 +101,7 @@ qiven3_add_cases(qiven3_unit_labels LABELS fast fake
 # fresh at 387 and 402 units, L1 and L2's when and pins, L1 superseded,
 # MX's block of 42,658 units and its stub of 201, and the refusals; one
 # allocation each for block and stub, under the budget and the fault run.
-qiven3_add_cases(qiven3_unit_served LABELS fast fake
+qiven_add_cases(qiven3_unit_served LABELS fast fake
   SOURCES served_test.cpp served_memory_test.cpp
   LINK qiven_faults qiven3_fixtures qiven3_entry)
 
@@ -112,7 +112,7 @@ qiven3_add_cases(qiven3_unit_served LABELS fast fake
 # compiler; FA2's map case, the four marks, three digests and two ids over
 # the fixtures; each operation's allocations counted, under the budget and
 # the fault run.
-qiven3_add_cases(qiven3_unit_projectmap LABELS fast fake
+qiven_add_cases(qiven3_unit_projectmap LABELS fast fake
   SOURCES projectmap_test.cpp projectmap_memory_test.cpp map_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
 
@@ -120,6 +120,6 @@ qiven3_add_cases(qiven3_unit_projectmap LABELS fast fake
 # recomputed by canon, digest, header, body, check, content, projectmap,
 # fold, labels and served, the fixtures' entries giving its ids, none left
 # unread; each vector planted wrong and the file's own plants caught.
-qiven3_add_cases(qiven3_unit_vectors LABELS fast fake
+qiven_add_cases(qiven3_unit_vectors LABELS fast fake
   SOURCES vectors_test.cpp vectors_read.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)

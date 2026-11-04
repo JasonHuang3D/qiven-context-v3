@@ -16,7 +16,7 @@ fault the drives run, it runs the case and names how it ended.
   addr2line's function and line appended where the binary has symbols, read
   at the byte before the frame's address, its call's, the outermost
   function where calls were inlined
-  (QIVEN3_ADDR2LINE, or addr2line on PATH; none, the frames stay raw).
+  (QIVEN_ADDR2LINE, or addr2line on PATH; none, the frames stay raw).
 - Then one line on standard error names the status by tools/status.py's
   table, "status: <value> <name>: <meaning>". On a library missing at
   load (0xC0000135, or 127) no code of the binary ran, so it names, by
@@ -91,7 +91,7 @@ def environment(name):
 
 
 def addr2line():
-    return os.environ.get("QIVEN3_ADDR2LINE") or shutil.which("addr2line")
+    return os.environ.get("QIVEN_ADDR2LINE") or shutil.which("addr2line")
 
 
 def symbolized(frames):

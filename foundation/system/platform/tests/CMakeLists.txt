@@ -1,5 +1,5 @@
 # The platform's own tests, each case binary as its sources need it. Added
-# by tests/CMakeLists.txt, where qiven3_add_cases, qiven_faults and
+# by tests/CMakeLists.txt, where qiven_add_cases, qiven_faults and
 # qiven_case_main are made. A case that reads a private header of the
 # Windows adapter (windows/facts.hpp) reaches the module's src/ by its own
 # include directory, written without .. (structure's B11).
@@ -16,7 +16,7 @@ set(qiven_platform_src "${qiven_platform_dir}/src")
 # their arena, and the fake's members over them, a file renamed to its own
 # name kept and each refused by its fault point (P27's names); each system
 # and platform call failed in turn.
-qiven3_add_cases(qiven_platform_files_test LABELS fast fake
+qiven_add_cases(qiven_platform_files_test LABELS fast fake
   SOURCES files_test.cpp files_names_test.cpp
   LINK qiven_faults qiven_platform_fake)
 
@@ -34,13 +34,13 @@ qiven3_add_cases(qiven_platform_files_test LABELS fast fake
 # zeroed, refused when set to, lent counting them (P28's); resolve and a
 # Staged's open refusing a path not UTF-8 (P25's); create, read and
 # remove_directory on real files, two fakes' creates racing (P27's).
-qiven3_add_cases(qiven_platform_fake_process_test LABELS fast fake
+qiven_add_cases(qiven_platform_fake_process_test LABELS fast fake
   SOURCES fake_process_test.cpp fake_platform_test.cpp
   LINK qiven_platform_fake)
 
 # current's choice of the build's adapter, on every system: a system with
 # no adapter built refused, naming it (P1's); the build's own chosen.
-qiven3_add_cases(qiven_platform_current_test LABELS fast fake
+qiven_add_cases(qiven_platform_current_test LABELS fast fake
   SOURCES current_test.cpp
   LINK qiven_platform_current)
 
@@ -56,7 +56,7 @@ qiven3_add_cases(qiven_platform_current_test LABELS fast fake
 # need no processes, machine fact or debugger, so every Windows build's
 # fake selection and CI's run them, as the fast one does.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_files_test LABELS fast fake
+  qiven_add_cases(qiven_platform_win_files_test LABELS fast fake
     SOURCES win_files_test.cpp win_files_held_test.cpp win_names_test.cpp
     LINK qiven_faults qiven_platform_windows)
 endif()
@@ -67,7 +67,7 @@ endif()
 # failed in turn; the heap counted by the binary's own operator new, which
 # no other binary has.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_files_stage_test LABELS fast fake
+  qiven_add_cases(qiven_platform_win_files_stage_test LABELS fast fake
     SOURCES win_files_stage_test.cpp win_files_stage_memory_test.cpp
     LINK qiven_faults qiven_platform_windows)
 endif()
@@ -83,7 +83,7 @@ endif()
 # (P28's); resolve, replace and a Staged's open refusing a path not UTF-8
 # (P25's). fast and fake, as win_files'.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_arguments_test LABELS fast fake
+  qiven_add_cases(qiven_platform_win_arguments_test LABELS fast fake
     SOURCES win_arguments_test.cpp win_platform_test.cpp
     LINK qiven_platform_windows)
 endif()
@@ -109,7 +109,7 @@ endif()
 # win_process_case.hpp. machine: they start processes, so the full and
 # asan presets run them, not the fast or fake ones.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_process_test LABELS machine
+  qiven_add_cases(qiven_platform_win_process_test LABELS machine
     SOURCES win_process_test.cpp win_process_streams_test.cpp win_process_memory_test.cpp
             win_process_faults_test.cpp
     LINK qiven_faults qiven_platform_windows)
@@ -120,7 +120,7 @@ endif()
 # no machine fact: the rules the compiler evaluates, the names, each
 # member's refusals and first failed call. fast and fake, as win_files'.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_facts_test LABELS fast fake
+  qiven_add_cases(qiven_platform_win_facts_test LABELS fast fake
     SOURCES win_facts_test.cpp
     LINK qiven_faults qiven_platform_windows)
   target_include_directories(qiven_platform_win_facts_test PRIVATE "${qiven_platform_src}")
@@ -131,7 +131,7 @@ endif()
 # platform call failed in turn. machine: they read the machine's facts, so
 # the full and asan presets run them, not the fast or fake ones.
 if(WIN32)
-  qiven3_add_cases(qiven_platform_win_facts_machine_test LABELS machine
+  qiven_add_cases(qiven_platform_win_facts_machine_test LABELS machine
     SOURCES win_facts_machine_test.cpp win_facts_faults_test.cpp
     LINK qiven_faults qiven_platform_windows)
   target_include_directories(qiven_platform_win_facts_machine_test PRIVATE "${qiven_platform_src}")
