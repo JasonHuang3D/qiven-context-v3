@@ -1,7 +1,7 @@
 """Memory's own Python tests: the processes its frees and fail_fast end,
 run from the root as
 
-    python -I -m unittest discover -s foundation/core/memory -t . -k '*<test id>'
+    python -I -m unittest discover -s foundation/core/memory/tests -t . -k '*<test id>'
 
 each test its own CTest test. As the test tree's (tests/__init__.py), a run
 that skipped tests and passed and failed none ends with the skip code,

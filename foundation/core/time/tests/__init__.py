@@ -1,7 +1,7 @@
 """Time's own Python tests: utc's cases run as processes under each zone
 TZ names, run from the root as
 
-    python -I -m unittest discover -s foundation/core/time -t . -k '*<test id>'
+    python -I -m unittest discover -s foundation/core/time/tests -t . -k '*<test id>'
 
 each test its own CTest test. As the test tree's (tests/__init__.py), a run
 that skipped tests and passed and failed none ends with the skip code,
