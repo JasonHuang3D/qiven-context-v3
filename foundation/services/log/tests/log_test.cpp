@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "qiven/log/catalogue.hpp"
-#include "../src/line.hpp"
+#include "line.hpp"
 #include "qiven/log/log.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"

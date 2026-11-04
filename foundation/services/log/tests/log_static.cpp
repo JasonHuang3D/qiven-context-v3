@@ -12,7 +12,7 @@
 #include <string_view>
 
 #include "qiven/log/catalogue.hpp"
-#include "../src/line.hpp"
+#include "line.hpp"
 #include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/case_main/cases.hpp"

@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "../src/events.hpp"
+#include "events.hpp"
 #include "qiven/diag/ring.hpp"
 #include "qiven/runner/runner.hpp"
 

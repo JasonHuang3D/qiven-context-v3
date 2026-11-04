@@ -1,20 +1,34 @@
-# The diagnostic entry: qiven_diag, the install, the report, Out and the
-# crash ring the report reads (ring), and qiven_diag_entry, the entry point
-# and the first initializer, an object that qiven_executable gives every
-# binary. Not core logic: it includes the system's headers, links dbghelp on
-# Windows, and links qiven_memory alone. Its tests (tests/) are added by
-# tests/CMakeLists.txt, where the case functions and qiven_case_main are
-# made.
+# The diagnostic entry: qiven_diag_ring, the crash ring the log writes and
+# the report reads, core logic, a core target linking qiven_memory alone;
+# qiven_diag, the install, the report and Out, linking the ring; and
+# qiven_diag_entry, the entry point and the first initializer, an object
+# that qiven_executable gives every binary. qiven_diag and the entry are not
+# core targets: they include the system's headers, link dbghelp on Windows,
+# and link the ring and qiven_memory alone of v3's. Its tests (tests/) are
+# added by tests/CMakeLists.txt, where the case functions and
+# qiven_case_main are made.
 #
-# qiven_diag_targets(<suffix> <memory target>) makes both targets, named
-# with the suffix, over the memory target given: "" over qiven_memory, and
-# the variants of the binaries built on another runtime or another memory
-# (memory's tests' _poisoned, the fault program's _crtdbg, tests/faults/).
+# qiven_diag_targets(<suffix> <memory target> [RING_INSIDE]) makes the three
+# targets, named with the suffix, over the memory target given: "" over
+# qiven_memory, and the variants of the binaries built on another runtime or
+# another memory (memory's tests' _poisoned, the fault program's _crtdbg,
+# tests/faults/). RING_INSIDE, for a variant no log is built on (_crtdbg),
+# compiles the ring into qiven_diag<suffix> and makes no ring target.
 function(qiven_diag_targets suffix memory)
+  cmake_parse_arguments(PARSE_ARGV 2 arg "RING_INSIDE" "" "")
   set(dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
+  set(ring "${dir}/src/ring.cpp" "${dir}/include/qiven/diag/ring.hpp")
   set(sources "${dir}/src/diag.cpp" "${dir}/include/qiven/diag/diag.hpp" "${dir}/src/events.hpp"
-    "${dir}/src/out.cpp" "${dir}/include/qiven/diag/out.hpp" "${dir}/src/ring.cpp"
-    "${dir}/include/qiven/diag/ring.hpp")
+    "${dir}/src/out.cpp" "${dir}/include/qiven/diag/out.hpp")
+  if(arg_RING_INSIDE)
+    list(APPEND sources ${ring})
+    set(ring_target "")
+  else()
+    set(ring_target "qiven_diag_ring${suffix}")
+    add_library(${ring_target} STATIC ${ring})
+    target_include_directories(${ring_target} PUBLIC "${dir}/include")
+    target_link_libraries(${ring_target} PUBLIC ${memory} PRIVATE qiven_build)
+  endif()
   if(WIN32)
     list(APPEND sources "${dir}/src/diag_windows.cpp")
   else()
@@ -29,7 +43,7 @@ function(qiven_diag_targets suffix memory)
       PROPERTIES COMPILE_OPTIONS -fno-exceptions)
   endif()
   target_include_directories(qiven_diag${suffix} PUBLIC "${dir}/include")
-  target_link_libraries(qiven_diag${suffix} PUBLIC ${memory} PRIVATE qiven_build)
+  target_link_libraries(qiven_diag${suffix} PUBLIC ${ring_target} ${memory} PRIVATE qiven_build)
   # A binary links the entry, which takes its object and qiven_diag
   # (qiven_executable).
   add_library(qiven_diag_entry${suffix} OBJECT "${dir}/src/entry.cpp" "${dir}/include/qiven/diag/diag.hpp")

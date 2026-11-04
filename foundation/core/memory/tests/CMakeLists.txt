@@ -50,5 +50,6 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven_runner_poisoned DIAG _poisoned)
   set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven_log_poisoned qiven_platform_poisoned
     qiven_runner_poisoned qiven_memory_test_poisoned
-    qiven_memory_free_demo_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned PROPERTIES QIVEN_POISONED ON)
+    qiven_memory_free_demo_poisoned qiven_diag_ring_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned
+    PROPERTIES QIVEN_POISONED ON)
 endif()
