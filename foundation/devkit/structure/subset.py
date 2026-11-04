@@ -2,7 +2,7 @@
 checker, which rules.py's check() runs over v3's tree; and B26's half that reads no C++: the analysis configuration turns
 pointer arithmetic off in B26's modules alone.
 
-Each rule reads the tokens of rules.py's lexer: keywords, identifiers and
+Each rule reads the tokens of lexer.py's lexer: keywords, identifiers and
 punctuators outside comments and literals, and outside the preprocessor's
 directives, which B27 alone reads; B27 reads comments too. B25's objects and
 B28's members are read by a statement's depth: each brace is a namespace's,
