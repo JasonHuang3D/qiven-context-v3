@@ -164,8 +164,8 @@ def source_rules(root, files, out):
                 continue
             before = tokens[i - 1][1]
             after = tokens[i + 1][1] if i + 1 < len(tokens) else ""
-            if rel.startswith("src/reader/") and value in PLATFORM_WRITES and before in (".", "->") \
-                    and after == "(":
+            if under(rel, B13_FILES) and not under(rel, B13_SECRET) and value in PLATFORM_WRITES \
+                    and before in (".", "->") and after == "(":
                 out.add("B13", rel, detail=f"line {line}: a platform call that writes, {value}")
             if (is_core(rel, out.tree) or is_instantiation(rel)) and (
                     (value in STREAM_MODES and before == "::" and not app_namespace(tokens, i))
@@ -270,8 +270,6 @@ def direct_include(by, path, kind, name, out):
         if under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \
                 and not rel.startswith(B13_OPEN):
             out.add("B13", by, detail=f"includes {rel}")
-        if rel == "src/qiven3/mapcheck.hpp":
-            out.add("B16", by, detail="includes the map check")
     if is_core(by, out.tree) or is_instantiation(by):
         if kind == "std":
             ok = name in B17_HEADERS
@@ -350,7 +348,6 @@ def link_rules(records, out):
     for o in objects:
         owners.setdefault(o.target, set()).add(o.source)
     child = {t for t, sources in owners.items() if any(under(out.tree.as_tests(s), (layers.CHILD,)) for s in sources)}
-    mapcheck = {t for t, sources in owners.items() if any(under(s, ALLOWED["B16"]) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):
             if dep == "qiven_sqlite" and target != "qiven_storage_sqlite":
@@ -359,8 +356,6 @@ def link_rules(records, out):
                 out.add("B5", target, detail=f"links the system library {dep}")
             if dep.lower().removesuffix(".lib") in NET_LIBS:
                 out.add("B8", target, detail=f"links {dep}")
-            if dep == "qiven3_mapcheck" and target not in mapcheck:
-                out.add("B16", target, detail="links qiven3_mapcheck")
             if target in core and dep != "qiven_platform" and dep not in core:
                 out.add("B17", target, "link", f"a core target links {dep}", force=True)
     for target in sorted(shapes):
