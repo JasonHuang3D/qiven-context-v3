@@ -11,6 +11,7 @@
 #include <system_error>
 
 #include "qiven/memory/fail.hpp"
+#include "qiven/memory/memory.hpp"
 
 // The Guidelines' mark of an owning pointer, an alias of the type: the
 // stream create opens is held by it, as clang-tidy's owning-memory reads.
@@ -587,9 +588,11 @@ FakePages FakePlatform::pages(std::size_t n) {
     } catch (const std::bad_alloc&) {
         fail(Code::memory, "pages", "the standard library refused the pages");
     }
-    std::uninitialized_value_construct_n(first, count);
+    // The allocator's pages are no objects until begun: count zeroed pages.
+    const std::span<FakePage> lent = qiven::memory::begin_lifetimes<FakePage>(
+        std::as_writable_bytes(std::span<FakePage>(first, count)), count);
     lent_ += count * sizeof(FakePage);
-    return FakePages(*this, first, count);
+    return FakePages(*this, lent.data(), count);
 }
 
 }  // namespace qiven::platform::fake

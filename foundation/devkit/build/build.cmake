@@ -426,8 +426,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 # Each library is on the link line once (foundation/devkit/structure/tests/test_links.py):
 # CMake keeps a binary's own list in its order, puts what they link after
 # it, and names a library again when one after it links it. So LINK names
-# a target before none that links it; qiven_diag, which the log links too,
-# is none of the binary's own, so that it comes after each that links it.
+# a target before none that links it; qiven_diag, which links the ring the
+# log links too, is none of the binary's own, so that it and the ring come
+# after each that links them.
 function(qiven_executable name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "WIDE" "DIAG" "SOURCES;LINK")
   if(NOT arg_SOURCES)

@@ -104,7 +104,6 @@ ALLOWED = {
            "qiven_diag_crtdbg", "qiven_diag_poisoned"),
     "B11": ("tests/compat/r",),
     "B14": (f"{layers.SUPPORT}goldens",),
-    "B16": ("src/app/main.", "qiven3"),
     **subset.ALLOWED,
 }
 # The allowances the text states beyond the rows' cells, (rule, file, what),
@@ -192,9 +191,10 @@ B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qi
                          "qiven_digest", "qiven3_format", "qiven3_location", "qiven_transport"))
 B12_HEADERS = ()
 B12_LINKS = ()
-# B13: the reader's includes and its targets' links, the reader's part
-# built today the entry: its files by path, the secret check's out of them
-# (structure's records give a target's compiled sources alone, not its
+# B13: the reader's includes, its targets' links and its calls of the
+# platform's writes (PLATFORM_WRITES, rules.py's token pass), the reader's
+# part built today the entry: its files by path, the secret check's out of
+# them (structure's records give a target's compiled sources alone, not its
 # headers).
 B13_FILES = ("src/entry/", "products/qiven3/entry/")
 B13_SECRET = ("src/entry/secret.",)

@@ -9,7 +9,6 @@
 #include <windows.h>
 
 #include <cstddef>
-#include <memory>
 #include <new>
 #include <span>
 #include <string_view>
@@ -75,8 +74,9 @@ WindowsArguments::WindowsArguments(std::span<const wchar_t* const> wide, qiven::
     const std::size_t total = bytes(wide);
     const std::size_t pointers = (count_ + 1) * sizeof(char*);
     pointers_ = arena.allocate(pointers, alignof(const char*));
-    const std::span<const char*> argv(static_cast<const char**>(pointers_), count_ + 1);
-    std::uninitialized_fill(argv.begin(), argv.end(), nullptr);
+    // The pointers' bytes are no objects until begun: count_ + 1 null.
+    const std::span<const char*> argv = qiven::memory::begin_lifetimes<const char*>(
+        std::span<std::byte>(static_cast<std::byte*>(pointers_), pointers), count_ + 1);
     try {
         // No argument, no text: the pointers' one allocation alone.
         if (total > pointers) {

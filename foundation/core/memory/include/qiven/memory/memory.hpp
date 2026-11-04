@@ -77,10 +77,15 @@ constexpr std::array<T, N> each_value() {
     }(std::make_index_sequence<N>());
 }
 
-// count value-initialized T begun on the caller's bytes by placement new,
-// which B20 allows in memory alone, on the bytes' front: those objects. The
+// One array of count value-initialized T begun on the caller's bytes by the
+// non-allocating array placement new, which B20 allows in memory alone, on
+// the bytes' front: its elements. That form takes no array overhead (C++20
+// [expr.new]/15: the size it is passed exceeds the array's only for a form
+// that allocates; /19's example names it), so the array starts at the
+// bytes' first byte, which is checked; an implementation that took overhead
+// would have written past the bytes before that check ends the process. The
 // bytes stay the caller's, lent, and so does their release; so does the
-// objects' destruction, owed before the bytes' release unless T is
+// elements' destruction, owed before the bytes' release unless T is
 // trivially destructible. The bytes hold count T from their first byte,
 // which is at a multiple of alignof(T); bytes that do not, or a count
 // whose bytes overflow, are a broken invariant, ended by fail_fast. T's
@@ -100,11 +105,11 @@ template <typename T>
     if (!need || std::align(alignof(T), *need, at, space) != bytes.data()) {
         fail_fast("qiven::memory::begin_lifetimes: bytes that cannot hold the objects");
     }
-    // Each object begun on its own bytes' address; the first byte's address,
-    // laundered, reaches them all.
-    for (std::size_t i = 0; i < count; ++i) {
-        ::new (static_cast<void*>(&bytes[i * sizeof(T)])) T();
+    if (::new (at) T[count]() != static_cast<T*>(at)) {
+        fail_fast("qiven::memory::begin_lifetimes: an array begun off the bytes' first byte");
     }
+    // The array's first element at the first byte, laundered, reaches every
+    // element by the array's own arithmetic.
     return std::span<T>(std::launder(static_cast<T*>(at)), count);
 }
 

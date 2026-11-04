@@ -47,7 +47,11 @@ from foundation.devkit.structure.lexer import lex
 CXX = layers.CXX
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))
 C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_aligned_free"))
-B20_NAMES = frozenset(("construct_at", "destroy_at"))
+# B20: the standard's calls that begin or end lifetimes on given storage.
+B20_NAMES = frozenset(("construct_at", "destroy_at", "uninitialized_copy", "uninitialized_copy_n",
+                       "uninitialized_fill", "uninitialized_fill_n", "uninitialized_move", "uninitialized_move_n",
+                       "uninitialized_default_construct", "uninitialized_default_construct_n",
+                       "uninitialized_value_construct", "uninitialized_value_construct_n"))
 B21_NAMES = frozenset(("reinterpret_cast", "const_cast"))
 B22_NAMES = frozenset(("va_list", "va_start", "va_arg", "va_copy", "va_end"))
 # SQLite's variadic functions, called by name: sqlite3_config is storage_sqlite's src/'s alone.
