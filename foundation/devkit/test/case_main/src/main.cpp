@@ -3,6 +3,7 @@
 // cases, writes each case's case.end into it, and names a PlatformError a
 // case lets out; the runner (qiven/runner/core.hpp) knows none of them.
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -11,7 +12,6 @@
 #include <string_view>
 #include <vector>
 
-#include "qiven/log/catalogue.hpp"
 #include "qiven/log/log.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
@@ -21,6 +21,17 @@
 namespace qiven::test {
 
 namespace {
+
+// The case main's own event, beside its writer, case_ended; its reader,
+// the runner's case, reads the line, not the descriptor.
+struct CaseEnd {
+    static constexpr qiven::log::Level level = qiven::log::Level::info;
+    static constexpr std::string_view name = "case.end";
+    // held: the bytes v3's allocators hold at the case's end.
+    static constexpr std::array<std::string_view, 4> keys{"case", "outcome", "ms", "held"};
+    using fields = qiven::log::Types<qiven::log::Name, qiven::log::Name, qiven::log::Millis, qiven::log::Count>;
+};
+constexpr CaseEnd case_end{};
 
 // The outcomes' names, made once: a Name made within a conditional
 // expression is not made right on every compiler.
@@ -46,7 +57,7 @@ bool platform_named(std::ostream& out) {
 void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status, std::chrono::steady_clock::time_point start,
                 std::size_t held) {
     const qiven::log::Name outcome = status == qiven::runner::exit_pass ? passed : status == qiven::runner::exit_skip ? skipped : failed;
-    qiven::log::event(log, qiven::log::events::case_end, *c.logged, outcome, qiven::log::Millis::since(start), qiven::log::Count(held));
+    qiven::log::event(log, case_end, *c.logged, outcome, qiven::log::Millis::since(start), qiven::log::Count(held));
 }
 
 }  // namespace qiven::test

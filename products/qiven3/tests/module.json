@@ -32,7 +32,9 @@
         "tests/drive/samples.py",
         "tests/drive/test_store_session.py",
         "tests/drive/test_streams.py",
-        "tests/drive/test_wiring.py"
+        "tests/drive/test_wiring.py",
+        "products/qiven3/tests/__init__.py",
+        "products/qiven3/tests/test_log_secret.py"
       ]
     },
     {

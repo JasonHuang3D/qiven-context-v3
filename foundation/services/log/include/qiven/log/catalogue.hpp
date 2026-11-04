@@ -1,9 +1,10 @@
 #pragma once
 
-// catalogue: every event of v3, as a descriptor: its level, its name, its
-// fields' keys and their types. An event takes a descriptor, never a name,
-// and its fields' types exactly. A package adds its events here; a test's
-// own descriptors stay in the test tree.
+// catalogue: log's own events, which its writer emits, and error.typed, a
+// typed error any main writes, each as a descriptor: its level, its name,
+// its fields' keys and their types. An event takes a descriptor, never a
+// name, and its fields' types exactly. A consumer's events are its own,
+// each descriptor beside its writer.
 //
 // thread: none
 
@@ -56,39 +57,5 @@ struct ErrorTyped {
     using fields = Types<Name, Name, Name>;
 };
 inline constexpr ErrorTyped error_typed{};
-
-struct DriveRequest {
-    static constexpr Level level = Level::debug;
-    static constexpr std::string_view name = "drive.request";
-    // name: from the drive's table of operations, else unknown.
-    static constexpr std::array<std::string_view, 2> keys{"name", "bytes"};
-    using fields = Types<Name, Count>;
-};
-inline constexpr DriveRequest drive_request{};
-
-struct DriveReply {
-    static constexpr Level level = Level::debug;
-    static constexpr std::string_view name = "drive.reply";
-    static constexpr std::array<std::string_view, 2> keys{"status", "bytes"};
-    using fields = Types<Name, Count>;
-};
-inline constexpr DriveReply drive_reply{};
-
-struct CaseEnd {
-    static constexpr Level level = Level::info;
-    static constexpr std::string_view name = "case.end";
-    // held: the bytes v3's allocators hold at the case's end.
-    static constexpr std::array<std::string_view, 4> keys{"case", "outcome", "ms", "held"};
-    using fields = Types<Name, Name, Millis, Count>;
-};
-inline constexpr CaseEnd case_end{};
-
-struct FaultInjected {
-    static constexpr Level level = Level::debug;
-    static constexpr std::string_view name = "fault.injected";
-    static constexpr std::array<std::string_view, 2> keys{"k", "site"};
-    using fields = Types<Count, Name>;
-};
-inline constexpr FaultInjected fault_injected{};
 
 }  // namespace qiven::log::events

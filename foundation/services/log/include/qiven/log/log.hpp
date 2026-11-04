@@ -1,8 +1,8 @@
 #pragma once
 
-// log: levelled JSON lines into a crash ring, each an event of the
-// catalogue (qiven/log/catalogue.hpp) with fields of four types alone, so that no
-// run-time text can reach a line: a Name is made in constant evaluation
+// log: levelled JSON lines into a crash ring, each an event of a
+// catalogue (log's own, qiven/log/catalogue.hpp, or its writer's) with
+// fields of four types alone, so that no run-time text can reach a line: a Name is made in constant evaluation
 // from a literal, and the others are numbers. An event below the build's
 // minimum, QIVEN_LOG_MIN, compiles to nothing.
 //

@@ -55,6 +55,7 @@
 // request helpers, adapter_for and current as a command's main calls them,
 // and the HAL's operations.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <concepts>
@@ -282,6 +283,25 @@ void ready_streams();
 bool next_line(std::string& line);
 std::size_t send(const Value& reply);
 
+// The drive's own events, beside their writers: loop's drive.request and
+// noted's drive.reply.
+struct DriveRequest {
+    static constexpr log::Level level = log::Level::debug;
+    static constexpr std::string_view name = "drive.request";
+    // name: from the drive's table of operations, else unknown.
+    static constexpr std::array<std::string_view, 2> keys{"name", "bytes"};
+    using fields = log::Types<log::Name, log::Count>;
+};
+inline constexpr DriveRequest drive_request{};
+
+struct DriveReply {
+    static constexpr log::Level level = log::Level::debug;
+    static constexpr std::string_view name = "drive.reply";
+    static constexpr std::array<std::string_view, 2> keys{"status", "bytes"};
+    using fields = log::Types<log::Name, log::Count>;
+};
+inline constexpr DriveReply drive_reply{};
+
 // The log's halves: the pages of the process's Journal; a request's name,
 // its "op" picked from the drive's names, else "unknown", as for no request;
 // and a reply's events, op ended.
@@ -306,7 +326,7 @@ int loop(Drive& drive) {
         }
         const log::Name name = named(request);
         log::Op op = log::begin(journal.log(), name);
-        log::event(op, log::events::drive_request, name, log::Count(line.size()));
+        log::event(op, drive_request, name, log::Count(line.size()));
         if (request) {
             try {
                 answer = drive.reply(*request);

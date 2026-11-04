@@ -10,18 +10,8 @@
   "parameters": [
     {
       "name": "catalogue",
-      "default": [
-        "log.start",
-        "log.dropped",
-        "op.begin",
-        "op.end",
-        "error.typed",
-        "drive.request",
-        "drive.reply",
-        "case.end",
-        "fault.injected"
-      ],
-      "built": false
+      "default": null,
+      "built": true
     }
   ],
   "present": [
@@ -35,8 +25,7 @@
       ],
       "test_depends": [],
       "paths": [
-        "foundation/services/log/",
-        "tests/drive/test_log_secret.py"
+        "foundation/services/log/"
       ]
     }
   ]

@@ -5,7 +5,7 @@ layer products, status built
 - **Holds:** the product's whole-program tests: the drives, the contract, machine and slow tests, the child processes, and the fuzz targets
 - **Never holds:** a module's unit tests (each module's own)
 - **Contract:** `tests/driver/drive.hpp`
-- **Files:** not yet in this directory: its files are the `present` paths of module.json.
+- **Files:** in this directory, `__init__.py` and `test_log_secret.py` (K14, the driver's); the others not yet: its files are the `present` paths of module.json.
 - **Consumers rely on:** the drives' requests and replies, a canonical JSON value a line
 - **Parameters:** none
 - **Refuses:** a request it cannot read, as the error kind `request`

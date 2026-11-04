@@ -10,15 +10,25 @@
 //
 // thread: one
 
+#include <array>
 #include <cstddef>
+#include <string_view>
 
-#include "qiven/log/catalogue.hpp"
 #include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
 
 #if defined(QIVEN_FAULTS)
 
 namespace qiven::test {
+
+// The kit's own event, beside its writer, run_faults.
+struct FaultInjected {
+    static constexpr qiven::log::Level level = qiven::log::Level::debug;
+    static constexpr std::string_view name = "fault.injected";
+    static constexpr std::array<std::string_view, 2> keys{"k", "site"};
+    using fields = qiven::log::Types<qiven::log::Count, qiven::log::Name>;
+};
+inline constexpr FaultInjected fault_injected{};
 
 struct FaultRuns {
     // The runs whose failed call ended the operation in the typed error.
@@ -57,7 +67,7 @@ FaultRuns run_faults(qiven::log::Log& log, qiven::log::Name site, qiven::memory:
         const bool fired = countdown.fired();
         countdown.disarm();
         if (fired) {
-            qiven::log::event(log, qiven::log::events::fault_injected, qiven::log::Count(k), site);
+            qiven::log::event(log, fault_injected, qiven::log::Count(k), site);
         }
         if (!check(k)) {
             ++runs.unchecked;

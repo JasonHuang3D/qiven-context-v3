@@ -568,7 +568,7 @@ void noted(log::Op& op, const Value& reply, std::size_t bytes) noexcept {
         // A reply the drive made is always readable; were it not, its events
         // say unknown.
     }
-    log::event(op, log::events::drive_reply, status, log::Count(bytes));
+    log::event(op, drive_reply, status, log::Count(bytes));
     op.end(outcome, log::Count(peak));
 }
 

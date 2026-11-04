@@ -63,10 +63,6 @@ static_assert(row<events::LogDropped>("log.dropped", qlog::Level::warn));
 static_assert(row<events::OpBegin>("op.begin", qlog::Level::debug));
 static_assert(row<events::OpEnd>("op.end", qlog::Level::info));
 static_assert(row<events::ErrorTyped>("error.typed", qlog::Level::error));
-static_assert(row<events::DriveRequest>("drive.request", qlog::Level::debug));
-static_assert(row<events::DriveReply>("drive.reply", qlog::Level::debug));
-static_assert(row<events::CaseEnd>("case.end", qlog::Level::info));
-static_assert(row<events::FaultInjected>("fault.injected", qlog::Level::debug));
 
 // The encoder in constant evaluation: keys in code point order.
 constexpr bool line_is(const qlog::HeadView& head, std::string_view want) {
