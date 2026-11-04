@@ -460,7 +460,7 @@ QIVEN_CASE(store_stage, memory_export) {
         qiven3::checked::MemoryStore<Fake> ruled(*st, bench->fake);
         (void)ruled.append(lines.at(0).keys.scope, lines.at(0).keys.lane, std::nullopt, lines);
         forge(qiven::recordlog::state::Locked(*st, qiven::recordlog::state::Unbounded{}).data().held[0]);
-        auto exported = ruled.export_(std::nullopt, {});
+        auto exported = ruled.checked_export(std::nullopt, {});
         qiven::recordlog::Line line(bench->arena);
         CHECK_EQ(refused([&] { (void)exported.next(line); }).value_or(Refusal{}).detail, detail);
     }

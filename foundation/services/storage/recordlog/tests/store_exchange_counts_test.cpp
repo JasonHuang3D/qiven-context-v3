@@ -58,7 +58,7 @@ Count pinned_of(std::string_view name) {
 }  // namespace
 
 QIVEN_CASE(store_exchange, counts) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     qiven::memory::Countdown arenas;
     qiven::memory::Countdown heap;
     qiven::memory::Countdown calls;

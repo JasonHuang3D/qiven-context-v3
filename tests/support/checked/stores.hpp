@@ -13,9 +13,7 @@
 // stores' own. thread: one, each object.
 
 #include <cstdint>
-#include <filesystem>
 #include <memory>
-#include <utility>
 
 #include "qiven3/entry/cognition.hpp"
 #include "checked/stores.hpp"
@@ -46,13 +44,12 @@ public:
     static constexpr qiven::recordlog::Limits limits = qiven3::entry::cognition_limits;
     static constexpr qiven::recordlog::Identity identity = qiven3::entry::cognition_identity;
 
-    explicit Site(std::uint64_t seed) : stores::Site(seed), book_(fake()) {}
-    Site(std::uint64_t seed, std::filesystem::path root) : stores::Site(seed, std::move(root)), book_(fake()) {}
+    using stores::Site::Site;
 
     [[nodiscard]] const stage_book::Book& book() const noexcept { return book_; }
 
 private:
-    stage_book::Book book_;
+    stage_book::Book book_{fake()};
 };
 
 // A Site on the heap, its fake's seed given.

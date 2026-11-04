@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -32,6 +33,7 @@
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/recordlog/contract.hpp"
@@ -62,6 +64,8 @@ using Engine = qiven::recordlog::Engine<Fake>;
 inline constexpr std::string_view group_scope = "group:primary";
 inline constexpr std::string_view lane_one = "lane-one";
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
+// The ids of the lane's chain.
+inline constexpr std::initializer_list<std::string_view> lane_ids = {"A", "B", "D", "ACC"};
 inline constexpr std::string_view unfaulted =
     "not applicable: built without QIVEN_FAULTS, or with MSVC's debug containers";
 
@@ -80,9 +84,11 @@ inline std::string bytes_of(const fs::path& path) {
 
 // The scratch, the fake over it, the fixtures, the engine heap and the
 // store, its steps' lines and the caller's arena; on the heap.
+// What a Bed is made from: a fresh scratch each time.
+struct Scratch {};
 struct Bed {
-    Bed()
-        : root(fresh_root()), fake(config(root)), lane(chain(group_scope, lane_one, {"A", "B", "D", "ACC"})),
+    explicit Bed(Scratch /*fresh*/)
+        : root(fresh_root()), fake(config(root)), lane(chain(group_scope, lane_one, lane_ids)),
           engine(std::make_unique<Engine>(fake)), path(text(root / "s" / "store.db")), first{lane[0], lane[1], lane[2]},
           acc{lane[3]}, e{forget("E", group_scope, lane_one, 5, "ACC", "B")}, first_lines(views(first)),
           acc_lines(views(acc)), e_lines(views(e)), a_id(id_of(first[0])), d_id(id_of(first[2])), acc_id(id_of(acc[0])),
@@ -94,13 +100,18 @@ struct Bed {
     ~Bed() {
         store.reset();
         engine.reset();
-        std::error_code error;
-        fs::remove_all(root, error);
+        try {
+            std::error_code error;
+            fs::remove_all(root, error);
+        } catch (...) {
+            qiven::memory::fail_fast("sqlite_bed: the scratch directory's removal threw");
+        }
     }
 
     static fs::path fresh_root() {
-        const auto device = std::make_unique<std::random_device>();
-        std::random_device& draw = *device;
+        // On the heap: libstdc++'s random_device is some 5,000 bytes.
+        std::vector<std::random_device> device(1);
+        std::random_device& draw = device.front();
         fs::path out = fs::temp_directory_path() / ("qiven-sqlite-m-" + std::to_string(draw()) +
                                                     std::to_string(draw()));
         fs::create_directories(out);

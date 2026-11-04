@@ -93,12 +93,12 @@ void WindowsFiles::take_slots(std::size_t open_bound) {
                             Detail("a table past the address space: ").number(open_bound).add(" slots"));
     }
     WindowsPages pages = platform_->pages(*bytes);
-    Slot* const first = static_cast<Slot*>(pages.address());
-    for (std::size_t i = 0; i < open_bound; ++i) {
-        ::new (static_cast<void*>(first + i)) Slot{};  // the pages' zero bytes are no objects
+    const std::span<Slot> slots(static_cast<Slot*>(pages.address()), open_bound);
+    for (Slot& slot : slots) {
+        ::new (static_cast<void*>(&slot)) Slot{};  // the pages' zero bytes are no objects
     }
     slot_pages_ = std::move(pages);
-    slots_ = std::span<Slot>(first, open_bound);
+    slots_ = slots;
 }
 
 std::size_t WindowsFiles::open_files() const noexcept {

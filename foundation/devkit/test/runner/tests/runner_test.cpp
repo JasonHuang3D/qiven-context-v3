@@ -208,7 +208,7 @@ QIVEN_CASE(runner, list_sorted) {
 QIVEN_CASE(runner, run_refusals) {
     const std::vector<Case> cases{sample("a.x", false)};
     Logged logged(qiven_ctx);
-    const auto status = [&logged](const std::vector<Case>& in, std::vector<std::string_view> args,
+    const auto status = [&logged](const std::vector<Case>& in, std::span<const std::string_view> args,
                                   std::string& err_text) {
         std::ostringstream out;
         std::ostringstream err;
@@ -216,19 +216,25 @@ QIVEN_CASE(runner, run_refusals) {
         err_text = err.str();
         return s;
     };
+    // The command lines given.
+    const std::array<std::string_view, 2> run_unknown{"--run", "a.y"};
+    const std::array<std::string_view, 1> run_bare{"--run"};
+    const std::array<std::string_view, 2> list_more{"--list", "a.x"};
+    const std::array<std::string_view, 3> run_more{"--run", "a.x", "a.x"};
+    const std::array<std::string_view, 1> list{"--list"};
     std::string err;
-    CHECK_EQ(status(cases, {"--run", "a.y"}, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, run_unknown, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("no such case: a.y\n"));
     CHECK_EQ(status(cases, {}, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("usage: --list | --run NAME\n"));
-    CHECK_EQ(status(cases, {"--run"}, err), qiven::runner::exit_usage);
-    CHECK_EQ(status(cases, {"--list", "a.x"}, err), qiven::runner::exit_usage);
-    CHECK_EQ(status(cases, {"--run", "a.x", "a.x"}, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, run_bare, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, list_more, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, run_more, err), qiven::runner::exit_usage);
     const std::vector<Case> twice{sample("a.x", false), sample("a.x", false)};
-    CHECK_EQ(status(twice, {"--list"}, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(twice, list, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("two cases are named a.x\n"));
     const std::vector<Case> part{sample("a.", false)};
-    CHECK_EQ(status(part, {"--list"}, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(part, list, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("a case has an incomplete name: 'a.'\n"));
 }
 

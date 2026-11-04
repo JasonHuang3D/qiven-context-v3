@@ -16,6 +16,7 @@
 // thread: one.
 
 #include <cstddef>
+#include <initializer_list>
 #include <limits>
 #include <optional>
 #include <string>
@@ -35,12 +36,15 @@ using Chars = qiven::memory::Allocator<char>;
 inline constexpr std::string_view scope = "group:primary";
 inline constexpr std::string_view lane_one = "lane-one";
 inline constexpr std::string_view lane_two = "lane-two";
+// The ids of lane one's chain and of lane two's.
+inline constexpr std::initializer_list<std::string_view> lane_one_ids = {"A", "B", "D", "ACC"};
+inline constexpr std::initializer_list<std::string_view> lane_two_ids = {"C", "M1"};
 
 // The records the case writes: lane one's A, B, D and ACC, lane two's
 // C and M1 and then M2, E forgetting B after ACC, and tester's T.
 struct Lanes {
-    std::vector<Rec> mine = records::chain(scope, lane_one, {"A", "B", "D", "ACC"});
-    std::vector<Rec> theirs = records::chain(scope, lane_two, {"C", "M1"});
+    std::vector<Rec> mine = records::chain(scope, lane_one, lane_one_ids);
+    std::vector<Rec> theirs = records::chain(scope, lane_two, lane_two_ids);
     std::vector<Rec> later = {records::rec("M2", scope, lane_two, 3, "M1")};
     std::vector<Rec> forgets = {records::forget("E", scope, lane_one, 5, "ACC", "B")};
     std::vector<Rec> tester = {records::rec("T", scope, "tester", 1)};

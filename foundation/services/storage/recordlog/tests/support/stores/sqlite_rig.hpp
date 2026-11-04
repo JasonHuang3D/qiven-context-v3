@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/memory/pool.hpp"
 #include "qiven/recordlog/contract.hpp"
@@ -46,20 +47,27 @@ inline std::string text(const fs::path& path) {
 
 // The scratch, the fake over it and the engine heap, made again at will;
 // on the heap.
+// What a Rig is made from: a fresh scratch each time.
+struct Scratch {};
 struct Rig {
-    Rig() : root(fresh_root()), fake(config(root)), engine(std::make_unique<Engine>(fake)) {}
+    explicit Rig(Scratch /*fresh*/) : root(fresh_root()), fake(config(root)), engine(std::make_unique<Engine>(fake)) {}
     Rig(const Rig&) = delete;
     Rig& operator=(const Rig&) = delete;
     Rig(Rig&&) = delete;
     Rig& operator=(Rig&&) = delete;
     ~Rig() {
         engine.reset();
-        std::error_code error;
-        fs::remove_all(root, error);
+        try {
+            std::error_code error;
+            fs::remove_all(root, error);
+        } catch (...) {
+            qiven::memory::fail_fast("sqlite_rig: the scratch directory's removal threw");
+        }
     }
     static fs::path fresh_root() {
-        const auto device = std::make_unique<std::random_device>();
-        std::random_device& draw = *device;
+        // On the heap: libstdc++'s random_device is some 5,000 bytes.
+        std::vector<std::random_device> device(1);
+        std::random_device& draw = device.front();
         fs::path out = fs::temp_directory_path() / ("qiven-sqlite-s-" + std::to_string(draw()) +
                                                     std::to_string(draw()));
         fs::create_directories(out);
@@ -97,12 +105,12 @@ std::string raised(const F& f) {
         f();
     } catch (const StoreError& e) {
         std::string code;
-        if (e.code()) {
-            code = qiven::recordlog::name(*e.code());
-        } else if (e.corrupt()) {
-            code = qiven::recordlog::name(*e.corrupt());
-        } else if (e.cause()) {
-            code = qiven::recordlog::name(*e.cause());
+        if (const auto given = e.code()) {
+            code = qiven::recordlog::name(*given);
+        } else if (const auto corrupt = e.corrupt()) {
+            code = qiven::recordlog::name(*corrupt);
+        } else if (const auto cause = e.cause()) {
+            code = qiven::recordlog::name(*cause);
         }
         return std::string(qiven::recordlog::name(e.kind())) + " " + code + ": " + std::string(e.detail());
     }

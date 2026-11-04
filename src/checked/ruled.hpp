@@ -5,19 +5,21 @@
 // of a store today.
 //
 //   Ruled<S>   S with its constructors and every call S gives; open, where
-//              S opens, gives a Ruled; header, body and scan the store's
-//              bytes and keys checked (checked/reads.hpp); export_ each
-//              line so; verify S's, then each record checked so
+//              S opens, gives a Ruled; checked_header, checked_body and
+//              checked_scan the store's bytes and keys checked
+//              (checked/reads.hpp); checked_export each line so;
+//              checked_verify S's verify, then each record checked so
 //   Scan<H>    a ruled store's scan over the store's scan H
 //   Export<E>  a ruled store's export over the store's export E
 //
-// Ruled derives from S and adds no member and no virtual call: a call it
-// does not name is S's own, and a call it names hides S's of that name.
-// header(id, out) gives the line parsed and checked into out; header(id,
-// line) its bytes, checked so; body(id, record) the entry's line checked
-// and its record against its header, record unchanged on a refusal; a
-// scan's next each record's line checked and its keys against its header,
-// into a Header or as the record; an export's next each line's header
+// Ruled derives from S and adds no member and no virtual call: every call
+// S gives is S's own, unchecked, and each checked read has a name of its
+// own. checked_header(id, out) gives the line parsed and checked into out;
+// checked_header(id, line) its bytes, checked so; checked_body(id, record)
+// the entry's line checked and its record against its header, record
+// unchanged on a refusal; a checked_scan's next each record's line checked
+// and its keys against its header, into a Header or as the record; a
+// checked_export's next each line's header
 // checked so and its body key against its content. Each refusal is
 // StoreCorrupt, in the words the store raised. Each check runs inside the
 // store's read, on the pages the store lends it (its header, body and scan
@@ -132,19 +134,19 @@ public:
         return Ruled(S::open(path, create, read_only, platform, limits, identity, std::forward<Hooks>(hooks)...));
     }
 
-    void header(std::string_view id, Header& out) {
+    void checked_header(std::string_view id, Header& out) {
         S::header(id, [&](std::string_view line, const reads::Chars& chars) {
             reads::copy_header(reads::header_of(id, line, chars, where(store::Operation::header)), out);
         });
     }
-    void header(std::string_view id, store::String& line) {
+    void checked_header(std::string_view id, store::String& line) {
         S::header(id, [&](std::string_view held, const reads::Chars& chars) {
             (void)reads::header_of(id, held, chars, where(store::Operation::header));
             line.assign(held);
         });
     }
     // false: forgotten, a forget, or a header with no body.
-    bool body(std::string_view id, store::String& record) {
+    bool checked_body(std::string_view id, store::String& record) {
         const reads::WhereView at = where(store::Operation::body);
         return S::body(id, [&](std::string_view line, const std::string_view* held, const reads::Chars& chars) {
             const Header h = reads::header_of(id, line, chars, at);
@@ -154,18 +156,18 @@ public:
             }
         });
     }
-    auto scan(const store::RangeView& range) {
+    auto checked_scan(const store::RangeView& range) {
         using H = decltype(S::scan(range));
         return Scan<H>(S::scan(range), where(store::Operation::scan).path);
     }
-    auto export_(keys::Scopes scopes, std::span<const store::AfterView> after) {
+    auto checked_export(keys::Scopes scopes, std::span<const store::AfterView> after) {
         using E = decltype(S::export_(scopes, after));
         return Export<E>(S::export_(scopes, after), where(store::Operation::export_).path);
     }
     // S's verify, then each record by a scan: its line, its keys against
     // it, part 1 again, and its body record, read after the scan's step,
     // against its header.
-    store::Counts verify() {
+    store::Counts checked_verify() {
         const store::Counts counts = S::verify();
         const reads::WhereView at = where(store::Operation::verify);
         auto scan = S::scan(store::RangeView{});

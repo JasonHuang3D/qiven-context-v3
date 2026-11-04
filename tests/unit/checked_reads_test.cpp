@@ -123,17 +123,17 @@ void own_export(qiven::runner::Context& qiven_ctx, F& factory, const Book& book,
         (void)s->append(qiven_scope, implementer_lane, std::nullopt, std::span<const EntryView>(lines));
     }
     {
-        auto source = s->export_(std::nullopt, {});
+        auto source = s->checked_export(std::nullopt, {});
         Vector<LaneHead> rows{Chars(arena)};
         const std::string said = raised([&] { (void)s->import_(source, rows); });
         CHECK(held ? said.starts_with("StoreNotEmpty") : said == "none");
     }
     const Counts counts = held ? Counts{1, a[0].record ? 1U : 0U, 0, 1} : Counts{};
-    CHECK(s->verify() == counts);
+    CHECK(s->checked_verify() == counts);
     (void)s->close();
     if constexpr (F::Store::capabilities.durable) {
         const auto again = std::make_unique<typename F::Store>(factory.reopen());
-        CHECK(again->verify() == counts);
+        CHECK(again->checked_verify() == counts);
         (void)again->close();
     }
 }
@@ -163,7 +163,7 @@ void secret_hit(qiven::runner::Context& qiven_ctx, F& factory, const Book& book)
              }),
              std::string("EntryInvalid secret"));
     CHECK_EQ(store.size().volume.count, 0U);
-    CHECK(store.verify() == Counts{});
+    CHECK(store.checked_verify() == Counts{});
 }
 
 // The store F makes, the reviewer's M1 forgotten alone and with M2.
@@ -204,13 +204,13 @@ void whole_record(qiven::runner::Context& qiven_ctx, F& factory, const Book& boo
     CHECK_EQ(erased.size(), 2U);
     CHECK(w.purge.done);
     CHECK(store.forgotten(id_of(lane[1])) && store.forgotten(id_of(lane[2])));
-    const Counts counts = store.verify();
+    const Counts counts = store.checked_verify();
     CHECK_EQ(counts.entries, 9U);
     CHECK_EQ(counts.forgets, 2U);
     (void)store.close();
     if constexpr (F::Store::capabilities.durable) {
         const auto again = std::make_unique<typename F::Store>(factory.reopen());
-        CHECK(again->verify() == counts);
+        CHECK(again->checked_verify() == counts);
         (void)again->close();
     }
 }
@@ -315,31 +315,31 @@ QIVEN_CASE(checked_reads, corrupt) {
     // A's writer changed: its id no longer its own.
     const std::size_t writer = b->lane[0].line.find("implementer/") + 1;
     const char m = set(false, writer, 'n');
-    CHECK(corrupt([&] { store.header(a, h); }));
-    CHECK(corrupt([&] { (void)store.body(a, record); }));
-    CHECK(corrupt([&] { (void)store.verify(); }));
+    CHECK(corrupt([&] { store.checked_header(a, h); }));
+    CHECK(corrupt([&] { (void)store.checked_body(a, record); }));
+    CHECK(corrupt([&] { (void)store.checked_verify(); }));
     (void)set(false, writer, m);
-    store.header(a, h);
+    store.checked_header(a, h);
     // A digit of A's body record changed.
     const std::size_t digit = b->lane[0].record->find_last_of("0123456789");
     const char was = set(true, digit, b->lane[0].record->at(digit) == '0' ? '1' : '0');
-    CHECK_EQ(corrupt_code([&] { (void)store.body(a, record); }), std::string("body_mismatch"));
-    CHECK(corrupt([&] { (void)store.verify(); }));
+    CHECK_EQ(corrupt_code([&] { (void)store.checked_body(a, record); }), std::string("body_mismatch"));
+    CHECK(corrupt([&] { (void)store.checked_verify(); }));
     (void)set(true, digit, was);
-    CHECK(store.body(a, record));
-    CHECK_EQ(store.verify().entries, 4U);
+    CHECK(store.checked_body(a, record));
+    CHECK_EQ(store.checked_verify().entries, 4U);
     // A's line B's: a header line whole, of another id.
     const std::string line = b->lane[0].line;
     {
         const state::Locked lock(b->state, Operation::size, {});
         lock.data().held[0].line.assign(b->lane[1].line);
     }
-    CHECK_EQ(corrupt_code([&] { store.header(a, h); }), std::string("id_mismatch"));
+    CHECK_EQ(corrupt_code([&] { store.checked_header(a, h); }), std::string("id_mismatch"));
     {
         const state::Locked lock(b->state, Operation::size, {});
         lock.data().held[0].line.assign(line);
     }
-    store.header(a, h);
+    store.checked_header(a, h);
 }
 
 // The same in SQLite, a row changed through the store's connection: A's
@@ -361,17 +361,17 @@ QIVEN_CASE(checked_reads, sqlite_corrupt) {
     const auto h = std::make_unique<Header>(chars);  // past a frame's share
     String record(chars);
     const auto scanned = [&] {
-        for (auto scan = store->scan({}); scan.next(*h);) {
+        for (auto scan = store->checked_scan({}); scan.next(*h);) {
         }
     };
     constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
     qiven::recordlog::sqlite::Connection& c = store->connection();
     c.exec("UPDATE body SET record = (SELECT record FROM body WHERE id = '" + b + "') WHERE id = '" + a + "'", at);
-    CHECK_EQ(corrupt_code([&] { (void)store->body(a, record); }), std::string("body_mismatch"));
+    CHECK_EQ(corrupt_code([&] { (void)store->checked_body(a, record); }), std::string("body_mismatch"));
     c.exec("UPDATE entry SET parent = NULL WHERE id = '" + b + "'", at);
     CHECK_EQ(corrupt_code(scanned), std::string("incoherent"));
     c.exec("UPDATE entry SET line = (SELECT line FROM entry WHERE id = '" + b + "') WHERE id = '" + a + "'", at);
-    CHECK_EQ(corrupt_code([&] { store->header(a, *h); }), std::string("id_mismatch"));
+    CHECK_EQ(corrupt_code([&] { store->checked_header(a,*h); }), std::string("id_mismatch"));
     CHECK_EQ(corrupt_code(scanned), std::string("id_mismatch"));
 }
 
@@ -395,12 +395,12 @@ QIVEN_CASE(checked_reads, sqlite_columns) {
         store->connection().exec("UPDATE entry SET " + alters.at(i) + " WHERE id = '" + a + "'", at);
         Header h{Chars(arena)};
         const std::optional<Refusal> r = refused([&] {
-            for (auto scan = store->scan({}); scan.next(h);) {
+            for (auto scan = store->checked_scan({}); scan.next(h);) {
             }
         });
         CHECK(r.has_value() && r->kind == Kind::corrupt && r->detail == "an entry's column differs from its line");
         store->connection().exec("UPDATE entry SET " + backs.at(i) + " WHERE id = '" + a + "'", at);
-        store->header(a, h);
+        store->checked_header(a,h);
     }
 }
 
@@ -421,7 +421,7 @@ std::string forged(bool forget, const F& change) {
         change(*b, lock.data());
     }
     Store verifier(b->state, b->fake);
-    return corrupt_code([&] { (void)verifier.verify(); });
+    return corrupt_code([&] { (void)verifier.checked_verify(); });
 }
 
 // Entry i made s: its line, body record and id; the ids sorted again.
@@ -527,7 +527,7 @@ QIVEN_CASE(checked_reads, head_mismatch) {
     Arena arena(pages);
     Held copy;
     {
-        auto all = source->export_(std::nullopt, {});
+        auto all = source->checked_export(std::nullopt, {});
         Vector<LaneHead> rows{Chars(arena)};
         (void)all.heads(rows);
         copy.given.assign(rows.begin(), rows.end());
@@ -539,5 +539,5 @@ QIVEN_CASE(checked_reads, head_mismatch) {
     Vector<LaneHead> heads{Chars(arena)};
     CHECK_EQ(raised([&] { (void)refused->import_(copy, heads); }), "EntryInvalid head_mismatch");
     CHECK(heads.empty());
-    CHECK(refused->verify() == Counts{});
+    CHECK(refused->checked_verify() == Counts{});
 }

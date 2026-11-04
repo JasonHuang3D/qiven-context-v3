@@ -8,6 +8,6 @@
 namespace qiven::recordlog::sqlite {
 
 template Connection made<qiven::platform::fake::FakePlatform>(const qiven::memory::String&, qiven::platform::fake::FakePlatform&,
-                                                       const WhereView&, Opened&);
+                                                       const Identity&, const WhereView&, Opened&);
 
 }  // namespace qiven::recordlog::sqlite

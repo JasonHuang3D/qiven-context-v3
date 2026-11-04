@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <random>
@@ -34,6 +35,7 @@
 #include <vector>
 
 #include "qiven/memory/arena.hpp"
+#include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/sqlite_steps.hpp"
@@ -64,6 +66,9 @@ using Engine = qiven::recordlog::Engine<Fake>;
 inline constexpr std::string_view group_scope = "group:primary";
 inline constexpr std::string_view lane_one = "lane-one";
 inline constexpr std::string_view lane_two = "lane-two";
+// The ids of lane one's chain and of lane two's.
+inline constexpr std::initializer_list<std::string_view> lane_one_ids = {"A", "B", "D", "ACC"};
+inline constexpr std::initializer_list<std::string_view> lane_two_ids = {"C", "M1"};
 inline constexpr std::size_t call_bytes = std::size_t{2} << 20U;
 inline constexpr Counts source_counts{7, 5, 1, 2};  // verify's, of the source and an import of it
 inline constexpr std::string_view unfaulted =
@@ -98,8 +103,10 @@ struct Held {
 // The scratch, the fake over it, the engine heap, the source and the store
 // to import into, the held lines, the export in hand and the caller's
 // arena; on the heap.
+// What a Bed is made from: a fresh scratch each time.
+struct Scratch {};
 struct Bed {
-    Bed()
+    explicit Bed(Scratch /*fresh*/)
         : root(fresh_root()), fake(config(root)), engine(std::make_unique<Engine>(fake)),
           from(text(root / "from" / "store.db")), into(text(root / "into" / "store.db")), call_pages(call_bytes) {
         source = std::make_unique<Store>(Store::open(from, true, false, fake,
@@ -108,15 +115,18 @@ struct Bed {
         target = std::make_unique<Store>(Store::open(into, true, false, fake,
                                                      records::suite_limits, records::suite_identity));
         const Chars c = caller();
-        auto whole = std::make_unique<Export>(source->export_(std::nullopt, {}));
+        // The whole export, on the heap.
+        std::vector<Export> exported;
+        exported.push_back(source->export_(std::nullopt, {}));
+        Export& whole = exported.front();
         Vector<LaneHead> rows(c);
-        (void)whole->heads(rows);
+        (void)whole.heads(rows);
         held.given.assign(rows.begin(), rows.end());
         std::vector<std::byte> pages(std::size_t{1} << 18U);
         for (;;) {
             Arena arena(pages);
             Line line(arena);
-            if (!whole->next(line)) {
+            if (!whole.next(line)) {
                 break;
             }
             held.lines.push_back(records::owned(line));
@@ -131,13 +141,18 @@ struct Bed {
         source.reset();
         target.reset();
         engine.reset();
-        std::error_code error;
-        fs::remove_all(root, error);
+        try {
+            std::error_code error;
+            fs::remove_all(root, error);
+        } catch (...) {
+            qiven::memory::fail_fast("exchange_bed: the scratch directory's removal threw");
+        }
     }
 
     static fs::path fresh_root() {
-        const auto device = std::make_unique<std::random_device>();
-        std::random_device& draw = *device;
+        // On the heap: libstdc++'s random_device is some 5,000 bytes.
+        std::vector<std::random_device> device(1);
+        std::random_device& draw = device.front();
         fs::path out = fs::temp_directory_path() / ("qiven-exchange-m-" + std::to_string(draw()) +
                                                     std::to_string(draw()));
         fs::create_directories(out);
@@ -151,8 +166,8 @@ struct Bed {
     }
 
     void fill() {
-        const std::vector<Rec> mine = records::chain(group_scope, lane_one, {"A", "B", "D", "ACC"});
-        const std::vector<Rec> theirs = records::chain(group_scope, lane_two, {"C", "M1"});
+        const std::vector<Rec> mine = records::chain(group_scope, lane_one, lane_one_ids);
+        const std::vector<Rec> theirs = records::chain(group_scope, lane_two, lane_two_ids);
         const std::vector<Rec> forgets = {records::forget("E", group_scope, lane_one, 5, "ACC", "B")};
         (void)source->append(group_scope, lane_one, std::nullopt, views(mine));
         (void)source->append(group_scope, lane_two, std::nullopt, views(theirs));

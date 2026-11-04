@@ -17,7 +17,7 @@ constexpr std::size_t own_bytes = qiven::recordlog::operation_base;
 }  // namespace
 
 QIVEN_CASE(store_exchange, budget) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     CHECK_EQ(sqlite::Reader::pages_for(b->scopes, b->after), own_bytes + 57U + 98U);
     CHECK_EQ(sqlite::Reader::pages_for(std::nullopt, {}), own_bytes);
     const std::vector<std::string_view> three = {"group:a", "group:b", "group:c"};
@@ -217,7 +217,7 @@ void fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven:
     CHECK_EQ(t.differed, 0U);
 }
 void fault_steps(qiven::runner::Context& qiven_ctx, Side side) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     qiven::memory::Countdown countdown;
     for (const Step& s : steps()) {
         if (s.side == side) {

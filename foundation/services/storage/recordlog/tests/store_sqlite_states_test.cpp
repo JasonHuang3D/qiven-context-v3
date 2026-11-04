@@ -170,7 +170,7 @@ constexpr std::array<Forgery, 9> forgeries = {{
 }  // namespace
 
 QIVEN_CASE(store_sqlite, pending) {
-    const auto rig = std::make_unique<Rig>();
+    const auto rig = std::make_unique<Rig>(Scratch{});
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "p" / "store.db");
     const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake,
@@ -203,7 +203,7 @@ QIVEN_CASE(store_sqlite, pending) {
 }
 
 QIVEN_CASE(store_sqlite, forged) {
-    const auto rig = std::make_unique<Rig>();
+    const auto rig = std::make_unique<Rig>(Scratch{});
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "f" / "store.db");
     {
@@ -258,7 +258,7 @@ QIVEN_CASE(store_sqlite, paths) {
 // refused by the heap's own check, as when two are made at once; the store
 // on the first then served: a scan, a forget with its purge, verify.
 QIVEN_CASE(store_sqlite, second_engine) {
-    const auto rig = std::make_unique<Rig>();
+    const auto rig = std::make_unique<Rig>(Scratch{});
     const auto course = std::make_unique<Course>();
     const std::string path = text(rig->root / "e" / "store.db");
     const auto store = std::make_unique<Store>(Store::open(path, true, false, rig->fake,
@@ -327,7 +327,7 @@ QIVEN_CASE(store_sqlite, second_engine) {
 // with the engine's code as its detail, nothing installed; the next engine
 // then made, its slots as the first's, and a connection served on it.
 QIVEN_CASE(store_sqlite, engine_refused) {
-    const auto rig = std::make_unique<Rig>();
+    const auto rig = std::make_unique<Rig>(Scratch{});
     const storage_sqlite::Slots before = rig->engine->slots();
     rig->engine.reset();
     rig->fake.refuse_pages(1);

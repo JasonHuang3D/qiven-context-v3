@@ -217,12 +217,12 @@ QIVEN_CASE(checked_clearing, sqlite_short_record) {
             "UPDATE body SET record = substr(record, 1, " + std::to_string(n) + ") WHERE id = '" + id + "'", at);
         CHECK_EQ(corrupt_code([&] { (void)store->append(qiven_scope, implementer_lane, std::nullopt, hit_lines); }),
                  denied);
-        CHECK_EQ(corrupt_code([&] { (void)store->body(id, record); }), denied);
-        CHECK_EQ(corrupt_code([&] { (void)store->verify(); }), denied);
+        CHECK_EQ(corrupt_code([&] { (void)store->checked_body(id, record); }), denied);
+        CHECK_EQ(corrupt_code([&] { (void)store->checked_verify(); }), denied);
     }
     (void)store->close();
     const auto again = std::make_unique<SQLite::Store>(factory.reopen());
-    CHECK_EQ(corrupt_code([&] { (void)again->verify(); }), denied);
+    CHECK_EQ(corrupt_code([&] { (void)again->checked_verify(); }), denied);
     (void)again->close();
 }
 
@@ -239,18 +239,18 @@ QIVEN_CASE(checked_clearing, sqlite_bad_content) {
     const std::vector<Stored> m2 = {book.stored("M2")};
     CHECK_EQ(appending(*store, implementer_lane, views(a)), std::string("none"));
     CHECK_EQ(appending(*store, reviewer_lane, views(theirs)), std::string("none"));
-    const qiven::recordlog::Counts held = store->verify();
+    const qiven::recordlog::Counts held = store->checked_verify();
     (void)store->close();
     store = std::make_unique<SQLite::Store>(factory.reopen());
     const auto copy = std::make_unique<SQLite::Store>(fresh.make());
     std::vector<std::byte> pages(1U << 16U);
     qiven::memory::Arena arena(pages);
     Vector<LaneHead> rows{Chars(arena)};
-    auto source = store->export_(std::nullopt, {});
+    auto source = store->checked_export(std::nullopt, {});
     (void)copy->import_(source, rows);
-    CHECK(store->verify() == held && copy->verify() == held);
+    CHECK(store->checked_verify() == held && copy->checked_verify() == held);
     (void)copy->close();
-    CHECK(std::make_unique<SQLite::Store>(fresh.reopen())->verify() == held);
+    CHECK(std::make_unique<SQLite::Store>(fresh.reopen())->checked_verify() == held);
     constexpr qiven::recordlog::WhereView at = qiven::recordlog::sqlite::site("test", "scratch");
     const std::string m1 = id_of(theirs[1]);
     store->connection().exec(
@@ -290,7 +290,7 @@ QIVEN_CASE(checked_clearing, memory) {
     // The state imported into an empty one: the clearing held there.
     Store into = theirs.make();
     {
-        auto x = store.export_(std::nullopt, {});
+        auto x = store.checked_export(std::nullopt, {});
         Vector<LaneHead> wrote(site->chars());
         (void)into.import_(x, wrote);
         x.close();
@@ -320,7 +320,7 @@ QIVEN_CASE(checked_clearing, memory) {
     // On the imported state, cleared: admitted; then, its content held,
     // refused.
     CHECK_EQ(admit(into, std::nullopt), std::string("none"));
-    CHECK_EQ(into.verify().entries, 3U);
+    CHECK_EQ(into.checked_verify().entries, 3U);
     CHECK_EQ(admit(into, id_of(hit[0])), std::string("EntryInvalid secret"));
 }
 

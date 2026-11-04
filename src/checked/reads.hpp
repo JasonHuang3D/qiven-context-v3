@@ -106,9 +106,9 @@ inline void body_key(const keys::KeysView& k, const Header& h, const WhereView& 
 template <qiven::platform::Platform P>
 void part1_again(P& platform, std::size_t index, std::string_view line, std::optional<std::string_view> record,
                  const Chars& allocator, const WhereView& at) {
+    const store::EntryView entry{line, record, {}};  // its keys none: part 1 reads the line and record
     try {
-        (void)checked::part1(platform, store::AtView{at.operation, at.path}, index, store::EntryView{line, record},
-                             allocator);
+        (void)checked::part1(platform, store::AtView{at.operation, at.path}, index, entry, allocator);
     } catch (const store::StoreError& f) {
         if (f.kind() != store::Kind::entry_invalid) {
             throw;

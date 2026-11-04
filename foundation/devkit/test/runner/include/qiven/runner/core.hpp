@@ -47,7 +47,7 @@ inline constexpr int exit_skip = 125;
 // as many bytes as asked.
 class Counted {
 public:
-    Counted() = default;
+    Counted() noexcept = default;
     Counted(const Counted&) = delete;
     Counted& operator=(const Counted&) = delete;
     Counted(Counted&&) = delete;

@@ -97,6 +97,8 @@
     {"tool": "msvc", "check": "C26814", "scope": "every file",
      "reason": "Style: constexpr where it could be."},
     {"tool": "msvc", "check": "C26461", "scope": "every file",
-     "reason": "Style: const where it could be."}
+     "reason": "Style: const where it could be."},
+    {"tool": "msvc", "check": "C26426", "scope": "test code",
+     "reason": "The registration pattern: a case's registrar is a global whose constructor adds the case to the runner's registry before main."}
   ]
 }

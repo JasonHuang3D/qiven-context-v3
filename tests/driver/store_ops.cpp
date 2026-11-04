@@ -56,8 +56,8 @@ class StoreDrive {
 public:
     using Factory = F;
     using Store = typename F::Store;
-    using Scan = decltype(std::declval<Store&>().scan(std::declval<const store::RangeView&>()));
-    using Export = decltype(std::declval<Store&>().export_(store::Scopes{}, std::span<const store::AfterView>{}));
+    using Scan = decltype(std::declval<Store&>().checked_scan(std::declval<const store::RangeView&>()));
+    using Export = decltype(std::declval<Store&>().checked_export(store::Scopes{}, std::span<const store::AfterView>{}));
     using Operation = Result (*)(StoreDrive&, qiven::memory::Arena&, ArgView);
     using Budget = std::size_t (*)(ArgView);
 
@@ -246,14 +246,14 @@ Result heads(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
 template <class F>
 Result header(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     checked::Header h{qiven::memory::Allocator<char>(arena)};
-    object(d, request).header(text(request, "id"), h);
+    object(d, request).checked_header(text(request, "id"), h);
     return scalar(wire::header_line(h, arena));
 }
 
 template <class F>
 Result body(StoreDrive<F>& d, qiven::memory::Arena& arena, ArgView request) {
     store::String record{qiven::memory::Allocator<char>(arena)};
-    if (!object(d, request).body(text(request, "id"), record)) {
+    if (!object(d, request).checked_body(text(request, "id"), record)) {
         return std::nullopt;
     }
     return scalar(to_hex(std::string_view(record.data(), record.size())));
@@ -280,7 +280,7 @@ Result scan(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
         range.after = integer(request, "after");
     }
     using Scan = typename StoreDrive<F>::Scan;
-    auto made = std::make_unique<Scan>(object(d, request).scan(range));
+    auto made = std::make_unique<Scan>(object(d, request).checked_scan(range));
     return id_value("scan", keep(d, d.scans(), std::move(made), of));
 }
 
@@ -312,7 +312,7 @@ Result export_(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
     const std::int64_t of = integer(request, "store");
     const wire::Ranges ranges(request);
     using Export = typename StoreDrive<F>::Export;
-    auto made = std::make_unique<Export>(object(d, request).export_(ranges.scopes(), ranges.after()));
+    auto made = std::make_unique<Export>(object(d, request).checked_export(ranges.scopes(), ranges.after()));
     return id_value("export", keep(d, d.exports(), std::move(made), of));
 }
 
@@ -341,7 +341,7 @@ Result size(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
 
 template <class F>
 Result verify(StoreDrive<F>& d, qiven::memory::Arena&, ArgView request) {
-    return wire::counts(object(d, request).verify());
+    return wire::counts(object(d, request).checked_verify());
 }
 
 template <class F>

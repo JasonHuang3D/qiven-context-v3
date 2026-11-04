@@ -30,7 +30,7 @@ using qiven::recordlog::StoreError;
 namespace records = qiven::test::records;
 
 QIVEN_CASE(store_sqlite, budget) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     for (const Step& s : steps()) {
         b->fresh_engine(s.sort != Sort::create);
         const std::size_t opened = b->engine->heap().peak();
@@ -215,7 +215,7 @@ bool fault_step(qiven::runner::Context& qiven_ctx, Bed& b, const Step& s, qiven:
 // The steps in order on one store: those of the case's group ("create", "forget" or "rest", the other
 // steps) faulted, the runs of the part's range alone, the others run once (store_sqlite_parts_test.cpp).
 void qiven::test::store_sqlite_fault_steps(qiven::runner::Context& qiven_ctx, std::string_view group, FaultRange range) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     qiven::memory::Countdown countdown;
     for (const Step& s : steps()) {
         if ((s.name == "create" || s.name == "forget" ? std::string_view(s.name) : "rest") != group) {

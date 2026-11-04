@@ -70,7 +70,7 @@ void pin(std::vector<Step>& all) {
 }  // namespace
 
 QIVEN_CASE(store_sqlite, counts) {
-    const auto b = std::make_unique<Bed>();
+    const auto b = std::make_unique<Bed>(Scratch{});
     std::vector<Step> all = steps();
     pin(all);
     qiven::memory::Countdown arenas;
