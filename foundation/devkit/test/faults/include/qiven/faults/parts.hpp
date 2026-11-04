@@ -165,5 +165,5 @@ private:
 }  // namespace qiven::test
 
 // A part's case, "<group>.<name>_part<i>", i from 1: fn(qiven_ctx, i - 1).
-#define QIVEN3_FAULT_PART(group, name, i, fn) \
+#define QIVEN_FAULT_PART(group, name, i, fn) \
     QIVEN_CASE(group, name##_part##i) { fn(qiven_ctx, std::size_t{i} - 1); }

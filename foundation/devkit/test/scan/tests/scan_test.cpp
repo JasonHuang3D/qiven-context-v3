@@ -47,7 +47,7 @@ private:
         // On the heap: libstdc++'s random_device is some 5,000 bytes.
         std::vector<std::random_device> device(1);
         std::random_device& draw = device.front();
-        fs::path out = fs::temp_directory_path() / ("qiven3-scan-" + std::to_string(draw()) + std::to_string(draw()));
+        fs::path out = fs::temp_directory_path() / ("qiven-scan-" + std::to_string(draw()) + std::to_string(draw()));
         fs::create_directories(out);
         return out;
     }
