@@ -1,7 +1,9 @@
 # qiven3_entry: the entry's modules, header and body first; its syntax
 # checks link the matcher. Cognition's record log values (cognition.hpp)
-# are in the entry's own directory, reached by its include directory.
+# and canon bound with the product's defaults (canon.hpp) are in the
+# entry's own directory, reached by its include directory.
 add_library(qiven3_entry STATIC
+  "${PROJECT_SOURCE_DIR}/products/qiven3/entry/include/qiven3/entry/canon.hpp"
   "${PROJECT_SOURCE_DIR}/products/qiven3/entry/include/qiven3/entry/cognition.hpp"
   body.cpp
   body.hpp

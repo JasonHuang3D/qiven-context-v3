@@ -23,14 +23,14 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace header = qiven3::entry::header;
 namespace labels = qiven3::entry::labels;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;

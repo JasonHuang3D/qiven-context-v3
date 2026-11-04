@@ -26,13 +26,13 @@
 #include <vector>
 
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/vectors.hpp"
 
 namespace {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 namespace json = qiven::text::json;
 using qiven::test::vectors::Context;

@@ -52,12 +52,12 @@
 #include "entry/served.hpp"
 #include "qiven/digest/digest.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::projectmap {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // The rules' and the mark's codes.

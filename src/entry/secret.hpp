@@ -47,11 +47,11 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::secret {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // A pattern's text, held by value: a literal's characters, at most 239.

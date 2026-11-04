@@ -25,14 +25,14 @@
 #include "entry/kinds.hpp"
 #include "entry/kinds_identity.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace header = qiven3::entry::header;
 namespace kinds = qiven3::entry::kinds;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 using kinds::Basis;
 using kinds::Carried;

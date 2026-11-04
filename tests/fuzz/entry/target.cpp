@@ -29,12 +29,12 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace {
 
 namespace check = qiven3::entry::check;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 using qiven::text::ParseCode;
 using qiven::text::ParseError;
 using qiven::memory::Allocator;

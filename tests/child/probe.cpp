@@ -37,12 +37,12 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/text/utf.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::child {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utf = qiven::text::utf;
 using qiven::text::ParseCode;

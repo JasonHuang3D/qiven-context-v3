@@ -7,7 +7,18 @@
   ],
   "contract": "foundation/core/text/include/qiven/text/canon.hpp",
   "adopted": "2026-10-31",
-  "parameters": [],
+  "parameters": [
+    {
+      "name": "key_rule",
+      "default": null,
+      "built": true
+    },
+    {
+      "name": "depth",
+      "default": null,
+      "built": true
+    }
+  ],
   "present": [
     {
       "name": "text",

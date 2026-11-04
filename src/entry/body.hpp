@@ -49,12 +49,12 @@
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::body {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 using qiven::text::ParseCode;
 using qiven::text::ParseError;
@@ -272,7 +272,7 @@ Body<P, A> make(std::string_view content, format::Key<P> key, std::string_view i
         if (value.kind(0) != json::Kind::object) {
             throw BodyError{Code::syntax};
         }
-        if (value.depth() >= json::max_depth) {
+        if (value.depth() >= canon::max_depth) {
             throw ParseError{ParseCode::depth};
         }
     }

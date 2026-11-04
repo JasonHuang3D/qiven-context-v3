@@ -34,7 +34,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -42,7 +42,7 @@ namespace {
 
 namespace labels = qiven3::entry::labels;
 namespace header = qiven3::entry::header;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;
 using labels::Act;

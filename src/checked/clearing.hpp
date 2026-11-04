@@ -40,7 +40,7 @@
 #include "entry/kinds.hpp"
 #include "entry/validator.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/errors.hpp"
 #include "qiven/recordlog/stage.hpp"
@@ -49,7 +49,7 @@ namespace qiven3::checked::clearing {
 
 namespace keys = qiven::recordlog;
 namespace store = qiven::recordlog;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 using qiven::text::ParseError;
 

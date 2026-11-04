@@ -102,17 +102,17 @@ static_assert(canonical(" {}\n", "{}") && canonical("[]", "[]"));
 // canon: the strict parser's code for data, none if accepted.
 constexpr std::optional<ParseCode> parsed(std::string_view data) {
     json::Basic<> v;
-    return canon::try_parse(data, v);
+    return canon::try_parse(data, v, canon::Syntax{}, json::max_depth);
 }
 
 // Accepted, and written back as the same bytes.
 constexpr bool round_trip(std::string_view data) {
     json::Basic<> v;
-    if (canon::try_parse(data, v)) {
+    if (canon::try_parse(data, v, canon::Syntax{}, json::max_depth)) {
         return false;
     }
     std::string out;
-    return !canon::try_canonical(v, out) && out == data;
+    return !canon::try_canonical(v, out, canon::Syntax{}) && out == data;
 }
 
 constexpr std::optional<ParseCode> nested(std::size_t levels) {

@@ -22,14 +22,14 @@
 #include "entry/fold.hpp"
 #include "entry/header.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace fold = qiven3::entry::fold;
 namespace header = qiven3::entry::header;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 using fold::ItemView;
 using fold::Method;

@@ -36,7 +36,7 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/filled.hpp"
 #include "support/fixtures/fixtures.hpp"
 #include "support/fixtures/view.hpp"
@@ -45,7 +45,7 @@ namespace {
 
 namespace validator = qiven3::entry::validator;
 namespace header = qiven3::entry::header;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 using fixtures::MemoryView;
 using validator::Code;

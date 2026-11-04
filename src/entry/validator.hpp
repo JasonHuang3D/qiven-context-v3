@@ -85,12 +85,12 @@
 #include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::validator {
 
 namespace keys = qiven::recordlog;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // The codes, in the order validate reads them.

@@ -17,11 +17,11 @@
 #include <vector>
 
 #include "qiven/platform/fake/fake_platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven::test::vectors {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 using Fake = qiven::platform::fake::FakePlatform;
 using Value = qiven::text::canon::Basic<>;
 

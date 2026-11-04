@@ -8,8 +8,10 @@
 // null, surrogate, nonchar, key_syntax; and the comparison of the bytes
 // with the value's canonical ones, not_canonical. canonical walks a value
 // the same way, then writes its canonical bytes. A key's rule is a
-// KeyRule, bound at compile time: Syntax by default, or a caller's rule by
-// the key's place; Layout::any skips the comparison. Neither function
+// KeyRule, bound at compile time and passed by the caller with no default:
+// Syntax, or a rule by the key's place. parse takes the depth from its
+// caller too, with no default, at most json's max_depth, json's own
+// capacity; Layout::any skips the comparison. Neither function
 // recurses: the walk keeps the levels open in a fixed array of 16. Each is
 // constexpr and a template on the allocator, so its vectors run in
 // constant evaluation too; it reads by index, with no pointer arithmetic.
@@ -75,7 +77,7 @@ constexpr bool key_syntax(std::string_view key) noexcept {
     return true;
 }
 
-// The default rule: the syntax, in every place.
+// The syntax's rule: the syntax, in every place.
 struct Syntax {
     constexpr bool operator()(std::string_view key, const PlaceView& /*place*/) const noexcept {
         return key_syntax(key);
@@ -208,8 +210,8 @@ private:
 // walk: a fault is its code, with out unchanged. json's encode takes two
 // allocations, the sorted members and the bytes; a MemoryError leaves out
 // unchanged too. An empty value is a caller's mistake: fail_fast.
-template <typename A, typename S, KeyRule K = Syntax>
-constexpr std::optional<ParseCode> try_canonical(const json::Basic<A>& value, S& out, const K& rule = K{}) {
+template <typename A, typename S, KeyRule K>
+constexpr std::optional<ParseCode> try_canonical(const json::Basic<A>& value, S& out, const K& rule) {
     if (const std::optional<ParseCode> fault = detail::walk(value, rule)) {
         return fault;
     }
@@ -218,8 +220,8 @@ constexpr std::optional<ParseCode> try_canonical(const json::Basic<A>& value, S&
 }
 
 // try_canonical, a fault thrown as ParseError.
-template <typename A, typename S, KeyRule K = Syntax>
-constexpr void canonical(const json::Basic<A>& value, S& out, const K& rule = K{}) {
+template <typename A, typename S, KeyRule K>
+constexpr void canonical(const json::Basic<A>& value, S& out, const K& rule) {
     if (const std::optional<ParseCode> fault = try_canonical(value, out, rule)) {
         throw ParseError{*fault};
     }
@@ -229,10 +231,16 @@ constexpr void canonical(const json::Basic<A>& value, S& out, const K& rule = K{
 // success; the first fault's code, or none. Steps 1 and 2 read the bytes;
 // json's scan, steps 3 and 4, takes three allocations; the walk none; the
 // comparison one, encode's sorted members. An input past json's max_input
-// bytes is MemoryError budget before a byte is read.
-template <typename A, KeyRule K = Syntax>
-constexpr std::optional<ParseCode> try_parse(std::string_view data, json::Basic<A>& out, const K& rule = K{},
-                                             Layout layout = Layout::canonical) {
+// bytes is MemoryError budget before a byte is read. depth bounds json's
+// scan: a value past depth levels is depth, and a depth of 0 takes a
+// scalar alone. A depth past json's max_depth is a caller's mistake:
+// fail_fast, before a byte is read.
+template <typename A, KeyRule K>
+constexpr std::optional<ParseCode> try_parse(std::string_view data, json::Basic<A>& out, const K& rule,
+                                             std::size_t depth, Layout layout = Layout::canonical) {
+    if (depth > json::max_depth) {
+        qiven::memory::fail_fast("canon: a depth past 16");
+    }
     if (data.size() > json::max_input) {
         json::too_large(json::max_input, data.size(), 0);
     }
@@ -243,7 +251,7 @@ constexpr std::optional<ParseCode> try_parse(std::string_view data, json::Basic<
         return fault;
     }
     json::Basic<A> value(out.allocator());
-    if (const std::optional<ParseCode> fault = json::try_scan(data, json::max_depth, value)) {
+    if (const std::optional<ParseCode> fault = json::try_scan(data, depth, value)) {
         return fault;
     }
     if (const std::optional<ParseCode> fault = detail::walk(value, rule)) {
@@ -261,10 +269,10 @@ constexpr std::optional<ParseCode> try_parse(std::string_view data, json::Basic<
 }
 
 // try_parse, a fault thrown as ParseError.
-template <typename A, KeyRule K = Syntax>
-constexpr void parse(std::string_view data, json::Basic<A>& out, const K& rule = K{},
+template <typename A, KeyRule K>
+constexpr void parse(std::string_view data, json::Basic<A>& out, const K& rule, std::size_t depth,
                      Layout layout = Layout::canonical) {
-    if (const std::optional<ParseCode> fault = try_parse(data, out, rule, layout)) {
+    if (const std::optional<ParseCode> fault = try_parse(data, out, rule, depth, layout)) {
         throw ParseError{*fault};
     }
 }

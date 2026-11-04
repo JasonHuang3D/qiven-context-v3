@@ -59,12 +59,12 @@
 #include "entry/labels.hpp"
 #include "entry/served_text.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::served {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utc = qiven::time::utc;
 

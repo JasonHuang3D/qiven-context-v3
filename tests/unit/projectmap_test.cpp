@@ -20,7 +20,7 @@
 #include "entry/projectmap_files.hpp"
 #include "entry/served.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/filled.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -30,7 +30,7 @@ namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
 namespace content = qiven3::entry::content;
 namespace served = qiven3::entry::served;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 using projectmap::FileCode;
 using projectmap::FileError;
 using projectmap::System;

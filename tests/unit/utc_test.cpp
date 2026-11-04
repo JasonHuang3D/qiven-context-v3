@@ -9,13 +9,13 @@
 #include <string_view>
 
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace fixtures = qiven::test::fixtures;
 namespace utc = qiven::time::utc;
 using utc::Millis;

@@ -23,7 +23,7 @@
 #include "qiven/digest/digest.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 #include "support/fixtures/fixtures.hpp"
 
@@ -33,7 +33,7 @@ namespace check = qiven3::entry::check;
 namespace body = qiven3::entry::body;
 namespace header = qiven3::entry::header;
 namespace content = qiven3::entry::content;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace digest = qiven::digest;
 namespace format = qiven3::format;
 namespace fixtures = qiven::test::fixtures;

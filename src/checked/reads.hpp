@@ -43,7 +43,7 @@
 #include "qiven/recordlog/keys.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven/recordlog/contract.hpp"
 #include "qiven/recordlog/errors.hpp"
 
@@ -51,7 +51,7 @@ namespace qiven3::checked::reads {
 
 namespace keys = qiven::recordlog;
 namespace store = qiven::recordlog;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 using qiven::text::ParseError;
 
 using Chars = qiven::memory::Allocator<char>;

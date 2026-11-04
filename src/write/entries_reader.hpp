@@ -14,12 +14,12 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "write/entries.hpp"
 
 namespace qiven3::write::entries::detail {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // Each content check's span, an arena made over it afresh [proposal]: the

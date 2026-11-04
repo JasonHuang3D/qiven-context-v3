@@ -23,11 +23,11 @@
 #include <string_view>
 
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::served {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // A text's cost: its UTF-16 code units, a four-byte UTF-8 sequence two.

@@ -43,12 +43,12 @@
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 
 namespace qiven3::entry::check {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 using qiven::text::ParseCode;
 

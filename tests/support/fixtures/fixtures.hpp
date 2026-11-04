@@ -1,6 +1,6 @@
 #pragma once
 
-// fixtures: the files of tests/fixtures/, loaded through qiven::text::canon::parse, and
+// fixtures: the files of tests/fixtures/, loaded through canon::parse, and
 // those of tests/vectors/, given as their bytes (vector_bytes).
 // Configure compiles each file into the binary as its bytes
 // (support/fixtures/CMakeLists.txt), so that a case reads no path and
@@ -29,12 +29,12 @@
 #include <utility>
 
 #include "qiven/memory/fail.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven::test::fixtures {
 
 namespace json = qiven::text::json;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 
 // The compiled-in bytes of tests/fixtures/<file>, or none for a name the
 // build lacks; the files the build holds, by index, in name order.
@@ -240,14 +240,14 @@ constexpr std::optional<LoadError> layout(const qiven::text::json::Basic<A>& v) 
 template <typename A>
 constexpr void parse_entries(std::string_view data, qiven::text::json::Basic<A>& out) {
     qiven::text::json::Basic<A> value(out.allocator());
-    qiven::text::canon::parse(data, value);
+    canon::parse(data, value);
     if (const std::optional<LoadError> fault = layout(value)) {
         throw *fault;
     }
     out = std::move(value);
 }
 
-// tests/fixtures/<file> into out through qiven::text::canon::parse: LoadError no_file
+// tests/fixtures/<file> into out through canon::parse: LoadError no_file
 // for a name the build lacks, else canon's faults.
 template <typename A>
 void load(std::string_view file, qiven::text::json::Basic<A>& out) {
@@ -255,7 +255,7 @@ void load(std::string_view file, qiven::text::json::Basic<A>& out) {
     if (!data) {
         throw LoadError{Code::no_file, 0};
     }
-    qiven::text::canon::parse(*data, out);
+    canon::parse(*data, out);
 }
 
 // tests/fixtures/entries.json into out, its layout checked.

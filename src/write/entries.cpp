@@ -10,12 +10,12 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "write/entries_reader.hpp"
 
 namespace qiven3::write::entries {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 
 std::string_view name(Code code) noexcept { return code == Code::form ? "form" : "invalid"; }
 

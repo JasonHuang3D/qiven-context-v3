@@ -14,13 +14,13 @@
 
 #include "entry/refs.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "support/fixtures/fixtures.hpp"
 
 namespace {
 
 namespace refs = qiven3::entry::refs;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace fixtures = qiven::test::fixtures;
 using refs::Code;

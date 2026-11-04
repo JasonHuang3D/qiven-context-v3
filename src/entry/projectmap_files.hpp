@@ -57,11 +57,11 @@
 #include "entry/served.hpp"
 #include "entry/validator.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::projectmap {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utc = qiven::time::utc;
 using qiven::text::ParseCode;

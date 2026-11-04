@@ -127,7 +127,7 @@ std::string repeat(std::string_view s, std::size_t n) {
 template <canon::KeyRule K = canon::Syntax>
 std::optional<ParseCode> code(std::string_view data, const K& rule = K{}, canon::Layout layout = canon::Layout::canonical) {
     Std v;
-    return canon::try_parse(data, v, rule, layout);
+    return canon::try_parse(data, v, rule, json::max_depth, layout);
 }
 
 std::string shown(std::optional<ParseCode> c) { return c ? std::string(qiven::text::name(*c)) : "accepted"; }
@@ -150,11 +150,11 @@ void check_rows(qiven::runner::Context& qiven_ctx, const std::vector<Row>& rows)
 // Parsed, then written: the bytes again.
 bool round_trip(std::string_view data) {
     Std v;
-    if (canon::try_parse(data, v)) {
+    if (canon::try_parse(data, v, canon::Syntax{}, json::max_depth)) {
         return false;
     }
     std::string out;
-    canon::canonical(v, out);
+    canon::canonical(v, out, canon::Syntax{});
     return out == data;
 }
 
@@ -193,10 +193,10 @@ QIVEN_CASE(canon, refusals) {
     });
     // The thrown form: ParseError with the code, and out not replaced.
     Std v;
-    canon::parse(R"({"a":1})", v);
+    canon::parse(R"({"a":1})", v, canon::Syntax{}, json::max_depth);
     bool thrown = false;
     try {
-        canon::parse(R"({"a":null})", v);
+        canon::parse(R"({"a":null})", v, canon::Syntax{}, json::max_depth);
     } catch (const ParseError& e) {
         thrown = e.code == ParseCode::null;
     }
@@ -308,18 +308,18 @@ QIVEN_CASE(canon, encoder) {
     for (std::size_t i = 0; i < escaped.size(); ++i) {
         CHECK(code(escaped.at(i)) == ParseCode::not_canonical);
         Std v;
-        REQUIRE(!canon::try_parse(escaped.at(i), v, canon::Syntax{}, canon::Layout::any));
+        REQUIRE(!canon::try_parse(escaped.at(i), v, canon::Syntax{}, json::max_depth, canon::Layout::any));
         std::string out;
-        canon::canonical(v, out);
+        canon::canonical(v, out, canon::Syntax{});
         CHECK(out == bytes.at(i));
     }
     CHECK_EQ(cv::cv2.size(), 76U);
     CHECK_EQ(cv::cv3.size(), 66U);
     // \u8bb0\u5fc6 written raw, in UTF-8.
     Std v;
-    REQUIRE(!canon::try_parse(R"({"a":"\u8bb0\u5fc6"})", v, canon::Syntax{}, canon::Layout::any));
+    REQUIRE(!canon::try_parse(R"({"a":"\u8bb0\u5fc6"})", v, canon::Syntax{}, json::max_depth, canon::Layout::any));
     std::string out;
-    canon::canonical(v, out);
+    canon::canonical(v, out, canon::Syntax{});
     CHECK(out == "{\"a\":\"\xe8\xae\xb0\xe5\xbf\x86\"}");
 }
 
@@ -327,7 +327,7 @@ QIVEN_CASE(canon, walk) {
     // A value built in memory: each walk code, with out unchanged.
     const auto refused = [](const Std& v) {
         std::string out = "kept";
-        const std::optional<ParseCode> got = canon::try_canonical(v, out);
+        const std::optional<ParseCode> got = canon::try_canonical(v, out, canon::Syntax{});
         return out == "kept" ? got : std::optional<ParseCode>{};
     };
     Std null;
@@ -382,7 +382,7 @@ QIVEN_CASE(canon, walk) {
     std::string out = "kept";
     bool thrown = false;
     try {
-        canon::canonical(null, out);
+        canon::canonical(null, out, canon::Syntax{});
     } catch (const ParseError& e) {
         thrown = e.code == ParseCode::null;
     }
@@ -392,7 +392,7 @@ QIVEN_CASE(canon, walk) {
     fine.set("b", "\xe8\xae\xb0");
     fine.set("a", true);
     out = "x";
-    CHECK(!canon::try_canonical(fine, out));
+    CHECK(!canon::try_canonical(fine, out, canon::Syntax{}));
     CHECK(out == "x{\"a\":true,\"b\":\"\xe8\xae\xb0\"}");
     // The syntax alone.
     for (const std::string_view k : {"a", "a1", "a_b", "a_1_b2", "abc_def"}) {

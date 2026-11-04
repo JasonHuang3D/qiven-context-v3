@@ -23,14 +23,14 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace {
 
 namespace secret = qiven3::entry::secret;
 namespace header = qiven3::entry::header;
 namespace matcher = qiven::matcher;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;

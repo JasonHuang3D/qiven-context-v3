@@ -23,7 +23,7 @@
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/fake/fake_platform.hpp"
 #include "qiven/runner/runner.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 #include "support/fixtures/view.hpp"
 
@@ -31,7 +31,7 @@ namespace {
 
 namespace projectmap = qiven3::entry::projectmap;
 namespace header = qiven3::entry::header;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace format = qiven3::format;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;

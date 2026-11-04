@@ -48,13 +48,13 @@
 #include "qiven/matcher/matcher.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/text/utf.hpp"
 #include "qiven/time/utc.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::content {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utf = qiven::text::utf;
 namespace utc = qiven::time::utc;

@@ -69,15 +69,15 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/time/utc.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven3/format/key.hpp"
 #include "write/entries.hpp"
 #include "write/entries_reader.hpp"
 
 namespace qiven3::write::build {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utc = qiven::time::utc;
 

@@ -49,12 +49,12 @@
 
 #include "entry/header.hpp"
 #include "qiven/matcher/matcher.hpp"
-#include "qiven/text/canon.hpp"
 #include "qiven/text/utf.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::refs {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 namespace utf = qiven::text::utf;
 

@@ -23,11 +23,11 @@
 
 #include "entry/header.hpp"
 #include "entry/kinds.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::kinds {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // A record's identity in its scope: its kind's place and up to four parts,

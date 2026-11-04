@@ -34,11 +34,11 @@
 
 #include "entry/header.hpp"
 #include "qiven/memory/fail.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 
 namespace qiven3::entry::kinds {
 
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 // The bases, in header's order; a kind's bases are a set of their bits.

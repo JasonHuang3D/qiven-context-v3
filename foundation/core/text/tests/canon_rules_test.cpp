@@ -71,7 +71,7 @@ static_assert(canon::KeyRule<Catalogue> && canon::KeyRule<Index> && canon::KeyRu
 template <canon::KeyRule K>
 std::optional<ParseCode> code(std::string_view data, const K& rule, canon::Layout layout = canon::Layout::canonical) {
     Std v;
-    return canon::try_parse(data, v, rule, layout);
+    return canon::try_parse(data, v, rule, qiven::text::json::max_depth, layout);
 }
 
 constexpr std::string_view catalogue_text =
@@ -83,7 +83,7 @@ constexpr std::string_view catalogue_text =
 QIVEN_CASE(canon, key_by_place) {
     std::vector<std::string> seen;
     Std v;
-    REQUIRE(!canon::try_parse(R"({"a":[{"b":1}],"c":{"d":{"e":[]}}})", v, Record{&seen}));
+    REQUIRE(!canon::try_parse(R"({"a":[{"b":1}],"c":{"d":{"e":[]}}})", v, Record{&seen}, qiven::text::json::max_depth));
     const std::vector<std::string> want = {"a@1", "b@3/a/", "c@1", "d@2/c", "e@3/c/d"};
     CHECK(seen == want);
     // The index, canonical, its keys by place: accepted under its rule,
@@ -107,9 +107,9 @@ QIVEN_CASE(canon, key_by_place) {
     // canonical writes such a value under the same rule, and refuses it
     // under the syntax.
     Std value;
-    REQUIRE(!canon::try_parse(index_text, value, Index{}));
+    REQUIRE(!canon::try_parse(index_text, value, Index{}, qiven::text::json::max_depth));
     std::string out;
-    CHECK(canon::try_canonical(value, out) == ParseCode::key_syntax);
+    CHECK(canon::try_canonical(value, out, canon::Syntax{}) == ParseCode::key_syntax);
     CHECK(out.empty());
     CHECK(!canon::try_canonical(value, out, Index{}));
     CHECK(out == index_text);
@@ -122,7 +122,7 @@ QIVEN_CASE(canon, layout_any) {
     CHECK(code(catalogue_text, Catalogue{}) == ParseCode::not_canonical);
     CHECK(code(catalogue_text, canon::Syntax{}, canon::Layout::any) == ParseCode::key_syntax);
     Std v;
-    canon::parse(catalogue_text, v, Catalogue{}, canon::Layout::any);
+    canon::parse(catalogue_text, v, Catalogue{}, qiven::text::json::max_depth, canon::Layout::any);
     const std::optional<qiven::text::json::Index> book = v.find(0, "ewd.249");
     REQUIRE(book.has_value());
     CHECK(v.text(*v.find(*book, "room")) == "east/two");

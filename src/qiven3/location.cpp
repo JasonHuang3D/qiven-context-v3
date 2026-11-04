@@ -20,14 +20,14 @@
 #include "entry/projectmap_files.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
-#include "qiven/text/canon.hpp"
+#include "qiven3/entry/canon.hpp"
 #include "qiven/time/utc.hpp"
 #include "qiven/recordlog/errors.hpp"
 
 namespace qiven3::location {
 
 namespace store = qiven::recordlog;
-namespace canon = qiven::text::canon;
+namespace canon = qiven3::entry::canon;
 namespace json = qiven::text::json;
 
 namespace {

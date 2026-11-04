@@ -60,7 +60,7 @@ QIVEN_CASE(canon, parse_budget) {
         std::size_t nodes = 0;
         {
             canon::Value v{Allocator<char>(arena)};
-            canon::parse(text, v);
+            canon::parse(text, v, canon::Syntax{}, qiven::text::json::max_depth);
             nodes = v.size();
             peak = arena.peak();
         }
@@ -77,7 +77,7 @@ QIVEN_CASE(canon, parse_budget) {
         canon::Value v{Allocator<char>(shorter)};
         bool refused = false;
         try {
-            canon::parse(text, v);
+            canon::parse(text, v, canon::Syntax{}, qiven::text::json::max_depth);
         } catch (const MemoryError& e) {
             refused = budget_error(e);
         }
@@ -92,13 +92,13 @@ QIVEN_CASE(canon, parse_budget) {
 QIVEN_CASE(canon, canonical_budget) {
     for (const std::string& text : {worst(), mixed()}) {
         canon::Basic<> value;
-        canon::parse(text, value);
+        canon::parse(text, value, canon::Syntax{}, qiven::text::json::max_depth);
         const std::size_t budget = budget_for(text.size());
         Arena& arena = qiven_ctx.counted.arena(budget);
         std::size_t peak = 0;
         {
             String out{Allocator<char>(arena)};
-            canon::canonical(value, out);
+            canon::canonical(value, out, canon::Syntax{});
             CHECK(std::string_view(out) == text);
             peak = arena.peak();
         }
@@ -109,7 +109,7 @@ QIVEN_CASE(canon, canonical_budget) {
         String out{Allocator<char>(shorter)};
         bool refused = false;
         try {
-            canon::canonical(value, out);
+            canon::canonical(value, out, canon::Syntax{});
         } catch (const MemoryError& e) {
             refused = budget_error(e);
         }
@@ -130,7 +130,7 @@ QIVEN_CASE(canon, faults) {
         arena.emplace(pages);
         arena->attach(&countdown);
         canon::Value v{Allocator<char>(*arena)};
-        canon::parse(text, v);
+        canon::parse(text, v, canon::Syntax{}, qiven::text::json::max_depth);
         nodes = v.size();
     };
     const qiven::test::FaultRuns parses =
@@ -146,13 +146,13 @@ QIVEN_CASE(canon, faults) {
     CHECK(nodes > 0);
 
     canon::Basic<> value;
-    canon::parse(text, value);
+    canon::parse(text, value, canon::Syntax{}, qiven::text::json::max_depth);
     std::size_t bytes = 0;
     const auto write = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
         String out{Allocator<char>(*arena)};
-        canon::canonical(value, out);
+        canon::canonical(value, out, canon::Syntax{});
         bytes = out.size();
     };
     const qiven::test::FaultRuns writes =
