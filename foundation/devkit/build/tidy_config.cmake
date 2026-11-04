@@ -3,7 +3,7 @@
 # over them, in one file of the build tree its step names by path. As a
 # script (cmake -P), with ROOT (the checkout), BUILD (the build tree), TIDY
 # (clang-tidy) and PATHFILE, it prints each source's composed file, as
-# tests/drive/test_trees_build.py reads it.
+# tests/test_trees_build.py reads it.
 
 # qiven_tidy_inherits(<file> <tidy> <out>): TRUE where file inherits from the
 # directory above it, as tidy itself reads its InheritParentConfig, in every

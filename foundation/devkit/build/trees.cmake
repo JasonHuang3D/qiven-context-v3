@@ -1,7 +1,7 @@
 # The trees of tools/trees.json, the one place that names them (tools/loop_modules.py
 # reads it too), and the rules the build's globs and filters take from them; the
 # header units' are header_units.cmake's, which it includes.
-# Included by the root CMakeLists.txt; run by tests/drive/test_trees_build.py as
+# Included by the root CMakeLists.txt; run by tests/test_trees_build.py as
 # cmake -P with ROOT (the checkout) and SHOW (what to print).
 
 # qiven_trees(<file>): qiven_layers, qiven_walked, qiven_analysed,

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from foundation.devkit.structure import layers
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"

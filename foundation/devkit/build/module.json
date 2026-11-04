@@ -24,8 +24,7 @@
         "foundation/devkit/build/",
         "CMakeLists.txt",
         "CMakePresets.json",
-        ".clang-tidy",
-        "tests/drive/test_trees_build.py"
+        ".clang-tidy"
       ]
     }
   ]
