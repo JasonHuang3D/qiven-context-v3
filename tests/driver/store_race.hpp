@@ -6,13 +6,16 @@
 //               pause_ms}
 //       one thread for each item, each with its own fake, stage book and
 //       store object over the state (the factory's again, made one at a
-//       time); once every one is made they start together and each makes
-//       count successful conditional appends of one claim on its lane's
-//       head: the head read, a claim like A after it (its content with
-//       "{thread}" and "{number}" replaced by the thread's index and the
-//       success's, from 1; its writer given; at seq / 60 minutes), the
-//       append expecting that head; a HeadConflict or StoreBusy counted
-//       and the head read again; pause_ms after each success. Any other
+//       time, and its lane's head read then); once every one is made they
+//       start together and each makes count successful conditional appends
+//       of one claim on its lane's head: the head read, a claim like A
+//       after it (its content with "{thread}" and "{number}" replaced by
+//       the thread's index and the success's, from 1; its writer given; at
+//       seq / 60 minutes), the append expecting that head; a HeadConflict
+//       or StoreBusy counted and the head read again; pause_ms after each
+//       success. The first try takes the head read before the start, so
+//       that the racers of a lane all try on one head and all but one of
+//       them meet a HeadConflict, whatever the scheduler's order. Any other
 //       error ends that thread. The request returns once all have ended:
 //       {"threads": [{"ids", "conflicts", "busy", "error"?}]}, the ids its
 //       successes wrote, in order.
@@ -171,9 +174,11 @@ private:
             const auto fake = std::make_unique<qiven::platform::fake::FakePlatform>(config);
             const auto book = std::make_unique<qiven::test::stage_book::Book>(*fake);
             std::unique_ptr<typename F::Store> object;
+            std::optional<store::Head> first;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
                 object = std::make_unique<typename F::Store>(factory_->again(*fake));
+                first = object->head(scope_, r.lane);
                 ++made_;
                 made = true;
                 ready_.notify_all();
@@ -181,7 +186,7 @@ private:
             }
             const std::string content = marked(content_, "{thread}", static_cast<std::int64_t>(index));
             for (std::int64_t k = 1; k <= count_; ++k) {
-                append(r, *object, *book, marked(content, "{number}", k));
+                append(r, *object, *book, marked(content, "{number}", k), k == 1 ? &first : nullptr);
                 pause();
             }
             (void)object->close();
@@ -198,12 +203,14 @@ private:
     }
 
     // One success: the head read, the claim after it appended expecting it,
-    // again after each HeadConflict or StoreBusy.
+    // again after each HeadConflict or StoreBusy; the first try on first,
+    // the head read before the start, when given.
     void append(Racer& r, typename F::Store& object, const qiven::test::stage_book::Book& book,
-                const std::string& content) {
+                const std::string& content, const std::optional<store::Head>* first) {
         for (;;) {
             try {
-                const std::optional<store::Head> head = object.head(scope_, r.lane);
+                const std::optional<store::Head> head = first != nullptr ? *first : object.head(scope_, r.lane);
+                first = nullptr;
                 std::optional<std::string> parent;
                 if (head) {
                     parent = std::string(head->id.view());
