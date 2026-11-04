@@ -140,10 +140,10 @@ struct Counting {
 
 QIVEN_CASE(wire_memory, read) {
     // Arguments of each shape, the argument vector built before counting.
-    const std::array<const char*, 9> argv = {"qiven3", "location", "init", "", "caf\xc3\xab",
-                                             "\xf0\x9f\x98\x80", "--config", "x", nullptr};
-    const std::array<const char*, 4> bad = {"qiven3", "ok", "\xed\xa0\x80", nullptr};
-    const std::array<const char*, 4> holed = {"qiven3", "ok", nullptr, nullptr};
+    const std::array<const char*, 9> argv = {"binary", "argument", "word", "", "caf\xc3\xab",
+                                             "\xf0\x9f\x98\x80", "--option", "x", nullptr};
+    const std::array<const char*, 4> bad = {"binary", "ok", "\xed\xa0\x80", nullptr};
+    const std::array<const char*, 4> holed = {"binary", "ok", nullptr, nullptr};
     // The widest; the vector's own sizes, 7 arguments, 8 bytes the most in
     // one and 30 in all; then each a step below them.
     const std::array<wire::Bounds, 5> bounds = {wire::Bounds{most, most, most}, wire::Bounds{7, 8, 30},
@@ -176,7 +176,7 @@ QIVEN_CASE(wire_memory, read) {
     std::cout << "wire_memory.read: " << read << " read, " << refused << " refused\n";
     none_counted(qiven_ctx, "wire_memory.read", taken);
     // 45 vectors: the count's step refuses argc 8, the argument's argc 2
-    // to 8 ("location" is 8 bytes), the total's argc 8.
+    // to 8 ("argument" is 8 bytes), the total's argc 8.
     CHECK_EQ(read, std::size_t{36});
     CHECK_EQ(refused, std::size_t{9});
 }

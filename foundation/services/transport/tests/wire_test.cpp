@@ -34,7 +34,7 @@ constexpr std::size_t most = std::numeric_limits<std::size_t>::max();
 // string the vector points into.
 class Argv {
 public:
-    explicit Argv(std::vector<std::string> texts, const char* name = "qiven3") : texts_(std::move(texts)) {
+    explicit Argv(std::vector<std::string> texts, const char* name = "binary") : texts_(std::move(texts)) {
         pointers_.push_back(name);
         for (const std::string& text : texts_) {
             pointers_.push_back(text.c_str());
@@ -102,13 +102,13 @@ QIVEN_CASE(wire, empty) {
 QIVEN_CASE(wire, unreadable) {
     const wire::Bounds wide{most, most, most};
     CHECK(!wire::read_request(-1, nullptr, wide).has_value());
-    const Argv given({"location", "show"});
+    const Argv given({"argument", "next"});
     CHECK(!wire::read_request(-1, given.argv(), wide).has_value());
     CHECK(!wire::read_request(std::numeric_limits<int>::min(), given.argv(), wide).has_value());
     CHECK(!wire::read_request(1, nullptr, wide).has_value());
     CHECK(!wire::read_request(3, nullptr, wide).has_value());
     // An argument null within argc.
-    const std::vector<const char*> holed = {"qiven3", "location", nullptr, "show", nullptr};
+    const std::vector<const char*> holed = {"binary", "argument", nullptr, "next", nullptr};
     CHECK(!wire::read_request(4, holed.data(), wide).has_value());
     CHECK(wire::read_request(2, holed.data(), wide).has_value());
 }
@@ -124,7 +124,7 @@ QIVEN_CASE(wire, count) {
     CHECK(Argv({}).read(none).has_value());
     CHECK(!Argv({""}).read(none).has_value());
     // Past the bound, whatever follows it, read no further.
-    const std::vector<const char*> holed = {"qiven3", "a", "b", "c", "d", nullptr};
+    const std::vector<const char*> holed = {"binary", "a", "b", "c", "d", nullptr};
     CHECK(!wire::read_request(5, holed.data(), three).has_value());
 }
 
@@ -177,14 +177,14 @@ QIVEN_CASE(wire, utf8) {
                                           "\xff", "\xfe"};
     for (const std::string& one : bad) {
         CHECK(!Argv({one}).read(wide).has_value());
-        CHECK(!Argv({"location", "show", one}).read(wide).has_value());
+        CHECK(!Argv({"argument", "next", one}).read(wide).has_value());
         CHECK(!Argv({"ok" + one + "ok"}).read(wide).has_value());
     }
     std::cout << "wire.utf8: " << good.size() << " read, " << bad.size() << " refused\n";
 }
 
 QIVEN_CASE(wire, views) {
-    const std::vector<std::string> given = {"location", "init", "", " spaced out ", "--config", "x"};
+    const std::vector<std::string> given = {"argument", "word", "", " spaced out ", "--option", "x"};
     const Argv vector(given);
     const std::optional<wire::RequestView> read = vector.read({6, 12, 33});
     REQUIRE(read.has_value());
