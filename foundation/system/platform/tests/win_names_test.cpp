@@ -255,7 +255,7 @@ QIVEN_CASE(win_names, faults) {
         return (names.empty() || joined(names) == "a") && unheld(listed / "a") && (!fs::exists(file) || unheld(file));
     };
     platform.attach(&countdown);
-    const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
+    const auto runs = [&](qiven::log::Name site, auto op, std::size_t completed) {
         const qiven::test::FaultRuns r =
             qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";

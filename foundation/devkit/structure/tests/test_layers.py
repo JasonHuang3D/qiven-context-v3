@@ -13,8 +13,8 @@ CXX = layers.CXX
 # Where core logic was read: src/, and memory's, matcher's, text's, time's, digest's, format's, compute's,
 # platform's and recordlog's library code, in src/ until their moves (compute's fake and platform's, each a
 # library's since its move from tests/support/, with them), and storage_sqlite's, recordlog's until its move;
-# the entry's headers, cognition's values in src/ until their move; and diag's, with the log's ring, in src/
-# until their move.
+# the entry's headers, cognition's values in src/ until their move; and diag's, with the log's ring, and the
+# log's, in src/ until their moves.
 OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/",
            "foundation/core/matcher/include/", "foundation/core/matcher/src/",
            "foundation/core/text/include/", "foundation/core/text/src/", "foundation/core/time/include/",
@@ -24,7 +24,8 @@ OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/sr
            "foundation/system/platform/include/", "foundation/system/platform/src/",
            "foundation/services/storage/recordlog/include/", "foundation/services/storage/recordlog/src/",
            "foundation/services/storage/sqlite/include/", "foundation/services/storage/sqlite/src/",
-           "foundation/system/diag/include/", "foundation/system/diag/src/")
+           "foundation/system/diag/include/", "foundation/system/diag/src/",
+           "foundation/services/log/include/", "foundation/services/log/src/")
 
 
 def files():

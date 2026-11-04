@@ -7,12 +7,12 @@
 
 #include <cstddef>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
 
 namespace qiven::test {
 
-FaultRuns faults_run(qiven3::log::Log& log, qiven3::log::Name site, qiven::memory::Countdown& countdown, std::size_t& calls) {
+FaultRuns faults_run(qiven::log::Log& log, qiven::log::Name site, qiven::memory::Countdown& countdown, std::size_t& calls) {
     return run_faults<qiven::memory::MemoryError>(
         log, site, countdown, [&calls] { ++calls; }, [&calls](std::size_t k) { return calls >= k; });
 }

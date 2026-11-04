@@ -25,10 +25,10 @@
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/pool.hpp"
 
-namespace qiven3::log {
+namespace qiven::log {
 class Log;
 class Name;
-}  // namespace qiven3::log
+}  // namespace qiven::log
 
 namespace qiven::runner {
 
@@ -84,7 +84,7 @@ private:
 // cases (fault.injected, qiven/faults/faults.hpp).
 struct Context {
     std::ostream& out;
-    qiven3::log::Log& log;
+    qiven::log::Log& log;
     int failures = 0;
     Counted counted{};
 };
@@ -95,7 +95,7 @@ struct Case {
     // "group.name", made from the macro's literals; logged, the same as the
     // log's Name, which the runner passes on and never reads.
     std::string_view name;
-    const qiven3::log::Name* logged = nullptr;
+    const qiven::log::Name* logged = nullptr;
     CaseFn fn = nullptr;
     // A case whose report carries a time runs alone (CTest's RUN_SERIAL).
     bool serial = false;
@@ -105,12 +105,12 @@ struct Case {
 std::vector<Case>& registry();
 
 struct Registrar {
-    Registrar(std::string_view name, const qiven3::log::Name* logged, CaseFn fn, bool serial);
+    Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial);
 };
 
 // What a case's end is given to: the log the case ran with, the case, its
 // status and start, and the bytes its allocators held (the main's case.end).
-using Ended = void (*)(qiven3::log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
+using Ended = void (*)(qiven::log::Log& log, const Case& c, int status, std::chrono::steady_clock::time_point start,
                        std::size_t held);
 
 // Names an error a case let out that is none of the standard library's or
@@ -167,7 +167,7 @@ bool check_eq(Context& ctx, const A& a, const B& b, const char* expr, const char
 // so the status is the system's. A case that returns, its exception
 // caught, ends by ended where one is given: its log, the case, its status,
 // its start and the bytes its allocators held.
-int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ended = nullptr);
+int run_case(const Case& c, std::ostream& out, qiven::log::Log& log, Ended ended = nullptr);
 
 // The runner's command line, with the binary's name dropped:
 //   --list        each case's name, sorted, one a line; a serial case's
@@ -176,7 +176,7 @@ int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ende
 // Anything else, an unknown name, or a registry with an empty or repeated
 // name, is exit_usage.
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err, qiven3::log::Log& log, Ended ended = nullptr);
+             std::ostream& out, std::ostream& err, qiven::log::Log& log, Ended ended = nullptr);
 
 }  // namespace qiven::runner
 

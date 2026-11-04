@@ -38,6 +38,7 @@
 namespace qiven3::drive {
 
 namespace utf = qiven::text::utf;
+namespace log = qiven::log;
 using qiven::text::ParseCode;
 using qiven::text::ParseError;
 

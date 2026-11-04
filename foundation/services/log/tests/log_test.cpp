@@ -11,9 +11,9 @@
 #include <string_view>
 #include <vector>
 
-#include "log/catalogue.hpp"
-#include "log/line.hpp"
-#include "log/log.hpp"
+#include "qiven/log/catalogue.hpp"
+#include "../src/line.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/case_main/cases.hpp"
@@ -22,8 +22,8 @@
 
 namespace {
 
-namespace qlog = qiven3::log;
-namespace events = qiven3::log::events;
+namespace qlog = qiven::log;
+namespace events = qiven::log::events;
 using qiven::memory::Allocator;
 using qiven::memory::Arena;
 using qiven::memory::MemoryCode;
@@ -52,13 +52,13 @@ std::string untimed(std::string_view line) {
 QIVEN_CASE(log, start) {
     Arena& arena = qiven_ctx.counted.arena(log_budget);
     {
-        const qlog::Log lg(arena, qlog::Count(7U), "qiven3_unit_log");
+        const qlog::Log lg(arena, qlog::Count(7U), "qiven_log_test");
         // The ring's span and the events' pages, exactly, and no padding.
         CHECK_EQ(arena.used(), log_budget);
         CHECK_EQ(arena.peak(), log_budget);
         const Lines lines(lg.ring().lines());
         REQUIRE(lines.size() == 1);
-        CHECK_EQ(untimed(lines.at(0)), std::string(R"({"binary":"qiven3_unit_log","event":"log.start","level":"info",)"
+        CHECK_EQ(untimed(lines.at(0)), std::string(R"({"binary":"qiven_log_test","event":"log.start","level":"info",)"
                                                    R"("log":7,"min":")") +
                                            std::string(qlog::level_name(qlog::minimum).text()) +
                                            R"(","op":0,"ring":65536,"t":T})");
@@ -70,7 +70,7 @@ QIVEN_CASE(log, start) {
 
 QIVEN_CASE(log, operations) {
     Arena& arena = qiven_ctx.counted.arena(log_budget);
-    qlog::Log lg(arena, qlog::Count(1U), "qiven3_unit_log");
+    qlog::Log lg(arena, qlog::Count(1U), "qiven_log_test");
     {
         qlog::Op first = qlog::begin(lg, "first");
         CHECK_EQ(first.id(), 1U);
@@ -83,7 +83,7 @@ QIVEN_CASE(log, operations) {
     }
     const Lines lines(lg.ring().lines());
     std::vector<std::string> want;
-    want.emplace_back(R"({"binary":"qiven3_unit_log","event":"log.start",)");
+    want.emplace_back(R"({"binary":"qiven_log_test","event":"log.start",)");
     if (events::OpBegin::level >= qlog::minimum) {
         want.emplace_back(R"({"event":"op.begin","level":"debug","log":1,"name":"first","op":1,"t":T})");
     }
@@ -107,11 +107,11 @@ QIVEN_CASE(log, operations) {
 
 QIVEN_CASE(log, drain) {
     Arena& arena = qiven_ctx.counted.arena(log_budget);
-    qlog::Log lg(arena, qlog::Count(2U), "qiven3_unit_log");
+    qlog::Log lg(arena, qlog::Count(2U), "qiven_log_test");
     Sink out;
     CHECK(lg.drain(out));
     CHECK_EQ(out.writes, 1);
-    CHECK(out.bytes.starts_with(R"({"binary":"qiven3_unit_log","event":"log.start")"));
+    CHECK(out.bytes.starts_with(R"({"binary":"qiven_log_test","event":"log.start")"));
     CHECK(out.bytes.ends_with("}\n"));
     const std::size_t first = out.bytes.size();
     CHECK(lg.drain(out));
@@ -154,7 +154,7 @@ QIVEN_CASE(log, budget) {
         Arena& shorter = qiven_ctx.counted.arena(log_budget - 1);
         bool refused = false;
         try {
-            const qlog::Log lg(shorter, qlog::Count(1U), "qiven3_unit_log");
+            const qlog::Log lg(shorter, qlog::Count(1U), "qiven_log_test");
         } catch (const MemoryError& e) {
             refused = e.code == MemoryCode::budget;
         }
@@ -164,7 +164,7 @@ QIVEN_CASE(log, budget) {
     // The widest event, eight 64-byte names: its line within 1,024 bytes
     // and its arena's peak within the 4 KiB.
     Arena& arena = qiven_ctx.counted.arena(log_budget);
-    qlog::Log lg(arena, qlog::Count(qlog::max_number), "qiven3_unit_log");
+    qlog::Log lg(arena, qlog::Count(qlog::max_number), "qiven_log_test");
     qiven::test::widest(lg);
     CHECK_EQ(lg.failed(), 0U);
     const Lines lines(lg.ring().lines());
@@ -198,7 +198,7 @@ QIVEN_CASE(log, faults) {
     const auto make = [&] {
         arena.emplace(pages);
         arena->attach(&countdown);
-        const qlog::Log lg(*arena, qlog::Count(1U), "qiven3_unit_log");
+        const qlog::Log lg(*arena, qlog::Count(1U), "qiven_log_test");
     };
     const auto check = [&](std::size_t) { return arena->used() == 0; };
     const qiven::test::FaultRuns made = qiven::test::run_faults<MemoryError>(
@@ -212,7 +212,7 @@ QIVEN_CASE(log, faults) {
     // An event's allocations, each failed in turn: the event dropped and
     // counted, the ring and the operation unchanged, never an exception.
     arena.emplace(pages);
-    qlog::Log lg(*arena, qlog::Count(1U), "qiven3_unit_log");
+    qlog::Log lg(*arena, qlog::Count(1U), "qiven_log_test");
     lg.attach(&countdown);
     std::size_t allocations = 0;
     std::size_t completed_at = 0;
@@ -242,7 +242,7 @@ QIVEN_CASE(log, faults) {
 }
 
 QIVEN_CASE(log, constant) {
-    // The static half (unit/log_static.cpp) held if this
+    // The static half (log_static.cpp) held if this
     // binary was built; this reports it.
     CHECK(qiven::test::constant_held());
 }

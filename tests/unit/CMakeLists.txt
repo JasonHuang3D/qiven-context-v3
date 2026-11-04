@@ -2,7 +2,6 @@
 # (the module.json files' table names each file's module); what stays here is the
 # support's.
 include("${CMAKE_CURRENT_SOURCE_DIR}/entry.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/log.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/secret.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/write.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/wire.cmake")

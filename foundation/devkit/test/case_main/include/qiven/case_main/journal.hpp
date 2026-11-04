@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <span>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/diag/diag.hpp"
 #include "qiven/diag/out.hpp"
 #include "qiven/memory/arena.hpp"
@@ -22,7 +22,7 @@ class Journal {
 public:
     // The bytes a Journal's pages hold: its Log's ring and events, and the
     // arena's padding for their alignment.
-    static constexpr std::size_t bytes = qiven3::log::Log::ring_bytes + qiven3::log::Log::event_bytes + 256;
+    static constexpr std::size_t bytes = qiven::log::Log::ring_bytes + qiven::log::Log::event_bytes + 256;
     // Pages of static storage or on the heap, so that no frame holds them.
     struct alignas(std::max_align_t) Pages {
         std::array<std::byte, bytes> data{};
@@ -30,9 +30,9 @@ public:
 
     // The Log, numbered 1, over pages, which outlive the Journal; it writes
     // log.start. Past the pages, MemoryError budget, nothing kept.
-    Journal(Pages& pages, qiven3::log::Name binary)
+    Journal(Pages& pages, qiven::log::Name binary)
         : arena_(std::span<std::byte>(pages.data)),
-          log_(arena_, qiven3::log::Count(1U), binary),
+          log_(arena_, qiven::log::Count(1U), binary),
           out_(qiven::diag::Out::from_environment()) {
         qiven::diag::keep(log_.ring());
     }
@@ -46,14 +46,14 @@ public:
         qiven::diag::drop(log_.ring());
     }
 
-    [[nodiscard]] qiven3::log::Log& log() noexcept { return log_; }
+    [[nodiscard]] qiven::log::Log& log() noexcept { return log_; }
     // The lines since the last drain, to the output; false when a write
     // failed.
     bool drain() noexcept { return log_.drain(out_); }
 
 private:
     qiven::memory::Arena arena_;
-    qiven3::log::Log log_;
+    qiven::log::Log log_;
     qiven::diag::Out out_;
 };
 

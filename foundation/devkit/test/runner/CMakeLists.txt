@@ -11,7 +11,7 @@ add_library(qiven_runner STATIC
   src/runner.cpp
 )
 target_include_directories(qiven_runner PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(qiven_runner PUBLIC qiven_memory qiven3_log PRIVATE qiven_build)
+target_link_libraries(qiven_runner PUBLIC qiven_memory qiven_log PRIVATE qiven_build)
 
 # The runner's own cases, each a CTest test, with the log's main.
 qiven3_add_cases(qiven_runner_test LABELS fast SOURCES tests/runner_test.cpp LINK qiven_platform)

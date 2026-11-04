@@ -28,27 +28,18 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
 
   # The entry's targets, the text and the log the runner's log takes, and
   # the platform whose codes it names, over the poisoned memory, so that one
-  # copy of memory is linked: the entry, the text and the platform by their
-  # own functions, the log again over its own sources, its ring the entry's.
+  # copy of memory is linked, each by its own function, the log's ring the
+  # entry's.
   qiven_diag_targets(_poisoned qiven_memory_poisoned)
   qiven_text_targets(_poisoned qiven_memory_poisoned)
   qiven_platform_targets(_poisoned qiven_memory_poisoned)
-  foreach(pair IN ITEMS "qiven3_log;src/log;qiven_diag_poisoned;qiven_text_poisoned;qiven_memory_poisoned")
-    list(POP_FRONT pair name dir)
-    get_target_property(sources ${name} SOURCES)
-    list(TRANSFORM sources PREPEND "${PROJECT_SOURCE_DIR}/${dir}/")
-    add_library(${name}_poisoned STATIC ${sources})
-    # Its include directories as its library's.
-    get_target_property(includes ${name} INTERFACE_INCLUDE_DIRECTORIES)
-    target_include_directories(${name}_poisoned PUBLIC ${includes})
-    target_link_libraries(${name}_poisoned PUBLIC ${pair} PRIVATE qiven_build)
-  endforeach()
+  qiven_log_targets(_poisoned qiven_memory_poisoned)
 
   add_library(qiven3_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/src/runner.cpp"
     "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/src/main.cpp")
   target_include_directories(qiven3_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/include"
     "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
-  target_link_libraries(qiven3_runner_poisoned PUBLIC qiven_memory_poisoned qiven3_log_poisoned
+  target_link_libraries(qiven3_runner_poisoned PUBLIC qiven_memory_poisoned qiven_log_poisoned
     PRIVATE qiven_build qiven_diag_poisoned qiven_platform_poisoned)
   qiven_executable(qiven_memory_test_poisoned
     SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
@@ -57,7 +48,7 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   target_include_directories(qiven_memory_test_poisoned PRIVATE
     "${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults/include")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven3_runner_poisoned DIAG _poisoned)
-  set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven3_log_poisoned qiven_platform_poisoned
+  set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven_log_poisoned qiven_platform_poisoned
     qiven3_runner_poisoned qiven_memory_test_poisoned
     qiven_memory_free_demo_poisoned qiven_diag_poisoned qiven_diag_entry_poisoned PROPERTIES QIVEN3_POISONED ON)
 endif()

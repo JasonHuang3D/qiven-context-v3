@@ -10,7 +10,7 @@
 #include <chrono>
 #include <cstddef>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/runner/core.hpp"
 
 namespace qiven::test {
@@ -18,7 +18,7 @@ namespace qiven::test {
 // The event case.end in log: the case's name, its outcome "pass", "fail" or
 // "skip" by status, its milliseconds since start and held, the bytes its
 // allocators held. The main's Ended, which runner_test gives run_case.
-void case_ended(qiven3::log::Log& log, const qiven::runner::Case& c, int status,
+void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status,
                 std::chrono::steady_clock::time_point start, std::size_t held);
 
 }  // namespace qiven::test
@@ -29,7 +29,7 @@ void case_ended(qiven3::log::Log& log, const qiven::runner::Case& c, int status,
 #define QIVEN_CASE_AS(group, name, serial)                                                    \
     static void QIVEN_CAT(qiven_case_, QIVEN_CAT(group, QIVEN_CAT(_, name)))(              \
         ::qiven::runner::Context & qiven_ctx);                                                 \
-    static constexpr ::qiven3::log::Name QIVEN_CAT(qiven_name_,                              \
+    static constexpr ::qiven::log::Name QIVEN_CAT(qiven_name_,                              \
                                                     QIVEN_CAT(group, QIVEN_CAT(_, name))){   \
         #group "." #name};                                                                     \
     static const ::qiven::runner::Registrar QIVEN_CAT(                                         \

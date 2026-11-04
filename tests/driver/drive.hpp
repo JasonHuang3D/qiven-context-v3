@@ -68,8 +68,8 @@
 #include <utility>
 #include <vector>
 
-#include "log/catalogue.hpp"
-#include "log/log.hpp"
+#include "qiven/log/catalogue.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/platform/platform.hpp"
@@ -82,6 +82,7 @@
 namespace qiven3::drive {
 
 namespace json = qiven::text::json;
+namespace log = qiven::log;
 
 // The drive's own configuration leaf, which its adapter_for, current and
 // Windows adapter pass: the Windows adapter's location, without --config,

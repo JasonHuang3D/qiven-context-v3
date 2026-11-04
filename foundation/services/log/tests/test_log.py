@@ -1,12 +1,12 @@
 """K13: levels below the build's minimum compile to nothing, and an event's
 fields hold no run-time text.
 
-- The binary half: qiven3_unit_log holds an event at trace and its control
-  at info (tests/unit/log_k13.cpp). The control's name is in the binary's
-  bytes in every build; the trace event's is there when the build's minimum,
+- The binary half: qiven_log_test holds an event at trace and its control
+  at info (log_k13.cpp). The control's name is in the binary's bytes in
+  every build; the trace event's is there when the build's minimum,
   the cache's QIVEN_LOG_LEVEL, is trace, and absent otherwise.
-- The static half: the build makes qiven3_log_plant_control, whose event
-  takes a Name; the plant, qiven3_log_plant, the same file with its field a
+- The static half: the build makes qiven_log_plant_control, whose event
+  takes a Name; the plant, qiven_log_plant, the same file with its field a
   std::string_view, fails to compile at the line marked, and the control,
   built by the same command, succeeds.
 """
@@ -20,7 +20,7 @@ from tests.drive import binaries
 
 TRACE = b"k13.trace-marker"
 CONTROL = b"k13.info-control"
-PLANT = binaries.ROOT / "tests" / "unit" / "log_plant.cpp"
+PLANT = binaries.ROOT / "foundation" / "services" / "log" / "tests" / "log_plant.cpp"
 # A build of one target ends within this many seconds.
 BUILD_TIMEOUT = 300
 
@@ -56,7 +56,7 @@ class Levels(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_trace_name_by_minimum(self):
-        data = binaries.path("qiven3_unit_log").read_bytes()
+        data = binaries.path("qiven_log_test").read_bytes()
         self.assertIn(CONTROL, data, "the control's name is not in the binary")
         if level() == "trace":
             self.assertIn(TRACE, data, "the minimum is trace, and the trace event's name is not in the binary")
@@ -68,9 +68,9 @@ class Field(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_planted_field_does_not_compile(self):
-        status, output = build("qiven3_log_plant_control")
+        status, output = build("qiven_log_plant_control")
         self.assertEqual(status, 0, output[-2000:])
-        status, output = build("qiven3_log_plant")
+        status, output = build("qiven_log_plant")
         self.assertNotEqual(status, 0, "the planted std::string_view field compiled")
         line = marked(PLANT.read_text(encoding="utf-8"), "// K13: the plant")
         # MSVC writes file(line); gcc and clang file:line:column.
@@ -82,7 +82,7 @@ class Field(unittest.TestCase):
     @staticmethod
     def objects():
         build_dir = binaries.directory("QIVEN3_BUILD")
-        return [p for p in build_dir.rglob("qiven3_log_plant.dir/*") if p.is_file() and
+        return [p for p in build_dir.rglob("qiven_log_plant.dir/*") if p.is_file() and
                 p.suffix in (".obj", ".o")]
 
 

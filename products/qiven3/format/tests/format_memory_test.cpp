@@ -123,7 +123,7 @@ QIVEN_CASE(format, faults) {
     qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
     const auto check = [&](std::size_t) { return arena->used() == 0; };
-    const auto runs = [&](qiven3::log::Name site, auto write) {
+    const auto runs = [&](qiven::log::Name site, auto write) {
         const qiven::test::FaultRuns r = qiven::test::run_faults<MemoryError>(
             qiven_ctx.log, site, countdown,
             [&] {

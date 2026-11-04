@@ -46,7 +46,7 @@ set_source_files_properties(faults_faults.cpp PROPERTIES COMPILE_DEFINITIONS QIV
 foreach(target IN ITEMS qiven3_headers qiven3_test_headers)
   target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/tests")
   target_link_libraries(${target} PRIVATE qiven3_checked qiven_recordlog qiven_recordlog_stores qiven_platform_fake qiven3_fixtures qiven_faults
-    qiven3_log qiven_diag qiven_runner qiven_case_main qiven_build)
+    qiven_log qiven_diag qiven_runner qiven_case_main qiven_build)
 endforeach()
 list(LENGTH qiven3_library_units qiven3_count)
 list(LENGTH qiven3_test_units qiven3_test_count)

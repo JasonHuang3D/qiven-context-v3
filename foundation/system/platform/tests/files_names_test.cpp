@@ -370,7 +370,7 @@ QIVEN_CASE(files_names, faults) {
     const auto clean = [&](std::size_t) {
         return (names.empty() || names.size() == 3) && fs::exists(scratch.root / "1.pending") && system.kept() == 0;
     };
-    const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed, auto typed) {
+    const auto runs = [&](qiven::log::Name site, auto op, std::size_t completed, auto typed) {
         const qiven::test::FaultRuns r =
             qiven::test::run_faults<decltype(typed)>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files_names.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";

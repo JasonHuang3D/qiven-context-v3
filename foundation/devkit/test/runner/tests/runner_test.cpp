@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/case_main/cases.hpp"
@@ -28,16 +28,16 @@ Case sample(std::string_view name, bool serial, qiven::runner::CaseFn fn = nullp
 }
 
 // The Name of the case run() runs, which its case.end carries.
-constexpr qiven3::log::Name sample_case = "sample.case";
+constexpr qiven::log::Name sample_case = "sample.case";
 
 // A Log of a case's own, numbered 2, over an arena of its context.
 class Logged {
 public:
     explicit Logged(Context& ctx)
-        : log(ctx.counted.arena(qiven::test::Journal::bytes), qiven3::log::Count(2U), "runner-test") {}
+        : log(ctx.counted.arena(qiven::test::Journal::bytes), qiven::log::Count(2U), "runner-test") {}
     // Its lines, oldest first.
     [[nodiscard]] qiven::test::Lines lines() const { return qiven::test::Lines(log.ring().since(log.ring().first())); }
-    qiven3::log::Log log;
+    qiven::log::Log log;
 };
 
 // The output of run_case on a case of these bodies, its status, and its

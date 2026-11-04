@@ -10,9 +10,9 @@
 #include <array>
 #include <string_view>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 
-namespace qiven3::log::events {
+namespace qiven::log::events {
 
 struct LogStart {
     static constexpr Level level = Level::info;
@@ -91,4 +91,4 @@ struct FaultInjected {
 };
 inline constexpr FaultInjected fault_injected{};
 
-}  // namespace qiven3::log::events
+}  // namespace qiven::log::events

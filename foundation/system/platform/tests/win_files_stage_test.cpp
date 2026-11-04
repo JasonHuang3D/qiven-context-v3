@@ -507,7 +507,7 @@ QIVEN_CASE(win_files_stage, faults) {
         return !error && staging_left(runs).empty() && unheld(runs);
     };
     platform.attach(&countdown);
-    const auto check = [&](qiven3::log::Name site, auto op, std::size_t completed) {
+    const auto check = [&](qiven::log::Name site, auto op, std::size_t completed) {
         const qiven::test::FaultRuns r =
             qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "win_files_stage.faults: completed at " << r.completed_at << ", typed "

@@ -102,7 +102,7 @@ QIVEN_CASE(digest, faults) {
     std::vector<std::byte> pages(budget_for(input.size()));
     qiven::memory::Countdown countdown;
     std::optional<Arena> arena;
-    const auto runs = [&](qiven3::log::Name site, std::string_view name, const auto& write) {
+    const auto runs = [&](qiven::log::Name site, std::string_view name, const auto& write) {
         const qiven::test::FaultRuns r = qiven::test::run_faults<MemoryError>(
             qiven_ctx.log, site, countdown,
             [&] {

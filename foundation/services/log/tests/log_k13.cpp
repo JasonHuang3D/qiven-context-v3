@@ -1,6 +1,5 @@
 // K13's binary half: an event at trace and its control at info, each with
-// its own name, which tests/drive/test_log.py looks for in this binary's
-// bytes: the trace name present only when the build's minimum is trace, the
+// its own name, which test_log.py looks for in this binary's bytes: the trace name present only when the build's minimum is trace, the
 // control's always. Neither name is written anywhere else in the binary's
 // sources, and nothing but the events reads them.
 
@@ -8,14 +7,14 @@
 #include <cstddef>
 #include <string_view>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/case_main/cases.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
 
-namespace qlog = qiven3::log;
+namespace qlog = qiven::log;
 
 struct TraceOnly {
     static constexpr qlog::Level level = qlog::Level::trace;
@@ -36,7 +35,7 @@ struct InfoControl {
 QIVEN_CASE(log, k13_levels) {
     qiven::memory::Arena& arena = qiven_ctx.counted.arena(qlog::Log::ring_bytes + qlog::Log::event_bytes);
     const std::size_t lines = [&] {
-        qlog::Log lg(arena, qlog::Count(1U), "qiven3_unit_log");
+        qlog::Log lg(arena, qlog::Count(1U), "qiven_log_test");
         qlog::event(lg, TraceOnly{}, qlog::Count(1U));
         qlog::event(lg, InfoControl{}, qlog::Count(2U));
         return qiven::test::Lines(lg.ring().lines()).size();

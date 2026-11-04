@@ -14,10 +14,10 @@
 #include <span>
 #include <string_view>
 
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/text/json.hpp"
 
-namespace qiven3::log {
+namespace qiven::log {
 
 namespace json = qiven::text::json;
 
@@ -74,4 +74,4 @@ constexpr void encode_line(const HeadView& head, std::span<const FieldView> fiel
     json::encode(value, out);
 }
 
-}  // namespace qiven3::log
+}  // namespace qiven::log

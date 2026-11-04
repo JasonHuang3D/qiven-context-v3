@@ -17,7 +17,7 @@ std::vector<Case>& registry() {
     return cases;
 }
 
-Registrar::Registrar(std::string_view name, const qiven3::log::Name* logged, CaseFn fn, bool serial) {
+Registrar::Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) {
     registry().push_back(Case{name, logged, fn, serial});
 }
 
@@ -103,7 +103,7 @@ bool check(Context& ctx, bool ok, const char* expr, const char* file, int line) 
     return ok;
 }
 
-int run_case(const Case& c, std::ostream& out, qiven3::log::Log& log, Ended ended_by) {
+int run_case(const Case& c, std::ostream& out, qiven::log::Log& log, Ended ended_by) {
     const auto start = std::chrono::steady_clock::now();
     Context ctx{out, log};
     // The case's end given to ended_by; status, given back.
@@ -176,7 +176,7 @@ int usage(std::ostream& err) {
 }  // namespace
 
 int run_main(std::span<const std::string_view> args, const std::vector<Case>& cases,
-             std::ostream& out, std::ostream& err, qiven3::log::Log& log, Ended ended) {
+             std::ostream& out, std::ostream& err, qiven::log::Log& log, Ended ended) {
     if (!names_valid(cases, err)) {
         return exit_usage;
     }

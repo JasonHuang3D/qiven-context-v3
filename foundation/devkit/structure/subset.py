@@ -111,13 +111,15 @@ CELLS = {
                                               "below the platform and cannot hold that type",
     ("B28", "foundation/core/memory/include/qiven/memory/pool.hpp", "Pool"): "as Arena's",
     ("B28", "foundation/core/memory/include/qiven/memory/pool.hpp", "Heap"): "as Arena's",
-    ("B28", "src/log/log.hpp", "Name"): "a literal's text, which lasts as long as the process: a Name is made in "
-                                        "constant evaluation alone",
+    ("B28", "foundation/services/log/include/qiven/log/log.hpp", "Name"): "a literal's text, which lasts as "
+                                                                          "long as the process: a Name is made "
+                                                                          "in constant evaluation alone",
     ("B28", "foundation/system/diag/include/qiven/diag/ring.hpp", "Ring"): "the span its Log takes from its "
                                                                            "binary's arena, which outlives the Log, "
                                                                            "the ring's owner",
-    ("B28", "src/log/log.hpp", "Log"): "the ring's span and the events' pages, blocks of its binary's arena, "
-                                       "which outlives the Log and takes them back at its end",
+    ("B28", "foundation/services/log/include/qiven/log/log.hpp", "Log"): "the ring's span and the events' pages, "
+                                                                         "blocks of its binary's arena, which outlives "
+                                                                         "the Log and takes them back at its end",
 }
 # B26's modules, each with its own cases or fuzzed, where the analysis
 # configuration may turn pointer arithmetic off; a directory's .clang-tidy

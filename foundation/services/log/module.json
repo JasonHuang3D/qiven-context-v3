@@ -5,7 +5,7 @@
   "platforms": [
     "windows"
   ],
-  "contract": "src/log/log.hpp",
+  "contract": "foundation/services/log/include/qiven/log/log.hpp",
   "adopted": "2026-10-31",
   "parameters": [
     {
@@ -35,10 +35,7 @@
       ],
       "test_depends": [],
       "paths": [
-        "src/log/",
-        "tests/unit/log.cmake",
-        "tests/unit/log_*",
-        "tests/drive/test_log.py",
+        "foundation/services/log/",
         "tests/drive/test_log_secret.py"
       ]
     }

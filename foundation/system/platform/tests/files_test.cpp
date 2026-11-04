@@ -510,7 +510,7 @@ QIVEN_CASE(files, faults) {
                listing(scratch.root).find(".tmp") == std::string::npos;
     };
     fake.attach(&countdown);
-    const auto runs = [&](qiven3::log::Name site, auto op, std::size_t completed) {
+    const auto runs = [&](qiven::log::Name site, auto op, std::size_t completed) {
         const qiven::test::FaultRuns r =
             qiven::test::run_faults<PlatformError>(qiven_ctx.log, site, countdown, op, clean);
         std::cout << "files.faults: completed at " << r.completed_at << ", typed " << r.typed << "\n";

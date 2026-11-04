@@ -11,8 +11,8 @@
 #include <string_view>
 #include <vector>
 
-#include "log/catalogue.hpp"
-#include "log/log.hpp"
+#include "qiven/log/catalogue.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
 #include "qiven/case_main/journal.hpp"
@@ -24,9 +24,9 @@ namespace {
 
 // The outcomes' names, made once: a Name made within a conditional
 // expression is not made right on every compiler.
-constexpr qiven3::log::Name passed = "pass";
-constexpr qiven3::log::Name skipped = "skip";
-constexpr qiven3::log::Name failed = "fail";
+constexpr qiven::log::Name passed = "pass";
+constexpr qiven::log::Name skipped = "skip";
+constexpr qiven::log::Name failed = "fail";
 
 // A PlatformError, a plain value with no base: its code's name and its
 // detail.
@@ -43,10 +43,10 @@ bool platform_named(std::ostream& out) {
 
 }  // namespace
 
-void case_ended(qiven3::log::Log& log, const qiven::runner::Case& c, int status, std::chrono::steady_clock::time_point start,
+void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status, std::chrono::steady_clock::time_point start,
                 std::size_t held) {
-    const qiven3::log::Name outcome = status == qiven::runner::exit_pass ? passed : status == qiven::runner::exit_skip ? skipped : failed;
-    qiven3::log::event(log, qiven3::log::events::case_end, *c.logged, outcome, qiven3::log::Millis::since(start), qiven3::log::Count(held));
+    const qiven::log::Name outcome = status == qiven::runner::exit_pass ? passed : status == qiven::runner::exit_skip ? skipped : failed;
+    qiven::log::event(log, qiven::log::events::case_end, *c.logged, outcome, qiven::log::Millis::since(start), qiven::log::Count(held));
 }
 
 }  // namespace qiven::test

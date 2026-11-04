@@ -3,7 +3,7 @@
 // encoder, Count's saturation, pick and the levels' names in constant
 // evaluation, on std::allocator, so that a wrong result, or undefined
 // behaviour on the way, fails the build. Then the widest event, for
-// unit/log_test.cpp's budget.
+// log_test.cpp's budget.
 
 #include <array>
 #include <cstddef>
@@ -11,16 +11,16 @@
 #include <string>
 #include <string_view>
 
-#include "log/catalogue.hpp"
-#include "log/line.hpp"
-#include "log/log.hpp"
+#include "qiven/log/catalogue.hpp"
+#include "../src/line.hpp"
+#include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/case_main/cases.hpp"
 
 namespace {
 
-namespace qlog = qiven3::log;
-namespace events = qiven3::log::events;
+namespace qlog = qiven::log;
+namespace events = qiven::log::events;
 
 // An event of op.begin with a field of type F compiles.
 template <typename F>

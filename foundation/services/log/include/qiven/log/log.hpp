@@ -1,7 +1,7 @@
 #pragma once
 
 // log: levelled JSON lines into a crash ring, each an event of the
-// catalogue (log/catalogue.hpp) with fields of four types alone, so that no
+// catalogue (qiven/log/catalogue.hpp) with fields of four types alone, so that no
 // run-time text can reach a line: a Name is made in constant evaluation
 // from a literal, and the others are numbers. An event below the build's
 // minimum, QIVEN_LOG_MIN, compiles to nothing.
@@ -38,7 +38,7 @@
 #endif
 #endif
 
-namespace qiven3::log {
+namespace qiven::log {
 
 enum class Level : std::uint8_t { trace, debug, info, warn, error };
 
@@ -378,4 +378,4 @@ static_assert(sizeof(Count) == 8 && sizeof(Millis) == 8, "Count's and Millis's s
 static_assert(sizeof(Op) == 40, "Op's size is pinned: the Log, the number, the name and the start");
 #endif
 
-}  // namespace qiven3::log
+}  // namespace qiven::log

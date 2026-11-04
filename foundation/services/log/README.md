@@ -2,11 +2,11 @@
 
 layer services, status built
 
-- **Awaiting a split:** one part leaves: the drive's events (`drive.request`, `drive.reply` in `src/log/catalogue.hpp`) for qiven3's own catalogue
+- **Awaiting a split:** one part leaves: the drive's events (`drive.request`, `drive.reply` in `include/qiven/log/catalogue.hpp`) for qiven3's own catalogue
 - **Holds:** levelled JSON lines into a crash ring, diag's (`qiven/diag/ring.hpp`, reached through `qiven_diag`), events by descriptor of a catalogue, operations' ids, the drain
 - **Never holds:** run-time text in a line; a product's events but the drive's two, until they leave
-- **Contract:** `src/log/log.hpp`
-- **Files:** not yet in this directory: its files are the `present` paths of module.json; its contract's header moves to `include/qiven/log/log.hpp`.
+- **Contract:** `foundation/services/log/include/qiven/log/log.hpp`
+- **Files:** `include/qiven/log/` (`log.hpp`, `catalogue.hpp`), `src/` (`log.cpp`, `line.hpp`), `tests/`, `CMakeLists.txt`; their namespace `qiven::log`, with `qiven::log::events` and `qiven::log::detail`; `tests/drive/test_log_secret.py` stays under `tests/` until its move
 - **Consumers rely on:** fields of four types alone, a name made in constant evaluation from a literal, so no run-time text reaches a line; an event never throws, a failed allocation drops it and counts it
 - **Parameters:** `catalogue` (not built yet)
 - **Refuses:** an event outside a catalogue; a field of another type; an event below the build's minimum compiles to nothing

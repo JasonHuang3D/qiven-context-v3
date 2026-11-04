@@ -1,11 +1,11 @@
-#include "log/log.hpp"
+#include "qiven/log/log.hpp"
 
 #include <algorithm>
 
-#include "log/catalogue.hpp"
-#include "log/line.hpp"
+#include "qiven/log/catalogue.hpp"
+#include "line.hpp"
 
-namespace qiven3::log {
+namespace qiven::log {
 
 namespace {
 
@@ -97,4 +97,4 @@ Op begin(Log& log, Name name) noexcept {
     return op;
 }
 
-}  // namespace qiven3::log
+}  // namespace qiven::log

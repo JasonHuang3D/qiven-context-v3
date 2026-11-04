@@ -5,5 +5,5 @@ add_library(qiven_case_main STATIC
   src/main.cpp
 )
 target_include_directories(qiven_case_main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(qiven_case_main PUBLIC qiven_runner qiven3_log PRIVATE qiven_build qiven_diag
+target_link_libraries(qiven_case_main PUBLIC qiven_runner qiven_log PRIVATE qiven_build qiven_diag
                       qiven_platform)
