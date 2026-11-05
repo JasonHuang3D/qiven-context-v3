@@ -1,4 +1,4 @@
-"""git's own environment, git_env(), each case's (tests/drive/own_git.py).
+"""git's own environment, git_env(), each case's (foundation/devkit/structure/tests/test_line_endings.py).
 
 Loaded by runpy.run_path or imported: it imports nothing of this
 directory.
@@ -13,7 +13,7 @@ QUIET = {"maintenance.auto": "false", "maintenance.autoDetach": "false", "gc.aut
 
 
 def git_env(top, name, email):
-    """git's own environment, each case's (tests/drive/own_git.py), so
+    """git's own environment, each case's (test_line_endings.py), so
     that git computes the same and succeeds whatever the host's git config
     says: the inherited environment less every GIT_ variable, git's system
     config and attributes off, its global config, excludes and attributes

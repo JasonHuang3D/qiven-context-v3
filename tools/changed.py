@@ -1,6 +1,8 @@
 """The test runner: build build/ci-windows first, then run the tests of each module whose
 files changed since its tests last ran, by the record
-build/ci-windows/changed.json; one answer of plain lines.
+build/ci-windows/changed.json; one answer of plain lines. The count and the selection take no
+document: a .md file is no module's changed file. ctest's output of each run stays in
+build/ci-windows/changed.log, which no other ctest in the tree writes over.
 
 Run as py -3.15 -I tools/changed.py, with no argument.
 """
@@ -20,6 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TREE = "build/ci-windows"
 RECORD = ROOT / TREE / "changed.json"
+LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
 # Under -I this directory is off sys.path: the map, git's door and the statuses by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
@@ -145,7 +148,7 @@ def run_tests(env, ctest, chosen):
             out.write("".join(f"{n}\n" for n in chosen))
         start = time.monotonic()
         status, text = capture([ctest, "--test-dir", TREE, "--tests-from-file", name,
-                                "--output-on-failure", "-j", "12"], env)
+                                "--output-on-failure", "--output-log", str(LOG), "-j", "12"], env)
         return status, {m[1]: m[2] for m in map(RESULT.search, text.splitlines()) if m}, time.monotonic() - start
     finally:
         os.remove(name)
@@ -197,8 +200,9 @@ def answer(lines):
             lines.append(f"tests: {len(chosen)} of {', '.join(changed)}: {passed} passed, {len(failed)} failed, "
                          f"{skipped} skipped, {seconds:.1f} s")
             if failed or status != 0:
-                lines.append(f"failed: {', '.join(failed[:20]) or STATUS['ctest_line'](status)}, "
-                             f"the log {TREE}/Testing/Temporary/LastTest.log")
+                cut = f" and {len(failed) - 20} more" if len(failed) > 20 else ""
+                lines.append(f"failed: {', '.join(failed[:20]) + cut or STATUS['ctest_line'](status)}, "
+                             f"the log {TREE}/{LOG.name}")
                 code = 1
         else:
             lines.append("tests: none run")

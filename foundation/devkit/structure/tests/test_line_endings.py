@@ -6,14 +6,20 @@ every file of the checkout's working tree; and the rule's reading of the
 checkout's .gitattributes against git's own, with the files git keeps
 byte for byte KEPT's alone and the code beside them text with eol=lf,
 where git and the checkout's git directory are there, git under an
-environment of the case's own (tests/drive/own_git.py)."""
+environment of the case's own: tools/loop_run.py's git_env with the case's
+identity, which reads no inherited GIT_ variable and no system or global
+config, attributes or excludes, so that its commands succeed whatever the
+host's git config says (CI's Windows images set core.autocrlf=true in the
+system config)."""
 
 import tempfile
 import unittest
 
-from tests.drive.own_git import git_env
 from foundation.devkit.structure import rules
 from tools import loop_git
+from tools.loop_run import git_env
+
+WHO = ("case", "case@localhost")  # the author and committer of the case's git
 
 # The files kept byte for byte, .gitattributes' -text, each by what hashes
 # or pins it: the fixtures and the vectors, compiled into the cases as their
@@ -52,7 +58,7 @@ class LineEndings(unittest.TestCase):
         if not git or not (rules.ROOT / ".git").exists():
             self.skipTest("git or the checkout's git directory is missing")
         with tempfile.TemporaryDirectory() as scratch:
-            env = git_env(scratch)
+            env = git_env(scratch, *WHO)
             listed = loop_git.run(git, ["ls-files", "-z"], cwd=rules.ROOT, env=env, timeout=120, check=True).stdout
             done = loop_git.run(git, ["check-attr", "-z", "--stdin", "text", "eol"], cwd=rules.ROOT, env=env,
                                 data=listed, timeout=120, check=True)

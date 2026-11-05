@@ -35,7 +35,7 @@ import subprocess
 import time
 from pathlib import Path
 
-MARK = "@qiven3-debug@"
+MARK = "@qiven-debug@"
 SETTINGS = ("set pagination off", "set confirm off", "set debuginfod enabled off", "set breakpoint pending on",
             "set print thread-events off", "set startup-with-shell off")
 EXITED = re.compile(r"^\[Inferior \d+ \(process \d+\) exited (?:normally|with code (?P<code>[0-7]+))\]$")

@@ -152,7 +152,7 @@ class Debug(unittest.TestCase):
     def core(self):
         """Linux: K8's core, the watcher's, read: no fault, both threads'
         stacks holding plant_hang."""
-        from tests.drive.test_hang import IN_PLANT, LIMIT, run_watched, sections
+        from tools.tests.test_hang import IN_PLANT, LIMIT, run_watched, sections
         start = time.time()
         status, _, err, _, _ = run_watched([self.fault, "hang"], "K17", LIMIT)
         self.assertEqual(status, 124, err)

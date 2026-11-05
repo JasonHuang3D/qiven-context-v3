@@ -39,7 +39,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DOOR = runpy.run_path(str(HERE / "loop_git.py"))
 PROGRAM = "git.exe" if sys.platform == "win32" else "git"
-SHIM_LOG, SHIM_REAL = "QIVEN3_SHIM_LOG", "QIVEN3_SHIM_REAL"
+SHIM_LOG, SHIM_REAL = "QIVEN_SHIM_LOG", "QIVEN_SHIM_REAL"
 SHOWN = 40  # the shim's log lines a fault shows at most
 PLACE = "git-shim"  # the name of each directory a shim stands in, every run's
 
@@ -102,7 +102,7 @@ def main(argv):
         return subprocess.run(command).returncode  # no git a name resolves: none to count
     if any(part.lower() == PLACE for part in Path(real).resolve().parent.parts):
         raise SystemExit(f"loop_shim: the real git is a shim, under a {PLACE} directory: {real}")
-    top = Path(tempfile.mkdtemp(prefix="qiven3-shim-"))
+    top = Path(tempfile.mkdtemp(prefix="qiven-shim-"))
     try:
         shim = placed(top)
         log, count = top / "shim.log", top / "count"

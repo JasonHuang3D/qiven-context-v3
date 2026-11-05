@@ -1,7 +1,7 @@
 /* The counting shim on Windows (tools/loop_shim.py builds it with the
    toolset's cl and places it first on PATH under git's program name):
    each start appends one line, its command line, to the file
-   QIVEN3_SHIM_LOG names, then runs the program QIVEN3_SHIM_REAL names with
+   QIVEN_SHIM_LOG names, then runs the program QIVEN_SHIM_REAL names with
    the same arguments and the same standard handles, and exits with its
    status. A start with either variable unset, or that cannot log, exits 125
    with a line on standard error, so that no start goes uncounted. Not a
@@ -16,9 +16,9 @@ static int fail(const char* text) {
 
 int main(void) {
     static wchar_t log_path[32768], real[32768];
-    if (!GetEnvironmentVariableW(L"QIVEN3_SHIM_LOG", log_path, 32768) ||
-        !GetEnvironmentVariableW(L"QIVEN3_SHIM_REAL", real, 32768))
-        return fail("shim: QIVEN3_SHIM_LOG or QIVEN3_SHIM_REAL unset\n");
+    if (!GetEnvironmentVariableW(L"QIVEN_SHIM_LOG", log_path, 32768) ||
+        !GetEnvironmentVariableW(L"QIVEN_SHIM_REAL", real, 32768))
+        return fail("shim: QIVEN_SHIM_LOG or QIVEN_SHIM_REAL unset\n");
     const wchar_t* line = GetCommandLineW();
     const wchar_t* rest = line;  /* the arguments: the command line past the program's name */
     if (*rest == L'"') {

@@ -26,11 +26,10 @@
         "tools/linux-pins.txt",
         "tools/loop*",
         "tools/status.py",
+        "tools/tests/",
         "tools/trees.json",
         "tools/watch.py",
-        "tools/windows-pins.txt",
-        "tests/drive/own_git.py",
-        "tests/drive/test_loop_full_check.py"
+        "tools/windows-pins.txt"
       ]
     }
   ]

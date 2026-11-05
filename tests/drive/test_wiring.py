@@ -233,7 +233,7 @@ class Registered(unittest.TestCase):
         }
         self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
         # The debugger cases, the debugger preset's alone, never fake, CI's.
-        self.assertIn("tests.drive.test_hang.HangStacks.test_K8_hang", expected["debugger"])
+        self.assertIn("tools.tests.test_hang.HangStacks.test_K8_hang", expected["debugger"])
         self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])
         # win/files' cases in the fake selection, which every Windows job

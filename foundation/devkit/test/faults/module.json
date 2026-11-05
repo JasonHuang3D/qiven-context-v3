@@ -21,9 +21,7 @@
       "test_depends": [],
       "paths": [
         "foundation/devkit/test/faults/",
-        "tests/drive/test_hardened.py",
-        "tests/drive/test_hang.py",
-        "tests/drive/test_debug.py"
+        "tests/drive/test_hardened.py"
       ]
     }
   ]

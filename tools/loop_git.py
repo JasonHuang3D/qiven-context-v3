@@ -5,7 +5,7 @@ that a run's git processes are counted where they start.
 
 - which(): PATH's git; None when there is none.
 - run(git, argv, ...): git started with argv. Its start leaves one file in
-  the directory QIVEN3_GIT_COUNT names, where the environment the call
+  the directory QIVEN_GIT_COUNT names, where the environment the call
   runs under names one: one file a start, so that processes running at
   once count without a lock.
 - verdict(directory): the starts counted there, and the fault when they
@@ -26,7 +26,7 @@ import subprocess
 import uuid
 from pathlib import Path
 
-COUNT = "QIVEN3_GIT_COUNT"
+COUNT = "QIVEN_GIT_COUNT"
 LIMIT = 50  # a test starts at most this many git processes
 
 

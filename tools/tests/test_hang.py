@@ -288,7 +288,7 @@ class Hang(unittest.TestCase):
             header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
             text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
         else:
-            header = 'Thread {i} (Thread 0x7f00 (LWP {i}) "qiven_diag_fault"):'
+            header = 'Thread {i} (Thread 0x7f00 (LWP {i}) "qiven_diag_faul"):'  # Linux cuts a thread's name to 15 bytes
             text = ""
         text += "".join(header.format(i=i + 1) + "\n" + "#0 frame\n" * 3 for i in range(20))
         threads, lines = debuggers.hang_lines(text)
