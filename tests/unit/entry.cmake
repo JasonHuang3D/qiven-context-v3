@@ -62,6 +62,12 @@ qiven_add_cases(qiven3_unit_content LABELS fast fake
 qiven_add_cases(qiven3_unit_check LABELS fast fake
   SOURCES check_test.cpp check_memory_test.cpp
   LINK qiven_faults qiven_platform_fake qiven3_fixtures qiven3_entry)
+# On clang, and AppleClang, the constant evaluator's steps are twice its
+# default: check's vectors, each a whole entry, take up to about 1.2 million
+# on libstdc++ 13 under its assertions.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(qiven3_unit_check PRIVATE -fconstexpr-steps=2097152)
+endif()
 
 # validator's cases: part 2's codes against a view in memory, each on its
 # entry and the first deciding, by the code's order within an entry, then

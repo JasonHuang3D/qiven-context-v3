@@ -8,5 +8,5 @@ layer devkit, status built
 - **Interface:** no header: the function `qiven_executable`, the interface target `qiven_build`, the `QIVEN_` options and cache variables, and the presets
 - **Files:** the `present` paths of module.json: this directory, its `tests/` among them, and the three root files.
 - **Consumers rely on:** one set of warnings as errors for every target; the presets' compilers, sanitizers and analysis
-- **Parameters:** `constexpr_steps` (not built yet)
+- **Parameters:** none
 - **Refuses:** a build with a warning (warnings are errors)

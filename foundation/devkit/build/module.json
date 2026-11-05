@@ -7,13 +7,7 @@
   ],
   "contract": null,
   "adopted": "2026-10-31",
-  "parameters": [
-    {
-      "name": "constexpr_steps",
-      "default": 2097152,
-      "built": false
-    }
-  ],
+  "parameters": [],
   "present": [
     {
       "name": "build",
