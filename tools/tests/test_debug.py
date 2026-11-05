@@ -29,12 +29,12 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import answer
+from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import sanitized
-from tools import debuggers
 
 FAULT = "qiven_diag_fault"
 DEBUG = ROOT / "tools" / "debug.py"
@@ -77,10 +77,10 @@ class Debug(unittest.TestCase):
         if sanitized():
             self.skipTest("under a sanitizer its runtime takes the faults")
         try:
-            debuggers.find_cdb()
-        except debuggers.Absent as e:
+            debugger.find()
+        except debugger.Absent as e:
             self.skipTest(str(e))
-        except debuggers.NotFound as e:
+        except debugger.NotFound as e:
             self.fail(f"the debugger: {e}")
         self.fault = binaries.path(FAULT)
 

@@ -1,4 +1,4 @@
-"""The watcher's hang path (tools/watch.py, tools/debuggers.py): K8, the
+"""The watcher's hang path (tools/watch.py, foundation/devkit/python/debugger.py): K8, the
 plant `hang` of qiven_diag_fault, its main thread and one more each blocked
 for ever, under a limit of 3 s, ends with the watcher's hang line, every
 thread's stack, both threads' holding plant_hang (in a build with no PDB
@@ -36,13 +36,13 @@ from pathlib import Path
 from unittest import mock
 
 from foundation.devkit.python import answer
+from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import POLL, sanitized, windows_of
-from tools import debuggers
 
 WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"
@@ -50,7 +50,7 @@ LIMIT = 3
 AFTER = 30.0  # the watcher's seconds past the limit at most
 HANG_LINES = 200
 HANG = re.compile(r"^hang: past its limit of 3 s, (?P<threads>\d+) threads$")
-THREAD = debuggers.CDB_THREAD
+THREAD = debugger.CDB_THREAD
 # A frame of plant_hang: its own, or its lambda's, which its name qualifies.
 IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
 
@@ -58,8 +58,8 @@ IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
 def debugger_reason():
     """Why no debugger is at hand, or None; one off its pin raises."""
     try:
-        debuggers.find_cdb()
-    except debuggers.Absent as e:
+        debugger.find()
+    except debugger.Absent as e:
         return str(e)
     return None
 
@@ -127,7 +127,7 @@ def ci_environment(root, **changes):
     """This environment as a CI job's (GITHUB_ACTIONS "true"), the build
     root/build (made), the names changed without regard to case."""
     (root / "build").mkdir()
-    changes ={debuggers.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
+    changes ={debugger.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
     names = {name.upper() for name in changes}
     return {**{k: v for k, v in os.environ.items() if k.upper() not in names}, **changes}
 
@@ -140,7 +140,7 @@ class HangStacks(unittest.TestCase):
             self.skipTest("under a sanitizer its report stands for the entry's")
         try:
             reason = debugger_reason()
-        except debuggers.NotFound as e:
+        except debugger.NotFound as e:
             self.fail(f"the debugger: {e}")
         if reason is not None:
             self.skipTest(reason)
@@ -158,12 +158,12 @@ class HangStacks(unittest.TestCase):
         self.assertTrue(all(len(line) <= LINE_POINTS for line in hang), text)
         stacks = sections(hang[1:])
         threads = int(HANG.match(hang[0])["threads"])
-        self.assertEqual(len(stacks), min(threads, debuggers.HANG_THREADS), text)
+        self.assertEqual(len(stacks), min(threads, debugger.HANG_THREADS), text)
         if not binaries.path(FAULT).with_suffix(".pdb").is_file():
             # A build that keeps no PDB beside its binaries (Release, whose
             # binaries the clean-binaries check reads) names no function:
             # both threads by their sleep called from the binary's own code.
-            own = re.compile(rf"\s{re.escape(debuggers.module(binaries.path(FAULT)))}\+0x")
+            own = re.compile(rf"\s{re.escape(debugger.module(binaries.path(FAULT)))}\+0x")
             held = [s for s in stacks if any("!SleepEx+" in line for line in s)
                     and any(own.search(line) for line in s)]
         else:
@@ -210,10 +210,10 @@ class Hang(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             standin = stand_in(Path(root))
             with mock.patch.dict(os.environ, {"PATH": f"{standin.parent}{os.pathsep}{os.environ.get('PATH', '')}"}):
-                os.environ.pop(debuggers.CI_VARIABLE, None)
+                os.environ.pop(debugger.CI_VARIABLE, None)
                 try:
-                    path, how = debuggers.hang_debugger()
-                except debuggers.NotFound as e:
+                    path, how = debugger.hang_debugger()
+                except debugger.NotFound as e:
                     path, how = None, str(e)
             self.assertNotIn(str(standin.parent), str(path), how)
             self.assertNotIn(standin.parent.as_posix(), str(how))
@@ -265,11 +265,11 @@ class Hang(unittest.TestCase):
         header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
         text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
         text += "".join(header.format(i=i + 1) + "\n" + "#0 frame\n" * 3 for i in range(20))
-        threads, lines = debuggers.hang_lines(text)
+        threads, lines = debugger.hang_lines(text)
         self.assertEqual(threads, 20)
-        self.assertEqual(len(sections(lines)), debuggers.HANG_THREADS)
+        self.assertEqual(len(sections(lines)), debugger.HANG_THREADS)
         self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
-        threads, lines = debuggers.hang_lines(text.replace("#0 frame\n", "#0 frame\n" * 20))
+        threads, lines = debugger.hang_lines(text.replace("#0 frame\n", "#0 frame\n" * 20))
         self.assertEqual(len(lines), HANG_LINES - 1)
         self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
         self.assertEqual(answer.clip("x" * 400), "x" * (LINE_POINTS - 5) + answer.CUT)

@@ -22,14 +22,14 @@ fault the drives run, it runs the case and names how it ended.
   found nowhere the loader looks: "...; not found: <library>, ...".
 - It exits with the case's status, a signal on Linux as 128 plus its
   number.
-- Past its limit, the hang: by tools/debuggers.py's debugger, attached
+- Past its limit, the hang: by foundation/devkit/python/debugger.py's debugger, attached
   without stopping the case, it prints "hang: past its limit of <s> s,
   <n> threads" and every thread's stack, at most 16 threads and 200 lines,
   and writes <binary>-<pid>-hang.dmp in the dumps'
   directory; with no debugger at hand, "hang: no debugger, no stacks" and
   the reason. The debugger is the pinned one, but in a CI job on Windows,
   where the image keeps its own tools, the image's cdb, unpinned
-  (tools/debuggers.py's hang_debugger). Then it kills the case's process
+  (debugger.py's hang_debugger). Then it kills the case's process
   tree (foundation/devkit/python/process.py's end_tree), names the status
   with what it wrote ("no
   debugger, no stack written: <why>", or the stacks written of the
@@ -42,7 +42,7 @@ fault the drives run, it runs the case and names how it ended.
 
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: it appends the root once and imports the status table, the
-system's module, the process's and the build tree's root; the debugger's, the dumps' and the
+system's module, the process's, the debugger's and the build tree's root; the dumps' and the
 imports' readers are run from their files.
 """
 
@@ -55,11 +55,11 @@ import threading
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.build_tree import ROOT
-DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
 HANG = 124
@@ -140,11 +140,11 @@ def hang(case, command, env, limit):
     binary = process.find(command[0]) or command[0]
     dumps = env.get("QIVEN_DUMP_DIR")
     try:
-        threads, lines, how = DEBUGGERS["hang_stacks"](case.pid, binary, dumps)
-    except DEBUGGERS["NotFound"] as e:
+        threads, lines, how = debugger.hang_stacks(case.pid, binary, dumps)
+    except debugger.NotFound as e:
         return ["hang: no debugger, no stacks", f"hang: {e}"], f"no debugger, no stack written: {e}"
-    stacks = DEBUGGERS["stacks_of"](lines)
-    dump = DEBUGGERS["hang_dump"](case.pid, binary, dumps)
+    stacks = debugger.stacks_of(lines)
+    dump = debugger.hang_dump(case.pid, binary, dumps)
     written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
     written += f", its dump {dump.name}" if dump is not None and dump.is_file() else ", no dump"
     written += f", {how}" if how else ""

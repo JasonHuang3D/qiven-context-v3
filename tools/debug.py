@@ -38,31 +38,25 @@ with a bounded plain-text transcript.
   directory.
 
 Linux's wrapper, tools/debug_gdb.py, is retired (tools/README.md's Retired
-section). The debugger is found and checked by tools/debuggers.py.
+section). The debugger is found, checked and driven by
+foundation/devkit/python/debugger.py.
 """
 
 import argparse
 import os
-import queue
 import re
-import runpy
 import sys
-import threading
 import time
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import answer
 from foundation.devkit.python import build_tree
+from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
-from foundation.devkit.python.build_tree import ROOT
+from foundation.devkit.python.debugger import FRAMES
 
-DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
-FRAMES = DEBUGGERS["FRAMES"]
-PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
-QUIET = 0.05  # seconds of no output after a prompt before it is taken as one
-EVENT = re.compile(r"^Last event: [0-9a-f]+\.[0-9a-f]+: (?P<event>.*)$", re.M)
 EXIT = re.compile(r"^Exit process [0-9a-f]+:[0-9a-f]+, code (?P<code>[0-9a-f]+)$")
 CHANCE = re.compile(r"\s*\((?:first chance|!!! second chance !!!|first/second chance not available)\)$")
 WATCHER = "watch.py"
@@ -70,10 +64,6 @@ WATCHER = "watch.py"
 
 class CannotRun(Exception):
     """The run could not start: exit 2."""
-
-
-class TimedOut(Exception):
-    """The time bound passed."""
 
 
 class Transcript:
@@ -95,81 +85,11 @@ class Transcript:
         out.flush()
 
 
-class Cdb:
-    """cdb over pipes: each command's output up to its prompt."""
-
-    def __init__(self, exe, args, symbols, deadline, env=None, cwd=None):
-        self.deadline = deadline
-        argv = [exe, "-sins", "-lines", "-y", symbols, *args]
-        try:
-            self.process = process.start(argv, feed=True, env=env, cwd=cwd, err=process.MERGE)
-        except OSError as e:
-            raise CannotRun(f"{Path(exe).name}: {e}") from e
-        self.chunks = queue.Queue()
-        threading.Thread(target=self._read, daemon=True).start()
-        self.ended = False
-
-    def _read(self):
-        while True:
-            data = self.process.stdout.read1(1 << 16)
-            self.chunks.put(data or None)
-            if not data:
-                return
-
-    def wait(self):
-        """The output up to the next prompt, its lines, the prompt dropped."""
-        text = ""
-        while True:
-            left = self.deadline - time.monotonic()
-            if left <= 0:
-                raise TimedOut()
-            try:
-                data = self.chunks.get(timeout=min(left, QUIET if PROMPT.search(text) else 0.5))
-            except queue.Empty:
-                if PROMPT.search(text):
-                    break
-                continue
-            if data is None:
-                self.ended = True
-                break
-            text += data.decode("utf-8", "replace").replace("\r\n", "\n")
-        text = PROMPT.sub("", text)
-        return [line for line in text.split("\n") if line.strip() and not DEBUGGERS["NOISE"].match(line)]
-
-    def send(self, command):
-        if self.ended:
-            return []
-        try:
-            self.process.stdin.write(command.encode() + b"\n")
-            self.process.stdin.flush()
-        except OSError:
-            self.ended = True
-            return []
-        return self.wait()
-
-    def event(self):
-        """The last event's text, as .lastevent gives it."""
-        found = EVENT.search("\n".join(self.send(".lastevent")))
-        return found["event"].strip() if found else ""
-
-    def close(self, kill=False):
-        """Quits, which ends the case; killed, past the time bound."""
-        if self.process.poll() is None and not self.ended and not kill:
-            try:
-                self.process.stdin.write(b"q\n")
-                self.process.stdin.flush()
-                self.process.wait(10)
-            except (OSError, process.TimedOut):
-                pass
-        if self.process.poll() is None:
-            self.process.end_tree()
-
-
 def break_spec(spec, binary):
     """cdb's breakpoint expression for a function or a file:line."""
     if re.fullmatch(r".+:\d+", spec) and not re.fullmatch(r"[A-Za-z]:\d+", spec):
         return f"`{spec}`"
-    return spec if "!" in spec else f"{DEBUGGERS['module'](binary)}!{spec}"
+    return spec if "!" in spec else f"{debugger.module(binary)}!{spec}"
 
 
 def stop_actions(args):
@@ -359,15 +279,15 @@ def target(args):
 
 def under_cdb(args, out, deadline):
     """The run, or the dump, under cdb: (outcome, code)."""
-    exe = DEBUGGERS["find_cdb"]()
+    exe = debugger.find()
     cdb_args, symbols, binary, env, cwd = target(args)
     if args.mode == "dump":
         symbols = symbols or Path(cdb_args[0]).parent
         cdb_args = ["-z", *cdb_args]
-    cdb = Cdb(exe, cdb_args, symbols, deadline, env, cwd)
+    cdb = debugger.Cdb(exe, cdb_args, symbols, deadline, env, cwd)
     try:
         return dump_session(cdb, out) if args.mode == "dump" else run_session(cdb, args, binary, out)
-    except TimedOut:
+    except debugger.TimedOut:
         return "timed out", 1
     finally:
         cdb.close(kill=time.monotonic() >= deadline)
@@ -380,7 +300,7 @@ def main(argv=None):
         args = parse(sys.argv[1:] if argv is None else argv)
         out.bound = args.lines
         outcome, code = under_cdb(args, out, start + args.seconds)
-    except (CannotRun, DEBUGGERS["NotFound"]) as e:
+    except (CannotRun, debugger.NotFound) as e:
         outcome, code = f"could not run: {e}", 2
     seconds = f"{time.monotonic() - start:.1f}"
     out.write(lambda lines: f"debug: {outcome}, {out.stops} stops, {lines} lines, {seconds} s", sys.stdout)
