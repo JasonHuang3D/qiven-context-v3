@@ -18,8 +18,11 @@ looked; off CI never a cdb the pins refuse (a stand-in on PATH, for both). Where
 name, "no cdb" or "no gdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
 
-K8 drives the debugger: the label debugger, never fake, so the debugger
-preset runs it and CI never does; the watcher's other ends here are fake's.
+K8 drives the debugger: the label debugger, never fake, so CI never runs
+it. The runner (tools/changed.py) runs it under CTest by its module's
+label, tooling, and the presets full and debugger hold it. It needs what is
+said above: a debugger at hand and, on Windows, for plant_hang's name, a
+PDB beside the binaries. The watcher's other ends here are fake's.
 """
 
 import os
