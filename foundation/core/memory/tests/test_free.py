@@ -2,7 +2,7 @@
 AddressSanitizer's report: qiven_memory_free_demo's cases, each run as a process.
 
 A wrong pointer given back to a pool or a heap fails fast, with the
-fail-fast's status, 0xC0000409 on Windows and SIGABRT elsewhere, writing
+fail-fast's status, system's fail_fast_status, writing
 nothing on standard output and the diagnostic entry's report on standard
 error, so a case never passes its wrong free. Under
 QIVEN_SYSTEM_HEAP a pool's slot is the system heap's, so AddressSanitizer
@@ -19,10 +19,9 @@ and qiven_memory_test_poisoned, memory's cases on it, each of which passes
 there.
 """
 
-import signal
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option
 from foundation.devkit.test.runner.skip import SKIP_CODE
@@ -84,10 +83,7 @@ class Free(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def assert_fails_fast(self, ran):
-        if sys.platform == "win32":
-            self.assertEqual(ran.status, 0xC0000409)
-        else:
-            self.assertEqual(ran.status, -signal.SIGABRT)
+        self.assertEqual(ran.status, system.fail_fast_status())
         self.assertEqual(ran.out, b"")
         self.assertTrue(ran.err.startswith(b"fatal: fail-fast: "), ran.err[:200])
 

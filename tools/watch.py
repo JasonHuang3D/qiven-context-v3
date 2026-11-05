@@ -16,7 +16,7 @@ fault the drives run, it runs the case and names how it ended.
 - Then one line on standard error names the status by
   foundation/devkit/python/status.py's table, "status: <value> <name>:
   <meaning>". On a library missing at
-  load (0xC0000135) no code of the binary ran, so it names, by
+  load (system.py's missing_library_status) no code of the binary ran, so it names, by
   foundation/devkit/structure/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
 - It exits with the case's status, a signal on Linux as 128 plus its
@@ -62,7 +62,6 @@ from foundation.devkit.python import system
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
-DLL_NOT_FOUND = 0xC0000135
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
 
@@ -114,7 +113,7 @@ def missing(command):
 
 def status_line(status, command):
     text = status_table.line(status)
-    if status == DLL_NOT_FOUND:
+    if status == system.missing_library_status():
         names = missing(command)
         if names is None:
             text += "; its imports cannot be read"

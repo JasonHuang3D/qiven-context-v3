@@ -1,10 +1,9 @@
 """The runner's routes through a process: qiven_runner_demo's cases, its
 --list and its refusals, each status as CTest reads it."""
 
-import signal
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option
 from foundation.devkit.test.runner.skip import SKIP_CODE
@@ -80,10 +79,8 @@ class Routes(unittest.TestCase):
         elif "memory" in sanitize:
             self.assertEqual(ran.status, 1)
             self.assertIn(b"MemorySanitizer: SEGV on unknown address", ran.err)
-        elif sys.platform == "win32":
-            self.assertEqual(ran.status, 0xC0000005)  # STATUS_ACCESS_VIOLATION
         else:
-            self.assertEqual(ran.status, -signal.SIGSEGV)
+            self.assertEqual(ran.status, system.invalid_access_status())
 
     def test_list(self):
         ran = binaries.run(DEMO, ["--list"])

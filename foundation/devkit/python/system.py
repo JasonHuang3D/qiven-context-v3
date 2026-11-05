@@ -69,6 +69,70 @@ def alive(pid):
     return _back("alive").alive(pid)
 
 
+def handle_count(pid):
+    """The number of handles process `pid` holds."""
+    return _back("handle_count").handle_count(pid)
+
+
+def plant_handle(pid):
+    """A handle of this process put into process `pid`, which then holds one
+    handle more, never closed: a leak planted, for a test of a count."""
+    _back("plant_handle").plant_handle(pid)
+
+
+def fail_fast_status():
+    """The status, as subprocess gives it, of a process ended by its own
+    fail-fast."""
+    return _back("fail_fast_status").fail_fast_status()
+
+
+def missing_library_status():
+    """The status, as subprocess gives it, of a process whose binary's
+    library is missing at load."""
+    return _back("missing_library_status").missing_library_status()
+
+
+def invalid_access_status():
+    """The status, as subprocess gives it, of a process ended by a read or
+    write of memory it may not touch."""
+    return _back("invalid_access_status").invalid_access_status()
+
+
+def output_text(data, errors="strict"):
+    """A system program's output to a pipe, bytes, as text; `errors` as
+    bytes.decode takes it."""
+    return _back("output_text").output_text(data, errors)
+
+
+def output_bytes(text, errors="strict"):
+    """`text` as a system program's output to a pipe carries it; `errors` as
+    str.encode takes it."""
+    return _back("output_bytes").output_bytes(text, errors)
+
+
+def drives():
+    """This machine's drives, a dictionary: each letter, upper case, to its
+    kind: "fixed", "removable", "remote", "optical", "memory", "no root" or
+    "unknown"."""
+    return _back("drives").drives()
+
+
+def make_junction(target, link):
+    """A directory junction at `link` to the directory `target`."""
+    _back("make_junction").make_junction(target, link)
+
+
+def map_drive(letter, target):
+    """The drive `letter`, a letter no drive holds, mapped to the directory
+    `target` until unmap_drive."""
+    _back("map_drive").map_drive(letter, target)
+
+
+def unmap_drive(letter):
+    """The drive `letter`'s mapping by map_drive removed."""
+    _back("unmap_drive").unmap_drive(letter)
+
+
 def loader_dirs(binary):
     """The directories, as Paths, in which the system's loader looks for the
     libraries of the file `binary`, a Path."""

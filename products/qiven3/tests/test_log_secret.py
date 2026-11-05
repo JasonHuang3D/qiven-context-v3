@@ -18,11 +18,11 @@ Each package adds its operations to requests() below.
 import json
 import secrets
 import shutil
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from tests.drive import session
 
@@ -175,7 +175,7 @@ class K14(unittest.TestCase):
         self.assertEqual(found(lines + [b'{"x":"' + self.secret.encode() + b'"}'], (self.secret,)),
                          [b'{"x":"' + self.secret.encode() + b'"}'])
 
-    @unittest.skipUnless(sys.platform == "win32", "not applicable: the Windows drive is Windows's alone")
+    @unittest.skipUnless(system.WINDOWS,"not applicable: the Windows drive is Windows's alone")
     def test_K14_windows(self):
         hal = binaries.has_hal()
         sent = requests(self.secret, self.cognition, self.place, windows=True, hal=hal)

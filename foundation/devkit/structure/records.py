@@ -1,6 +1,7 @@
 """The structure records: what the structure tests read, written by the
-structure preset's build. Standard library only, and the trees every check
-walks, tools/loop_modules.py's.
+structure preset's build. The standard library, Python's lowest layer
+(foundation/devkit/python, its system's output_text for the tools' output),
+and the trees every check walks, tools/loop_modules.py's.
 
 Run after every target is built, as
 
@@ -29,8 +30,11 @@ import sys
 from collections import namedtuple
 from pathlib import Path
 
-# The trees every check walks, by runpy: run as a script under -I, the checkout is off sys.path.
-MODULES = runpy.run_path(str(Path(__file__).resolve().parents[3] / "tools" / "loop_modules.py"))
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import system
+# The trees every check walks, by runpy.
+MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 TREES, CXX = MODULES["TREES"], MODULES["CXX_SUFFIXES"]
 VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure
@@ -43,9 +47,9 @@ NETWORK_LIBS = ("ws2_32.lib", "winhttp.lib", "wininet.lib")
 def run(command, cwd=None, shell_text=False):
     done = subprocess.run(command, cwd=cwd, capture_output=True, shell=False)
     if done.returncode != 0:
-        text = (done.stdout + done.stderr).decode("mbcs", "replace")
+        text = system.output_text(done.stdout + done.stderr, "replace")
         raise SystemExit(f"records: {command if shell_text else command[:3]} gave {done.returncode}:\n{text}")
-    return done.stdout.decode("mbcs", "replace")
+    return system.output_text(done.stdout, "replace")
 
 
 def rel_posix(path, root):

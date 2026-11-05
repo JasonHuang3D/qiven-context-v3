@@ -4,14 +4,14 @@ but B26, the safe subset's token rules (subset.py), over every source file.
 B26 has no token rule: its half here reads the analysis configuration, and
 the analysis tests read the rest (test_analysis.py)."""
 
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.structure import rules
 
 RULES = ("B1", "B2", "B12", "B13", "B14", "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23", "B24", "B25",
          "B26", "B27", "B28", "B29", "B30", "B31")
-WINDOWS = unittest.skipUnless(sys.platform == "win32", "the structure records are MSVC's, read on Windows")
+WINDOWS = unittest.skipUnless(system.WINDOWS,"the structure records are MSVC's, read on Windows")
 
 
 def holds(self, rule):

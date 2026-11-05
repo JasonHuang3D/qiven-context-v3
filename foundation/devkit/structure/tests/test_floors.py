@@ -15,15 +15,15 @@ Each over the tree."""
 
 import json
 import re
-import sys
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from tools.loop_modules import CXX_SUFFIXES, TREES
 
 ROOT = Path(__file__).resolve().parents[4]
-WINDOWS = sys.platform == "win32"
+WINDOWS = system.WINDOWS
 FLOOR = {"NTDDI_VERSION": "0x0A000010", "_WIN32_WINNT": "0x0A00", "WINVER": "0x0A00"}
 NAMES = "|".join(FLOOR)
 DEFINE = re.compile(rf'(?:^|\s)"?[/-]([DU])\s*"?({NAMES})(?:=([^\s"]*))?(?=["\s]|$)')

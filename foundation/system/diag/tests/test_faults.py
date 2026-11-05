@@ -235,7 +235,7 @@ class Faults(unittest.TestCase):
         watcher's line names it; beside its library it exits 0."""
         if not WINDOWS:
             self.skipTest("the watcher's loader path on Linux is retired")
-        expected = 0xC0000135
+        expected = system.missing_library_status()
         with tempfile.TemporaryDirectory() as top:
             copy = Path(top) / binaries.path(IMPORT).name
             shutil.copy2(binaries.path(IMPORT), copy)
@@ -269,7 +269,7 @@ class Faults(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if k != "QIVEN_DUMP_DIR"}
         ran = subprocess.run([str(binaries.path(FAULT)), "failfast"], capture_output=True, env=env,
                              timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual(ran.returncode, 0xC0000409)
+        self.assertEqual(ran.returncode, system.fail_fast_status())
         self.assertIn("fatal: dump none", ran.stderr.decode("utf-8", "replace").splitlines())
 
     def test_report_problems_control(self):

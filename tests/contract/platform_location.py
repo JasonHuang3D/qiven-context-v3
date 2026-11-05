@@ -26,10 +26,10 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 
 CLOCK_US = 1_792_229_400_123_000
@@ -137,7 +137,7 @@ class PlatformLocation:
         adapter's to a pipe, the ANSI code page, each LF as CRLF."""
         if not self.SYSTEM_LOCATION:
             return out.decode("utf-8")
-        text = out.decode("mbcs")
+        text = system.output_text(out)
         self.assertEqual(text.count("\n"), text.count("\r\n"), text)
         return text.replace("\r\n", "\n")
 
@@ -409,7 +409,7 @@ class PlatformLocation:
     def unreadable(self, d, held, record):
         """The recorded directory unreadable: old_unreadable, where this
         system and user can make one."""
-        if sys.platform == "win32" or os.geteuid() == 0:
+        if system.WINDOWS or os.geteuid() == 0:
             return
         before = record.read_bytes()
         held.chmod(0)
@@ -437,8 +437,11 @@ class PlatformLocation:
             code, out, _ = self.command(d, "init", target, *accept)
             at = self.stamp(record, AT, since)
             text = recorded(at, target, lines=lines)
-            stream = "mbcs" if self.SYSTEM_LOCATION else "ascii"
-            self.assertEqual((code, out), (0, text.encode(stream, "replace").decode(stream)))
+            if self.SYSTEM_LOCATION:
+                carried = system.output_text(system.output_bytes(text, "replace"))
+            else:
+                carried = text.encode("ascii", "replace").decode("ascii")
+            self.assertEqual((code, out), (0, carried))
             self.assertEqual(record.read_bytes(), record_of(at, target).encode("utf-8"))
             self.assertTrue((target / "store.db").is_file())
             self.assertEqual(d.call("store_dir"), {"dir": str(target)})

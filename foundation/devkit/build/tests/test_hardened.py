@@ -16,18 +16,17 @@ read in bounds, writes the line after and exits 0.
 """
 
 import signal
-import sys
 import unittest
 
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option, run_watched
 
-WINDOWS = sys.platform == "win32"
+WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"
 BEFORE = "span: reading"
 AFTER = "span: read "  # the line after the read: "span: read past the end" or "span: read in bounds"
-FAIL_FAST = 0xC0000409
 LIBSTDCXX_LINE = r".*[/\\]span:\d+: .*Assertion '__idx < size\(\)' failed\."
 
 
@@ -52,7 +51,10 @@ class Hardened(unittest.TestCase):
     def test_K20_span(self):
         ran, lines, text = self.run_span("span")
         found = library()
-        status = {"msvc": FAIL_FAST, "libc++": 128 + signal.SIGILL, "libstdc++": 128 + signal.SIGABRT}[found]
+        if found == "msvc":
+            status = system.fail_fast_status()
+        else:
+            status = {"libc++": 128 + signal.SIGILL, "libstdc++": 128 + signal.SIGABRT}[found]
         self.assertEqual(ran, status, f"K20 {found}: {text}")
         self.assertEqual(lines[0] if lines else "", BEFORE, text)
         self.assertEqual([line for line in lines if line.startswith(AFTER)], [], f"K20: the read happened: {text}")

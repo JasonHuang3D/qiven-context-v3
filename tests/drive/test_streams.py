@@ -4,10 +4,10 @@ on it. A request ending in CRLF is read as one ending in LF."""
 
 import json
 import shutil
-import sys
 import tempfile
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from tests.drive.session import FAKE, WINDOWS, wire
 
@@ -50,7 +50,7 @@ class Windows(Streams, unittest.TestCase):
     DRIVE = WINDOWS
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the Windows drive is built on Windows alone")
         super().setUp()
 

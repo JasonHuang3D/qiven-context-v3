@@ -1,9 +1,9 @@
 """The platform's cases that run qiven3, on the Windows adapter's binding
 (machine/test_platform_windows.py): in the binary's module, which selects them."""
 
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from tests.contract.platform_location import PlatformLocation
 from tests.contract.platform_machine import PlatformForms, skip_reasons
 from tests.machine.test_platform_windows import WindowsBinding
@@ -29,7 +29,7 @@ class MachineUntil(unittest.TestCase):
     ctest_labels = ("drive",)
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
 
     def test_machine_until(self):

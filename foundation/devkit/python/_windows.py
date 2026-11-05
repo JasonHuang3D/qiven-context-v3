@@ -1,11 +1,12 @@
-"""system's back end on Windows, where its calls by ctypes and winreg and its
-system programs stand. Imported by system.py when a member is first asked; the
-contract is system.py's.
+"""system's back end on Windows, where its calls by ctypes, winreg and _winapi
+and its system programs stand. Imported by system.py when a member is first
+asked; the contract is system.py's.
 
 The DLLs are this module's own instances, so that the argument types set here
 reach no other caller.
 """
 
+import _winapi
 import ctypes
 import os
 import subprocess
@@ -21,10 +22,20 @@ ERROR_MODE = 0x0001 | 0x0002 | 0x8000
 SNAP_PROCESS = 0x2  # TH32CS_SNAPPROCESS
 INVALID_HANDLE = wintypes.HANDLE(-1).value
 QUERY_LIMITED = 0x1000  # PROCESS_QUERY_LIMITED_INFORMATION
+DUP_HANDLE = 0x0040  # PROCESS_DUP_HANDLE
+SAME_ACCESS = 0x2  # DUPLICATE_SAME_ACCESS
 STILL_ACTIVE = 259
 ACCESS_DENIED = 5  # ERROR_ACCESS_DENIED: the process stands, and it is another's
 NO_SUCH_PROCESS = 87  # ERROR_INVALID_PARAMETER, OpenProcess's word for an id that names none
+FAIL_FAST = 0xC0000409  # STATUS_STACK_BUFFER_OVERRUN, __fastfail's
+MISSING_LIBRARY = 0xC0000135  # STATUS_DLL_NOT_FOUND
+INVALID_ACCESS = 0xC0000005  # STATUS_ACCESS_VIOLATION
+# GetDriveTypeW's answers, DRIVE_UNKNOWN to DRIVE_RAMDISK, in system.drives' words.
+DRIVE_KINDS = ("unknown", "no root", "removable", "fixed", "remote", "optical", "memory")
+# A system program's output to a pipe: the ANSI code page's.
+OUTPUT_CODEC = "mbcs"
 END_TREE_SECONDS = 30
+SUBST_SECONDS = 30
 TOOLSET_SECONDS = 120
 KITS = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots"
 VC_COMPONENT = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
@@ -48,6 +59,16 @@ _kernel32.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.POINTER(_ProcessEnt
 _kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
 _kernel32.OpenProcess.restype = wintypes.HANDLE
 _kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+_kernel32.GetProcessHandleCount.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+_kernel32.GetCurrentProcess.argtypes = ()
+_kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+_kernel32.DuplicateHandle.argtypes = (wintypes.HANDLE, wintypes.HANDLE, wintypes.HANDLE,
+                                      ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD, wintypes.BOOL,
+                                      wintypes.DWORD)
+_kernel32.GetLogicalDrives.argtypes = ()
+_kernel32.GetLogicalDrives.restype = wintypes.DWORD
+_kernel32.GetDriveTypeW.argtypes = (wintypes.LPCWSTR,)
+_kernel32.GetDriveTypeW.restype = wintypes.UINT
 
 
 def _system_error(member, call):
@@ -130,6 +151,89 @@ def alive(pid):
         return code.value == STILL_ACTIVE
     finally:
         _kernel32.CloseHandle(process)
+
+
+def handle_count(pid):
+    process = _kernel32.OpenProcess(QUERY_LIMITED, False, pid)
+    if not process:
+        raise _system_error("handle_count", f"OpenProcess of {pid}")
+    try:
+        count = wintypes.DWORD()
+        if not _kernel32.GetProcessHandleCount(process, ctypes.byref(count)):
+            raise _system_error("handle_count", f"GetProcessHandleCount of {pid}")
+        return count.value
+    finally:
+        _kernel32.CloseHandle(process)
+
+
+def plant_handle(pid):
+    target = _kernel32.OpenProcess(DUP_HANDLE, False, pid)
+    if not target:
+        raise _system_error("plant_handle", f"OpenProcess of {pid}")
+    try:
+        out = wintypes.HANDLE()
+        own = _kernel32.GetCurrentProcess()
+        if not _kernel32.DuplicateHandle(own, own, target, ctypes.byref(out), 0, False, SAME_ACCESS):
+            raise _system_error("plant_handle", f"DuplicateHandle into {pid}")
+    finally:
+        _kernel32.CloseHandle(target)
+
+
+def fail_fast_status():
+    return FAIL_FAST
+
+
+def missing_library_status():
+    return MISSING_LIBRARY
+
+
+def invalid_access_status():
+    return INVALID_ACCESS
+
+
+def output_text(data, errors):
+    return data.decode(OUTPUT_CODEC, errors)
+
+
+def output_bytes(text, errors):
+    return text.encode(OUTPUT_CODEC, errors)
+
+
+def drives():
+    mask = _kernel32.GetLogicalDrives()
+    if not mask:
+        raise _system_error("drives", "GetLogicalDrives")
+    letters = [chr(ord("A") + i) for i in range(26) if mask >> i & 1]
+    kinds = {letter: _kernel32.GetDriveTypeW(f"{letter}:\\") for letter in letters}
+    return {letter: DRIVE_KINDS[kind] if kind < len(DRIVE_KINDS) else "unknown" for letter, kind in kinds.items()}
+
+
+def make_junction(target, link):
+    try:
+        _winapi.CreateJunction(str(target), str(link))
+    except OSError as e:
+        raise Failed(f"system.make_junction: CreateJunction of {link} to {target}: {e}") from e
+
+
+def _subst(member, argv):
+    """subst with argv; Failed naming the member, by its output, where it
+    fails."""
+    try:
+        done = subprocess.run(["subst", *argv], capture_output=True, stdin=subprocess.DEVNULL,
+                              timeout=SUBST_SECONDS, check=False)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise Failed(f"system.{member}: subst {' '.join(argv)}: {e}") from e
+    if done.returncode != 0:
+        text = output_text(done.stdout + done.stderr, "replace").strip()
+        raise Failed(f"system.{member}: subst {' '.join(argv)} gave {done.returncode}: {text}")
+
+
+def map_drive(letter, target):
+    _subst("map_drive", [f"{letter}:", str(target)])
+
+
+def unmap_drive(letter):
+    _subst("unmap_drive", [f"{letter}:", "/D"])
 
 
 def loader_dirs(binary):

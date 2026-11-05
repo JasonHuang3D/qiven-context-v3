@@ -32,6 +32,7 @@ import shutil
 import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.structure import lists, rules
 
 # The secret check's twelve patterns, in its table's order, each written as
@@ -221,7 +222,7 @@ def content_findings(root, files, paths, names=()):
     return sorted(set(found))
 
 
-@unittest.skipUnless(sys.platform == "win32", "the content rule reads this machine's paths, on Windows")
+@unittest.skipUnless(system.WINDOWS,"the content rule reads this machine's paths, on Windows")
 class Content(unittest.TestCase):
 
     def test_tree(self):

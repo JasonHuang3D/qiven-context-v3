@@ -9,9 +9,9 @@ Each case's drive holds as many handles at its end as before it;
 HandleCount plants a leak.
 """
 
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from tests.contract.platform_cases import PlatformBinding
 from tests.contract.platform_files import PlatformFiles
 from tests.contract.platform_machine import PlatformMachine, skip_reasons
@@ -39,7 +39,7 @@ class WindowsBinding(PlatformBinding):
     ctest_labels = ("drive",)
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
         super().setUp()
 
@@ -71,7 +71,7 @@ class FilesUntil(unittest.TestCase):
     ctest_labels = ("drive",)
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
 
     def test_files_until(self):
@@ -80,39 +80,13 @@ class FilesUntil(unittest.TestCase):
         self.assertEqual(reasons, dict.fromkeys(FILES_WHOLE) | FILES_UNTIL)
 
 
-def plant_handle(pid):
-    """A handle of this process duplicated into process pid, which then
-    holds one handle more."""
-    import ctypes
-    from ctypes import wintypes
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
-    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
-    kernel32.DuplicateHandle.argtypes = (wintypes.HANDLE, wintypes.HANDLE, wintypes.HANDLE,
-                                         ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD,
-                                         wintypes.BOOL, wintypes.DWORD)
-    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
-    target = kernel32.OpenProcess(0x0040, False, pid)  # PROCESS_DUP_HANDLE
-    if not target:
-        raise ctypes.WinError(ctypes.get_last_error())
-    try:
-        out = wintypes.HANDLE()
-        own = kernel32.GetCurrentProcess()
-        if not kernel32.DuplicateHandle(own, own, target, ctypes.byref(out), 0, False, 2):  # SAME_ACCESS
-            raise ctypes.WinError(ctypes.get_last_error())
-    finally:
-        kernel32.CloseHandle(target)
-
-
 class HandleCount(unittest.TestCase):
     """The handle count's plant: a handle put into the drive between its
     two counts fails the test's end, and the control, none put, passes."""
     ctest_labels = ("drive",)
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the Windows adapter is built on Windows alone")
 
     def test_planted_leak(self):
@@ -120,7 +94,7 @@ class HandleCount(unittest.TestCase):
             control.call("now")
         drive = Drive(drive=WINDOWS, count_handles=True)
         drive.call("now")
-        plant_handle(drive.process.pid)
+        system.plant_handle(drive.process.pid)
         with self.assertRaises(AssertionError) as caught:
             drive.close()
         self.assertIn("handles at the test's end", str(caught.exception))

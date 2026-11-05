@@ -18,11 +18,11 @@ command.
 
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import has_faults
 from tests.drive.session import WINDOWS, Drive, DriveError
@@ -62,7 +62,7 @@ class WindowsOnly(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def setUp(self):
-        if sys.platform != "win32":
+        if not system.WINDOWS:
             self.skipTest("not applicable: the binary takes UTF-16 arguments on Windows alone")
 
 
@@ -234,7 +234,7 @@ class Wire(unittest.TestCase):
         self.assertEqual(list(self.root.iterdir()), [])
 
     def off_windows(self, why="a Windows command line holds no request past the bytes' bounds or not UTF-16"):
-        if sys.platform == "win32":
+        if system.WINDOWS:
             self.skipTest("not applicable: " + why)
 
     def test_count(self):

@@ -17,11 +17,11 @@ own checks pin them.
 
 import os
 import shutil
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from tests.drive.session import environment
 
 CASES = ("test_P17_facts_here", "test_P18_residual_here", "test_P21_program", "test_P22_forms_here")
@@ -35,17 +35,6 @@ RESIDUAL_HERE = (("restore_points", "unknown"), ("file_history", "no"), ("pagefi
 ONEDRIVE = ("OneDrive", "OneDriveConsumer", "OneDriveCommercial")
 NO_ONEDRIVE = "not applicable: no synced folder here: none of the OneDrive variables set"
 DROPPED_NONE = "not applicable: with the OneDrive variables dropped, synced answers none for the folder here"
-
-
-def logical_drives():
-    """This machine's drive letters, each with its type (3: fixed)."""
-    import ctypes
-
-    kernel32 = ctypes.WinDLL("kernel32")
-    kernel32.GetDriveTypeW.argtypes = (ctypes.c_wchar_p,)
-    mask = kernel32.GetLogicalDrives()
-    letters = [chr(ord("A") + i) for i in range(26) if mask >> i & 1]
-    return {letter: kernel32.GetDriveTypeW(f"{letter}:\\") for letter in letters}
 
 
 def skip_reasons(binding, names=CASES):
@@ -81,7 +70,7 @@ class PlatformMachine(Waiting):
         cannot set; its form is pinned by platform's own case."""
         self.needs("machine")
         self.waiting(self.FACTS, "facts: win/facts", "facts", path=str(self.scratch))
-        fixed = [letter for letter, kind in logical_drives().items() if kind == 3]
+        fixed = [letter for letter, kind in system.drives().items() if kind == "fixed"]
         self.assertIn("C", fixed)
         with self.drive() as d:
             for letter in fixed:
@@ -118,11 +107,12 @@ class PlatformMachine(Waiting):
         here, on_path = self.scratch / "here", self.scratch / "on-path"
         for directory in (here, on_path):
             directory.mkdir()
-            (directory / "qiven3-planted.exe").write_bytes(b"")
+            (directory / system.program_file("qiven3-planted")).write_bytes(b"")
         rest = os.environ.get("PATH", "")
         for path in (f"{on_path};{rest}", f".;{on_path};{rest}"):
             with self.subTest(PATH=path.split(";", 1)[0]), self.drive(env=environment(PATH=path), cwd=here) as d:
-                self.assertEqual(d.call("program", name="qiven3-planted"), str(on_path / "qiven3-planted.exe"))
+                self.assertEqual(d.call("program", name="qiven3-planted"),
+                                 str(on_path / system.program_file("qiven3-planted")))
         with self.drive() as d:
             self.assert_platform_error(self.failure(d.call, "program", name="qiven3-on-no-entry"), "start")
 
@@ -160,13 +150,11 @@ class PlatformForms(Waiting):
             self.assertFalse(Path(resolved).exists())
             self.assertFalse(record.exists())
 
-        import _winapi
-
         junction = self.scratch / "to-repo-junction"
-        _winapi.CreateJunction(str(repo), str(junction))
-        letter = next(x for x in "ZYXWVUTSRQ" if x not in logical_drives())
-        subprocess.run(["subst", f"{letter}:", str(repo)], check=True, capture_output=True)
-        self.addCleanup(subprocess.run, ["subst", f"{letter}:", "/D"], check=False, capture_output=True)
+        system.make_junction(repo, junction)
+        letter = next(x for x in "ZYXWVUTSRQ" if x not in system.drives())
+        system.map_drive(letter, repo)
+        self.addCleanup(system.unmap_drive, letter)
         with self.drive(config=str(config)) as d:
             for name, given in (("junction", junction / "s"), ("subst", f"{letter}:\\s")):
                 with self.subTest(form=name):

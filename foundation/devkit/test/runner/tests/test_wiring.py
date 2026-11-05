@@ -6,10 +6,10 @@ one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s past it."""
 
 import json
 import re
-import sys
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.skip import SKIP_CODE
 from tools import loop_modules
@@ -229,7 +229,7 @@ class Registered(unittest.TestCase):
         # win/files' cases in the fake selection, which every Windows job
         # and CI's Windows jobs run.
         win_files = {name for name in tests if name.startswith(WIN_FILES)}
-        self.assertEqual(bool(win_files), sys.platform == "win32")
+        self.assertEqual(bool(win_files), system.WINDOWS)
         self.assertLessEqual(win_files, expected["fake"] & expected["fast"])
         self.assertNotIn("foundation.devkit.test.runner.tests.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))

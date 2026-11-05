@@ -20,6 +20,7 @@ import tempfile
 import threading
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 
 # The two drives: the fake's, built on every system, and the Windows
@@ -77,28 +78,6 @@ def wire(request):
                        separators=(",", ":")) + "\n").encode("utf-8")
 
 
-def handle_count(pid):
-    """The process's handle count, by GetProcessHandleCount; Windows alone."""
-    import ctypes
-    from ctypes import wintypes
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
-    kernel32.GetProcessHandleCount.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
-    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
-    process = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-    if not process:
-        raise ctypes.WinError(ctypes.get_last_error())
-    try:
-        count = wintypes.DWORD()
-        if not kernel32.GetProcessHandleCount(process, ctypes.byref(count)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        return count.value
-    finally:
-        kernel32.CloseHandle(process)
-
-
 # The requests that make the adapter and the system's lazily made state
 # (a provider's handle, the shell's for the known folder, the handles a
 # process's first child leaves: 3 on the Windows drive) before a handle
@@ -139,7 +118,7 @@ class Drive:
                 reply = self.reply(**request)
                 if reply.get("ok") and request["op"] == "pages":
                     self.call("pages_free", id=reply["result"]["id"])
-            self.handles = handle_count(self.process.pid)
+            self.handles = system.handle_count(self.process.pid)
 
     def __enter__(self):
         return self
@@ -157,7 +136,7 @@ class Drive:
             if self.held:
                 problem = f"{self.name} holds {self.held} bytes at the test's end"
             elif self.handles is not None:
-                now = handle_count(self.process.pid)
+                now = system.handle_count(self.process.pid)
                 if now != self.handles:
                     problem = f"{self.name} holds {now} handles at the test's end, {self.handles} before"
         try:
