@@ -29,14 +29,14 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import process
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
 from tools import debuggers
 
 FAULT = "qiven_diag_fault"
-DEBUG = Path(__file__).resolve().parents[2] / "tools" / "debug.py"
-SOURCE = (Path(__file__).resolve().parents[2] / "foundation" / "system" / "diag" / "tests" / "faults"
-          / "fault.cpp")
+DEBUG = ROOT / "tools" / "debug.py"
+SOURCE = ROOT / "foundation" / "system" / "diag" / "tests" / "faults" / "fault.cpp"
 LAST = re.compile(r"^debug: (?P<outcome>.+), (?P<stops>\d+) stops, (?P<lines>\d+) lines, (?P<seconds>[\d.]+) s$")
 COUNTER = re.compile(r"\bcounter = (?P<value>\S+)$")
 STOP = re.compile(r"^stop (?P<n>\d+): ")

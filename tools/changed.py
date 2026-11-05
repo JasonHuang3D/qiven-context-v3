@@ -16,18 +16,20 @@ import tempfile
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-TREE = "build/ci-windows"
-RECORD = ROOT / TREE / "changed.json"
-LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
-VCVARS_VER = "14.44.35207"  # the toolset, the tree's
-STEP_SECONDS = 7200  # a step's limit, a build's or a test run's: the longest a foreground call of the runner waits
-sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import git
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python import table as module_table
+from foundation.devkit.python.build_tree import ROOT
+
+TREE = "build/ci-windows"
+RECORD = ROOT / TREE / "changed.json"
+LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
+VCVARS_VER = "14.44.35207"  # the toolset, the tree's
+STEP_SECONDS = 7200  # a step's limit, a build's or a test run's: the longest a foreground call of the runner waits
 
 USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
@@ -41,11 +43,10 @@ class CannotRun(Exception):
     pass
 
 
-def capture(argv, env=None, merge=True):
-    """(status, output) of argv from the checkout's root; stderr merged unless not merge. CannotRun past its limit."""
+def capture(argv, env=None):
+    """(status, output) of argv from the checkout's root, stderr merged. CannotRun past its limit."""
     try:
-        done = process.run(argv, cwd=ROOT, env=env, limit=STEP_SECONDS, err=process.MERGE if merge else process.PIPE,
-                           text=True)
+        done = process.run(argv, cwd=ROOT, env=env, limit=STEP_SECONDS, err=process.MERGE, text=True)
     except process.TimedOut as e:
         raise CannotRun(str(e)) from e
     return done.status, done.out
@@ -69,9 +70,14 @@ def vcvars_env():
 
 def build(env, cmake):
     """(status, the answer's build line, and on a failure every line the build printed but Ninja's step
-    lines: configure's or a regenerating build's CMake output, each FAILED: block, Ninja's last line)."""
+    lines: configure's or a regenerating build's CMake output, each FAILED: block, Ninja's last line). A
+    regenerating build is a step, CMake's rerun, though Ninja then finds no work to do."""
     status, text = 0, ""
-    if not (ROOT / TREE / "CMakeCache.txt").is_file():
+    try:
+        configured = build_tree.options(ROOT / TREE) is not None
+    except (OSError, ValueError) as e:  # UnicodeDecodeError is a ValueError
+        raise CannotRun(f"{TREE}'s cache: {e}") from e
+    if not configured:
         status, text = capture([cmake, "--preset", "ci-windows", "-B", TREE], env)
     if status == 0:
         status, more = capture([cmake, "--build", TREE], env)
@@ -79,9 +85,10 @@ def build(env, cmake):
     if status != 0:
         return status, [f"build: failed, {status_table.line(status)}",
                         *(line for line in text.splitlines() if not STEP.match(line))]
-    if "ninja: no work to do." in text:
+    steps = sum(1 for line in text.splitlines() if STEP.match(line))
+    if not steps and "ninja: no work to do." in text:
         return 0, ["build: nothing to rebuild"]
-    return 0, [f"build: {sum(1 for line in text.splitlines() if STEP.match(line))} steps"]
+    return 0, [f"build: {steps} steps"]
 
 
 def files(table):
@@ -100,11 +107,11 @@ def files(table):
 
 def listing(env, ctest):
     """{test name: [its labels]}, CTest's listing of the tree."""
-    status, text = capture([ctest, "--test-dir", TREE, "--show-only=json-v1"], env, merge=False)
-    if status != 0:
-        raise CannotRun(f"ctest's listing failed: {status_table.ctest_line(status)}")
-    return {t["name"]: next((p["value"] for p in t.get("properties", ()) if p["name"] == "LABELS"), [])
-            for t in json.loads(text)["tests"]}
+    try:
+        tests = build_tree.tests(ROOT / TREE, tool=ctest, env=env)
+    except build_tree.ListingFailed as e:
+        raise CannotRun(f"ctest's listing failed: {e}") from e
+    return {name: test.properties.get("LABELS", []) for name, test in tests.items()}
 
 
 def select(tests, changed):
@@ -145,10 +152,14 @@ def write(record):
 def answer(lines):
     """(exit status, the answer's lines but the last), filled into lines."""
     env = vcvars_env()
-    cmake, ctest = (process.find(tool, path=named(env, "PATH")) for tool in ("cmake", "ctest"))
+    path = named(env, "PATH")
+    cmake, ctest = (build_tree.cmake(path), build_tree.ctest(path)) if path else (None, None)
     if not cmake or not ctest:
         raise CannotRun("cmake or ctest is not on vcvars' PATH")
-    table = module_table.load(ROOT)
+    try:
+        table = module_table.load(ROOT)
+    except (OSError, ValueError) as e:  # a table in error, or a file of it that cannot be read
+        raise CannotRun(str(e) if isinstance(e, ValueError) else f"the table: {e}") from e
     status, built = build(env, cmake)
     lines += built
     if status != 0:

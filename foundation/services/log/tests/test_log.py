@@ -14,6 +14,7 @@ fields hold no run-time text.
 import re
 import unittest
 
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 
@@ -35,7 +36,7 @@ def level():
 def build(target):
     """cmake --build of the build's directory for one target: its status and
     its output."""
-    cmake = binaries.cmake()
+    cmake = build_tree.cmake()
     if cmake is None:
         raise RuntimeError("no cmake beside QIVEN_CTEST or on PATH")
     done = process.run([cmake, "--build", binaries.directory("QIVEN_BUILD"), "--target", target], limit=BUILD_TIMEOUT)

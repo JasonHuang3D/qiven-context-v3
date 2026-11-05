@@ -7,12 +7,11 @@ that kept subprocess.run past its timeout."""
 import sys
 import time
 import unittest
-from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
+from foundation.devkit.python.build_tree import ROOT
 
-ROOT = Path(__file__).resolve().parents[4]
 LIMIT = 3  # seconds: the program has started its child and said so long before
 LEFT = 10  # seconds the child's end may take to show
 PROGRAM = (f"import sys, time; sys.path.append({str(ROOT)!r}); "

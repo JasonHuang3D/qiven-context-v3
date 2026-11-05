@@ -18,6 +18,7 @@ import re
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import has_hal
@@ -66,7 +67,7 @@ class NoHal(unittest.TestCase):
     def test_H6_core_without_it(self):
         here = binaries.directory("QIVEN_BUILD")
         build = here if not has_hal(here) else here.parent / "nohal"
-        if not (build / "CMakeCache.txt").is_file():
+        if build_tree.options(build) is None:
             self.skipTest(f"the nohal build is absent: no {build.name} beside {here.name}; "
                           "configure and build the preset nohal, then run its suite")
         self.assertFalse(has_hal(build), f"{build} has QIVEN_HAL on")

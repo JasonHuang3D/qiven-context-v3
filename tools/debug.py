@@ -42,7 +42,6 @@ section). The debugger is found and checked by tools/debuggers.py.
 """
 
 import argparse
-import json
 import os
 import queue
 import re
@@ -53,6 +52,7 @@ import time
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python.build_tree import ROOT
@@ -272,27 +272,18 @@ def is_dump(path):
 def ctest_command(test, build):
     """The test's (command, environment, working directory), the watcher
     in front of it dropped, from the build's test list."""
-    ctest = os.environ.get("QIVEN_CTEST") or process.find("ctest")
-    if not ctest:
-        raise CannotRun("no ctest: set QIVEN_CTEST or put it on PATH")
     try:
-        done = process.run([ctest, "--show-only=json-v1", "--test-dir", build])
-        tests = json.loads(done.out.decode("utf-8", "replace"))["tests"]
-    except (OSError, process.TimedOut, ValueError, KeyError) as e:
+        found = build_tree.tests(build).get(test)
+    except build_tree.ListingFailed as e:
         raise CannotRun(f"ctest's test list: {e}") from e
-    found = [t for t in tests if t.get("name") == test]
-    if not found or not found[0].get("command"):
+    if not found or not found.command:
         raise CannotRun(f"the build lists no test {test}")
-    command = [str(c) for c in found[0]["command"]]
+    command = [str(c) for c in found.command]
     if any(Path(c).name == WATCHER for c in command) and "--" in command:
         command = command[command.index("--") + 1:]
-    env, cwd = dict(os.environ), None
-    for prop in found[0].get("properties", ()):
-        if prop.get("name") == "ENVIRONMENT":
-            env.update(v.split("=", 1) for v in prop.get("value", ()) if "=" in v)
-        elif prop.get("name") == "WORKING_DIRECTORY":
-            cwd = prop.get("value")
-    return command, env, cwd
+    env = dict(os.environ)
+    env.update(v.split("=", 1) for v in found.properties.get("ENVIRONMENT", ()) if "=" in v)
+    return command, env, found.properties.get("WORKING_DIRECTORY")
 
 
 def bounded(low, high):

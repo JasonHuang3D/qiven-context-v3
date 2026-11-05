@@ -15,9 +15,8 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import table
-from foundation.devkit.python.build_tree import ROOT
+from foundation.devkit.python.build_tree import ROOT, cmake
 from foundation.devkit.structure import layers
-from foundation.devkit.test.runner.binaries import cmake
 
 TREES = table.trees(ROOT)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"

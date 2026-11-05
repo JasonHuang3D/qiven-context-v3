@@ -5,7 +5,9 @@ watched. A program starts through foundation/devkit/python/process.py.
 
 CTest gives each Python test the build's directories by the environment:
 QIVEN_BIN, where every binary of the build is written; QIVEN_BUILD, the
-build directory; QIVEN_CTEST, the ctest of the build. A test run outside
+build directory; QIVEN_CTEST, the ctest of the build, which
+foundation/devkit/python/build_tree.py reads with the cmake beside it and
+the build's listing. A test run outside
 CTest names them itself. watched() runs a command behind the watcher,
 tools/watch.py, and unbounded() drops the lines of its dumps' bound
 (tools/dumps.py), which another case's dump, written beside, may give any
@@ -52,14 +54,6 @@ def directory(name):
     return found
 
 
-def tool(name):
-    """The file the environment variable `name` gives; it must exist."""
-    value = os.environ.get(name)
-    if not value or not Path(value).is_file():
-        raise RuntimeError(f"{name} names no file: run the test through ctest")
-    return Path(value)
-
-
 def path(name):
     """The file of the build's binary `name`."""
     found = directory("QIVEN_BIN") / system.program_file(name)
@@ -72,13 +66,6 @@ def listed():
     """The files of the build's binaries.txt, in its order, as resolved paths."""
     text = (directory("QIVEN_BUILD") / "binaries.txt").read_text(encoding="utf-8")
     return [Path(line).resolve() for line in text.splitlines() if line]
-
-
-def cmake():
-    """The cmake beside the ctest that runs the test, else the one on PATH;
-    None where neither is."""
-    ctest = os.environ.get("QIVEN_CTEST")
-    return (process.find("cmake", path=os.path.dirname(ctest)) if ctest else None) or process.find("cmake")
 
 
 def run(name, args=(), data=None, cwd=None, timeout=TIMEOUT):

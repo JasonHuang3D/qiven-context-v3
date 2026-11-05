@@ -9,7 +9,7 @@ import re
 import unittest
 from pathlib import Path
 
-from foundation.devkit.python import process
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import system
 from foundation.devkit.python import table
 from foundation.devkit.test.runner import binaries
@@ -135,16 +135,8 @@ class PythonSide(unittest.TestCase):
 
 
 def ctest_tests(*args):
-    """This build's tests, by ctest -N: each name to its command and properties."""
-    ran = process.run([binaries.tool("QIVEN_CTEST"), "--test-dir", binaries.directory("QIVEN_BUILD"), "-N",
-                       "--show-only=json-v1", *args])
-    if ran.status != 0:
-        raise AssertionError(ran.err.decode("utf-8", "replace"))
-    found = {}
-    for test in json.loads(ran.out)["tests"]:
-        props = {p["name"]: p["value"] for p in test.get("properties", [])}
-        found[test["name"]] = (test["command"], props)
-    return found
+    """This build's tests, by ctest's listing (args a selection): each name to its command and properties."""
+    return build_tree.tests(binaries.directory("QIVEN_BUILD"), args)
 
 
 def labelled(tests, label):
