@@ -151,7 +151,7 @@ class Registered(unittest.TestCase):
         self.assertIn("runner.pass_status", tests)
         self.assertIn(SELECT + "test_ab", tests)
         self.assertFalse([name for name in tests if name.startswith(("demo.", SAMPLE))])
-        watch = binaries.ROOT / "tools" / "watch.py"
+        watch = binaries.WATCHER
         cases = case_limits()
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
@@ -214,7 +214,7 @@ class Registered(unittest.TestCase):
         }
         self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
         # The debugger cases, the debugger preset's alone, never fake, CI's.
-        self.assertIn("tools.tests.test_hang.HangStacks.test_K8_hang", expected["debugger"])
+        self.assertIn("foundation.devkit.test.runner.tests.test_hang.HangStacks.test_K8_hang", expected["debugger"])
         self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])
         # win/files' cases in the fake selection, which every Windows job

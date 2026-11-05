@@ -1,5 +1,5 @@
 # The Windows tools the debugger wrapper (tools/debug.py) and the watcher's
-# hang path (tools/watch.py) run, by foundation/devkit/python/debugger.py: one pin a line,
+# hang path (foundation/devkit/test/runner/watch.py) run, by foundation/devkit/python/debugger.py: one pin a line,
 # KIND NAME VERSION SHA256 SOURCE. A kits/ source is under the Windows
 # SDK's root, the registry's KitsRoot10. The version is the one the tool's
 # -version gives; the digest the file's, observed.

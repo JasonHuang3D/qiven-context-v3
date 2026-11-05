@@ -1,4 +1,5 @@
-"""Exit statuses by name: the one table the watcher (tools/watch.py), the
+"""Exit statuses by name: the one table the watcher
+(foundation/devkit/test/runner/watch.py), the
 Python tests' harness (foundation/devkit/test/runner/binaries.py) and
 the runner (tools/changed.py) name a status by, never as a bare number.
 

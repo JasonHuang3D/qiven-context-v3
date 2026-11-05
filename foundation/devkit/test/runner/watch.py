@@ -1,7 +1,7 @@
 """The watcher: in front of every test CTest runs, and of each planted
 fault the drives run, it runs the case and names how it ended.
 
-    python -I -X faulthandler tools/watch.py --limit <s> --name <test> -- <command>...
+    python -I -X faulthandler foundation/devkit/test/runner/watch.py --limit <s> --name <test> -- <command>...
 
 - With QIVEN_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
   build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
@@ -37,13 +37,13 @@ fault the drives run, it runs the case and names how it ended.
   and path) and the case,
   "status: 124 hang: ...; <written>; <test> past <s> s", and exits 124.
 - After the case ends, a hang's or not, the build's dumps/ is bounded by
-  tools/dumps.py: at most its DUMPS_KEPT dumps, the oldest removed first,
+  dumps.py beside it: at most its DUMPS_KEPT dumps, the oldest removed first,
   none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: it appends the root once and imports the status table, the
-system's module, the process's, the debugger's and the build tree's root; the dumps' and the
-imports' readers are run from their files.
+system's module, the process's, the debugger's, the build tree's root and
+the dumps' bound; the imports' reader is run from its file.
 """
 
 import argparse
@@ -54,13 +54,13 @@ import sys
 import threading
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+sys.path.append(str(Path(__file__).resolve().parents[4]))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.build_tree import ROOT
-DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
+from foundation.devkit.test.runner.dumps import bound as dumps_bound
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
@@ -155,7 +155,7 @@ def bound(case):
     """Bounds the build's dumps/, keeping the case's own, and names each
     dump removed."""
     build = os.environ.get("QIVEN_BUILD")
-    lines = DUMPS["bound"](Path(build) / "dumps", case.pid) if build else []
+    lines = dumps_bound(Path(build) / "dumps", case.pid) if build else []
     if lines:
         print("\n".join(lines), file=sys.stderr, flush=True)
 

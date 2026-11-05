@@ -8,19 +8,19 @@ QIVEN_BIN, where every binary of the build is written; QIVEN_BUILD, the
 build directory; QIVEN_CTEST, the ctest of the build, which
 foundation/devkit/python/build_tree.py reads with the cmake beside it and
 the build's listing. A test run outside
-CTest names them itself. watched() runs a command behind the watcher,
-tools/watch.py, and unbounded() drops the lines of its dumps' bound
-(tools/dumps.py), which another case's dump, written beside, may give any
-run.
+CTest names them itself. The watcher is WATCHER, watch.py beside this
+file, and its dumps' bound dumps.py, beside it.
 
 listed() gives the files of the build's binaries.txt. build_option() reads
 a cache variable of a build directory by
 foundation/devkit/python/build_tree.py, and
 has_faults(), debug_library(), has_hal() and sanitized() the build's
-choices by it. run_watched() runs a command behind the watcher under
-TIME_BOUND, polling it every POLL seconds for the windows it shows; a
-report's line holds at most foundation/devkit/python/answer.py's
-LINE_POINTS code points.
+choices by it. run_watched() runs a command behind the watcher under a
+limit, TIME_BOUND unless given, polling it every POLL seconds for the
+windows it shows, drops the dumps' bound's lines from its standard error,
+and ends the watcher's tree past the limit, its AFTER seconds and AFTER
+more; a report's line holds at most
+foundation/devkit/python/answer.py's LINE_POINTS code points.
 """
 
 import os
@@ -37,9 +37,15 @@ from foundation.devkit.python.build_tree import ROOT
 # A process the tests start ends within this many seconds, or fails.
 TIMEOUT = process.LIMIT
 
-# A watched run's bound in seconds and its poll's period.
+# The watcher, in front of every test.
+WATCHER = ROOT / "foundation" / "devkit" / "test" / "runner" / "watch.py"
+
+# A watched run's bound in seconds and its poll's period; the watcher's
+# seconds past its limit at most, the 30 s CTest leaves it
+# (ctest_tests.cmake's AFTER_LIMIT).
 TIME_BOUND = 10.0
 POLL = 0.1
+AFTER = 30.0
 
 
 def directory(name):
@@ -75,19 +81,6 @@ def run(name, args=(), data=None, cwd=None, timeout=TIMEOUT):
 def unittest_run(*args, timeout=TIMEOUT):
     """Runs this interpreter's unittest from the root, as CTest does."""
     return process.run([sys.executable, "-I", "-m", "unittest", *args], cwd=ROOT, limit=timeout)
-
-
-def watched(command, name, limit=TIMEOUT):
-    """The watcher's command line in front of `command`, run by this
-    interpreter as CTest runs it."""
-    return [sys.executable, "-I", "-X", "faulthandler", str(ROOT / "tools" / "watch.py"), "--limit", str(limit),
-            "--name", name, "--", *map(str, command)]
-
-
-def unbounded(err):
-    """The watcher's standard error without the dumps' bound's lines."""
-    return b"".join(line for line in err.splitlines(keepends=True)
-                    if not line.startswith((b"dumps: removed ", b"dumps: cannot remove ")))
 
 
 def build_option(name, build=None):
@@ -126,16 +119,22 @@ def windows_of(pid):
     return system.visible_windows({pid, *system.children(pid)})
 
 
-def run_watched(command, name, env=None, cwd=None):
-    """Runs a command behind the watcher, under the time bound: the
-    watcher's status, out, err, seconds, and the windows seen."""
+def run_watched(command, name, env=None, cwd=None, limit=TIME_BOUND):
+    """Runs a command behind the watcher, by this interpreter as CTest runs
+    it, under limit seconds: the watcher's status, out, err without the
+    dumps' bound's lines (bytes; another case's dump, written beside, may
+    give them any run), seconds, and the windows seen. A watcher still
+    running past the limit, its AFTER seconds and AFTER more is ended with
+    its tree."""
+    watcher_command = [sys.executable, "-I", "-X", "faulthandler", str(WATCHER), "--limit", str(limit),
+                       "--name", name, "--", *map(str, command)]
     start = time.monotonic()
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        watcher = process.start(watched(command, name, TIME_BOUND), out=out, err=err, env=env, cwd=cwd)
+        watcher = process.start(watcher_command, out=out, err=err, env=env, cwd=cwd)
         seen = []
         while watcher.poll() is None:
             seen += windows_of(watcher.pid)
-            if time.monotonic() - start > TIME_BOUND + 20:
+            if time.monotonic() - start > limit + 2 * AFTER:
                 watcher.end_tree()
                 break
             time.sleep(POLL)
@@ -143,4 +142,6 @@ def run_watched(command, name, env=None, cwd=None):
         seconds = time.monotonic() - start
         out.seek(0)
         err.seek(0)
-        return status, out.read(), unbounded(err.read()), seconds, seen
+        unbounded = b"".join(line for line in err.read().splitlines(keepends=True)
+                             if not line.startswith((b"dumps: removed ", b"dumps: cannot remove ")))
+        return status, out.read(), unbounded, seconds, seen

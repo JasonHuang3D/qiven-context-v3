@@ -4,7 +4,7 @@
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # PYTHON when the Python tests are
 # registered, and FUZZ when the build has fuzz targets (lines
-# "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
+# "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, watch.py beside this file,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
 # other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
 # 30 s, so that the watcher acts first.
@@ -47,7 +47,7 @@ function(qiven_add_test name labels serial directory limit)
   set(command "")
   set(watched ${ARGN})
   if(DEFINED PYTHON)
-    set(watched "${PYTHON}" -I -X faulthandler "${SOURCE}/tools/watch.py" --limit ${limit} --name "${name}" -- ${ARGN})
+    set(watched "${PYTHON}" -I -X faulthandler "${SOURCE}/foundation/devkit/test/runner/watch.py" --limit ${limit} --name "${name}" -- ${ARGN})
   endif()
   foreach(arg IN ITEMS ${watched})
     string(APPEND command " [==[${arg}]==]")

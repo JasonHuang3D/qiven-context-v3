@@ -3,7 +3,7 @@ DUMPS_KEPT dumps, the oldest removed first.
 
     bound(directory, pid=None) -> lines
 
-The watcher (tools/watch.py) runs it after each case ends, whether the
+The watcher (watch.py, beside it) runs it after each case ends, whether the
 case wrote a dump or none, so that every writer into the directory is
 bounded: the diagnostic entry's minidump of a crash, the watcher's hang dump,
 and those of the cases a test runs under the debugger.

@@ -7,7 +7,8 @@ standard library alone, no tool; and the lists they must be on.
 
 Its ELF and glibc parts are retired (tools/README.md's Retired section).
 foundation/devkit/structure/tests/test_binaries.py holds every binary of a build to its
-system's list or its preset's residual; tools/watch.py names, on a failed
+system's list or its preset's residual; the watcher
+(foundation/devkit/test/runner/watch.py) names, on a failed
 load, each import found nowhere. Run as a script it prints a binary's
 imports, one a line.
 """

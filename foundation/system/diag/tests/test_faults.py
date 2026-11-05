@@ -1,5 +1,6 @@
 """The diagnostic entry's planted faults, K1 to K5, K7 and K9: each plant of
-qiven_diag_fault (tests/faults/), run behind the watcher (tools/watch.py),
+qiven_diag_fault (tests/faults/), run behind the watcher
+(foundation/devkit/test/runner/watch.py),
 ends with its cause as the report's first line, its stack, its status named
 by the table (K12), no window, within the bounds; K6,
 qiven_diag_fault_import copied alone, its library missing at load; and K18,

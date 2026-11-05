@@ -1,7 +1,7 @@
 """The debugger, for the repository's Python: the one place cdb.exe, the
 Windows SDK's, is found, checked against its pin and driven, for the
 debugger agents drive (tools/debug.py) and the watcher's hang path
-(tools/watch.py). This directory's README states each member's call on each
+(foundation/devkit/test/runner/watch.py). This directory's README states each member's call on each
 system; Linux's gdb is retired (tools/README.md's Retired section).
 
 find() is the pinned cdb: tools/windows-pins.txt's line "debugger cdb", the

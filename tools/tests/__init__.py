@@ -1,5 +1,5 @@
-"""The tooling's own Python tests: the watcher's hang path, tools/debug.py and
-the modules' check over the tree, run from the root as
+"""The tooling's own Python tests: tools/debug.py and the modules' check over
+the tree, run from the root as
 
     python -I -m unittest discover -s tools -t . -k '*<test id>'
 

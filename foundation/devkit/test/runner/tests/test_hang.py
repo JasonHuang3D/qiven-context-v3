@@ -1,4 +1,4 @@
-"""The watcher's hang path (tools/watch.py, foundation/devkit/python/debugger.py): K8, the
+"""The watcher's hang path (watch.py, foundation/devkit/python/debugger.py): K8, the
 plant `hang` of qiven_diag_fault, its main thread and one more each blocked
 for ever, under a limit of 3 s, ends with the watcher's hang line, every
 thread's stack, both threads' holding plant_hang (in a build with no PDB
@@ -21,7 +21,7 @@ faults and threads, K8 is skipped as the planted faults are.
 
 K8 drives the debugger: the label debugger, never fake, so CI never runs
 it. The runner (tools/changed.py) runs it under CTest by its module's
-label, tooling, and the presets full and debugger hold it. It needs what is
+label, runner, and the presets full and debugger hold it. It needs what is
 said above: a debugger at hand and, on Windows, for plant_hang's name, a
 PDB beside the binaries. The watcher's other ends here are fake's.
 """
@@ -37,17 +37,15 @@ from unittest import mock
 
 from foundation.devkit.python import answer
 from foundation.devkit.python import debugger
-from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import POLL, sanitized, windows_of
+from foundation.devkit.test.runner.binaries import AFTER, POLL, run_watched, sanitized
 
 WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"
 LIMIT = 3
-AFTER = 30.0  # the watcher's seconds past the limit at most
 HANG_LINES = 200
 HANG = re.compile(r"^hang: past its limit of 3 s, (?P<threads>\d+) threads$")
 THREAD = debugger.CDB_THREAD
@@ -64,25 +62,9 @@ def debugger_reason():
     return None
 
 
-def run_watched(command, name, limit, env=None):
-    """Runs a command behind the watcher: its status, out, err lines,
-    seconds and the windows seen."""
-    start = time.monotonic()
-    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        watcher = process.start(binaries.watched(command, name, limit), out=out, err=err, env=env)
-        seen = []
-        while watcher.poll() is None:
-            seen += windows_of(watcher.pid)
-            if time.monotonic() - start > limit + AFTER + 30:
-                watcher.end_tree()
-                break
-            time.sleep(POLL)
-        status = watcher.poll()
-        out.seek(0)
-        err.seek(0)
-        return (status, out.read().decode("utf-8", "replace").splitlines(),
-                binaries.unbounded(err.read()).decode("utf-8", "replace").splitlines(), time.monotonic() - start,
-                seen)
+def lines_of(data):
+    """A watched run's output, as lines."""
+    return data.decode("utf-8", "replace").splitlines()
 
 
 def sections(lines):
@@ -127,7 +109,7 @@ def ci_environment(root, **changes):
     """This environment as a CI job's (GITHUB_ACTIONS "true"), the build
     root/build (made), the names changed without regard to case."""
     (root / "build").mkdir()
-    changes ={debugger.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
+    changes = {debugger.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
     names = {name.upper() for name in changes}
     return {**{k: v for k, v in os.environ.items() if k.upper() not in names}, **changes}
 
@@ -146,7 +128,8 @@ class HangStacks(unittest.TestCase):
             self.skipTest(reason)
         dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         start = time.time()
-        status, _, err, seconds, seen = run_watched([binaries.path(FAULT), "hang"], "K8", LIMIT)
+        status, _, err, seconds, seen = run_watched([binaries.path(FAULT), "hang"], "K8", limit=LIMIT)
+        err = lines_of(err)
         text = "\n".join(err)
         self.assertEqual(status, 124, text)
         self.assertEqual(seen, [], "K8: a window opened")
@@ -192,7 +175,8 @@ class Hang(unittest.TestCase):
                 "child = process.start([sys.executable, '-I', '-c', 'import time; time.sleep(120)'], "
                 "out=process.INHERIT, err=process.INHERIT); "
                 "print(child.pid, flush=True); time.sleep(120)")
-        status, out, err, seconds, _ = run_watched([sys.executable, "-I", "-c", code], "hang.tree", 2)
+        status, out, err, seconds, _ = run_watched([sys.executable, "-I", "-c", code], "hang.tree", limit=2)
+        out, err = lines_of(out), lines_of(err)
         self.assertEqual(status, 124, err)
         self.assertLessEqual(seconds, 2 + AFTER, err)
         child = int(out[0])
@@ -230,7 +214,8 @@ class Hang(unittest.TestCase):
             standin = stand_in(Path(root))
             env = ci_environment(Path(root), PATH=str(standin.parent))
             status, _, err, seconds, _ = run_watched([sys.executable, "-I", "-c", "import time; time.sleep(60)"],
-                                                     "hang.ci", 1, env)
+                                                     "hang.ci", env, limit=1)
+            err = lines_of(err)
             self.assertEqual(status, 124, err)
             self.assertIn("00 00000000`00000000 00000000`00000000 standin!wait+0x10", err)
             self.assertRegex(err[-1], "^" + re.escape(status_table.line(124)) + r"; 1 of 1 threads' stacks written, "
@@ -251,7 +236,8 @@ class Hang(unittest.TestCase):
             sdk.mkdir()
             env = ci_environment(Path(root), PATH=str(empty), WindowsSdkDir=str(sdk))
             status, _, err, seconds, _ = run_watched([sys.executable, "-I", "-c", "import time; time.sleep(60)"],
-                                                     "hang.ci_none", 1, env)
+                                                     "hang.ci_none", env, limit=1)
+            err = lines_of(err)
             why = (f"no cdb: none on PATH, none at {(sdk / 'Debuggers' / 'x64' / 'cdb.exe').as_posix()}, "
                    "the SDK's root by WindowsSdkDir")
             self.assertEqual(status, 124, err)

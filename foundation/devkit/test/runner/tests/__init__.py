@@ -1,5 +1,5 @@
-"""The runner's own Python tests: its routes through a process and the CTest
-wiring, run from the root as
+"""The runner's own Python tests: its routes through a process, the CTest
+wiring and the watcher's hang path, run from the root as
 
     python -I -m unittest discover -s foundation/devkit/test/runner/tests -t . -k '*<test id>'
 
