@@ -2,14 +2,14 @@
 
 layer devkit, status built
 
-- **Holds:** Python's lowest layer, below every tool and test of the repository's Python: `status.py`, the exit statuses by name, the one table a status is named by; `system.py` with `_windows.py`, the operating system, and the one conditional on it, `system.WINDOWS`
+- **Holds:** Python's lowest layer, below every tool and test of the repository's Python: `status.py`, the exit statuses by name, the one table a status is named by; `system.py` with `_windows.py`, the operating system, and the one conditional on it, `system.WINDOWS`; `process.py`, a program started, bounded and ended, the one place `subprocess` stands above `_windows.py`; `git.py`, the one place a program starts git, through `process`
 - **Never holds:** a product's or a tool's concept; a member with no consumer in the work at hand; a wrap of a portable standard-library call (`pathlib`, `json`, `tempfile`, `hashlib.file_digest`), which makes nothing easier, safer or more stable
 - **Contract:** none
 - **Interface:** no header: the package `foundation.devkit.python`, imported normally. A script run under `-I` appends the checkout's root once (`sys.path.append`, so that the standard library still wins) and then imports it; a test finds the root already there, as unittest's discover puts it. `status.py` also runs as a script, naming each status its arguments give
-- **Files:** `__init__.py`, `status.py`, `system.py`, `_windows.py`, and this directory's `module.json`
-- **Consumers rely on:** a status named in one line, by `line` and `ctest_line`, its value by `value_text` and its name by `named`, never as a bare number; a system's fact or act by its `system` member in the same words on every system, and `import system` succeeding on every system
+- **Files:** `__init__.py`, `status.py`, `system.py`, `_windows.py`, `process.py`, `git.py`, and this directory's `module.json`
+- **Consumers rely on:** a status named in one line, by `line` and `ctest_line`, its value by `value_text` and its name by `named`, never as a bare number; a system's fact or act by its `system` member in the same words on every system, and `import system` succeeding on every system; every start above `_windows.py` through `process`: standard input closed unless given, a limit on every `run`, past which the program's whole tree is ended and `TimedOut` raised, output as bytes unless asked for as text; git through `git`'s verbs alone, every failure one `GitFailed`, no consumer passing git's argv or decoding its `-z`
 - **Parameters:** none
-- **Refuses:** as a script, no argument, or an argument that is no number: its usage or its reason, status 2. `system`, on a system with no back end: each member, `NotBuilt`
+- **Refuses:** as a script, no argument, or an argument that is no number: its usage or its reason, status 2. `system`, on a system with no back end: each member, `NotBuilt`. `process`: a program that cannot start, the system's `OSError`; a run past its limit, `TimedOut`. `git`: no git, a failed start, a limit passed, a status other than 0 or an answer that is no UTF-8, `GitFailed`
 
 The method for `status`:
 
@@ -51,3 +51,47 @@ The method for `system`:
 - **Performance:** reading `WINDOWS` is an attribute, and importing `system` loads only `sys`. `_windows.py` loads when a member is first asked, once a process: its import, with `ctypes`, took about 24 ms here, measured once, which the watcher paid in front of each test already. Then a member costs one function call above its system call; `visible_windows` loads `user32` only when asked, so the watcher never loads it. The members in a loop are `children` and `visible_windows`, each poll of a watched run, every `POLL` seconds; `program_file` and `library_file` are a string's join, and the three statuses a constant. `handle_count` runs twice a drive's test, `drives` once a machine case; `end_tree`, `toolset_env`, `map_drive` and `unmap_drive` start programs and are never on a hot path
 - **A fake:** none: every consumer is a test or a tool that exists to meet the real system, and a test of a fake here would prove the fake
 - **Errors:** `NotBuilt` names the member and the system. `Failed` names the member, the call and the system's reason; `alive`, `children`, `visible_windows`, `end_tree`, `toolset_env`, `handle_count`, `plant_handle`, `drives`, `make_junction`, `map_drive` and `unmap_drive` raise it. `output_text` and `output_bytes` raise the codec's own `UnicodeError` under `errors="strict"`, as `bytes.decode` and `str.encode` do. `sdk_root` answers `None` for no SDK; `end_tree` does not read `taskkill`'s status, so a process gone already and one it could not end read alike, and each consumer ends its own child next. `alive` reads a process that ended with status 259, `STILL_ACTIVE`, as running, the call's own limit. `quiet_load_errors`' call has no failure to report
+
+The method for `process`:
+
+- **Members:** `find(name, path=None)`, `run(argv, *, data=None, env=None, cwd=None, limit=LIMIT, out=PIPE, err=PIPE, program=None, text=False)`, `start(argv, *, feed=False, env=None, cwd=None, out=PIPE, err=PIPE)`; `Ran` (`status`, `out`, `err`, `named`, its `str`), `Process` (`pid`, `stdin`, `stdout`, `stderr`, `poll()`, `wait(limit=LIMIT)`, `end_tree()`), `TimedOut` (`limit`, `out`, `err`); `PIPE` and `INHERIT`, the values `out` and `err` take beside a file, and `MERGE`, which `err` also takes, into `out`; `LIMIT`, 120 seconds, and `ENDING_SECONDS`, 10. `argv` is a list of `str`, `Path`, number or `bytes`, or one `str`, a whole command line, for a compile database's command
+- **Compatibility:** no conditional on the system: each call is the standard library's or `system`'s. Windows built; POSIX and macOS on paper, no Linux build:
+
+| Member | Windows | POSIX on paper | macOS on paper, where it differs |
+|---|---|---|---|
+| `find` | `shutil.which`: `PATH`, and `PATHEXT` for the suffix | `shutil.which`: `PATH` and the execute bit | |
+| `run`, `start` | `subprocess.Popen`: `CreateProcessW` | `subprocess.Popen`: `fork_exec` or `posix_spawn`; `process_group=0` comes on the one start, from the back end, when `end_tree` is built there | |
+| a `bytes` word of `argv` | `os.fsdecode`, then the command line's UTF-16 | the bytes themselves | |
+| one `str` as `argv` | the command line, as `CreateProcessW` takes it | the program's name alone, `subprocess`'s reading: its one consumer, `records`, reads MSVC's database, Windows' alone | |
+| `program` | `CreateProcessW`'s application name | `execve`'s path | |
+| standard input closed | `NUL` | `/dev/null` | |
+| `run`'s limit | `communicate`'s join of its reader threads, each one whole read: what a program wrote comes only once its pipe ends, so after `end_tree` | `communicate`'s selector, which also holds what came before the limit | |
+| ending the tree at the limit | `system.end_tree`: `taskkill /T /F /PID`, then `TerminateProcess` of the program | `system.end_tree`: `killpg`, then `SIGKILL` of the program; off Windows today, `NotBuilt` at the limit, after the program itself is ended | |
+| `Process.poll`, `Process.wait` | `WaitForSingleObject`, `GetExitCodeProcess` | `waitpid` | |
+
+  A status is as `subprocess` gives it, `status`'s table naming it. Text is UTF-8 with what does not decode replaced, each line's ending `\n`, the one reading for the runs that ask for it, `changed`'s and `test_trees_build`'s. A system program's output in the ANSI code page is read from the bytes by `system.output_text`, not here
+- **Extensibility:** a new program needs one call and no new member. Another destination of output is another value of `out` or `err`, no new signature. A start option a second system needs is one line in the one start, read from `system`; no consumer changes
+- **Performance:** its import loads `subprocess` and `shutil`, about 13 ms here with `status`, measured once by `-X importtime`, the two a cost the watcher paid already in front of each test; `Ran` is a `namedtuple`, so that a test compares it to a tuple. `_windows.py` loads only when a limit passes or a member asks. A `run` costs one start and a reader thread for each pipe, its output held in memory: a consumer of large output gives a file as `out`. `start` costs one start and a small object, and `poll` one call, each `POLL` seconds of a watched run. Nothing here is on a hot path
+- **A fake:** none: every consumer is a test or a tool that exists to start the real program, and a test of a fake here would prove the fake. `process` is proven by its consumers' tests, the watcher's hang cases and the debugger's among them
+- **Errors:** a program that cannot start raises the system's `OSError` unwrapped, as `open` does; each consumer words it with its own name. A `run` past `limit`, or a `wait` past its own, raises `TimedOut`: "process: <program> past its limit of <limit> s". At a `run`'s limit `system.end_tree` ends the tree and the program itself is ended, and then what it wrote is collected, within `ENDING_SECONDS`, into `TimedOut`'s `out` and `err`; past those seconds a process the tree no longer reaches holds the pipe (its parent gone before the limit), and they are empty, the pipes left to the process's end. `system.Failed` at an ending is no error: the program itself is ended next. Anything else that interrupts a `run`, an interrupt among them, ends the program alone, not its tree, and goes on. `Process.wait` past its limit ends nothing: the caller chooses. `Process.end_tree` waits for the program, `ENDING_SECONDS` at most, and answers its status, or `None` where it has not ended by then. A status other than 0 is no error: the caller reads `status`
+
+The method for `git`:
+
+`git.py` owns git, through `process`: every start of git, its argv, its decoding and its error. It holds `find`, `tracked`, `attributes`, `full_hash`, `files_at`, `reading_env` and `GitFailed`, each with a consumer in the tree.
+
+- **Compatibility:** git is one program with one command line on every system; a member's system difference lies in finding it, in the names it gives and in its environment's names:
+
+| Member | Windows | POSIX on paper | macOS on paper, where it differs |
+|---|---|---|---|
+| `find` | `process.find`: `shutil.which`, `PATH` with `PATHEXT` (`git.exe`), the working directory first, as Windows finds a program | `shutil.which`, `PATH` alone | `/usr/bin/git` may be Xcode's stub, which finds as git and fails its first run: `GitFailed` |
+| `tracked` | `ls-files -z`, with `-co --exclude-standard` for `others`, from `root`; names in UTF-8 whatever the code page, each `/` | the same call; a name is the file system's bytes, and one that is no UTF-8 is `GitFailed` | the same; git's `core.precomposeunicode` governs how a name reads |
+| `attributes` | `check-attr -z --stdin <names>`, from `root` | the same | |
+| `full_hash` | `--git-dir <root>/.git rev-parse --verify <commit>^{commit}` | the same | |
+| `files_at` | `--git-dir <root>/.git ls-tree -r -z --name-only <commit>^{commit}`, then `cat-file --batch` | the same | |
+| `reading_env` | the inherited environment less each `GIT_` name, read without regard to case as Windows' names are; `GIT_CONFIG_NOSYSTEM`, `GIT_ATTR_NOSYSTEM`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_COUNT` and its `KEY` and `VALUE` pairs | the same call; the comparison without regard to case also drops a `git_` name, which git does not read | |
+
+  `reading_env` needs a git that reads `GIT_CONFIG_COUNT` and `GIT_CONFIG_GLOBAL`; here 2.55.0.windows.5, the versions that first read them unverified. `full_hash` and `files_at` name `<root>/.git` so that a directory that is no repository fails rather than finding a parent's; `tracked` and `attributes` read as git finds the repository from `root`
+- **Extensibility:** a new need is one more verb over the one private run, its argv and its decoding in this file, with a consumer in the tree when it is built; no consumer passes argv or decodes `-z`. A second system changes nothing here unless it is one of the differences above
+- **Performance:** each verb is one process but `files_at`, two, each with one walk of `PATH` to find git. They answer a tool's or a test's one question over a checkout and are never on a hot path: `tracked` over this checkout, 785 files, took about 26 ms here, measured once. Importing `git` costs `process`'s import and `pathlib`'s. A verb holds git's whole output in memory, the table files' sizes for `files_at`, a list of names for `tracked`
+- **A fake:** none: every consumer exists to read the real repository, and a test of a fake here would prove the fake. A missing git is a `PATH` that holds none
+- **Errors:** every failure is `GitFailed`, one line, and each consumer answers it once in its own form: `git: none on PATH`; `git <argv>: <the status's line>: <the end of git's stderr>`; `git <argv>: <the reason>` for a start that failed or a limit passed, 300 s, past which `process` ends git's tree; `git <argv>: its answer is no UTF-8: <the codec's reason>`; `git <argv>: no file at <path>: <git's line>` for a `cat-file` answer that holds no blob. `find` answers `None` for no git, for a consumer that goes on without it. `reading_env` raises the system's `OSError` when its scratch directory cannot take the empty file, which is the caller's directory and no failure of git

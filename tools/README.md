@@ -4,8 +4,8 @@ layer tools, status built
 
 - **Holds:** the developer tooling, in Python: the test runner (`changed.py`), the table's reader
   (`loop_modules.py`, `loop_table.py`, with the old places' base `loop_base.json`, which `loop_base.py`
-  writes), git's door (`loop_git.py`), the debuggers (`debug.py`), dumps (`dumps.py`), the watch
-  (`watch.py`) and the fuzz seeds;
+  writes) and the trees it reads (`trees.json`), the debuggers (`debug.py`, `debuggers.py`, the debugger's
+  pin in `windows-pins.txt`), dumps (`dumps.py`), the watch (`watch.py`) and the fuzz seeds (`fuzz_seeds.py`);
   and its tests in `tests/`: the modules' check over the tree (`test_loop_full_check.py`), the watcher's
   hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
@@ -39,8 +39,11 @@ later changes to be made again; the commit after it shows every line cut with th
   them (`plants.py`, `records.py`'s plant step, `rules.py`'s plant branch, its `DEPENDS`). Last commit
   `d2dd025`:
   `git restore --source=d2dd025 -- foundation/devkit/structure`
-- **What only the cut code used, inside kept files:** `loop_run.py` and `own_git.py` down to `git_env`,
-  `loop_git.py`'s fake git, `layers.module_file`. Last commit `d2dd025`:
+- **What only the cut code used, inside files then kept:** `loop_run.py` and `own_git.py` down to `git_env`,
+  `loop_git.py`'s fake git, `layers.module_file`. What was left of `loop_run.py` and `loop_git.py` left the
+  tree at `b76f0e4`, not retired but replaced by `foundation/devkit/python/process.py` and `git.py`: the
+  command brings the two back as files nothing reads until the cut code they served is back. Last commit
+  `d2dd025`:
   `git restore --source=d2dd025 -- tools/loop_run.py tests/drive/own_git.py tools/loop_git.py foundation/devkit/structure/layers.py`
 - **The nav tools:** `nav.py`, `nav_lsp.py` and `nav_query.py`, the C++ navigation aid over clangd, run by
   hand. Last commit `597b22f`:
@@ -76,5 +79,7 @@ later changes to be made again; the commit after it shows every line cut with th
   gdb, `debug.py`'s gdb path, `watch.py`'s symbolizing and Linux loader path with `QIVEN_ADDR2LINE`,
   `dumps.py`'s core files, the build's `QIVEN_CXX_COMPILER_ID`, and the Linux arms and cases of the tests that
   read them. The workflows and all C++ Linux code stay. Its Linux jobs were last green in CI at `fa3852f`,
-  2026-10-30. Last commit `e0cb5c4`:
+  2026-10-30. A restore needs `status`'s, `system`'s, `process`'s and `git`'s moves made again in the files
+  it brings back, and Linux returns through `system`'s POSIX back end, not by this command alone. Last commit
+  `e0cb5c4`:
   `git restore --source=e0cb5c4 -- tools/debug_gdb.py tools/linux-pins.txt tools/debug.py tools/debuggers.py tools/dumps.py tools/watch.py tools/module.json tools/tests/test_debug.py tools/tests/test_hang.py foundation/devkit/structure/hardening.py foundation/devkit/structure/imports.py foundation/devkit/structure/README.md foundation/devkit/structure/tests/test_hardening.py foundation/devkit/structure/tests/test_binaries.py foundation/devkit/build/build.cmake foundation/devkit/test/runner/cases.cmake foundation/devkit/test/runner/ctest_tests.cmake foundation/system/diag/tests/test_faults.py`
