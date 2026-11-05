@@ -17,11 +17,11 @@ command.
 """
 
 import os
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import has_faults
@@ -158,16 +158,14 @@ class Binary(WindowsOnly):
         self.root = scratch(self)
 
     def run_binary(self, *args):
-        return subprocess.run([str(binaries.path("qiven3")), *args], capture_output=True,
-                              timeout=binaries.TIMEOUT, check=False)
+        return process.run([binaries.path("qiven3"), *args])
 
     def test_name(self):
         """The name is not read: one not valid UTF-16 reaches location,
         whose usage error answers."""
-        done = subprocess.run(["qiven3" + chr(0xD800), "location"], executable=str(binaries.path("qiven3")),
-                              capture_output=True, timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual((done.returncode, done.stderr), (2, b""))
-        self.assertTrue(done.stdout.startswith(b"usage: qiven3 location "), done)
+        done = process.run(["qiven3" + chr(0xD800), "location"], program=binaries.path("qiven3"))
+        self.assertEqual((done.status, done.err), (2, b""))
+        self.assertTrue(done.out.startswith(b"usage: qiven3 location "), done)
 
     def test_unwritten(self):
         """show's refusal, not_chosen, answers with status 1; where its
@@ -175,14 +173,13 @@ class Binary(WindowsOnly):
         2 and nothing more."""
         args = ("location", "show", "--config", str(self.root / "config"))
         done = self.run_binary(*args)
-        self.assertEqual((done.returncode, done.stderr), (1, b""))
-        self.assertEqual(done.stdout.count(b"\n"), 1, done)
+        self.assertEqual((done.status, done.err), (1, b""))
+        self.assertEqual(done.out.count(b"\n"), 1, done)
         closed = self.root / "closed"
         closed.write_bytes(b"")
         with closed.open("rb") as reading:
-            failed = subprocess.run([str(binaries.path("qiven3")), *args], stdout=reading,
-                                    stderr=subprocess.PIPE, timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual((failed.returncode, failed.stderr), (2, b""))
+            failed = process.run([binaries.path("qiven3"), *args], out=reading)
+        self.assertEqual((failed.status, failed.err), (2, b""))
         self.assertEqual(closed.read_bytes(), b"")
 
     def test_p16(self):
@@ -196,17 +193,17 @@ class Binary(WindowsOnly):
         done = self.run_binary("location", "init", str(self.root / "store"), "--config",
                                str(self.root / ("caf\ud800")))
         # A request the wire cannot read: its status, 2, and no answer.
-        self.assertEqual((done.returncode, done.stdout, done.stderr), (2, b"", b""))
+        self.assertEqual(done, (2, b"", b""))
         self.assertEqual(list(self.root.iterdir()), [])
 
     def test_bound(self):
         """16 arguments reach location, whose usage error answers; 17 are
         past the wire's bound: status 2 and no answer."""
         at = self.run_binary("location", "move", *["x"] * 14)
-        self.assertEqual(at.returncode, 2)
-        self.assertTrue(at.stdout.startswith(b"usage: "), at)
+        self.assertEqual(at.status, 2)
+        self.assertTrue(at.out.startswith(b"usage: "), at)
         past = self.run_binary("location", "move", *["x"] * 15)
-        self.assertEqual((past.returncode, past.stdout, past.stderr), (2, b"", b""))
+        self.assertEqual(past, (2, b"", b""))
         self.assertEqual(list(self.root.iterdir()), [])
 
 
@@ -226,11 +223,10 @@ class Wire(unittest.TestCase):
         self.root = scratch(self)
 
     def run_binary(self, args):
-        return subprocess.run([os.fsencode(binaries.path("qiven3")), *args], capture_output=True, cwd=self.root,
-                              timeout=binaries.TIMEOUT, check=False)
+        return process.run([os.fsencode(binaries.path("qiven3")), *args], cwd=self.root)
 
     def assert_failed(self, done):
-        self.assertEqual((done.returncode, done.stdout, done.stderr), (2, b"", b""))
+        self.assertEqual(done, (2, b"", b""))
         self.assertEqual(list(self.root.iterdir()), [])
 
     def off_windows(self, why="a Windows command line holds no request past the bytes' bounds or not UTF-16"):
@@ -245,7 +241,7 @@ class Wire(unittest.TestCase):
         fixed = [b"location", b"show", b"--config"]
         within = self.BYTES - sum(len(a) for a in fixed)
         at = self.run_binary([*fixed, b"a" * within])
-        self.assertEqual((at.returncode, at.stderr), (1, b""))
+        self.assertEqual((at.status, at.err), (1, b""))
         # The total past by one byte, each argument within.
         self.assert_failed(self.run_binary([*fixed, b"a" * (within + 1)]))
         # One argument past.
@@ -264,9 +260,8 @@ class Wire(unittest.TestCase):
         if not Path("/dev/full").exists():
             self.skipTest("not applicable: the system has no full device")
         with open("/dev/full", "wb") as full:
-            done = subprocess.run([os.fsencode(binaries.path("qiven3")), b"move"], stdout=full,
-                                  stderr=subprocess.PIPE, cwd=self.root, timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual((done.returncode, done.stderr), (2, b""))
+            done = process.run([os.fsencode(binaries.path("qiven3")), b"move"], out=full, cwd=self.root)
+        self.assertEqual((done.status, done.err), (2, b""))
 
 
 if __name__ == "__main__":

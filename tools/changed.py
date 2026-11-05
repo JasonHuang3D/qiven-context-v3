@@ -12,8 +12,6 @@ import json
 import os
 import re
 import runpy
-import shutil
-import subprocess
 import sys
 import tempfile
 import time
@@ -24,7 +22,9 @@ TREE = "build/ci-windows"
 RECORD = ROOT / TREE / "changed.json"
 LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
+STEP_SECONDS = 7200  # a step's limit, a build's or a test run's: the longest a foreground call of the runner waits
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 # Under -I this directory is off sys.path: the map and git's door by runpy.
@@ -43,10 +43,13 @@ class CannotRun(Exception):
 
 
 def capture(argv, env=None, merge=True):
-    """(status, output) of argv from the checkout's root; stderr merged unless not merge."""
-    done = subprocess.run(argv, cwd=str(ROOT), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT if merge else subprocess.DEVNULL, text=True, errors="replace")
-    return done.returncode, done.stdout
+    """(status, output) of argv from the checkout's root; stderr merged unless not merge. CannotRun past its limit."""
+    try:
+        done = process.run(argv, cwd=ROOT, env=env, limit=STEP_SECONDS, err=process.MERGE if merge else process.PIPE,
+                           text=True)
+    except process.TimedOut as e:
+        raise CannotRun(str(e)) from e
+    return done.status, done.out
 
 
 def named(env, name):
@@ -149,7 +152,7 @@ def write(record):
 def answer(lines):
     """(exit status, the answer's lines but the last), filled into lines."""
     env = vcvars_env()
-    cmake, ctest = (shutil.which(tool, path=named(env, "PATH")) for tool in ("cmake", "ctest"))
+    cmake, ctest = (process.find(tool, path=named(env, "PATH")) for tool in ("cmake", "ctest"))
     if not cmake or not ctest:
         raise CannotRun("cmake or ctest is not on vcvars' PATH")
     table = MODULES["load"](ROOT)

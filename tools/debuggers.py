@@ -25,13 +25,12 @@ has already appended.
 import hashlib
 import os
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 
-ROOT =Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 WINDOWS_PINS = ROOT / "tools" / "windows-pins.txt"
 LINE_POINTS = 300  # a line's code points at most, the cut's marker within them
 CUT = "[cut]"
@@ -39,6 +38,7 @@ FRAMES = 32
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
 HANG_SECONDS = 25.0  # the debugger's time, within the 30 s after the limit
+VERSION_SECONDS = 30  # the debugger's -version
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
 # workflows set no variable of their own that names CI.
 CI_VARIABLE = "GITHUB_ACTIONS"
@@ -92,11 +92,10 @@ def checked(path, version, digest, ask):
     if got != digest:
         raise NotFound(f"{path.name}'s SHA-256 is {got}; the pin {digest}")
     try:
-        done = subprocess.run([str(path), *ask], capture_output=True, stdin=subprocess.DEVNULL, timeout=30,
-                              check=False)
-    except (OSError, subprocess.TimeoutExpired) as e:
+        done = process.run([path, *ask], limit=VERSION_SECONDS)
+    except (OSError, process.TimedOut) as e:
         raise NotFound(f"{path.name} {' '.join(ask)}: {e}") from e
-    text = done.stdout.decode("utf-8", "replace")
+    text = done.out.decode("utf-8", "replace")
     if not re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", text):
         raise NotFound(f"{path.name} {' '.join(ask)} gives {text.strip()[:80]!r}; the pin is {version}")
     return path
@@ -128,7 +127,7 @@ def image_cdb():
     else the registry's KitsRoot10; (path, version) by its -version.
     Absent naming where it looked; NotFound when its version cannot be
     read."""
-    found = shutil.which("cdb")
+    found = process.find("cdb")
     if found is None:
         sdk = os.environ.get("WindowsSdkDir")
         root, how = (Path(sdk), "WindowsSdkDir") if sdk else (system.sdk_root(), "the registry's KitsRoot10")
@@ -140,11 +139,10 @@ def image_cdb():
             raise Absent(f"no cdb: none on PATH, none at {found.as_posix()}, the SDK's root by {how}")
     path = Path(found)
     try:
-        done = subprocess.run([str(path), "-version"], capture_output=True, stdin=subprocess.DEVNULL, timeout=30,
-                              check=False)
-    except (OSError, subprocess.TimeoutExpired) as e:
+        done = process.run([path, "-version"], limit=VERSION_SECONDS)
+    except (OSError, process.TimedOut) as e:
         raise NotFound(f"{path.as_posix()} -version: {e}") from e
-    text = done.stdout.decode("utf-8", "replace")
+    text = done.out.decode("utf-8", "replace")
     version = CDB_VERSION.search(text)
     if version is None:
         raise NotFound(f"{path.as_posix()} -version gives no version: {text.strip()[:80]!r}")
@@ -217,10 +215,9 @@ def hang_stacks(pid, binary, dumps):
     debugger, how = hang_debugger()
     dump = hang_dump(pid, binary, dumps)
     try:
-        done = subprocess.run(hang_command(debugger, pid, binary, dump), capture_output=True,
-                              stdin=subprocess.DEVNULL, timeout=HANG_SECONDS, check=False)
-    except subprocess.TimeoutExpired as e:
-        return (*hang_lines((e.stdout or b"").decode("utf-8", "replace")), how)
+        done = process.run(hang_command(debugger, pid, binary, dump), limit=HANG_SECONDS)
+    except process.TimedOut as e:
+        return (*hang_lines(e.out.decode("utf-8", "replace") + e.err.decode("utf-8", "replace")), how)
     except OSError as e:
         raise NotFound(f"{Path(debugger).name}: {e}") from e
-    return (*hang_lines(done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")), how)
+    return (*hang_lines(done.out.decode("utf-8", "replace") + done.err.decode("utf-8", "replace")), how)

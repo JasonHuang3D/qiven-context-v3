@@ -6,11 +6,11 @@ caught.
 """
 
 import os
-import subprocess
 import sys
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 
 PROBE = b"diag: entry\n"
@@ -22,10 +22,9 @@ def probe_problem(command):
     # The test tree's library, which qiven_diag_fault_import imports, by
     # the loader's path on Linux: the binary holds no run path (K11).
     env["LD_LIBRARY_PATH"] = str(Path(command[0]).parent)
-    done = subprocess.run(command, capture_output=True, env=env, stdin=subprocess.DEVNULL,
-                          timeout=binaries.TIMEOUT, check=False)
-    if done.returncode != 0 or done.stdout != PROBE:
-        return f"{command[0]}: {binaries.Ran(done.returncode, b'', b'').named}, out {done.stdout[:80]!r}"
+    done = process.run(command, env=env)
+    if done.status != 0 or done.out != PROBE:
+        return f"{command[0]}: {done.named}, out {done.out[:80]!r}"
     return None
 
 

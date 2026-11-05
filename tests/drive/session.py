@@ -15,11 +15,11 @@ holds as many after the test as before it. A fault is the reply's own
 import json
 import os
 import re
-import subprocess
 import tempfile
 import threading
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 
@@ -105,12 +105,9 @@ class Drive:
         self.held = None  # the last reply's bytes held
         self.handles = None  # the handle count after warm_requests()
         self.program = Path(program) if program else binaries.path(drive)
-        self.process = subprocess.Popen(
-            [str(self.program), *map(str, args)],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            env=env, cwd=cwd)
-        # A drive that hangs is killed, so the read below ends.
-        self.watchdog = threading.Timer(timeout, self.process.kill)
+        self.process = process.start([self.program, *args], feed=True, env=env, cwd=cwd)
+        # A drive that hangs is ended with its children, so the read below ends.
+        self.watchdog = threading.Timer(timeout, self.process.end_tree)
         self.watchdog.daemon = True
         self.watchdog.start()
         if count_handles:
@@ -143,7 +140,7 @@ class Drive:
             if self.process.stdin and not self.process.stdin.closed:
                 self.process.stdin.close()
             err = self.process.stderr.read() if self.process.stderr else b""
-            status = self.process.wait(timeout=binaries.TIMEOUT)
+            status = self.process.wait(binaries.TIMEOUT)
         finally:
             self.watchdog.cancel()
             for stream in (self.process.stdout, self.process.stderr):
@@ -494,6 +491,4 @@ def environment(**changes):
 def once(args, *requests, drive=FAKE, env=None):
     """Runs the drive on these requests alone: its status and raw bytes."""
     data = b"".join(wire(r) for r in requests)
-    done = subprocess.run([str(binaries.path(drive)), *map(str, args)], input=data,
-                          capture_output=True, env=env, timeout=binaries.TIMEOUT, check=False)
-    return binaries.Ran(done.returncode, done.stdout, done.stderr)
+    return process.run([binaries.path(drive), *args], data=data, env=env)

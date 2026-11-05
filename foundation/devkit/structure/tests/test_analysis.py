@@ -20,15 +20,16 @@ B28's plant as bugprone-dangling-handle, as this build's tools ran them.
 import json
 import os
 import shlex
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.structure import exemptions
 
 ROOT = Path(__file__).resolve().parents[4]
 TEMPLATE = "foundation/core/memory/src/arena.cpp"
+TOOL_SECONDS = 600  # one tool over one planted file, on a loaded machine
 
 # Each rule's plants, each a file, and the names each tool must report:
 # clang-tidy's checks, MSVC's warnings. Under /WX, /analyze stops at a
@@ -118,8 +119,8 @@ def command(args, source, directory):
 
 
 def run(args, cwd):
-    ran = subprocess.run(args, cwd=cwd, capture_output=True, check=False)
-    return ran.returncode, (ran.stdout + ran.stderr).decode("utf-8", "replace")
+    ran = process.run(args, cwd=cwd, limit=TOOL_SECONDS)
+    return ran.status, (ran.out + ran.err).decode("utf-8", "replace")
 
 
 class Tools:
@@ -135,8 +136,7 @@ class Tools:
 
     def tidy(self):
         args = command(template(self.build / "tidy" / "compile_commands.json"), self.source, self.directory)
-        entry = {"directory": str(self.directory), "file": str(self.source), "command": subprocess.list2cmdline(
-            [a.strip('"') for a in args])}
+        entry = {"directory": str(self.directory), "file": str(self.source), "arguments": [a.strip('"') for a in args]}
         (self.directory / "compile_commands.json").write_text(json.dumps([entry]), encoding="utf-8")
         tidy = cache(self.build).get("QIVEN_CLANG_TIDY")
         if not tidy:

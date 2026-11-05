@@ -25,10 +25,10 @@ calls, the arena's peak) are not applicable there, each by its reason.
 import json
 import os
 import shutil
-import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 
@@ -151,10 +151,9 @@ class PlatformLocation:
         argv = [str(a) for a in argv]
         if self.SYSTEM_LOCATION:
             config = [] if "--config" in argv else ["--config", d.location_config]
-            ran = subprocess.run([str(binaries.path("qiven3")), "location", *argv, *config], capture_output=True,
-                                 env=env, timeout=binaries.TIMEOUT, check=False)
-            self.assertEqual(ran.stderr, b"", ran)
-            return ran.returncode, self.stream_text(ran.stdout), None
+            ran = process.run([binaries.path("qiven3"), "location", *argv, *config], env=env)
+            self.assertEqual(ran.err, b"", ran)
+            return ran.status, self.stream_text(ran.out), None
         result = d.call("location", argv=argv)
         self.assertLessEqual(result["peak"], BUDGET, result)
         return result["code"], self.stream_text(bytes.fromhex(result["out"])), result["calls"]

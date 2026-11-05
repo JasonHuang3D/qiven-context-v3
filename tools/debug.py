@@ -47,8 +47,6 @@ import os
 import queue
 import re
 import runpy
-import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -56,9 +54,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
-from foundation.devkit.python import system
-DEBUGGERS =runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
+DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]
 PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
@@ -103,10 +101,9 @@ class Cdb:
 
     def __init__(self, exe, args, symbols, deadline, env=None, cwd=None):
         self.deadline = deadline
-        argv = [str(exe), "-sins", "-lines", "-y", str(symbols), *args]
+        argv = [exe, "-sins", "-lines", "-y", symbols, *args]
         try:
-            self.process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                            stderr=subprocess.STDOUT, env=env, cwd=cwd)
+            self.process = process.start(argv, feed=True, env=env, cwd=cwd, err=process.MERGE)
         except OSError as e:
             raise CannotRun(f"{Path(exe).name}: {e}") from e
         self.chunks = queue.Queue()
@@ -162,16 +159,11 @@ class Cdb:
             try:
                 self.process.stdin.write(b"q\n")
                 self.process.stdin.flush()
-                self.process.wait(timeout=10)
-            except (OSError, subprocess.TimeoutExpired):
+                self.process.wait(10)
+            except (OSError, process.TimedOut):
                 pass
         if self.process.poll() is None:
-            try:
-                system.end_tree(self.process.pid)
-            except system.Failed:
-                pass  # the debugger itself is killed next, which needs no tree
-            self.process.kill()
-        self.process.wait()
+            self.process.end_tree()
 
 
 def break_spec(spec, binary):
@@ -280,14 +272,13 @@ def is_dump(path):
 def ctest_command(test, build):
     """The test's (command, environment, working directory), the watcher
     in front of it dropped, from the build's test list."""
-    ctest = os.environ.get("QIVEN_CTEST") or shutil.which("ctest")
+    ctest = os.environ.get("QIVEN_CTEST") or process.find("ctest")
     if not ctest:
         raise CannotRun("no ctest: set QIVEN_CTEST or put it on PATH")
     try:
-        done = subprocess.run([ctest, "--show-only=json-v1", "--test-dir", str(build)], capture_output=True,
-                              stdin=subprocess.DEVNULL, timeout=120, check=False)
-        tests = json.loads(done.stdout.decode("utf-8", "replace"))["tests"]
-    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError) as e:
+        done = process.run([ctest, "--show-only=json-v1", "--test-dir", build])
+        tests = json.loads(done.out.decode("utf-8", "replace"))["tests"]
+    except (OSError, process.TimedOut, ValueError, KeyError) as e:
         raise CannotRun(f"ctest's test list: {e}") from e
     found = [t for t in tests if t.get("name") == test]
     if not found or not found[0].get("command"):
@@ -370,7 +361,7 @@ def target(args):
         command, env, cwd = ctest_command(args.test, build)
     else:
         command = args.command
-    binary = shutil.which(command[0], path=os.environ.get("PATH")) or command[0]
+    binary = process.find(command[0]) or command[0]
     if not Path(binary).is_file():
         raise CannotRun(f"no binary {command[0]}")
     return [str(Path(binary).resolve()), *command[1:]], Path(binary).resolve().parent, Path(binary), env, cwd

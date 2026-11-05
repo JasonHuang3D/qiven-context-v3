@@ -18,6 +18,7 @@ import re
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import has_hal
 from tests.drive.session import FAKE
@@ -76,7 +77,7 @@ class NoHal(unittest.TestCase):
         self.assertTrue(drive.is_file(), drive)
         self.assertFalse(list((build / "bin").glob("*hal*")) + list((build / "bin").glob("*compute*")))
 
-        ran = binaries.run_file(drive, ["--root", build, "--hal", "fake"])
+        ran = process.run([drive, "--root", build, "--hal", "fake"])
         self.assertEqual(ran.status, 2)
         self.assertIn(b"no HAL in this build", ran.err)
 

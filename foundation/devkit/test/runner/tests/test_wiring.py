@@ -9,6 +9,7 @@ import re
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.skip import SKIP_CODE
@@ -135,10 +136,8 @@ class PythonSide(unittest.TestCase):
 
 def ctest_tests(*args):
     """This build's tests, by ctest -N: each name to its command and properties."""
-    ran = binaries.run_file(
-        binaries.tool("QIVEN_CTEST"),
-        ["--test-dir", binaries.directory("QIVEN_BUILD"), "-N", "--show-only=json-v1", *args],
-    )
+    ran = process.run([binaries.tool("QIVEN_CTEST"), "--test-dir", binaries.directory("QIVEN_BUILD"), "-N",
+                       "--show-only=json-v1", *args])
     if ran.status != 0:
         raise AssertionError(ran.err.decode("utf-8", "replace"))
     found = {}

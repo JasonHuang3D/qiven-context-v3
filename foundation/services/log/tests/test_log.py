@@ -12,10 +12,9 @@ fields hold no run-time text.
 """
 
 import re
-import subprocess
 import unittest
 
-from foundation.devkit.python import system
+from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 
 TRACE = b"k13.trace-marker"
@@ -37,10 +36,11 @@ def level():
 def build(target):
     """cmake --build of the build's directory for one target: its status and
     its output."""
-    cmake = binaries.tool("QIVEN_CTEST").with_name(system.program_file("cmake"))
-    done = subprocess.run([str(cmake), "--build", str(binaries.directory("QIVEN_BUILD")), "--target", target],
-                          capture_output=True, timeout=BUILD_TIMEOUT, check=False)
-    return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")
+    cmake = binaries.cmake()
+    if cmake is None:
+        raise RuntimeError("no cmake beside QIVEN_CTEST or on PATH")
+    done = process.run([cmake, "--build", binaries.directory("QIVEN_BUILD"), "--target", target], limit=BUILD_TIMEOUT)
+    return done.status, (done.out + done.err).decode("utf-8", "replace")
 
 
 def marked(text, mark):

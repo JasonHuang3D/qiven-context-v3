@@ -23,12 +23,12 @@ them.
 """
 
 import re
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
 from tools import debuggers
@@ -47,9 +47,8 @@ DEFAULT_LINES = 200
 
 def debug(*args, timeout=120):
     """Runs debug.py: its exit code and its lines."""
-    done = subprocess.run([sys.executable, "-I", str(DEBUG), *map(str, args)], capture_output=True,
-                          stdin=subprocess.DEVNULL, timeout=timeout, check=False)
-    return done.returncode, done.stdout.decode("utf-8", "replace").splitlines()
+    done = process.run([sys.executable, "-I", DEBUG, *args], limit=timeout)
+    return done.status, done.out.decode("utf-8", "replace").splitlines()
 
 
 def break_line():

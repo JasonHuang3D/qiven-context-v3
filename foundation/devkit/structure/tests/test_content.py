@@ -28,10 +28,10 @@ import getpass
 import os
 import platform
 import re
-import shutil
 import sys
 import unittest
 
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.structure import lists, rules
 
@@ -139,8 +139,9 @@ def machine_paths():
         if os.environ.get(name):
             found.add(os.environ[name] if name != "QIVEN_CTEST" else os.path.dirname(os.environ[name]))
     for tool in ("cmake", "ninja", "cl"):
-        if shutil.which(tool):
-            found.add(os.path.dirname(shutil.which(tool)))
+        file = process.find(tool)
+        if file:
+            found.add(os.path.dirname(file))
     forms = set()
     for path in found:
         path = os.path.normpath(path).rstrip("\\/")
@@ -222,7 +223,7 @@ def content_findings(root, files, paths, names=()):
     return sorted(set(found))
 
 
-@unittest.skipUnless(system.WINDOWS,"the content rule reads this machine's paths, on Windows")
+@unittest.skipUnless(system.WINDOWS, "the content rule reads this machine's paths, on Windows")
 class Content(unittest.TestCase):
 
     def test_tree(self):

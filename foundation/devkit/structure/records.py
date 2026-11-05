@@ -25,13 +25,13 @@ import json
 import os
 import runpy
 import shutil
-import subprocess
 import sys
 from collections import namedtuple
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 # The trees every check walks, by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
@@ -42,14 +42,21 @@ VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")
 # The network's import libraries, so that an import from one is named.
 NETWORK_LIBS = ("ws2_32.lib", "winhttp.lib", "wininet.lib")
+TOOL_SECONDS = 900  # one tool's run: a preprocessing compile, dumpbin, or CMake's configure
 
 
 def run(command, cwd=None, shell_text=False):
-    done = subprocess.run(command, cwd=cwd, capture_output=True, shell=False)
-    if done.returncode != 0:
-        text = system.output_text(done.stdout + done.stderr, "replace")
-        raise SystemExit(f"records: {command if shell_text else command[:3]} gave {done.returncode}:\n{text}")
-    return system.output_text(done.stdout, "replace")
+    """A tool's standard output, as text. `command` a list, or a compile
+    database's whole line (shell_text); SystemExit where it fails or passes
+    its limit."""
+    try:
+        done = process.run(command, cwd=cwd, limit=TOOL_SECONDS)
+    except process.TimedOut as e:
+        raise SystemExit(f"records: {e}") from e
+    if done.status != 0:
+        text = system.output_text(done.out + done.err, "replace")
+        raise SystemExit(f"records: {command if shell_text else command[:3]} gave {done.status}:\n{text}")
+    return system.output_text(done.out, "replace")
 
 
 def rel_posix(path, root):

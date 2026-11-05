@@ -41,12 +41,12 @@ import re
 import shlex
 import shutil
 import signal
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
@@ -63,16 +63,17 @@ OPERATIONS = 20
 DUMP_MAX = 64 * 1024 * 1024
 WINDOWS = system.WINDOWS
 
-# plant: (case, binary, Windows cause pattern, Windows status).
+# plant: (case, binary, Windows cause pattern).
 PLANTS = {
-    "null": ("K1", FAULT, r"access violation reading 0x0000000000000000", 0xC0000005),
-    "abort": ("K2", FAULT, r"abort", 3),
-    "assert": ("K3", CRTDBG if WINDOWS else FAULT, r"assertion failed: false, \S*fault_assert\.cpp:\d+", 3),
-    "parameter": ("K4", FAULT, r"invalid parameter(: .*)?", 0xC0000417),
-    "overflow": ("K5", FAULT, r"stack overflow", 0xC00000FD),
-    "exception": ("K7", FAULT, r"unhandled exception: plant", 3),
-    "failfast": ("K9", FAULT, r"fail-fast: plant", 0xC0000409),
+    "null": ("K1", FAULT, r"access violation reading 0x0000000000000000"),
+    "abort": ("K2", FAULT, r"abort"),
+    "assert": ("K3", CRTDBG if WINDOWS else FAULT, r"assertion failed: false, \S*fault_assert\.cpp:\d+"),
+    "parameter": ("K4", FAULT, r"invalid parameter(: .*)?"),
+    "overflow": ("K5", FAULT, r"stack overflow"),
+    "exception": ("K7", FAULT, r"unhandled exception: plant"),
+    "failfast": ("K9", FAULT, r"fail-fast: plant"),
 }
+ABORT_STATUS = 3  # the status the C runtime's abort ends with on Windows
 # plant: (Linux signal, cause pattern, the library's line before the report or None).
 LINUX = {
     "null": (signal.SIGSEGV, r"SIGSEGV at 0x0000000000000000", None),
@@ -88,6 +89,16 @@ LINUX = {
 def debug_runtime():
     """Whether the build's binaries are on the debug runtime: a Debug build."""
     return WINDOWS and build_option("CMAKE_BUILD_TYPE") == "Debug"
+
+
+def windows_status(plant):
+    """The plant's status on Windows, asked only there: system's where it
+    names one, else the status the runtime's own ending gives."""
+    if plant == "null":
+        return system.invalid_access_status()
+    if plant == "failfast":
+        return system.fail_fast_status()
+    return {"parameter": 0xC0000417, "overflow": 0xC00000FD}.get(plant, ABORT_STATUS)
 
 
 def run_plant(binary, plant, env=None):
@@ -141,9 +152,10 @@ SAFE = frozenset(("write", "_exit", "raise", "sigaction", "getpid", "backtrace",
 
 def nm(*args):
     """The build's nm, on args: its lines."""
-    done = subprocess.run([build_option("CMAKE_NM") or "nm", *args], capture_output=True, check=True,
-                          timeout=binaries.TIMEOUT)
-    return done.stdout.decode("utf-8", "replace").splitlines()
+    done = process.run([build_option("CMAKE_NM") or "nm", *args])
+    if done.status != 0:
+        raise AssertionError(f"nm {args}: {done}")
+    return done.out.decode("utf-8", "replace").splitlines()
 
 
 def undefined(obj):
@@ -159,10 +171,11 @@ class Faults(unittest.TestCase):
             self.skipTest("under a sanitizer its report stands for the entry's")
 
     def plant(self, plant):
-        case, binary, cause, status = PLANTS[plant]
+        case, binary, cause = PLANTS[plant]
+        status = windows_status(plant) if WINDOWS else None
         if plant == "parameter" and debug_runtime():
             # The debug runtime's own assertion in fclose reaches its hook first.
-            cause, status = r"assertion failed: stream\.valid\(\), \S*fclose\.cpp:\d+", 3
+            cause, status = r"assertion failed: stream\.valid\(\), \S*fclose\.cpp:\d+", ABORT_STATUS
         number, linux_cause, preface = LINUX[plant]
         dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         ran, out, err, seconds, seen = run_plant(binary, plant)
@@ -194,7 +207,7 @@ class Faults(unittest.TestCase):
         frames = lines[2:2 + n]
         dump = lines[-2].removeprefix("fatal: dump ")
         if WINDOWS:
-            self.assertEqual(lines[-1], f"fatal: end {status}" if status == 3 else f"fatal: end 0x{status:08X}")
+            self.assertEqual(lines[-1], f"fatal: end {status}" if status == ABORT_STATUS else f"fatal: end 0x{status:08X}")
             if (binaries.path(binary).with_suffix(".pdb")).is_file():
                 self.assertTrue(any(f"!plant_{plant}+" in f for f in frames), f"{case}: {frames}")
             else:
@@ -267,10 +280,9 @@ class Faults(unittest.TestCase):
         if not WINDOWS:
             self.skipTest("Linux writes no minidump")
         env = {k: v for k, v in os.environ.items() if k != "QIVEN_DUMP_DIR"}
-        ran = subprocess.run([str(binaries.path(FAULT)), "failfast"], capture_output=True, env=env,
-                             timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual(ran.returncode, system.fail_fast_status())
-        self.assertIn("fatal: dump none", ran.stderr.decode("utf-8", "replace").splitlines())
+        ran = process.run([binaries.path(FAULT), "failfast"], env=env)
+        self.assertEqual(ran.status, system.fail_fast_status())
+        self.assertIn("fatal: dump none", ran.err.decode("utf-8", "replace").splitlines())
 
     def test_report_problems_control(self):
         """The shape check's control: a report cut after its stack is caught."""
@@ -316,8 +328,8 @@ class Signal(unittest.TestCase):
                              b"void* qiven_planted() { return std::malloc(1); }\n")
             obj = Path(top) / "signal.o"
             argv, directory = control_command(source, copy, obj)
-            done = subprocess.run(argv, cwd=directory, capture_output=True, timeout=binaries.TIMEOUT, check=False)
-            self.assertEqual(done.returncode, 0, done.stderr.decode("utf-8", "replace")[-2000:])
+            done = process.run(argv, cwd=directory)
+            self.assertEqual(done.status, 0, done)
             self.assertIn("malloc", undefined(obj) - SAFE)
 
 
@@ -350,11 +362,10 @@ class Out(unittest.TestCase):
         env = {k: v for k, v in os.environ.items() if k != "QIVEN_LOG"}
         if value is not None:
             env["QIVEN_LOG"] = value
-        done = subprocess.run([str(binaries.path(FAULT)), "out"], capture_output=True, env=env,
-                              timeout=binaries.TIMEOUT, check=False)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(done.stdout, b"")
-        return done.stderr
+        done = process.run([binaries.path(FAULT), "out"], env=env)
+        self.assertEqual(done.status, 0, done)
+        self.assertEqual(done.out, b"")
+        return done.err
 
     def test_out(self):
         two = b"out: plant\n" * 2

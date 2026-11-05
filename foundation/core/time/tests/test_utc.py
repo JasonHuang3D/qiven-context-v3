@@ -6,9 +6,9 @@ may skip, as it does in a build without fault injection.
 """
 
 import os
-import subprocess
 import unittest
 
+from foundation.devkit.python import process
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.skip import SKIP_CODE
 
@@ -21,9 +21,7 @@ def run(args, zone):
     """The case binary with `args`, under TZ `zone`."""
     env = dict(os.environ)
     env["TZ"] = zone
-    done = subprocess.run([str(binaries.path(CASES)), *args], capture_output=True, env=env,
-                          timeout=binaries.TIMEOUT, check=False)
-    return binaries.Ran(done.returncode, done.stdout, done.stderr)
+    return process.run([binaries.path(CASES), *args], env=env)
 
 
 class UtcZones(unittest.TestCase):

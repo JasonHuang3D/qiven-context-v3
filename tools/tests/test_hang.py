@@ -28,7 +28,6 @@ PDB beside the binaries. The watcher's other ends here are fake's.
 
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import time
@@ -36,6 +35,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
@@ -67,16 +67,15 @@ def run_watched(command, name, limit, env=None):
     seconds and the windows seen."""
     start = time.monotonic()
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        process = subprocess.Popen(binaries.watched(command, name, limit), stdin=subprocess.DEVNULL, stdout=out,
-                                   stderr=err, env=env)
+        watcher = process.start(binaries.watched(command, name, limit), out=out, err=err, env=env)
         seen = []
-        while process.poll() is None:
-            seen += windows_of(process.pid)
+        while watcher.poll() is None:
+            seen += windows_of(watcher.pid)
             if time.monotonic() - start > limit + AFTER + 30:
-                process.kill()
+                watcher.end_tree()
                 break
             time.sleep(POLL)
-        status = process.wait()
+        status = watcher.poll()
         out.seek(0)
         err.seek(0)
         return (status, out.read().decode("utf-8", "replace").splitlines(),
@@ -186,8 +185,10 @@ class Hang(unittest.TestCase):
 
     def test_tree_killed(self):
         """A case past its limit is killed with the process it started."""
-        code = ("import subprocess, sys, time; "
-                "child = subprocess.Popen([sys.executable, '-I', '-c', 'import time; time.sleep(120)']); "
+        code = (f"import sys, time; sys.path.append({str(binaries.ROOT)!r}); "
+                "from foundation.devkit.python import process; "
+                "child = process.start([sys.executable, '-I', '-c', 'import time; time.sleep(120)'], "
+                "out=process.INHERIT, err=process.INHERIT); "
                 "print(child.pid, flush=True); time.sleep(120)")
         status, out, err, seconds, _ = run_watched([sys.executable, "-I", "-c", code], "hang.tree", 2)
         self.assertEqual(status, 124, err)

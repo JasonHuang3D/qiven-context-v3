@@ -1,15 +1,15 @@
 """The runner's Python half beside skip.py, the harness the Python tests
-run the build by: a binary of the build run, its arguments, its bytes in
-and out, its exit status; a build directory's options read; and a command
-run behind the watcher, the windows it shows watched.
+run the build by: a binary of the build found and run; a build directory's
+options read; and a command run behind the watcher, the windows it shows
+watched. A program starts through foundation/devkit/python/process.py.
 
 CTest gives each Python test the build's directories by the environment:
 QIVEN_BIN, where every binary of the build is written; QIVEN_BUILD, the
 build directory; QIVEN_CTEST, the ctest of the build. A test run outside
-CTest names them itself. A status is named by foundation/devkit/python/status.py's table, and
-watched() runs a command behind the watcher, tools/watch.py, and
-unbounded() drops the lines of its dumps' bound (tools/dumps.py), which
-another case's dump, written beside, may give any run.
+CTest names them itself. watched() runs a command behind the watcher,
+tools/watch.py, and unbounded() drops the lines of its dumps' bound
+(tools/dumps.py), which another case's dump, written beside, may give any
+run.
 
 listed() gives the files of the build's binaries.txt. build_option() reads
 a cache variable of a build directory, and
@@ -20,41 +20,24 @@ report's line holds at most LINE_POINTS code points.
 """
 
 import os
-import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
-from foundation.devkit.python import status as status_table
+from foundation.devkit.python import process
 from foundation.devkit.python import system
 
 ROOT = Path(__file__).resolve().parents[4]
 
 # A process the tests start ends within this many seconds, or fails.
-TIMEOUT = 120
+TIMEOUT = process.LIMIT
 
 # A watched run's bound in seconds, its poll's period, and a report's line's
 # bound in code points.
 TIME_BOUND = 10.0
 POLL = 0.1
 LINE_POINTS = 300
-
-
-@dataclass(frozen=True)
-class Ran:
-    status: int
-    out: bytes
-    err: bytes
-
-    @property
-    def named(self):
-        """The status's line by the table."""
-        return status_table.line(self.status)
-
-    def __str__(self):
-        return f"{self.named}; stderr: {self.err[-2000:].decode('utf-8', 'replace')}"
 
 
 def directory(name):
@@ -90,27 +73,21 @@ def listed():
     return [Path(line).resolve() for line in text.splitlines() if line]
 
 
-def run_file(program, args=(), data=b"", cwd=None, timeout=TIMEOUT):
-    """Runs `program` with `args`, `data` on its input; its status and bytes."""
-    done = subprocess.run(
-        [str(program), *map(str, args)],
-        input=data,
-        capture_output=True,
-        cwd=cwd,
-        timeout=timeout,
-        check=False,
-    )
-    return Ran(done.returncode, done.stdout, done.stderr)
+def cmake():
+    """The cmake beside the ctest that runs the test, else the one on PATH;
+    None where neither is."""
+    ctest = os.environ.get("QIVEN_CTEST")
+    return (process.find("cmake", path=os.path.dirname(ctest)) if ctest else None) or process.find("cmake")
 
 
-def run(name, args=(), data=b"", cwd=None, timeout=TIMEOUT):
-    """Runs the build's binary `name`."""
-    return run_file(path(name), args, data, cwd, timeout)
+def run(name, args=(), data=None, cwd=None, timeout=TIMEOUT):
+    """Runs the build's binary `name`: process.run's Ran."""
+    return process.run([path(name), *args], data=data, cwd=cwd, limit=timeout)
 
 
 def unittest_run(*args, timeout=TIMEOUT):
     """Runs this interpreter's unittest from the root, as CTest does."""
-    return run_file(sys.executable, ["-I", "-m", "unittest", *args], cwd=ROOT, timeout=timeout)
+    return process.run([sys.executable, "-I", "-m", "unittest", *args], cwd=ROOT, limit=timeout)
 
 
 def watched(command, name, limit=TIMEOUT):
@@ -174,16 +151,15 @@ def run_watched(command, name, env=None, cwd=None):
     watcher's status, out, err, seconds, and the windows seen."""
     start = time.monotonic()
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        process = subprocess.Popen(watched(command, name, TIME_BOUND), stdin=subprocess.DEVNULL,
-                                   stdout=out, stderr=err, env=env, cwd=cwd)
+        watcher = process.start(watched(command, name, TIME_BOUND), out=out, err=err, env=env, cwd=cwd)
         seen = []
-        while process.poll() is None:
-            seen += windows_of(process.pid)
+        while watcher.poll() is None:
+            seen += windows_of(watcher.pid)
             if time.monotonic() - start > TIME_BOUND + 20:
-                process.kill()
+                watcher.end_tree()
                 break
             time.sleep(POLL)
-        status = process.wait()
+        status = watcher.poll()
         seconds = time.monotonic() - start
         out.seek(0)
         err.seek(0)

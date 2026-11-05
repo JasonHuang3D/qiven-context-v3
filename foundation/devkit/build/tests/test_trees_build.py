@@ -9,14 +9,14 @@ import os
 import re
 import runpy
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from foundation.devkit.python import system
+from foundation.devkit.python import process
 from foundation.devkit.structure import layers
+from foundation.devkit.test.runner.binaries import cmake
 
 ROOT = Path(__file__).resolve().parents[4]
 TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
@@ -28,18 +28,22 @@ LOOP = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 HOMES = {home.rpartition("/")[0] for home in LOOP["tree"](ROOT)[0]["homes"].values()}
 
 
-def cmake():
-    """The cmake beside the ctest that runs the test, else the one on PATH."""
-    ctest = os.environ.get("QIVEN_CTEST")
-    if ctest and Path(ctest).is_file():
-        return str(Path(ctest).with_name(system.program_file("cmake")))
-    return shutil.which("cmake")
+class Stopped(Exception):
+    """A tool that had to succeed failed: its Ran, the one argument."""
+
+
+def succeeded(argv, limit=process.LIMIT):
+    """Runs a tool that must succeed: Ran, its output as text; else Stopped."""
+    ran = process.run(argv, limit=limit, text=True)
+    if ran.status != 0:
+        raise Stopped(ran)
+    return ran
 
 
 def clang_tidy():
     """The clang-tidy on PATH, else LLVM's in Program Files; None where neither is."""
     llvm = Path(os.environ.get("ProgramFiles", ""), "LLVM", "bin")
-    return shutil.which("clang-tidy") or shutil.which("clang-tidy", path=str(llvm))
+    return process.find("clang-tidy") or process.find("clang-tidy", path=str(llvm))
 
 
 def shown(show, root=ROOT, paths=(), defines=(), script=SCRIPT):
@@ -52,8 +56,8 @@ def shown(show, root=ROOT, paths=(), defines=(), script=SCRIPT):
         listing.write_text("\n".join(paths) + "\n", encoding="utf-8")
         args = [tool, f"-DROOT={root.as_posix()}", f"-DSHOW={show}", f"-DPATHFILE={listing.as_posix()}",
                 *(f"-D{define}" for define in defines)]
-        done = subprocess.run([*args, "-P", str(script)], capture_output=True, text=True, timeout=120, check=True)
-    return dict(line.split("=", 1) for line in done.stderr.splitlines() if "=" in line)
+        done = succeeded([*args, "-P", script])
+    return dict(line.split("=", 1) for line in done.err.splitlines() if "=" in line)
 
 
 def compose(scratch, files, tidy, sources):
@@ -160,11 +164,10 @@ class TreesBuild(unittest.TestCase):
             for name, text in files.items():
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_text(text, encoding="utf-8")
-            done = subprocess.run([tool, f"-DROOT={root.as_posix()}", "-DSHOW=units",
-                                   f"-DPython3_EXECUTABLE={sys.executable}", "-P", str(SCRIPT)],
-                                  capture_output=True, text=True, timeout=120)
-        shown_units = [line.split("=", 1)[1] for line in done.stderr.splitlines() if line.startswith("units=")]
-        return done.returncode, sorted(filter(None, "".join(shown_units).split(";"))), " ".join(done.stderr.split())
+            done = process.run([tool, f"-DROOT={root.as_posix()}", "-DSHOW=units",
+                                f"-DPython3_EXECUTABLE={sys.executable}", "-P", SCRIPT], text=True)
+        shown_units = [line.split("=", 1)[1] for line in done.err.splitlines() if line.startswith("units=")]
+        return done.status, sorted(filter(None, "".join(shown_units).split(";"))), " ".join(done.err.split())
 
     def test_header_units(self):
         """Each header the analysis reads with no source of its own has a unit
@@ -338,7 +341,7 @@ class TreesBuild(unittest.TestCase):
             args = [tool, f"-DINPUTS={root / 'inputs.txt'}", f"-DOUT={out}", f"-DSOURCE={root.as_posix()}", "-DBIN=b",
                     "-DBUILD=b", "-DCTEST=c", "-DSKIP=77", f"-DPYTHON={sys.executable}",
                     "-P", str(ROOT / "foundation" / "devkit" / "test" / "runner" / "ctest_tests.cmake")]
-            subprocess.run(args, capture_output=True, text=True, timeout=120, check=True)
+            succeeded(args)
             added = re.findall(r"(?m)^add_test\((.*)\)$", out.read_text(encoding="utf-8"))
             self.assertEqual(len(added), len(starts))
             for line in added:
@@ -346,10 +349,9 @@ class TreesBuild(unittest.TestCase):
                 command = words[words.index("--") + 1:]
                 self.assertEqual(command[1:], ["-I", "-m", "unittest", "discover", "-s", starts[name], "-t", ".",
                                                "-k", f"*{name}"])
-                done = subprocess.run([sys.executable, *command[1:]], cwd=root, capture_output=True, text=True,
-                                      timeout=120)
-                self.assertEqual(done.returncode, 0, done.stderr)
-                self.assertIn("Ran 1 test", done.stderr)
+                done = process.run([sys.executable, *command[1:]], cwd=root, text=True)
+                self.assertEqual(done.status, 0, done.err)
+                self.assertIn("Ran 1 test", done.err)
 
     def test_analysis_choice(self):
         """The analysis chooses a source by its path, by the trees' rule, not
@@ -413,8 +415,7 @@ class TreesBuild(unittest.TestCase):
         def dumped(source, *config, flag="--list-checks"):
             """The checks clang-tidy enables for source, and its WarningsAsErrors line; or the line alone."""
             def run(option):
-                return subprocess.run([tidy, *config, option, str(source), "--"], capture_output=True, text=True,
-                                      timeout=120, check=True).stdout
+                return succeeded([tidy, *config, option, source, "--"]).out
             warnings = [line for line in run("--dump-config").splitlines() if line.startswith("WarningsAsErrors:")]
             return (sorted(run(flag).split()[2:]), warnings) if flag else warnings
 
@@ -460,8 +461,7 @@ class TreesBuild(unittest.TestCase):
             self.assertNotIn(pedantic, config.with_name(config.name + ".dump").read_text(encoding="utf-8"))
 
             def found(name):
-                return subprocess.run([tidy, f"--config-file={name}", source, "--"], capture_output=True,
-                                      text=True, timeout=120, check=False).stdout
+                return process.run([tidy, f"--config-file={name}", source, "--"], text=True).out
             self.assertIn("[clang-analyzer-optin.cplusplus.UninitializedObject", found(config))
             self.assertNotIn("UninitializedObject", found(config.with_name(config.name + ".dump")))
 
@@ -524,9 +524,9 @@ class TreesBuild(unittest.TestCase):
         for text in ("InheritParentConfig: tRuE\n", "InheritParentConfig: 1\n", "InheritParentConfig: ~\n",
                      "InheritParentConfig:true\n", "InheritParentConfig:\n", "inheritparentconfig: true\n"):
             with self.subTest(text), tempfile.TemporaryDirectory() as scratch:
-                with self.assertRaises(subprocess.CalledProcessError) as stopped:
+                with self.assertRaises(Stopped) as stopped:
                     compose(scratch, {**files, "tests/.clang-tidy": text + own}, tidy, ["tests/x.cpp"])
-                self.assertIn(f"{Path(scratch, 'code', 'tests').as_posix()}/.clang-tidy", stopped.exception.stderr)
+                self.assertIn(f"{Path(scratch, 'code', 'tests').as_posix()}/.clang-tidy", stopped.exception.args[0].err)
 
     def test_steps_name_composed(self):
         """The analysis preset's build configured in a tree outside the
@@ -544,15 +544,14 @@ class TreesBuild(unittest.TestCase):
         pair's target its header gives it by the one reader of test code;
         each pair's test target is test code's, and its other not."""
         tool, tidy = cmake(), clang_tidy()
-        if tool is None or tidy is None or shutil.which("cl") is None:
+        if tool is None or tidy is None or process.find("cl") is None:
             self.skipTest("no cmake, clang-tidy or cl: the analysis preset configures under vcvars")
 
         def key(path):
             return os.path.normcase(os.path.normpath(path.replace("$:", ":").replace("$ ", " ")))
         with tempfile.TemporaryDirectory() as build:
             self.assertFalse(Path(build).resolve().is_relative_to(ROOT))
-            subprocess.run([tool, "-S", str(ROOT), "--preset", "analysis", "-B", build], capture_output=True,
-                           text=True, timeout=900, check=True)
+            succeeded([tool, "-S", ROOT, "--preset", "analysis", "-B", build], limit=900)
             targets = set(Path(build, "test-targets.txt").read_text(encoding="utf-8").split())
             ninja = Path(build, "build.ninja").read_text(encoding="utf-8")
             composed = key(Path(build, "tidy", "config").as_posix())

@@ -6,7 +6,8 @@ fault the drives run, it runs the case and names how it ended.
 - With QIVEN_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
   build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
   directory made; and QIVEN_WATCHER to its own process id. Then it runs
-  the command, which inherits its standard input and output.
+  the command, which inherits its standard output, its standard input
+  closed.
 - It first sets its own error mode as the diagnostic entry's first stage
   does (system.py's quiet_load_errors); the case inherits it, so that a
   library missing at load opens no window.
@@ -29,7 +30,7 @@ fault the drives run, it runs the case and names how it ended.
   the reason. The debugger is the pinned one, but in a CI job on Windows,
   where the image keeps its own tools, the image's cdb, unpinned
   (tools/debuggers.py's hang_debugger). Then it kills the case's process
-  tree (foundation/devkit/python/system.py's end_tree), names the status
+  tree (foundation/devkit/python/process.py's end_tree), names the status
   with what it wrote ("no
   debugger, no stack written: <why>", or the stacks written of the
   threads and its dump or "no dump", and by a CI image's cdb its version
@@ -40,23 +41,22 @@ fault the drives run, it runs the case and names how it ended.
   none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
-sys.path: it appends the root once and imports the status table and the
-system's module; the debugger's, the dumps' and the imports' readers are
-run from their files.
+sys.path: it appends the root once and imports the status table, the
+system's module and the process's; the debugger's, the dumps' and the
+imports' readers are run from their files.
 """
 
 import argparse
 import os
 import re
 import runpy
-import shutil
-import subprocess
 import sys
 import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
@@ -93,7 +93,7 @@ def relay(stream, sink):
 def missing(command):
     """Each library the command's binary imports found nowhere the loader
     looks, by the reader; None when the binary cannot be read."""
-    found = shutil.which(command[0])
+    found = process.find(command[0])
     if found is None:
         return None
     binary = Path(found).resolve()
@@ -131,40 +131,31 @@ def exit_code(status):
     return status
 
 
-def kill_tree(process):
-    """Kills the case and every process it started."""
-    try:
-        system.end_tree(process.pid)
-    except system.Failed:
-        pass  # the case itself is killed next, which needs no tree
-    process.kill()
-
-
-def hang(process, command, env, limit):
+def hang(case, command, env, limit):
     """The hang's lines, every thread's stack by the debugger, and what it
     wrote, for the status line: "no debugger, no stack written: <why>",
     or "<n> of <threads> threads' stacks written" ("no stack written" for
     none) and "its dump <file>" or "no dump", then, by a CI image's
     debugger, ", by the image's cdb <version> at <path>, unpinned (CI)"."""
-    binary = shutil.which(command[0]) or command[0]
+    binary = process.find(command[0]) or command[0]
     dumps = env.get("QIVEN_DUMP_DIR")
     try:
-        threads, lines, how = DEBUGGERS["hang_stacks"](process.pid, binary, dumps)
+        threads, lines, how = DEBUGGERS["hang_stacks"](case.pid, binary, dumps)
     except DEBUGGERS["NotFound"] as e:
         return ["hang: no debugger, no stacks", f"hang: {e}"], f"no debugger, no stack written: {e}"
     stacks = DEBUGGERS["stacks_of"](lines)
-    dump = DEBUGGERS["hang_dump"](process.pid, binary, dumps)
+    dump = DEBUGGERS["hang_dump"](case.pid, binary, dumps)
     written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
     written += f", its dump {dump.name}" if dump is not None and dump.is_file() else ", no dump"
     written += f", {how}" if how else ""
     return [f"hang: past its limit of {limit:g} s, {threads} threads", *lines], written
 
 
-def bound(process):
+def bound(case):
     """Bounds the build's dumps/, keeping the case's own, and names each
     dump removed."""
     build = os.environ.get("QIVEN_BUILD")
-    lines = DUMPS["bound"](Path(build) / "dumps", process.pid) if build else []
+    lines = DUMPS["bound"](Path(build) / "dumps", case.pid) if build else []
     if lines:
         print("\n".join(lines), file=sys.stderr, flush=True)
 
@@ -187,25 +178,24 @@ def main(argv=None):
     system.quiet_load_errors()
     try:
         env = environment(args.name)
-        process = subprocess.Popen(args.command, stderr=subprocess.PIPE, env=env)
+        case = process.start(args.command, env=env, out=process.INHERIT)
     except OSError as e:
         print(f"watch.py: {args.name}: the case cannot start: {e}", file=sys.stderr, flush=True)
         return 2
-    reader = threading.Thread(target=relay, args=(process.stderr, sys.stderr.buffer), daemon=True)
+    reader = threading.Thread(target=relay, args=(case.stderr, sys.stderr.buffer), daemon=True)
     reader.start()
     try:
-        status = process.wait(timeout=args.limit)
-    except subprocess.TimeoutExpired:
-        lines, written = hang(process, args.command, env, args.limit)
+        status = case.wait(args.limit)
+    except process.TimedOut:
+        lines, written = hang(case, args.command, env, args.limit)
         print("\n".join(lines), file=sys.stderr, flush=True)
-        kill_tree(process)
-        process.wait()
+        case.end_tree()
         reader.join(READER_WAIT)
-        bound(process)
+        bound(case)
         print(f"{status_table.line(HANG)}; {written}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
         return HANG
     reader.join(READER_WAIT)
-    bound(process)
+    bound(case)
     print(status_line(status, args.command), file=sys.stderr, flush=True)
     return exit_code(status)
 
