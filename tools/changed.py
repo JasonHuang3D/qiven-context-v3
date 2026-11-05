@@ -37,6 +37,7 @@ USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  1 the build or a test failed, 2 it could not run")
 RESULT = re.compile(r"Test +#\d+: (\S+) +\.*\s*\**(.*?)\s+[\d.]+ sec\s*$")  # ctest's line of a test's result
 STEP = re.compile(r"\[\d+/\d+\]")  # Ninja's line of a step
+GLOBS = "Re-checking globbed directories..."  # the step of every build that checks CONFIGURE_DEPENDS globs, no rebuild
 
 
 class CannotRun(Exception):
@@ -71,7 +72,8 @@ def vcvars_env():
 def build(env, cmake):
     """(status, the answer's build line, and on a failure every line the build printed but Ninja's step
     lines: configure's or a regenerating build's CMake output, each FAILED: block, Ninja's last line). A
-    regenerating build is a step, CMake's rerun, though Ninja then finds no work to do."""
+    regenerating build is a step, CMake's rerun, though Ninja then finds no work to do; the globs' check,
+    which every build runs, is none."""
     status, text = 0, ""
     try:
         configured = build_tree.options(ROOT / TREE) is not None
@@ -85,7 +87,7 @@ def build(env, cmake):
     if status != 0:
         return status, [f"build: failed, {status_table.line(status)}",
                         *(line for line in text.splitlines() if not STEP.match(line))]
-    steps = sum(1 for line in text.splitlines() if STEP.match(line))
+    steps = sum(1 for line in text.splitlines() if STEP.match(line) and not line.endswith(GLOBS))
     if not steps and "ninja: no work to do." in text:
         return 0, ["build: nothing to rebuild"]
     return 0, [f"build: {steps} steps"]
