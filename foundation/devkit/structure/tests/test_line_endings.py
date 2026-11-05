@@ -6,17 +6,16 @@ every file of the checkout's working tree; and the rule's reading of the
 checkout's .gitattributes against git's own, with the files git keeps
 byte for byte KEPT's alone and the code beside them text with eol=lf,
 where git and the checkout's git directory are there, git under an
-environment of the case's own: tools/loop_run.py's git_env, which reads no
-inherited GIT_ variable and no system or global config or attributes, so that
+environment of the case's own: foundation/devkit/python/git.py's reading_env,
+which reads no inherited GIT_ variable and no system or global config or attributes, so that
 its commands read the same whatever the host's git config says (CI's Windows
 images set core.autocrlf=true in the system config)."""
 
 import tempfile
 import unittest
 
+from foundation.devkit.python import git
 from foundation.devkit.structure import rules
-from tools import loop_git
-from tools.loop_run import git_env
 
 # The files kept byte for byte, .gitattributes' -text, each by what hashes
 # or pins it: the fixtures and the vectors, compiled into the cases as their
@@ -49,18 +48,11 @@ class LineEndings(unittest.TestCase):
         checkout's .gitattributes, is git's own: unset under -text alone;
         the files git keeps byte for byte are KEPT's, each of them tracked;
         and every other file beside them is text with eol=lf."""
-        git = loop_git.which()  # git's own reading: the real git, 2 processes
-        if not git or not (rules.ROOT / ".git").exists():
+        if not git.find() or not (rules.ROOT / ".git").exists():  # git's own reading: the real git, 2 processes
             self.skipTest("git or the checkout's git directory is missing")
         with tempfile.TemporaryDirectory() as scratch:
-            env = git_env(scratch)
-            listed = loop_git.run(git, ["ls-files", "-z"], cwd=rules.ROOT, env=env, timeout=120, check=True).stdout
-            done = loop_git.run(git, ["check-attr", "-z", "--stdin", "text", "eol"], cwd=rules.ROOT, env=env,
-                                data=listed, timeout=120, check=True)
-        fields = done.stdout.decode("utf-8").split("\0")
-        read = {}
-        for i in range(0, len(fields) - 2, 3):
-            read.setdefault(fields[i], {})[fields[i + 1]] = fields[i + 2]
+            env = git.reading_env(scratch)
+            read = git.attributes(rules.ROOT, git.tracked(rules.ROOT, env=env), ("text", "eol"), env=env)
         git_reads = {rel: values["text"] != "unset" for rel, values in read.items()}
         attributes = rules.text_attributes(rules.ROOT)
         self.assertEqual({rel: rules.is_text(rel, attributes) for rel in git_reads}, git_reads)

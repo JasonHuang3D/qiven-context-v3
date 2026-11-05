@@ -24,12 +24,12 @@ LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
 STEP_SECONDS = 7200  # a step's limit, a build's or a test run's: the longest a foreground call of the runner waits
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import git
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-# Under -I this directory is off sys.path: the map and git's door by runpy.
+# Under -I this directory is off sys.path: the map by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
-DOOR = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's door, by its file: no literal names git
 USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
          "  last ran (the record build/ci-windows/changed.json); exit 0 passed or none ran,\n"
@@ -88,13 +88,7 @@ def build(env, cmake):
 def files(table):
     """({module: {file: SHA-256}} of git's files but the documents, by each file's first module;
     [the files in no module])."""
-    git = DOOR["which"]()
-    if not git:
-        raise CannotRun("git is missing")
-    done = DOOR["run"](git, ["ls-files", "-z", "-co", "--exclude-standard"], cwd=ROOT)
-    if done.returncode != 0:
-        raise CannotRun(f"git ls-files failed: {done.stderr.decode('utf-8', 'replace').strip()[-200:]}")
-    paths = sorted({p for p in done.stdout.decode("utf-8").split("\0") if p and not p.endswith(".md")})
+    paths = sorted({p for p in git.tracked(ROOT, others=True) if not p.endswith(".md")})
     paths = [p for p in paths if (ROOT / p).is_file()]  # a tracked file gone from the worktree is gone
     owner, now, loose = MODULES["owners"](table, paths), {}, []
     for path in paths:
@@ -213,7 +207,7 @@ def main(argv):
     lines = []
     try:
         code = answer(lines)
-    except CannotRun as error:
+    except (CannotRun, git.GitFailed) as error:
         lines.append(f"cannot run: {error}")
         code = 2
     if len(lines) > 39:  # the answer's bound, 40 lines with the exit's: the cut named

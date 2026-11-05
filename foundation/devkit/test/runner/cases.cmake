@@ -168,9 +168,9 @@ function(qiven_list_tests)
     DEPENDS ${qiven_case_binaries} ${qiven_fuzz_binaries} ${ARGN}
       ${qiven_runtime_files} "${qiven_inputs_file}"
       "${qiven_runner_dir}/ctest_tests.cmake" "${qiven_runner_dir}/list_tests.py" ${qiven_python_files}
-      # the table's reader, which labels each test by its module, git's door and the table's reading it loads,
+      # the table's reader, which labels each test by its module, git's member and the table's reading it loads,
       # and the trees it reads
-      "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/loop_git.py"
+      "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/foundation/devkit/python/git.py"
       "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
       "${PROJECT_SOURCE_DIR}/tools/trees.json"
     COMMENT "Listing the C++ cases and the Python tests for CTest"

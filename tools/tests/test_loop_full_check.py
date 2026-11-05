@@ -6,6 +6,7 @@ ctest names (QIVEN_BUILD), each link edge by its codemodel."""
 import os
 import unittest
 
+from foundation.devkit.python import git
 from tools import loop_modules
 
 
@@ -16,7 +17,7 @@ class FullCheck(unittest.TestCase):
         """No error over the checkout and, under ctest, its build tree; the
         README.md lines read, each table directory's."""
         root, build = loop_modules.ROOT, os.environ.get("QIVEN_BUILD")
-        files = loop_modules.tracked(root)  # as run() takes them, one git process
+        files = git.tracked(root)  # as run() takes them, one git process
         table, errors = loop_modules.tree(root, files)
         targets = loop_modules.codemodel(build, root) if build else None
         errors += loop_modules.check(table, files, lambda f: (root / f).read_bytes(), targets, [])

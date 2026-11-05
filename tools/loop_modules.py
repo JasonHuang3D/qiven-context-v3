@@ -51,9 +51,12 @@ import runpy
 import sys
 from pathlib import Path
 
-# git's one door (tools/loop_git.py), by runpy: under -I this directory is off sys.path.
-GIT = runpy.run_path(str(Path(__file__).resolve().with_name("loop_git.py")))
-# The table's reading (tools/loop_table.py), by runpy too: its constants and functions this file's.
+# Under -I the checkout is off sys.path; appended, so that the standard library still wins.
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from foundation.devkit.python import git
+
+# The table's reading (tools/loop_table.py), by runpy: under -I this directory is off sys.path. Its constants and
+# functions this file's.
 TABLE = runpy.run_path(str(Path(__file__).resolve().with_name("loop_table.py")))
 globals().update((k, v) for k, v in TABLE.items() if k.isupper() or getattr(v, "__module__", "") == TABLE["__name__"])
 LAYERS = ("foundation", "product", "tooling", "support", "whole-build", "no-test")
@@ -340,20 +343,11 @@ def codemodel(build, source):
     return rows
 
 
-def tracked(source):
-    """The checkout's tracked files, by git's door."""
-    git = GIT["which"]()
-    if git is None:
-        raise FileNotFoundError("no git")
-    done = GIT["run"](git, ["ls-files", "-z"], cwd=source, check=True)
-    return [p for p in done.stdout.decode("utf-8").split("\0") if p]
-
-
 def run(source, build=None):
     """The check's errors on a checkout, its table read from its tree, and,
     given one, its build tree, and the vendored includes left unresolved."""
     source = Path(source)
-    files = tracked(source)
+    files = git.tracked(source)
     table, errors = tree(source, files)
     targets = codemodel(build, source) if build else None
     left = []
@@ -369,7 +363,7 @@ def main(argv):
         return 2
     try:
         errors, left = run(*argv)
-    except (OSError, ValueError, KeyError) as error:
+    except (OSError, ValueError, KeyError, git.GitFailed) as error:
         print(f"modules: the check could not run: {error}", file=sys.stderr)
         return 2
     for line in errors:

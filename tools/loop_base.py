@@ -5,14 +5,13 @@ the modules' check reads them with no git, on a clone too shallow to hold
 the commit too (CI's).
 
 - rows_at(root, commit): old_rows() of the table's files at commit in
-  root's repository, read through tools/loop_git.py's run, two git
-  processes; LookupError naming the commit when the repository lacks it.
-- full(root, commit): the commit's full hash, whatever form names it;
-  LookupError the same.
+  root's repository (foundation/devkit/python/git.py's files_at), two git
+  processes.
 - text(commit, rows): the file's text.
 
 Run as python -I tools/loop_base.py [COMMIT]: the file written again from
-the commit it names, or from COMMIT, then named there by its full hash.
+the commit it names, or from COMMIT, then named there by its full hash;
+exit 2 and one line, the file unwritten, when git could not read the commit.
 """
 
 import json
@@ -22,45 +21,16 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent  # the checkout this file is in
-GIT = runpy.run_path(str(HERE / "loop_git.py"))
+sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import git
+
 TABLE = runpy.run_path(str(HERE / "loop_table.py"))
 DATA = ROOT / TABLE["BASE"]
 
 
-def git_at(root, argv):
-    """git, then the argv that make it read root's .git."""
-    git = GIT["which"]()
-    if git is None:
-        raise FileNotFoundError("no git")
-    return git, ["--git-dir", str(Path(root) / ".git"), *argv]
-
-
-def found(root, commit, argv):
-    """git's run over root's .git; LookupError naming the commit when it fails."""
-    done = GIT["run"](*git_at(root, argv))
-    if done.returncode:
-        raise LookupError(f"the base {commit} is not in the repository of {root}: "
-                          + done.stderr.decode("utf-8", "replace").strip())
-    return done.stdout.decode("utf-8")
-
-
-def full(root, commit):
-    """The commit's full hash in root's repository."""
-    return found(root, commit, ["rev-parse", "--verify", f"{commit}^{{commit}}"]).strip()
-
-
 def rows_at(root, commit):
     """old_rows() of the table's files at commit, read from root's .git."""
-    listed = found(root, commit, ["ls-tree", "-r", "-z", "--name-only", f"{commit}^{{commit}}"])
-    paths = [p for p in listed.split("\0") if p and TABLE["is_table_file"](p)]
-    done = GIT["run"](*git_at(root, ["cat-file", "--batch"]),
-                      data="".join(f"{commit}:{p}\n" for p in paths).encode(), check=True)
-    texts, rest = {}, done.stdout
-    for path in paths:  # each "<id> blob <size>", its bytes, a newline
-        head, _, rest = rest.partition(b"\n")
-        size = int(head.split()[2])
-        texts[path], rest = rest[:size].decode("utf-8"), rest[size + 1:]
-    return TABLE["old_rows"](texts)
+    return TABLE["old_rows"](git.files_at(root, commit, TABLE["is_table_file"]))
 
 
 def text(commit, rows):
@@ -72,8 +42,13 @@ def main(argv):
     if argv in (["--help"], ["-h"]) or len(argv) > 1:
         print(__doc__.strip())
         return 0 if len(argv) == 1 else 2
-    commit = full(ROOT, argv[0] if argv else json.loads(DATA.read_text(encoding="utf-8"))["commit"])
-    DATA.write_text(text(commit, rows_at(ROOT, commit)), encoding="utf-8", newline="\n")
+    try:
+        commit = git.full_hash(ROOT, argv[0] if argv else json.loads(DATA.read_text(encoding="utf-8"))["commit"])
+        rows = rows_at(ROOT, commit)
+    except git.GitFailed as error:
+        print(f"loop_base: could not run: {error}", file=sys.stderr)
+        return 2
+    DATA.write_text(text(commit, rows), encoding="utf-8", newline="\n")
     return 0
 
 
