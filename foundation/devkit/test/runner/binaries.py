@@ -11,7 +11,8 @@ watched() runs a command behind the watcher, tools/watch.py, and
 unbounded() drops the lines of its dumps' bound (tools/dumps.py), which
 another case's dump, written beside, may give any run.
 
-build_option() reads a cache variable of a build directory, and
+listed() gives the files of the build's binaries.txt. build_option() reads
+a cache variable of a build directory, and
 has_faults(), debug_library(), has_hal() and sanitized() the build's
 choices by it. run_watched() runs a command behind the watcher under
 TIME_BOUND, polling it every POLL seconds for the windows it shows; a
@@ -81,6 +82,12 @@ def path(name):
     if not found.is_file():
         raise RuntimeError(f"the build holds no binary {name}: {found}")
     return found
+
+
+def listed():
+    """The files of the build's binaries.txt, in its order, as resolved paths."""
+    text = (directory("QIVEN_BUILD") / "binaries.txt").read_text(encoding="utf-8")
+    return [Path(line).resolve() for line in text.splitlines() if line]
 
 
 def run_file(program, args=(), data=b"", cwd=None, timeout=TIMEOUT):

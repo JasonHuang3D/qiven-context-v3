@@ -6,8 +6,7 @@ failed none ends with the skip code, the C++ runner's exit_skip
 (include/qiven/runner/core.hpp), which CTest's SKIP_RETURN_CODE reports as
 skipped (ctest_tests.cmake). A package's load_tests wraps its suite in Run
 and sets sys.exit to exit_with_skip, which unittest's main looks up when it
-ends the run; the test tree's (tests/__init__.py) and the structure
-method's (foundation/devkit/structure/tests/__init__.py) do.
+ends the run.
 """
 
 import sys

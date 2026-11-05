@@ -10,8 +10,8 @@ import sys
 import unittest
 from pathlib import Path
 
-from tests import SKIP_CODE
 from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.runner.skip import SKIP_CODE
 from tools import loop_modules
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
@@ -23,8 +23,9 @@ SHIM = binaries.ROOT / "tools" / "loop_shim.py"
 # analysis build: analysis alone. Every other Python test drives a binary.
 STRUCTURE = "foundation.devkit.structure."
 ANALYSIS = "foundation.devkit.structure.tests.test_analysis."
-SAMPLE = "tests.drive.samples."
-SELECT = "tests.drive.test_wiring.Select."
+HERE = "foundation/devkit/test/runner/tests"
+SAMPLE = "foundation.devkit.test.runner.tests.samples."
+SELECT = "foundation.devkit.test.runner.tests.test_wiring.Select."
 # The Windows adapter's own file cases, on Windows alone.
 WIN_FILES = "win_files."
 # A fuzz target's run, under libFuzzer alone: fuzz.<target>.
@@ -49,6 +50,7 @@ def serial(name):
     target's run, and each Python test whose class sets ctest_serial."""
     if name == "runner.registry_holds_self" or name.startswith(FUZZ):
         return True
+    # "tests." is the product's tests' place until P4.
     if not name.startswith(("tests.", STRUCTURE)):
         return False
     test = next(iter(unittest.defaultTestLoader.loadTestsFromName(name)))
@@ -66,6 +68,7 @@ def top_package(name):
 def limit_of(name, labels, command, cases):
     """A test's limit: its own, a Python test's class's ctest_limit or a C++
     case's binary's LIMIT (`cases`, case_limits()'s), else its labels'."""
+    # "tests." is the product's tests' place until P4.
     if name.startswith(("tests.", STRUCTURE)):
         own = getattr(next(iter(unittest.defaultTestLoader.loadTestsFromName(name))), "ctest_limit", None)
     else:
@@ -81,6 +84,7 @@ def case_limits():
     """Each case binary's own limit, by its file, from the build's listing
     inputs (tests/case_binaries.txt), where it states one."""
     found = {}
+    # The build's "tests" is the product's test tree's directory until P4.
     inputs = binaries.directory("QIVEN_BUILD") / "tests" / "case_binaries.txt"
     for line in inputs.read_text(encoding="utf-8").splitlines():
         _, limit, binary = line.split("\t")
@@ -95,7 +99,7 @@ def ran_count(ran):
 
 
 def samples(*ids):
-    args = ["discover", "-s", "tests", "-t", ".", "-p", "samples.py"]
+    args = ["discover", "-s", HERE, "-t", ".", "-p", "samples.py"]
     for one in ids:
         args += ["-k", "*" + SAMPLE + one]
     return binaries.unittest_run(*args)
@@ -121,7 +125,7 @@ class PythonSide(unittest.TestCase):
                 self.assertEqual(ran_count(ran), count)
 
     def test_whole_id(self):
-        common = ["discover", "-s", "tests", "-t", "."]
+        common = ["discover", "-s", HERE, "-t", "."]
         whole = binaries.unittest_run(*common, "-k", "*" + SELECT + "test_a")
         self.assertEqual(whole.status, 0, whole.err.decode("utf-8", "replace"))
         self.assertEqual(ran_count(whole), 1)
@@ -241,7 +245,7 @@ class Registered(unittest.TestCase):
         win_files = {name for name in tests if name.startswith(WIN_FILES)}
         self.assertEqual(bool(win_files), sys.platform == "win32")
         self.assertLessEqual(win_files, expected["fake"] & expected["fast"])
-        self.assertNotIn("tests.drive.test_wiring.Registered.test_presets", expected["fast"])
+        self.assertNotIn("foundation.devkit.test.runner.tests.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))
         for preset, names in expected.items():
             with self.subTest(preset=preset):

@@ -1,4 +1,4 @@
-"""One test per route of the Python side, for test_runner.py to run as a
+"""One test per route of the Python side, for test_wiring.py to run as a
 process with -p samples.py. Its name does not match test*.py, so no
 other run discovers it: one of these fails and one skips by design.
 """

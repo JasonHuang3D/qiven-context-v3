@@ -10,7 +10,6 @@ residual."""
 
 import sys
 import unittest
-from pathlib import Path
 
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option
@@ -24,12 +23,6 @@ LOADER = "/lib64/ld-linux-x86-64.so.2"
 MACOS = sys.platform == "darwin"
 
 
-def listed():
-    build = binaries.directory("QIVEN_BUILD")
-    text = (build / "binaries.txt").read_text(encoding="utf-8")
-    return [Path(line).resolve() for line in text.splitlines() if line.strip()]
-
-
 class Imports(unittest.TestCase):
     ctest_labels = ("fake",)
 
@@ -38,7 +31,7 @@ class Imports(unittest.TestCase):
         sanitize = build_option("QIVEN_SANITIZE") or ""
         compiler = build_option("QIVEN_CXX_COMPILER_ID") or ""
         found, past = {}, {}
-        for binary in listed():
+        for binary in binaries.listed():
             read = imports.read_file(binary)
             self.assertEqual(read.kind, "pe" if WINDOWS else "elf", binary)
             if not WINDOWS:

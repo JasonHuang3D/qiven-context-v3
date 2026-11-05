@@ -20,12 +20,6 @@ CALL = re.compile(r"\badd_executable\s*\(")
 OWN = ("foundation/devkit/build/build.cmake", "add_executable(${name} ")
 
 
-def listed(build):
-    """binaries.txt's files, as resolved paths."""
-    text = (build / "binaries.txt").read_text(encoding="utf-8")
-    return {Path(line).resolve() for line in text.splitlines() if line}
-
-
 def executables(build):
     """CMake's executables: name and file, from executables.txt."""
     text = (build / "executables.txt").read_text(encoding="utf-8")
@@ -55,7 +49,7 @@ class Executables(unittest.TestCase):
         build = binaries.directory("QIVEN_BUILD")
         made = executables(build)
         self.assertTrue(made, "the file API recorded no executable")
-        self.assertEqual(sorted(n for n, f in made.items() if f not in listed(build)), [])
+        self.assertEqual(sorted(n for n, f in made.items() if f not in binaries.listed()), [])
 
     def test_K10_one_call(self):
         self.assertEqual(stray_calls(ROOT), [])

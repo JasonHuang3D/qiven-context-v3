@@ -26,9 +26,8 @@ Windows nothing is read.
 import sys
 import unittest
 
-from foundation.devkit.test.runner.binaries import build_option
+from foundation.devkit.test.runner.binaries import build_option, listed
 from foundation.devkit.structure import hardening
-from foundation.devkit.structure.tests.test_binaries import listed
 
 LINUX = sys.platform.startswith("linux")
 CLANG = "Clang"
