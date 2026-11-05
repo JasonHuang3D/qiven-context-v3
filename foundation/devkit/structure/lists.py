@@ -97,11 +97,11 @@ DIAG = "foundation/system/diag/"  # the diagnostic entry
 ALLOWED = {
     "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", *layers.VENDORED, "qiven_storage_sqlite"),
     "B2": ("foundation/system/platform/src/windows/process.",),
-    # diag: the diagnostic entry's Windows headers, its link to dbghelp and
-    # its variants' (foundation/system/diag/CMakeLists.txt).
-    "B5": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/",
-           layers.CHILD, "qiven_platform_windows", DIAG, "qiven_diag",
-           "qiven_diag_crtdbg", "qiven_diag_poisoned"),
+    # Private sources alone, so that a Windows SDK header in a public header is
+    # a finding. diag: the diagnostic entry's Windows headers in its src/, its
+    # link to dbghelp and its variants' (foundation/system/diag/CMakeLists.txt).
+    "B5": ("foundation/system/platform/src/windows/", layers.CHILD, "qiven_platform_windows", DIAG + "src/",
+           "qiven_diag", "qiven_diag_crtdbg", "qiven_diag_poisoned"),
     "B11": ("tests/compat/r",),
     "B14": (f"{layers.SUPPORT}goldens",),
     **subset.ALLOWED,
