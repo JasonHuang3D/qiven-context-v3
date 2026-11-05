@@ -1,7 +1,7 @@
 // The runner's own cases, in process: each route of run_case and run_main.
-// tests/drive/test_runner.py drives the same routes through a process, a
-// crash among them. Each run's case.end is read back from a Log of the
-// case's own.
+// test_runner.py, beside this file, drives the same routes through a
+// process, a crash among them. Each run's case.end is read back from a Log
+// of the case's own.
 
 #include <array>
 #include <cstring>

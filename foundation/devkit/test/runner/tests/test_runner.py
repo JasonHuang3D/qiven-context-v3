@@ -5,9 +5,9 @@ import signal
 import sys
 import unittest
 
-from tests import SKIP_CODE
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option
+from foundation.devkit.test.runner.skip import SKIP_CODE
 
 DEMO = "qiven_runner_demo"
 

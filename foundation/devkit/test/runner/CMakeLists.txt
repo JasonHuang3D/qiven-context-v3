@@ -16,6 +16,6 @@ target_link_libraries(qiven_runner PUBLIC qiven_memory qiven_log PRIVATE qiven_b
 # The runner's own cases, each a CTest test, with the log's main.
 qiven_add_cases(qiven_runner_test LABELS fast SOURCES tests/runner_test.cpp LINK qiven_platform)
 
-# One case per route, run as processes by tests/drive/test_runner.py; never
-# a CTest test itself.
+# One case per route, run as processes by tests/test_runner.py; never a
+# CTest test itself.
 qiven_executable(qiven_runner_demo SOURCES tests/runner_demo.cpp LINK qiven_case_main)

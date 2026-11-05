@@ -1,6 +1,6 @@
 // qiven_runner_demo: one case per route of the runner, for
-// tests/drive/test_runner.py to run as processes. CTest never runs these
-// cases themselves: four of them fail and one crashes by design.
+// test_runner.py, beside this file, to run as processes. CTest never runs
+// these cases themselves: four of them fail and one crashes by design.
 
 #include <stdexcept>
 

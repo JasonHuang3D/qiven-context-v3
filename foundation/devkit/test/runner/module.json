@@ -23,8 +23,7 @@
         "case_main"
       ],
       "paths": [
-        "foundation/devkit/test/runner/",
-        "tests/drive/test_runner.py"
+        "foundation/devkit/test/runner/"
       ]
     },
     {
