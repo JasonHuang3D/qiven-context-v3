@@ -1,9 +1,10 @@
 #pragma once
 
 // Fault injection's loop: an operation run with its k-th allocation or
-// platform call failed, for k from 1 until it completes. Each run must end
-// in the operation's typed error, after which the caller's check reads the
-// count (the allocators holding nothing) and, from package 5, the store.
+// platform call failed, for k from 1 until it completes. Each run is counted
+// by how it ended, in the operation's typed error or not, after the caller's
+// check reads the count (the allocators holding nothing) and the state; a
+// case fails only by checking the counts it is given.
 // Built without QIVEN_FAULTS there is no countdown, and a case says so as
 // not applicable. Each run whose failure came writes fault.injected, its k
 // and the site, the operation's name, to the case's log.

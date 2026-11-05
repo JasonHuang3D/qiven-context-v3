@@ -8,11 +8,16 @@ layer tools, status built
   (`watch.py`), status (`status.py`), the fuzz seeds and the counting shim (`loop_shim.py`, `git_shim.*`);
   and its tests in `tests/`: the modules' check over the tree (`test_loop_full_check.py`), the watcher's
   hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
-- **Never holds:** C++ that a product's program links: tooling sits outside the link graph.
+- **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
+  system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers
+  private to that module or vendored; no foreign header reaches a header of ours; all other code calls only
+  its own lower layers and the standard library (`DIRECTION-3.md`). A named departure here:
+  `tools/git_shim.c`, end by the owner's decision; the rest in `foundation/README.md`.
 - **Contract:** none
 - **Interface:** no header: each tool's `--help` and its one bounded answer.
 - **Files:** the `present` paths of module.json, its tests in `tests/`.
-- **Serves:** the developers and models that build and test the repository.
+- **Serves:** the developers and models that build and test the repository; devkit, by the edges
+  `foundation/devkit/README.md` names.
 - **Parameters:** none
 
 ## Retired

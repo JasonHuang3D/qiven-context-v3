@@ -8,6 +8,6 @@ layer devkit, status built
 - **Files:** `include/qiven/faults/` (`faults.hpp`, `parts.hpp`), `CMakeLists.txt`; their namespace `qiven::test`
 - **Consumers rely on:** an operation run with its k-th allocation or platform call failed, for k from 1 until it completes; each case's log
 - **Parameters:** none
-- **Refuses:** a fault run that does not end in the operation's typed error: the case fails
+- **Refuses:** nothing itself: `run_faults` counts a fault run that does not end in the operation's typed error (`untyped`) or whose check fails (`unchecked`), and a case fails only by checking those counts
 - **Words:**
   - `fault run`: one run of an operation with its k-th allocation or platform call failed

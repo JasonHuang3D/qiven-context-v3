@@ -6,6 +6,6 @@ layer system, status built
 - **Never holds:** a product's concept; a window or a dialog
 - **Contract:** `foundation/system/diag/include/qiven/diag/diag.hpp`
 - **Files:** `include/qiven/diag/` (`diag.hpp`, `out.hpp`, `ring.hpp`), `src/` (`diag.cpp`, `diag_windows.cpp`, `entry.cpp`, `events.hpp`, `out.cpp`, `ring.cpp`, and Linux's `diag_linux.cpp`, `signal.cpp` and `signal.hpp`, moved as they are and not built on Windows), `tests/`, `CMakeLists.txt`; their namespace `qiven::diag`, with `qiven::diag::detail`
-- **Consumers rely on:** a fault ends the process with one bounded report on standard error: its cause, stack, last events, dump and status
+- **Consumers rely on:** a fault ends the process with one bounded report on standard error: its cause, stack, last events, dump and status; a stack overflow's report only on a thread with its stack guarantee: `install` alone calls `thread_start`, so that platform's `Child` threads and any other thread go without one
 - **Parameters:** none
 - **Refuses:** a window on a fault: none is shown

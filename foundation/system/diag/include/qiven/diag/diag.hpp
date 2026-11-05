@@ -18,8 +18,9 @@
 // handler are both systems'. Not core logic: it includes the system's
 // headers, and links qiven_memory alone of v3's.
 //
-// thread: install() once, from the first initializer; thread_start() first
-// in each thread v3 starts; a report once, from any thread.
+// thread: install() once, from the first initializer; thread_start() from
+// install() alone, so that no other thread has its share; a report once,
+// from any thread.
 
 #include <array>
 #include <cstddef>

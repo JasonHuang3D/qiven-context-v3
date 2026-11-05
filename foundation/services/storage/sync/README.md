@@ -7,4 +7,4 @@ layer services, status slot
 - **Contract a filler meets:** the entry header `include/qiven/sync/sync.hpp`, stating an import that adds records to a store holding some as concepts; an archetype of each concept in its tests; one contract suite run over every adapter and fake
 - **May depend on:** core, system, services
 - **Parameters:** none
-- **Filling it:** its code, a target `qiven_sync`, tests labelled `sync`, status set to `built`; no other module changes
+- **Filling it:** its code, a target `qiven_sync`, tests labelled `sync`, status set to `built`; and a change to `recordlog`, whose calls add no records to a store that is not empty: its import refuses one (`not_empty`), and its append refuses a forget
