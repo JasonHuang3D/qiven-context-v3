@@ -40,3 +40,11 @@ qiven_add_cases(qiven3_unit_write_kept LABELS fast fake
   LINK qiven_faults qiven_platform_fake qiven3_write)
 # The fixtures' kept_bed.hpp by its path under tests/, which the fake gave before its move.
 target_include_directories(qiven3_unit_write_kept PRIVATE "${PROJECT_SOURCE_DIR}/tests")
+if(MSVC)
+  # C4702 says code is unreachable. Its refusal cases pass kept::write an
+  # append that only throws, and asan's build inlines it, so write's
+  # return n; after it (src/write/kept.hpp) is unreachable in that
+  # instantiation alone, no defect of write's; it is this target's one
+  # warning off.
+  target_compile_options(qiven3_unit_write_kept PRIVATE /wd4702)
+endif()
