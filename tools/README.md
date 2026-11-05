@@ -2,12 +2,15 @@
 
 layer tools, status built
 
-- **Holds:** the developer tooling, in Python: the test runner (`changed.py`), the modules' check's command
-  line (`loop_modules.py`; the check is `foundation/devkit/structure/modules.py`, the table's reader
-  `foundation/devkit/python/table.py`), the old places' base `loop_base.json`, which `loop_base.py` writes,
-  and the trees the reader reads (`trees.json`), the debuggers (`debug.py`, `debuggers.py`, the debugger's
-  pin in `windows-pins.txt`), dumps (`dumps.py`), the watch (`watch.py`) and the fuzz seeds (`fuzz_seeds.py`);
-  and its tests in `tests/`: the watcher's hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
+- **Holds:** front ends alone, the developer tooling in Python above `foundation/devkit/`: the test runner
+  (`changed.py`), the modules' check's command line (`loop_modules.py`; the check is
+  `foundation/devkit/structure/modules.py`, the table's reader `foundation/devkit/python/table.py`), the
+  old places' base `loop_base.json`, which `loop_base.py` writes, the debugger agents drive (`debug.py`, cdb
+  found, checked and driven by `foundation/devkit/python/debugger.py`) and the fuzz seeds (`fuzz_seeds.py`);
+  the repository's data read at the root, the trees the reader reads (`trees.json`) and the debugger's pin
+  (`windows-pins.txt`, read by `debugger.py`); and its tests in `tests/`: the debugger's (`test_debug.py`).
+  The watcher, its dumps' bound and the watcher's hang path's tests are the runner's
+  (`foundation/devkit/test/runner/`).
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
   system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers
   private to that module or vendored; no foreign header reaches a header of ours; all other code calls only
@@ -15,15 +18,6 @@ layer tools, status built
   `foundation/README.md`.
 - **Contract:** none
 - **Interface:** no header: each tool's `--help` and its one bounded answer.
-- **Worst cases:** `debuggers.py`'s `hang_stacks`, the stacks the watcher writes of a hang, gives cdb 25 s
-  (`HANG_SECONDS`); past them `process` ends cdb's tree, `taskkill`'s time (its worst in `system`'s errors,
-  `foundation/devkit/python/README.md`), and waits 10 s more (`ENDING_SECONDS`) where a process the tree
-  no longer reaches holds cdb's pipe. Before it, finding the debugger runs `cdb -version`, 30 s at most
-  (`VERSION_SECONDS`) and its own ending, the pinned cdb's or a CI image's. So once its debugger is found it
-  takes 25 s and `taskkill`'s time at most, or 35 s and that time where an orphan holds the pipe, against
-  the 30 s CTest leaves the watcher after a case's limit
-  (`ctest_tests.cmake`'s `AFTER_LIMIT`): past them CTest ends the watcher first. A hung `cdb -version`
-  adds 40 s on paper.
 - **Files:** the `present` paths of module.json, its tests in `tests/`.
 - **Serves:** the developers and models that build and test the repository; devkit, by the edges
   `foundation/devkit/README.md` names.
@@ -88,7 +82,10 @@ later changes to be made again; the commit after it shows every line cut with th
   gdb, `debug.py`'s gdb path, `watch.py`'s symbolizing and Linux loader path with `QIVEN_ADDR2LINE`,
   `dumps.py`'s core files, the build's `QIVEN_CXX_COMPILER_ID`, and the Linux arms and cases of the tests that
   read them. The workflows and all C++ Linux code stay. Its Linux jobs were last green in CI at `fa3852f`,
-  2026-10-30. A restore needs `status`'s, `system`'s, `process`'s, `git`'s, `table`'s and `build_tree`'s
-  moves made again in the files it brings back, and Linux returns through `system`'s POSIX back end, not by
-  this command alone. Last commit `e0cb5c4`:
+  2026-10-30. Of the files then kept, `debuggers.py` has since left the tree, its cdb now
+  `foundation/devkit/python/debugger.py` (`73d4148`), and `watch.py`, `dumps.py` and `tests/test_hang.py`
+  moved to `foundation/devkit/test/runner/` (`6161164`): the command brings them back at their old places. A
+  restore needs `status`'s, `system`'s, `process`'s, `git`'s, `table`'s, `build_tree`'s, `answer`'s and
+  `debugger`'s moves and the watcher's move to the runner made again in the files it brings back, and Linux
+  returns through `system`'s POSIX back end, not by this command alone. Last commit `e0cb5c4`:
   `git restore --source=e0cb5c4 -- tools/debug_gdb.py tools/linux-pins.txt tools/debug.py tools/debuggers.py tools/dumps.py tools/watch.py tools/module.json tools/tests/test_debug.py tools/tests/test_hang.py foundation/devkit/structure/hardening.py foundation/devkit/structure/imports.py foundation/devkit/structure/README.md foundation/devkit/structure/tests/test_hardening.py foundation/devkit/structure/tests/test_binaries.py foundation/devkit/build/build.cmake foundation/devkit/test/runner/cases.cmake foundation/devkit/test/runner/ctest_tests.cmake foundation/system/diag/tests/test_faults.py`

@@ -7,8 +7,7 @@ A module here names no product's concept and depends on no kit and no product, b
 README names as awaiting a split, and devkit's `structure`, whose edges to qiven3's modules leave with its
 product data.
 The foundation cannot build alone yet: `foundation/CMakeLists.txt` does not exist, the root `CMakeLists.txt` adds the
-product's directories, devkit reads `tools/` (`devkit/README.md`), and diag's tests reach the watcher there through the
-runner's `binaries.py`. The foundation is rebuilt lowest first, in the owner's order: (a) its build alone, with the table's
+product's directories, and devkit reads `tools/` (`devkit/README.md`). The foundation is rebuilt lowest first, in the owner's order: (a) its build alone, with the table's
 reader and the watcher in devkit and Python's lowest layer; (b) devkit; (c) core; (d) system; (e) services; the product's at
 P4. That build ends step (a), and P5, the alone build, is step (a)'s.
 
