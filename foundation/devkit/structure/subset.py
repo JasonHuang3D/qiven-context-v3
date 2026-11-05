@@ -47,7 +47,7 @@ from foundation.devkit.structure.lexer import lex
 CXX = layers.CXX
 B18_NAMES = frozenset(("dynamic_cast", "typeid"))
 C_HEAP = frozenset(("malloc", "calloc", "realloc", "free", "_aligned_malloc", "_aligned_free"))
-# B20: the standard's calls that begin or end lifetimes on given storage.
+# B20's names, as its row gives them: std::construct_at, std::destroy_at, the standard's uninitialized algorithms.
 B20_NAMES = frozenset(("construct_at", "destroy_at", "uninitialized_copy", "uninitialized_copy_n",
                        "uninitialized_fill", "uninitialized_fill_n", "uninitialized_move", "uninitialized_move_n",
                        "uninitialized_default_construct", "uninitialized_default_construct_n",

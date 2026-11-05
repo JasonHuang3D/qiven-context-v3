@@ -38,7 +38,7 @@
         "driver",
         "child"
       ],
-      "until": "the product's header units under tests/support/headers/ leave structure's row for a row of the product's tests table"
+      "until": "each product header unit under tests/support/headers/ has gone with its header's module when that module moves, in P4; structure's path and this exception stay until then"
     }
   ]
 }

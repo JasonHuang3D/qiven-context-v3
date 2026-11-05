@@ -6,7 +6,10 @@
 # structure tests read those files and start no process. The records'
 # trees are tools/loop_modules.py's, read from tools/trees.json: both,
 # and tools/loop_git.py and tools/loop_table.py the reader loads, are the
-# step's inputs.
+# step's inputs, with records.py, every built target and the compile
+# commands; and, by the depfile records.py writes beside index.json, every
+# file index.json digests, so that a recorded file's change or removal
+# reruns the step though no target compiles it.
 if(NOT MSVC)
   message(FATAL_ERROR "qiven: QIVEN_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
 endif()
@@ -53,6 +56,7 @@ add_custom_command(OUTPUT "${qiven_index}"
     "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/tools/loop_git.py"
     "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
     "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven_commands}"
+  DEPFILE "${PROJECT_BINARY_DIR}/structure/index.d"
   COMMENT "Writing the structure records"
   VERBATIM)
 add_custom_target(qiven_structure_records ALL DEPENDS "${qiven_index}")

@@ -11,10 +11,11 @@ compile_commands.json, its includes as the compiler reports them
 (the command rerun with /showIncludes /Zs: Ninja consumes the build's own)
 and its object's symbols (dumpbin /symbols); the C and C++ runtimes'
 public names (dumpbin /linkermember:1); the targets' link edges (CMake's
---graphviz, from a configure of SOURCE in a directory of its own); and
-index.json, naming each. foundation/system/sqlite/src/sqlite3.c,
-the one vendored file, has its object's names recorded, for what it
-defines, and no includes.
+--graphviz, from a configure of SOURCE in a directory of its own);
+index.json, naming each; and index.d, the step's depfile, naming each
+file index.json digests, so that its change or removal reruns the step.
+foundation/system/sqlite/src/sqlite3.c, the one vendored file, has its
+object's names recorded, for what it defines, and no includes.
 """
 
 import concurrent.futures
@@ -139,6 +140,14 @@ def write_index(out, index):
     (out / "index.json").write_text(json.dumps(index, indent=1, sort_keys=True), encoding="utf-8")
 
 
+def write_depfile(out, source, recorded):
+    """Ninja's depfile of the step: index.json depends on each recorded file, by its absolute path."""
+    def name(path):
+        return path.as_posix().replace(" ", "\\ ")
+    inputs = " \\\n  ".join(name(source / rel) for rel in recorded)
+    (out / "index.d").write_text(f"{name(out / 'index.json')}: {inputs}\n", encoding="utf-8", newline="\n")
+
+
 def main(argv):
     source, build_dir, cmake, dumpbin = (Path(a) for a in argv[1:5])
     out = build_dir / "structure"
@@ -146,6 +155,7 @@ def main(argv):
     names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM", "QIVEN_HAL")
     graph(source, build_dir, out, cmake, cache_values(build_dir, names))
     index["digests"] = digests(source)
+    write_depfile(out, source, index["digests"])
     write_index(out, index)
     print(f"records: {len(index['objects'])} objects")
     return 0
