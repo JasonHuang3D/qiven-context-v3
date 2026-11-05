@@ -4,7 +4,8 @@ by the tree's .clang-tidy, and MSVC's /analyze, by the analysis build's own
 options and rule set, must each report under the names its row gives; a
 clean file passes both. Each tool compiles the plant by the analysis
 build's command for a source of src/, so that dropping a check from
-.clang-tidy or analysis.ruleset fails its rule's case.
+.clang-tidy or analysis.ruleset fails its rule's case. TestTargets holds
+the analysis build's test-code targets to the list's pin.
 
 Run on the analysis build (QIVEN_BUILD) after it is built, from the
 toolset's environment, which both tools read the system's headers from:
@@ -23,6 +24,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+from foundation.devkit.structure import exemptions
 
 ROOT = Path(__file__).resolve().parents[4]
 TEMPLATE = "foundation/core/memory/src/arena.cpp"
@@ -177,3 +180,21 @@ class Control(unittest.TestCase):
 
 for _rule in PLANTS:
     setattr(Control, "test_" + _rule.lower(), lambda self, rule=_rule: control(self, rule))
+
+
+@ANALYSIS
+class TestTargets(unittest.TestCase):
+    """The targets the analysis build gives test code's analysis, by its own
+    reader (test-targets.txt in its tree), are the list's test_code targets,
+    and it defines each pinned one (defined-targets.txt), the one build that
+    applies that analysis (exemptions.targets()). A pinned one it does not
+    define is skipped by its name only where the list's not_defined names
+    that target and the preset the tree records (preset.txt)."""
+
+    def test_build(self):
+        build = build_directory()
+        found, absent = exemptions.targets(ROOT, build)
+        self.assertEqual(found, [])
+        for name in absent:
+            with self.subTest(target=name):
+                self.skipTest(f"{name}: pinned, and {build} does not define it")

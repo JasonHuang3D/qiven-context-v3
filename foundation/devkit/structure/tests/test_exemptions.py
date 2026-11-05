@@ -1,11 +1,10 @@
 """The analysis configuration against its list (exemptions.py): the real
-tree's agree; and the build's test-code targets against the list's
-(TestTargets)."""
+tree's agree; and every preset records its name (Presets). The build's
+test-code targets against the list's are the analysis build's, held there
+(test_analysis.TestTargets)."""
 
 import json
-import os
 import unittest
-from pathlib import Path
 
 from foundation.devkit.structure import exemptions, rules
 
@@ -23,23 +22,10 @@ class Exemptions(unittest.TestCase):
         self.assertEqual(exemptions.findings(ROOT, rules.source_files(ROOT)), [])
 
 
-class TestTargets(unittest.TestCase):
-    """The targets the build gives test code's analysis, by its own reader
-    (test-targets.txt in QIVEN_BUILD's tree), are the list's test_code
-    targets; a pinned one a preset does not define (defined-targets.txt) is
-    skipped by its name only where the list's not_defined names that target
-    and the preset the tree records (preset.txt)."""
+class Presets(unittest.TestCase):
+    """The preset a tree records (preset.txt), which the pin of test code's
+    targets reads (test_analysis.TestTargets, on the analysis build)."""
     ctest_labels = ("fake",)
-
-    def test_build(self):
-        build = os.environ.get("QIVEN_BUILD")
-        if not build:
-            self.skipTest("no QIVEN_BUILD: run by ctest")
-        found, absent = exemptions.targets(ROOT, Path(build))
-        self.assertEqual(found, [])
-        for name in absent:
-            with self.subTest(target=name):
-                self.skipTest(f"{name}: pinned, and {build} does not define it")
 
     def test_every_preset_records_its_name(self):
         """The base preset alone states QIVEN_PRESET, as the preset's own

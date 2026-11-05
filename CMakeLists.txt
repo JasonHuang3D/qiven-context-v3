@@ -105,12 +105,12 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven_ex
 
 # The targets that take test code's analysis, in every preset's
 # test-targets.txt, and beside it defined-targets.txt, every compiled target
-# the preset defines, a plant's aside: foundation/devkit/structure/tests/test_exemptions.py
-# holds the first to its list, and tells a listed target defined without
-# test code's analysis from one the preset does not define. Which preset,
-# preset.txt says, from the base preset's QIVEN_PRESET, each preset's own
-# name: a tree's directory may be any, CI's shared one among them. A configure
-# with no preset records none.
+# the preset defines, a plant's aside: foundation/devkit/structure/tests/test_analysis.py
+# holds the analysis build's first to its list, and tells a listed target
+# defined without test code's analysis from one the preset does not define.
+# Which preset, preset.txt says, from the base preset's QIVEN_PRESET, each
+# preset's own name: a tree's directory may be any, CI's shared one among
+# them. A configure with no preset records none.
 qiven_test_targets(qiven_test_targets)
 list(JOIN qiven_test_targets "\n" qiven_text)
 file(WRITE "${PROJECT_BINARY_DIR}/test-targets.txt" "${qiven_text}\n")
