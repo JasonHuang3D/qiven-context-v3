@@ -5,7 +5,7 @@ layer tools, status built
 - **Holds:** the developer tooling, in Python: the test runner (`changed.py`), the table's reader
   (`loop_modules.py`, `loop_table.py`, with the old places' base `loop_base.json`, which `loop_base.py`
   writes), git's door (`loop_git.py`), the debuggers (`debug.py`), dumps (`dumps.py`), the watch
-  (`watch.py`), status (`status.py`) and the fuzz seeds;
+  (`watch.py`) and the fuzz seeds;
   and its tests in `tests/`: the modules' check over the tree (`test_loop_full_check.py`), the watcher's
   hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating

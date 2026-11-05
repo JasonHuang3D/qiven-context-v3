@@ -23,7 +23,6 @@
         "tools/dumps.py",
         "tools/fuzz_seeds.py",
         "tools/loop*",
-        "tools/status.py",
         "tools/tests/",
         "tools/trees.json",
         "tools/watch.py",

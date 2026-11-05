@@ -24,8 +24,9 @@ with a bounded plain-text transcript.
   line but one is [cut]. The banner, prompts, module loads and checksum
   warnings are dropped; each action is echoed as "> <action>".
 - The last line: "debug: <outcome>, <stops> stops, <lines> lines,
-  <seconds> s", the outcome "exited <status> <name>" by tools/status.py's
-  table, "fault <cause>", "stop bound", "timed out", or "could not run:
+  <seconds> s", the outcome "exited <status> <name>" by
+  foundation/devkit/python/status.py's table, "fault <cause>", "stop
+  bound", "timed out", or "could not run:
   <reason>". The exit code is 0 when the run ended as asked (exited, or
   the stop bound), 1 when the case faulted or the time bound passed, 2
   when it could not run (no debugger, a debugger off its pin, no binary,
@@ -54,7 +55,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))  # under -I this directory is off sys.path
+sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import status as status_table
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]
@@ -199,8 +201,8 @@ def outcome_of(event):
     exited = EXIT.match(event)
     if exited:
         status = int(exited["code"], 16)
-        found = STATUS["named"](status)
-        return f"exited {STATUS['value_text'](status)} {found[0] if found else STATUS['UNNAMED']}", 0
+        found = status_table.named(status)
+        return f"exited {status_table.value_text(status)} {found[0] if found else status_table.UNNAMED}", 0
     if "second chance" in event:
         return f"fault {CHANCE.sub('', event)}", 1
     return None

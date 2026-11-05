@@ -24,10 +24,11 @@ TREE = "build/ci-windows"
 RECORD = ROOT / TREE / "changed.json"
 LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
-# Under -I this directory is off sys.path: the map, git's door and the statuses by runpy.
+sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import status as status_table
+# Under -I this directory is off sys.path: the map and git's door by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 DOOR = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's door, by its file: no literal names git
-STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
 USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
          "  last ran (the record build/ci-windows/changed.json); exit 0 passed or none ran,\n"
@@ -91,7 +92,7 @@ def build(env, cmake):
         status, more = capture([cmake, "--build", TREE], env)
         text += more
     if status != 0:
-        return status, [f"build: failed, {STATUS['line'](status)}",
+        return status, [f"build: failed, {status_table.line(status)}",
                         *(line for line in text.splitlines() if not STEP.match(line))]
     if "ninja: no work to do." in text:
         return 0, ["build: nothing to rebuild"]
@@ -122,7 +123,7 @@ def listing(env, ctest):
     """{test name: [its labels]}, CTest's listing of the tree."""
     status, text = capture([ctest, "--test-dir", TREE, "--show-only=json-v1"], env, merge=False)
     if status != 0:
-        raise CannotRun(f"ctest's listing failed: {STATUS['ctest_line'](status)}")
+        raise CannotRun(f"ctest's listing failed: {status_table.ctest_line(status)}")
     return {t["name"]: next((p["value"] for p in t.get("properties", ()) if p["name"] == "LABELS"), [])
             for t in json.loads(text)["tests"]}
 
@@ -201,7 +202,7 @@ def answer(lines):
                          f"{skipped} skipped, {seconds:.1f} s")
             if failed or status != 0:
                 cut = f" and {len(failed) - 20} more" if len(failed) > 20 else ""
-                lines.append(f"failed: {', '.join(failed[:20]) + cut or STATUS['ctest_line'](status)}, "
+                lines.append(f"failed: {', '.join(failed[:20]) + cut or status_table.ctest_line(status)}, "
                              f"the log {TREE}/{LOG.name}")
                 code = 1
         else:

@@ -13,8 +13,9 @@ fault the drives run, it runs the case and names how it ended.
 - The case's standard error is passed through line by line. The frames'
   symbolizing on Linux and its loader's path are retired (tools/README.md's
   Retired section).
-- Then one line on standard error names the status by tools/status.py's
-  table, "status: <value> <name>: <meaning>". On a library missing at
+- Then one line on standard error names the status by
+  foundation/devkit/python/status.py's table, "status: <value> <name>:
+  <meaning>". On a library missing at
   load (0xC0000135) no code of the binary ran, so it names, by
   foundation/devkit/structure/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
@@ -39,7 +40,8 @@ fault the drives run, it runs the case and names how it ended.
   none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
-sys.path: the table and the reader are run from their files.
+sys.path: it appends the root once and imports the status table; the
+debugger's, the dumps' and the imports' readers are run from their files.
 """
 
 import argparse
@@ -54,7 +56,8 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))
+sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import status as status_table
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
@@ -119,7 +122,7 @@ def missing(command):
 
 
 def status_line(status, command):
-    text = STATUS["line"](status)
+    text = status_table.line(status)
     if status == DLL_NOT_FOUND:
         names = missing(command)
         if names is None:
@@ -217,7 +220,7 @@ def main(argv=None):
         process.wait()
         reader.join(READER_WAIT)
         bound(process)
-        print(f"{STATUS['line'](HANG)}; {written}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
+        print(f"{status_table.line(HANG)}; {written}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
         return HANG
     reader.join(READER_WAIT)
     bound(process)

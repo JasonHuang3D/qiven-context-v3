@@ -19,9 +19,9 @@ import signal
 import sys
 import unittest
 
+from foundation.devkit.python import status as status_table
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option, run_watched
-from tools import status as status_table
 
 WINDOWS = sys.platform == "win32"
 FAULT = "qiven_diag_fault"

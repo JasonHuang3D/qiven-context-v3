@@ -47,9 +47,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import status as status_table
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, TIME_BOUND, build_option, run_watched, sanitized
-from tools import status as status_table
 
 FAULT = "qiven_diag_fault"
 CRTDBG = "qiven_diag_fault_crtdbg"

@@ -6,7 +6,7 @@ run behind the watcher, the windows it shows watched.
 CTest gives each Python test the build's directories by the environment:
 QIVEN_BIN, where every binary of the build is written; QIVEN_BUILD, the
 build directory; QIVEN_CTEST, the ctest of the build. A test run outside
-CTest names them itself. A status is named by tools/status.py's table, and
+CTest names them itself. A status is named by foundation/devkit/python/status.py's table, and
 watched() runs a command behind the watcher, tools/watch.py, and
 unbounded() drops the lines of its dumps' bound (tools/dumps.py), which
 another case's dump, written beside, may give any run.
@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from tools import status as status_table
+from foundation.devkit.python import status as status_table
 
 ROOT = Path(__file__).resolve().parents[4]
 

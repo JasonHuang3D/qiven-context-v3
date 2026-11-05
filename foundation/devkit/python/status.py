@@ -17,7 +17,7 @@ run. A death by a signal, or a Windows system status, stays the process's.
 Run as a script, it names each status its arguments give, in decimal or
 0x hexadecimal, a signal as -<number>:
 
-    python -I tools/status.py 0xC0000135 -11
+    python -I foundation/devkit/python/status.py 0xC0000135 -11
 """
 
 import sys

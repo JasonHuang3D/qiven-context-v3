@@ -36,10 +36,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from foundation.devkit.python import status as status_table
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, POLL, sanitized, windows_of
 from tools import debuggers
-from tools import status as status_table
 
 WINDOWS = sys.platform == "win32"
 FAULT = "qiven_diag_fault"
