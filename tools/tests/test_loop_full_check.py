@@ -10,7 +10,7 @@ from tools import loop_modules
 
 
 class FullCheck(unittest.TestCase):
-    ctest_git = True  # starts git: listed on the git tests' build alone (foundation/devkit/test/runner/list_tests.py)
+    ctest_labels = ("fake",)  # the selection CI runs
 
     def test_tree(self):
         """No error over the checkout and, under ctest, its build tree; the

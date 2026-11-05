@@ -164,8 +164,6 @@ STATED = {
                                                                 "one that reaches the diagnostic entry's report "
                                                                 "hook",
     ("B9", DIAG + "src/out.cpp", "fcntl.h"): "open, for the file QIVEN_LOG names, on Linux",
-    ("B5", "tools/git_shim.c", "windows.h"): "the tests' counting shim on Windows, which loop_shim.py builds by cl and "
-                                            "CMake never: its log, its environment and the real program's start",
 }
 ALLOWANCES = (*subset.CELLS, *STATED)
 # The directories a rule reads none of, every rule of it, each by prefix with

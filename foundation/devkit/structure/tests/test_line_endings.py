@@ -44,8 +44,6 @@ def line_ending_findings(root):
 
 
 class LineEndings(unittest.TestCase):
-    ctest_git = True  # starts git: listed on the git tests' build alone (foundation/devkit/test/runner/list_tests.py)
-
     def test_tree(self):
         self.assertEqual(line_ending_findings(rules.ROOT), [])
 

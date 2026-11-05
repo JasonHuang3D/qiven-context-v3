@@ -140,18 +140,10 @@ function(qiven_list_tests)
   set(qiven_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
   file(GENERATE OUTPUT "${qiven_inputs_file}" CONTENT "${qiven_inputs}")
 
-  # The git tests, those that start git, registered on one build a system
-  # (CMakePresets.json: ci-windows and linux-gcc), every Python test there
-  # behind the counting shim (tools/loop_shim.py), so that a test of no such
-  # class that starts git fails; never on a tree of the structure records.
-  option(QIVEN_LOOP_TESTS "Register the git tests, every Python test behind the counting shim" OFF)
   set(qiven_python_args "")
   set(qiven_python_files "")
   if(Python3_EXECUTABLE)
     set(qiven_python_args -D "PYTHON=${Python3_EXECUTABLE}")
-    if(QIVEN_LOOP_TESTS AND NOT QIVEN_STRUCTURE)
-      list(APPEND qiven_python_args -D "LOOP=ON")
-    endif()
     # every tree the listing discovers in (foundation/devkit/test/runner/list_tests.py)
     qiven_python_globs("${PROJECT_SOURCE_DIR}" qiven_python_globs)
     file(GLOB_RECURSE qiven_python_files CONFIGURE_DEPENDS ${qiven_python_globs})

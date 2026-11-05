@@ -308,7 +308,7 @@ class TreesBuild(unittest.TestCase):
                 (root / test).write_text("", encoding="utf-8")
             self.assertEqual([p.relative_to(root).as_posix() for p in LISTING["unpackaged"](root, ("tests", "kits"))],
                              ["kits/k/tests", "tests/plain"])
-        rows, errors = LISTING["listed"](False, ROOT)
+        rows, errors = LISTING["listed"](ROOT)
         self.assertEqual(errors, [])
         self.assertTrue(all(row[0].split(".", 1)[0] in (*TREES["walked"], *TREES["layers"]) for row in rows))
 

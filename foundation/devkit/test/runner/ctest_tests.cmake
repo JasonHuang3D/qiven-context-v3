@@ -3,8 +3,7 @@
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
 # ADDR2LINE where the build found one, PYTHON when the Python tests are
-# registered, LOOP when the git tests are too (list_tests.py --loop)
-# and every Python test runs behind the counting shim, and FUZZ when the build has fuzz targets (lines
+# registered, and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
 # other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
@@ -118,11 +117,7 @@ if(DEFINED FUZZ)
 endif()
 
 if(DEFINED PYTHON)
-  set(list_args "")
-  if(LOOP)
-    set(list_args --loop)
-  endif()
-  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/runner/list_tests.py" ${list_args}
+  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/runner/list_tests.py"
     WORKING_DIRECTORY "${SOURCE}"
     OUTPUT_VARIABLE listed ERROR_VARIABLE listed_err RESULT_VARIABLE status)
   if(NOT status EQUAL 0)
@@ -162,17 +157,8 @@ if(DEFINED PYTHON)
     endif()
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
-    # matched whole, so '*<id>' selects that one test. With LOOP each runs
-    # behind the counting shim (tools/loop_shim.py), the git tests, which
-    # start git, with --git.
+    # matched whole, so '*<id>' selects that one test.
     set(test_command "${PYTHON}" -I -m unittest discover -s "${start}" -t . -k "*${id}")
-    if(LOOP)
-      set(shim_words "${PYTHON}" -I "${SOURCE}/tools/loop_shim.py")
-      if("loop" IN_LIST labels)
-        list(APPEND shim_words --git)
-      endif()
-      set(test_command ${shim_words} -- ${test_command})
-    endif()
     qiven_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()
