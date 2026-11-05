@@ -88,10 +88,31 @@ def quiet_load_errors():
     _kernel32.SetErrorMode(ERROR_MODE)
 
 
+def _run(argv, seconds, tree=True, **pipes):
+    """(status, stdout, stderr) of a system program started with stdin closed.
+    Past `seconds` its tree is ended, by end_tree where `tree`, else the
+    program alone, before its output is collected, since a child holding the
+    pipe would hold the caller past the limit; then TimeoutExpired, raised
+    again past END_TREE_SECONDS more where a child holds the pipe still."""
+    child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, **pipes)
+    try:
+        out, err = child.communicate(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        try:
+            if tree:
+                end_tree(child.pid)
+        finally:
+            child.kill()
+            child.communicate(timeout=END_TREE_SECONDS)
+        raise
+    return child.returncode, out, err
+
+
 def end_tree(pid):
     try:
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(pid)], capture_output=True, stdin=subprocess.DEVNULL,
-                       timeout=END_TREE_SECONDS, check=False)
+        # taskkill starts no child: at its limit it is ended alone.
+        _run(["taskkill", "/T", "/F", "/PID", str(pid)], END_TREE_SECONDS, tree=False,
+             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"system.end_tree: taskkill of {pid}: {e}") from e
 
@@ -219,13 +240,12 @@ def _subst(member, argv):
     """subst with argv; Failed naming the member, by its output, where it
     fails."""
     try:
-        done = subprocess.run(["subst", *argv], capture_output=True, stdin=subprocess.DEVNULL,
-                              timeout=SUBST_SECONDS, check=False)
+        status, out, err = _run(["subst", *argv], SUBST_SECONDS, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"system.{member}: subst {' '.join(argv)}: {e}") from e
-    if done.returncode != 0:
-        text = output_text(done.stdout + done.stderr, "replace").strip()
-        raise Failed(f"system.{member}: subst {' '.join(argv)} gave {done.returncode}: {text}")
+    if status != 0:
+        text = output_text(out + err, "replace").strip()
+        raise Failed(f"system.{member}: subst {' '.join(argv)} gave {status}: {text}")
 
 
 def map_drive(letter, target):
@@ -255,11 +275,11 @@ def sdk_root():
 def _toolset_output(argv):
     """(status, its output, stderr merged) of a toolset's program."""
     try:
-        done = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                              text=True, errors="replace", timeout=TOOLSET_SECONDS, check=False)
+        status, out, _ = _run(argv, TOOLSET_SECONDS, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, errors="replace")
     except (OSError, subprocess.TimeoutExpired) as e:
         raise Failed(f"system.toolset_env: {Path(argv[0]).name}: {e}") from e
-    return done.returncode, done.stdout
+    return status, out
 
 
 def _find_setup():
