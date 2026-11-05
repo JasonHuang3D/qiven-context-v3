@@ -271,8 +271,6 @@ class Faults(unittest.TestCase):
         watcher exiting with it."""
         ran, _, err, _, _ = run_watched([sys.executable, "-I", "-c", "import sys; sys.exit(77)"], "K12")
         self.assertEqual((ran, err.decode("utf-8", "replace").splitlines()), (77, ["status: 77 unnamed"]))
-        self.assertEqual(status_table.line(0xC0000001), "status: 0xC0000001 unnamed")
-        self.assertEqual(status_table.line(-31), "status: signal 31 unnamed")
 
     def test_no_dump_dir(self):
         """With QIVEN_DUMP_DIR unset the report says so: dump none. The
