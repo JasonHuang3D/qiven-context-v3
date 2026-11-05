@@ -2,7 +2,7 @@
 # Python test's id, and writes one add_test() each into OUT.
 # Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
 # limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
-# ADDR2LINE where the build found one, PYTHON when the Python tests are
+# PYTHON when the Python tests are
 # registered, and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, tools/watch.py,
 # under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
@@ -19,9 +19,6 @@ set(FAST_LIMIT 60)
 set(OTHER_LIMIT 300)
 set(AFTER_LIMIT 30)
 set(environment "QIVEN_BIN=${BIN};QIVEN_BUILD=${BUILD};QIVEN_CTEST=${CTEST}")
-if(ADDR2LINE)
-  string(APPEND environment ";QIVEN_ADDR2LINE=${ADDR2LINE}")
-endif()
 if(DEFINED PYTHON)
   file(TO_CMAKE_PATH "${PYTHON}" PYTHON)
 endif()

@@ -1,12 +1,11 @@
-"""K11: each binary of the build's binaries.txt imports only its system's
-libraries, Windows' API sets among Windows' own, or its preset's residual,
-read by foundation/devkit/structure/imports.py
-from its bytes; on Linux it names its loader, holds no run path, and needs
-no glibc symbol version past the floor's, GLIBC_2.39. The control:
+"""K11: each binary of the build's binaries.txt imports only Windows' system
+libraries, its API sets among them, or its preset's residual, read by
+foundation/devkit/structure/imports.py from its bytes. The control:
 qiven_diag_fault_import, which imports the test tree's own library, is
 caught.
-On macOS Mach-O is not read, so K11's binaries are skipped there: a
-residual."""
+PE alone is read: K11's ELF half is retired (tools/README.md's Retired
+section) and Mach-O was never read, so K11's binaries are skipped off
+Windows: a residual."""
 
 import sys
 import unittest
@@ -16,35 +15,25 @@ from foundation.devkit.test.runner.binaries import build_option
 from foundation.devkit.structure import imports
 
 WINDOWS = sys.platform == "win32"
-SYSTEM = "windows" if WINDOWS else "linux"
 PLANTED = "qiven_diag_fault_import"
-PLANTED_LIBRARY = "qiven_diag_fault_lib.dll" if WINDOWS else "libqiven_diag_fault_lib.so"
-LOADER = "/lib64/ld-linux-x86-64.so.2"
-MACOS = sys.platform == "darwin"
+PLANTED_LIBRARY = "qiven_diag_fault_lib.dll"
 
 
 class Imports(unittest.TestCase):
     ctest_labels = ("fake",)
 
-    @unittest.skipIf(MACOS, "Mach-O is not read, so K11 skips macOS: a residual")
+    @unittest.skipUnless(WINDOWS, "PE alone is read, so K11 skips off Windows: a residual")
     def test_K11_binaries(self):
         sanitize = build_option("QIVEN_SANITIZE") or ""
-        compiler = build_option("QIVEN_CXX_COMPILER_ID") or ""
-        found, past = {}, {}
+        found = {}
         for binary in binaries.listed():
             read = imports.read_file(binary)
-            self.assertEqual(read.kind, "pe" if WINDOWS else "elf", binary)
-            if not WINDOWS:
-                self.assertEqual((read.interp, read.run_paths), (LOADER, ()), binary)
-                self.assertTrue(imports.newest_glibc(read), binary)
-                past[binary.stem] = imports.past_floor(read)
-            self.assertIn("kernel32.dll" if WINDOWS else "libc.so.6", [n.lower() for n in read.names], binary)
-            found[binary.stem] = imports.outside(read, SYSTEM, sanitize, compiler)
+            self.assertIn("kernel32.dll", [n.lower() for n in read.names], binary)
+            found[binary.stem] = imports.outside(read, sanitize)
         self.assertIn(PLANTED, found)
         # The control: the planted binary's import of the test tree's library, caught.
         self.assertEqual(found.pop(PLANTED), [PLANTED_LIBRARY])
         self.assertEqual({k: v for k, v in found.items() if v}, {})
-        self.assertEqual({k: v for k, v in past.items() if v}, {})
 
 
 if __name__ == "__main__":

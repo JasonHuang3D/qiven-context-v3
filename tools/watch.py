@@ -10,16 +10,12 @@ fault the drives run, it runs the case and names how it ended.
 - On Windows it first sets its own error mode as the diagnostic entry's
   first stage does; the case inherits it, so that a library missing at
   load opens no window.
-- The case's standard error is passed through line by line. On Linux
-  each run of the report's frames, backtrace_symbols_fd's raw lines, is
-  symbolized after it ends: a frame in a module with no symbol named gets
-  addr2line's function and line appended where the binary has symbols, read
-  at the byte before the frame's address, its call's, the outermost
-  function where calls were inlined
-  (QIVEN_ADDR2LINE, or addr2line on PATH; none, the frames stay raw).
+- The case's standard error is passed through line by line. The frames'
+  symbolizing on Linux and its loader's path are retired (tools/README.md's
+  Retired section).
 - Then one line on standard error names the status by tools/status.py's
   table, "status: <value> <name>: <meaning>". On a library missing at
-  load (0xC0000135, or 127) no code of the binary ran, so it names, by
+  load (0xC0000135) no code of the binary ran, so it names, by
   foundation/devkit/structure/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
 - It exits with the case's status, a signal on Linux as 128 plus its
@@ -27,7 +23,7 @@ fault the drives run, it runs the case and names how it ended.
 - Past its limit, the hang: by tools/debuggers.py's debugger, attached
   without stopping the case, it prints "hang: past its limit of <s> s,
   <n> threads" and every thread's stack, at most 16 threads and 200 lines,
-  and writes <binary>-<pid>-hang.dmp (.core on Linux) in the dumps'
+  and writes <binary>-<pid>-hang.dmp in the dumps'
   directory; with no debugger at hand, "hang: no debugger, no stacks" and
   the reason. The debugger is the pinned one, but in a CI job on Windows,
   where the image keeps its own tools, the image's cdb, unpinned
@@ -65,13 +61,9 @@ IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imp
 WINDOWS = sys.platform == "win32"
 # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, as the entry sets.
 ERROR_MODE = 0x0001 | 0x0002 | 0x8000
-DLL_NOT_FOUND, LOADER = 0xC0000135, 127
+DLL_NOT_FOUND = 0xC0000135
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
-# backtrace_symbols_fd's line after the report's "  #<i> ": the module, its
-# symbol where the dynamic symbol table names one, the offset, the address.
-FRAME = re.compile(rb"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]")
-LINUX_DIRS = ("/lib/x86_64-linux-gnu", "/usr/lib/x86_64-linux-gnu", "/lib64", "/usr/lib64", "/lib", "/usr/lib")
 
 
 def safe_name(name):
@@ -90,81 +82,19 @@ def environment(name):
     return env
 
 
-def addr2line():
-    return os.environ.get("QIVEN_ADDR2LINE") or shutil.which("addr2line")
-
-
-def symbolized(frames):
-    """The frames, each in a module with no symbol named followed by its
-    function and line where addr2line finds them."""
-    tool = addr2line()
-    found = [FRAME.fullmatch(f.rstrip(b"\r\n")) for f in frames]
-    wanted = {}
-    for m in found:
-        if m and not m["symbol"] and m["module"] and Path(m["module"].decode()).is_file():
-            wanted.setdefault(m["module"].decode(), set()).add(m["offset"].decode())
-    names = {}
-    for module, offsets in wanted.items() if tool else ():
-        offsets = sorted(offsets)
-        try:
-            # Each frame but the fault's is a return address, past its call,
-            # which may end its function: the byte before it is the call's.
-            # -a heads each address's lines; -i gives its inlined chain.
-            done = subprocess.run([tool, "-a", "-f", "-C", "-i", "-e", module,
-                                   *(f"{int(o, 16) - 1:#x}" for o in offsets)],
-                                  capture_output=True, timeout=30, check=False)
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        groups = []
-        for text in done.stdout.decode("utf-8", "replace").splitlines():
-            if re.fullmatch(r"0x[0-9a-f]+", text):
-                groups.append([])
-            elif groups:
-                groups[-1].append(text)
-        for offset, group in zip(offsets, groups if done.returncode == 0 else ()):
-            # The outermost of an inlined chain is the frame's own function.
-            function, where = (group[-2:] if len(group) >= 2 else ["??", "??"])
-            if function != "??":
-                names[(module, offset)] = function if where.startswith("??") else f"{function} {where}"
-    out = []
-    for frame, m in zip(frames, found):
-        name = names.get((m["module"].decode(), m["offset"].decode())) if m else None
-        out.append(frame if name is None else frame.rstrip(b"\r\n") + b" " + name.encode() + b"\n")
-    return out
-
-
 def relay(stream, sink):
-    """Passes the case's standard error through; on Linux each run of
-    frames is symbolized once it ends."""
-    held = []
+    """Passes the case's standard error through."""
     for raw in iter(stream.readline, b""):
-        if not WINDOWS and FRAME.fullmatch(raw.rstrip(b"\r\n")):
-            held.append(raw)
-            continue
-        if held:
-            sink.writelines(symbolized(held))
-            held = []
         sink.write(raw)
         sink.flush()
-    if held:
-        sink.writelines(symbolized(held))
     sink.flush()
 
 
 def search_path(binary):
     """The directories the loader looks in for the binary's libraries."""
-    if WINDOWS:
-        system = os.environ.get("SystemRoot")
-        dirs = [binary.parent, *((Path(system) / "System32", Path(system)) if system else ())]
-        return dirs + [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep) if p]
-    dirs = [Path(p) for p in os.environ.get("LD_LIBRARY_PATH", "").split(":") if p]
-    for conf in [Path("/etc/ld.so.conf"), *sorted(Path("/etc/ld.so.conf.d").glob("*.conf"))]:
-        try:
-            text = conf.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        dirs += [Path(line.strip()) for line in text.splitlines() if line.strip().startswith("/")]
-    return dirs + [Path(d) for d in LINUX_DIRS]
+    system = os.environ.get("SystemRoot")
+    dirs = [binary.parent, *((Path(system) / "System32", Path(system)) if system else ())]
+    return dirs + [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep) if p]
 
 
 def missing(command):
@@ -181,7 +111,7 @@ def missing(command):
     dirs = search_path(binary)
     out = []
     for name in names:
-        if WINDOWS and name.lower().startswith(("api-ms-", "ext-ms-")):
+        if name.lower().startswith(("api-ms-", "ext-ms-")):
             continue  # an API set, which the system resolves
         if not any((d / name).is_file() for d in dirs):
             out.append(name)
@@ -190,7 +120,7 @@ def missing(command):
 
 def status_line(status, command):
     text = STATUS["line"](status)
-    if status == (DLL_NOT_FOUND if WINDOWS else LOADER):
+    if status == DLL_NOT_FOUND:
         names = missing(command)
         if names is None:
             text += "; its imports cannot be read"

@@ -7,11 +7,11 @@ The watcher (tools/watch.py) runs it after each case ends, whether the
 case wrote a dump or none, so that every writer into the directory is
 bounded: the diagnostic entry's minidump of a crash, the watcher's hang dump,
 and those of the cases a test runs under the debugger.
-- A dump is a file of the directory named *.dmp (a minidump) or *.core (a
-  core file); nothing else there is read or removed.
+- A dump is a file of the directory named *.dmp (a minidump); nothing else
+  there is read or removed.
 - The dumps are ordered by their last write, then by name. The newest
   DUMPS_KEPT stay, and so does every dump the case of process pid wrote,
-  by its name (<binary>-<pid>.dmp, <binary>-<pid>-hang.dmp or .core): the
+  by its name (<binary>-<pid>.dmp, <binary>-<pid>-hang.dmp): the
   dump the case's report or the hang's lines name is never removed.
 - Each dump removed is named in one line, "dumps: removed <name>, past the
   newest <DUMPS_KEPT>"; one that cannot be removed, "dumps: cannot remove
@@ -23,12 +23,12 @@ import re
 from pathlib import Path
 
 DUMPS_KEPT = 8  # the dumps a dumps' directory keeps at most, the newest
-SUFFIXES = (".dmp", ".core")
+SUFFIX = ".dmp"
 
 
 def own(name, pid):
     """Whether the dump's name is that of a dump process pid wrote."""
-    return pid is not None and re.search(rf"-{pid}(?:-hang)?\.(?:dmp|core)$", name) is not None
+    return pid is not None and re.search(rf"-{pid}(?:-hang)?\.dmp$", name) is not None
 
 
 def dumps(directory):
@@ -39,7 +39,7 @@ def dumps(directory):
     except OSError:
         return found
     for path in entries:
-        if path.suffix not in SUFFIXES:
+        if path.suffix != SUFFIX:
             continue
         try:
             if path.is_file():

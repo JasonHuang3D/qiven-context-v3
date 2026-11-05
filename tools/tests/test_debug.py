@@ -3,19 +3,16 @@ qiven_diag_fault's plant `watch`, which writes a counter three times in
 plant_watch: the break, the watch's stops, the locals with the counter, a
 stack frame plant_watch, within the bounds; its control, --lines 5, the
 transcript cut at 5 lines with its last line. K17, debug.py dump on K1's
-minidump naming plant_null, and on Linux on K8's core, written by the
-watcher's hang path, naming plant_hang, read with --symbols and without,
-the binary then the one the core's notes name; its control, a file that is
-no dump, exit 2. And the wrapper's other ends: a fault's, a case's, the time
-bound's, a bad argument's.
+minidump naming plant_null; its control, a file that is no dump, exit 2.
+And the wrapper's other ends: a fault's, a case's, the time bound's, a bad
+argument's.
 
-On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt, and
-it needs the binary's PDB beside it: a build that keeps none (Release,
-whose binaries the clean-binaries check reads) skips the cases that name
-a function. On Linux it is gdb, pinned in tools/linux-pins.txt, on
-linux-plain's build, which has its debug information. Where the debugger
-is absent, each case skips by name, "no cdb" or "no gdb", with the
-runner's 125; one off its pin fails.
+The debugger is cdb.exe, pinned in tools/windows-pins.txt, and it needs the
+binary's PDB beside it: a build that keeps none (Release, whose binaries
+the clean-binaries check reads) skips the cases that name a function.
+Linux's, gdb, with tools/debug_gdb.py and tools/linux-pins.txt, is retired
+(tools/README.md's Retired section). Where the debugger is absent, each
+case skips by name, "no cdb", with the runner's 125; one off its pin fails.
 Under a sanitizer, whose runtime takes the process's faults, they are
 skipped too.
 
@@ -29,7 +26,6 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -37,7 +33,6 @@ from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
 from tools import debuggers
 
-WINDOWS = sys.platform == "win32"
 FAULT = "qiven_diag_fault"
 DEBUG = Path(__file__).resolve().parents[2] / "tools" / "debug.py"
 SOURCE = (Path(__file__).resolve().parents[2] / "foundation" / "system" / "diag" / "tests" / "faults"
@@ -45,7 +40,7 @@ SOURCE = (Path(__file__).resolve().parents[2] / "foundation" / "system" / "diag"
 LAST = re.compile(r"^debug: (?P<outcome>.+), (?P<stops>\d+) stops, (?P<lines>\d+) lines, (?P<seconds>[\d.]+) s$")
 COUNTER = re.compile(r"\bcounter = (?P<value>\S+)$")
 STOP = re.compile(r"^stop (?P<n>\d+): ")
-# A function's frame: cdb's "<module>!<name>+0x..", gdb's "<name> (...)".
+# A function's frame: cdb's "<module>!<name>+0x..".
 FRAME = r"[!\s]{}[+(\s]"
 DEFAULT_LINES = 200
 
@@ -81,7 +76,7 @@ class Debug(unittest.TestCase):
         if sanitized():
             self.skipTest("under a sanitizer its runtime takes the faults")
         try:
-            debuggers.find()
+            debuggers.find_cdb()
         except debuggers.Absent as e:
             self.skipTest(str(e))
         except debuggers.NotFound as e:
@@ -89,7 +84,7 @@ class Debug(unittest.TestCase):
         self.fault = binaries.path(FAULT)
 
     def symbols(self):
-        if WINDOWS and not self.fault.with_suffix(".pdb").is_file():
+        if not self.fault.with_suffix(".pdb").is_file():
             self.skipTest("the build keeps no PDB beside its binaries: no function to name")
 
     def bounded(self, lines, bound=DEFAULT_LINES):
@@ -118,7 +113,7 @@ class Debug(unittest.TestCase):
         # The watch's stops, each after a write, the counter's value in the locals.
         values = []
         for stop in stops[1:4]:
-            # The locals' lines alone: gdb's source lines name the counter too.
+            # The locals' lines alone.
             at = stop.index("> locals") + 1
             locals_ = stop[at:next((i for i in range(at, len(stop)) if stop[i].startswith("> ")), len(stop))]
             found = [COUNTER.search(line) for line in locals_]
@@ -137,8 +132,6 @@ class Debug(unittest.TestCase):
 
     def test_K17_dump(self):
         self.symbols()
-        if not WINDOWS:
-            return self.core()
         dumps = binaries.directory("QIVEN_BUILD") / "dumps"
         _, _, err, _, _ = binaries.run_watched([self.fault, "null"], "K1")
         name = next(line.removeprefix("fatal: dump ") for line in err.decode("utf-8", "replace").splitlines()
@@ -151,29 +144,6 @@ class Debug(unittest.TestCase):
         for action in ("> context", "> stack", "> locals", "> threads"):
             self.assertIn(action, lines)
 
-    def core(self):
-        """Linux: K8's core, the watcher's, read: no fault, both threads'
-        stacks holding plant_hang."""
-        from tools.tests.test_hang import IN_PLANT, LIMIT, run_watched, sections
-        start = time.time()
-        status, _, err, _, _ = run_watched([self.fault, "hang"], "K17", LIMIT)
-        self.assertEqual(status, 124, err)
-        dumps = binaries.directory("QIVEN_BUILD") / "dumps"
-        written = [p for p in dumps.glob(f"{FAULT}-*-hang.core") if p.stat().st_mtime >= start - 1
-                   and any(line.startswith("Saved corefile ") and line.endswith(p.name) for line in err)]
-        self.assertEqual(len(written), 1, (written, err))
-        for symbols in (("--symbols", self.fault.parent), ()):
-            with self.subTest(symbols=symbols):
-                code, lines = debug("dump", written[0], *symbols)
-                last = self.bounded(lines)
-                self.assertEqual((code, last["outcome"]), (0, "dump read"), lines)
-                self.assertEqual(lines[0], "dump: no event", lines)
-                for action in ("> context", "> stack", "> locals", "> threads"):
-                    self.assertIn(action, lines)
-                threads = sections(lines[lines.index("> threads") + 1:-1])
-                self.assertGreaterEqual(sum(any(IN_PLANT.search(line) for line in s) for s in threads), 2, lines)
-                self.assertFalse(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
-
     def test_K17_control(self):
         with tempfile.TemporaryDirectory() as scratch:
             fake = Path(scratch) / "fault.dmp"
@@ -181,7 +151,7 @@ class Debug(unittest.TestCase):
             code, lines = debug("dump", fake)
         self.bounded(lines)
         self.assertEqual(code, 2, lines)
-        self.assertRegex(lines[-1], r"^debug: could not run: .* is no (minidump|core file), 0 stops, 1 lines, ")
+        self.assertRegex(lines[-1], r"^debug: could not run: .* is no minidump, 0 stops, 1 lines, ")
 
     def test_fault(self):
         self.symbols()
@@ -190,8 +160,6 @@ class Debug(unittest.TestCase):
         self.assertEqual(code, 1, lines)
         self.assertEqual(int(last["stops"]), 1, lines)
         self.assertTrue(any(re.search(FRAME.format("plant_null"), line) for line in lines), lines)
-        if not WINDOWS:
-            self.assertEqual(last["outcome"], "fault SIGSEGV, Segmentation fault", lines)
 
     def test_exited(self):
         code, lines = debug("run", "--", self.fault, "out")

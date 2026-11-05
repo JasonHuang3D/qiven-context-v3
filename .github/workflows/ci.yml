@@ -13,14 +13,14 @@
 # job block.
 #
 # CI is a runtime evaluation, unpinned: Linux on the ubuntu-24.04 image, the
-# release the local Linux pins name, Windows on the runner's latest
+# release the retired local Linux pins named, Windows on the runner's latest
 # image, each with its own tools, a tool an image lacks at its
 # current release. No step
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
 # local pins (build.cmake's QIVEN_PIN_ versions; the Windows toolset in
-# tools/changed.py; the debuggers' in tools/windows-pins.txt and
-# tools/linux-pins.txt), never fixed by a pin here.
+# tools/changed.py; the debugger's in tools/windows-pins.txt;
+# tools/linux-pins.txt is retired, tools/README.md), never fixed by a pin here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit
 # SHA of its own repository, its tag in a comment. No secret is read.

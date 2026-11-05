@@ -1,4 +1,4 @@
-"""The floors the build enforces: Windows 11 24H2, Ubuntu 24.04, macOS 15.
+"""The floors the build enforces: Windows 11 24H2, macOS 15.
 
 - Windows: every compile command of the build's compile_commands.json
   sets NTDDI_VERSION 0x0A000010 (NTDDI_WIN11_GE) and _WIN32_WINNT and
@@ -7,7 +7,8 @@
   (foundation/devkit/build/build.cmake); this holds each target to them, since cl takes the
   last of two /D of one name without a word. No source of the tree
   defines or undefines one of them.
-- Linux: K11 (test_binaries.py) reads each binary's glibc needs.
+- Linux: Ubuntu 24.04's, K11's reading of each binary's glibc needs, is
+  retired (tools/README.md's Retired section).
 - macOS: the macos-clang preset's CMAKE_OSX_DEPLOYMENT_TARGET is 15.0.
   No job builds under it, here or in CI: CI's macos-clang job is gone.
 Each over the tree."""

@@ -22,7 +22,6 @@
         "tools/debug*",
         "tools/dumps.py",
         "tools/fuzz_seeds.py",
-        "tools/linux-pins.txt",
         "tools/loop*",
         "tools/status.py",
         "tools/tests/",

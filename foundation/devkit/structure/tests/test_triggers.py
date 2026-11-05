@@ -145,7 +145,7 @@ def findings(text):
 
 
 # The one runner label of each system's jobs, by the job's name: Linux on
-# the release the local Linux pins name, Windows and macOS on their latest.
+# the release the retired local Linux pins named, Windows and macOS on their latest.
 LABELS = {"windows": "windows-latest", "linux": "ubuntu-24.04", "macos": "macos-latest"}
 # What each job prints, by its label: the image, CPython, CMake, CTest and
 # Ninja, and the compilers; on Linux glibc as well, ldd's first line.

@@ -41,7 +41,7 @@ set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedd
 # On Linux every executable position-independent, stated here rather than
 # left to the compiler's default, which differs between builds of the same
 # compiler: a fault dump's frames are backtrace_symbols_fd's module offsets,
-# which the watcher symbolizes, and a non-PIE executable's frames carry none.
+# and a non-PIE executable's frames carry none.
 if(NOT MSVC AND NOT APPLE)
   cmake_policy(SET CMP0083 NEW)
   include(CheckPIESupported)
@@ -76,7 +76,8 @@ if(NOT MSVC AND NOT APPLE)
 endif()
 
 # The pins of this machine's toolchain, which QIVEN_PIN_TOOLS checks: MSVC
-# on Windows; in WSL2 g++ 13 and clang 18 as tools/linux-pins.txt has them.
+# on Windows; in WSL2 g++ 13 and clang 18 as tools/linux-pins.txt, retired
+# (tools/README.md), had them.
 # CI leaves the option off and takes its image's tools.
 set(QIVEN_PIN_MSVC 19.44.35228)
 set(QIVEN_PIN_GCC 13.3.0)
@@ -88,9 +89,6 @@ set(QIVEN_PIN_PYTHON 3.15.0)
 
 message(STATUS "qiven: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "qiven: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
-# The C++ compiler's id in the cache, where K11 reads it: clang's sanitizer
-# runtimes, not gcc's, link a residual (foundation/devkit/structure/imports.py).
-set(QIVEN_CXX_COMPILER_ID "${CMAKE_CXX_COMPILER_ID}" CACHE INTERNAL "the C++ compiler's CMake id")
 
 if(QIVEN_PIN_TOOLS)
   # MSVC's version by VERSION_EQUAL: CMake gives it a fourth part, 19.44.35228.0.
@@ -256,8 +254,8 @@ endif()
 #   build's flags, each set before sdkddkver.h, since its defaults may
 #   match; foundation/devkit/structure/tests/test_floors.py holds every compile command and
 #   source to them.
-# - Linux: no binary needs a glibc symbol version past GLIBC_2.39, which K11
-#   reads (foundation/devkit/structure/tests/test_binaries.py).
+# - Linux: no binary needs a glibc symbol version past GLIBC_2.39; K11's
+#   reading of it is retired (tools/README.md).
 # - macOS: the deployment target 15.0, from the macos-clang preset, and a
 #   call newer than it an error.
 if(WIN32)

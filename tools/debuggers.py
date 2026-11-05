@@ -1,23 +1,21 @@
-"""The debuggers tools/debug.py and the watcher (tools/watch.py) drive:
-each found and checked against its pin, and their output bounded.
+"""The debugger tools/debug.py and the watcher (tools/watch.py) drive: found
+and checked against its pin, and its output bounded.
 
-- Windows: cdb.exe, the Windows SDK's, found from the registry's
-  KitsRoot10 and Debuggers/x64/, its version (cdb -version) and SHA-256
-  checked against tools/windows-pins.txt. It is run with -sins, so that no
-  environment's symbol path or server is read, and -y the binary's
-  directory.
-- Linux: gdb on PATH, checked against its line of tools/linux-pins.txt
-  ("debugger gdb VERSION SHA256 path/gdb").
-- Absent, a debugger is Absent, and its cases skip by name; present off
+- cdb.exe, the Windows SDK's, found from the registry's KitsRoot10 and
+  Debuggers/x64/, its version (cdb -version) and SHA-256 checked against
+  tools/windows-pins.txt. It is run with -sins, so that no environment's
+  symbol path or server is read, and -y the binary's directory. Linux's
+  gdb is retired (tools/README.md's Retired section).
+- Absent, the debugger is Absent, and its cases skip by name; present off
   its pin, or with no pin line, it is NotFound, and its cases fail, as any
   pin does.
 - hang_stacks(): every thread's stack of a running process, by the
   debugger attached without stopping it, and a dump of it; the watcher
   writes them before it kills a case past its limit. Its debugger is the
-  pinned one, but in a CI job on Windows (GitHub Actions' GITHUB_ACTIONS
-  "true", which the runner sets in every step), where the image keeps its
-  own tools: there the image's cdb, unpinned, named by its path and
-  version (image_cdb()), or Absent naming where it looked.
+  pinned one, but in a CI job (GitHub Actions' GITHUB_ACTIONS "true",
+  which the runner sets in every step), where the image keeps its own
+  tools: there the image's cdb, unpinned, named by its path and version
+  (image_cdb()), or Absent naming where it looked.
 
 Run by the pinned interpreter under -I, from its file (runpy): it imports
 nothing of this directory.
@@ -28,33 +26,26 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WINDOWS = sys.platform == "win32"
 WINDOWS_PINS = ROOT / "tools" / "windows-pins.txt"
-LINUX_PINS = ROOT / "tools" / "linux-pins.txt"
 LINE_POINTS = 300  # a line's code points at most, the cut's marker within them
 CUT = "[cut]"
 FRAMES = 32
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
 HANG_SECONDS = 25.0  # the debugger's time, within the 30 s after the limit
-NO_GDB = "no gdb: none on PATH"
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
 # workflows set no variable of their own that names CI.
 CI_VARIABLE = "GITHUB_ACTIONS"
 CDB_VERSION = re.compile(r"\bversion (\d+(?:\.\d+)+)")
-# A thread's header in cdb's ~*kn, and in gdb's thread apply all bt.
+# A thread's header in cdb's ~*kn.
 CDB_THREAD = re.compile(r"^[.#]?\s*\d+\s+Id: [0-9a-f]+\.[0-9a-f]+ ")
-GDB_THREAD = re.compile(r"^Thread \d+ \(")
-# cdb's and gdb's lines that say nothing of the case.
+# cdb's lines that say nothing of the case.
 NOISE = re.compile("|".join((
     r"^ModLoad: ", r"^\([0-9a-f]+\.[0-9a-f]+\): .* chance", r"^Breakpoint \d+ hit$",
-    r"^\*\*\* WARNING: Unable to verify checksum", r"^NatVis script ", r"^quit:$", r"^\[New LWP ",
-    r"^\[Thread debugging using ", r"^Using host libthread_db ", r"^\[Inferior \d+ \(process \d+\) detached\]",
-    r"^warning: \d+\t.*: No such file or directory$")))
+    r"^\*\*\* WARNING: Unable to verify checksum", r"^NatVis script ", r"^quit:$")))
 
 
 class NotFound(Exception):
@@ -62,7 +53,7 @@ class NotFound(Exception):
 
 
 class Absent(NotFound):
-    """No debugger installed: "no cdb: ..." or "no gdb: ...", a skip."""
+    """No debugger installed: "no cdb: ...", a skip."""
 
 
 def clip(line):
@@ -122,6 +113,7 @@ def checked(path, version, digest, ask):
 
 
 def find_cdb():
+    """The debugger, checked, or NotFound (Absent when there is none)."""
     found = pin(WINDOWS_PINS, "debugger", "cdb")
     if found is None:
         raise NotFound(f"no line 'debugger cdb' in {WINDOWS_PINS.name}")
@@ -133,22 +125,6 @@ def find_cdb():
     if not path.is_file():
         raise Absent(f"no cdb: none in the SDK's {Path(source).parent.as_posix()}")
     return checked(path, version, digest, ["-version"])
-
-
-def find_gdb():
-    found = shutil.which("gdb")
-    if found is None:
-        raise Absent(NO_GDB)
-    pinned = pin(LINUX_PINS, "debugger", "gdb")
-    if pinned is None:
-        raise NotFound(f"gdb is not pinned in {LINUX_PINS.name}")
-    version, digest, _ = pinned
-    return checked(Path(found).resolve(), version, digest, ["--version"])
-
-
-def find():
-    """The system's debugger, checked, or NotFound (Absent when there is none)."""
-    return find_cdb() if WINDOWS else find_gdb()
 
 
 def on_ci():
@@ -187,12 +163,12 @@ def image_cdb():
 
 def hang_debugger():
     """The hang's debugger: (path, how), how None for the pinned one
-    (find()); in a CI job on Windows the image's cdb (image_cdb()), how
-    naming its version and path."""
-    if WINDOWS and on_ci():
+    (find_cdb()); in a CI job the image's cdb (image_cdb()), how naming its
+    version and path."""
+    if on_ci():
         path, version = image_cdb()
         return path, f"by the image's cdb {version} at {path.as_posix()}, unpinned (CI)"
-    return find(), None
+    return find_cdb(), None
 
 
 def module(binary):
@@ -204,32 +180,24 @@ def module(binary):
 def hang_command(debugger, pid, binary, dump):
     """The debugger's command line: every thread's stack, then the dump
     (none when dump is None), the process left running."""
-    if WINDOWS:
-        commands = f"~*kn {FRAMES}" + (f"; .dump /mt {dump}" if dump else "") + "; qd"
-        return [str(debugger), "-pv", "-p", str(pid), "-sins", "-lines", "-y", str(Path(binary).parent),
-                "-c", commands]
-    # The settings before the process is attached and its libraries load.
-    settings = ["set pagination off", "set debuginfod enabled off"]
-    steps = [f"thread apply all bt {FRAMES}", *([f"gcore {dump}"] if dump else []), "detach"]
-    return [str(debugger), "-batch", "-nx", "-q", *(a for s in settings for a in ("-iex", s)), "-p", str(pid),
-            *(a for s in steps for a in ("-ex", s))]
+    commands = f"~*kn {FRAMES}" + (f"; .dump /mt {dump}" if dump else "") + "; qd"
+    return [str(debugger), "-pv", "-p", str(pid), "-sins", "-lines", "-y", str(Path(binary).parent),
+            "-c", commands]
 
 
 def hang_lines(text):
     """The stacks of the debugger's output: (threads, lines), the threads
     past HANG_THREADS dropped, the lines within HANG_LINES - 1."""
     lines = text.splitlines()
-    if WINDOWS:
-        start = next((i + 1 for i, line in enumerate(lines) if "Reading initial command" in line), len(lines))
-        lines = lines[start:]
-    header = CDB_THREAD if WINDOWS else GDB_THREAD
+    start = next((i + 1 for i, line in enumerate(lines) if "Reading initial command" in line), len(lines))
+    lines = lines[start:]
     threads, kept, dropped = 0, [], False
     for line in lines:
         if not line.strip() or NOISE.match(line):
             continue
-        if header.match(line):
+        if CDB_THREAD.match(line):
             threads += 1
-        if threads > HANG_THREADS and not line.startswith(("Creating ", "Dump ", "Saved corefile ")):
+        if threads > HANG_THREADS and not line.startswith(("Creating ", "Dump ")):
             dropped = True
             continue
         kept.append(clip(line))
@@ -242,19 +210,18 @@ def hang_lines(text):
 
 def hang_dump(pid, binary, dumps):
     """The dump hang_stacks has the debugger write, <binary>-<pid>-hang.dmp
-    (.core) in dumps; None when dumps is not given."""
-    return Path(dumps) / f"{Path(binary).stem}-{pid}-hang.{'dmp' if WINDOWS else 'core'}" if dumps else None
+    in dumps; None when dumps is not given."""
+    return Path(dumps) / f"{Path(binary).stem}-{pid}-hang.dmp" if dumps else None
 
 
 def stacks_of(lines):
     """The threads whose stacks the hang's lines hold: their headers."""
-    header = CDB_THREAD if WINDOWS else GDB_THREAD
-    return sum(1 for line in lines if header.match(line))
+    return sum(1 for line in lines if CDB_THREAD.match(line))
 
 
 def hang_stacks(pid, binary, dumps):
     """Every thread's stack of the running process pid, its binary's
-    symbols beside it, and its dump <binary>-<pid>-hang.dmp (.core) in
+    symbols beside it, and its dump <binary>-<pid>-hang.dmp in
     dumps when it is given: (threads, lines, how), how hang_debugger()'s.
     NotFound when no debugger is at hand or it cannot run."""
     debugger, how = hang_debugger()

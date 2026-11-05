@@ -10,12 +10,13 @@ stacks", still killed, 124. The status line names what the watcher wrote:
 the stacks of the threads and the dump, or "no debugger, no stack
 written".
 
-On Windows the debugger is cdb.exe, pinned in tools/windows-pins.txt; on
-Linux gdb, pinned in tools/linux-pins.txt. In a CI job on Windows
+The debugger is cdb.exe, pinned in tools/windows-pins.txt; Linux's, gdb,
+with tools/linux-pins.txt, is retired (tools/README.md's Retired section).
+In a CI job on Windows
 (GITHUB_ACTIONS "true") the watcher takes the image's cdb, unpinned, its
 version and path in the status line, or says why it has none and where it
 looked; off CI never a cdb the pins refuse (a stand-in on PATH, for both). Where it is absent, K8 skips by
-name, "no cdb" or "no gdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
+name, "no cdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
 
 K8 drives the debugger: the label debugger, never fake, so CI never runs
@@ -46,7 +47,7 @@ LIMIT = 3
 AFTER = 30.0  # the watcher's seconds past the limit at most
 HANG_LINES = 200
 HANG = re.compile(r"^hang: past its limit of 3 s, (?P<threads>\d+) threads$")
-THREAD = debuggers.CDB_THREAD if WINDOWS else debuggers.GDB_THREAD
+THREAD = debuggers.CDB_THREAD
 # A frame of plant_hang: its own, or its lambda's, which its name qualifies.
 IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
 
@@ -54,7 +55,7 @@ IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
 def debugger_reason():
     """Why no debugger is at hand, or None; one off its pin raises."""
     try:
-        debuggers.find()
+        debuggers.find_cdb()
     except debuggers.Absent as e:
         return str(e)
     return None
@@ -96,15 +97,9 @@ def sections(lines):
 
 def alive(pid):
     """Whether the process pid still runs."""
-    if WINDOWS:
-        done = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, timeout=30,
-                              check=False)
-        return str(pid) in done.stdout.decode("utf-8", "replace")
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    return not Path(f"/proc/{pid}/stat").read_text().split(")")[-1].split()[0] == "Z"
+    done = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, timeout=30,
+                          check=False)
+    return str(pid) in done.stdout.decode("utf-8", "replace")
 
 
 # A stand-in for a CI image's cdb: its -version, and for a hang one
@@ -170,7 +165,7 @@ class HangStacks(unittest.TestCase):
         stacks = sections(hang[1:])
         threads = int(HANG.match(hang[0])["threads"])
         self.assertEqual(len(stacks), min(threads, debuggers.HANG_THREADS), text)
-        if WINDOWS and not binaries.path(FAULT).with_suffix(".pdb").is_file():
+        if not binaries.path(FAULT).with_suffix(".pdb").is_file():
             # A build that keeps no PDB beside its binaries (Release, whose
             # binaries the clean-binaries check reads) names no function:
             # both threads by their sleep called from the binary's own code.
@@ -182,14 +177,12 @@ class HangStacks(unittest.TestCase):
         self.assertGreaterEqual(len(held), 2, f"K8: plant_hang in {len(held)} threads' stacks: {text}")
         # The reading's control: plant_null, on no stack, is found in none.
         self.assertFalse(any(re.search(r"[!\s]plant_null[+(\s]", line) for line in hang), text)
-        suffix = "dmp" if WINDOWS else "core"
-        # Named in the hang's lines (cdb's "Creating <file>", gdb's "Saved corefile <file>"): another
+        # Named in the hang's lines (cdb's "Creating <file>"): another
         # case's hang, run beside this one, writes its own.
-        written = [p for p in dumps.glob(f"{FAULT}-*-hang.{suffix}") if p.stat().st_mtime >= start - 1
+        written = [p for p in dumps.glob(f"{FAULT}-*-hang.dmp") if p.stat().st_mtime >= start - 1
                    and str(p.name) in text]
         self.assertEqual(len(written), 1, f"K8: the dumps {written}")
-        magic = b"MDMP" if WINDOWS else b"\x7fELF"
-        self.assertEqual(written[0].read_bytes()[:4], magic)
+        self.assertEqual(written[0].read_bytes()[:4], b"MDMP")
         # The status names what the watcher wrote: the stacks of the threads, and the dump.
         self.assertEqual(err[-1], status_table.line(124) + f"; {len(stacks)} of {threads} threads' stacks written, "
                          f"its dump {written[0].name}; K8 past {LIMIT} s", text)
@@ -211,20 +204,6 @@ class Hang(unittest.TestCase):
         while alive(child) and time.monotonic() < deadline:
             time.sleep(POLL)
         self.assertFalse(alive(child), f"the case's child {child} outlived it")
-
-    def test_no_debugger(self):
-        """With no debugger at hand the watcher says so, kills, and exits
-        124: on Linux, where gdb is found on PATH, a PATH without it."""
-        if WINDOWS:
-            self.skipTest("cdb is found by the registry, not by PATH")
-        env = dict(os.environ, PATH="")
-        status, _, err, seconds, _ = run_watched([sys.executable, "-I", "-c", "import time; time.sleep(60)"],
-                                                 "hang.none", 1, env)
-        self.assertEqual(status, 124, err)
-        self.assertEqual(err[-3:-1], ["hang: no debugger, no stacks", f"hang: {debuggers.NO_GDB}"], err)
-        self.assertEqual(err[-1], status_table.line(124) + f"; no debugger, no stack written: {debuggers.NO_GDB}; "
-                         "hang.none past 1 s", err)
-        self.assertLessEqual(seconds, 1 + AFTER, err)
 
     def test_pinned_here(self):
         """Off CI (no GITHUB_ACTIONS), the hang's debugger is the pinned
@@ -287,12 +266,8 @@ class Hang(unittest.TestCase):
 
     def test_hang_lines_bound(self):
         """The stacks' reading keeps 16 threads and 199 lines, with [cut]."""
-        if WINDOWS:
-            header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
-            text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
-        else:
-            header = 'Thread {i} (Thread 0x7f00 (LWP {i}) "qiven_diag_faul"):'  # Linux cuts a thread's name to 15 bytes
-            text = ""
+        header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
+        text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
         text += "".join(header.format(i=i + 1) + "\n" + "#0 frame\n" * 3 for i in range(20))
         threads, lines = debuggers.hang_lines(text)
         self.assertEqual(threads, 20)

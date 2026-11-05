@@ -1,5 +1,5 @@
-"""The debugger agents can drive: a case, a binary or a dump under cdb.exe
-(Windows) or gdb (Linux), with a bounded plain-text transcript.
+"""The debugger agents can drive: a case, a binary or a dump under cdb.exe,
+with a bounded plain-text transcript.
 
     python -I tools/debug.py case <test> [--build <directory>] [actions] [bounds]
     python -I tools/debug.py run [actions] [bounds] -- <binary> [arguments]
@@ -30,17 +30,14 @@
   the stop bound), 1 when the case faulted or the time bound passed, 2
   when it could not run (no debugger, a debugger off its pin, no binary,
   no dump, a bad argument).
-- dump opens a minidump (Windows) or a core file (Linux): the event, the
-  exception's context (.ecxr; gdb's frame), its stack and locals, and
-  every thread's stack, within the same bounds; a dump of a fault ends
-  "fault <cause>", exit 1; one of none, "dump read", exit 0. Its binaries
-  are found in --symbols, by default the minidump's directory on Windows,
-  and on Linux the binary the core's notes name, where it ran.
+- dump opens a minidump: the event, the exception's context (.ecxr), its
+  stack and locals, and every thread's stack, within the same bounds; a
+  dump of a fault ends "fault <cause>", exit 1; one of none, "dump read",
+  exit 0. Its binaries are found in --symbols, by default the minidump's
+  directory.
 
-On Linux the wrapper is gdb's, in batch mode, tools/debug_gdb.py: the same
-actions, bounds, transcript and exit codes; a signal is the fault, seen
-before the case's own handlers. The debugger is found and checked by
-tools/debuggers.py.
+Linux's wrapper, tools/debug_gdb.py, is retired (tools/README.md's Retired
+section). The debugger is found and checked by tools/debuggers.py.
 """
 
 import argparse
@@ -59,8 +56,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATUS = runpy.run_path(str(ROOT / "tools" / "status.py"))  # under -I this directory is off sys.path
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
-GDB = runpy.run_path(str(ROOT / "tools" / "debug_gdb.py"))
-WINDOWS = sys.platform == "win32"
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]
 PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
@@ -268,15 +263,13 @@ def dump_session(cdb, out):
 
 
 def is_dump(path):
-    """Whether the file is a minidump (Windows) or a core file (Linux)."""
+    """Whether the file is a minidump."""
     try:
         with open(path, "rb") as f:
-            head = f.read(18)
+            head = f.read(4)
     except OSError:
         return False
-    if WINDOWS:
-        return head[:4] == b"MDMP"
-    return head[:4] == b"\x7fELF" and len(head) == 18 and int.from_bytes(head[16:18], "little") == 4
+    return head == b"MDMP"
 
 
 def ctest_command(test, build):
@@ -328,8 +321,7 @@ def parse(argv):
     shapes["case"].add_argument("test")
     shapes["case"].add_argument("--build", help="the build directory (default: QIVEN_BUILD)")
     shapes["dump"].add_argument("file")
-    shapes["dump"].add_argument("--symbols", help="the binaries' directory (default: the dump's on Windows; "
-                                "on Linux the binary the core's notes name)")
+    shapes["dump"].add_argument("--symbols", help="the binaries' directory (default: the dump's)")
     for name in ("case", "run"):
         shape = shapes[name]
         shape.add_argument("--break", dest="break_", action="append", default=[])
@@ -362,7 +354,7 @@ def target(args):
     """(the command, or the dump, symbols' directory, the binary, env, cwd)."""
     if args.mode == "dump":
         if not is_dump(args.file):
-            raise CannotRun(f"{args.file} is no {'minidump' if WINDOWS else 'core file'}")
+            raise CannotRun(f"{args.file} is no minidump")
         symbols = Path(args.symbols) if args.symbols else None
         return [str(Path(args.file).resolve())], symbols, None, None, None
     env, cwd = None, None
@@ -395,23 +387,13 @@ def under_cdb(args, out, deadline):
         cdb.close(kill=time.monotonic() >= deadline)
 
 
-def under_gdb(args, out, deadline):
-    """The run, or the core, under gdb: (outcome, code)."""
-    gdb = DEBUGGERS["find_gdb"]()
-    command, symbols, _, env, cwd = target(args)
-    shared = {"FRAMES": FRAMES, "NOISE": DEBUGGERS["NOISE"], "STATUS": STATUS}
-    if args.mode == "dump":
-        return GDB["dump"](gdb, command[0], symbols, out, deadline, shared)
-    return GDB["run"](gdb, args, command, env, cwd, out, deadline, shared)
-
-
 def main(argv=None):
     start = time.monotonic()
     out = Transcript(200)
     try:
         args = parse(sys.argv[1:] if argv is None else argv)
         out.bound = args.lines
-        outcome, code = (under_cdb if WINDOWS else under_gdb)(args, out, start + args.seconds)
+        outcome, code = under_cdb(args, out, start + args.seconds)
     except (CannotRun, DEBUGGERS["NotFound"]) as e:
         outcome, code = f"could not run: {e}", 2
     seconds = f"{time.monotonic() - start:.1f}"

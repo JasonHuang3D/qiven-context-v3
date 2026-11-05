@@ -71,3 +71,10 @@ later changes to be made again; the commit after it shows every line cut with th
   `program(name)` gives, called by no code once the drive's request that sent it left; `Config::found` stays, the
   fake's own. Last commit `5756392`:
   `git restore --source=5756392 -- foundation/system/platform/include/qiven/platform/fake/fake_platform.hpp`
+- **The Linux-only Python:** gdb's wrapper `debug_gdb.py`, `linux-pins.txt`, and K19's `hardening.py` with
+  its test, whole; inside kept files, `imports.py`'s ELF and glibc parts with K11's Linux half, `debuggers.py`'s
+  gdb, `debug.py`'s gdb path, `watch.py`'s symbolizing and Linux loader path with `QIVEN_ADDR2LINE`,
+  `dumps.py`'s core files, the build's `QIVEN_CXX_COMPILER_ID`, and the Linux arms and cases of the tests that
+  read them. The workflows and all C++ Linux code stay. Its Linux jobs were last green in CI at `fa3852f`,
+  2026-10-30. Last commit `e0cb5c4`:
+  `git restore --source=e0cb5c4 -- tools/debug_gdb.py tools/linux-pins.txt tools/debug.py tools/debuggers.py tools/dumps.py tools/watch.py tools/module.json tools/tests/test_debug.py tools/tests/test_hang.py foundation/devkit/structure/hardening.py foundation/devkit/structure/imports.py foundation/devkit/structure/README.md foundation/devkit/structure/tests/test_hardening.py foundation/devkit/structure/tests/test_binaries.py foundation/devkit/build/build.cmake foundation/devkit/test/runner/cases.cmake foundation/devkit/test/runner/ctest_tests.cmake foundation/system/diag/tests/test_faults.py`

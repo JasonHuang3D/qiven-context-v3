@@ -21,8 +21,8 @@ binary's PDB: a build that keeps none beside the binary (Release, whose
 binaries the clean-binaries check reads) names each frame's module and
 offset alone, and the plant's name is read where the PDB is. On Linux the
 frames are backtrace_symbols_fd's raw lines, a module, an offset and an
-address each, which the watcher symbolizes: a frame of the binary's own
-gets its function and line appended, plant_<plant> among them. K3's and
+address each; the watcher's symbolizing of them and the plant's name read
+from it are retired (tools/README.md's Retired section). K3's and
 K4's library writes its own line before the report (glibc's assertion,
 libstdc++'s hardened check), whose cause is then the signal. K3 runs in
 qiven_diag_fault_crtdbg on Windows, on the debug runtime; in a Debug build,
@@ -54,7 +54,7 @@ from tools import status as status_table
 FAULT = "qiven_diag_fault"
 CRTDBG = "qiven_diag_fault_crtdbg"
 IMPORT = "qiven_diag_fault_import"
-LIBRARY = "qiven_diag_fault_lib.dll" if sys.platform == "win32" else "libqiven_diag_fault_lib.so"
+LIBRARY = "qiven_diag_fault_lib.dll"
 LINES_BOUND = 60
 FRAMES_MAX = 32
 EVENTS_MAX = 16
@@ -132,10 +132,8 @@ def events_of(lines):
 
 
 # backtrace_symbols_fd's line after the report's "  #<i> ": the module, its
-# symbol where the dynamic symbol table names one, the offset, the address;
-# then the watcher's function and line, where it found them.
-FRAME = re.compile(r"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]"
-                   r"(?: (?P<function>.+))?")
+# symbol where the dynamic symbol table names one, the offset, the address.
+FRAME = re.compile(r"  #\d+ (?P<module>[^()]*)\((?P<symbol>[^()+]*)\+0x(?P<offset>[0-9a-f]+)\) ?\[0x[0-9a-f]+\]")
 # The async-signal-safe list signal.cpp's object may call (K18).
 SAFE = frozenset(("write", "_exit", "raise", "sigaction", "getpid", "backtrace", "backtrace_symbols_fd"))
 
@@ -145,17 +143,6 @@ def nm(*args):
     done = subprocess.run([build_option("CMAKE_NM") or "nm", *args], capture_output=True, check=True,
                           timeout=binaries.TIMEOUT)
     return done.stdout.decode("utf-8", "replace").splitlines()
-
-
-def in_plant(binary, plant, frames):
-    """Whether a frame of the binary's own is plant_<plant>, by the
-    watcher's symbolized name."""
-    for frame in frames:
-        found = FRAME.fullmatch(frame)
-        if found and Path(found["module"]).name == binary and (found["function"] or "").startswith(
-                f"plant_{plant}("):
-            return True
-    return False
 
 
 def undefined(obj):
@@ -217,12 +204,8 @@ class Faults(unittest.TestCase):
             self.assertEqual(written.read_bytes()[:4], b"MDMP", case)
         else:
             self.assertEqual(lines[-1], f"fatal: end {signal.Signals(number).name}")
-            # backtrace_symbols_fd's raw lines, the watcher's names after
-            # each of the binary's own; the plant's frame by its name.
+            # backtrace_symbols_fd's raw lines.
             self.assertTrue(all(FRAME.fullmatch(f) for f in frames), f"{case}: {frames}")
-            self.assertTrue(in_plant(binary, plant, frames), f"{case}: no frame in plant_{plant}: {frames}")
-            # The reading's control: plant_out, on no fault's stack, is found in none.
-            self.assertFalse(in_plant(binary, "out", frames), f"{case}: {frames}")
             self.assertEqual(dump, "none")
 
     def test_K1_null(self):
@@ -249,7 +232,9 @@ class Faults(unittest.TestCase):
     def test_K6_import(self):
         """qiven_diag_fault_import copied alone: its library missing at load, the
         watcher's line names it; beside its library it exits 0."""
-        expected = 0xC0000135 if WINDOWS else 127
+        if not WINDOWS:
+            self.skipTest("the watcher's loader path on Linux is retired")
+        expected = 0xC0000135
         with tempfile.TemporaryDirectory() as top:
             copy = Path(top) / binaries.path(IMPORT).name
             shutil.copy2(binaries.path(IMPORT), copy)
@@ -261,13 +246,8 @@ class Faults(unittest.TestCase):
         self.assertLessEqual(seconds, TIME_BOUND)
         self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND)
         self.assertEqual(lines[-1] if lines else "", f"{status_table.line(expected)}; not found: {LIBRARY}")
-        if not WINDOWS:  # the loader's own line, before the watcher's
-            self.assertTrue(any(LIBRARY in line and "cannot open shared object file" in line
-                                for line in lines[:-1]), text)
         # The control: beside its library the binary loads and exits 0.
         env = dict(os.environ)
-        if not WINDOWS:
-            env["LD_LIBRARY_PATH"] = str(binaries.directory("QIVEN_BIN"))
         ran, _, err, _, _ = run_watched([binaries.path(IMPORT)], "K6.control", env)
         self.assertEqual((ran, err.decode("utf-8", "replace").splitlines()[-1:]), (0, ["status: 0 passed"]))
 

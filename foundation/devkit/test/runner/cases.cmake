@@ -164,7 +164,6 @@ function(qiven_list_tests)
     COMMAND "${CMAKE_COMMAND}" -D "INPUTS=${qiven_inputs_file}" -D "OUT=${qiven_tests_file}"
       ${qiven_python_args} ${qiven_fuzz_args} -D "SOURCE=${PROJECT_SOURCE_DIR}" -D "BIN=${qiven_bin}"
       -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN_SKIP_CODE}"
-      -D "ADDR2LINE=${CMAKE_ADDR2LINE}"
       -P "${qiven_runner_dir}/ctest_tests.cmake"
     DEPENDS ${qiven_case_binaries} ${qiven_fuzz_binaries} ${ARGN}
       ${qiven_runtime_files} "${qiven_inputs_file}"
