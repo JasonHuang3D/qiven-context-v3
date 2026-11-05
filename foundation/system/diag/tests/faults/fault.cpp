@@ -151,7 +151,10 @@ QIVEN_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 }
 
 // Three writes the debugger's watch stops at, the counter a local, built
-// unoptimized so that the debugger finds it at each of its lines.
+// unoptimized so that the debugger finds it at each of its lines. The
+// break's line writes another local: cdb leaves a break by one step of its
+// instruction, and a first write in that step would be caught, or not, in
+// the same trap as the step.
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma optimize("", off)
 #define QIVEN_UNOPTIMIZED
@@ -162,10 +165,11 @@ QIVEN_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 #endif
 QIVEN_UNOPTIMIZED QIVEN_PLANT int plant_watch() {
     volatile std::uint64_t counter;
-    counter = 1;  // the break's line
+    volatile int start = 0;  // the break's line
+    counter = 1;
     counter = 2;
     counter = 3;
-    return counter == 3 ? 0 : 1;
+    return counter == 3 && start == 0 ? 0 : 1;
 }
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma optimize("", on)

@@ -54,7 +54,8 @@ def debug(*args, timeout=120):
 
 
 def break_line():
-    """fault.cpp's line of the watch plant's first write."""
+    """fault.cpp's line of the watch plant's break, the line before its
+    first write."""
     lines = SOURCE.read_text(encoding="utf-8").splitlines()
     return next(i + 1 for i, line in enumerate(lines) if "// the break's line" in line)
 
