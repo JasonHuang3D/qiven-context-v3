@@ -37,11 +37,12 @@ from pathlib import Path
 from unittest import mock
 
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, POLL, sanitized, windows_of
 from tools import debuggers
 
-WINDOWS = sys.platform == "win32"
+WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"
 LIMIT = 3
 AFTER = 30.0  # the watcher's seconds past the limit at most
@@ -70,8 +71,7 @@ def run_watched(command, name, limit, env=None):
                                    stderr=err, env=env)
         seen = []
         while process.poll() is None:
-            if WINDOWS:
-                seen += windows_of(process.pid)
+            seen += windows_of(process.pid)
             if time.monotonic() - start > limit + AFTER + 30:
                 process.kill()
                 break
@@ -93,13 +93,6 @@ def sections(lines):
         elif out:
             out[-1].append(line)
     return out
-
-
-def alive(pid):
-    """Whether the process pid still runs."""
-    done = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, timeout=30,
-                          check=False)
-    return str(pid) in done.stdout.decode("utf-8", "replace")
 
 
 # A stand-in for a CI image's cdb: its -version, and for a hang one
@@ -201,9 +194,9 @@ class Hang(unittest.TestCase):
         self.assertLessEqual(seconds, 2 + AFTER, err)
         child = int(out[0])
         deadline = time.monotonic() + 10
-        while alive(child) and time.monotonic() < deadline:
+        while system.alive(child) and time.monotonic() < deadline:
             time.sleep(POLL)
-        self.assertFalse(alive(child), f"the case's child {child} outlived it")
+        self.assertFalse(system.alive(child), f"the case's child {child} outlived it")
 
     def test_pinned_here(self):
         """Off CI (no GITHUB_ACTIONS), the hang's debugger is the pinned

@@ -57,7 +57,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import status as status_table
-DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
+from foundation.devkit.python import system
+DEBUGGERS =runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]
 PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
@@ -165,8 +166,10 @@ class Cdb:
             except (OSError, subprocess.TimeoutExpired):
                 pass
         if self.process.poll() is None:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(self.process.pid)], capture_output=True,
-                           stdin=subprocess.DEVNULL, timeout=30, check=False)
+            try:
+                system.end_tree(self.process.pid)
+            except system.Failed:
+                pass  # the debugger itself is killed next, which needs no tree
             self.process.kill()
         self.process.wait()
 

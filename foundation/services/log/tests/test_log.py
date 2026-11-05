@@ -13,9 +13,9 @@ fields hold no run-time text.
 
 import re
 import subprocess
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 
 TRACE = b"k13.trace-marker"
@@ -37,8 +37,7 @@ def level():
 def build(target):
     """cmake --build of the build's directory for one target: its status and
     its output."""
-    suffix = ".exe" if sys.platform == "win32" else ""
-    cmake = binaries.tool("QIVEN_CTEST").with_name("cmake" + suffix)
+    cmake = binaries.tool("QIVEN_CTEST").with_name(system.program_file("cmake"))
     done = subprocess.run([str(cmake), "--build", str(binaries.directory("QIVEN_BUILD")), "--target", target],
                           capture_output=True, timeout=BUILD_TIMEOUT, check=False)
     return done.returncode, (done.stdout + done.stderr).decode("utf-8", "replace")

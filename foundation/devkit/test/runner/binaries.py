@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -77,8 +78,7 @@ def tool(name):
 
 def path(name):
     """The file of the build's binary `name`."""
-    suffix = ".exe" if sys.platform == "win32" else ""
-    found = directory("QIVEN_BIN") / (name + suffix)
+    found = directory("QIVEN_BIN") / system.program_file(name)
     if not found.is_file():
         raise RuntimeError(f"the build holds no binary {name}: {found}")
     return found
@@ -150,7 +150,7 @@ def debug_library(build=None):
     give each container a proxy that its constructor from an allocator,
     noexcept, takes from the allocator: a budget or a fault met there ends
     the process, so the budgets' plants and the fault sweeps do not apply."""
-    return sys.platform == "win32" and (build_option("CMAKE_BUILD_TYPE", build) or "") == "Debug"
+    return system.WINDOWS and (build_option("CMAKE_BUILD_TYPE", build) or "") == "Debug"
 
 
 def has_hal(build=None):
@@ -166,39 +166,7 @@ def sanitized():
 def windows_of(pid):
     """The visible top-level windows of process `pid` and of its children,
     the watcher's case among them."""
-    import ctypes
-    from ctypes import wintypes
-
-    class Entry(ctypes.Structure):  # PROCESSENTRY32W
-        _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD), ("pid", wintypes.DWORD),
-                    ("heap", ctypes.c_size_t), ("module", wintypes.DWORD), ("threads", wintypes.DWORD),
-                    ("parent", wintypes.DWORD), ("priority", ctypes.c_long), ("flags", wintypes.DWORD),
-                    ("file", wintypes.WCHAR * 260)]
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
-    pids, entry = {pid}, Entry()
-    entry.size = ctypes.sizeof(Entry)
-    more = kernel32.Process32FirstW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
-    while more:
-        if entry.parent == pid:
-            pids.add(entry.pid)
-        more = kernel32.Process32NextW(wintypes.HANDLE(snapshot), ctypes.byref(entry))
-    kernel32.CloseHandle(wintypes.HANDLE(snapshot))
-    user32 = ctypes.WinDLL("user32", use_last_error=True)
-    found = []
-    proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-
-    def each(hwnd, _):
-        owner = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
-        if owner.value in pids and user32.IsWindowVisible(hwnd):
-            found.append(hwnd)
-        return True
-
-    user32.EnumWindows(proc(each), 0)
-    return found
+    return system.visible_windows({pid, *system.children(pid)})
 
 
 def run_watched(command, name, env=None, cwd=None):
@@ -210,8 +178,7 @@ def run_watched(command, name, env=None, cwd=None):
                                    stdout=out, stderr=err, env=env, cwd=cwd)
         seen = []
         while process.poll() is None:
-            if sys.platform == "win32":
-                seen += windows_of(process.pid)
+            seen += windows_of(process.pid)
             if time.monotonic() - start > TIME_BOUND + 20:
                 process.kill()
                 break

@@ -15,6 +15,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import system
 from foundation.devkit.structure import layers
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -31,7 +32,7 @@ def cmake():
     """The cmake beside the ctest that runs the test, else the one on PATH."""
     ctest = os.environ.get("QIVEN_CTEST")
     if ctest and Path(ctest).is_file():
-        return str(Path(ctest).with_name("cmake" + (".exe" if sys.platform == "win32" else "")))
+        return str(Path(ctest).with_name(system.program_file("cmake")))
     return shutil.which("cmake")
 
 

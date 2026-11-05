@@ -26,6 +26,7 @@ LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 # Under -I this directory is off sys.path: the map and git's door by runpy.
 MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
 DOOR = runpy.run_path(str(ROOT / "tools" / "loop_git.py"))  # git's door, by its file: no literal names git
@@ -54,30 +55,12 @@ def named(env, name):
 
 
 def vcvars_env():
-    """The environment vcvars64.bat sets up, QIVEN_PYTHON this interpreter."""
-    vcvars = os.environ.get("QIVEN_VCVARS")
-    if not vcvars:
-        where = Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
-        if not where.is_file():
-            raise CannotRun("vswhere.exe is missing; name vcvars64.bat by QIVEN_VCVARS")
-        status, text = capture([str(where), "-latest", "-products", "*", "-requires",
-                                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"])
-        if status != 0 or not text.strip():
-            raise CannotRun("vswhere finds no Visual Studio with the C++ tools")
-        vcvars = str(Path(text.strip().splitlines()[0]) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat")
-    if not Path(vcvars).is_file():
-        raise CannotRun(f"vcvars64.bat is missing: {vcvars}")
-    with tempfile.TemporaryDirectory(prefix="qiven-changed-") as scratch:
-        script = Path(scratch) / "vcvars.cmd"
-        script.write_text(f'@call "{vcvars}" -vcvars_ver={VCVARS_VER} >nul || exit /b 1\r\n@set\r\n', encoding="ascii")
-        status, text = capture(["cmd.exe", "/d", "/c", str(script)])
-    if status != 0:
-        raise CannotRun(f"vcvars64.bat -vcvars_ver={VCVARS_VER} failed ({status}): {text.strip()[-200:]}")
-    env = {}
-    for line in text.splitlines():
-        key, sep, value = line.partition("=")
-        if sep and key:
-            env[key] = value
+    """The toolset's environment (QIVEN_VCVARS names its vcvars64.bat, else
+    it is found), QIVEN_PYTHON this interpreter."""
+    try:
+        env = system.toolset_env(VCVARS_VER, os.environ.get("QIVEN_VCVARS"))
+    except system.Failed as e:
+        raise CannotRun(f"{e} (QIVEN_VCVARS names vcvars64.bat)") from e
     env["QIVEN_PYTHON"] = sys.executable
     return env
 

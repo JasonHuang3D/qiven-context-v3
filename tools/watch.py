@@ -7,9 +7,9 @@ fault the drives run, it runs the case and names how it ended.
   build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
   directory made; and QIVEN_WATCHER to its own process id. Then it runs
   the command, which inherits its standard input and output.
-- On Windows it first sets its own error mode as the diagnostic entry's
-  first stage does; the case inherits it, so that a library missing at
-  load opens no window.
+- It first sets its own error mode as the diagnostic entry's first stage
+  does (system.py's quiet_load_errors); the case inherits it, so that a
+  library missing at load opens no window.
 - The case's standard error is passed through line by line. The frames'
   symbolizing on Linux and its loader's path are retired (tools/README.md's
   Retired section).
@@ -29,8 +29,8 @@ fault the drives run, it runs the case and names how it ended.
   the reason. The debugger is the pinned one, but in a CI job on Windows,
   where the image keeps its own tools, the image's cdb, unpinned
   (tools/debuggers.py's hang_debugger). Then it kills the case's process
-  tree (taskkill /T /F; on Linux the case's process group, which it
-  started, by SIGKILL), names the status with what it wrote ("no
+  tree (foundation/devkit/python/system.py's end_tree), names the status
+  with what it wrote ("no
   debugger, no stack written: <why>", or the stacks written of the
   threads and its dump or "no dump", and by a CI image's cdb its version
   and path) and the case,
@@ -40,8 +40,9 @@ fault the drives run, it runs the case and names how it ended.
   none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
-sys.path: it appends the root once and imports the status table; the
-debugger's, the dumps' and the imports' readers are run from their files.
+sys.path: it appends the root once and imports the status table and the
+system's module; the debugger's, the dumps' and the imports' readers are
+run from their files.
 """
 
 import argparse
@@ -49,7 +50,6 @@ import os
 import re
 import runpy
 import shutil
-import signal
 import subprocess
 import sys
 import threading
@@ -58,12 +58,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
-WINDOWS = sys.platform == "win32"
-# SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX, as the entry sets.
-ERROR_MODE = 0x0001 | 0x0002 | 0x8000
 DLL_NOT_FOUND = 0xC0000135
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
@@ -93,13 +91,6 @@ def relay(stream, sink):
     sink.flush()
 
 
-def search_path(binary):
-    """The directories the loader looks in for the binary's libraries."""
-    system = os.environ.get("SystemRoot")
-    dirs = [binary.parent, *((Path(system) / "System32", Path(system)) if system else ())]
-    return dirs + [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep) if p]
-
-
 def missing(command):
     """Each library the command's binary imports found nowhere the loader
     looks, by the reader; None when the binary cannot be read."""
@@ -111,7 +102,7 @@ def missing(command):
         names = IMPORTS["read_file"](binary).names
     except (OSError, IMPORTS["Unreadable"]):
         return None
-    dirs = search_path(binary)
+    dirs = system.loader_dirs(binary)
     out = []
     for name in names:
         if name.lower().startswith(("api-ms-", "ext-ms-")):
@@ -136,21 +127,17 @@ def exit_code(status):
     """The watcher's own exit code for the case's status."""
     if status < 0:
         return 128 - status
-    if WINDOWS and status >= 1 << 31:
-        return status - (1 << 32)  # sys.exit takes a C int: the same 32 bits
+    if status >= 1 << 31:
+        return status - (1 << 32)  # a Windows status; sys.exit takes a C int: the same 32 bits
     return status
 
 
 def kill_tree(process):
     """Kills the case and every process it started."""
     try:
-        if WINDOWS:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True,
-                           stdin=subprocess.DEVNULL, timeout=30, check=False)
-        else:
-            os.killpg(process.pid, signal.SIGKILL)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+        system.end_tree(process.pid)
+    except system.Failed:
+        pass  # the case itself is killed next, which needs no tree
     process.kill()
 
 
@@ -198,14 +185,10 @@ def parse(argv):
 
 def main(argv=None):
     args = parse(sys.argv[1:] if argv is None else argv)
-    if WINDOWS:
-        import ctypes
-        ctypes.WinDLL("kernel32").SetErrorMode(ERROR_MODE)
+    system.quiet_load_errors()
     try:
         env = environment(args.name)
-        # On Linux the case leads its own process group, which a hang kills.
-        process = subprocess.Popen(args.command, stderr=subprocess.PIPE, env=env,
-                                   **({} if WINDOWS else {"process_group": 0}))
+        process = subprocess.Popen(args.command, stderr=subprocess.PIPE, env=env)
     except OSError as e:
         print(f"watch.py: {args.name}: the case cannot start: {e}", file=sys.stderr, flush=True)
         return 2

@@ -48,19 +48,20 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import LINE_POINTS, TIME_BOUND, build_option, run_watched, sanitized
 
 FAULT = "qiven_diag_fault"
 CRTDBG = "qiven_diag_fault_crtdbg"
 IMPORT = "qiven_diag_fault_import"
-LIBRARY = "qiven_diag_fault_lib.dll"
+LIBRARY = "qiven_diag_fault_lib"
 LINES_BOUND = 60
 FRAMES_MAX = 32
 EVENTS_MAX = 16
 OPERATIONS = 20
 DUMP_MAX = 64 * 1024 * 1024
-WINDOWS = sys.platform == "win32"
+WINDOWS = system.WINDOWS
 
 # plant: (case, binary, Windows cause pattern, Windows status).
 PLANTS = {
@@ -245,7 +246,8 @@ class Faults(unittest.TestCase):
         self.assertEqual(seen, [], "K6: a window opened")
         self.assertLessEqual(seconds, TIME_BOUND)
         self.assertLessEqual(len(lines) + len(out.splitlines()), LINES_BOUND)
-        self.assertEqual(lines[-1] if lines else "", f"{status_table.line(expected)}; not found: {LIBRARY}")
+        self.assertEqual(lines[-1] if lines else "",
+                         f"{status_table.line(expected)}; not found: {system.library_file(LIBRARY)}")
         # The control: beside its library the binary loads and exits 0.
         env = dict(os.environ)
         ran, _, err, _, _ = run_watched([binaries.path(IMPORT)], "K6.control", env)

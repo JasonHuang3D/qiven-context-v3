@@ -7,22 +7,21 @@ PE alone is read: K11's ELF half is retired (tools/README.md's Retired
 section) and Mach-O was never read, so K11's binaries are skipped off
 Windows: a residual."""
 
-import sys
 import unittest
 
+from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import build_option
 from foundation.devkit.structure import imports
 
-WINDOWS = sys.platform == "win32"
 PLANTED = "qiven_diag_fault_import"
-PLANTED_LIBRARY = "qiven_diag_fault_lib.dll"
+PLANTED_LIBRARY = "qiven_diag_fault_lib"
 
 
 class Imports(unittest.TestCase):
     ctest_labels = ("fake",)
 
-    @unittest.skipUnless(WINDOWS, "PE alone is read, so K11 skips off Windows: a residual")
+    @unittest.skipUnless(system.WINDOWS, "PE alone is read, so K11 skips off Windows: a residual")
     def test_K11_binaries(self):
         sanitize = build_option("QIVEN_SANITIZE") or ""
         found = {}
@@ -32,7 +31,7 @@ class Imports(unittest.TestCase):
             found[binary.stem] = imports.outside(read, sanitize)
         self.assertIn(PLANTED, found)
         # The control: the planted binary's import of the test tree's library, caught.
-        self.assertEqual(found.pop(PLANTED), [PLANTED_LIBRARY])
+        self.assertEqual(found.pop(PLANTED), [system.library_file(PLANTED_LIBRARY)])
         self.assertEqual({k: v for k, v in found.items() if v}, {})
 
 

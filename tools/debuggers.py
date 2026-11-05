@@ -1,8 +1,8 @@
 """The debugger tools/debug.py and the watcher (tools/watch.py) drive: found
 and checked against its pin, and its output bounded.
 
-- cdb.exe, the Windows SDK's, found from the registry's KitsRoot10 and
-  Debuggers/x64/, its version (cdb -version) and SHA-256 checked against
+- cdb.exe, the Windows SDK's, found from the SDK's root
+  (foundation/devkit/python/system.py's sdk_root) and Debuggers/x64/, its version (cdb -version) and SHA-256 checked against
   tools/windows-pins.txt. It is run with -sins, so that no environment's
   symbol path or server is read, and -y the binary's directory. Linux's
   gdb is retired (tools/README.md's Retired section).
@@ -18,7 +18,8 @@ and checked against its pin, and its output bounded.
   (image_cdb()), or Absent naming where it looked.
 
 Run by the pinned interpreter under -I, from its file (runpy): it imports
-nothing of this directory.
+nothing of this directory, and Python's lowest layer by the root its runner
+has already appended.
 """
 
 import hashlib
@@ -28,7 +29,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from foundation.devkit.python import system
+
+ROOT =Path(__file__).resolve().parent.parent
 WINDOWS_PINS = ROOT / "tools" / "windows-pins.txt"
 LINE_POINTS = 300  # a line's code points at most, the cut's marker within them
 CUT = "[cut]"
@@ -83,19 +86,6 @@ def pin(path, kind, name):
     return None
 
 
-def kits_root():
-    """The Windows SDK's root, by the registry's KitsRoot10, or None."""
-    import winreg
-    for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
-        try:
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows Kits\Installed Roots", 0,
-                                winreg.KEY_READ | view) as key:
-                return Path(winreg.QueryValueEx(key, "KitsRoot10")[0])
-        except OSError:
-            continue
-    return None
-
-
 def checked(path, version, digest, ask):
     """The tool's path once its SHA-256 and version hold, else NotFound."""
     got = sha256(path)
@@ -118,7 +108,7 @@ def find_cdb():
     if found is None:
         raise NotFound(f"no line 'debugger cdb' in {WINDOWS_PINS.name}")
     version, digest, source = found
-    root = kits_root()
+    root = system.sdk_root()
     if root is None:
         raise Absent("no cdb: no Windows SDK, the registry naming no KitsRoot10")
     path = root / source.removeprefix("kits/")
@@ -141,7 +131,7 @@ def image_cdb():
     found = shutil.which("cdb")
     if found is None:
         sdk = os.environ.get("WindowsSdkDir")
-        root, how = (Path(sdk), "WindowsSdkDir") if sdk else (kits_root(), "the registry's KitsRoot10")
+        root, how = (Path(sdk), "WindowsSdkDir") if sdk else (system.sdk_root(), "the registry's KitsRoot10")
         if root is None:
             raise Absent("no cdb: none on PATH, and no Windows SDK: no WindowsSdkDir, the registry naming no "
                          "KitsRoot10")
