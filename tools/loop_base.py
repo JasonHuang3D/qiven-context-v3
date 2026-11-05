@@ -9,8 +9,6 @@ the commit too (CI's).
   processes; LookupError naming the commit when the repository lacks it.
 - full(root, commit): the commit's full hash, whatever form names it;
   LookupError the same.
-- shallow(root): whether root's repository is a shallow clone, the one
-  where a commit missing does not fail the comparison.
 - text(commit, rows): the file's text.
 
 Run as python -I tools/loop_base.py [COMMIT]: the file written again from
@@ -49,12 +47,6 @@ def found(root, commit, argv):
 def full(root, commit):
     """The commit's full hash in root's repository."""
     return found(root, commit, ["rev-parse", "--verify", f"{commit}^{{commit}}"]).strip()
-
-
-def shallow(root):
-    """Whether root's repository is a shallow clone."""
-    done = GIT["run"](*git_at(root, ["rev-parse", "--is-shallow-repository"]), check=True)
-    return done.stdout.decode("utf-8").strip() == "true"
 
 
 def rows_at(root, commit):

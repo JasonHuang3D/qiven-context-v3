@@ -7,7 +7,7 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
-      "cacheVariables": {"CMAKE_EXPORT_COMPILE_COMMANDS": "ON", "QIVEN_PRESET": "${presetName}"}
+      "cacheVariables": {"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"}
     },
     {
       "name": "here",

@@ -108,19 +108,11 @@ file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/executables.txt" CONTENT "${qiven_ex
 # the preset defines, a plant's aside: foundation/devkit/structure/tests/test_analysis.py
 # holds the analysis build's first to its list, and tells a listed target
 # defined without test code's analysis from one the preset does not define.
-# Which preset, preset.txt says, from the base preset's QIVEN_PRESET, each
-# preset's own name: a tree's directory may be any, CI's shared one among
-# them. A configure with no preset records none.
 qiven_test_targets(qiven_test_targets)
 list(JOIN qiven_test_targets "\n" qiven_text)
 file(WRITE "${PROJECT_BINARY_DIR}/test-targets.txt" "${qiven_text}\n")
 list(JOIN qiven_defined "\n" qiven_text)
 file(WRITE "${PROJECT_BINARY_DIR}/defined-targets.txt" "${qiven_text}\n")
-if(DEFINED QIVEN_PRESET)
-  file(WRITE "${PROJECT_BINARY_DIR}/preset.txt" "${QIVEN_PRESET}\n")
-else()
-  file(REMOVE "${PROJECT_BINARY_DIR}/preset.txt")
-endif()
 
 # The analysis preset over the sources the analysis reads, by their paths
 # (qiven_analysed): those under the analysed roots (tests/child/ holds

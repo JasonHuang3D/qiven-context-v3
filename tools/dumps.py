@@ -17,14 +17,9 @@ and those of the cases a test runs under the debugger.
   newest <DUMPS_KEPT>"; one that cannot be removed, "dumps: cannot remove
   <name>: <reason>". One another process removed first is its line, not
   this one's. No directory, no line.
-
-Run as a script, it bounds the directory it is given and prints the lines:
-
-    python -I tools/dumps.py <directory>
 """
 
 import re
-import sys
 from pathlib import Path
 
 DUMPS_KEPT = 8  # the dumps a dumps' directory keeps at most, the newest
@@ -71,9 +66,3 @@ def bound(directory, pid=None, kept=DUMPS_KEPT):
             continue
         lines.append(f"dumps: removed {name}, past the newest {kept}")
     return lines
-
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("usage: python -I tools/dumps.py <directory>")
-    print("\n".join(bound(sys.argv[1])) or "dumps: none removed")
