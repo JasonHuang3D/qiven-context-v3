@@ -155,26 +155,23 @@ static_assert(*utc::parse_at("2026-10-17T13:00:00.000Z") - *utc::parse_at("2026-
               std::chrono::hours{8});
 static_assert(sizeof(Millis) == 8 && sizeof(utc::detail::Read) == 16, "utc's sizes are pinned");
 
-// The C runtime's offset from UTC, in seconds, at 2026-10-17T09:30:00Z: the
-// zone TZ names, which utc never reads.
+// The C runtime's offset from UTC, in seconds, at 09:30:00 on 2026-10-17 by its
+// own clock: the zone TZ names, which utc never reads. std::mktime reads those
+// fields as that zone's local time; `as_utc` is the same fields read as UTC.
 std::int64_t local_offset() {
-    const std::time_t t = 1'792'229'400;
+    const std::time_t as_utc = 1'792'229'400;
     std::tm tm{};
-#if defined(_WIN32)
-    if (localtime_s(&tm, &t) != 0) {
+    tm.tm_year = 2026 - 1900;
+    tm.tm_mon = 10 - 1;
+    tm.tm_mday = 17;
+    tm.tm_hour = 9;
+    tm.tm_min = 30;
+    tm.tm_isdst = -1;
+    const std::time_t local = std::mktime(&tm);
+    if (local == static_cast<std::time_t>(-1)) {
         return INT64_MIN;
     }
-#else
-    if (localtime_r(&t, &tm) == nullptr) {
-        return INT64_MIN;
-    }
-#endif
-    const std::chrono::year_month_day ymd{std::chrono::year{tm.tm_year + 1900},
-                                          std::chrono::month{static_cast<unsigned>(tm.tm_mon + 1)},
-                                          std::chrono::day{static_cast<unsigned>(tm.tm_mday)}};
-    const std::chrono::sys_seconds local = std::chrono::sys_days{ymd} + std::chrono::hours{tm.tm_hour} +
-                                           std::chrono::minutes{tm.tm_min} + std::chrono::seconds{tm.tm_sec};
-    return local.time_since_epoch().count() - static_cast<std::int64_t>(t);
+    return static_cast<std::int64_t>(as_utc) - static_cast<std::int64_t>(local);
 }
 
 }  // namespace
