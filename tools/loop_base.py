@@ -1,5 +1,5 @@
 """The old places' measure: each table file's rows' paths in the old
-places at the base commit (tools/loop_table.py's old_rows), kept in
+places at the base commit (foundation/devkit/structure/modules.py's old_rows), kept in
 tools/loop_base.json beside the commit it names, its one naming, so that
 the modules' check reads them with no git, on a clone too shallow to hold
 the commit too (CI's).
@@ -15,22 +15,22 @@ exit 2 and one line, the file unwritten, when git could not read the commit.
 """
 
 import json
-import runpy
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent  # the checkout this file is in
+ROOT = Path(__file__).resolve().parent.parent  # the checkout this file is in
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import git
+from foundation.devkit.python import table
+from foundation.devkit.structure import modules
 
-TABLE = runpy.run_path(str(HERE / "loop_table.py"))
-DATA = ROOT / TABLE["BASE"]
+DATA = ROOT / modules.BASE
 
 
 def rows_at(root, commit):
     """old_rows() of the table's files at commit, read from root's .git."""
-    return TABLE["old_rows"](git.files_at(root, commit, TABLE["is_table_file"]))
+    trees = table.trees(root)
+    return modules.old_rows(git.files_at(root, commit, trees.is_table_file), trees)
 
 
 def text(commit, rows):

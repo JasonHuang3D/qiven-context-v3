@@ -1,5 +1,5 @@
-"""A tree's modules and their layers, as tools/loop_modules.py reads the
-module table: a file's module, the first row whose paths hold it; that
+"""A tree's modules and their layers, as foundation/devkit/python/table.py
+reads the module table: a file's module, the first row whose paths hold it; that
 module's layer, its table file's directory's in the tree (foundation/core/
 gives core, products/ products); and test code, a file under the top-level
 tests/ or under a module directory's tests/. The structure rules read their
@@ -8,24 +8,25 @@ B31) and the log's includes (K15); the walked trees, tools/trees.json's; and
 B1's text, layered().
 """
 
-import runpy
 from pathlib import Path
 
+from foundation.devkit.python import table as module_table
+from foundation.devkit.structure import modules
+
 ROOT = Path(__file__).resolve().parents[3]
-# The table's reader, by runpy: run as a script under -I, the checkout is off sys.path.
-MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
-TREES = tuple(MODULES["TREES"])  # tools/trees.json's walked and layers: every tree the checks walk
-SOURCES, HEADERS, CXX = MODULES["SOURCE_SUFFIXES"], MODULES["HEADER_SUFFIXES"], MODULES["CXX_SUFFIXES"]  # its suffixes
-LINKED = tuple(MODULES["ORDER"])  # the link graph's layers, devkit first
+GIVEN = module_table.trees(ROOT)  # this checkout's tools/trees.json
+TREES = GIVEN.every  # tools/trees.json's walked and layers: every tree the checks walk
+SOURCES, HEADERS, CXX = GIVEN.source_suffixes, GIVEN.header_suffixes, GIVEN.cxx_suffixes  # its suffixes
+LINKED = modules.ORDER  # the link graph's layers, devkit first
 CORE = LINKED[1:]  # core logic's layers: the link graph's but devkit, layer 0, linked into tests alone
-KIT = MODULES["KIT"]  # the test kit's table files
-VENDORED = MODULES["VENDORED"]  # a vendor's own files, tools/trees.json's vendored; not their module's other files
-TESTS = f"{MODULES['TESTS']}/"  # the top-level test tree
-SUPPORT = f"{MODULES['TREE_FILE']['support']}/"  # the tests' shared support, in the subset with the libraries
-CHILD = f"{MODULES['TREE_FILE']['child']}/"  # the test tree's child processes
+KIT = modules.KIT  # the test kit's table files
+VENDORED = GIVEN.vendored  # a vendor's own files, tools/trees.json's vendored; not their module's other files
+TESTS = f"{GIVEN.tests}/"  # the top-level test tree
+SUPPORT = f"{GIVEN.support}/"  # the tests' shared support, in the subset with the libraries
+CHILD = f"{GIVEN.child}/"  # the test tree's child processes
 TOOLS = "tools/"  # the tools' tree: no layer's code, whichever row holds its files
-ANALYSED = tuple(f"{root}/" for root in MODULES["TREE_FILE"]["analysed"])  # the analysis preset's roots
-LAYER_TREES = tuple(f"{layer}/" for layer in MODULES["TREE_FILE"]["layers"])  # the layers' trees
+ANALYSED = tuple(f"{root}/" for root in GIVEN.analysed)  # the analysis preset's roots
+LAYER_TREES = tuple(f"{layer}/" for layer in GIVEN.layers)  # the layers' trees
 
 
 def walked(rel):
@@ -47,7 +48,8 @@ class Layers:
     def __init__(self, table):
         self.table = table
         homes = table["homes"]
-        self.place = {name: MODULES["tree_layer"](home.rpartition("/")[0]) for name, home in homes.items()}
+        self.trees = table["trees"]
+        self.place = {name: modules.tree_layer(home.rpartition("/")[0]) for name, home in homes.items()}
         self.homes = {name: home.rpartition("/")[0] + "/" for name, home in homes.items()}
         self.dirs = {home.rpartition("/")[0] for home in homes.values()}
         self.owner = {}
@@ -55,7 +57,7 @@ class Layers:
     def module(self, rel):
         """The name of the first module whose paths hold rel, or None."""
         if rel not in self.owner:
-            self.owner[rel] = next(iter(MODULES["owners"](self.table, [rel])[rel]), None)
+            self.owner[rel] = next(iter(module_table.owners(self.table, [rel])[rel]), None)
         return self.owner[rel]
 
     def layer(self, rel):
@@ -63,7 +65,7 @@ class Layers:
         return self.place.get(self.module(rel)) if rel is not None else None
 
     def test_code(self, rel):
-        return MODULES["under_tests"](rel, self.dirs)
+        return self.trees.test_path(rel, self.dirs) is not None
 
     def analysed(self, rel):
         """Whether the analysis reads rel, as trees.cmake's qiven_analysed
@@ -72,7 +74,7 @@ class Layers:
         a vendored file."""
         if rel in VENDORED:
             return False
-        test = MODULES["test_path"](rel, self.dirs)
+        test = self.trees.test_path(rel, self.dirs)
         return any(where.startswith(root) for where in (rel, test or "") for root in ANALYSED) or (
             test is None and rel.startswith(LAYER_TREES))
 
@@ -80,7 +82,7 @@ class Layers:
         """rel as the top-level tests/ would hold it: a module's own test
         file keeps the rules of the tree it moved from. Any other path, or
         a target's or a header's name, as it stands."""
-        return MODULES["test_path"](rel, self.dirs) or rel if rel is not None else None
+        return self.trees.test_path(rel, self.dirs) or rel if rel is not None else None
 
     def directory(self, name):
         """A module's table file's directory, ending in /."""
@@ -97,15 +99,8 @@ _READ = {}
 
 
 def of(root):
-    """The Layers of a tree's own table, read once per tree; a tree of no
-    table files has none, and every file is of no module."""
+    """The Layers of a tree's own table, read once per tree."""
     root = Path(root).resolve()
     if root not in _READ:
-        _READ[root] = Layers(MODULES["tree"](root)[0])
+        _READ[root] = Layers(module_table.tree(root)[0])
     return _READ[root]
-
-
-def read(root):
-    """(the Layers of a tree's own table, the errors its table holds), for a
-    reader that must refuse what of() reads on."""
-    return of(root), MODULES["tree"](Path(root).resolve())[1]

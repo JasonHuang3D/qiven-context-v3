@@ -1,4 +1,4 @@
-# The trees of tools/trees.json, the one place that names them (tools/loop_modules.py
+# The trees of tools/trees.json, the one place that names them (foundation/devkit/python/table.py
 # reads it too), and the rules the build's globs and filters take from them; the
 # header units' are header_units.cmake's, which it includes.
 # Included by the root CMakeLists.txt; run by tests/test_trees_build.py as
@@ -74,7 +74,7 @@ function(qiven_under path tree out)
 endfunction()
 
 # qiven_test_path(<path> <out>): the one reader of test code, test_path in
-# tools/loop_modules.py in Python: path, from the root, under the top-level
+# foundation/devkit/python/table.py in Python: path, from the root, under the top-level
 # tests/ as it stands; under the tests/ of a module directory as the
 # top-level tree would hold it; any other path, empty.
 function(qiven_test_path path out)

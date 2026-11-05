@@ -4,7 +4,6 @@ tests the listing finds, the analysis's choice of a source by its path, and
 a test source's clang-tidy configuration, each read from foundation/devkit/build/trees.cmake as cmake -P gives it and
 checked against the trees and, for test code, Python's reader."""
 
-import json
 import os
 import re
 import runpy
@@ -15,17 +14,17 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import process
+from foundation.devkit.python import table
 from foundation.devkit.structure import layers
 from foundation.devkit.test.runner.binaries import cmake
 
 ROOT = Path(__file__).resolve().parents[4]
-TREES = json.loads((ROOT / "tools" / "trees.json").read_text(encoding="utf-8"))
+TREES = table.trees(ROOT)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"
 TEST_TIDY = "foundation/devkit/build/analysis-test.clang-tidy"
 LISTING = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))
-LOOP = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
-HOMES = {home.rpartition("/")[0] for home in LOOP["tree"](ROOT)[0]["homes"].values()}
+HOMES = {home.rpartition("/")[0] for home in table.tree(ROOT)[0]["homes"].values()}
 
 
 class Stopped(Exception):
@@ -107,7 +106,7 @@ class TreesBuild(unittest.TestCase):
         under this checkout alone, either separator; no .clang-tidy names one;
         the tidy steps take it."""
         got = shown("filters")
-        trees = "|".join(t.replace("/", "[/\\]") for t in (*TREES["analysed"], *TREES["layers"]))
+        trees = "|".join(t.replace("/", "[/\\]") for t in (*TREES.analysed, *TREES.layers))
         filter_ = got["filter"]
         self.assertTrue(filter_.endswith(f"[/\\]({trees})[/\\]"), filter_)
         regex = re.compile(filter_.replace("[/\\]", "[/\\\\]"), re.IGNORECASE)
@@ -137,7 +136,7 @@ class TreesBuild(unittest.TestCase):
                             got["exclude"])
             (root / "foundation/core/m/tests/t.hpp").unlink()
             self.assertEqual(shown("filters", root)["exclude"], "")
-            for suffix in TREES["header_suffixes"]:
+            for suffix in TREES.header_suffixes:
                 (root / f"foundation/core/m/tests/t{suffix}").write_text("", encoding="utf-8")
                 self.assertNotEqual(shown("filters", root)["exclude"], "", suffix)
                 (root / f"foundation/core/m/tests/t{suffix}").unlink()
@@ -147,9 +146,9 @@ class TreesBuild(unittest.TestCase):
         the walked trees and the layers'."""
         got = shown("globs")
         root = ROOT.as_posix()
-        self.assertEqual(got["table"].split(";"), [f"{root}/{layer}/module.json" for layer in TREES["layers"]])
+        self.assertEqual(got["table"].split(";"), [f"{root}/{layer}/module.json" for layer in TREES.layers])
         self.assertEqual(got["python"].split(";"),
-                         [f"{root}/{tree}/*.py" for tree in (*TREES["walked"], *TREES["layers"])])
+                         [f"{root}/{tree}/*.py" for tree in TREES.every])
 
     def units(self, files):
         """trees.cmake's header units for a scratch checkout of files (path to
@@ -248,12 +247,12 @@ class TreesBuild(unittest.TestCase):
 
     def test_every_suffix(self):
         """A header of every suffix wants a unit; a source of every suffix, beside it or in src/, is its own."""
-        for suffix in TREES["header_suffixes"]:
+        for suffix in TREES.header_suffixes:
             files, _ = scene()
             files[f"src/m/t{suffix}"] = ""
             self.assertIn(f"the header-only header src/m/t{suffix} has no unit, tests/support/headers/m_t.cpp",
                           self.units(files)[2])
-        for suffix in TREES["source_suffixes"]:
+        for suffix in TREES.source_suffixes:
             files, wanted = scene()
             files |= {"src/m/t.hpp": "", f"src/m/t{suffix}": '#include "t.hpp"\n',
                       "kits/scene/include/qiven/scene/t.hpp": "", f"kits/scene/src/t{suffix}": '#include "qiven/scene/t.hpp"\n'}
@@ -314,7 +313,7 @@ class TreesBuild(unittest.TestCase):
                              ["kits/k/tests", "tests/plain"])
         rows, errors = LISTING["listed"](ROOT)
         self.assertEqual(errors, [])
-        self.assertTrue(all(row[0].split(".", 1)[0] in (*TREES["walked"], *TREES["layers"]) for row in rows))
+        self.assertTrue(all(row[0].split(".", 1)[0] in TREES.every for row in rows))
 
     def test_ctest_start(self):
         """CTest runs each listed Python test by its id from its top package:
@@ -356,7 +355,7 @@ class TreesBuild(unittest.TestCase):
     def test_analysis_choice(self):
         """The analysis chooses a source by its path, by the trees' rule, not
         by the directory that defines its target."""
-        vendored = next(p for p in TREES["vendored"] if p.endswith(tuple(TREES["source_suffixes"])))
+        vendored = next(p for p in TREES.vendored if p.endswith(TREES.source_suffixes))
         paths = ("foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "foundation/core/memory/tests/arena_test.cpp",
                  "tests/driver/driver.cpp", "foundation/core/memory/tests/arena_test.cpp", "kits/kp/src/kp.cpp",
                  "foundation/devkit/test/runner/tests/runner_test.cpp", "foundation/devkit/test/runner/src/runner.cpp",
@@ -378,10 +377,10 @@ class TreesBuild(unittest.TestCase):
                    "foundation/core/memory/src/tests/x.cpp", "foundation/core/memory/tests/x.cpp",
                    "foundation/core/memory/tests/support/x.hpp", "foundation/core/memory/tests/child/x.cpp",
                    "foundation/core/memory/tests/a/tests/b.cpp", "tools/tests/x.py", "tests/a/tests/b.cpp")
-        files = [p.relative_to(ROOT).as_posix() for tree in LOOP["TREES"] for p in (ROOT / tree).rglob("*")
+        files = [p.relative_to(ROOT).as_posix() for tree in TREES.every for p in (ROOT / tree).rglob("*")
                  if p.is_file() and "__pycache__" not in p.parts]
         got = shown("analysed", paths=[*files, *planted])
-        self.assertEqual(got, {path: f"{str(analysed(path)).upper()} {LOOP['test_path'](path, HOMES) or ''}"
+        self.assertEqual(got, {path: f"{str(analysed(path)).upper()} {TREES.test_path(path, HOMES) or ''}"
                                for path in [*files, *planted]})
         self.assertEqual(got["foundation/core/memory/src/tests/x.cpp"], "TRUE ")
         self.assertEqual(got["foundation/core/memory/tests/support/x.hpp"], "TRUE tests/support/x.hpp")
@@ -395,12 +394,12 @@ class TreesBuild(unittest.TestCase):
                  "tools/tests/test_x.py": "tests", "tests/test_x.py": None, "tests/drive/test_x.py": "drive",
                  "foundation/core/memory/tests/test_x.py": "tests",
                  "foundation/core/memory/tests/structure/test_x.py": "structure"}
-        files = [p.relative_to(ROOT).as_posix() for tree in LOOP["TREES"] for p in (ROOT / tree).rglob("test_*.py")]
-        got = {path: LISTING["package"](path, LOOP, HOMES) for path in [*files, *paths]}
+        files = [p.relative_to(ROOT).as_posix() for tree in TREES.every for p in (ROOT / tree).rglob("test_*.py")]
+        got = {path: LISTING["package"](path, TREES, HOMES) for path in [*files, *paths]}
         self.assertEqual({path: got[path] for path in paths}, paths)
-        self.assertEqual([p for p, kind in got.items() if kind is None and LOOP["test_path"](p, HOMES)],
+        self.assertEqual([p for p, kind in got.items() if kind is None and TREES.test_path(p, HOMES)],
                          ["tests/test_x.py"])
-        self.assertEqual([p for p, kind in got.items() if kind and not LOOP["test_path"](p, HOMES)], [])
+        self.assertEqual([p for p, kind in got.items() if kind and not TREES.test_path(p, HOMES)], [])
 
     def test_test_config_out_of_tree(self):
         """A test source generated in a build tree outside the checkout,
@@ -568,7 +567,7 @@ class TreesBuild(unittest.TestCase):
                 homes.setdefault(config, set()).add(os.path.relpath(os.path.dirname(source), base))
         through = shown("through", defines=(f"Python3_EXECUTABLE={Path(sys.executable).as_posix()}",))
         pairs = {True: ("qiven3_headers", "qiven3_test_headers"), False: ("qiven_headers", "qiven_test_headers")}
-        wanted = {key(unit): pairs[unit.startswith("tests/support/headers/")][bool(LOOP["test_path"](header, HOMES))]
+        wanted = {key(unit): pairs[unit.startswith("tests/support/headers/")][bool(TREES.test_path(header, HOMES))]
                   for header, unit in through.items() if re.search(r"(^|/)tests/support/headers/[^/]+$", unit)}
         names = {*pairs[True], *pairs[False]}
         self.assertEqual({os.path.relpath(key(source), key(str(ROOT))): target for target, source in compiled

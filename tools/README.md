@@ -2,12 +2,12 @@
 
 layer tools, status built
 
-- **Holds:** the developer tooling, in Python: the test runner (`changed.py`), the table's reader
-  (`loop_modules.py`, `loop_table.py`, with the old places' base `loop_base.json`, which `loop_base.py`
-  writes) and the trees it reads (`trees.json`), the debuggers (`debug.py`, `debuggers.py`, the debugger's
+- **Holds:** the developer tooling, in Python: the test runner (`changed.py`), the modules' check's command
+  line (`loop_modules.py`; the check is `foundation/devkit/structure/modules.py`, the table's reader
+  `foundation/devkit/python/table.py`), the old places' base `loop_base.json`, which `loop_base.py` writes,
+  and the trees the reader reads (`trees.json`), the debuggers (`debug.py`, `debuggers.py`, the debugger's
   pin in `windows-pins.txt`), dumps (`dumps.py`), the watch (`watch.py`) and the fuzz seeds (`fuzz_seeds.py`);
-  and its tests in `tests/`: the modules' check over the tree (`test_loop_full_check.py`), the watcher's
-  hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
+  and its tests in `tests/`: the watcher's hang path (`test_hang.py`) and the debuggers (`test_debug.py`).
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
   system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers
   private to that module or vendored; no foreign header reaches a header of ours; all other code calls only

@@ -18,7 +18,7 @@ set(QIVEN_SKIP_CODE 125)
 # The modules of the table, each "<name>|<regex>" of one of its paths: the
 # present rows of each built module.json, the table's files the root's,
 # tools/ one and each under the layers' trees of tools/trees.json, in sorted
-# path order (tools/loop_modules.py). A path ending in / holds every file
+# path order (foundation/devkit/python/table.py). A path ending in / holds every file
 # under it, any other is a pattern on the whole path, * any run of characters.
 qiven_table_globs("${PROJECT_SOURCE_DIR}" qiven_table_globs)
 file(GLOB_RECURSE qiven_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
@@ -168,10 +168,7 @@ function(qiven_list_tests)
     DEPENDS ${qiven_case_binaries} ${qiven_fuzz_binaries} ${ARGN}
       ${qiven_runtime_files} "${qiven_inputs_file}"
       "${qiven_runner_dir}/ctest_tests.cmake" "${qiven_runner_dir}/list_tests.py" ${qiven_python_files}
-      # the table's reader, which labels each test by its module, git's member and the table's reading it loads,
-      # and the trees it reads
-      "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/foundation/devkit/python/git.py"
-      "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
+      # the trees the table's reader reads, which labels each test by its module; the reader is one of the Python files
       "${PROJECT_SOURCE_DIR}/tools/trees.json"
     COMMENT "Listing the C++ cases and the Python tests for CTest"
     VERBATIM)

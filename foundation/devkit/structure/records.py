@@ -1,7 +1,7 @@
 """The structure records: what the structure tests read, written by the
 structure preset's build. The standard library, Python's lowest layer
 (foundation/devkit/python, its system's output_text for the tools' output),
-and the trees every check walks, tools/loop_modules.py's.
+and the trees every check walks, its table's (foundation/devkit/python/table.py).
 
 Run after every target is built, as
 
@@ -23,7 +23,6 @@ import concurrent.futures
 import hashlib
 import json
 import os
-import runpy
 import shutil
 import sys
 from collections import namedtuple
@@ -33,9 +32,8 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-# The trees every check walks, by runpy.
-MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
-TREES, CXX = MODULES["TREES"], MODULES["CXX_SUFFIXES"]
+from foundation.devkit.python import table
+
 VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure
 # build's); oldnames.lib, POSIX names, is not one.
@@ -139,10 +137,10 @@ def record(source, build_dir, out, dumpbin):
 
 def digests(root):
     """Each source file's SHA-256, so that a test finds the records stale."""
-    found = {}
-    for top in TREES:
+    found, trees = {}, table.trees(root)
+    for top in trees.every:
         for path in sorted(Path(root, top).rglob("*")):
-            if path.suffix in CXX and path.is_file():
+            if path.suffix in trees.cxx_suffixes and path.is_file():
                 found[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     return found
 

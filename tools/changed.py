@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 import re
-import runpy
 import sys
 import tempfile
 import time
@@ -28,8 +27,8 @@ from foundation.devkit.python import git
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-# Under -I this directory is off sys.path: the map by runpy.
-MODULES = runpy.run_path(str(ROOT / "tools" / "loop_modules.py"))
+from foundation.devkit.python import table as module_table
+
 USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
          "  last ran (the record build/ci-windows/changed.json); exit 0 passed or none ran,\n"
@@ -90,7 +89,7 @@ def files(table):
     [the files in no module])."""
     paths = sorted({p for p in git.tracked(ROOT, others=True) if not p.endswith(".md")})
     paths = [p for p in paths if (ROOT / p).is_file()]  # a tracked file gone from the worktree is gone
-    owner, now, loose = MODULES["owners"](table, paths), {}, []
+    owner, now, loose = module_table.owners(table, paths), {}, []
     for path in paths:
         if not owner[path]:
             loose.append(path)
@@ -149,7 +148,7 @@ def answer(lines):
     cmake, ctest = (process.find(tool, path=named(env, "PATH")) for tool in ("cmake", "ctest"))
     if not cmake or not ctest:
         raise CannotRun("cmake or ctest is not on vcvars' PATH")
-    table = MODULES["load"](ROOT)
+    table = module_table.load(ROOT)
     status, built = build(env, cmake)
     lines += built
     if status != 0:

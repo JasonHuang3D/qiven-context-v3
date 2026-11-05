@@ -19,16 +19,17 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import system
+from foundation.devkit.python import table
 from foundation.devkit.test.runner import binaries
-from tools.loop_modules import CXX_SUFFIXES, TREES
 
 ROOT = Path(__file__).resolve().parents[4]
+TREES = table.trees(ROOT)
 WINDOWS = system.WINDOWS
 FLOOR = {"NTDDI_VERSION": "0x0A000010", "_WIN32_WINNT": "0x0A00", "WINVER": "0x0A00"}
 NAMES = "|".join(FLOOR)
 DEFINE = re.compile(rf'(?:^|\s)"?[/-]([DU])\s*"?({NAMES})(?:=([^\s"]*))?(?=["\s]|$)')
 DIRECTIVE = re.compile(rf"^[ \t]*#[ \t]*(define|undef)[ \t]+({NAMES})\b", re.MULTILINE)
-SUFFIXES = {*CXX_SUFFIXES, ".rc"}  # .rc, a resource script: read here, and no C++ file
+SUFFIXES = {*TREES.cxx_suffixes, ".rc"}  # .rc, a resource script: read here, and no C++ file
 MACOS = "macos-clang"
 DEPLOYMENT = "15.0"
 
@@ -67,7 +68,7 @@ def source_findings(files):
 
 
 def tree_sources(root=ROOT):
-    for top in TREES:  # the trees every check walks, tools/loop_modules.py's
+    for top in TREES.every:  # the trees every check walks
         for path in sorted((root / top).rglob("*")):
             if path.suffix.lower() in SUFFIXES and path.is_file():
                 yield path.relative_to(root).as_posix(), path.read_bytes().decode("utf-8", "replace")

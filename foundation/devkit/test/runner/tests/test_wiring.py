@@ -1,6 +1,6 @@
 """The CTest wiring: the Python side's skip code, one whole test id selected
 by -k, and each test's labels and properties as the test presets select
-them: each labelled with one module's name (the table, tools/loop_modules.py),
+them: each labelled with one module's name (the table, foundation/devkit/python/table.py),
 behind the watcher, under its limit by its labels (a slow test 1,800 s, a fast
 one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s past it."""
 
@@ -11,13 +11,13 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
+from foundation.devkit.python import table
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.skip import SKIP_CODE
-from tools import loop_modules
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis"}
-MODULES = {m["name"] for m in loop_modules.load(binaries.ROOT)["modules"]}
+MODULES = {m["name"] for m in table.load(binaries.ROOT)["modules"]}
 # The structure tests start no process but git and read no machine fact: fast,
 # and not drive; but the analysis tools' controls, which run the tools on the
 # analysis build: analysis alone. Every other Python test drives a binary.

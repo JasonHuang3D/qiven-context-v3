@@ -8,7 +8,7 @@ test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
 its class names in ctest_labels, then the name of the
 module of the table its file is in (the tree's module.json files, read by
-tools/loop_modules.py), by which the runner selects it
+foundation/devkit/python/table.py), by which the runner selects it
 (tools/changed.py); a class whose ctest_serial is true runs alone; a
 class whose ctest_limit is a whole number of seconds states the watcher's
 limit for its tests, which otherwise their labels give
@@ -21,10 +21,13 @@ __init__.py, which discover would pass over, fails the listing, and so the
 build.
 """
 
-import runpy
 import sys
 import unittest
 from pathlib import Path
+
+# Under -I the checkout is off sys.path; appended, so that the standard library still wins.
+sys.path.append(str(Path(__file__).resolve().parents[4]))
+from foundation.devkit.python import table as module_table
 
 # The labels of each package of tests/ that holds Python tests.
 PACKAGE_LABELS = {
@@ -72,12 +75,12 @@ def unpackaged(root, trees):
     return sorted(d for d in found if "__pycache__" not in d.parts and not (d / "__init__.py").is_file())
 
 
-def package(path, modules, homes):
+def package(path, trees, homes):
     """The package whose labels a Python test file at path takes, by the one
-    reader of test code (tools/loop_modules.py's test_path, homes its module
+    reader of test code (the Trees' test_path, homes its module
     directories): the one below tests/, or tests for a file directly in a
     module's own tests/; None where the reader says it is no test code."""
-    test = modules["test_path"](path, homes)
+    test = trees.test_path(path, homes)
     parts = (test or "").split("/")
     return parts[1] if len(parts) > 2 else "tests" if test and test != path else None
 
@@ -86,25 +89,24 @@ def listed(root="."):
     """([(id, labels, serial, limit or None)], [errors]) of the
     tests discover finds in each package of the trees tools/trees.json
     walks and of its layers' trees, from the checkout's root."""
-    # The table's one reader, by runpy: under -I tools/ is off sys.path.
-    modules = runpy.run_path(str(Path(root) / "tools" / "loop_modules.py"))
-    table = modules["load"](root)
-    homes = {home.rpartition("/")[0] for home in table.get("homes", {}).values()}
+    table = module_table.load(root)
+    trees = table["trees"]
+    homes = {home.rpartition("/")[0] for home in table["homes"].values()}
     loader = unittest.TestLoader()
     suite = unittest.TestSuite(loader.discover(str(package), top_level_dir=str(root))
-                               for package in packages(root, modules["TREES"]))
+                               for package in packages(root, trees.every))
     rows, errors = [], [f"{d.relative_to(root).as_posix()}: a test directory with no __init__.py"
-                        for d in unpackaged(root, modules["TREES"])]
+                        for d in unpackaged(root, trees.every)]
     for test in walk(suite):
         test_id = test.id()
         error = getattr(test, "_exception", None)
         name = test_id.rsplit(".", 2)[0]  # the test's module
-        if error is not None or not name.startswith(tuple(f"{tree}." for tree in modules["TREES"])):
+        if error is not None or not name.startswith(tuple(f"{tree}." for tree in trees.every)):
             errors.append(f"{test_id}: {error}")
             continue
         parts = name.split(".")
         path = "/".join(parts) + ".py"
-        kind = package(path, modules, homes)
+        kind = package(path, trees, homes)
         if kind not in PACKAGE_LABELS:
             errors.append(f"{test_id}: the package {kind} has no labels" if kind else f"{test_id}: no test code")
             continue
@@ -115,7 +117,7 @@ def listed(root="."):
         if limit is not None and (type(limit) is not int or limit < 1):
             errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
             continue
-        owner =modules["owners"](table, [path])[path]
+        owner = module_table.owners(table, [path])[path]
         if not owner:
             errors.append(f"{test_id}: its file is in no module of the table")
             continue

@@ -7,7 +7,7 @@ import os
 import unittest
 
 from foundation.devkit.python import git
-from tools import loop_modules
+from foundation.devkit.structure import layers, modules
 
 
 class FullCheck(unittest.TestCase):
@@ -16,13 +16,13 @@ class FullCheck(unittest.TestCase):
     def test_tree(self):
         """No error over the checkout and, under ctest, its build tree; the
         README.md lines read, each table directory's."""
-        root, build = loop_modules.ROOT, os.environ.get("QIVEN_BUILD")
+        root, build = layers.ROOT, os.environ.get("QIVEN_BUILD")
         files = git.tracked(root)  # as run() takes them, one git process
-        table, errors = loop_modules.tree(root, files)
-        targets = loop_modules.codemodel(build, root) if build else None
-        errors += loop_modules.check(table, files, lambda f: (root / f).read_bytes(), targets, [])
+        table, errors = modules.tree(root, files)
+        targets = modules.codemodel(build, root) if build else None
+        errors += modules.check(table, files, lambda f: (root / f).read_bytes(), targets, [])
         self.assertEqual(errors, [])
-        readmes = [p.replace("module.json", "README.md") for p in loop_modules.table_files(root)]
+        readmes = [p.replace("module.json", "README.md") for p in table["trees"].table_files(root)]
         self.assertTrue(readmes and all(p in files for p in readmes), [p for p in readmes if p not in files])
 
 

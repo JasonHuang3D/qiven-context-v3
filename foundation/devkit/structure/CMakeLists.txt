@@ -4,9 +4,8 @@
 # dumpbin and the link edges with CMake's --graphviz, into
 # build/<preset>/structure/. The
 # structure tests read those files and start no process. The records'
-# trees are tools/loop_modules.py's, read from tools/trees.json: both,
-# and foundation/devkit/python/git.py and tools/loop_table.py the reader
-# loads, are the step's inputs, with records.py, every built target and the compile
+# trees are foundation/devkit/python/table.py's, read from tools/trees.json: both
+# are the step's inputs, with records.py, every built target and the compile
 # commands; and, by the depfile records.py writes beside index.json, every
 # file index.json digests, so that a recorded file's change or removal
 # reruns the step though no target compiles it.
@@ -53,8 +52,7 @@ add_custom_command(OUTPUT "${qiven_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
     "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN_DUMPBIN}"
   DEPENDS ${qiven_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
-    "${PROJECT_SOURCE_DIR}/tools/loop_modules.py" "${PROJECT_SOURCE_DIR}/foundation/devkit/python/git.py"
-    "${PROJECT_SOURCE_DIR}/tools/loop_table.py"
+    "${PROJECT_SOURCE_DIR}/foundation/devkit/python/table.py"
     "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven_commands}"
   DEPFILE "${PROJECT_BINARY_DIR}/structure/index.d"
   COMMENT "Writing the structure records"

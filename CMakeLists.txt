@@ -4,7 +4,7 @@ project(qiven LANGUAGES C CXX)
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/build.cmake" NO_POLICY_SCOPE)
 
 # The trees, read from tools/trees.json, the one place that names them
-# (tools/loop_modules.py reads it too): its layers, walked and analysed, and
+# (foundation/devkit/python/table.py reads it too): its layers, walked and analysed, and
 # the rules the globs and filters take from them (foundation/devkit/build/trees.cmake).
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/trees.cmake")
 include("${PROJECT_SOURCE_DIR}/foundation/devkit/build/tidy_config.cmake")  # a test source's composed configuration
