@@ -9,8 +9,8 @@
 // is called either (indexing, substr, remove_prefix), since the hardened
 // library's report of a failed check is not on the list; nor a string
 // literal's length at run time, strlen. The frames are
-// backtrace_symbols_fd's raw lines, which the watcher symbolizes after the
-// exit.
+// backtrace_symbols_fd's raw lines; the watcher's symbolizing of them is
+// retired (tools/README.md's Retired section).
 
 #include "signal.hpp"
 

@@ -8,6 +8,6 @@ layer devkit, status built
 - **Contract:** none
 - **Interface:** no header: the function `qiven_executable`, which names diag's entry targets though the row's `depends` is empty, the interface target `qiven_build`, the `QIVEN_` options and cache variables, and the presets
 - **Files:** the `present` paths of module.json: this directory, its `tests/` among them, and the three root files.
-- **Consumers rely on:** one set of warnings as errors for every target; the presets' compilers, sanitizers and analysis
+- **Consumers rely on:** one set of warnings as errors for every target of ours, through `qiven_build`; the vendored SQLite engine at its own level, warnings not errors (`foundation/system/sqlite/CMakeLists.txt`); the presets' compilers, sanitizers and analysis
 - **Parameters:** none
-- **Refuses:** a build with a warning (warnings are errors)
+- **Refuses:** a build with a warning in a target of ours (warnings are errors)
