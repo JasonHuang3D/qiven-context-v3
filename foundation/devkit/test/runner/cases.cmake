@@ -19,7 +19,8 @@ set(QIVEN_SKIP_CODE 125)
 # present rows of each built module.json, the table's files the root's,
 # tools/ one and each under the layers' trees of tools/trees.json, in sorted
 # path order (foundation/devkit/python/table.py). A path ending in / holds every file
-# under it, any other is a pattern on the whole path, * any run of characters.
+# under it, any other is a pattern on the whole path, matched name by name as
+# table.py's holds: * any run of characters and ? any one, never a /.
 qiven_table_globs("${PROJECT_SOURCE_DIR}" qiven_table_globs)
 file(GLOB_RECURSE qiven_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
      RELATIVE "${PROJECT_SOURCE_DIR}" ${qiven_table_globs})
@@ -45,10 +46,12 @@ foreach(qiven_file IN LISTS qiven_table_files)
     math(EXPR qiven_paths_last "${qiven_count} - 1")
     foreach(qiven_j RANGE ${qiven_paths_last})
       string(JSON qiven_path GET "${qiven_paths}" ${qiven_j})
-      string(REPLACE "." "\\." qiven_regex "${qiven_path}")
-      string(REPLACE "+" "\\+" qiven_regex "${qiven_regex}")
-      string(REPLACE "*" ".*" qiven_regex "${qiven_regex}")
-      if(NOT qiven_path MATCHES "/$")
+      if(qiven_path MATCHES "/$")
+        string(REGEX REPLACE "([][.^$|()*+?{}\\\\])" "\\\\\\1" qiven_regex "${qiven_path}")
+      else()
+        string(REGEX REPLACE "([][.^$|()+{}\\\\])" "\\\\\\1" qiven_regex "${qiven_path}")
+        string(REPLACE "*" "[^/]*" qiven_regex "${qiven_regex}")
+        string(REPLACE "?" "[^/]" qiven_regex "${qiven_regex}")
         string(APPEND qiven_regex "$")
       endif()
       list(APPEND qiven_module_paths "${qiven_name}|^${qiven_regex}")
