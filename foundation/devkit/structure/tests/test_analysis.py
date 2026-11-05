@@ -187,14 +187,7 @@ class TestTargets(unittest.TestCase):
     """The targets the analysis build gives test code's analysis, by its own
     reader (test-targets.txt in its tree), are the list's test_code targets,
     and it defines each pinned one (defined-targets.txt), the one build that
-    applies that analysis (exemptions.targets()). A pinned one it does not
-    define is skipped by its name only where the list's not_defined names
-    that target and the preset the tree records (preset.txt)."""
+    applies that analysis (exemptions.targets())."""
 
     def test_build(self):
-        build = build_directory()
-        found, absent = exemptions.targets(ROOT, build)
-        self.assertEqual(found, [])
-        for name in absent:
-            with self.subTest(target=name):
-                self.skipTest(f"{name}: pinned, and {build} does not define it")
+        self.assertEqual(exemptions.targets(ROOT, build_directory()), [])
