@@ -20,8 +20,7 @@
       ],
       "test_depends": [],
       "paths": [
-        "foundation/devkit/test/faults/",
-        "tests/drive/test_hardened.py"
+        "foundation/devkit/test/faults/"
       ]
     }
   ]
