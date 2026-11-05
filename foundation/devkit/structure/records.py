@@ -1,6 +1,7 @@
 """The structure records: what the structure tests read, written by the
 structure preset's build. The standard library, Python's lowest layer
-(foundation/devkit/python, its system's output_text for the tools' output),
+(foundation/devkit/python, its system's output_text for the tools' output
+and its build_tree for the build's cache),
 and the trees every check walks, its table's (foundation/devkit/python/table.py).
 
 Run after every target is built, as
@@ -28,8 +29,9 @@ import sys
 from collections import namedtuple
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+# Under -I the checkout is off sys.path: its root appended, so that the standard library still wins.
+sys.path.append(str(Path(__file__).resolve().parents[3]))
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.python import table
@@ -106,15 +108,6 @@ def graph(source, build_dir, out, cmake, cache):
          "--graphviz=" + str(out / "graph" / "targets.dot")] + [f"-D{k}={v}" for k, v in cache.items()])
 
 
-def cache_values(build_dir, names):
-    found = {}
-    for line in Path(build_dir, "CMakeCache.txt").read_text(encoding="utf-8").splitlines():
-        name, _, rest = line.partition(":")
-        if name in names and "=" in rest:
-            found[name] = rest.split("=", 1)[1]
-    return found
-
-
 def record(source, build_dir, out, dumpbin):
     """The include and symbol records of every compile command of build_dir."""
     shutil.rmtree(out, ignore_errors=True)
@@ -162,7 +155,10 @@ def main(argv):
     out = build_dir / "structure"
     index = record(source, build_dir, out, dumpbin)
     names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM", "QIVEN_HAL")
-    graph(source, build_dir, out, cmake, cache_values(build_dir, names))
+    cache = build_tree.options(build_dir)
+    if cache is None:
+        raise SystemExit(f"records: {build_dir} holds no cache: configure it first")
+    graph(source, build_dir, out, cmake, {name: cache[name] for name in names if name in cache})
     index["digests"] = digests(source)
     write_depfile(out, source, index["digests"])
     write_index(out, index)

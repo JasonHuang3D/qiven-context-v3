@@ -16,6 +16,7 @@ import os
 from collections import namedtuple
 from pathlib import Path
 
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.structure import layers, subset
 from foundation.devkit.structure.lexer import lex
 from foundation.devkit.structure.lists import (
@@ -29,7 +30,6 @@ from foundation.devkit.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the size, line-end, content and import tests read here too.
 from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
 
-ROOT = Path(__file__).resolve().parents[3]
 VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 # The runner's directory, from the table: its headers every case includes.
 RUNNER = layers.of(ROOT).directory("runner")

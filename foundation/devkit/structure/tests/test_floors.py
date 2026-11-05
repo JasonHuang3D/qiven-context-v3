@@ -20,9 +20,9 @@ from pathlib import Path
 
 from foundation.devkit.python import system
 from foundation.devkit.python import table
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.test.runner import binaries
 
-ROOT = Path(__file__).resolve().parents[4]
 TREES = table.trees(ROOT)
 WINDOWS = system.WINDOWS
 FLOOR = {"NTDDI_VERSION": "0x0A000010", "_WIN32_WINNT": "0x0A00", "WINVER": "0x0A00"}

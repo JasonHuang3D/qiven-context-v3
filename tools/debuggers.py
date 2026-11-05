@@ -29,8 +29,8 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
+from foundation.devkit.python.build_tree import ROOT
 
-ROOT = Path(__file__).resolve().parent.parent
 WINDOWS_PINS = ROOT / "tools" / "windows-pins.txt"
 LINE_POINTS = 300  # a line's code points at most, the cut's marker within them
 CUT = "[cut]"

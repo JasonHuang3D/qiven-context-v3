@@ -42,7 +42,7 @@ fault the drives run, it runs the case and names how it ended.
 
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: it appends the root once and imports the status table, the
-system's module and the process's; the debugger's, the dumps' and the
+system's module, the process's and the build tree's root; the debugger's, the dumps' and the
 imports' readers are run from their files.
 """
 
@@ -54,11 +54,11 @@ import sys
 import threading
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
+from foundation.devkit.python.build_tree import ROOT
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 DUMPS = runpy.run_path(str(ROOT / "tools" / "dumps.py"))
 IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))

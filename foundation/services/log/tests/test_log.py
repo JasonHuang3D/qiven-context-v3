@@ -26,11 +26,10 @@ BUILD_TIMEOUT = 300
 
 def level():
     """The build's minimum level, as its cache holds it."""
-    cache = binaries.directory("QIVEN_BUILD") / "CMakeCache.txt"
-    for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith("QIVEN_LOG_LEVEL:"):
-            return line.split("=", 1)[1].strip()
-    raise RuntimeError(f"no QIVEN_LOG_LEVEL in {cache}")
+    found = binaries.build_option("QIVEN_LOG_LEVEL")
+    if found is None:
+        raise RuntimeError("no QIVEN_LOG_LEVEL in the build's cache (QIVEN_BUILD)")
+    return found
 
 
 def build(target):

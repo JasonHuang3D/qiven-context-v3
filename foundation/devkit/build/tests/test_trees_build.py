@@ -15,10 +15,10 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import table
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.structure import layers
 from foundation.devkit.test.runner.binaries import cmake
 
-ROOT = Path(__file__).resolve().parents[4]
 TREES = table.trees(ROOT)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"

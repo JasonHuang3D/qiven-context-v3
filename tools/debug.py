@@ -52,10 +52,10 @@ import threading
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
+from foundation.devkit.python.build_tree import ROOT
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 FRAMES = DEBUGGERS["FRAMES"]
 CUT = DEBUGGERS["CUT"]

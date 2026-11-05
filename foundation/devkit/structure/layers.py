@@ -11,9 +11,9 @@ B1's text, layered().
 from pathlib import Path
 
 from foundation.devkit.python import table as module_table
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.structure import modules
 
-ROOT = Path(__file__).resolve().parents[3]
 GIVEN = module_table.trees(ROOT)  # this checkout's tools/trees.json
 TREES = GIVEN.every  # tools/trees.json's walked and layers: every tree the checks walk
 SOURCES, HEADERS, CXX = GIVEN.source_suffixes, GIVEN.header_suffixes, GIVEN.cxx_suffixes  # its suffixes

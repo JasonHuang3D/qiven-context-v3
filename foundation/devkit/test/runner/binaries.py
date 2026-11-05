@@ -12,7 +12,8 @@ tools/watch.py, and unbounded() drops the lines of its dumps' bound
 run.
 
 listed() gives the files of the build's binaries.txt. build_option() reads
-a cache variable of a build directory, and
+a cache variable of a build directory by
+foundation/devkit/python/build_tree.py, and
 has_faults(), debug_library(), has_hal() and sanitized() the build's
 choices by it. run_watched() runs a command behind the watcher under
 TIME_BOUND, polling it every POLL seconds for the windows it shows; a
@@ -25,10 +26,10 @@ import tempfile
 import time
 from pathlib import Path
 
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-
-ROOT = Path(__file__).resolve().parents[4]
+from foundation.devkit.python.build_tree import ROOT
 
 # A process the tests start ends within this many seconds, or fails.
 TIMEOUT = process.LIMIT
@@ -105,15 +106,8 @@ def unbounded(err):
 
 def build_option(name, build=None):
     """A cache variable of a build directory (QIVEN_BUILD's by default), or
-    None when the build's cache does not set it."""
-    build = Path(build) if build else directory("QIVEN_BUILD")
-    cache = build / "CMakeCache.txt"
-    if not cache.is_file():
-        return None
-    for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith(name + ":"):
-            return line.split("=", 1)[1].strip()
-    return None
+    None when the build has no cache or its cache does not set it."""
+    return (build_tree.options(build or directory("QIVEN_BUILD")) or {}).get(name)
 
 
 def has_faults(build=None):

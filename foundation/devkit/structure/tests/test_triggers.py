@@ -15,9 +15,9 @@ Read from each workflow's and CMakePresets.json's text."""
 import json
 import re
 import unittest
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[4]
+from foundation.devkit.python.build_tree import ROOT
+
 WORKFLOWS = ROOT / ".github" / "workflows"
 EVENTS = {"workflow_dispatch": {}}
 EVENT_GUARD = re.compile(r"github\.event\.pull_request|\.draft\b")

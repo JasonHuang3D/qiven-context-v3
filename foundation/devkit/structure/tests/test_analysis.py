@@ -24,10 +24,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
+from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.structure import exemptions
 
-ROOT = Path(__file__).resolve().parents[4]
 TEMPLATE = "foundation/core/memory/src/arena.cpp"
 TOOL_SECONDS = 600  # one tool over one planted file, on a loaded machine
 
@@ -80,19 +81,8 @@ def build_directory():
     return Path(value) if value else None
 
 
-def cache(build):
-    found = {}
-    path = build / "CMakeCache.txt"
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            name, sep, value = line.partition("=")
-            if sep and ":" in name and not line.startswith(("#", "//")):
-                found[name.split(":", 1)[0]] = value
-    return found
-
-
 def is_analysis(build):
-    return build is not None and cache(build).get("QIVEN_ANALYZE") == "analysis"
+    return build is not None and (build_tree.options(build) or {}).get("QIVEN_ANALYZE") == "analysis"
 
 
 ANALYSIS = unittest.skipUnless(is_analysis(build_directory()), "not the analysis build (QIVEN_BUILD)")
@@ -138,7 +128,7 @@ class Tools:
         args = command(template(self.build / "tidy" / "compile_commands.json"), self.source, self.directory)
         entry = {"directory": str(self.directory), "file": str(self.source), "arguments": [a.strip('"') for a in args]}
         (self.directory / "compile_commands.json").write_text(json.dumps([entry]), encoding="utf-8")
-        tidy = cache(self.build).get("QIVEN_CLANG_TIDY")
+        tidy = (build_tree.options(self.build) or {}).get("QIVEN_CLANG_TIDY")
         if not tidy:
             raise AssertionError("the analysis build names no QIVEN_CLANG_TIDY")
         return run([tidy, "-p", str(self.directory), "--config-file=" + str(ROOT / ".clang-tidy"), "--quiet",
