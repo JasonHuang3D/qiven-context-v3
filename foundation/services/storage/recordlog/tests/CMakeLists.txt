@@ -78,6 +78,13 @@ qiven_add_cases(qiven_recordlog_plain_test LABELS fast fake
   SOURCES store_plain_test.cpp
   LINK qiven_faults qiven_recordlog_stores)
 
+# store's plain path at a large import, on SQLite and the fake: 20,000 lines,
+# body keys with no record. Not of the label fast, so the limit of any other
+# test, since it takes more than the fast one's under AddressSanitizer.
+qiven_add_cases(qiven_recordlog_plain_many_test LABELS fake
+  SOURCES store_plain_many_test.cpp
+  LINK qiven_faults qiven_recordlog_stores)
+
 # memory's cases: the in-memory store over one state on the fake;
 # its smoke and exchange cases, its budgets, counts and fault runs, its
 # lock, thread gate, read-only object and forged states; a scan's end at
