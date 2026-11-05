@@ -88,7 +88,7 @@ later changes to be made again; the commit after it shows every line cut with th
   gdb, `debug.py`'s gdb path, `watch.py`'s symbolizing and Linux loader path with `QIVEN_ADDR2LINE`,
   `dumps.py`'s core files, the build's `QIVEN_CXX_COMPILER_ID`, and the Linux arms and cases of the tests that
   read them. The workflows and all C++ Linux code stay. Its Linux jobs were last green in CI at `fa3852f`,
-  2026-10-30. A restore needs `status`'s, `system`'s, `process`'s and `git`'s moves made again in the files
-  it brings back, and Linux returns through `system`'s POSIX back end, not by this command alone. Last commit
-  `e0cb5c4`:
+  2026-10-30. A restore needs `status`'s, `system`'s, `process`'s, `git`'s, `table`'s and `build_tree`'s
+  moves made again in the files it brings back, and Linux returns through `system`'s POSIX back end, not by
+  this command alone. Last commit `e0cb5c4`:
   `git restore --source=e0cb5c4 -- tools/debug_gdb.py tools/linux-pins.txt tools/debug.py tools/debuggers.py tools/dumps.py tools/watch.py tools/module.json tools/tests/test_debug.py tools/tests/test_hang.py foundation/devkit/structure/hardening.py foundation/devkit/structure/imports.py foundation/devkit/structure/README.md foundation/devkit/structure/tests/test_hardening.py foundation/devkit/structure/tests/test_binaries.py foundation/devkit/build/build.cmake foundation/devkit/test/runner/cases.cmake foundation/devkit/test/runner/ctest_tests.cmake foundation/system/diag/tests/test_faults.py`

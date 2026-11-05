@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.1: the number of this file's change list, below, and of nothing else
+Version 0.2: the number of this file's change list, below, and of nothing else
 
 - **Holds:** Python's lowest layer, below every tool and test of the repository's Python: `status.py`, the exit statuses by name, the one table a status is named by; `system.py` with `_windows.py`, the operating system, and the one conditional on it, `system.WINDOWS`; `process.py`, a program started, bounded and ended, the one place `subprocess` stands above `_windows.py`; `git.py`, the one place a program starts git, through `process`; `table.py`, the one Python reader of the module table and of the trees `tools/trees.json` names, the build reading them in CMake itself (`foundation/devkit/build/trees.cmake`, `foundation/devkit/test/runner/cases.cmake`); `build_tree.py`, the one reader of the checkout's root, of a build directory's cache, of the build's tools, `cmake` and `ctest`, and of its tests' listing, through `process`
 - **Never holds:** a product's or a tool's concept; a member with no consumer in the work at hand; a wrap of a portable standard-library call (`pathlib`, `json`, `tempfile`, `hashlib.file_digest`), which makes nothing easier, safer or more stable
@@ -96,7 +96,7 @@ The method for `git`:
 - **Extensibility:** a new need is one more verb over the one private run, its argv and its decoding in this file, with a consumer in the tree when it is built; no consumer passes argv or decodes `-z`. A second system changes nothing here unless it is one of the differences above
 - **Performance:** each verb is one process but `files_at`, two, each with one walk of `PATH` to find git. They answer a tool's or a test's one question over a checkout and are never on a hot path: `tracked` over this checkout, 785 files, took about 26 ms here, measured once. Importing `git` costs `process`'s import and `pathlib`'s. A verb holds git's whole output in memory, the table files' sizes for `files_at`, a list of names for `tracked`
 - **A fake:** none: every consumer exists to read the real repository, and a test of a fake here would prove the fake. A missing git is a `PATH` that holds none
-- **Errors:** every failure is `GitFailed`, one line, and each consumer answers it once in its own form: `git: none on PATH`; `git <argv>: <the status's line>: <the end of git's stderr>`; `git <argv>: <the reason>` for a start that failed or a limit passed, 300 s, past which `process` ends git's tree; `git <argv>: its answer is no UTF-8: <the codec's reason>`; `git <argv>: no file at <path>: <git's line>` for a `cat-file` answer that holds no blob. `find` answers `None` for no git, for a consumer that goes on without it. `reading_env` raises the system's `OSError` when its scratch directory cannot take the empty file, which is the caller's directory and no failure of git
+- **Errors:** every failure is `GitFailed`, one line, and each consumer answers it once in its own form: `git: none on PATH`; `git <argv>: <the status's line>: <the end of git's stderr>`; `git <argv>: <the reason>` for a start that failed or a limit passed, 300 s, past which `process` ends git's tree; `git <argv>: its answer is no UTF-8: <the codec's reason>`; `git <argv>: no file at <path>: <git's line>` for a `cat-file` answer that holds no blob. `files_at` asks `cat-file --batch` one path a line, so a path holding a newline reads as two: it fails as no file at it, or, where its first line names a file and it is the last path asked, reads that file's text in silence; no table file's path holds one. `find` answers `None` for no git, for a consumer that goes on without it. `reading_env` raises the system's `OSError` when its scratch directory cannot take the empty file, which is the caller's directory and no failure of git
 
 The method for `table`:
 
@@ -138,6 +138,17 @@ The method for `build_tree`:
 
 Newest first, each entry its version, its date and the commit it describes.
 
+### 0.2, 2026-11-05, `7248303`
+
+`build_tree`, the story the design review of this layer asked, made by `f4f87ad` and `7248303`.
+
+- **What changed, by member:**
+  - `build_tree` (`f4f87ad`): new, `ROOT`, the checkout's root, and `options`, a build directory's cache by name, `None` where it holds none. The roots of `structure`'s `layers.py`, `rules.py`, `test_floors`, `test_triggers` and `test_analysis`, the runner's `binaries.py`, `test_trees_build.py`, `tools/debug.py`, `debuggers.py` and `watch.py` come from `ROOT`; `records.py`, the runner's `build_option`, `test_analysis.py` and `log`'s `test_log.py`, through `build_option`, read the cache by `options`, and their own parsers went. A value is now as CMake wrote it, where `test_log.py`'s parser stripped it and replaced what did not decode.
+  - `build_tree` (`7248303`): `cmake`, `ctest`, and `tests` with its `Test` and `ListingFailed`. `tools/changed.py` takes its root, its cache check, its tools by vcvars' `PATH` and its listing from it; `tools/debug.py`'s and the runner's `test_wiring.py`'s listings, `test_trees_build.py`'s and `test_log.py`'s `cmake`, `tests/contract/test_hal_build.py`'s cache check, and the roots of `tests/test_process.py` and `tools/tests/test_debug.py` too. The runner's `binaries.tool` and `binaries.cmake` went, and each consumer's own `--show-only` start and its JSON.
+  - This file: `build_tree`'s charter (`f4f87ad`, `7248303`); `git`'s errors, a path holding a newline in `files_at`; this entry, the story moved here.
+- **What a consumer does:** takes the checkout's root from `build_tree.ROOT`, a script under `-I` counting its depth once for its append to `sys.path` alone; reads a build's cache by `build_tree.options`, finds `cmake` and `ctest` by `build_tree.cmake` and `build_tree.ctest`, giving the search path it trusts where it runs outside a test, and lists a build's tests by `build_tree.tests`, answering its `ListingFailed` in its own form. It reads no `CMakeCache.txt`, starts no `ctest --show-only` and reads no `QIVEN_CTEST` for its tool.
+- **Known limits:** the story's `directory` is not built, no consumer needing it; the build's file API keeps its one reader, `foundation/devkit/structure/modules.py`'s codemodel reader, no consumer below `structure` asking it. Left outside `build_tree`: `tools/loop_base.py`'s own root, a tool that ends with the old places; the appends of the scripts under `-I` (`records.py`, the runner's `list_tests.py`, `tools/changed.py`, `debug.py`, `watch.py`, `loop_modules.py`); `structure`'s `tests/test_content.py`, which reads `QIVEN_CTEST`'s directory as a machine path, not for a tool. `build_tree` has no test of its own and is proven by use; an option `records.py` misreads configures the graph's build without it, in silence. `git.files_at` misreads a path holding a newline, as its errors say.
+
 ### 0.1, 2026-11-05, `a97b8d8`
 
 The module as it stands, made by `0efcd6b`, `a60da5d`, `83bb427`, `168396d`, `3d795f4`, `b76f0e4`, `c278e74`, `97b61c1` and `a97b8d8`.
@@ -157,6 +168,5 @@ The module as it stands, made by `0efcd6b`, `a60da5d`, `83bb427`, `168396d`, `3d
 
 The needs asked of this module and not delivered, each with who asked; a delivered one moves to the change list.
 
-- `build_tree`: one reader of the build tree, its root, its directory, its cache's options, its tools (`cmake` by a path given, `ctest`) and its tests' listing, for the roots of `structure`'s `layers.py`, `rules.py`, `records.py` and its tests, of `foundation/devkit/test/runner/binaries.py`, `test_trees_build.py`, `tools/changed.py`, `debug.py`, `debuggers.py` and `watch.py`; the cache readers in `records.py`, `binaries.py`, `test_analysis.py` and `log`'s `test_log.py`; the ctest listings in `tools/changed.py`, `tools/debug.py` and the runner's `test_wiring.py`. Asked by the design review of this layer, and ruled for the work at hand; not begun.
 - `answer`: one bounded answer, its cut marker, a line's bound and the clip of a line, for `tools/changed.py`'s answer, `tools/debug.py`'s transcript and `tools/debuggers.py`'s lines, whose bound stands twice, there and in `binaries.py`. Asked by the design review of this layer; not the work at hand.
 - `debugger`: cdb owned in one place, its finding against its pin, `hang_stacks`, `hang_dump` and the driven session, for `tools/debug.py` and the watcher, `tools/watch.py`, today in `tools/debuggers.py` and `debug.py`'s `Cdb`. Asked by the design review of this layer; not the work at hand.
