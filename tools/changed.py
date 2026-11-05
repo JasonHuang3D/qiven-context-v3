@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import answer as bounded
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import git
 from foundation.devkit.python import process
@@ -222,8 +223,8 @@ def main(argv):
     except (CannotRun, git.GitFailed) as error:
         lines.append(f"cannot run: {error}")
         code = 2
-    if len(lines) > 39:  # the answer's bound, 40 lines with the exit's: the cut named
-        lines = lines[:38] + [f"and {len(lines) - 38} more lines, left out by the answer's bound"]
+    # the answer's bound, 40 lines with the exit's: the cut named
+    lines = bounded.within(lines, 39, f"and {len(lines) - 38} more lines, left out by the answer's bound")
     print("\n".join(lines + [f"exit {code}"]))
     return code
 

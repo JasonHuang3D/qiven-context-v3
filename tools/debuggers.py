@@ -27,13 +27,12 @@ import os
 import re
 from pathlib import Path
 
+from foundation.devkit.python import answer
 from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.python.build_tree import ROOT
 
 WINDOWS_PINS = ROOT / "tools" / "windows-pins.txt"
-LINE_POINTS = 300  # a line's code points at most, the cut's marker within them
-CUT = "[cut]"
 FRAMES = 32
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
@@ -57,12 +56,6 @@ class NotFound(Exception):
 
 class Absent(NotFound):
     """No debugger installed: "no cdb: ...", a skip."""
-
-
-def clip(line):
-    """The line within LINE_POINTS code points, a longer one cut with [cut]."""
-    line = line.rstrip("\r\n")
-    return line if len(line) <= LINE_POINTS else line[:LINE_POINTS - len(CUT)] + CUT
 
 
 def sha256(path):
@@ -188,12 +181,9 @@ def hang_lines(text):
         if threads > HANG_THREADS and not line.startswith(("Creating ", "Dump ")):
             dropped = True
             continue
-        kept.append(clip(line))
-    room = HANG_LINES - 1
-    if dropped or len(kept) > room:
-        kept = kept[:room - 1] + [f"{CUT} {max(threads - HANG_THREADS, 0)} threads past {HANG_THREADS}, "
-                                  f"or lines past {HANG_LINES}"]
-    return threads, kept
+        kept.append(answer.clip(line))
+    cut = f"{answer.CUT} {max(threads - HANG_THREADS, 0)} threads past {HANG_THREADS}, or lines past {HANG_LINES}"
+    return threads, answer.within(kept, HANG_LINES - 1, cut, dropped)
 
 
 def hang_dump(pid, binary, dumps):

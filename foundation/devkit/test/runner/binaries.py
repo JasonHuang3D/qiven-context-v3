@@ -19,7 +19,8 @@ foundation/devkit/python/build_tree.py, and
 has_faults(), debug_library(), has_hal() and sanitized() the build's
 choices by it. run_watched() runs a command behind the watcher under
 TIME_BOUND, polling it every POLL seconds for the windows it shows; a
-report's line holds at most LINE_POINTS code points.
+report's line holds at most foundation/devkit/python/answer.py's
+LINE_POINTS code points.
 """
 
 import os
@@ -36,11 +37,9 @@ from foundation.devkit.python.build_tree import ROOT
 # A process the tests start ends within this many seconds, or fails.
 TIMEOUT = process.LIMIT
 
-# A watched run's bound in seconds, its poll's period, and a report's line's
-# bound in code points.
+# A watched run's bound in seconds and its poll's period.
 TIME_BOUND = 10.0
 POLL = 0.1
-LINE_POINTS = 300
 
 
 def directory(name):

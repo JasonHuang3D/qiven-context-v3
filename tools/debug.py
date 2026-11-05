@@ -52,13 +52,14 @@ import time
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import answer
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python.build_tree import ROOT
+
 DEBUGGERS = runpy.run_path(str(ROOT / "tools" / "debuggers.py"))
 FRAMES = DEBUGGERS["FRAMES"]
-CUT = DEBUGGERS["CUT"]
 PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
 QUIET = 0.05  # seconds of no output after a prompt before it is taken as one
 EVENT = re.compile(r"^Last event: [0-9a-f]+\.[0-9a-f]+: (?P<event>.*)$", re.M)
@@ -80,18 +81,16 @@ class Transcript:
     and the line before it is [cut] once a line was dropped."""
 
     def __init__(self, bound):
-        self.bound, self.lines, self.cut, self.stops = bound, [], False, 0
+        self.bound, self.lines, self.stops = bound, [], 0
 
     def add(self, line):
-        if len(self.lines) < self.bound - 1:
-            self.lines.append(DEBUGGERS["clip"](line))
-        else:
-            self.cut = True
+        if len(self.lines) < self.bound:  # one past the room before the last line, so that a cut shows
+            self.lines.append(answer.clip(line))
 
     def write(self, last, out):
         """Prints the lines, then last(the count of every line printed)."""
-        lines = self.lines[:-1] + [CUT] if self.cut else self.lines
-        lines.append(DEBUGGERS["clip"](last(len(lines) + 1)))
+        lines = answer.within(self.lines, self.bound - 1)
+        lines.append(answer.clip(last(len(lines) + 1)))
         out.write("".join(line + "\n" for line in lines))
         out.flush()
 

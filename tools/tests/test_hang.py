@@ -35,11 +35,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from foundation.devkit.python import answer
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
+from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import LINE_POINTS, POLL, sanitized, windows_of
+from foundation.devkit.test.runner.binaries import POLL, sanitized, windows_of
 from tools import debuggers
 
 WINDOWS = system.WINDOWS
@@ -266,11 +268,11 @@ class Hang(unittest.TestCase):
         threads, lines = debuggers.hang_lines(text)
         self.assertEqual(threads, 20)
         self.assertEqual(len(sections(lines)), debuggers.HANG_THREADS)
-        self.assertTrue(lines[-1].startswith(debuggers.CUT), lines[-1])
+        self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
         threads, lines = debuggers.hang_lines(text.replace("#0 frame\n", "#0 frame\n" * 20))
         self.assertEqual(len(lines), HANG_LINES - 1)
-        self.assertTrue(lines[-1].startswith(debuggers.CUT), lines[-1])
-        self.assertEqual(debuggers.clip("x" * 400), "x" * (LINE_POINTS - 5) + debuggers.CUT)
+        self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
+        self.assertEqual(answer.clip("x" * 400), "x" * (LINE_POINTS - 5) + answer.CUT)
 
 
 if __name__ == "__main__":

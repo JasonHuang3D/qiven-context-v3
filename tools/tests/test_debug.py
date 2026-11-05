@@ -28,10 +28,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from foundation.devkit.python import answer
 from foundation.devkit.python import process
+from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import LINE_POINTS, sanitized
+from foundation.devkit.test.runner.binaries import sanitized
 from tools import debuggers
 
 FAULT = "qiven_diag_fault"
@@ -126,7 +128,7 @@ class Debug(unittest.TestCase):
         code, lines = self.watch("--lines", "5")
         self.bounded(lines, 5)
         self.assertEqual(len(lines), 5, lines)
-        self.assertEqual(lines[-2], debuggers.CUT, lines)
+        self.assertEqual(lines[-2], answer.CUT, lines)
         self.assertEqual(code, 0, lines)
 
     def test_K17_dump(self):
