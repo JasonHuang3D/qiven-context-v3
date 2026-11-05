@@ -15,6 +15,15 @@ layer tools, status built
   `foundation/README.md`.
 - **Contract:** none
 - **Interface:** no header: each tool's `--help` and its one bounded answer.
+- **Worst cases:** `debuggers.py`'s `hang_stacks`, the stacks the watcher writes of a hang, gives cdb 25 s
+  (`HANG_SECONDS`); past them `process` ends cdb's tree, `taskkill`'s time (its worst in `system`'s errors,
+  `foundation/devkit/python/README.md`), and waits 10 s more (`ENDING_SECONDS`) where a process the tree
+  no longer reaches holds cdb's pipe. Before it, finding the debugger runs `cdb -version`, 30 s at most
+  (`VERSION_SECONDS`) and its own ending, the pinned cdb's or a CI image's. So once its debugger is found it
+  takes 25 s and `taskkill`'s time at most, or 35 s and that time where an orphan holds the pipe, against
+  the 30 s CTest leaves the watcher after a case's limit
+  (`ctest_tests.cmake`'s `AFTER_LIMIT`): past them CTest ends the watcher first. A hung `cdb -version`
+  adds 40 s on paper.
 - **Files:** the `present` paths of module.json, its tests in `tests/`.
 - **Serves:** the developers and models that build and test the repository; devkit, by the edges
   `foundation/devkit/README.md` names.

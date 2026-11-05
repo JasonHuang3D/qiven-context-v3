@@ -14,7 +14,8 @@ qiven_trees("${qiven_trees_file}")
 set(qiven_roots ${qiven_layers} ${qiven_analysed})
 
 # The build's targets and their links, for the modules' check
-# (tools/loop_modules.py, against the table the module.json files give).
+# (foundation/devkit/structure/modules.py, whose command line is tools/loop_modules.py, against the
+# table the module.json files give).
 cmake_file_api(QUERY API_VERSION 1 CODEMODEL 2)
 
 enable_testing()
