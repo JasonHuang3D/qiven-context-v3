@@ -7,7 +7,6 @@ PE alone is read: K11's ELF half is retired (tools/README.md's Retired
 section) and Mach-O was never read, so K11's binaries are skipped off
 Windows: a residual."""
 
-import re
 import unittest
 
 from foundation.devkit.python import imports
@@ -21,9 +20,6 @@ PLANTED_LIBRARY = "qiven_diag_fault_lib"
 # The system's libraries a binary may import, case aside.
 WINDOWS_SYSTEM = frozenset(("kernel32.dll", "ntdll.dll", "advapi32.dll", "shell32.dll", "ole32.dll",
                             "bcrypt.dll", "dbghelp.dll"))
-# Windows' API sets, Windows' own: contract names the loader maps to the
-# system's libraries, by their whole form, a bare name and no path.
-API_SET = re.compile(r"(?:api|ext)-ms-win(?:-[a-z0-9]+)+-l[0-9]+-[0-9]+-[0-9]+\.dll", re.ASCII)
 # Each preset's residual beyond the list, by its sanitizers.
 ASAN_DLL = "clang_rt.asan_dynamic-x86_64.dll"
 FUZZ_DLLS = frozenset(("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "ucrtbase.dll", ASAN_DLL))
@@ -31,14 +27,14 @@ FUZZ_DLLS = frozenset(("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll",
 
 def outside(read, sanitize):
     """Each import on neither the system's list nor the preset's residual,
-    given the build's QIVEN_SANITIZE; an API set, Windows' own, passes in
-    every preset."""
+    given the build's QIVEN_SANITIZE; an API set, Windows' own by
+    system.api_set, passes in every preset."""
     allowed = set(WINDOWS_SYSTEM)
     if "fuzzer" in sanitize:
         allowed |= FUZZ_DLLS
     elif "address" in sanitize:
         allowed.add(ASAN_DLL)
-    return [n for n in read.names if n.lower() not in allowed and not API_SET.fullmatch(n.lower())]
+    return [n for n in read.names if n.lower() not in allowed and not system.api_set(n)]
 
 
 class Imports(unittest.TestCase):

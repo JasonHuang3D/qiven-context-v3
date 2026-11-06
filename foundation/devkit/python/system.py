@@ -139,6 +139,13 @@ def loader_dirs(binary):
     return _back("loader_dirs").loader_dirs(binary)
 
 
+def api_set(name):
+    """Whether the library name `name`, a bare name and no path, is one of
+    the system's API sets, contract names its loader maps to its own
+    libraries; case aside."""
+    return _back("api_set").api_set(name)
+
+
 def sdk_root():
     """The root of the system's SDK as a Path, or None when none is
     installed."""

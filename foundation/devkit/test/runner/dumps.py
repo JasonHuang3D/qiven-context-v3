@@ -2,6 +2,7 @@
 DUMPS_KEPT dumps, the oldest removed first.
 
     bound(directory, pid=None) -> lines
+    hang_dump(pid, binary, directory) -> the hang dump's path, or None
 
 The watcher (watch.py, beside it) runs it after each case ends, whether the
 case wrote a dump or none, so that every writer into the directory is
@@ -12,7 +13,9 @@ and those of the cases a test runs under the debugger.
 - The dumps are ordered by their last write, then by name. The newest
   DUMPS_KEPT stay, and so does every dump the case of process pid wrote,
   by its name (<binary>-<pid>.dmp, <binary>-<pid>-hang.dmp): the
-  dump the case's report or the hang's lines name is never removed.
+  dump the case's report or the hang's lines name is never removed. The
+  hang dump's name is formed here, by hang_dump, which the watcher passes
+  to the debugger, so that it and this reading share the one form.
 - Each dump removed is named in one line, "dumps: removed <name>, past the
   newest <DUMPS_KEPT>"; one that cannot be removed, "dumps: cannot remove
   <name>: <reason>". One another process removed first is its line, not
@@ -24,11 +27,18 @@ from pathlib import Path
 
 DUMPS_KEPT = 8  # the dumps a dumps' directory keeps at most, the newest
 SUFFIX = ".dmp"
+HANG = "-hang"  # a hang dump's mark, before SUFFIX
+
+
+def hang_dump(pid, binary, directory):
+    """The watcher's hang dump of process pid, <binary>-<pid>-hang.dmp in
+    directory, a Path; None when directory is not given."""
+    return Path(directory) / f"{Path(binary).stem}-{pid}{HANG}{SUFFIX}" if directory else None
 
 
 def own(name, pid):
     """Whether the dump's name is that of a dump process pid wrote."""
-    return pid is not None and re.search(rf"-{pid}(?:-hang)?\.dmp$", name) is not None
+    return pid is not None and re.search(rf"-{pid}(?:{HANG})?{re.escape(SUFFIX)}$", name) is not None
 
 
 def dumps(directory):

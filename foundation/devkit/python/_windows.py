@@ -9,6 +9,7 @@ reach no other caller.
 import _winapi
 import ctypes
 import os
+import re
 import subprocess
 import tempfile
 import winreg
@@ -37,6 +38,8 @@ OUTPUT_CODEC = "mbcs"
 END_TREE_SECONDS = 30
 SUBST_SECONDS = 30
 TOOLSET_SECONDS = 120
+# An API set by its whole form: api- or ext-ms-win, its words, -l<n>-<n>-<n>.dll.
+API_SET = re.compile(r"(?:api|ext)-ms-win(?:-[a-z0-9]+)+-l[0-9]+-[0-9]+-[0-9]+\.dll", re.ASCII)
 KITS = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots"
 VC_COMPONENT = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
 
@@ -260,6 +263,10 @@ def loader_dirs(binary):
     root = os.environ.get("SystemRoot")
     dirs = [binary.parent, *((Path(root) / "System32", Path(root)) if root else ())]
     return dirs + [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep) if p]
+
+
+def api_set(name):
+    return API_SET.fullmatch(name.lower()) is not None
 
 
 def sdk_root():

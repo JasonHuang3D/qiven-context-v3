@@ -12,16 +12,16 @@ pin, the line naming the variable, where the variable names no file, or where
 there is no pin line: a machine with an SDK and no variable fails, never
 skips. It runs with -sins, so that no environment's symbol path or server is
 read, and -y the binary's directory.
-hang_stacks(pid, binary, dumps) is every thread's stack of a running
-process, by the debugger attached without stopping it, and its dump
-(hang_dump), bounded: at most HANG_THREADS threads and HANG_LINES lines, each
-line by answer. Its debugger is hang_debugger(): the pinned one, but in a CI
-job (GitHub Actions' GITHUB_ACTIONS "true", which the runner sets in every
-step), where the image keeps its own tools, the image's cdb, unpinned, named
-by its path and version. Finding it and the stacks share one limit,
-HANG_SECONDS, so that the watcher ends within CTest's time after a case's
-limit. Cdb is a session driven over pipes: each command's output up to its
-prompt, by a deadline.
+hang_stacks(pid, binary, dump, limit) is every thread's stack of a running
+process, by the debugger attached without stopping it, and its dump at the
+path its caller names, bounded: at most HANG_THREADS threads and HANG_LINES
+lines, each line by answer. Its debugger is hang_debugger(): the pinned
+one, but in a CI job (GitHub Actions' GITHUB_ACTIONS "true", which the
+runner sets in every step), where the image keeps its own tools, the
+image's cdb, unpinned, named by its path and version. Finding it and the
+stacks share one limit, the caller's: the watcher's, reckoned there against
+CTest's time. Cdb is a session driven over pipes: each command's output up
+to its prompt, by a deadline.
 """
 
 import hashlib
@@ -40,11 +40,6 @@ PINS = Path(__file__).resolve().with_name("debugger_pins.txt")
 FRAMES = 32  # each stack's frames at most
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
-# The hang's debugger, found and run, within 12 s together: past them,
-# process's ending (taskkill, then ENDING_SECONDS where an orphan holds cdb's
-# pipe) and the watcher's 5 s for the case's stream make 27 s and taskkill's
-# runs, inside the 30 s CTest leaves the watcher after a case's limit.
-HANG_SECONDS = 12.0
 VERSION_SECONDS = 30  # the debugger's -version, outside a hang
 QUIT_SECONDS = 10  # a session's cdb, asked to quit, ending its case and itself
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
@@ -216,26 +211,19 @@ def hang_lines(text):
     return threads, answer.within(kept, HANG_LINES - 1, cut, dropped)
 
 
-def hang_dump(pid, binary, dumps):
-    """The dump hang_stacks has the debugger write, <binary>-<pid>-hang.dmp
-    in dumps; None when dumps is not given."""
-    return Path(dumps) / f"{Path(binary).stem}-{pid}-hang.dmp" if dumps else None
-
-
 def stacks_of(lines):
     """The threads whose stacks the hang's lines hold: their headers."""
     return sum(1 for line in lines if CDB_THREAD.match(line))
 
 
-def hang_stacks(pid, binary, dumps):
+def hang_stacks(pid, binary, dump, limit):
     """Every thread's stack of the running process pid, its binary's
-    symbols beside it, and its dump <binary>-<pid>-hang.dmp in dumps when it
-    is given: (threads, lines, how), how hang_debugger()'s. The debugger is
-    found and run within HANG_SECONDS together; past them, the lines it
+    symbols beside it, and its dump written to the path dump when it is
+    given: (threads, lines, how), how hang_debugger()'s. The debugger is
+    found and run within limit seconds together; past them, the lines it
     wrote. NotFound when no debugger is at hand or it cannot run."""
-    deadline = time.monotonic() + HANG_SECONDS
-    debugger, how = hang_debugger(HANG_SECONDS)
-    dump = hang_dump(pid, binary, dumps)
+    deadline = time.monotonic() + limit
+    debugger, how = hang_debugger(limit)
     commands = f"~*kn {FRAMES}" + (f"; .dump /mt {dump}" if dump else "") + "; qd"
     argv = [debugger, "-pv", "-p", str(pid), "-sins", "-lines", "-y", Path(binary).parent, "-c", commands]
     try:

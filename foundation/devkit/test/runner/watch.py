@@ -31,8 +31,10 @@ fault the drives run, it runs the case and names how it ended.
   without stopping the case, it prints "hang: past its limit of <s> s,
   <n> threads" and every thread's stack, at most 16 threads and 200 lines,
   and writes <binary>-<pid>-hang.dmp in the dumps'
-  directory; with no debugger at hand, "hang: no debugger, no stacks" and
-  the reason. The debugger is the pinned one, but in a CI job on Windows,
+  directory, the name dumps.py's hang_dump; with no debugger at hand,
+  "hang: no debugger, no stacks" and the reason. The debugger is found and
+  run within HANG_SECONDS, whose reckoning against CTest's time stands
+  beside it. The debugger is the pinned one, but in a CI job on Windows,
   where the image keeps its own tools, the image's cdb, unpinned
   (debugger.py's hang_debugger). Then it kills the case's process
   tree (foundation/devkit/python/process.py's end_tree), names the status
@@ -48,8 +50,8 @@ fault the drives run, it runs the case and names how it ended.
 Run by the pinned interpreter under -I, which keeps this directory off
 sys.path: it appends the root once and imports the answer's bound, the
 status table, the system's module, the process's, the debugger's, the
-imports' reader and the dumps' bound, each at its start, in front of every
-case.
+imports' reader and the dumps' bound and hang dump, each at its start, in
+front of every case.
 """
 
 import argparse
@@ -66,9 +68,14 @@ from foundation.devkit.python import imports
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-from foundation.devkit.test.runner.dumps import bound as dumps_bound
+from foundation.devkit.test.runner.dumps import bound as dumps_bound, hang_dump
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
+# The hang's debugger, found and run, within 12 s together: past them, the
+# case's ending (taskkill, then process.ENDING_SECONDS where an orphan holds
+# cdb's pipe) and READER_WAIT make 27 s and taskkill's runs, inside the 30 s
+# CTest leaves the watcher after a case's limit (ctest_tests.cmake's AFTER_LIMIT).
+HANG_SECONDS = 12.0
 
 
 def safe_name(name):
@@ -109,8 +116,8 @@ def missing(command):
     dirs = system.loader_dirs(binary)
     out = []
     for name in names:
-        if name.lower().startswith(("api-ms-", "ext-ms-")):
-            continue  # an API set, which the system resolves
+        if system.api_set(name):
+            continue  # the system's loader resolves it
         if not any((d / name).is_file() for d in dirs):
             out.append(name)
     return out
@@ -143,13 +150,12 @@ def hang(case, command, env, limit):
     none) and "its dump <file>" or "no dump", then, by a CI image's
     debugger, ", by the image's cdb <version> at <path>, unpinned (CI)"."""
     binary = process.find(command[0]) or command[0]
-    dumps = env.get("QIVEN_DUMP_DIR")
+    dump = hang_dump(case.pid, binary, env.get("QIVEN_DUMP_DIR"))
     try:
-        threads, lines, how = debugger.hang_stacks(case.pid, binary, dumps)
+        threads, lines, how = debugger.hang_stacks(case.pid, binary, dump, HANG_SECONDS)
     except debugger.NotFound as e:
         return ["hang: no debugger, no stacks", answer.clip(f"hang: {e}")], f"no debugger, no stack written: {e}"
     stacks = debugger.stacks_of(lines)
-    dump = debugger.hang_dump(case.pid, binary, dumps)
     written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
     written += f", its dump {dump.name}" if dump is not None and dump.is_file() else ", no dump"
     written += f", {how}" if how else ""
