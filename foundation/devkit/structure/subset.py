@@ -6,11 +6,12 @@ Each rule reads the tokens of lexer.py's lexer: keywords, identifiers and
 punctuators outside comments and literals, and outside the preprocessor's
 directives, which B27 alone reads; B27 reads comments too. B25's objects and
 B28's members are read by a statement's depth: each brace is a namespace's,
-a class's or another's (a function's, an initializer's, an enum's). B18
-holds in every .hpp and .cpp file; B27 in every file the analysis reads
-(layers.Layers.analysed); the other rules of B19 to B31 in those of
-in_scope(): by the tree's table (layers.py), each library's of core to
-products, the test kit's whole and tests/support/, a vendor's apart; test
+a class's or another's (a function's, an initializer's, an enum's). A
+vendor's file is never read. B18 holds in every other .hpp and .cpp file;
+B27 in every file the analysis reads (layers.Layers.analysed); the other
+rules of B19 to B31 in those of in_scope(): by the tree's table
+(layers.py), each library's of core to products, the test kit's whole and
+tests/support/; test
 code, the table's (the top-level tests/ and a module's tests/), is a test's
 for B24. What tokens cannot see, the analysis
 preset's checks read (test_analysis.py). Each rule's blind spots, the
@@ -540,20 +541,20 @@ def config_rules(root, files, add):
 def in_scope(rel, tree):
     """Whether B19 to B31 hold in rel, by the tree's table (layers.Layers):
     a library's file of core to products, a file of the test kit, or one of
-    tests/support/; a vendored file never."""
-    return rel not in layers.VENDORED and (
-        tree.library(rel) or rel.startswith(layers.KIT) or tree.as_tests(rel).startswith(layers.SUPPORT))
+    tests/support/."""
+    return tree.library(rel) or rel.startswith(layers.KIT) or tree.as_tests(rel).startswith(layers.SUPPORT)
 
 
 def check(root, files, add, tree):
-    """B18 to B31 but B26 over a tree's files, and B26's configuration;
-    add(rule, where, kind, detail, what) takes each finding, what the name
-    an allowance matches: B22's function's, B25's object's, B28's member's;
-    tree, the tree's table (layers.Layers), gives the subset's files and
-    test code."""
+    """B18 to B31 but B26 over a tree's files but the vendored ones
+    (layers.VENDORED), which are neither lexed nor read, and B26's
+    configuration; add(rule, where, kind, detail, what) takes each finding,
+    what the name an allowance matches: B22's function's, B25's object's,
+    B28's member's; tree, the tree's table (layers.Layers), gives the
+    subset's files and test code."""
     config_rules(root, files, add)
     for rel in files:
-        if not rel.endswith(CXX):
+        if not rel.endswith(CXX) or rel in layers.VENDORED:
             continue
         text = (root / rel).read_bytes().decode("utf-8", "replace")
         tokens, comments = lex(text)

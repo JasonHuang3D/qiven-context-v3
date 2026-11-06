@@ -1,6 +1,5 @@
-"""B5 to B11 over every object, target and source file of the build, read
-from the structure build's records; and the Python sources held to the
-standard library, read by ast: no module outside it but the test tree's
+"""The Python sources held to the standard library, read by ast (B5 to
+B11, the C++ half, are test_boundaries'): no module outside it but the test tree's
 own, the structure method's, the runner's Python half and Python's lowest
 layer; no importlib or runpy, every module imported normally, none loaded
 or run by its path; no ctypes, winreg or _winapi but in system's Windows
@@ -14,9 +13,7 @@ import sys
 import unittest
 
 from foundation.devkit.structure import rules
-from foundation.devkit.structure.tests.test_boundaries import WINDOWS, holds
 
-RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
 METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree
 RUNNER = "foundation.devkit.test.runner"  # the runner's Python half: a run's skip, the build's binaries and options, the listing
 LOWEST = "foundation.devkit.python"  # Python's lowest layer
@@ -55,15 +52,6 @@ def python_findings(root, files):
                     and node.value.value.id == "sys" and node.attr != "append":
                 found.append((rel, "sys.path." + node.attr))
     return found
-
-
-@WINDOWS
-class Tree(unittest.TestCase):
-    """No finding over v3's tree."""
-
-
-for _rule in RULES:
-    setattr(Tree, "test_" + _rule.lower(), lambda self, rule=_rule: holds(self, rule))
 
 
 class Python(unittest.TestCase):
