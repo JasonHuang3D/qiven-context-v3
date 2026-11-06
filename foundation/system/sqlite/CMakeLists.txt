@@ -4,7 +4,7 @@
 # include/ alone.
 
 # The pin: each file's SHA-256 checked on every configure, pinned or not,
-# before the target below is defined; the root adds this directory first, so
+# before the target below is defined; foundation/devkit/build/modules.cmake adds this directory first, so
 # a changed amalgamation fails configure before anything builds.
 set(QIVEN_SQLITE_SHA256
   "src/sqlite3.c=b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189"

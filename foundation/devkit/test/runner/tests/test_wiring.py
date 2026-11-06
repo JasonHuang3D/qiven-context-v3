@@ -82,10 +82,9 @@ def limit_of(name, labels, command, cases):
 
 def case_limits():
     """Each case binary's own limit, by its file, from the build's listing
-    inputs (tests/case_binaries.txt), where it states one."""
+    inputs (case_binaries.txt), where it states one."""
     found = {}
-    # The build's "tests" is the product's test tree's directory until P4.
-    inputs = binaries.directory("QIVEN_BUILD") / "tests" / "case_binaries.txt"
+    inputs = binaries.directory("QIVEN_BUILD") / "case_binaries.txt"
     for line in inputs.read_text(encoding="utf-8").splitlines():
         _, limit, binary = line.split("\t")
         if limit:

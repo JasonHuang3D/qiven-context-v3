@@ -39,10 +39,10 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   qiven_platform_targets(_poisoned qiven_memory_poisoned)
   qiven_log_targets(_poisoned qiven_memory_poisoned)
 
-  add_library(qiven_runner_poisoned STATIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/src/runner.cpp"
-    "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/src/main.cpp")
-  target_include_directories(qiven_runner_poisoned PUBLIC "${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/include"
-    "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
+  add_library(qiven_runner_poisoned STATIC "${qiven_root}/foundation/devkit/test/runner/src/runner.cpp"
+    "${qiven_root}/foundation/devkit/test/case_main/src/main.cpp")
+  target_include_directories(qiven_runner_poisoned PUBLIC "${qiven_root}/foundation/devkit/test/runner/include"
+    "${qiven_root}/foundation/devkit/test/case_main/include")
   target_link_libraries(qiven_runner_poisoned PUBLIC qiven_memory_poisoned qiven_log_poisoned
     PRIVATE qiven_build qiven_diag_poisoned qiven_platform_poisoned)
   qiven_executable(qiven_memory_test_poisoned
@@ -50,7 +50,7 @@ if(QIVEN_SYSTEM_HEAP AND QIVEN_SANITIZE MATCHES "address")
   # The faults' header by its path, as qiven_faults gives it, without that
   # target's second copy of memory.
   target_include_directories(qiven_memory_test_poisoned PRIVATE
-    "${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults/include")
+    "${qiven_root}/foundation/devkit/test/faults/include")
   qiven_executable(qiven_memory_free_demo_poisoned SOURCES free_demo.cpp LINK qiven_runner_poisoned DIAG _poisoned)
   target_include_directories(qiven_memory_free_demo_poisoned PRIVATE "${qiven_memory_src}")
   set_target_properties(qiven_memory_poisoned qiven_text_poisoned qiven_log_poisoned qiven_platform_poisoned

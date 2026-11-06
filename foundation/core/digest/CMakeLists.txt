@@ -2,8 +2,7 @@
 # HMAC-SHA-256, the plain and keyed digests' text, and the comparison
 # whose time does not depend on where two texts differ; the plain digest's
 # instantiation over memory's string. Its tests are added by
-# the runner's wiring.cmake, where the case functions and qiven_case_main are
-# made.
+# the runner's wiring.cmake.
 add_library(qiven_digest STATIC
   src/digest.cpp
   include/qiven/digest/digest.hpp

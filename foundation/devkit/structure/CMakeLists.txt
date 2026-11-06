@@ -50,10 +50,10 @@ add_custom_command(OUTPUT "${qiven_commands}"
 set(qiven_index "${PROJECT_BINARY_DIR}/structure/index.json")
 add_custom_command(OUTPUT "${qiven_index}"
   COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
-    "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN_DUMPBIN}"
+    "${qiven_root}" "${PROJECT_BINARY_DIR}" "${CMAKE_COMMAND}" "${QIVEN_DUMPBIN}"
   DEPENDS ${qiven_files} "${CMAKE_CURRENT_SOURCE_DIR}/records.py"
-    "${PROJECT_SOURCE_DIR}/foundation/devkit/python/table.py"
-    "${PROJECT_SOURCE_DIR}/tools/trees.json" "${qiven_commands}"
+    "${qiven_root}/foundation/devkit/python/table.py"
+    "${qiven_trees_file}" "${qiven_commands}"
   DEPFILE "${PROJECT_BINARY_DIR}/structure/index.d"
   COMMENT "Writing the structure records"
   VERBATIM)

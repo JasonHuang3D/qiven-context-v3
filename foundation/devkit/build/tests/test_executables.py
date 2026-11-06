@@ -1,6 +1,6 @@
 """K10: every executable of the build is made by qiven_executable. Each
 executable of CMake's records (executables.txt, each directory's executable
-targets, which the root CMakeLists.txt reads from CMake after every
+targets, which foundation/devkit/build/top.cmake reads from CMake after every
 directory) is listed in the build's binaries.txt, which qiven_executable
 writes; and no CMakeLists.txt or CMake file but build.cmake's
 qiven_executable calls add_executable. The control: a planted

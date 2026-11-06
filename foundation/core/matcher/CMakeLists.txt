@@ -1,8 +1,7 @@
 # qiven_matcher: the foundation's linear matcher of a regular expression
 # subset, over memory alone: compile into a position automaton, hit on a
 # string; its instantiation over memory's allocator. Its tests (tests/) are
-# added by the runner's wiring.cmake, where the case functions and
-# qiven_case_main are made.
+# added by the runner's wiring.cmake.
 add_library(qiven_matcher STATIC
   src/matcher.cpp
   include/qiven/matcher/matcher.hpp

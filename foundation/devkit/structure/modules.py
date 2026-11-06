@@ -3,11 +3,12 @@
 The table is read by foundation/devkit/python/table.py, whose errors it adds to. A table file's known values
 (platforms, kind, may_depend, layer) and its layer or name not its directory's are refused; so are a row's path
 holding no tracked file, given twice, or outside its table file's directory but in tools/trees.json's walked trees
-(the old places) and a whole-build row's root files, a path of the root module.json's rows not the repository's
+(the old places) and a whole-build row's files at the root or directly in a group's directory, where a project on
+top of the build keeps what CMake reads beside its source, a path of the root module.json's rows not the repository's
 own at its root (whole-build rows alone: a file there or a directory of no tree), a row's path in the old places
 outside its table file's directory that its row in that file at the base commit (BASE, tools/loop_base.py) neither
 gave nor holds, so that they only shrink, a new module's, a new row's or a moved one's among them, a tracked file
-in a slot's directory, or directly in a group's, but its README.md and module.json, and a built one's contract
+in a slot's directory, or directly in a group's, but its README.md, module.json and a whole-build row's, and a built one's contract
 naming no tracked file. Each table directory's README.md repeats its module.json's fields in one form, each line
 refused that differs: line 1 `# <name>`, line 3 `layer <layer>, status <status>`, and a `- **Contract:**`,
 `- **Parameters:**` and `- **May depend on:**` line for each of those keys the file has; a line naming the
@@ -21,7 +22,7 @@ or <qiven3/...> without it, from the build's include directories
 and each module directory's include/ under foundation/, kits/ and
 products/; one resolving to none refused but in a vendored file, tools/trees.json's
 vendored, where they are counted on one line) and, given a configured build tree, its links
-(read from CMake's file API, the codemodel the root CMakeLists.txt asks
+(read from CMake's file API, the codemodel foundation/devkit/build/top.cmake asks
 for, an INTERFACE target's its CMakeLists.txt's when it has no source; the
 build's own not read): a library file's and target's by depends alone,
 its closure stopping at the test kit and at test code alone, test code's by
@@ -142,6 +143,8 @@ def file_errors(table, files, readmes, base):
     shallow = {}  # a directory's name: the fewest parts of a table file's directory of that name
     for where in (p.rpartition("/")[0] for p in table["files"] if "/" in p):
         shallow[where.rpartition("/")[2]] = min(shallow.get(where.rpartition("/")[2], 99), where.count("/"))
+    groups = {p.rpartition("/")[0] for p, data in table["files"].items() if data["status"] == "group"}
+    whole = {p for row in table["modules"] if row["layer"] == "whole-build" for p in row["paths"]}
     for path, data in sorted(table["files"].items()):
         where = path.rpartition("/")[0]
         errors += [f"table file {path}: {line}" for line in fields(where, data, shallow)]
@@ -152,7 +155,7 @@ def file_errors(table, files, readmes, base):
         for row in data.get("present", ()):
             errors += [f"table file {path}: row {row['name']}: path {p} lies outside {where}/" for p in row["paths"]
                        if where and not p.startswith((where + "/", *old))
-                       and not ("/" not in p and row["layer"] == "whole-build")]
+                       and not (row["layer"] == "whole-build" and p.rpartition("/")[0] in {"", *groups})]
             errors += [f"table file {path}: row {row['name']}: path {p} is not the repository's own, at its root, "
                        "as a whole-build row's" for p in row["paths"]
                        if not where and ("/" in p.rstrip("/") or p.rstrip("/") in trees.every)]
@@ -164,7 +167,7 @@ def file_errors(table, files, readmes, base):
             own = module_table.own_paths(path)
             for f in files:
                 inside = f.startswith(where + "/") if data["status"] == "slot" else f.rpartition("/")[0] == where
-                if inside and f not in own:
+                if inside and f not in own and f not in whole:
                     errors.append(f"{data['status']} {data['name']}: its directory holds {f}")
     for row in table["modules"]:
         errors += [f"row {row['name']}: path {p} twice" for p in sorted(set(row["paths"]))

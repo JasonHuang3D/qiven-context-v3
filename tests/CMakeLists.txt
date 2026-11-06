@@ -16,7 +16,7 @@ add_subdirectory(support/fixtures)
 add_subdirectory(support/checked)
 # The product's header units, the analysis's alone, in their pair
 # (support/headers/); the units' rule, which gives them, and the
-# foundation's pair are the root CMakeLists.txt's.
+# foundation's pair are foundation/devkit/build/top.cmake's.
 if(QIVEN_ANALYZE STREQUAL "analysis")
   add_subdirectory(support/headers)
 endif()

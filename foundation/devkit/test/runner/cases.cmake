@@ -21,15 +21,15 @@ set(QIVEN_SKIP_CODE 125)
 # path order (foundation/devkit/python/table.py). A path ending in / holds every file
 # under it, any other is a pattern on the whole path, matched name by name as
 # table.py's holds: * any run of characters and ? any one, never a /.
-qiven_table_globs("${PROJECT_SOURCE_DIR}" qiven_table_globs)
+qiven_table_globs("${qiven_root}" qiven_table_globs)
 file(GLOB_RECURSE qiven_table_files LIST_DIRECTORIES false CONFIGURE_DEPENDS
-     RELATIVE "${PROJECT_SOURCE_DIR}" ${qiven_table_globs})
-list(APPEND qiven_table_files module.json tools/module.json)
+     RELATIVE "${qiven_root}" ${qiven_table_globs})
+list(APPEND qiven_table_files ${qiven_tables})
 list(SORT qiven_table_files)
 set(qiven_module_paths "")
 foreach(qiven_file IN LISTS qiven_table_files)
-  file(READ "${PROJECT_SOURCE_DIR}/${qiven_file}" qiven_table)
-  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/${qiven_file}")
+  file(READ "${qiven_root}/${qiven_file}" qiven_table)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${qiven_root}/${qiven_file}")
   string(JSON qiven_status GET "${qiven_table}" status)
   if(NOT qiven_status STREQUAL "built")
     continue()
@@ -89,7 +89,7 @@ function(qiven_add_cases target)
   qiven_executable(${target} SOURCES ${arg_SOURCES} LINK ${links})
   list(GET arg_SOURCES 0 first)
   cmake_path(ABSOLUTE_PATH first BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
-  cmake_path(RELATIVE_PATH first BASE_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  cmake_path(RELATIVE_PATH first BASE_DIRECTORY "${qiven_root}")
   qiven_module_of("${first}" module)
   list(APPEND arg_LABELS ${module})
   list(JOIN arg_LABELS "," labels)
@@ -132,7 +132,7 @@ function(qiven_list_tests)
   endif()
 
   # The listing step's inputs: each case binary's labels, its own limit or
-  # none, and its file.
+  # none, and its file, at the build's top, whichever directory calls this.
   get_property(qiven_case_binaries GLOBAL PROPERTY QIVEN_CASE_BINARIES)
   set(qiven_inputs "")
   foreach(target IN LISTS qiven_case_binaries)
@@ -140,7 +140,7 @@ function(qiven_list_tests)
     get_property(limit GLOBAL PROPERTY QIVEN_CASE_LIMIT_${target})
     string(APPEND qiven_inputs "${labels}\t${limit}\t$<TARGET_FILE:${target}>\n")
   endforeach()
-  set(qiven_inputs_file "${CMAKE_CURRENT_BINARY_DIR}/case_binaries.txt")
+  set(qiven_inputs_file "${PROJECT_BINARY_DIR}/case_binaries.txt")
   file(GENERATE OUTPUT "${qiven_inputs_file}" CONTENT "${qiven_inputs}")
 
   set(qiven_python_args "")
@@ -148,7 +148,7 @@ function(qiven_list_tests)
   if(Python3_EXECUTABLE)
     set(qiven_python_args -D "PYTHON=${Python3_EXECUTABLE}")
     # every tree the listing discovers in (foundation/devkit/test/runner/list_tests.py)
-    qiven_python_globs("${PROJECT_SOURCE_DIR}" qiven_python_globs)
+    qiven_python_globs("${qiven_root}" qiven_python_globs)
     file(GLOB_RECURSE qiven_python_files CONFIGURE_DEPENDS ${qiven_python_globs})
   else()
     message(STATUS "qiven: no interpreter named; the Python tests are not registered")
@@ -165,14 +165,14 @@ function(qiven_list_tests)
   set(qiven_tests_file "${CMAKE_CURRENT_BINARY_DIR}/ctest_tests.cmake")
   add_custom_command(OUTPUT "${qiven_tests_file}"
     COMMAND "${CMAKE_COMMAND}" -D "INPUTS=${qiven_inputs_file}" -D "OUT=${qiven_tests_file}"
-      ${qiven_python_args} ${qiven_fuzz_args} -D "SOURCE=${PROJECT_SOURCE_DIR}" -D "BIN=${qiven_bin}"
+      ${qiven_python_args} ${qiven_fuzz_args} -D "SOURCE=${qiven_root}" -D "BIN=${qiven_bin}"
       -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN_SKIP_CODE}"
       -P "${qiven_runner_dir}/ctest_tests.cmake"
     DEPENDS ${qiven_case_binaries} ${qiven_fuzz_binaries} ${ARGN}
       ${qiven_runtime_files} "${qiven_inputs_file}"
       "${qiven_runner_dir}/ctest_tests.cmake" "${qiven_runner_dir}/list_tests.py" ${qiven_python_files}
       # the trees the table's reader reads, which labels each test by its module; the reader is one of the Python files
-      "${PROJECT_SOURCE_DIR}/tools/trees.json"
+      "${qiven_trees_file}"
     COMMENT "Listing the C++ cases and the Python tests for CTest"
     VERBATIM)
   add_custom_target(qiven_ctest_tests ALL DEPENDS "${qiven_tests_file}")

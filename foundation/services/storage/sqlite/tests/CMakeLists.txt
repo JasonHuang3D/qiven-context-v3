@@ -1,6 +1,5 @@
 # The SQLite wrapper's own tests, over databases and an engine heap's
-# pages of the case's own. Added by the runner's wiring.cmake, where
-# qiven_add_cases and qiven_case_main are made.
+# pages of the case's own. Added by the runner's wiring.cmake.
 
 # sqlite's cases: the engine heap's page cache on its slots, a connection's
 # and two connections' at once, within the slots and past them; the

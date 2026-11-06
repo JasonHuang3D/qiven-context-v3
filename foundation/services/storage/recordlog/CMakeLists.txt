@@ -1,4 +1,4 @@
-# The record log, added by the root CMakeLists.txt. Its public headers are
+# The record log, added by foundation/devkit/build/modules.cmake. Its public headers are
 # include/qiven/recordlog/, its sources src/; its tests and their support
 # are tests/, added by the runner's wiring.cmake.
 

@@ -1,6 +1,13 @@
 # The build: its options, pins, flags, hardening, sanitizers, clean binaries,
-# analysis and qiven_executable, every target's; included by the root
-# CMakeLists.txt after project(), before any target.
+# analysis and qiven_executable, every target's; included by the project on
+# top after project(), before any target.
+
+# The checkout's root, foundation/'s parent, whichever project is on top: the
+# base of every repository path the foundation's CMake reads, and what the
+# clean binaries' path map maps. A walk of the build's own directories starts
+# at PROJECT_SOURCE_DIR.
+get_filename_component(qiven_root "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+
 option(QIVEN_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
 option(QIVEN_HAL "Build qiven_compute, its fake and its cases" ON)
 option(QIVEN_STRUCTURE "Write the records the structure tests read" OFF)
@@ -311,7 +318,7 @@ endif()
 # own record in each binary's PDB keeps them, a residual.
 if(MSVC)
   get_filename_component(qiven_toolset_dir "${CMAKE_CXX_COMPILER}/../../../.." ABSOLUTE)
-  set(qiven_path_maps "${PROJECT_SOURCE_DIR}=." "${qiven_toolset_dir}=msvc")
+  set(qiven_path_maps "${qiven_root}=." "${qiven_toolset_dir}=msvc")
   if(DEFINED ENV{WindowsSdkDir})
     file(TO_CMAKE_PATH "$ENV{WindowsSdkDir}" qiven_sdk_dir)
     string(REGEX REPLACE "/+$" "" qiven_sdk_dir "${qiven_sdk_dir}")
@@ -340,7 +347,7 @@ else()
   if(IS_ABSOLUTE "${CMAKE_OSX_SYSROOT}")
     list(APPEND qiven_path_maps "${CMAKE_OSX_SYSROOT}=sdk")
   endif()
-  list(APPEND qiven_path_maps "${PROJECT_SOURCE_DIR}=.")
+  list(APPEND qiven_path_maps "${qiven_root}=.")
   foreach(map IN LISTS qiven_path_maps)
     add_compile_options("-ffile-prefix-map=${map}")
   endforeach()

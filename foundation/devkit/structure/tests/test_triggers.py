@@ -236,11 +236,20 @@ def unpinned_findings(text):
     return found
 
 
-def preset_findings(text):
-    """Each way CMakePresets.json pins a CI preset's tool, or lets CI's test
-    presets take a debugger case."""
-    data = json.loads(text)
-    configure = {p["name"]: p for p in data["configurePresets"]}
+def read_presets(path):
+    """The presets file at path with those of each file it includes, as CMake reads them."""
+    data = json.loads(path.read_bytes().decode("utf-8"))
+    for name in data.get("include", ()):
+        included = read_presets(path.parent / name)
+        for kind in ("configurePresets", "buildPresets", "testPresets"):
+            data.setdefault(kind, []).extend(included.get(kind, ()))
+    return data
+
+
+def preset_findings(data):
+    """Each way the presets read (read_presets) pin a CI preset's tool, or let
+    CI's test presets take a debugger case."""
+    configure ={p["name"]: p for p in data["configurePresets"]}
 
     def chain(name):
         preset = configure[name]
@@ -292,7 +301,7 @@ class Unpinned(unittest.TestCase):
     def setUp(self):
         self.ci = (WORKFLOWS / "ci.yml").read_bytes().decode("utf-8")
         self.msan = (WORKFLOWS / "msan.yml").read_bytes().decode("utf-8")
-        self.presets = (ROOT / "CMakePresets.json").read_bytes().decode("utf-8")
+        self.presets = read_presets(ROOT / "CMakePresets.json")
 
     def test_tree(self):
         for path in workflows():

@@ -3,7 +3,7 @@
 # for a module of the foundation, else in tests/support/headers/; the rule's
 # errors; and the object libraries a pair of which compiles them. Included by
 # trees.cmake, whose functions and trees it reads, so whatever includes
-# trees.cmake (the root CMakeLists.txt, trees.cmake's own SHOW=units and
+# trees.cmake (top.cmake, trees.cmake's own SHOW=units and
 # SHOW=through) has qiven_header_units.
 
 # The structure checks' C++ lexer, which reads the header names a unit includes.
@@ -219,7 +219,7 @@ endfunction()
 # it compiles through (trees.cmake's SHOW=through prints it). <out>_dirs:
 # from the root, each module's src/ holding a private header of a unit,
 # which the units' targets are given privately and by which a unit's quoted
-# name resolves. Every configure with an interpreter runs it (the root CMakeLists.txt).
+# name resolves. Every configure with an interpreter runs it (top.cmake).
 function(qiven_header_units root out)
   set(depends "")
   if(NOT CMAKE_SCRIPT_MODE_FILE)
@@ -317,7 +317,7 @@ endfunction()
 # qiven_header_targets(<library> <test> <place>): the analysis's object
 # libraries library and test, compiled and taken by no binary, over the
 # units of qiven_header_units (its qiven_header_units and
-# qiven_header_units_of, the root CMakeLists.txt's) whose path from the root
+# qiven_header_units_of, top.cmake's) whose path from the root
 # begins with place. A unit stands for its header (QIVEN_HEADER, read by
 # qiven_test_target) and takes its analysis by it: one of test code, by the
 # one reader, compiles in test, whose units are all test code, under test
@@ -334,7 +334,7 @@ function(qiven_header_targets library test place)
     set(unit "${CMAKE_MATCH_2}")
     string(FIND "${unit}" "${place}" at)
     if(at EQUAL 0 AND unit IN_LIST qiven_header_units)
-      set(path "${PROJECT_SOURCE_DIR}/${unit}")
+      set(path "${qiven_root}/${unit}")
       set_source_files_properties("${path}" PROPERTIES QIVEN_HEADER "${header}")
       qiven_test_path("${header}" test_code)
       if(test_code STREQUAL "")

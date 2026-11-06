@@ -1,7 +1,7 @@
 # The trees of tools/trees.json, the one place that names them (foundation/devkit/python/table.py
 # reads it too), and the rules the build's globs and filters take from them; the
 # header units' are header_units.cmake's, which it includes.
-# Included by the root CMakeLists.txt; run by tests/test_trees_build.py as
+# Included by top.cmake; run by tests/test_trees_build.py, beside it, as
 # cmake -P with ROOT (the checkout) and SHOW (what to print).
 
 # qiven_trees(<file>): qiven_layers, qiven_walked, qiven_analysed,
@@ -10,7 +10,7 @@
 # and qiven_header_suffixes, its lists, in the caller's scope; with
 # qiven_source_suffix and qiven_header_suffix, the regular expressions
 # ending a path in one; qiven_tests, the top-level test tree; and
-# qiven_homes, each module directory of the checkout the file is in.
+# qiven_homes, each module directory of the checkout at qiven_root.
 macro(qiven_trees file)
   file(READ "${file}" qiven_trees_text)
   string(JSON qiven_tests GET "${qiven_trees_text}" tests)
@@ -27,7 +27,6 @@ macro(qiven_trees file)
     list(JOIN qiven_${qiven_key}_suffixes "|" qiven_${qiven_key}_suffix)
     string(REPLACE "." "[.]" qiven_${qiven_key}_suffix "(${qiven_${qiven_key}_suffix})$")
   endforeach()
-  get_filename_component(qiven_root "${file}/../.." ABSOLUTE)
   qiven_table_globs("${qiven_root}" qiven_globs)
   file(GLOB_RECURSE qiven_homes RELATIVE "${qiven_root}" ${qiven_globs})
   foreach(qiven_table IN LISTS qiven_tables)
@@ -109,7 +108,7 @@ function(qiven_source_path dir source out)
     get_filename_component(name "${source}" NAME)
     set(source "${dir}/${name}")
   endif()
-  file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${source}")
+  file(RELATIVE_PATH rel "${qiven_root}" "${source}")
   set(${out} "${rel}" PARENT_SCOPE)
 endfunction()
 
@@ -120,7 +119,7 @@ function(qiven_tidy_dir source out)
   qiven_under("${source}" "${PROJECT_BINARY_DIR}" generated)
   if(generated)
     file(RELATIVE_PATH in_build "${PROJECT_BINARY_DIR}" "${dir}")
-    set(dir "${PROJECT_SOURCE_DIR}/${in_build}")
+    set(dir "${qiven_root}/${in_build}")
   endif()
   set(${out} "${dir}" PARENT_SCOPE)
 endfunction()
@@ -278,9 +277,10 @@ endfunction()
 include("${CMAKE_CURRENT_LIST_DIR}/header_units.cmake")  # the header units
 
 if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
+  set(qiven_root "${ROOT}")
   qiven_trees("${ROOT}/tools/trees.json")
   if(SHOW STREQUAL "filters")
-    qiven_header_globs("${ROOT}" globs ${qiven_layers} ${qiven_analysed})  # the root CMakeLists.txt's
+    qiven_header_globs("${ROOT}" globs ${qiven_layers} ${qiven_analysed})  # top.cmake's
     file(GLOB_RECURSE headers RELATIVE "${ROOT}" ${globs})
     qiven_header_filters("${ROOT}" "${headers}" filter exclude)
     message("filter=${filter}")

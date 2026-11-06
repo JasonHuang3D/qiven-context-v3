@@ -1,4 +1,4 @@
-# The SQLite wrapper, added by the root CMakeLists.txt. Its public header is
+# The SQLite wrapper, added by foundation/devkit/build/modules.cmake. Its public header is
 # include/qiven/storage_sqlite/connection.hpp, its source src/sqlite.cpp;
 # its tests, under tests/, are added by the runner's wiring.cmake.
 #

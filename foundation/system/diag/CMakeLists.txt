@@ -5,8 +5,7 @@
 # that qiven_executable gives every binary. qiven_diag and the entry are not
 # core targets: they include the system's headers, link dbghelp on Windows,
 # and link the ring and qiven_memory alone of v3's. Its tests (tests/) are
-# added by the runner's wiring.cmake, where the case functions and
-# qiven_case_main are made.
+# added by the runner's wiring.cmake.
 #
 # qiven_diag_targets(<suffix> <memory target> [RING_INSIDE]) makes the three
 # targets, named with the suffix, over the memory target given: "" over

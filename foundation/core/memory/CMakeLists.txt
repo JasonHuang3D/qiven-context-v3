@@ -1,8 +1,7 @@
 # qiven_memory: the foundation's memory, which every target of src/ links and
 # which links nothing of v3's: the arena, the pool and Heap, the allocator and
 # its containers, the budget's error, the lock, checked sizes and fail_fast.
-# Its tests (tests/) are added by the runner's wiring.cmake, where the case
-# functions, qiven_faults and qiven_case_main are made.
+# Its tests (tests/) are added by the runner's wiring.cmake.
 add_library(qiven_memory STATIC
   src/arena.cpp
   include/qiven/memory/arena.hpp

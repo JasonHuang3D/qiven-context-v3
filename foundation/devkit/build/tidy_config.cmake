@@ -3,7 +3,7 @@
 # over them, in one file of the build tree its step names by path. As a
 # script (cmake -P), with ROOT (the checkout), BUILD (the build tree), TIDY
 # (clang-tidy) and PATHFILE, it prints each source's composed file, as
-# tests/test_trees_build.py reads it.
+# tests/test_trees_build.py, beside it, reads it.
 
 # qiven_tidy_inherits(<file> <tidy> <out>): TRUE where file inherits from the
 # directory above it, as tidy itself reads its InheritParentConfig, in every
@@ -42,7 +42,7 @@ function(qiven_tidy_chain dir test tidy out)
         list(PREPEND chain "${file}")
       endif()
       get_filename_component(parent "${dir}" DIRECTORY)
-      if(dir STREQUAL PROJECT_SOURCE_DIR OR parent STREQUAL dir)
+      if(dir STREQUAL qiven_root OR parent STREQUAL dir)
         set(done TRUE)
       endif()
       set(dir "${parent}")
@@ -142,7 +142,7 @@ function(qiven_tidy_test_config source test tidy out)
   if(failed OR NOT text MATCHES "\nChecks:")
     message(FATAL_ERROR "qiven: ${tidy} gives no configuration for ${dir}/${name}: ${errors}")
   endif()
-  file(RELATIVE_PATH rel "${PROJECT_SOURCE_DIR}" "${dir}")
+  file(RELATIVE_PATH rel "${qiven_root}" "${dir}")
   string(MAKE_C_IDENTIFIER "${rel}" id)
   set(config "${PROJECT_BINARY_DIR}/tidy/config/test_${id}.clang-tidy")
   file(WRITE "${config}.dump" "${text}")
@@ -155,7 +155,7 @@ endfunction()
 
 if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
   include("${CMAKE_CURRENT_LIST_DIR}/trees.cmake")
-  set(PROJECT_SOURCE_DIR "${ROOT}")
+  set(qiven_root "${ROOT}")
   set(PROJECT_BINARY_DIR "${BUILD}")
   file(STRINGS "${PATHFILE}" paths)
   foreach(path IN LISTS paths)
