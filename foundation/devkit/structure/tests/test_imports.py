@@ -2,7 +2,9 @@
 from the structure build's records; and the Python sources held to the
 standard library, read by ast: no module outside it but the test tree's
 own, the structure method's, the runner's Python half and Python's lowest
-layer; no importlib; and no change of sys.path but the one form a script
+layer; no importlib; no ctypes, winreg or _winapi but in system's Windows
+back end, foundation/devkit/python/_windows.py, the one module wrapping
+them; and no change of sys.path but the one form a script
 under -I needs for that layer, sys.path.append of the root, so that the
 standard library still wins."""
 
@@ -14,16 +16,17 @@ from foundation.devkit.structure import rules
 from foundation.devkit.structure.tests.test_boundaries import WINDOWS, holds
 
 RULES = ("B5", "B6", "B7", "B8", "B9", "B10", "B11")
-METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree and tools/
+METHOD = "foundation.devkit.structure"  # the structure method's own package, beside the test tree
 RUNNER = "foundation.devkit.test.runner"  # the runner's Python half: a run's skip, the build's binaries and options, the listing
 LOWEST = "foundation.devkit.python"  # Python's lowest layer
 
 
 def python_findings(root, files):
     """(file, what) for each import outside the standard library, the
-    test tree, tools/, the structure method's own package, the runner's
-    Python half and Python's lowest layer, each importlib and each change
-    of sys.path but sys.path.append."""
+    test tree, the structure method's own package, the runner's Python
+    half and Python's lowest layer, each importlib, each ctypes, winreg and
+    _winapi outside _windows.py and each change of sys.path but
+    sys.path.append."""
     found = []
     for rel in files:
         if not rel.endswith(".py"):
@@ -39,8 +42,9 @@ def python_findings(root, files):
             for name in names:
                 top = name.split(".")[0]
                 own = any(name == p or name.startswith(p + ".") for p in (METHOD, RUNNER, LOWEST))
-                if top == "importlib" or (top not in sys.stdlib_module_names and top not in ("tests", "tools")
-                                          and not own):
+                wrapped = top in ("ctypes", "winreg", "_winapi") and rel != "foundation/devkit/python/_windows.py"
+                if top == "importlib" or wrapped or (top not in sys.stdlib_module_names and top != "tests"
+                                                     and not own):
                     found.append((rel, name))
             if isinstance(node, ast.Attribute) and node.attr == "path" and isinstance(node.value, ast.Name) \
                     and node.value.id == "sys" and not isinstance(node.ctx, ast.Load):
