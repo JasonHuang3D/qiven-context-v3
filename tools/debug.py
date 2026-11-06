@@ -42,7 +42,7 @@ with a bounded plain-text transcript.
   the stop bound), 1 when the case faulted or the time bound passed, 2
   when it could not run (no debugger, a debugger off its pin, no binary,
   no dump, a bad argument).
-- dump opens a minidump: the event, the exception's context (.ecxr), its
+- dump opens a minidump: the event, the exception's context, its
   stack and locals, and every thread's stack, within the same bounds; a
   dump of a fault ends "fault <cause>", exit 1; one of none, "dump read",
   exit 0. Its binaries are found in --symbols, by default the minidump's
@@ -55,7 +55,6 @@ foundation/devkit/python/debugger.py.
 
 import argparse
 import os
-import re
 import sys
 import time
 from pathlib import Path
@@ -66,11 +65,7 @@ from foundation.devkit.python import build_tree
 from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
-from foundation.devkit.python.debugger import FRAMES
 
-EXIT = re.compile(r"^Exit process [0-9a-f]+:[0-9a-f]+, code (?P<code>[0-9a-f]+)$")
-CHANCE = re.compile(r"\s*\((?:first chance|!!! second chance !!!|first/second chance not available)\)$")
-SINGLE_STEP = "code 80000004 (first chance)"
 WATCHER = "watch.py"
 
 
@@ -97,101 +92,71 @@ class Transcript:
         out.flush()
 
 
-def break_spec(spec, binary):
-    """cdb's breakpoint expression for a function or a file:line, in the
-    binary's module unless spec names one: a bare file:line stays deferred on
-    the latest cdb and never resolves."""
-    named = spec if "!" in spec else f"{debugger.module(binary)}!{spec}"
-    if re.fullmatch(r".+:\d+", spec) and not re.fullmatch(r"[A-Za-z]:\d+", spec):
-        return f"`{named}`"
-    return named
+def act(out, echo, call, *arguments):
+    """One action of the session: its echo, then its lines."""
+    out.add(f"> {echo}")
+    for line in call(*arguments):
+        out.add(line)
 
 
-def stop_actions(args):
-    """(echo, command) of each action at a stop, in the text's order."""
-    out = []
+def stop_actions(session, args, out):
+    """The actions at a stop, in the text's order."""
     if args.locals:
-        out.append(("locals", "dv /t /v"))
+        act(out, "locals", session.locals)
     if args.stack:
-        out.append(("stack", f"kn {FRAMES}"))
+        act(out, "stack", session.stack)
     if args.threads:
-        out.append(("threads", f"~*kn {FRAMES}"))
-    out += [(f"print {e}", f"?? {e}") for e in args.print]
+        act(out, "threads", session.threads)
+    for expression in args.print:
+        act(out, f"print {expression}", session.evaluate, expression)
     if args.step:
-        out.append((f"step {args.step}", f"t {args.step}"))
+        act(out, f"step {args.step}", session.step, args.step)
     if args.next:
-        out.append((f"next {args.next}", f"p {args.next}"))
-    return out
+        act(out, f"next {args.next}", session.step_over, args.next)
 
 
-def outcome_of(event):
-    """(outcome, exit code) of a final event, or None for a stop the run
-    goes on from."""
-    exited = EXIT.match(event)
-    if exited:
-        status = int(exited["code"], 16)
-        found = status_table.named(status)
-        return f"exited {status_table.value_text(status)} {found[0] if found else status_table.UNNAMED}", 0
-    if "second chance" in event:
-        return f"fault {CHANCE.sub('', event)}", 1
-    return None
+def exited(status):
+    """The outcome of a process's exit."""
+    found = status_table.named(status)
+    return f"exited {status_table.value_text(status)} {found[0] if found else status_table.UNNAMED}"
 
 
-def run_session(cdb, args, binary, out):
-    """Runs the case under cdb: (outcome, code), the stops counted in out."""
-    cdb.wait()  # the banner, to the initial break
-    for setup in (".lines -e", "l+t"):
-        cdb.send(setup)
+def run_session(session, args, binary, out):
+    """Runs the case in the session: (outcome, code), the stops counted in
+    out."""
+    session.begin()
     for spec in args.break_:
-        out.add(f"> break {spec}")
-        for line in cdb.send(f"bp {break_spec(spec, binary)}"):
-            out.add(line)
-    go = "g"
+        act(out, f"break {spec}", session.set_break, spec, binary)
     while True:
-        lines = cdb.send(go)
-        event = cdb.event()
-        if cdb.ended or not event:
+        stop = session.resume()
+        if stop is None:
             return f"could not run: {binary.name}: the debugger ended", 2
-        step = SINGLE_STEP in event
-        if "first chance" in event and not step:
-            go = "gn"  # to the case's own handlers
-            continue
-        go = "gh" if step else "g"  # the debugger's own trap, never the case's
-        final = outcome_of(event)
-        if final and final[1] == 0:
-            return final
+        if stop.status is not None:
+            return exited(stop.status), 0
         out.stops += 1
-        own = ", the debugger's own, answered gh" if step else ""  # not the program's, whatever cdb's lines below say
-        out.add(f"stop {out.stops}: {CHANCE.sub('', event)}{own}")
-        for line in lines:
+        out.add(f"stop {out.stops}: {stop.text}")
+        for line in stop.lines:
             out.add(line)
         if out.stops == 1:
             for expression in args.watch:
-                out.add(f"> watch {expression}")
-                for line in cdb.send(f"ba w8 @@c++(&({expression}))"):
-                    out.add(line)
-        for echo, command in stop_actions(args):
-            out.add(f"> {echo}")
-            for line in cdb.send(command):
-                out.add(line)
-        if final:
-            return final
+                act(out, f"watch {expression}", session.watch, expression)
+        stop_actions(session, args, out)
+        if stop.fault:
+            return f"fault {stop.text}", 1
         if out.stops >= args.stops:
             return "stop bound", 0
 
 
-def dump_session(cdb, out):
-    """Reads a dump under cdb: (outcome, code)."""
-    cdb.wait()
-    event = cdb.event()
-    out.add(f"dump: {CHANCE.sub('', event) or 'no event'}")
-    for echo, command in (("context", ".ecxr"), ("stack", f"kn {FRAMES}"), ("locals", "dv /t /v"),
-                          ("threads", f"~*kn {FRAMES}")):
-        out.add(f"> {echo}")
-        for line in cdb.send(command):
-            out.add(line)
-    if "code" in event and not EXIT.match(event):
-        return f"fault {CHANCE.sub('', event)}", 1
+def dump_session(session, out):
+    """Reads a dump in the session: (outcome, code)."""
+    stop = session.dump_stop()
+    out.add(f"dump: {stop.text or 'no event'}")
+    act(out, "context", session.context)
+    act(out, "stack", session.stack)
+    act(out, "locals", session.locals)
+    act(out, "threads", session.threads)
+    if stop.fault:
+        return f"fault {stop.text}", 1
     return "dump read", 0
 
 
@@ -294,20 +259,20 @@ def target(args):
     return [str(Path(binary).resolve()), *command[1:]], Path(binary).resolve().parent, Path(binary), env, cwd
 
 
-def under_cdb(args, out, deadline):
-    """The run, or the dump, under cdb: (outcome, code)."""
+def under_debugger(args, out, deadline):
+    """The run, or the dump, under the debugger: (outcome, code)."""
     exe = debugger.find()
-    cdb_args, symbols, binary, env, cwd = target(args)
+    command, symbols, binary, env, cwd = target(args)
     if args.mode == "dump":
-        symbols = symbols or Path(cdb_args[0]).parent
-        cdb_args = ["-z", *cdb_args]
-    cdb = debugger.Cdb(exe, cdb_args, symbols, deadline, env, cwd)
+        session = debugger.Cdb.on_dump(exe, command[0], symbols or Path(command[0]).parent, deadline)
+    else:
+        session = debugger.Cdb(exe, command, symbols, deadline, env, cwd)
     try:
-        return dump_session(cdb, out) if args.mode == "dump" else run_session(cdb, args, binary, out)
+        return dump_session(session, out) if args.mode == "dump" else run_session(session, args, binary, out)
     except debugger.TimedOut:
         return "timed out", 1
     finally:
-        cdb.close(kill=time.monotonic() >= deadline)
+        session.close(kill=time.monotonic() >= deadline)
 
 
 def main(argv=None):
@@ -316,7 +281,7 @@ def main(argv=None):
     try:
         args = parse(sys.argv[1:] if argv is None else argv)
         out.bound = args.lines
-        outcome, code = under_cdb(args, out, start + args.seconds)
+        outcome, code = under_debugger(args, out, start + args.seconds)
     except (CannotRun, debugger.NotFound) as e:
         outcome, code = f"could not run: {e}", 2
     seconds = f"{time.monotonic() - start:.1f}"
