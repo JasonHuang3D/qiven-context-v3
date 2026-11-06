@@ -1,14 +1,14 @@
 # Run after the build (cmake -P): lists each case binary's cases and each
 # Python test's id, and writes one add_test() each into OUT.
-# Inputs: INPUTS (lines "<labels>\t<limit>\t<binary>", labels by commas, the
-# limit empty or a binary's own), OUT, SOURCE, BIN, BUILD, CTEST, SKIP,
+# Inputs: INPUTS (lines "<labels>\t<binary>", labels by commas), OUT,
+# SOURCE, BIN, BUILD, CTEST, SKIP,
 # PYTHON when the Python tests are
 # registered, LISTING, list_tests.py's arguments by commas, if any,
 # and FUZZ when the build has fuzz targets (lines
 # "<target>	<binary>	<corpus>	<artifacts>"). With PYTHON every test runs behind the watcher, watch.py beside this file,
-# under its limit: by its labels, a slow test 1,800 s, a fast one 60 s, any
-# other 300 s, unless it states its own. CTest's TIMEOUT is the limit plus
-# 30 s, so that the watcher acts first.
+# under its limit by its labels: a slow test 1,800 s, a fast one 60 s, any
+# other 300 s. CTest's TIMEOUT is the limit plus 30 s, so that the watcher
+# acts first.
 cmake_minimum_required(VERSION 3.28)
 
 set(body "# Written by foundation/devkit/test/runner/ctest_tests.cmake after the build.\n")
@@ -24,20 +24,16 @@ if(DEFINED PYTHON)
   file(TO_CMAKE_PATH "${PYTHON}" PYTHON)
 endif()
 
-# qiven_add_test(<name> <labels;...> <serial> <directory> <limit> <command>...):
+# qiven_add_test(<name> <labels;...> <serial> <directory> <command>...):
 # one test, behind the watcher where there is an interpreter, and its
-# properties; <directory> is its working directory, or empty; <limit> its
-# own seconds, or empty for its labels'.
-function(qiven_add_test name labels serial directory limit)
+# properties; <serial> TRUE for a fuzz target's run alone (RUN_SERIAL), FALSE
+# for every other test; <directory> is its working directory, or empty.
+function(qiven_add_test name labels serial directory)
   if("${name}" IN_LIST seen)
     message(FATAL_ERROR "two tests are named ${name}")
   endif()
   list(APPEND seen "${name}")
-  if(NOT limit STREQUAL "")
-    if(NOT limit MATCHES "^[1-9][0-9]*$")
-      message(FATAL_ERROR "${name}: a limit of '${limit}' is no whole number of seconds")
-    endif()
-  elseif("slow" IN_LIST labels)
+  if("slow" IN_LIST labels)
     set(limit ${SLOW_LIMIT})
   elseif("fast" IN_LIST labels)
     set(limit ${FAST_LIMIT})
@@ -69,12 +65,11 @@ endfunction()
 
 file(STRINGS "${INPUTS}" entries)
 foreach(entry IN LISTS entries)
-  if(NOT entry MATCHES "^([a-z0-9_,]*)\t([0-9]*)\t(.+)$")
+  if(NOT entry MATCHES "^([a-z0-9_,]*)\t(.+)$")
     message(FATAL_ERROR "a malformed line of ${INPUTS}: ${entry}")
   endif()
   string(REPLACE "," ";" binary_labels "cxx,${CMAKE_MATCH_1}")
-  set(binary_limit "${CMAKE_MATCH_2}")
-  set(binary "${CMAKE_MATCH_3}")
+  set(binary "${CMAKE_MATCH_2}")
   execute_process(COMMAND "${binary}" --list
     OUTPUT_VARIABLE listed ERROR_VARIABLE listed_err RESULT_VARIABLE status)
   if(NOT status EQUAL 0)
@@ -85,15 +80,10 @@ foreach(entry IN LISTS entries)
     if(line STREQUAL "")
       continue()
     endif()
-    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)(\tserial)?$")
+    if(NOT line MATCHES "^[A-Za-z0-9_]+\\.[A-Za-z0-9_.]+$")
       message(FATAL_ERROR "${binary} --list gave a malformed line: '${line}'")
     endif()
-    set(name "${CMAKE_MATCH_1}")
-    set(serial FALSE)
-    if(CMAKE_MATCH_2)
-      set(serial TRUE)
-    endif()
-    qiven_add_test("${name}" "${binary_labels}" ${serial} "" "${binary_limit}" "${binary}" --run "${name}")
+    qiven_add_test("${line}" "${binary_labels}" FALSE "" "${binary}" --run "${line}")
     math(EXPR cases "${cases} + 1")
   endforeach()
 endforeach()
@@ -108,7 +98,7 @@ if(DEFINED FUZZ)
     if(NOT entry MATCHES "^([a-z]+)	([^	]+)	([^	]+)	([^	]+)$")
       message(FATAL_ERROR "a malformed line of ${FUZZ}: ${entry}")
     endif()
-    qiven_add_test("fuzz.${CMAKE_MATCH_1}" "cxx;fuzz" TRUE "" "" "${CMAKE_MATCH_2}" -max_total_time=60
+    qiven_add_test("fuzz.${CMAKE_MATCH_1}" "cxx;fuzz" TRUE "" "${CMAKE_MATCH_2}" -max_total_time=60
       -timeout=10 "-artifact_prefix=${CMAKE_MATCH_4}/" "${CMAKE_MATCH_3}")
     math(EXPR fuzz_targets "${fuzz_targets} + 1")
   endforeach()
@@ -127,16 +117,11 @@ if(DEFINED PYTHON)
     if(line STREQUAL "")
       continue()
     endif()
-    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)\t([a-z0-9_,]+)\t([01])\t([0-9]*)$")
+    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)\t([a-z0-9_,]+)$")
       message(FATAL_ERROR "the Python listing gave a malformed line: '${line}'")
     endif()
     set(id "${CMAKE_MATCH_1}")
     string(REPLACE "," ";" labels "py,${CMAKE_MATCH_2}")
-    set(serial FALSE)
-    if(CMAKE_MATCH_3 STREQUAL "1")
-      set(serial TRUE)
-    endif()
-    set(test_limit "${CMAKE_MATCH_4}")
     # Its top package, where discover starts: the shortest leading part of
     # its id that is a directory of the root holding an __init__.py, tests
     # for a test under tests/.
@@ -158,7 +143,7 @@ if(DEFINED PYTHON)
     # discover puts the top directory there. A -k pattern holding * is
     # matched whole, so '*<id>' selects that one test.
     set(test_command "${PYTHON}" -I -m unittest discover -s "${start}" -t . -k "*${id}")
-    qiven_add_test("${id}" "${labels}" ${serial} "${SOURCE}" "${test_limit}" ${test_command})
+    qiven_add_test("${id}" "${labels}" FALSE "${SOURCE}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()
 endif()

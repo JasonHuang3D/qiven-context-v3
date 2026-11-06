@@ -344,7 +344,7 @@ namespace {
 // by the store's namer (support/stores/named.hpp).
 std::string named_run(qiven::runner::Context& ctx, qiven::runner::CaseFn fn) {
     std::ostringstream out;
-    const int status = qiven::runner::run_case(qiven::runner::Case{"sample.case", nullptr, fn, false}, out, ctx.log);
+    const int status = qiven::runner::run_case(qiven::runner::Case{"sample.case", nullptr, fn}, out, ctx.log);
     return status == qiven::runner::exit_fail ? out.str() : std::string("not failed");
 }
 

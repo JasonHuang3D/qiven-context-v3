@@ -26,7 +26,8 @@ void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status,
 #define QIVEN_CAT2(a, b) a##b
 #define QIVEN_CAT(a, b) QIVEN_CAT2(a, b)
 
-#define QIVEN_CASE_AS(group, name, serial)                                                    \
+// QIVEN_CASE(group, name) { CHECK(...); }
+#define QIVEN_CASE(group, name)                                                               \
     static void QIVEN_CAT(qiven_case_, QIVEN_CAT(group, QIVEN_CAT(_, name)))(              \
         ::qiven::runner::Context & qiven_ctx);                                                 \
     static constexpr ::qiven::log::Name QIVEN_CAT(qiven_name_,                              \
@@ -35,11 +36,6 @@ void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status,
     static const ::qiven::runner::Registrar QIVEN_CAT(                                         \
         qiven_reg_, QIVEN_CAT(group, QIVEN_CAT(_, name))){                                  \
         #group "." #name, &QIVEN_CAT(qiven_name_, QIVEN_CAT(group, QIVEN_CAT(_, name))),   \
-        &QIVEN_CAT(qiven_case_, QIVEN_CAT(group, QIVEN_CAT(_, name))), serial};            \
+        &QIVEN_CAT(qiven_case_, QIVEN_CAT(group, QIVEN_CAT(_, name)))};                    \
     static void QIVEN_CAT(qiven_case_, QIVEN_CAT(group, QIVEN_CAT(_, name)))(              \
         [[maybe_unused]] ::qiven::runner::Context & qiven_ctx)
-
-// QIVEN_CASE(group, name) { CHECK(...); }
-#define QIVEN_CASE(group, name) QIVEN_CASE_AS(group, name, false)
-// A timed case: CTest runs it with no other test beside it.
-#define QIVEN_SERIAL_CASE(group, name) QIVEN_CASE_AS(group, name, true)

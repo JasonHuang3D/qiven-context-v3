@@ -322,7 +322,7 @@ class TreesBuild(unittest.TestCase):
                   "foundation.core.m.tests.test_b.B.test_b": "foundation/core/m/tests"}
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
-            lines = "".join(f"{test_id}\tdrive\t0\t\n" for test_id in starts)
+            lines = "".join(f"{test_id}\tdrive\n" for test_id in starts)
             files = {"tests/__init__.py": "", "tests/drive/__init__.py": "", "foundation/core/m/tests/__init__.py": "",
                      "foundation/devkit/test/runner/list_tests.py": f"print({lines!r}, end='')\n", "inputs.txt": ""}
             for test_id, start in starts.items():

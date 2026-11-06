@@ -39,10 +39,6 @@ QIVEN_CASE(demo, crash) {
     *nowhere() = 1;
 }
 
-QIVEN_SERIAL_CASE(demo, serial) {
-    CHECK(true);
-}
-
 // A block of a counted arena never given back: the count after the case
 // fails it.
 QIVEN_CASE(demo, held) {

@@ -99,8 +99,6 @@ struct Case {
     std::string_view name;
     const qiven::log::Name* logged = nullptr;
     CaseFn fn = nullptr;
-    // A case whose report carries a time runs alone (CTest's RUN_SERIAL).
-    bool serial = false;
 };
 
 // Every case of this binary, in the order of registration.
@@ -108,7 +106,7 @@ std::vector<Case>& registry();
 
 // Adds a case to the registry; an allocation failure ends by the fail-fast.
 struct Registrar {
-    Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) noexcept;
+    Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn) noexcept;
 };
 
 // What a case's end is given to: the log the case ran with, the case, its
@@ -174,8 +172,7 @@ bool check_eq(Context& ctx, const A& a, const B& b, const char* expr, const char
 int run_case(const Case& c, std::ostream& out, qiven::log::Log& log, Ended ended = nullptr);
 
 // The runner's command line, with the binary's name dropped:
-//   --list        each case's name, sorted, one a line; a serial case's
-//                 line adds a tab and "serial"
+//   --list        each case's name, sorted, one a line
 //   --run NAME    runs that case; its status as run_case gives it
 // Anything else, an unknown name, or a registry with an empty or repeated
 // name, is exit_usage.

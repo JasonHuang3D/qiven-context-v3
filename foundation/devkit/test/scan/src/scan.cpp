@@ -3,6 +3,7 @@
 #include "qiven/scan/scan.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <ios>
 #include <iterator>
@@ -57,47 +58,13 @@ std::string utf16le(std::string_view utf8) {
     return out;
 }
 
-std::string hex(std::string_view bytes, bool upper) {
-    const std::string_view digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
-    std::string out;
-    for (const char c : bytes) {
-        const auto b = static_cast<unsigned char>(c);
-        out.push_back(digits[b >> 4U]);
-        out.push_back(digits[b & 15U]);
-    }
-    return out;
-}
-
 std::vector<Pattern> marker(std::string_view name, std::string_view utf8) {
     return {Pattern{std::string(name) + " utf-8", std::string(utf8)},
             Pattern{std::string(name) + " utf-16le", utf16le(utf8)}};
 }
 
-std::vector<Pattern> key(std::string_view name, std::string_view bytes) {
-    return {Pattern{std::string(name) + " hex", hex(bytes)}, Pattern{std::string(name) + " HEX", hex(bytes, true)}};
-}
-
-std::vector<Pattern> windows(const Pattern& pattern, std::size_t width) {
-    if (width == 0 || pattern.bytes.size() <= width) {
-        return {pattern};
-    }
-    std::vector<Pattern> out;
-    for (std::size_t start = 0; start + width <= pattern.bytes.size(); ++start) {
-        out.push_back(Pattern{pattern.name + " @" + std::to_string(start), pattern.bytes.substr(start, width)});
-    }
-    return out;
-}
-
 bool Report::lists(std::string_view filename) const {
     return std::any_of(files.begin(), files.end(), [&](const File& f) { return f.path.filename() == filename; });
-}
-
-std::string Report::describe() const {
-    std::string out;
-    for (const Hit& h : hits) {
-        out += h.path.generic_string() + " " + h.pattern + " " + std::to_string(h.offset) + "\n";
-    }
-    return out;
 }
 
 Report scan(const std::filesystem::path& directory, std::span<const Pattern> patterns) {
@@ -106,21 +73,20 @@ Report scan(const std::filesystem::path& directory, std::span<const Pattern> pat
     for (std::filesystem::recursive_directory_iterator it(directory, error), end; !error && it != end;
          it.increment(error)) {
         if (it->is_regular_file(error)) {
-            report.files.push_back(File{it->path(), 0});
+            report.files.push_back(File{it->path()});
         }
     }
     if (error) {
         report.hits.push_back(Hit{directory, "unread", 0});
     }
     std::sort(report.files.begin(), report.files.end(), [](const File& a, const File& b) { return a.path < b.path; });
-    for (File& f : report.files) {
+    for (const File& f : report.files) {
         std::ifstream in(f.path, std::ios::binary);
         const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         if (!in.is_open()) {
             report.hits.push_back(Hit{f.path, "unread", 0});
             continue;
         }
-        f.size = bytes.size();
         for (const Pattern& p : patterns) {
             for (std::size_t at = bytes.find(p.bytes); !p.bytes.empty() && at != std::string::npos;
                  at = bytes.find(p.bytes, at + 1)) {

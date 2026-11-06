@@ -7,14 +7,13 @@
 # after every module's tests) lists each case binary's cases (--list) and
 # each Python test's id, and writes one add_test() each into a file that the
 # CTest file of that directory includes. Every test carries cxx or py, the
-# labels its binary or package gives, and the suite's skip code; a timed
-# one runs alone (RUN_SERIAL). The binaries it waits for beside the case
-# binaries and the fuzz targets are its caller's to name.
+# labels its binary or package gives, and the suite's skip code; a fuzz
+# target's run runs alone (RUN_SERIAL). The binaries it waits for beside the
+# case binaries and the fuzz targets are its caller's to name.
 
 set(QIVEN_SKIP_CODE 125)
 
-# qiven_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...]
-#                 [LIMIT <seconds>])
+# qiven_add_cases(<target> LABELS <label>... SOURCES <source>... [LINK <target>...])
 # The modules of the table, each "<name>|<regex>" of one of its paths: the
 # present rows of each built module.json, the table's files the root's,
 # tools/ one and each under the layers' trees of tools/trees.json, in sorted
@@ -78,10 +77,9 @@ endfunction()
 # A case binary: its sources, linked with the log's main and the runner
 # (qiven_case_main); each case a CTest test labelled cxx, LABELS and its
 # module's name (its first source's module), under the watcher's limit by
-# its labels, or LIMIT where the binary states its own
-# (the runner's ctest_tests.cmake).
+# its labels (the runner's ctest_tests.cmake).
 function(qiven_add_cases target)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "" "LIMIT" "LABELS;SOURCES;LINK")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
     message(FATAL_ERROR "qiven_add_cases(${target}): no SOURCES")
   endif()
@@ -95,7 +93,6 @@ function(qiven_add_cases target)
   list(JOIN arg_LABELS "," labels)
   set_property(GLOBAL APPEND PROPERTY QIVEN_CASE_BINARIES ${target})
   set_property(GLOBAL PROPERTY QIVEN_CASE_LABELS_${target} "${labels}")
-  set_property(GLOBAL PROPERTY QIVEN_CASE_LIMIT_${target} "${arg_LIMIT}")
 endfunction()
 
 # qiven_list_tests(<target>...): the listing step, called once, after every
@@ -131,14 +128,13 @@ function(qiven_list_tests)
     list(APPEND qiven_runtime_files "${qiven_bin}/${qiven_asan_dll}")
   endif()
 
-  # The listing step's inputs: each case binary's labels, its own limit or
-  # none, and its file, at the build's top, whichever directory calls this.
+  # The listing step's inputs: each case binary's labels and its file, at
+  # the build's top, whichever directory calls this.
   get_property(qiven_case_binaries GLOBAL PROPERTY QIVEN_CASE_BINARIES)
   set(qiven_inputs "")
   foreach(target IN LISTS qiven_case_binaries)
     get_property(labels GLOBAL PROPERTY QIVEN_CASE_LABELS_${target})
-    get_property(limit GLOBAL PROPERTY QIVEN_CASE_LIMIT_${target})
-    string(APPEND qiven_inputs "${labels}\t${limit}\t$<TARGET_FILE:${target}>\n")
+    string(APPEND qiven_inputs "${labels}\t$<TARGET_FILE:${target}>\n")
   endforeach()
   set(qiven_inputs_file "${PROJECT_BINARY_DIR}/case_binaries.txt")
   file(GENERATE OUTPUT "${qiven_inputs_file}" CONTENT "${qiven_inputs}")

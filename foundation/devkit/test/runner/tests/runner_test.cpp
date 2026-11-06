@@ -22,9 +22,9 @@ namespace {
 using qiven::runner::Case;
 using qiven::runner::Context;
 
-// A case of name, serial or not, of body fn, with no Name of the log's.
-Case sample(std::string_view name, bool serial, qiven::runner::CaseFn fn = nullptr) {
-    return Case{name, nullptr, fn, serial};
+// A case of name, of body fn, with no Name of the log's.
+Case sample(std::string_view name, qiven::runner::CaseFn fn = nullptr) {
+    return Case{name, nullptr, fn};
 }
 
 // The Name of the case run() runs, which its case.end carries.
@@ -51,7 +51,7 @@ struct Ran {
 Ran run(Context& ctx, qiven::runner::CaseFn fn) {
     std::ostringstream out;
     Logged logged(ctx);
-    const int status = qiven::runner::run_case(Case{sample_case.text(), &sample_case, fn, false}, out, logged.log,
+    const int status = qiven::runner::run_case(Case{sample_case.text(), &sample_case, fn}, out, logged.log,
                                               &qiven::test::case_ended);
     const qiven::test::Lines lines = logged.lines();
     return Ran{status, out.str(), lines.at(lines.size() - 1)};
@@ -195,18 +195,18 @@ QIVEN_CASE(runner, check_eq_shows) {
 }
 
 QIVEN_CASE(runner, list_sorted) {
-    const std::vector<Case> cases{sample("b.x", false), sample("a.y", true), sample("a.x", false)};
+    const std::vector<Case> cases{sample("b.x"), sample("a.y"), sample("a.x")};
     const std::array<std::string_view, 1> args{"--list"};
     std::ostringstream out;
     std::ostringstream err;
     Logged logged(qiven_ctx);
     CHECK_EQ(qiven::runner::run_main(args, cases, out, err, logged.log), qiven::runner::exit_pass);
-    CHECK_EQ(out.str(), std::string("a.x\na.y\tserial\nb.x\n"));
+    CHECK_EQ(out.str(), std::string("a.x\na.y\nb.x\n"));
     CHECK_EQ(err.str(), std::string());
 }
 
 QIVEN_CASE(runner, run_refusals) {
-    const std::vector<Case> cases{sample("a.x", false)};
+    const std::vector<Case> cases{sample("a.x")};
     Logged logged(qiven_ctx);
     const auto status = [&logged](const std::vector<Case>& in, std::span<const std::string_view> args,
                                   std::string& err_text) {
@@ -230,20 +230,18 @@ QIVEN_CASE(runner, run_refusals) {
     CHECK_EQ(status(cases, run_bare, err), qiven::runner::exit_usage);
     CHECK_EQ(status(cases, list_more, err), qiven::runner::exit_usage);
     CHECK_EQ(status(cases, run_more, err), qiven::runner::exit_usage);
-    const std::vector<Case> twice{sample("a.x", false), sample("a.x", false)};
+    const std::vector<Case> twice{sample("a.x"), sample("a.x")};
     CHECK_EQ(status(twice, list, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("two cases are named a.x\n"));
-    const std::vector<Case> part{sample("a.", false)};
+    const std::vector<Case> part{sample("a.")};
     CHECK_EQ(status(part, list, err), qiven::runner::exit_usage);
     CHECK_EQ(err, std::string("a case has an incomplete name: 'a.'\n"));
 }
 
-QIVEN_SERIAL_CASE(runner, registry_holds_self) {
+QIVEN_CASE(runner, registry_holds_self) {
     bool found = false;
     for (const Case& c : qiven::runner::registry()) {
-        if (c.name == "runner.registry_holds_self") {
-            found = c.serial;
-        }
+        found = found || c.name == "runner.registry_holds_self";
     }
     CHECK(found);
 }

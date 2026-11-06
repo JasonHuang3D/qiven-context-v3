@@ -95,7 +95,6 @@ class Routes(unittest.TestCase):
                 "demo.held",
                 "demo.pass",
                 "demo.require",
-                "demo.serial\tserial",
                 "demo.skip",
             ],
         )

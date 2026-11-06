@@ -2,7 +2,8 @@
 by -k, and each test's labels and properties as the test presets select
 them: each labelled with one module's name (the table, foundation/devkit/python/table.py),
 behind the watcher, under its limit by its labels (a slow test 1,800 s, a fast
-one 60 s, any other 300 s) or its own, CTest's TIMEOUT 30 s past it."""
+one 60 s, any other 300 s), CTest's TIMEOUT 30 s past it, and a fuzz target's
+run alone."""
 
 import json
 import re
@@ -45,51 +46,12 @@ class Select(unittest.TestCase):
         self.assertTrue(True)
 
 
-def serial(name):
-    """Whether a test runs alone: the runner's registry case, each fuzz
-    target's run, and each Python test whose class sets ctest_serial."""
-    if name == "runner.registry_holds_self" or name.startswith(FUZZ):
-        return True
-    # "tests." is the product's tests' place until P4.
-    if not name.startswith(("tests.", STRUCTURE)):
-        return False
-    test = next(iter(unittest.defaultTestLoader.loadTestsFromName(name)))
-    return bool(getattr(test, "ctest_serial", False))
-
-
 def top_package(name):
     """Where discover starts for a Python test: the shortest leading part of
     its id that is a directory of the root holding an __init__.py."""
     parts = name.split(".")
     return next("/".join(parts[:n]) for n in range(1, len(parts))
                 if (binaries.ROOT.joinpath(*parts[:n]) / "__init__.py").is_file())
-
-
-def limit_of(name, labels, command, cases):
-    """A test's limit: its own, a Python test's class's ctest_limit or a C++
-    case's binary's LIMIT (`cases`, case_limits()'s), else its labels'."""
-    # "tests." is the product's tests' place until P4.
-    if name.startswith(("tests.", STRUCTURE)):
-        own = getattr(next(iter(unittest.defaultTestLoader.loadTestsFromName(name))), "ctest_limit", None)
-    else:
-        own = cases.get(Path(command[0]).resolve())
-    if own is not None:
-        return own
-    if "slow" in labels:
-        return SLOW_LIMIT
-    return FAST_LIMIT if "fast" in labels else OTHER_LIMIT
-
-
-def case_limits():
-    """Each case binary's own limit, by its file, from the build's listing
-    inputs (case_binaries.txt), where it states one."""
-    found = {}
-    inputs = binaries.directory("QIVEN_BUILD") / "case_binaries.txt"
-    for line in inputs.read_text(encoding="utf-8").splitlines():
-        _, limit, binary = line.split("\t")
-        if limit:
-            found[Path(binary).resolve()] = int(limit)
-    return found
 
 
 def ran_count(ran):
@@ -151,7 +113,6 @@ class Registered(unittest.TestCase):
         self.assertIn(SELECT + "test_ab", tests)
         self.assertFalse([name for name in tests if name.startswith(("demo.", SAMPLE))])
         watch = binaries.WATCHER
-        cases = case_limits()
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
                 labels = set(props["LABELS"])
@@ -165,7 +126,7 @@ class Registered(unittest.TestCase):
                 self.assertEqual(Path(watched[4]), watch)
                 self.assertEqual([watched[5], watched[7], watched[8], watched[9]], ["--limit", "--name", name, "--"])
                 command = watched[10:]
-                limit = limit_of(name, labels, command, cases)
+                limit = SLOW_LIMIT if "slow" in labels else FAST_LIMIT if "fast" in labels else OTHER_LIMIT
                 self.assertEqual(int(watched[6]), limit)
                 self.assertEqual(float(props["TIMEOUT"]), limit + AFTER_LIMIT)
                 if "py" in labels:
@@ -193,7 +154,7 @@ class Registered(unittest.TestCase):
                     self.assertEqual(Path(command[4]).parts[-3:], ("fuzz", target, "corpus"))
                 else:
                     self.assertEqual(command[1:], ["--run", name])
-                self.assertEqual(props.get("RUN_SERIAL", False), serial(name))
+                self.assertEqual(props.get("RUN_SERIAL", False), "fuzz" in labels)
 
     def test_presets(self):
         tests = ctest_tests()

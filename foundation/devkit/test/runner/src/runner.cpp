@@ -17,9 +17,9 @@ std::vector<Case>& registry() {
     return cases;
 }
 
-Registrar::Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn, bool serial) noexcept {
+Registrar::Registrar(std::string_view name, const qiven::log::Name* logged, CaseFn fn) noexcept {
     try {
-        registry().push_back(Case{name, logged, fn, serial});
+        registry().push_back(Case{name, logged, fn});
     } catch (...) {
         qiven::memory::fail_fast("runner::Registrar: the registry could not take a case");
     }
@@ -211,7 +211,7 @@ int run_main(std::span<const std::string_view> args, const std::vector<Case>& ca
         std::sort(sorted.begin(), sorted.end(),
                   [](const Case* a, const Case* b) { return a->name < b->name; });
         for (const Case* c : sorted) {
-            out << c->name << (c->serial ? "\tserial\n" : "\n");
+            out << c->name << "\n";
         }
         out.flush();
         return exit_pass;

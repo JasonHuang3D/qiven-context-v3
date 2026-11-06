@@ -1,25 +1,22 @@
 """Print each Python test of the checkout for CTest, of the packages of the
-trees tools/trees.json walks and of its layers' trees: its id, its labels,
-serial, and its own limit.
+trees tools/trees.json walks and of its layers' trees: its id and its labels.
 
 Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
 [--trees <tree>...] [--leave-out <name>...]: --trees, the trees it walks, by default
 every one; --leave-out, tests it does not list, each by its id or a package's name,
 which it still imports: discover loads every module before any is left out.
-Each line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
+Each line is "<id>\t<labels by commas>". A
 test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
 its class names in ctest_labels, then the name of the
 module of the table its file is in (the tree's module.json files, read by
 foundation/devkit/python/table.py), by which the runner selects it
-(tools/changed.py); a class whose ctest_serial is true runs alone; a
-class whose ctest_limit is a whole number of seconds states the watcher's
-limit for its tests, which otherwise their labels give
+(tools/changed.py); the labels also give the watcher's limit for its tests
 (ctest_tests.cmake, beside this file).
 
 A module that does not import, a test the one reader of test code
 (package(), below) says is no test code or puts in a package with no labels
-here, a file in no module, a limit of another form, or a test directory with no
+here, a file in no module, or a test directory with no
 __init__.py, which discover would pass over, fails the listing, and so the
 build.
 """
@@ -90,7 +87,7 @@ def package(path, trees, homes):
 
 
 def listed(root=".", kept=None, left_out=()):
-    """([(id, labels, serial, limit or None)], [errors]) of the
+    """([(id, labels)], [errors]) of the
     tests discover finds in each package of the kept trees, by default the
     trees tools/trees.json walks and its layers', from the checkout's root;
     but those left_out names, each by its id or a package's name."""
@@ -120,16 +117,11 @@ def listed(root=".", kept=None, left_out=()):
             continue
         own = PACKAGE_LABELS.get(name.rpartition(".")[0], PACKAGE_LABELS[kind])
         labels = MODULE_LABELS.get(name, own) + tuple(getattr(test, "ctest_labels", ()))
-        serial = 1 if getattr(test, "ctest_serial", False) else 0
-        limit = getattr(test, "ctest_limit", None)
-        if limit is not None and (type(limit) is not int or limit < 1):
-            errors.append(f"{test_id}: ctest_limit {limit!r} is no whole number of seconds")
-            continue
         owner = module_table.owners(table, [path])[path]
         if not owner:
             errors.append(f"{test_id}: its file is in no module of the table")
             continue
-        rows.append((test_id, labels + (owner[0],), serial, limit))
+        rows.append((test_id, labels + (owner[0],)))
     return rows, errors + [str(error) for error in loader.errors]
 
 
@@ -139,8 +131,8 @@ def main(argv):
     parser.add_argument("--leave-out", nargs="+", default=())
     args = parser.parse_args(argv)
     rows, errors = listed(kept=args.trees, left_out=args.leave_out)
-    for test_id, labels, serial, limit in rows:
-        print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}")
+    for test_id, labels in rows:
+        print(f"{test_id}\t{','.join(labels)}")
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0
