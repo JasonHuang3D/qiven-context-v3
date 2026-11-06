@@ -23,8 +23,7 @@ import unittest
 
 from foundation.devkit.python import system
 from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import build_option
-from foundation.devkit.test.runner.skip import SKIP_CODE
+from foundation.devkit.test.runner.binaries import SKIP_CODE, build_option
 
 DEMO = "qiven_memory_free_demo"
 POISONED_DEMO = "qiven_memory_free_demo_poisoned"

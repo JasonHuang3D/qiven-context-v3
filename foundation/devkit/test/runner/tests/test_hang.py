@@ -20,7 +20,7 @@ its stacks and dump written, the status line carrying the debugger's how as
 the debugger gives it; with none, its reason so. The words of how and of the
 reason, and off CI never a cdb the pins refuse, are debugger's own, proven
 there. Where the pinned cdb is absent, K8 skips by
-name, "no cdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
+name, "no cdb", unittest's skip, which CTest reads as skipped; one off its pin fails. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
 
 K8 drives the debugger: the label debugger, never fake, so CI never runs

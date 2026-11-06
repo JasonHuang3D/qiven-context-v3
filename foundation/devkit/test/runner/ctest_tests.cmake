@@ -19,6 +19,10 @@ set(SLOW_LIMIT 1800)
 set(FAST_LIMIT 60)
 set(OTHER_LIMIT 300)
 set(AFTER_LIMIT 30)
+# A Python test's skip: unittest exits 0 on a run of skipped tests, and prints
+# its sentence, which CTest reads in the output; the watcher's status line
+# after it holds the run to a pass. A C++ case's is its exit, SKIP.
+set(PYTHON_SKIP [==[OK \(skipped=[0-9]+\)[^a-z]+status: 0 passed]==])
 set(environment "QIVEN_BIN=${BIN};QIVEN_BUILD=${BUILD};QIVEN_CTEST=${CTEST}")
 if(DEFINED PYTHON)
   file(TO_CMAKE_PATH "${PYTHON}" PYTHON)
@@ -50,7 +54,12 @@ function(qiven_add_test name labels serial directory)
     string(APPEND command " [==[${arg}]==]")
   endforeach()
   string(APPEND body "add_test([==[${name}]==]${command})\n")
-  string(APPEND body "set_tests_properties([==[${name}]==] PROPERTIES LABELS \"${labels}\" SKIP_RETURN_CODE ${SKIP}"
+  if("py" IN_LIST labels)
+    set(skip "SKIP_REGULAR_EXPRESSION [==[${PYTHON_SKIP}]==]")
+  else()
+    set(skip "SKIP_RETURN_CODE ${SKIP}")
+  endif()
+  string(APPEND body "set_tests_properties([==[${name}]==] PROPERTIES LABELS \"${labels}\" ${skip}"
     " TIMEOUT ${timeout} ENVIRONMENT [==[${environment}]==]")
   if(serial)
     string(APPEND body " RUN_SERIAL TRUE")
@@ -141,8 +150,9 @@ if(DEFINED PYTHON)
     endif()
     # From the root: -I keeps the working directory off sys.path, and
     # discover puts the top directory there. A -k pattern holding * is
-    # matched whole, so '*<id>' selects that one test.
-    set(test_command "${PYTHON}" -I -m unittest discover -s "${start}" -t . -k "*${id}")
+    # matched whole, so '*<id>' selects that one test; -v names a skip's
+    # reason.
+    set(test_command "${PYTHON}" -I -m unittest discover -v -s "${start}" -t . -k "*${id}")
     qiven_add_test("${id}" "${labels}" FALSE "${SOURCE}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()

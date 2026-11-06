@@ -37,7 +37,7 @@ inline constexpr int exit_pass = 0;
 inline constexpr int exit_fail = 1;
 inline constexpr int exit_usage = 2;
 // The suite's skip code: a case that does not apply here. CTest reports it
-// as skipped through SKIP_RETURN_CODE; the Python side gives the same code.
+// as skipped through SKIP_RETURN_CODE; the Python tests read it as binaries.py's SKIP_CODE.
 inline constexpr int exit_skip = 125;
 
 // The count after each case: the allocators a case takes from its context

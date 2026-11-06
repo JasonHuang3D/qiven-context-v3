@@ -13,7 +13,8 @@ whose binaries the clean-binaries check reads) skips the cases that name a
 function.
 Linux's, gdb, with tools/debug_gdb.py and tools/linux-pins.txt, is retired
 (tools/README.md's Retired section). Where the debugger is absent, each
-case skips by name, "no cdb", with the runner's 125; one off its pin fails.
+case skips by name, "no cdb", unittest's skip, which CTest reads as skipped;
+one off its pin fails.
 Under a sanitizer, whose runtime takes the process's faults, they are
 skipped too.
 

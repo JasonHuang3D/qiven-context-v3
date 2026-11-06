@@ -1,14 +1,10 @@
 """Diag's own Python tests: every binary of the build running the entry,
 run from the root as
 
-    python -I -m unittest discover -s foundation/system/diag/tests -t . -k '*<test id>'
+    python -I -m unittest discover -v -s foundation/system/diag/tests -t . -k '*<test id>'
 
-each test its own CTest test. As the test tree's (tests/__init__.py), a run
-that skipped tests and passed and failed none ends with the skip code,
-which CTest's SKIP_RETURN_CODE reports as skipped: the runner's Python half
-(foundation/devkit/test/runner/skip.py) holds the code and the run's end.
+each test its own CTest test. A run whose selected tests all skipped
+prints unittest's "OK (skipped=<n>)", which CTest's SKIP_REGULAR_EXPRESSION
+reads as skipped (foundation/devkit/test/runner/ctest_tests.cmake); -v names
+each skip's reason.
 """
-
-from foundation.devkit.test.runner import skip
-
-load_tests = skip.loader(__file__)

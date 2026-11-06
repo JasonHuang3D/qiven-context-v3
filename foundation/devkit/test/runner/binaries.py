@@ -1,7 +1,7 @@
-"""The runner's Python half beside skip.py, the harness the Python tests
-run the build by: a binary of the build found and run; a build directory's
-options read; and a command run behind the watcher, the windows it shows
-watched. A program starts through foundation/devkit/python/process.py.
+"""The runner's Python half, the harness the Python tests run the build by:
+a binary of the build found and run, its skip code SKIP_CODE; a build
+directory's options read; and a command run behind the watcher, the windows
+it shows watched. A program starts through foundation/devkit/python/process.py.
 
 CTest gives each Python test the build's directories by the environment:
 QIVEN_BIN, where every binary of the build is written; QIVEN_BUILD, the
@@ -35,6 +35,9 @@ from foundation.devkit.python.build_tree import ROOT
 
 # A process the tests start ends within this many seconds, or fails.
 TIMEOUT = process.LIMIT
+
+# A case binary's skip, the C++ runner's exit_skip (include/qiven/runner/core.hpp).
+SKIP_CODE = 125
 
 # The watcher, in front of every test.
 WATCHER = ROOT / "foundation" / "devkit" / "test" / "runner" / "watch.py"

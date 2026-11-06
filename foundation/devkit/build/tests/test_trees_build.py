@@ -342,8 +342,8 @@ class TreesBuild(unittest.TestCase):
             for line in added:
                 name, *words = re.findall(r"\[==\[(.*?)\]==\]", line)
                 command = words[words.index("--") + 1:]
-                self.assertEqual(command[1:], ["-I", "-m", "unittest", "discover", "-s", starts[name], "-t", ".",
-                                               "-k", f"*{name}"])
+                self.assertEqual(command[1:], ["-I", "-m", "unittest", "discover", "-v", "-s", starts[name], "-t",
+                                               ".", "-k", f"*{name}"])
                 done = process.run([sys.executable, *command[1:]], cwd=root, text=True)
                 self.assertEqual(done.status, 0, done.err)
                 self.assertIn("Ran 1 test", done.err)
