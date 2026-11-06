@@ -118,12 +118,12 @@ STATED = {
                                                                   "its one target over them",
     ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
                                                                  "files' version, source, digests and options",
-    ("B9", DIAG, "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
-                              "and its report hook",
-    ("B9", DIAG, "execinfo.h"): "the diagnostic entry's backtrace on Linux",
-    ("B9", DIAG, "unistd.h"): "the diagnostic entry's write and _exit on Linux",
-    ("B9", DIAG, "mman.h"): "the diagnostic entry's alternate stack on Linux",
-    ("B9", DIAG, "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
+    ("B9", DIAG + "src/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
+                                       "and its report hook",
+    ("B9", DIAG + "src/", "execinfo.h"): "the diagnostic entry's backtrace on Linux",
+    ("B9", DIAG + "src/", "unistd.h"): "the diagnostic entry's write and _exit on Linux",
+    ("B9", DIAG + "src/", "mman.h"): "the diagnostic entry's alternate stack on Linux",
+    ("B9", DIAG + "src/", "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
     ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
