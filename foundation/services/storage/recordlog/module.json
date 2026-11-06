@@ -1,0 +1,58 @@
+{
+  "name": "recordlog",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/services/storage/recordlog/include/qiven/recordlog/contract.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "limits",
+      "default": null,
+      "built": true
+    },
+    {
+      "name": "application_id",
+      "default": null,
+      "built": true
+    },
+    {
+      "name": "id_bytes",
+      "default": 71,
+      "built": false
+    },
+    {
+      "name": "scope_bytes",
+      "default": 56,
+      "built": false
+    },
+    {
+      "name": "lane_bytes",
+      "default": 32,
+      "built": false
+    }
+  ],
+  "present": [
+    {
+      "name": "recordlog",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "storage_sqlite",
+        "platform",
+        "text"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/services/storage/recordlog/CMakeLists.txt",
+        "foundation/services/storage/recordlog/include/",
+        "foundation/services/storage/recordlog/src/",
+        "foundation/services/storage/recordlog/tests/"
+      ]
+    }
+  ]
+}

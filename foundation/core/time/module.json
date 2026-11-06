@@ -1,0 +1,24 @@
+{
+  "name": "time",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/core/time/include/qiven/time/utc.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "time",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/time/"
+      ]
+    }
+  ]
+}

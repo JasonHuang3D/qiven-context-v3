@@ -1,0 +1,47 @@
+{
+  "name": "text",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/core/text/include/qiven/text/canon.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "key_rule",
+      "default": null,
+      "built": true
+    },
+    {
+      "name": "depth",
+      "default": null,
+      "built": true
+    }
+  ],
+  "present": [
+    {
+      "name": "text",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/text/"
+      ]
+    },
+    {
+      "name": "base",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [],
+      "paths": [
+        "src/qiven3/CMakeLists.txt",
+        "tests/support/fixtures/filled.hpp"
+      ]
+    }
+  ]
+}

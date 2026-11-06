@@ -1,0 +1,46 @@
+{
+  "name": "runner",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/devkit/test/runner/include/qiven/runner/runner.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "runner",
+      "layer": "support",
+      "depends": [
+        "memory",
+        "log",
+        "text",
+        "diag"
+      ],
+      "test_depends": [
+        "platform",
+        "case_main"
+      ],
+      "paths": [
+        "foundation/devkit/test/runner/"
+      ]
+    },
+    {
+      "name": "support",
+      "layer": "support",
+      "depends": [
+        "memory",
+        "diag"
+      ],
+      "test_depends": [],
+      "paths": [
+        "tests/CMakeLists.txt",
+        "tests/__init__.py",
+        "tests/drive/__init__.py",
+        "tests/drive/session.py",
+        "tests/unit/CMakeLists.txt"
+      ]
+    }
+  ]
+}

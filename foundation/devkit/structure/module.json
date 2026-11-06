@@ -1,0 +1,46 @@
+{
+  "name": "structure",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "structure",
+      "layer": "tooling",
+      "depends": [
+        "python"
+      ],
+      "test_depends": [
+        "checked",
+        "write",
+        "location",
+        "app",
+        "driver",
+        "child"
+      ],
+      "paths": [
+        "foundation/devkit/structure/",
+        "tests/support/headers/"
+      ]
+    }
+  ],
+  "exceptions": [
+    {
+      "from": "structure",
+      "to": [
+        "checked",
+        "write",
+        "location",
+        "app",
+        "driver",
+        "child"
+      ],
+      "until": "each product header unit under tests/support/headers/ has gone with its header's module when that module moves, in P4; structure's path and this exception stay until then"
+    }
+  ]
+}

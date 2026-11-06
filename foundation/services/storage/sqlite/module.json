@@ -1,0 +1,28 @@
+{
+  "name": "storage_sqlite",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/services/storage/sqlite/include/qiven/storage_sqlite/connection.hpp",
+  "adopted": "2026-11-03",
+  "parameters": [],
+  "present": [
+    {
+      "name": "storage_sqlite",
+      "layer": "foundation",
+      "depends": [
+        "sqlite",
+        "memory"
+      ],
+      "test_depends": [],
+      "paths": [
+        "foundation/services/storage/sqlite/CMakeLists.txt",
+        "foundation/services/storage/sqlite/include/",
+        "foundation/services/storage/sqlite/src/",
+        "foundation/services/storage/sqlite/tests/"
+      ]
+    }
+  ]
+}

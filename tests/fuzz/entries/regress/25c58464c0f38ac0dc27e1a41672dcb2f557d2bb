@@ -1,0 +1,11 @@
+{"form": "qiven3-entries/1", "writer": "import", "scope": "project:example",
+ "entries": [
+  {"kind": "claim", "basis": "claimed",
+   "content": {"claim": "An invented claim.", "subject": "entity:example", "band": "normal",
+     "admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."},
+     "evidence": [{"type": "entry", "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"}]}},
+  {"name": "elsewhere", "scope": "project:other", "kind": "claim", "basis": "claimed",
+   "content": {"claim": "Another invented claim.", "subject": "entity:example", "band": "low",
+     "admit": {"underivable": "No file holds it.", "mistake": "A session repeats it."},
+     "evidence": [{"type": "entry", "id": "@name:elsewhere"}]}}
+ ]}

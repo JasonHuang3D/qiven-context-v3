@@ -1,0 +1,38 @@
+{
+  "name": "transport",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/services/transport/include/qiven/transport/wire.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "bounds",
+      "default": {
+        "count": 0,
+        "argument_bytes": 0,
+        "total_bytes": 0
+      },
+      "built": true
+    }
+  ],
+  "present": [
+    {
+      "name": "wire",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "text"
+      ],
+      "test_depends": [
+        "platform",
+        "faults"
+      ],
+      "paths": [
+        "foundation/services/transport/"
+      ]
+    }
+  ]
+}

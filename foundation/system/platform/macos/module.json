@@ -1,0 +1,15 @@
+{
+  "name": "macos",
+  "layer": "system",
+  "status": "slot",
+  "kind": "adapter",
+  "of": "platform",
+  "may_depend": [
+    "devkit",
+    "core",
+    "system"
+  ],
+  "platforms": [],
+  "adopted": "2026-10-31",
+  "parameters": []
+}

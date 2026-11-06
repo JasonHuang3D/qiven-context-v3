@@ -1,0 +1,30 @@
+{
+  "name": "scan",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/devkit/test/scan/include/qiven/scan/scan.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "scan",
+      "layer": "support",
+      "depends": [],
+      "test_depends": [
+        "memory",
+        "text",
+        "log",
+        "platform",
+        "diag",
+        "runner",
+        "case_main"
+      ],
+      "paths": [
+        "foundation/devkit/test/scan/"
+      ]
+    }
+  ]
+}

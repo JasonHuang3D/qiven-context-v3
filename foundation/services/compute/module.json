@@ -1,0 +1,26 @@
+{
+  "name": "compute",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/services/compute/include/qiven/compute/hal.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "compute",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/services/compute/"
+      ]
+    }
+  ]
+}

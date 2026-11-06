@@ -1,0 +1,26 @@
+{
+  "name": "matcher",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/core/matcher/include/qiven/matcher/matcher.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "matcher",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/matcher/"
+      ]
+    }
+  ]
+}

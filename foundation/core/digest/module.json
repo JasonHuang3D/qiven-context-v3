@@ -1,0 +1,26 @@
+{
+  "name": "digest",
+  "layer": "core",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/core/digest/include/qiven/digest/digest.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "digest",
+      "layer": "foundation",
+      "depends": [
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/core/digest/"
+      ]
+    }
+  ]
+}

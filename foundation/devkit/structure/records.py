@@ -1,0 +1,290 @@
+"""The structure records: what the structure tests read, written by the
+structure preset's build. The standard library, Python's lowest layer
+(foundation/devkit/python, its system's output_text for the tools' output
+and its build_tree for the build's cache),
+and the trees every check walks, its table's (foundation/devkit/python/table.py).
+
+Run after every target is built, as
+
+    python -I foundation/devkit/structure/records.py SOURCE BUILD CMAKE DUMPBIN
+
+it writes BUILD/structure/: for each compile command of
+compile_commands.json, its includes as the compiler reports them
+(the command rerun with /showIncludes /Zs: Ninja consumes the build's own)
+and its object's symbols (dumpbin /symbols); the C and C++ runtimes'
+public names (dumpbin /linkermember:1); the targets' link edges (CMake's
+--graphviz, from a configure of SOURCE in a directory of its own);
+index.json, naming each; and index.d, the step's depfile, naming each
+file index.json digests, so that its change or removal reruns the step.
+A vendored file, tools/trees.json's vendored (foundation/system/sqlite/src/
+sqlite3.c the one compiled), has its object's names recorded, for what it
+defines, and no includes.
+"""
+
+import concurrent.futures
+import hashlib
+import json
+import os
+import shutil
+import sys
+from collections import namedtuple
+from pathlib import Path
+
+# Under -I the checkout is off sys.path: its root appended, so that the standard library still wins.
+sys.path.append(str(Path(__file__).resolve().parents[3]))
+from foundation.devkit.python import build_tree
+from foundation.devkit.python import process
+from foundation.devkit.python import system
+from foundation.devkit.python import table
+
+# The runtimes a /MT build links, the static C runtime's (the structure
+# build's); oldnames.lib, POSIX names, is not one.
+RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")
+# The network's import libraries, so that an import from one is named.
+NETWORK_LIBS = ("ws2_32.lib", "winhttp.lib", "wininet.lib")
+TOOL_SECONDS = 900  # one tool's run: a preprocessing compile, dumpbin, or CMake's configure
+
+
+def run(command, cwd=None, shell_text=False):
+    """A tool's standard output, as text. `command` a list, or a compile
+    database's whole line (shell_text); SystemExit where it fails or passes
+    its limit."""
+    try:
+        done = process.run(command, cwd=cwd, limit=TOOL_SECONDS)
+    except process.TimedOut as e:
+        raise SystemExit(f"records: {e}") from e
+    if done.status != 0:
+        text = system.output_text(done.out + done.err, "replace")
+        raise SystemExit(f"records: {command if shell_text else command[:3]} gave {done.status}:\n{text}")
+    return system.output_text(done.out, "replace")
+
+
+def rel_posix(path, root):
+    try:
+        return Path(os.path.normpath(path)).relative_to(root).as_posix()
+    except ValueError:
+        return None
+
+
+def record_one(entry, root, out, dumpbin, vendored_files):
+    """One compile command: its includes and its object's symbols."""
+    source = rel_posix(entry["file"], root)
+    obj = Path(entry["directory"], entry["output"])
+    parts = obj.as_posix().split("/")
+    target = next((p[:-4] for p in parts if p.endswith(".dir")), "")
+    key = target + "__" + (source or obj.name).replace("/", "_")
+    vendored = source in vendored_files
+    if not vendored:
+        includes = run(entry["command"] + " /showIncludes /Zs", cwd=entry["directory"], shell_text=True)
+        (out / "includes" / (key + ".txt")).write_text(includes, encoding="utf-8")
+    symbols = run([dumpbin, "/nologo", "/symbols", str(obj)])
+    (out / "symbols" / (key + ".txt")).write_text(symbols, encoding="utf-8")
+    return {
+        "source": source, "absolute": entry["file"], "target": target,
+        "command": entry["command"], "includes": "includes/" + key + ".txt",
+        "symbols": "symbols/" + key + ".txt", "vendored": vendored,
+    }
+
+
+def find_lib(name):
+    for directory in os.environ.get("LIB", "").split(os.pathsep):
+        if directory and (Path(directory) / name).is_file():
+            return Path(directory) / name
+    raise SystemExit(f"records: {name} is on no directory of LIB; run from the toolset's environment")
+
+
+def graph(source, build_dir, out, cmake, cache):
+    """The link edges: CMake's --graphviz over a configure of its own."""
+    scratch = out / "graph-build"
+    shutil.rmtree(scratch, ignore_errors=True)
+    scratch.mkdir(parents=True)
+    # The compiler found once: CMake reads its own record of each compiler.
+    version = Path(build_dir, "CMakeFiles")
+    for found in version.glob("[0-9]*.[0-9]*"):
+        if found.is_dir():
+            shutil.copytree(found, scratch / "CMakeFiles" / found.name)
+    (out / "graph").mkdir(exist_ok=True)
+    run([cmake, "-S", str(source), "-B", str(scratch), "-G", "Ninja",
+         "--graphviz=" + str(out / "graph" / "targets.dot")] + [f"-D{k}={v}" for k, v in cache.items()])
+
+
+def record(source, build_dir, out, dumpbin):
+    """The include and symbol records of every compile command of build_dir."""
+    shutil.rmtree(out, ignore_errors=True)
+    for sub in ("includes", "symbols", "runtime"):
+        (out / sub).mkdir(parents=True)
+    root = Path(os.path.normpath(source))
+    db = json.loads(Path(build_dir, "compile_commands.json").read_text(encoding="utf-8"))
+    entries, vendored_files = list(db), table.trees(root).vendored
+    with concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 4) as pool:
+        objects = list(pool.map(lambda e: record_one(e, root, out, dumpbin, vendored_files), entries))
+    libs = {}
+    for name in RUNTIME_LIBS + NETWORK_LIBS:
+        text = run([dumpbin, "/nologo", "/linkermember:1", str(find_lib(name))])
+        (out / "runtime" / (name + ".txt")).write_text(text, encoding="utf-8")
+        libs[name] = "runtime/" + name + ".txt"
+    return {"source_root": str(root), "objects": objects, "libraries": libs,
+            "runtime": list(RUNTIME_LIBS), "network": list(NETWORK_LIBS),
+            "graph": "graph/targets.dot"}
+
+
+def digests(root):
+    """Each source file's SHA-256, so that a test finds the records stale."""
+    found, trees = {}, table.trees(root)
+    for top in trees.every:
+        for path in sorted(Path(root, top).rglob("*")):
+            if path.suffix in trees.cxx_suffixes and path.is_file():
+                found[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return found
+
+
+def write_index(out, index):
+    (out / "index.json").write_text(json.dumps(index, indent=1, sort_keys=True), encoding="utf-8")
+
+
+def write_depfile(out, source, recorded):
+    """Ninja's depfile of the step: index.json depends on each recorded file, by its absolute path."""
+    def name(path):
+        return path.as_posix().replace(" ", "\\ ")
+    inputs = " \\\n  ".join(name(source / rel) for rel in recorded)
+    (out / "index.d").write_text(f"{name(out / 'index.json')}: {inputs}\n", encoding="utf-8", newline="\n")
+
+
+def main(argv):
+    source, build_dir, cmake, dumpbin = (Path(a) for a in argv[1:5])
+    out = build_dir / "structure"
+    index = record(source, build_dir, out, dumpbin)
+    names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM")
+    cache = build_tree.options(build_dir)
+    if cache is None:
+        raise SystemExit(f"records: {build_dir} holds no cache: configure it first")
+    graph(source, build_dir, out, cmake, {name: cache[name] for name in names if name in cache})
+    index["digests"] = digests(source)
+    write_depfile(out, source, index["digests"])
+    write_index(out, index)
+    print(f"records: {len(index['objects'])} objects")
+    return 0
+
+
+# Reading the records, for the rules (rules.py).
+Object = namedtuple("Object", "source target includes undefined weak defined command vendored")
+
+
+def read_includes(text, absolute):
+    """(includer, included as written, depth) for each include, from /showIncludes."""
+    found, stack = [], [absolute]
+    prefix = "Note: including file:"
+    for line in text.splitlines():
+        if not line.startswith(prefix):
+            continue
+        rest = line[len(prefix):]
+        depth = len(rest) - len(rest.lstrip(" "))
+        path = rest.strip()
+        if depth < 1 or depth > len(stack):
+            raise ValueError(f"an include at depth {depth} under {absolute}")
+        found.append((stack[depth - 1], path, depth))
+        del stack[depth:]
+        stack.append(path)
+    return found
+
+
+def read_symbols(text):
+    undefined, weak, defined = set(), set(), set()
+    for line in text.splitlines():
+        if "|" not in line:
+            continue
+        left, _, right = line.partition("|")
+        fields = left.split()
+        if len(fields) < 4 or not right.split():
+            continue
+        name = right.split()[0]
+        if "UNDEF" in fields:
+            (weak if "WeakExternal" in fields else undefined).add(name)
+        elif "External" in fields:
+            defined.add(name)
+    return undefined, weak, defined
+
+
+def read_linker_member(text):
+    names = set()
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) == 2 and all(c in "0123456789ABCDEF" for c in fields[0]):
+            names.add(fields[1])
+    return names
+
+
+def read_graph(text):
+    """Each node's shape, by name, and the direct edges."""
+    nodes, labels, edges = {}, {}, {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith('"node') and "label = " in line:
+            node = line.split('"')[1]
+            label = line.split('label = "', 1)[1].split('"', 1)[0]
+            labels[node] = label
+            nodes[label] = line.split("shape = ", 1)[1].split()[0].rstrip("];,")
+        elif line.startswith('"node') and " -> " in line:
+            a, b = line.split('"')[1], line.split('"')[3]
+            edges.setdefault(labels[a], set()).add(labels[b])
+    return nodes, edges
+
+
+def command_include_dirs(command):
+    """The /I and -I directories of a compile command."""
+    words, word, quoted = [], [], False
+    for c in command + " ":
+        if c == '"':
+            quoted = not quoted
+        elif c == " " and not quoted:
+            if word:
+                words.append("".join(word))
+            word = []
+        else:
+            word.append(c)
+    return [w[2:] for w in words if w[:2] in ("/I", "-I") and len(w) > 2]
+
+
+class Records:
+    def __init__(self, directory):
+        self.directory = Path(directory)
+        index = json.loads((self.directory / "index.json").read_text(encoding="utf-8"))
+        self.root = Path(index["source_root"])
+        self.digests = index.get("digests", {})
+        self.objects = []
+        for entry in index["objects"]:
+            undefined, weak, defined = read_symbols(self.read(entry["symbols"]))
+            includes = [] if entry.get("vendored") else read_includes(self.read(entry["includes"]),
+                                                                       entry["absolute"])
+            self.objects.append(Object(entry["source"], entry["target"], includes, undefined, weak, defined,
+                                       entry["command"], bool(entry.get("vendored"))))
+        self.runtime, self.network = set(), set()
+        for name, path in index["libraries"].items():
+            (self.runtime if name in index["runtime"] else self.network).update(
+                read_linker_member(self.read(path)))
+        self.shapes, self.edges = read_graph(self.read(index["graph"]))
+
+    def read(self, name):
+        return (self.directory / name).read_text(encoding="utf-8")
+
+    def closure(self, target):
+        seen, todo = set(), [target]
+        while todo:
+            for dep in self.edges.get(todo.pop(), ()):
+                if dep not in seen:
+                    seen.add(dep)
+                    todo.append(dep)
+        return seen
+
+    def stale(self):
+        """The recorded files changed or gone since the records were written."""
+        return sorted(rel for rel, digest in self.digests.items()
+                      if not (self.root / rel).is_file() or sha256(self.root / rel) != digest)
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

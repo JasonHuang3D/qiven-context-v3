@@ -1,0 +1,14 @@
+{
+  "name": "net",
+  "layer": "system",
+  "status": "slot",
+  "kind": "module",
+  "may_depend": [
+    "devkit",
+    "core",
+    "system"
+  ],
+  "platforms": [],
+  "adopted": "2026-10-31",
+  "parameters": []
+}

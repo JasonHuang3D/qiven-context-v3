@@ -1,0 +1,7 @@
+# The Windows tools the debugger wrapper (tools/debug.py) and the watcher's
+# hang path (foundation/devkit/test/harness/watch.py) run, by foundation/devkit/python/debugger.py: one pin a line,
+# KIND NAME VERSION SHA256 SOURCE. The source is the file's place in the
+# package it comes from, here WinDbg's of that version; a machine's copy, never
+# committed, is the file the environment variable QIVEN_CDB names. The version
+# is the one the tool's -version gives; the digest the file's, observed.
+debugger cdb 10.0.29680.1004 7eae4369bfbcc39fb50bc3918b8073e9509d53aba3294071c1b084fe4fcab4f2 windbg/1.2611.4001.0/amd64/cdb.exe  # observed

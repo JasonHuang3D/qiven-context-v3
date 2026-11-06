@@ -1,0 +1,7 @@
+# The store's reads of a file's size, on its parent's: MSVC's <filesystem>
+# combines its stats flags, an enum of flags declared without their
+# combinations, in file_size, which the analyzer reads as a cast out of
+# the enum's range; sizes.cpp holds the store's every file_size call.
+InheritParentConfig: true
+Checks: >-
+  -clang-analyzer-optin.core.EnumCastOutOfRange
