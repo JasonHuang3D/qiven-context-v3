@@ -38,10 +38,17 @@ def under(path, prefixes):
     return path is not None and any(path == p or ("/" in p and path.startswith(p)) for p in prefixes)
 
 
-def allowed(rule, where, what=None):
-    if under(where, ALLOWED.get(rule, ())):
-        return True
-    return any(r == rule and match(where, f) and match(what, w) for r, f, w in ALLOWANCES)
+def allows(rule, where, what=None):
+    """The allowance rows that allow rule's finding of where or what: a
+    rule's path or target, (rule, prefix), from ALLOWED and EXEMPT, and a
+    row by name of ALLOWANCES."""
+    return ({(rule, p) for table in (ALLOWED, EXEMPT) for p in table.get(rule, ()) if under(where, (p,))}
+            | {(r, f, w) for r, f, w in ALLOWANCES if r == rule and match(where, f) and match(what, w)})
+
+
+# Every allowance row, as allows() gives it; the rules over the tree use each (Tree.test_rules).
+ROWS = frozenset({(r, p) for table in (ALLOWED, EXEMPT) for r, ps in table.items() for p in ps}
+                 | set(ALLOWANCES))
 
 
 def match(value, key):
@@ -91,19 +98,21 @@ def relative(path, root):
 
 # The checker.
 class Findings:
-    """The findings over one tree, and that tree's table (layers.Layers),
-    v3's when none is given."""
+    """The findings over one tree, the allowance rows that allowed one
+    (used), and that tree's table (layers.Layers), v3's when none is given."""
 
     def __init__(self, tree=None):
-        self.found = set()
+        self.found, self.used = set(), set()
         self.tree = tree or layers.of(ROOT)
 
     def add(self, rule, where, kind="", detail="", what=None, force=False):
         """A finding, but where the rule allows it of where or what, as they
         stand or as the top-level tests/ would hold them."""
         places = (where, self.tree.as_tests(where))
-        if force or not (any(allowed(rule, w, x) for w in places for x in (what, self.tree.as_tests(what)))
-                         or any(under(w, EXEMPT.get(rule, ())) for w in places)):
+        rows = set() if force else set().union(*(allows(rule, w, x) for w in places
+                                                 for x in (what, self.tree.as_tests(what))))
+        self.used |= rows
+        if not rows:
             self.found.add(Finding(rule, where, kind, detail))
 
 
@@ -337,7 +346,7 @@ def link_rules(records, out):
     child = {t for t, sources in owners.items() if any(under(out.tree.as_tests(s), (layers.CHILD,)) for s in sources)}
     for target, deps in sorted(records.edges.items()):
         for dep in sorted(deps):
-            if dep == "qiven_sqlite" and target != "qiven_storage_sqlite":
+            if dep == "qiven_sqlite":
                 out.add("B1", target, detail="links qiven_sqlite")
             if shapes.get(dep) == "septagon" and target not in child:
                 out.add("B5", target, detail=f"links the system library {dep}")
@@ -353,7 +362,7 @@ def link_rules(records, out):
 
 
 def check(records, root=None):
-    """Every rule over one tree: its findings."""
+    """Every rule over one tree: its Findings."""
     root = Path(root or records.root)
     out = Findings(layers.of(root))
     files = source_files(root)
@@ -364,7 +373,7 @@ def check(records, root=None):
     link_rules(records, out)
     subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what),
                  out.tree)
-    return out.found
+    return out
 
 
 def records_directory():
@@ -376,7 +385,7 @@ def records_directory():
 
 
 def findings():
-    """The findings over v3's tree, from the structure build's records,
+    """The Findings over v3's tree, from the structure build's records,
     which must be there and current."""
     directory = records_directory()
     if not (directory / "index.json").is_file():

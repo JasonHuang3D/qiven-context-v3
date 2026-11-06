@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.2: the number of this file's change list, below, and of nothing else
+Version 0.3: the number of this file's change list, below, and of nothing else
 
 - **Awaiting a split:** its product data (qiven3's paths, lists and cells, in `lists.py`, `rules.py` and `subset.py`, the angle include of `qiven3/` in `modules.py`'s `INCLUDE`, and in `tests/test_line_endings.py`'s product files kept byte for byte and their directories) leaves for `products/qiven3`; its row's edges to qiven3's modules are the product's header units' (`tests/support/headers/`, `qiven3_headers` and `qiven3_test_headers`), each of which goes with its header's module when that module moves, in P4, its edges with it; the row's path and its exception stay until then, and an old place's path joins no row; the foundation's units are their modules' (each in its module's `tests/support/headers/`)
 - **Holds:** the structure method in Python:
@@ -26,14 +26,24 @@ The method, once, for the module, which wraps nothing:
 - **Compatibility:** Windows built. The records read MSVC's compile commands and `dumpbin`, Windows' alone; the Python itself is `pathlib`, `ast` and `python`'s wraps; no Linux build
 - **Extensibility:** a new rule is a row of `lists.py` or `subset.py` and a branch of its checker, an allowance a row with its reason, and a rule with no consumer goes; a new tree is a value of `tools/trees.json`
 - **Performance:** the structure preset at 12 jobs, alone, measured once at `9d4dd9c`: 17 tests in 13.46 s, the slowest 12.64 s; a test past 60 s is killed, and a kill under other builds' load is read as load first, by one rerun alone
-- **A fake:** none: each rule reads the real checkout and the real build's records, with its planted controls in its tests; a tool or a check here is proven by use
+- **A fake:** none: each rule reads the real checkout and the real build's records, with its planted controls in its tests; the rules' control is `tests/test_boundaries.py`'s last subtest, which fails on each allowance row that allowed nothing over the tree, by name (`rules.ROWS`, as `build`'s `exemptions.py` does for its list); a tool or a check here is proven by use
 - **Errors:** a finding is a test's failure, with its file and rule. A record that is stale after a C++ change reads as a failing Tree test until `cmake --build build/structure` runs. `tools/loop_modules.py .` with no build reported 0 errors where the links gave 14 (the kit's rows cut of `text` and `diag`), read at `73b57fc` by (b)'s design challenge, 2026-11-06; at `ee70977`, 2026-11-07, both gave 0 errors, `build/ci-windows` given. The links' half reads the build's codemodel, so a change to a row's edges runs it with `BUILD` given
 
 ## Changes
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.2, 2026-11-07, the commit that brings this entry
+### 0.3, 2026-11-07, the commit that brings this entry
+
+The rules' control, by the end challenges' St-4 (A).
+
+- **This file:** A fake names the control.
+- **Members changed:** `rules.allowed()` becomes `allows()`, the allowance rows that allow a finding; `rules.Findings` records them (`used`); `rules.ROWS` holds every row, of `ALLOWED`, `EXEMPT` and `ALLOWANCES`; `rules.check()` and `rules.findings()` give the `Findings`, not its set. `tests/test_boundaries.py` asserts each row used.
+- **Members removed:** the allowance rows that allowed nothing: B1's vendored files, which the rules already skip; B19's `arena.` and `pool.` headers, B25's and B31's `fail.` header, and B30's `platform/windows/` headers, under `include/`; B5's `qiven_diag_poisoned`, a target the structure preset never builds (a sanitizer's alone); and B1's link rule's own exception of `qiven_storage_sqlite`, which `ALLOWED`'s row now does.
+- **What a consumer does:** reads the findings from `.found`; `build`'s `test_exemptions.py` uses `rules.ROOT` and `source_files` only, and does nothing.
+- **Known limits:** the control proves that each allowance allowed something, not that a rule finds what it should.
+
+### 0.2, 2026-11-07, `f78c42d`
 
 Each case to its subject's row, by the end challenges' St-3 with Bu-6.
 

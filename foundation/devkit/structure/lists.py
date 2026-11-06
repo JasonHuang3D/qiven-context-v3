@@ -93,13 +93,13 @@ DIAG = "foundation/system/diag/"  # the diagnostic entry
 
 # Where each rule allows what it finds: path prefixes and target names.
 ALLOWED = {
-    "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", *layers.VENDORED, "qiven_storage_sqlite"),
+    "B1": (ENGINE + "include/qiven/storage_sqlite/", ENGINE + "src/", "qiven_storage_sqlite"),
     "B2": ("foundation/system/platform/src/windows/process.",),
     # Private sources alone, so that a Windows SDK header in a public header is
     # a finding. diag: the diagnostic entry's Windows headers in its src/, its
     # link to dbghelp and its variants' (foundation/system/diag/CMakeLists.txt).
     "B5": ("foundation/system/platform/src/windows/", layers.CHILD, "qiven_platform_windows", DIAG + "src/",
-           "qiven_diag", "qiven_diag_crtdbg", "qiven_diag_poisoned"),
+           "qiven_diag", "qiven_diag_crtdbg"),
     **subset.ALLOWED,
 }
 # The allowances the text states beyond the rows' cells, (rule, file, what),

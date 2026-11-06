@@ -77,22 +77,20 @@ NOT_OBJECT = frozenset(("using", "typedef", "concept", "class", "struct", "enum"
 
 # Where each rule allows what it finds, by path prefix.
 ALLOWED = {
-    "B19": ("foundation/core/memory/include/qiven/memory/arena.", "foundation/core/memory/src/arena.", "foundation/core/memory/include/qiven/memory/pool.", "foundation/core/memory/src/pool."),
+    "B19": ("foundation/core/memory/src/arena.", "foundation/core/memory/src/pool."),
     "B20": ("foundation/core/memory/",),
     # The diagnostic entry's dump thread, which lives as long as the process.
     "B24": ("foundation/system/diag/src/",),
     # The entry's handlers' state, and memory/fail's kept cause, which the
     # terminate handler reads with nothing allocated.
-    "B25": ("foundation/system/diag/src/", "foundation/core/memory/include/qiven/memory/fail.",
-            "foundation/core/memory/src/fail."),
-    "B30": ("foundation/system/platform/src/windows/", "foundation/system/platform/include/qiven/platform/windows/"),
+    "B25": ("foundation/system/diag/src/", "foundation/core/memory/src/fail."),
+    "B30": ("foundation/system/platform/src/windows/",),
     # memory/fail's fail-fast, and the diagnostic entry, which ends a broken
     # process itself after its report: B31's two homes.
-    "B31": ("foundation/core/memory/include/qiven/memory/fail.", "foundation/core/memory/src/fail.",
-            "foundation/system/diag/src/"),
+    "B31": ("foundation/core/memory/src/fail.", "foundation/system/diag/src/"),
 }
 # What the rows' cells allow by name, (rule, file, what), each with its
-# reason; rules.py's allowed() reads them. B22: SQLite declares
+# reason; rules.py's allows() reads them. B22: SQLite declares
 # sqlite3_config variadic, the one place its interface needs varargs. B25:
 # the runner's own cases' three state globals, each by its declarator's name,
 # at namespace scope alone. B28: the borrowing types, each with its lifetime
