@@ -4,11 +4,12 @@ unittest ends a run whose tests were all skipped with 0; CTest reads a skip
 from the exit status alone. So a run that skipped tests and passed and
 failed none ends with the skip code, the C++ runner's exit_skip
 (include/qiven/runner/core.hpp), which CTest's SKIP_RETURN_CODE reports as
-skipped (ctest_tests.cmake). A package's load_tests wraps its suite in Run
-and sets sys.exit to exit_with_skip, which unittest's main looks up when it
-ends the run.
+skipped (ctest_tests.cmake). A package's load_tests is loader(__file__),
+which wraps its suite in Run and sets sys.exit to exit_with_skip, which
+unittest's main looks up when it ends the run.
 """
 
+import os
 import sys
 import unittest
 
@@ -47,3 +48,21 @@ def exit_with_skip(status=None):
         print(f"all selected tests skipped: exit status {SKIP_CODE}", file=sys.stderr)
         status = SKIP_CODE
     _exit(status)
+
+
+def loader(init):
+    """The load_tests of the package whose __init__.py is init, its own
+    __file__: unittest's protocol, called as load_tests(loader, tests,
+    pattern) when discover or a name reaches the package. It adds the
+    tests discover finds under the package's directory by pattern
+    (test*.py when discover passes none) to tests, sets sys.exit to
+    exit_with_skip and returns the whole in a Run."""
+    here = os.path.dirname(os.path.abspath(init))
+
+    def load_tests(test_loader, tests, pattern):
+        tests.addTests(test_loader.discover(start_dir=here, pattern=pattern or "test*.py"))
+        # unittest's main ends the run by sys.exit, which it looks up then.
+        sys.exit = exit_with_skip
+        return Run(tests)
+
+    return load_tests

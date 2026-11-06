@@ -8,15 +8,6 @@ which CTest's SKIP_RETURN_CODE reports as skipped: the runner's Python half
 (foundation/devkit/test/runner/skip.py) holds the code and the run's end.
 """
 
-import os
-import sys
+from foundation.devkit.test.runner import skip
 
-from foundation.devkit.test.runner.skip import Run, exit_with_skip
-
-
-def load_tests(loader, standard_tests, pattern):
-    here = os.path.dirname(os.path.abspath(__file__))
-    standard_tests.addTests(loader.discover(start_dir=here, pattern=pattern or "test*.py"))
-    # unittest's main ends the run by sys.exit, which it looks up then.
-    sys.exit = exit_with_skip
-    return Run(standard_tests)
+load_tests = skip.loader(__file__)
