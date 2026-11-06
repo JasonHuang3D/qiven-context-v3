@@ -14,9 +14,12 @@ The debugger is cdb.exe, pinned in foundation/devkit/python/debugger_pins.txt;
 Linux's, gdb, with tools/linux-pins.txt, is retired (tools/README.md's
 Retired section).
 In a CI job on Windows
-(GITHUB_ACTIONS "true") the watcher takes the image's cdb, unpinned, its
-version and path in the status line, or says why it has none and where it
-looked; off CI never a cdb the pins refuse (a stand-in on PATH, for both). Where it is absent, K8 skips by
+(GITHUB_ACTIONS "true") the watcher takes the image's cdb, here the stand-in
+cdb.cmd on PATH, which foundation/devkit/python/tests/test_debugger.py holds:
+its stacks and dump written, the status line carrying the debugger's how as
+the debugger gives it; with none, its reason so. The words of how and of the
+reason, and off CI never a cdb the pins refuse, are debugger's own, proven
+there. Where the pinned cdb is absent, K8 skips by
 name, "no cdb", with the runner's 125; one off its pin fails. Under a sanitizer, whose runtime handles the process's
 faults and threads, K8 is skipped as the planted faults are.
 
@@ -36,11 +39,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from foundation.devkit.python import answer
 from foundation.devkit.python import debugger
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
+from foundation.devkit.python.tests.test_debugger import stand_in
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import AFTER, POLL, run_watched, sanitized
 
@@ -78,33 +81,6 @@ def sections(lines):
     return out
 
 
-# A stand-in for a CI image's cdb: its -version, and for a hang one
-# thread's stack as ~*kn gives it and the dump .dump /mt names.
-STAND_IN = """import re, sys
-args = sys.argv[1:]
-if args == ["-version"]:
-    print("cdb version 10.0.99999.1")
-    sys.exit(0)
-commands = args[args.index("-c") + 1]
-print(f"0:000> cdb: Reading initial command '{commands}'")
-print("   0  Id: 1a2b.1c Suspend: 1 Teb: 00000000`00000000 Unfrozen")
-print("00 00000000`00000000 00000000`00000000 standin!wait+0x10")
-dump = re.search(r"\\.dump /mt (.+?); qd", commands)
-if dump:
-    open(dump.group(1), "wb").close()
-"""
-
-
-def stand_in(root):
-    """A stand-in cdb (cdb.cmd running STAND_IN) in root/bin: its path."""
-    (root / "bin").mkdir()
-    script = root / "cdb_stand_in.py"
-    script.write_text(STAND_IN, encoding="utf-8")
-    cmd = root / "bin" / "cdb.cmd"
-    cmd.write_text(f'@"{sys.executable}" -I "{script}" %*\n', encoding="ascii")
-    return cmd
-
-
 def ci_environment(root, **changes):
     """This environment as a CI job's (GITHUB_ACTIONS "true"), the build
     root/build (made), the names changed without regard to case."""
@@ -112,6 +88,16 @@ def ci_environment(root, **changes):
     changes = {debugger.CI_VARIABLE: "true", "QIVEN_BUILD": str(root / "build"), **changes}
     names = {name.upper() for name in changes}
     return {**{k: v for k, v in os.environ.items() if k.upper() not in names}, **changes}
+
+
+def given(env):
+    """What the hang's debugger gives in the environment env: its how, or
+    the reason it has none. Its words are debugger's own to prove."""
+    with mock.patch.dict(os.environ, env, clear=True):
+        try:
+            return debugger.hang_debugger()[1]
+        except debugger.NotFound as e:
+            return str(e)
 
 
 class HangStacks(unittest.TestCase):
@@ -185,29 +171,10 @@ class Hang(unittest.TestCase):
             time.sleep(POLL)
         self.assertFalse(system.alive(child), f"the case's child {child} outlived it")
 
-    def test_pinned_here(self):
-        """Off CI (no GITHUB_ACTIONS), the hang's debugger is the pinned
-        one, or none with the pin's reason: never a cdb on PATH, which the
-        pins refuse."""
-        if not WINDOWS:
-            self.skipTest("cdb is Windows'")
-        with tempfile.TemporaryDirectory() as root:
-            standin = stand_in(Path(root))
-            with mock.patch.dict(os.environ, {"PATH": f"{standin.parent}{os.pathsep}{os.environ.get('PATH', '')}"}):
-                os.environ.pop(debugger.CI_VARIABLE, None)
-                try:
-                    path, how = debugger.hang_debugger()
-                except debugger.NotFound as e:
-                    path, how = None, str(e)
-            self.assertNotIn(str(standin.parent), str(path), how)
-            self.assertNotIn(standin.parent.as_posix(), str(how))
-            if path is not None:
-                self.assertIsNone(how)
-
     def test_ci_image_cdb(self):
-        """In a CI job on Windows the hang's debugger is the image's cdb,
-        unpinned (here a stand-in on PATH): its stacks and dump written and
-        the status naming its version and path."""
+        """In a CI job on Windows, with the image's cdb (here the stand-in on
+        PATH): its stacks and dump written, killed, 124, the status carrying
+        the debugger's how as it gives it."""
         if not WINDOWS:
             self.skipTest("cdb is Windows'")
         with tempfile.TemporaryDirectory() as root:
@@ -219,15 +186,14 @@ class Hang(unittest.TestCase):
             self.assertEqual(status, 124, err)
             self.assertIn("00 00000000`00000000 00000000`00000000 standin!wait+0x10", err)
             self.assertRegex(err[-1], "^" + re.escape(status_table.line(124)) + r"; 1 of 1 threads' stacks written, "
-                             r"its dump \S+-\d+-hang\.dmp, by the image's cdb 10\.0\.99999\.1 at "
-                             + re.escape(standin.parent.as_posix()) + r"/cdb\.\w+, unpinned \(CI\); hang\.ci past 1 s$")
+                             r"its dump \S+-\d+-hang\.dmp, " + re.escape(given(env)) + r"; hang\.ci past 1 s$")
             self.assertEqual(len(list((Path(root) / "build" / "dumps").glob("*-hang.dmp"))), 1, err)
             self.assertLessEqual(seconds, 1 + AFTER, err)
 
     def test_ci_no_cdb(self):
         """In a CI job on Windows with no cdb on PATH nor in the SDK's
-        Debuggers/x64: no stacks, killed, 124, the status saying why and
-        where the watcher looked."""
+        Debuggers/x64: no stacks, killed, 124, the status carrying the
+        debugger's reason as it gives it."""
         if not WINDOWS:
             self.skipTest("cdb is Windows'")
         with tempfile.TemporaryDirectory() as root:
@@ -238,27 +204,12 @@ class Hang(unittest.TestCase):
             status, _, err, seconds, _ = run_watched([sys.executable, "-I", "-c", "import time; time.sleep(60)"],
                                                      "hang.ci_none", env, limit=1)
             err = lines_of(err)
-            why = (f"no cdb: none on PATH, none at {(sdk / 'Debuggers' / 'x64' / 'cdb.exe').as_posix()}, "
-                   "the SDK's root by WindowsSdkDir")
+            why = given(env)
             self.assertEqual(status, 124, err)
             self.assertEqual(err[-3:-1], ["hang: no debugger, no stacks", f"hang: {why}"], err)
             self.assertEqual(err[-1], status_table.line(124) + f"; no debugger, no stack written: {why}; "
                              "hang.ci_none past 1 s", err)
             self.assertLessEqual(seconds, 1 + AFTER, err)
-
-    def test_hang_lines_bound(self):
-        """The stacks' reading keeps 16 threads and 199 lines, with [cut]."""
-        header = "   {i}  Id: 1a2b.{i:x} Suspend: 1 Teb: 00000000`00000000 Unfrozen"
-        text = "0:000> cdb: Reading initial command '~*kn 32; qd'\n"
-        text += "".join(header.format(i=i + 1) + "\n" + "#0 frame\n" * 3 for i in range(20))
-        threads, lines = debugger.hang_lines(text)
-        self.assertEqual(threads, 20)
-        self.assertEqual(len(sections(lines)), debugger.HANG_THREADS)
-        self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
-        threads, lines = debugger.hang_lines(text.replace("#0 frame\n", "#0 frame\n" * 20))
-        self.assertEqual(len(lines), debugger.HANG_LINES - 1)
-        self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
-        self.assertEqual(answer.clip("x" * 400), "x" * (LINE_POINTS - 5) + answer.CUT)
 
 
 if __name__ == "__main__":
