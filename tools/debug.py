@@ -95,10 +95,13 @@ class Transcript:
 
 
 def break_spec(spec, binary):
-    """cdb's breakpoint expression for a function or a file:line."""
+    """cdb's breakpoint expression for a function or a file:line, in the
+    binary's module unless spec names one: a bare file:line stays deferred on
+    the latest cdb and never resolves."""
+    named = spec if "!" in spec else f"{debugger.module(binary)}!{spec}"
     if re.fullmatch(r".+:\d+", spec) and not re.fullmatch(r"[A-Za-z]:\d+", spec):
-        return f"`{spec}`"
-    return spec if "!" in spec else f"{debugger.module(binary)}!{spec}"
+        return f"`{named}`"
+    return named
 
 
 def stop_actions(args):

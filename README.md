@@ -65,6 +65,10 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   inherits one of these and sets the cache variable `Python3_EXECUTABLE`. A
   configure with neither keeps the interpreter its tree's cache holds, and
   a new tree's fails under the pins. No machine path is ever committed.
+- Name the debugger by the environment variable `QIVEN_CDB`, a `cdb.exe` of
+  the version and SHA-256 that `foundation/devkit/python/debugger_pins.txt`
+  pins. Without it the Windows SDK's is read, which is off the pin, so that
+  the debugger's cases fail, naming the variable, and never skip.
 
 ## What this repository never holds
 

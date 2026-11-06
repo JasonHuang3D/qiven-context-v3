@@ -1,15 +1,17 @@
-"""The debugger, for the repository's Python: the one place cdb.exe, the
-Windows SDK's, is found, checked against its pin and driven, for the
+"""The debugger, for the repository's Python: the one place cdb.exe is found,
+checked against its pin and driven, for the
 debugger agents drive (tools/debug.py) and the watcher's hang path
 (foundation/devkit/test/runner/watch.py). This directory's README states each member's call on each
 system; Linux's gdb is retired (tools/README.md's Retired section).
 
 find() is the pinned cdb: the line "debugger cdb" of debugger_pins.txt,
-beside this file, the file under the SDK's root (system.sdk_root), its
-SHA-256 and its -version checked; Absent, a NotFound, where there is none,
-and NotFound where one is off its pin or there is no pin line. It runs with
--sins, so that no environment's symbol path or server is read, and -y the
-binary's directory.
+beside this file, the file the environment variable QIVEN_CDB names, else the
+SDK's under its root (system.sdk_root), its SHA-256 and its -version checked;
+Absent, a NotFound, where neither exists, and NotFound where one is off its
+pin, the line naming the variable, where the variable names no file, or where
+there is no pin line: a machine with an SDK and no variable fails, never
+skips. It runs with -sins, so that no environment's symbol path or server is
+read, and -y the binary's directory.
 hang_stacks(pid, binary, dumps) is every thread's stack of a running
 process, by the debugger attached without stopping it, and its dump
 (hang_dump), bounded: at most HANG_THREADS threads and HANG_LINES lines, each
@@ -48,6 +50,8 @@ QUIT_SECONDS = 10  # a session's cdb, asked to quit, ending its case and itself
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
 # workflows set no variable of their own that names CI.
 CI_VARIABLE = "GITHUB_ACTIONS"
+CDB_VARIABLE = "QIVEN_CDB"  # names the pinned cdb.exe, as QIVEN_PYTHON the interpreter
+SDK_CDB = Path("Debuggers", "x64", "cdb.exe")  # an SDK's cdb, under its root
 CDB_VERSION = re.compile(r"\bversion (\d+(?:\.\d+)+)")
 # A thread's header in cdb's ~*kn.
 CDB_THREAD = re.compile(r"^[.#]?\s*\d+\s+Id: [0-9a-f]+\.[0-9a-f]+ ")
@@ -86,33 +90,66 @@ def _pin(kind, name):
     return None
 
 
+def _read(stream, chunks):
+    """Puts what stream gives on the queue chunks, then None at its end."""
+    while True:
+        data = stream.read1(1 << 16)
+        chunks.put(data or None)
+        if not data:
+            return
+
+
 def _version(path, limit, shown):
-    """The text path's -version gives, within limit seconds; else NotFound,
-    the debugger named shown."""
+    """The text path's -version gives up to its version line, within limit
+    seconds, and the process ended there: a cdb can take seconds more to exit
+    after that line. All the text where it ends with no such line; NotFound,
+    the debugger named shown, where no line comes within limit."""
+    deadline = time.monotonic() + limit
     try:
-        done = process.run([path, "-version"], limit=limit)
-    except (OSError, process.TimedOut) as e:
+        ran = process.start([path, "-version"], err=process.MERGE)
+    except OSError as e:
         raise NotFound(f"{shown} -version: {e}") from e
-    return done.out.decode("utf-8", "replace")
+    chunks = queue.Queue()
+    threading.Thread(target=_read, args=(ran.stdout, chunks), daemon=True).start()
+    text = ""
+    try:
+        while not CDB_VERSION.search(text[:text.rfind("\n") + 1]):
+            data = chunks.get(timeout=max(deadline - time.monotonic(), 0.0))
+            if data is None:
+                break
+            text += data.decode("utf-8", "replace")
+    except queue.Empty:
+        raise NotFound(f"{shown} -version: {process.TimedOut([path], limit)}") from None
+    finally:
+        if ran.poll() is None:
+            ran.end_tree()
+    return text
 
 
 def find(limit=VERSION_SECONDS):
     """The pinned cdb's path once its SHA-256 and its -version, run within
-    limit seconds, hold; NotFound (Absent when there is none)."""
+    limit seconds, hold: the file QIVEN_CDB names, else the SDK's. NotFound
+    (Absent when neither exists)."""
     found = _pin("debugger", "cdb")
     if found is None:
         raise NotFound(f"no line 'debugger cdb' in {PINS.name}")
     version, digest, source = found
-    root = system.sdk_root()
-    if root is None:
-        raise Absent("no cdb: no Windows SDK, the registry naming no KitsRoot10")
-    path = root / source.removeprefix("kits/")
-    if not path.is_file():
-        raise Absent(f"no cdb: none in the SDK's {Path(source).parent.as_posix()}")
+    named = os.environ.get(CDB_VARIABLE)
+    if named:
+        path = Path(named)
+        if not path.is_file():
+            raise NotFound(f"{CDB_VARIABLE} names {named}, no file")
+    else:
+        root = system.sdk_root()
+        if root is None:
+            raise Absent(f"no cdb: no {CDB_VARIABLE} and no Windows SDK, the registry naming no KitsRoot10")
+        path = root / SDK_CDB
+        if not path.is_file():
+            raise Absent(f"no cdb: no {CDB_VARIABLE} and none in the SDK's {SDK_CDB.parent.as_posix()}")
     with open(path, "rb") as f:
         got = hashlib.file_digest(f, "sha256").hexdigest()
     if got != digest:
-        raise NotFound(f"{path.name}'s SHA-256 is {got}; the pin {digest}")
+        raise NotFound(f"{path}'s SHA-256 is {got}; the pin {digest}, {source}, named by {CDB_VARIABLE}")
     text = _version(path, limit, path.name)
     if not re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", text):
         raise NotFound(f"{path.name} -version gives {text.strip()[:80]!r}; the pin is {version}")
@@ -132,7 +169,7 @@ def _image_cdb(limit):
         if root is None:
             raise Absent("no cdb: none on PATH, and no Windows SDK: no WindowsSdkDir, the registry naming no "
                          "KitsRoot10")
-        found = root / "Debuggers" / "x64" / "cdb.exe"
+        found = root / SDK_CDB
         if not found.is_file():
             raise Absent(f"no cdb: none on PATH, none at {found.as_posix()}, the SDK's root by {how}")
     path = Path(found)
@@ -223,15 +260,8 @@ class Cdb:
         except OSError as e:
             raise NotFound(f"{Path(exe).name}: {e}") from e
         self.chunks = queue.Queue()
-        threading.Thread(target=self._read, daemon=True).start()
+        threading.Thread(target=_read, args=(self.process.stdout, self.chunks), daemon=True).start()
         self.ended = False
-
-    def _read(self):
-        while True:
-            data = self.process.stdout.read1(1 << 16)
-            self.chunks.put(data or None)
-            if not data:
-                return
 
     def wait(self):
         """The output up to the next prompt, its lines, the prompt and cdb's
