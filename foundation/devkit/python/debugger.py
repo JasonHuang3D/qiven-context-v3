@@ -4,11 +4,12 @@ debugger agents drive (tools/debug.py) and the watcher's hang path
 (foundation/devkit/test/runner/watch.py). This directory's README states each member's call on each
 system; Linux's gdb is retired (tools/README.md's Retired section).
 
-find() is the pinned cdb: tools/windows-pins.txt's line "debugger cdb", the
-file under the SDK's root (system.sdk_root), its SHA-256 and its -version
-checked; Absent, a NotFound, where there is none, and NotFound where one is
-off its pin or there is no pin line. It runs with -sins, so that no
-environment's symbol path or server is read, and -y the binary's directory.
+find() is the pinned cdb: the line "debugger cdb" of debugger_pins.txt,
+beside this file, the file under the SDK's root (system.sdk_root), its
+SHA-256 and its -version checked; Absent, a NotFound, where there is none,
+and NotFound where one is off its pin or there is no pin line. It runs with
+-sins, so that no environment's symbol path or server is read, and -y the
+binary's directory.
 hang_stacks(pid, binary, dumps) is every thread's stack of a running
 process, by the debugger attached without stopping it, and its dump
 (hang_dump), bounded: at most HANG_THREADS threads and HANG_LINES lines, each
@@ -32,9 +33,8 @@ from pathlib import Path
 from foundation.devkit.python import answer
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-from foundation.devkit.python.build_tree import ROOT
 
-PINS = ROOT / "tools" / "windows-pins.txt"
+PINS = Path(__file__).resolve().with_name("debugger_pins.txt")
 FRAMES = 32  # each stack's frames at most
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
@@ -44,6 +44,7 @@ HANG_LINES = 200  # the hang's lines at most, its first line among them
 # runs, inside the 30 s CTest leaves the watcher after a case's limit.
 HANG_SECONDS = 12.0
 VERSION_SECONDS = 30  # the debugger's -version, outside a hang
+QUIT_SECONDS = 10  # a session's cdb, asked to quit, ending its case and itself
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
 # workflows set no variable of their own that names CI.
 CI_VARIABLE = "GITHUB_ACTIONS"
@@ -276,7 +277,7 @@ class Cdb:
             try:
                 self.process.stdin.write(b"q\n")
                 self.process.stdin.flush()
-                self.process.wait(10)
+                self.process.wait(QUIT_SECONDS)
             except (OSError, process.TimedOut):
                 pass
         if self.process.poll() is None:

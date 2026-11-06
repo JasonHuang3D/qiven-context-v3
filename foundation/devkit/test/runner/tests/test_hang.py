@@ -10,8 +10,9 @@ stacks", still killed, 124. The status line names what the watcher wrote:
 the stacks of the threads and the dump, or "no debugger, no stack
 written".
 
-The debugger is cdb.exe, pinned in tools/windows-pins.txt; Linux's, gdb,
-with tools/linux-pins.txt, is retired (tools/README.md's Retired section).
+The debugger is cdb.exe, pinned in foundation/devkit/python/debugger_pins.txt;
+Linux's, gdb, with tools/linux-pins.txt, is retired (tools/README.md's
+Retired section).
 In a CI job on Windows
 (GITHUB_ACTIONS "true") the watcher takes the image's cdb, unpinned, its
 version and path in the status line, or says why it has none and where it

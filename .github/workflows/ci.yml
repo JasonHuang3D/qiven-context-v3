@@ -19,7 +19,7 @@
 # checks a tool's digest or exact version, no preset here pins one, and no
 # step changes a system setting. A failure is a finding, traced against the
 # local pins (build.cmake's QIVEN_PIN_ versions; the Windows toolset in
-# tools/changed.py; the debugger's in tools/windows-pins.txt;
+# tools/changed.py; the debugger's in foundation/devkit/python/debugger_pins.txt;
 # tools/linux-pins.txt is retired, tools/README.md), never fixed by a pin here.
 #
 # Standard GitHub-hosted runners only. Each action is pinned by a full commit

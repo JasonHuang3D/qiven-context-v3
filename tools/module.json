@@ -23,8 +23,7 @@
         "tools/fuzz_seeds.py",
         "tools/loop*",
         "tools/tests/",
-        "tools/trees.json",
-        "tools/windows-pins.txt"
+        "tools/trees.json"
       ]
     }
   ]

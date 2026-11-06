@@ -7,9 +7,10 @@ minidump naming plant_null; its control, a file that is no dump, exit 2.
 And the wrapper's other ends: a fault's, a case's, the time bound's, a bad
 argument's.
 
-The debugger is cdb.exe, pinned in tools/windows-pins.txt, and it needs the
-binary's PDB beside it: a build that keeps none (Release, whose binaries
-the clean-binaries check reads) skips the cases that name a function.
+The debugger is cdb.exe, pinned in foundation/devkit/python/debugger_pins.txt,
+and it needs the binary's PDB beside it: a build that keeps none (Release,
+whose binaries the clean-binaries check reads) skips the cases that name a
+function.
 Linux's, gdb, with tools/debug_gdb.py and tools/linux-pins.txt, is retired
 (tools/README.md's Retired section). Where the debugger is absent, each
 case skips by name, "no cdb", with the runner's 125; one off its pin fails.
