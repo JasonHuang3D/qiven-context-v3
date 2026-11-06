@@ -4,7 +4,8 @@ serial, and its own limit.
 
 Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
 [--trees <tree>...] [--leave-out <name>...]: --trees, the trees it walks, by default
-every one; --leave-out, tests it does not list, each by its id or a package's name.
+every one; --leave-out, tests it does not list, each by its id or a package's name,
+which it still imports: discover loads every module before any is left out.
 Each line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
 test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those

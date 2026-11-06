@@ -36,27 +36,27 @@ from foundation.devkit.python import answer
 from foundation.devkit.python import process
 from foundation.devkit.python import system
 
-PINS = Path(__file__).resolve().with_name("debugger_pins.txt")
+_PINS = Path(__file__).resolve().with_name("debugger_pins.txt")
 FRAMES = 32  # each stack's frames at most
 HANG_THREADS = 16
 HANG_LINES = 200  # the hang's lines at most, its first line among them
-VERSION_SECONDS = 30  # the debugger's -version, outside a hang
-QUIT_SECONDS = 10  # a session's cdb, asked to quit, ending its case and itself
+_VERSION_SECONDS = 30  # the debugger's -version, outside a hang
+_QUIT_SECONDS = 10  # a session's cdb, asked to quit, ending its case and itself
 # A CI job: GitHub Actions sets GITHUB_ACTIONS to "true" in every step; the
 # workflows set no variable of their own that names CI.
 CI_VARIABLE = "GITHUB_ACTIONS"
-CDB_VARIABLE = "QIVEN_CDB"  # names the pinned cdb.exe, as QIVEN_PYTHON the interpreter
-SDK_CDB = Path("Debuggers", "x64", "cdb.exe")  # an SDK's cdb, under its root
-CDB_VERSION = re.compile(r"\bversion (\d+(?:\.\d+)+)")
+_CDB_VARIABLE = "QIVEN_CDB"  # names the pinned cdb.exe, as QIVEN_PYTHON the interpreter
+_SDK_CDB = Path("Debuggers", "x64", "cdb.exe")  # an SDK's cdb, under its root
+_CDB_VERSION = re.compile(r"\bversion (\d+(?:\.\d+)+)")
 # A thread's header in cdb's ~*kn.
 CDB_THREAD = re.compile(r"^[.#]?\s*\d+\s+Id: [0-9a-f]+\.[0-9a-f]+ ")
 # cdb's lines that say nothing of the case.
-NOISE = re.compile("|".join((
+_NOISE = re.compile("|".join((
     r"^ModLoad: ", r"^\([0-9a-f]+\.[0-9a-f]+\): .* chance", r"^Breakpoint \d+ hit$",
     r"^\*\*\* WARNING: Unable to verify checksum", r"^NatVis script ", r"^quit:$")))
-PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
-QUIET = 0.05  # seconds of no output after a prompt before it is taken as one
-EVENT = re.compile(r"^Last event: [0-9a-f]+\.[0-9a-f]+: (?P<event>.*)$", re.M)
+_PROMPT = re.compile(r"(?:^|\n)\d+:\d+(?::x86)?> $")
+_QUIET = 0.05  # seconds of no output after a prompt before it is taken as one
+_EVENT = re.compile(r"^Last event: [0-9a-f]+\.[0-9a-f]+: (?P<event>.*)$", re.M)
 
 
 class NotFound(Exception):
@@ -75,7 +75,7 @@ class TimedOut(Exception):
 def _pin(kind, name):
     """(version, digest, source) of the pin file's line KIND NAME, or None."""
     try:
-        text = PINS.read_text(encoding="utf-8")
+        text = _PINS.read_text(encoding="utf-8")
     except OSError:
         return None
     for line in text.splitlines():
@@ -108,7 +108,7 @@ def _version(path, limit, shown):
     threading.Thread(target=_read, args=(ran.stdout, chunks), daemon=True).start()
     text = ""
     try:
-        while not CDB_VERSION.search(text[:text.rfind("\n") + 1]):
+        while not _CDB_VERSION.search(text[:text.rfind("\n") + 1]):
             data = chunks.get(timeout=max(deadline - time.monotonic(), 0.0))
             if data is None:
                 break
@@ -121,30 +121,30 @@ def _version(path, limit, shown):
     return text
 
 
-def find(limit=VERSION_SECONDS):
+def find(limit=_VERSION_SECONDS):
     """The pinned cdb's path once its SHA-256 and its -version, run within
     limit seconds, hold: the file QIVEN_CDB names, else the SDK's. NotFound
     (Absent when neither exists)."""
     found = _pin("debugger", "cdb")
     if found is None:
-        raise NotFound(f"no line 'debugger cdb' in {PINS.name}")
+        raise NotFound(f"no line 'debugger cdb' in {_PINS.name}")
     version, digest, source = found
-    named = os.environ.get(CDB_VARIABLE)
+    named = os.environ.get(_CDB_VARIABLE)
     if named:
         path = Path(named)
         if not path.is_file():
-            raise NotFound(f"{CDB_VARIABLE} names {named}, no file")
+            raise NotFound(f"{_CDB_VARIABLE} names {named}, no file")
     else:
         root = system.sdk_root()
         if root is None:
-            raise Absent(f"no cdb: no {CDB_VARIABLE} and no Windows SDK, the registry naming no KitsRoot10")
-        path = root / SDK_CDB
+            raise Absent(f"no cdb: no {_CDB_VARIABLE} and no Windows SDK, the registry naming no KitsRoot10")
+        path = root / _SDK_CDB
         if not path.is_file():
-            raise Absent(f"no cdb: no {CDB_VARIABLE} and none in the SDK's {SDK_CDB.parent.as_posix()}")
+            raise Absent(f"no cdb: no {_CDB_VARIABLE} and none in the SDK's {_SDK_CDB.parent.as_posix()}")
     with open(path, "rb") as f:
         got = hashlib.file_digest(f, "sha256").hexdigest()
     if got != digest:
-        raise NotFound(f"{path}'s SHA-256 is {got}; the pin {digest}, {source}, named by {CDB_VARIABLE}")
+        raise NotFound(f"{path}'s SHA-256 is {got}; the pin {digest}, {source}, named by {_CDB_VARIABLE}")
     text = _version(path, limit, path.name)
     if not re.search(rf"(?<![\w.]){re.escape(version)}(?![\w.])", text):
         raise NotFound(f"{path.name} -version gives {text.strip()[:80]!r}; the pin is {version}")
@@ -164,18 +164,18 @@ def _image_cdb(limit):
         if root is None:
             raise Absent("no cdb: none on PATH, and no Windows SDK: no WindowsSdkDir, the registry naming no "
                          "KitsRoot10")
-        found = root / SDK_CDB
+        found = root / _SDK_CDB
         if not found.is_file():
             raise Absent(f"no cdb: none on PATH, none at {found.as_posix()}, the SDK's root by {how}")
     path = Path(found)
     text = _version(path, limit, path.as_posix())
-    version = CDB_VERSION.search(text)
+    version = _CDB_VERSION.search(text)
     if version is None:
         raise NotFound(f"{path.as_posix()} -version gives no version: {text.strip()[:80]!r}")
     return path, version.group(1)
 
 
-def hang_debugger(limit=VERSION_SECONDS):
+def hang_debugger(limit=_VERSION_SECONDS):
     """The hang's debugger: (path, how), how None for the pinned one
     (find()); in a CI job the image's cdb, how naming its version and path.
     Its -version runs within limit seconds."""
@@ -199,7 +199,7 @@ def hang_lines(text):
     lines = lines[start:]
     threads, kept, dropped = 0, [], False
     for line in lines:
-        if not line.strip() or NOISE.match(line):
+        if not line.strip() or _NOISE.match(line):
             continue
         if CDB_THREAD.match(line):
             threads += 1
@@ -260,17 +260,17 @@ class Cdb:
             if left <= 0:
                 raise TimedOut()
             try:
-                data = self.chunks.get(timeout=min(left, QUIET if PROMPT.search(text) else 0.5))
+                data = self.chunks.get(timeout=min(left, _QUIET if _PROMPT.search(text) else 0.5))
             except queue.Empty:
-                if PROMPT.search(text):
+                if _PROMPT.search(text):
                     break
                 continue
             if data is None:
                 self.ended = True
                 break
             text += data.decode("utf-8", "replace").replace("\r\n", "\n")
-        text = PROMPT.sub("", text)
-        return [line for line in text.split("\n") if line.strip() and not NOISE.match(line)]
+        text = _PROMPT.sub("", text)
+        return [line for line in text.split("\n") if line.strip() and not _NOISE.match(line)]
 
     def send(self, command):
         """The command's output lines; none once cdb has ended."""
@@ -286,7 +286,7 @@ class Cdb:
 
     def event(self):
         """The last event's text, as .lastevent gives it."""
-        found = EVENT.search("\n".join(self.send(".lastevent")))
+        found = _EVENT.search("\n".join(self.send(".lastevent")))
         return found["event"].strip() if found else ""
 
     def close(self, kill=False):
@@ -295,7 +295,7 @@ class Cdb:
             try:
                 self.process.stdin.write(b"q\n")
                 self.process.stdin.flush()
-                self.process.wait(QUIT_SECONDS)
+                self.process.wait(_QUIT_SECONDS)
             except (OSError, process.TimedOut):
                 pass
         if self.process.poll() is None:

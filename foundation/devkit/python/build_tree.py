@@ -23,8 +23,8 @@ from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 
 ROOT = Path(__file__).resolve().parents[3]
-CACHE = "CMakeCache.txt"
-CTEST = "QIVEN_CTEST"  # the ctest that runs a test, set by the runner's ctest_tests.cmake
+_CACHE = "CMakeCache.txt"
+_CTEST = "QIVEN_CTEST"  # the ctest that runs a test, set by the runner's ctest_tests.cmake
 
 # A test of ctest's listing: its command line, a list of strings, empty where
 # ctest gives none; its properties, {name: value}, as ctest's JSON holds them.
@@ -41,7 +41,7 @@ def options(build):
     A cache that cannot be read raises the system's OSError, and one that is
     no UTF-8 UnicodeDecodeError."""
     try:
-        text = (Path(build) / CACHE).read_text(encoding="utf-8")
+        text = (Path(build) / _CACHE).read_text(encoding="utf-8")
     except FileNotFoundError:
         return None
     found = {}
@@ -59,7 +59,7 @@ def ctest(path=None):
     QIVEN_CTEST names, else the one on PATH; None where none is."""
     if path is not None:
         return process.find("ctest", path=path)
-    return os.environ.get(CTEST) or process.find("ctest")
+    return os.environ.get(_CTEST) or process.find("ctest")
 
 
 def cmake(path=None):
@@ -68,7 +68,7 @@ def cmake(path=None):
     is."""
     if path is not None:
         return process.find("cmake", path=path)
-    beside = os.environ.get(CTEST)
+    beside = os.environ.get(_CTEST)
     return (process.find("cmake", path=os.path.dirname(beside)) if beside else None) or process.find("cmake")
 
 
@@ -80,7 +80,7 @@ def tests(build, args=(), tool=None, env=None):
     process's limit, it fails, or its answer is no listing."""
     tool = tool or ctest()
     if not tool:
-        raise ListingFailed(f"no ctest: none named by {CTEST} or on PATH")
+        raise ListingFailed(f"no ctest: none named by {_CTEST} or on PATH")
     shown = f"ctest --show-only of {build}"
     try:
         done = process.run([tool, "--test-dir", str(build), "--show-only=json-v1", *args], env=env)

@@ -9,7 +9,7 @@ system status such as 0xC0000005 printed in hexadecimal; on Linux a
 negative value for a death by a signal, printed as "signal <number>" and
 named by the signal. Any other status is its number with "unnamed".
 
-A ctest step's status is ctest's own, named by CTEST in one line, "ctest's
+A ctest step's status is ctest's own, named by _CTEST in one line, "ctest's
 status: <value> (<name>): <meaning>", its name in parentheses so that it
 reads as a status, not a count of tests: ctest exits 8 when a test failed
 or timed out, or none ran under --no-tests=error, and 1 when it could not
@@ -24,7 +24,7 @@ Run as a script, it names each status its arguments give, in decimal or
 import sys
 
 # value: (name, meaning).
-TABLE = {
+_TABLE = {
     0: ("passed", ""),
     1: ("failed", "a case failed, or a main returned its error status"),
     3: ("abort", "Windows: the C runtime's abort"),
@@ -47,12 +47,12 @@ TABLE = {
     0xE06D7363: ("the C++ exception", "a C++ exception unhandled, with no handler of the entry's"),
 }
 # Linux's signals on x86-64, by number, named on every system.
-SIGNALS = {11: "SIGSEGV", 7: "SIGBUS", 8: "SIGFPE", 4: "SIGILL", 6: "SIGABRT", 5: "SIGTRAP", 9: "SIGKILL",
+_SIGNALS = {11: "SIGSEGV", 7: "SIGBUS", 8: "SIGFPE", 4: "SIGILL", 6: "SIGABRT", 5: "SIGTRAP", 9: "SIGKILL",
            15: "SIGTERM", 13: "SIGPIPE"}
-SIGNAL_MEANING = "Linux: a death by that signal, read from the wait status"
+_SIGNAL_MEANING = "Linux: a death by that signal, read from the wait status"
 UNNAMED = "unnamed"
 # ctest's exit statuses, as ctest 4.4.3 gives them: value: (name, meaning).
-CTEST = {
+_CTEST = {
     1: ("error", "ctest could not run: an argument, a preset or a test directory it cannot take"),
     8: ("tests failed", "a test failed or timed out, or none ran under --no-tests=error"),
 }
@@ -70,9 +70,9 @@ def value_text(status):
 def named(status):
     """(name, meaning) of the table, or None for a status off it."""
     if status < 0:
-        name = SIGNALS.get(-status)
-        return None if name is None else (name, SIGNAL_MEANING)
-    return TABLE.get(status)
+        name = _SIGNALS.get(-status)
+        return None if name is None else (name, _SIGNAL_MEANING)
+    return _TABLE.get(status)
 
 
 def line(status):
@@ -87,25 +87,25 @@ def line(status):
 
 def ctest_line(status):
     """A ctest step's status in one line: "ctest's status: <value> (<name>):
-    <meaning>" by CTEST, "ctest's status: <value> unnamed" off it; a death
+    <meaning>" by _CTEST, "ctest's status: <value> unnamed" off it; a death
     by a signal or a system status by line, as the process's."""
     if status < 0 or status > 0xFFFF:
         return line(status)
-    name, meaning = CTEST.get(status, (UNNAMED, ""))
+    name, meaning = _CTEST.get(status, (UNNAMED, ""))
     return f"ctest's status: {status} " + (f"({name}): {meaning}" if meaning else name)
 
 
-def parse(text):
+def _parse(text):
     """A status from its decimal or 0x hexadecimal text."""
     return int(text, 16) if text.lower().startswith("0x") else int(text)
 
 
-def main(argv):
+def _main(argv):
     if not argv:
         print("usage: status.py STATUS...", file=sys.stderr)
         return 2
     try:
-        statuses = [parse(a) for a in argv]
+        statuses = [_parse(a) for a in argv]
     except ValueError as e:
         print(f"status.py: {e}", file=sys.stderr)
         return 2
@@ -115,4 +115,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(_main(sys.argv[1:]))

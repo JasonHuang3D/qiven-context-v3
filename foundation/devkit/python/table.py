@@ -9,7 +9,7 @@ CMakeLists.txt reads.
 - owners(table, files): each file's modules. holds(pattern, path): whether a table's path holds a file.
 
 The table is {"modules": [rows], "homes": {row: its table file}, "exceptions": [...], "files": {table file: its
-data}, "trees": its Trees}. A row's keys are ROW. A table file that does not parse, lacks or adds a key for its
+data}, "trees": its Trees}. A row's keys are _ROW. A table file that does not parse, lacks or adds a key for its
 status, or gives a field of a wrong type is an error, and gives no row; so are two table files or two rows of one
 name, a row not in the table file of its name, and a from or an of naming no row. Its rows: each built file's
 present rows, its own README.md and module.json (the root's module.json alone) added to its first row, or to the
@@ -23,15 +23,15 @@ import json
 from collections import namedtuple
 from pathlib import Path
 
-TREES_FILE = "tools/trees.json"
-KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
+_TREES_FILE = "tools/trees.json"
+_KEYS = {  # a table file's keys by its status; a built one with no present rows has from, a slot may have of
     "built": ("name", "layer", "status", "platforms", "contract", "adopted", "parameters", "present"),
     "slot": ("name", "layer", "status", "kind", "may_depend", "platforms", "adopted", "parameters"),
     "group": ("name", "layer", "status", "adopted"),
 }
-ROW = ("name", "layer", "depends", "test_depends", "paths")  # a present row's keys
-PARAMETER = ("name", "default", "built")  # a parameter's keys
-EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
+_ROW = ("name", "layer", "depends", "test_depends", "paths")  # a present row's keys
+_PARAMETER = ("name", "default", "built")  # a parameter's keys
+_EXCEPTION = ("from", "to", "until")  # an exception's keys: its row, the edges' targets, what removes it
 
 
 class Trees(namedtuple("Trees", ("layers", "walked", "analysed", "included", "tests", "support", "child", "vendored",
@@ -76,12 +76,12 @@ class Trees(namedtuple("Trees", ("layers", "walked", "analysed", "included", "te
 def trees(root):
     """root's trees.json, a Trees. The system's OSError where it cannot be read; ValueError where it does not parse
     or lacks or adds a field."""
-    text = (Path(root) / TREES_FILE).read_text(encoding="utf-8")
+    text = (Path(root) / _TREES_FILE).read_text(encoding="utf-8")
     try:
         return Trees(**{key: tuple(value) if isinstance(value, list) else value
                         for key, value in json.loads(text).items()})
     except (ValueError, TypeError, AttributeError) as error:
-        raise ValueError(f"table: {TREES_FILE}: {error}") from error
+        raise ValueError(f"table: {_TREES_FILE}: {error}") from error
 
 
 def _strings(value):
@@ -101,23 +101,23 @@ def _wrong_shape(data):
     if not isinstance(data.get("contract"), (str, type(None))):
         out.append(f"contract {data['contract']!r} is not a string or null")
     if "parameters" in data and not (isinstance(data["parameters"], list) and all(
-            isinstance(p, dict) and set(p) == set(PARAMETER) and isinstance(p["name"], str)
+            isinstance(p, dict) and set(p) == set(_PARAMETER) and isinstance(p["name"], str)
             and isinstance(p["built"], bool) for p in data["parameters"])):
-        out.append(f"parameters are not a list of objects of keys {', '.join(PARAMETER)}, its name a string, "
+        out.append(f"parameters are not a list of objects of keys {', '.join(_PARAMETER)}, its name a string, "
                    "built true or false")
     if "exceptions" in data and not (isinstance(data["exceptions"], list) and all(
-            isinstance(e, dict) and set(e) == set(EXCEPTION) and isinstance(e["from"], str) and _strings(e["to"])
+            isinstance(e, dict) and set(e) == set(_EXCEPTION) and isinstance(e["from"], str) and _strings(e["to"])
             and e["to"] and isinstance(e["until"], str) and e["until"].strip() for e in data["exceptions"])):
-        out.append(f"exceptions are not a list of objects of keys {', '.join(EXCEPTION)}, from a string, to a "
+        out.append(f"exceptions are not a list of objects of keys {', '.join(_EXCEPTION)}, from a string, to a "
                    "list of strings, until words, neither empty")
     if not isinstance(data.get("present", []), list):
         out.append(f"present {data['present']!r} is not a list")
-    elif any(not isinstance(row, dict) or set(row) != set(ROW) for row in data.get("present", [])):
-        out.append(f"a present row lacks or adds a key of {', '.join(ROW)}")
+    elif any(not isinstance(row, dict) or set(row) != set(_ROW) for row in data.get("present", [])):
+        out.append(f"a present row lacks or adds a key of {', '.join(_ROW)}")
     else:
         out += [f"present row {i}: {key} {row[key]!r} is not " + ("a string" if key in ("name", "layer") else
                                                                   "a list of strings")
-                for i, row in enumerate(data.get("present", [])) for key in ROW
+                for i, row in enumerate(data.get("present", [])) for key in _ROW
                 if not (isinstance(row[key], str) if key in ("name", "layer") else _strings(row[key]))]
     return out
 
@@ -139,11 +139,11 @@ def _read(texts, given):
             errors.append(f"table file {path}: does not parse: {error}")
             continue
         status = data.get("status") if isinstance(data, dict) else None
-        if not isinstance(status, str) or status not in KEYS:
-            errors.append(f"table file {path}: " + (f"status {status} is none of {', '.join(KEYS)}"
+        if not isinstance(status, str) or status not in _KEYS:
+            errors.append(f"table file {path}: " + (f"status {status} is none of {', '.join(_KEYS)}"
                                                     if isinstance(data, dict) else "is not a JSON object"))
             continue
-        want = set(KEYS[status]) | ({"from"} if status == "built" and data.get("present") == [] else set())
+        want = set(_KEYS[status]) | ({"from"} if status == "built" and data.get("present") == [] else set())
         lacks, adds = want - set(data), set(data) - want - {"slot": {"of"}, "built": {"exceptions"}}.get(status, set())
         if lacks or adds:
             errors.append(f"table file {path}: " + "; ".join(

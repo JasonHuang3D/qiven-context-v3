@@ -16,8 +16,8 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 
-LIMIT = 300  # seconds a run of git takes
-SAID = 500  # characters kept of the end of what git said on a failure
+_LIMIT = 300  # seconds a run of git takes
+_SAID = 500  # characters kept of the end of what git said on a failure
 
 
 class GitFailed(Exception):
@@ -105,12 +105,12 @@ def _run(argv, cwd=None, env=None, data=None):
     if program is None:
         raise GitFailed("git: none on PATH")
     try:
-        done = process.run([program, *argv], data=data, env=env, cwd=cwd, limit=LIMIT)
+        done = process.run([program, *argv], data=data, env=env, cwd=cwd, limit=_LIMIT)
     except (OSError, process.TimedOut) as error:
         raise GitFailed(f"{_named(argv)}: {error}") from error
     if done.status != 0:
         said = " ".join(done.err.decode("utf-8", "replace").split())
-        raise GitFailed(f"{_named(argv)}: {done.named}: {said[-SAID:]}")
+        raise GitFailed(f"{_named(argv)}: {done.named}: {said[-_SAID:]}")
     return done.out
 
 

@@ -26,7 +26,7 @@ PIPE = subprocess.PIPE
 MERGE = subprocess.STDOUT
 INHERIT = None
 LIMIT = 120  # seconds a run takes unless the caller says
-ENDING_SECONDS = 10  # seconds a program ended by force takes to end and its pipes to close
+_ENDING_SECONDS = 10  # seconds a program ended by force takes to end and its pipes to close
 
 
 class Ran(namedtuple("Ran", ("status", "out", "err"))):
@@ -75,10 +75,10 @@ class Process:
 
     def end_tree(self):
         """Ends it and every process it started, by force: its status, or None
-        where it has not ended ENDING_SECONDS later."""
+        where it has not ended _ENDING_SECONDS later."""
         _end_tree(self._child)
         try:
-            return self._child.wait(timeout=ENDING_SECONDS)
+            return self._child.wait(timeout=_ENDING_SECONDS)
         except subprocess.TimeoutExpired:
             return None
 
@@ -100,7 +100,7 @@ def run(argv, *, data=None, env=None, cwd=None, limit=LIMIT, out=PIPE, err=PIPE,
     except subprocess.TimeoutExpired:
         _end_tree(child)
         try:
-            written = child.communicate(timeout=ENDING_SECONDS)
+            written = child.communicate(timeout=_ENDING_SECONDS)
         except subprocess.TimeoutExpired:
             written = (None, None)  # a process the tree no longer reaches holds the pipe
         raise TimedOut(argv, limit, *_output(written, text)) from None

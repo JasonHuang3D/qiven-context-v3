@@ -47,7 +47,6 @@ from foundation.devkit.test.runner.binaries import AFTER, POLL, run_watched, san
 WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"
 LIMIT = 3
-HANG_LINES = 200
 HANG = re.compile(r"^hang: past its limit of 3 s, (?P<threads>\d+) threads$")
 THREAD = debugger.CDB_THREAD
 # A frame of plant_hang: its own, or its lambda's, which its name qualifies.
@@ -138,7 +137,7 @@ class HangStacks(unittest.TestCase):
         at = next((i for i, line in enumerate(err) if HANG.match(line)), None)
         self.assertIsNotNone(at, text)
         hang = err[at:-1]
-        self.assertLessEqual(len(hang), HANG_LINES, text)
+        self.assertLessEqual(len(hang), debugger.HANG_LINES, text)
         self.assertTrue(all(len(line) <= LINE_POINTS for line in hang), text)
         stacks = sections(hang[1:])
         threads = int(HANG.match(hang[0])["threads"])
@@ -257,7 +256,7 @@ class Hang(unittest.TestCase):
         self.assertEqual(len(sections(lines)), debugger.HANG_THREADS)
         self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
         threads, lines = debugger.hang_lines(text.replace("#0 frame\n", "#0 frame\n" * 20))
-        self.assertEqual(len(lines), HANG_LINES - 1)
+        self.assertEqual(len(lines), debugger.HANG_LINES - 1)
         self.assertTrue(lines[-1].startswith(answer.CUT), lines[-1])
         self.assertEqual(answer.clip("x" * 400), "x" * (LINE_POINTS - 5) + answer.CUT)
 

@@ -68,7 +68,8 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 - Name the debugger by the environment variable `QIVEN_CDB`, a `cdb.exe` of
   the version and SHA-256 that `foundation/devkit/python/debugger_pins.txt`
   pins. Without it the Windows SDK's is read, which is off the pin, so that
-  the debugger's cases fail, naming the variable, and never skip.
+  the debugger's cases fail, naming the variable; with neither the variable
+  nor an SDK's cdb, they skip, "no cdb".
 
 ## What this repository never holds
 

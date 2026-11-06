@@ -72,9 +72,10 @@ from foundation.devkit.test.runner.dumps import bound as dumps_bound, hang_dump
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
 # The hang's debugger, found and run, within 12 s together: past them, the
-# case's ending (taskkill, then process.ENDING_SECONDS where an orphan holds
-# cdb's pipe) and READER_WAIT make 27 s and taskkill's runs, inside the 30 s
-# CTest leaves the watcher after a case's limit (ctest_tests.cmake's AFTER_LIMIT).
+# case's ending (taskkill, then process's 10 s after a forced end, where an
+# orphan holds cdb's pipe) and READER_WAIT make 27 s and taskkill's runs,
+# inside the 30 s CTest leaves the watcher after a case's limit
+# (ctest_tests.cmake's AFTER_LIMIT).
 HANG_SECONDS = 12.0
 
 
