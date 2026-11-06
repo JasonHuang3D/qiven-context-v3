@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.2: the number of this file's change list, below, and of nothing else
+Version 0.3: the number of this file's change list, below, and of nothing else
 
 - **Holds:** the runner's tool half, meeting its C++ kit (`runner`) by process alone: `cases.cmake`, a case binary (`qiven_add_cases`) and the listing step (`qiven_list_tests`); `wiring.cmake`, the foundation's test directories and their end; `ctest_tests.cmake` and `list_tests.py`, each test listed behind the watcher; the watcher, `watch.py`; the dumps' bound, `dumps.py`; `binaries.py`, the build's binaries and options and a watched run
 - **Never holds:** C++; a case's registration or checks (`runner`); a binary's main (`case_main`); a fault run (`faults`)
