@@ -6,7 +6,6 @@ checked against the trees and, for test code, Python's reader."""
 
 import os
 import re
-import runpy
 import shutil
 import sys
 import tempfile
@@ -17,12 +16,12 @@ from foundation.devkit.python import process
 from foundation.devkit.python import table
 from foundation.devkit.python.build_tree import ROOT, cmake
 from foundation.devkit.structure import layers
+from foundation.devkit.test.runner import list_tests
 
 TREES = table.trees(ROOT)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"
 TEST_TIDY = "foundation/devkit/build/analysis-test.clang-tidy"
-LISTING = runpy.run_path(str(ROOT / "foundation" / "devkit" / "test" / "runner" / "list_tests.py"))
 HOMES = {home.rpartition("/")[0] for home in table.tree(ROOT)[0]["homes"].values()}
 
 
@@ -301,16 +300,16 @@ class TreesBuild(unittest.TestCase):
                          "foundation/core/m/tests/__pycache__/__init__.py", "kits/k/x/__init__.py"):
                 (root / init).parent.mkdir(parents=True, exist_ok=True)
                 (root / init).write_text("", encoding="utf-8")
-            found = LISTING["packages"](root, ("tests", "tools", "foundation", "kits"))
+            found = list_tests.packages(root, ("tests", "tools", "foundation", "kits"))
             self.assertEqual([p.relative_to(root).as_posix() for p in found],
                              ["foundation/core/m/tests", "kits/k/x", "tests"])
-            self.assertEqual(LISTING["unpackaged"](root, ("tests", "foundation", "kits")), [])
+            self.assertEqual(list_tests.unpackaged(root, ("tests", "foundation", "kits")), [])
             for test in ("kits/k/tests/test_p.py", "tests/drive/test_q.py", "tests/plain/test_r.py"):
                 (root / test).parent.mkdir(parents=True, exist_ok=True)
                 (root / test).write_text("", encoding="utf-8")
-            self.assertEqual([p.relative_to(root).as_posix() for p in LISTING["unpackaged"](root, ("tests", "kits"))],
+            self.assertEqual([p.relative_to(root).as_posix() for p in list_tests.unpackaged(root, ("tests", "kits"))],
                              ["kits/k/tests", "tests/plain"])
-        rows, errors = LISTING["listed"](ROOT)
+        rows, errors = list_tests.listed(ROOT)
         self.assertEqual(errors, [])
         self.assertTrue(all(row[0].split(".", 1)[0] in TREES.every for row in rows))
 
@@ -394,7 +393,7 @@ class TreesBuild(unittest.TestCase):
                  "foundation/core/memory/tests/test_x.py": "tests",
                  "foundation/core/memory/tests/structure/test_x.py": "structure"}
         files = [p.relative_to(ROOT).as_posix() for tree in TREES.every for p in (ROOT / tree).rglob("test_*.py")]
-        got = {path: LISTING["package"](path, TREES, HOMES) for path in [*files, *paths]}
+        got = {path: list_tests.package(path, TREES, HOMES) for path in [*files, *paths]}
         self.assertEqual({path: got[path] for path in paths}, paths)
         self.assertEqual([p for p, kind in got.items() if kind is None and TREES.test_path(p, HOMES)],
                          ["tests/test_x.py"])

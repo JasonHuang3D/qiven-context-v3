@@ -18,8 +18,13 @@ fault the drives run, it runs the case and names how it ended.
   foundation/devkit/python/status.py's table, "status: <value> <name>:
   <meaning>". On a library missing at
   load (system.py's missing_library_status) no code of the binary ran, so it names, by
-  foundation/devkit/structure/imports.py's reader, each library the binary imports
+  foundation/devkit/python/imports.py's reader, each library the binary imports
   found nowhere the loader looks: "...; not found: <library>, ...".
+- Each line of its own that carries a name, a path or an error's words
+  (the status lines, the hang's reason, the case's failed start) is held
+  within foundation/devkit/python/answer.py's LINE_POINTS by its clip, the
+  cut named; the hang's first line is within it by its form, and its
+  stacks are bounded by debugger.py.
 - It exits with the case's status, a signal on Linux as 128 plus its
   number.
 - Past its limit, the hang: by foundation/devkit/python/debugger.py's debugger, attached
@@ -41,27 +46,27 @@ fault the drives run, it runs the case and names how it ended.
   none the case wrote; a line before the status line names each removed.
 
 Run by the pinned interpreter under -I, which keeps this directory off
-sys.path: it appends the root once and imports the status table, the
-system's module, the process's, the debugger's, the build tree's root and
-the dumps' bound; the imports' reader is run from its file.
+sys.path: it appends the root once and imports the answer's bound, the
+status table, the system's module, the process's, the debugger's, the
+imports' reader and the dumps' bound, each at its start, in front of every
+case.
 """
 
 import argparse
 import os
 import re
-import runpy
 import sys
 import threading
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[4]))  # under -I the checkout is off sys.path; appended, so that the standard library still wins
+from foundation.devkit.python import answer
 from foundation.devkit.python import debugger
+from foundation.devkit.python import imports
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.test.runner.dumps import bound as dumps_bound
-IMPORTS = runpy.run_path(str(ROOT / "foundation" / "devkit" / "structure" / "imports.py"))
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
 
@@ -98,8 +103,8 @@ def missing(command):
         return None
     binary = Path(found).resolve()
     try:
-        names = IMPORTS["read_file"](binary).names
-    except (OSError, IMPORTS["Unreadable"]):
+        names = imports.read_file(binary).names
+    except (OSError, imports.Unreadable):
         return None
     dirs = system.loader_dirs(binary)
     out = []
@@ -142,7 +147,7 @@ def hang(case, command, env, limit):
     try:
         threads, lines, how = debugger.hang_stacks(case.pid, binary, dumps)
     except debugger.NotFound as e:
-        return ["hang: no debugger, no stacks", f"hang: {e}"], f"no debugger, no stack written: {e}"
+        return ["hang: no debugger, no stacks", answer.clip(f"hang: {e}")], f"no debugger, no stack written: {e}"
     stacks = debugger.stacks_of(lines)
     dump = debugger.hang_dump(case.pid, binary, dumps)
     written = f"{stacks} of {threads} threads' stacks written" if stacks else "no stack written"
@@ -180,7 +185,7 @@ def main(argv=None):
         env = environment(args.name)
         case = process.start(args.command, env=env, out=process.INHERIT)
     except OSError as e:
-        print(f"watch.py: {args.name}: the case cannot start: {e}", file=sys.stderr, flush=True)
+        print(answer.clip(f"watch.py: {args.name}: the case cannot start: {e}"), file=sys.stderr, flush=True)
         return 2
     reader = threading.Thread(target=relay, args=(case.stderr, sys.stderr.buffer), daemon=True)
     reader.start()
@@ -192,11 +197,12 @@ def main(argv=None):
         case.end_tree()
         reader.join(READER_WAIT)
         bound(case)
-        print(f"{status_table.line(HANG)}; {written}; {args.name} past {args.limit:g} s", file=sys.stderr, flush=True)
+        print(answer.clip(f"{status_table.line(HANG)}; {written}; {args.name} past {args.limit:g} s"),
+              file=sys.stderr, flush=True)
         return HANG
     reader.join(READER_WAIT)
     bound(case)
-    print(status_line(status, args.command), file=sys.stderr, flush=True)
+    print(answer.clip(status_line(status, args.command)), file=sys.stderr, flush=True)
     return exit_code(status)
 
 

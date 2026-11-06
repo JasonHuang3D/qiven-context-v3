@@ -28,7 +28,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Headers, not named modules: no module dependency scan.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # The C runtime linked statically, so that a binary imports the system's
-# libraries alone (foundation/devkit/structure/imports.py); libFuzzer needs the DLL.
+# libraries alone (K11, foundation/devkit/structure/tests/test_binaries.py); libFuzzer needs the DLL.
 if(QIVEN_SANITIZE MATCHES "fuzzer")
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 else()

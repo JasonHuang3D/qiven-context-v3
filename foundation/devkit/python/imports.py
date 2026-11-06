@@ -1,33 +1,23 @@
-"""K11's reader: the libraries a binary imports, read from its bytes by the
-standard library alone, no tool; and the lists they must be on.
+"""The libraries a binary imports, read from its bytes by the standard
+library alone, no tool.
 
 - PE (Windows): the import directory and the delay-load directory, the
   optional header's data directories 1 and 13, each name read through the
   section holding its address.
+- Unreadable: the bytes are no PE image this reader reads.
+- Imports: the names, each imported library in the file's order.
+- read(data), read_file(path): the Imports of an image's bytes, of a file's.
 
 Its ELF and glibc parts are retired (tools/README.md's Retired section).
-foundation/devkit/structure/tests/test_binaries.py holds every binary of a build to its
-system's list or its preset's residual; the watcher
-(foundation/devkit/test/runner/watch.py) names, on a failed
-load, each import found nowhere. Run as a script it prints a binary's
-imports, one a line.
+Its consumers: the watcher (foundation/devkit/test/runner/watch.py), which
+names, on a failed load, each import found nowhere, and K11
+(foundation/devkit/structure/tests/test_binaries.py), which holds every
+binary of a build to its system's list or its preset's residual.
 """
 
-import re
 import struct
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-
-# The system's libraries a binary may import, case aside.
-WINDOWS_SYSTEM = frozenset(("kernel32.dll", "ntdll.dll", "advapi32.dll", "shell32.dll", "ole32.dll",
-                            "bcrypt.dll", "dbghelp.dll"))
-# Windows' API sets, Windows' own: contract names the loader maps to the
-# system's libraries, by their whole form, a bare name and no path.
-API_SET = re.compile(r"(?:api|ext)-ms-win(?:-[a-z0-9]+)+-l[0-9]+-[0-9]+-[0-9]+\.dll", re.ASCII)
-# Each preset's residual beyond the list, by its sanitizers.
-ASAN_DLL = "clang_rt.asan_dynamic-x86_64.dll"
-FUZZ_DLLS = frozenset(("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "ucrtbase.dll", ASAN_DLL))
 
 
 class Unreadable(Exception):
@@ -123,33 +113,3 @@ def read(data):
 
 def read_file(path):
     return read(Path(path).read_bytes())
-
-
-def outside(imports, sanitize):
-    """Each import on neither the system's list nor the preset's residual,
-    given the build's QIVEN_SANITIZE; an API set, Windows' own, passes in
-    every preset."""
-    allowed = set(WINDOWS_SYSTEM)
-    if "fuzzer" in sanitize:
-        allowed |= FUZZ_DLLS
-    elif "address" in sanitize:
-        allowed.add(ASAN_DLL)
-    return [n for n in imports.names if n.lower() not in allowed and not API_SET.fullmatch(n.lower())]
-
-
-def main(argv):
-    if len(argv) != 1:
-        print("usage: imports.py BINARY", file=sys.stderr)
-        return 2
-    try:
-        found = read_file(argv[0])
-    except (OSError, Unreadable) as e:
-        print(f"imports.py: {argv[0]}: {e}", file=sys.stderr)
-        return 1
-    for name in found.names:
-        print(name)
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
