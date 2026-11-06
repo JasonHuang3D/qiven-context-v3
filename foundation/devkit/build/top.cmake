@@ -41,13 +41,15 @@ function(qiven_top_end)
   # name it.
   if(QIVEN_ANALYZE STREQUAL "analysis")
     qiven_header_targets(qiven_headers qiven_test_headers "foundation/")
-    # faults.hpp holds its loop under QIVEN_FAULTS alone; its unit defines it,
-    # where the build does not.
+    # faults.hpp holds its loop, and parts.hpp its PartRuns, under QIVEN_FAULTS
+    # alone; their units define it, where the build does not.
     set_source_files_properties("${qiven_root}/foundation/devkit/test/faults/tests/support/headers/faults.cpp"
+      "${qiven_root}/foundation/devkit/test/faults/tests/support/headers/parts.cpp"
       PROPERTIES COMPILE_DEFINITIONS QIVEN_FAULTS)
     # A private header's unit includes it by its name from its module's src/,
-    # which the pair is given privately (qiven_header_units_dirs: memory's, diag's
-    # and log's).
+    # and a test header's from its module's tests/, which the pair is given
+    # privately (qiven_header_units_dirs: memory's, diag's and log's src/, log's
+    # tests/).
     list(TRANSFORM qiven_header_units_dirs PREPEND "${qiven_root}/" OUTPUT_VARIABLE qiven_private_dirs)
     foreach(target IN ITEMS qiven_headers qiven_test_headers)
       target_include_directories(${target} PRIVATE ${qiven_private_dirs})

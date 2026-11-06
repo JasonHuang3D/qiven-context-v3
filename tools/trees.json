@@ -1,8 +1,8 @@
 {
   "layers": ["foundation", "kits", "products"],
   "walked": ["src", "tests", "tools"],
-  "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
-  "included": ["src", "tests", "foundation/services/storage/recordlog/tests"],
+  "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests", "foundation/devkit/test/case_main/tests", "foundation/devkit/test/faults/tests", "foundation/services/log/tests"],
+  "included": ["src", "tests", "foundation/services/storage/recordlog/tests", "foundation/services/log/tests"],
   "tests": "tests",
   "support": "tests/support",
   "child": "tests/child",

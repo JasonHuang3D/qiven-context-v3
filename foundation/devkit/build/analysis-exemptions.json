@@ -13,7 +13,8 @@
     "clang-tidy": "foundation/devkit/build/analysis-test.clang-tidy",
     "msvc": "foundation/devkit/build/analysis-test.ruleset",
     "targets": ["qiven3-child", "qiven3_fixtures",
-      "qiven_recordlog_seams", "qiven_test_headers", "qiven3_test_headers", "qiven_platform_child", "qiven_runner_test"]
+      "qiven_recordlog_seams", "qiven_test_headers", "qiven3_test_headers", "qiven_platform_child", "qiven_runner_test",
+      "qiven_case_main_test", "qiven_runner_demo", "qiven_faults_test", "qiven_log_test", "qiven_log_plant_control"]
   },
   "exemptions": [
     {"tool": "clang-tidy", "check": "cppcoreguidelines-avoid-magic-numbers", "scope": "every file",

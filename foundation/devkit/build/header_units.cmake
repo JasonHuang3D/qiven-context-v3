@@ -21,7 +21,8 @@ get_filename_component(qiven_lexer "${CMAKE_CURRENT_LIST_DIR}/../structure/lexer
 # tests/support/headers/, the root's last name and _ where the root is no
 # walked tree, then its path under the root. / as _, .cpp for its suffix, as
 # every unit is named. <unit>_dir: the module's src/ where header, a private
-# header, lies under it (else empty), which the unit's target is given.
+# header, lies under it, or its tests/ where header lies in it itself, a test
+# header (else empty), which the unit's target is given.
 function(qiven_header_unit root header unit own)
   set(${own} "" PARENT_SCOPE)
   set(${unit}_dir "" PARENT_SCOPE)
@@ -55,6 +56,8 @@ function(qiven_header_unit root header unit own)
       set(inner "${CMAKE_MATCH_1}.cpp")
     elseif(inner MATCHES "^src/")
       set(${unit}_dir "${module}/src" PARENT_SCOPE)
+    elseif(inner MATCHES "^tests/[^/]+$")
+      set(${unit}_dir "${module}/tests" PARENT_SCOPE)
     endif()
     string(APPEND name "${inner}")
     set(found TRUE)
