@@ -1,15 +1,15 @@
-"""B32: in every file .gitattributes treats as text, every file outside its
+"""B32: in every file git treats as text, every file outside .gitattributes'
 -text paths, no byte git cannot fix: no lone CR (a CR before no LF) and no
 control byte but tab and LF; a CR before an LF is git's to fix, and passes.
 Each finding names the file and the first line holding such a byte. Over
-every file of the checkout's working tree; and the rule's reading of the
-checkout's .gitattributes against git's own, with the files git keeps
-byte for byte KEPT's alone and the code beside them text with eol=lf,
-where git and the checkout's git directory are there, git under an
-environment of the case's own: foundation/devkit/python/git.py's reading_env,
-which reads no inherited GIT_ variable and no system or global config or attributes, so that
-its commands read the same whatever the host's git config says (CI's Windows
-images set core.autocrlf=true in the system config)."""
+every file of the checkout's working tree; and, as git reads the checkout's
+.gitattributes, the files git keeps byte for byte KEPT's alone and the code
+beside them text with eol=lf, git under an environment of the case's own:
+foundation/devkit/python/git.py's reading_env, which reads no inherited GIT_
+variable and no system or global config or attributes, so that its commands
+read the same whatever the host's git config says (CI's Windows images set
+core.autocrlf=true in the system config). tree.py reads the text attribute
+under the same environment."""
 
 import tempfile
 import unittest
@@ -44,18 +44,13 @@ class LineEndings(unittest.TestCase):
         self.assertEqual(line_ending_findings(rules.ROOT), [])
 
     def test_as_git_reads(self):
-        """Each tracked file's text attribute, as the rule reads the
-        checkout's .gitattributes, is git's own: unset under -text alone;
-        the files git keeps byte for byte are KEPT's, each of them tracked;
-        and every other file beside them is text with eol=lf."""
-        if not git.find() or not (rules.ROOT / ".git").exists():  # git's own reading: the real git, 2 processes
-            self.skipTest("git or the checkout's git directory is missing")
+        """The files git keeps byte for byte, each tracked file's text
+        attribute unset, are KEPT's, each of them tracked; and every other
+        file beside them is text with eol=lf."""
         with tempfile.TemporaryDirectory() as scratch:
             env = git.reading_env(scratch)
             read = git.attributes(rules.ROOT, git.tracked(rules.ROOT, env=env), ("text", "eol"), env=env)
         git_reads = {rel: values["text"] != "unset" for rel, values in read.items()}
-        attributes = rules.text_attributes(rules.ROOT)
-        self.assertEqual({rel: rules.is_text(rel, attributes) for rel in git_reads}, git_reads)
         self.assertEqual(sorted(rel for rel, text in git_reads.items() if not text),
                          sorted(rel for rel in git_reads if kept(rel)))
         self.assertEqual([k for k in KEPT if not any(rel == k or (k.endswith("/") and rel.startswith(k))

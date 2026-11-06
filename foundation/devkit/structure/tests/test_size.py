@@ -2,16 +2,21 @@
 unended line counted; the vendored files, tools/trees.json's vendored, are
 outside the count. Over every file of the checkout.
 
-Read from the tree alone, by tree.py, no record, no build and no table, so
-that a long file is reported beside a broken table: this file imports
-nothing that reads the table, as rules.py does."""
+Read from the tree alone, its files by tree.py through git, no record, no
+build and no table, so that a long file is reported beside a broken table:
+this file imports nothing that reads the table, as rules.py does."""
 
 import unittest
 
 from foundation.devkit.structure import layers
-from foundation.devkit.structure.tree import line_count, source_files
+from foundation.devkit.structure.tree import source_files
 
 BOUND = 600
+
+
+def line_count(data):
+    """The LFs of data, and one unended line."""
+    return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
 
 
 def size_findings(root):

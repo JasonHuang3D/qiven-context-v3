@@ -1,5 +1,5 @@
-"""The content rule: no file of the checkout but those .gitignore (and the
-checkout's own exclude file) names holds a path of this machine, a hit of
+"""The content rule: no file of the checkout but those git's ignore files
+name (tree.py's) holds a path of this machine, a hit of
 the secret check's twelve patterns, or a name of the specification's own
 repository: its name, its directories' and its files', or a reference into
 its text by a ruling's or a section's number (REFERENCE); nor a name of

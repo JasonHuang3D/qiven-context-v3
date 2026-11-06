@@ -1,12 +1,12 @@
 """The checker of the structure rules, B1, B2, B5 to B11, B13, B14, B17 and
 B32, whose lists lists.py holds; it also runs the safe subset's token rules,
-B18 to B31 (subset.py). B15 is test_size's, on tree.py's line count; B12 and
+B18 to B31 (subset.py). B15 is test_size's, on its own line count; B12 and
 B16 have no rule until backup, forgetting and the map check are built.
 
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
 identifiers and #include directives from the sources by the rules' lexer
-(lexer.py), and the tree's files by tree.py; no rule reads C++ by a
+(lexer.py), and the tree's files by tree.py, through git; no rule reads C++ by a
 regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
 file's bytes for those git cannot fix. check() applies every rule to v3's
@@ -28,7 +28,7 @@ from foundation.devkit.structure.lists import (
     STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES, WRITE_NAMES)
 from foundation.devkit.structure.records import Records, command_include_dirs
 # The tree's files (tree.py), which the line-end, content and import tests read here too.
-from foundation.devkit.structure.tree import is_text, source_files, text_attributes
+from foundation.devkit.structure.tree import source_files, text_files
 
 Finding = namedtuple("Finding", "rule where kind detail")
 
@@ -129,13 +129,13 @@ def app_namespace(tokens, i):
 
 def source_rules(root, files, out):
     """B1's text, B2's and B14's strings, B13's and B17's tokens, B32's bytes
-    in every file .gitattributes treats as text.
+    in every file git treats as text.
     Gives the files holding a goldens path, for B14's writes."""
     goldens = set()
-    attributes = text_attributes(root)
+    texts = text_files(root, files)
     for rel in files:
         data = (root / rel).read_bytes()
-        found = B32_BYTES.search(data) if is_text(rel, attributes) else None
+        found = B32_BYTES.search(data) if rel in texts else None
         if found:
             line = data.count(b"\n", 0, found.start()) + 1
             what = "a lone CR" if found.group() == b"\r" else f"the control byte 0x{found.group()[0]:02x}"
