@@ -26,7 +26,7 @@ def stem(output):
 
 
 class Links(unittest.TestCase):
-    ctest_labels = ("fake",)
+    ctest_labels = ("fake", "fast")
     maxDiff = None  # every line found, named whole
 
     def test_build(self):

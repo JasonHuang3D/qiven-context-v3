@@ -38,7 +38,7 @@ def outside(read, sanitize):
 
 
 class Imports(unittest.TestCase):
-    ctest_labels = ("fake",)
+    ctest_labels = ("fake", "fast")
 
     @unittest.skipUnless(system.WINDOWS, "PE alone is read, so K11 skips off Windows: a residual")
     def test_K11_binaries(self):

@@ -39,7 +39,14 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.3, 2026-11-07, the commit that brings this entry
+### 0.4, 2026-11-07, the commit that brings this entry
+
+The label `fast` back on the cases 0.2 moved from `structure`, but the analysis controls (2282): the floors, K11, the links and the exemptions, by each class's `ctest_labels`. Each starts no process but git and reads no machine fact, the structure tests' measure (`harness`'s `tests/test_wiring.py`), and each took under a second.
+
+- **What a consumer does:** finds them in the fast preset again, under its 60 s limit; they keep `drive`, `fake` and this module's label.
+- **Known limits:** no CI job runs the fast preset.
+
+### 0.3, 2026-11-07, `72c186f`
 
 The scenes' trees, by the end challenges' Bu-7: `tests/scenes/tools/trees.json`, a checkout's trees of the product's shape, which the scenes copy into their scratch checkouts in place of the root's `tools/trees.json`. `test_header_filter` and `test_analysis_choice` judge the rule on it, the latter with the two module directories its answers rest on planted; `test_header_filter` still reads every `.clang-tidy` of the checkout.
 

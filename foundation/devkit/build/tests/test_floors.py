@@ -83,7 +83,7 @@ def preset_findings(text):
 
 
 class Floors(unittest.TestCase):
-    ctest_labels = ("fake",)
+    ctest_labels = ("fake", "fast")
 
     def test_windows_commands(self):
         path = binaries.directory("QIVEN_BUILD") / "compile_commands.json"

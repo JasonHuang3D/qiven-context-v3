@@ -11,7 +11,7 @@ ROOT = rules.ROOT
 
 
 class Exemptions(unittest.TestCase):
-    ctest_labels = ("fake",)
+    ctest_labels = ("fake", "fast")
 
     def test_real_tree(self):
         self.assertEqual(exemptions.findings(ROOT, rules.source_files(ROOT)), [])
