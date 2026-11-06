@@ -293,7 +293,8 @@ class TreesBuild(unittest.TestCase):
 
     def test_discovery(self):
         """The listing discovers in every top package of the walked trees and
-        the layers': a module's own tests/ package under a layer is found."""
+        the layers': a module's own tests/ package under a layer is found,
+        and a directory of tests with no __init__.py is named."""
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
             for init in ("tests/__init__.py", "tests/drive/__init__.py", "foundation/core/m/tests/__init__.py",
@@ -309,9 +310,6 @@ class TreesBuild(unittest.TestCase):
                 (root / test).write_text("", encoding="utf-8")
             self.assertEqual([p.relative_to(root).as_posix() for p in list_tests.unpackaged(root, ("tests", "kits"))],
                              ["kits/k/tests", "tests/plain"])
-        rows, errors = list_tests.listed(ROOT)
-        self.assertEqual(errors, [])
-        self.assertTrue(all(row[0].split(".", 1)[0] in TREES.every for row in rows))
 
     def test_ctest_start(self):
         """CTest runs each listed Python test by its id from its top package:

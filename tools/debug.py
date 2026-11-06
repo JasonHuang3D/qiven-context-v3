@@ -15,12 +15,14 @@ with a bounded plain-text transcript.
   break, a watch, a single step or a fault), in this order: --locals,
   --stack, --threads (every thread's stack), --print <expression>, then
   --step <n> (into) or --next <n> (over), by source lines; then the run
-  continues. A
-  first-chance single step is the debugger's: a stop of its own, its line
-  "stop <n>: Single step exception - code 80000004", answered gh, never
-  handed to the program and never a fault. Every other first-chance
-  exception goes to the case's own handlers, unseen; its second chance is
-  the fault, the last stop.
+  continues. A first-chance single step is the debugger's: a stop of its
+  own, its line "stop <n>: Single step exception - code 80000004, the
+  debugger's own, answered gh", whatever cdb's lines under it say of the
+  program's handlers; never handed to the program and never a fault. The
+  gh would also swallow a program's own first-chance single step, which
+  no code of ours raises. Every other first-chance exception goes to the
+  case's own handlers, unseen; its second chance is the fault, the last
+  stop.
 - A thread's create event falling on the resume from a stop makes the debug
   engine lose that stop's bookkeeping, on both cdbs: a data breakpoint's trap
   comes as that raw single step, its rip where the plain stop's stands, the
@@ -159,7 +161,8 @@ def run_session(cdb, args, binary, out):
         if final and final[1] == 0:
             return final
         out.stops += 1
-        out.add(f"stop {out.stops}: {CHANCE.sub('', event)}")
+        own = ", the debugger's own, answered gh" if step else ""  # not the program's, whatever cdb's lines below say
+        out.add(f"stop {out.stops}: {CHANCE.sub('', event)}{own}")
         for line in lines:
             out.add(line)
         if out.stops == 1:
