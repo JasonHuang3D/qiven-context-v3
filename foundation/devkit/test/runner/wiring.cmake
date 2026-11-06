@@ -24,7 +24,7 @@ foreach(qiven_module IN LISTS qiven_foundation_modules)
 endforeach()
 
 # The listing, after every test the build defines; it waits for the
-# binaries the drives run: the runner's routes, memory's two demos, diag's
+# binaries the drives run: a case binary's routes, memory's two demos, diag's
 # fault program and the binary that imports its library. Then the structure
 # records, the structure preset alone.
 function(qiven_foundation_tests_end)

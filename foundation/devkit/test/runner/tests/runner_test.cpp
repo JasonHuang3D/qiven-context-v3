@@ -1,6 +1,6 @@
 // The runner's own cases, in process: each route of run_case and run_main.
-// test_runner.py, beside this file, drives the same routes through a
-// process, a crash among them. Each run's end is read by an Ended of its
+// The case main's test_runner.py (foundation/devkit/test/case_main/tests/)
+// drives the same routes through a process, a crash among them. Each run's end is read by an Ended of its
 // own; the case main's, its case.end, is the case main's own case.
 
 #include <array>

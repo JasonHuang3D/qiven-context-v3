@@ -1,5 +1,6 @@
-"""The runner's routes through a process: qiven_runner_demo's cases, its
---list and its refusals, each status as CTest reads it."""
+"""A case binary's routes, its main and the runner, through a process:
+qiven_runner_demo's cases, its --list and its refusals, each status as CTest
+reads it."""
 
 import unittest
 
