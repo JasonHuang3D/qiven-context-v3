@@ -1,35 +1,19 @@
 # The tests: case binaries on qiven_runner, and the Python tests, each
 # case and each Python test its own CTest test with its labels.
 #
-# The mechanism is the runner's (foundation/devkit/test/runner/cases.cmake),
-# included before every module's tests, which call its qiven_add_cases; its
-# listing step, qiven_list_tests, runs after them. This file is the wiring:
-# the kit's and each module's test directories, the product's header units, the
-# binaries the drives run, which the listing waits for, and the structure
-# records.
-include("${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/cases.cmake")
+# The foundation's tests' wiring is the runner's
+# (foundation/devkit/test/runner/wiring.cmake): its include gives the
+# mechanism (cases.cmake), before every module's tests, which call its
+# qiven_add_cases, and the kit's and each foundation module's test
+# directories; its qiven_foundation_tests_end(), after the product's below,
+# the listing step and the structure records. This file is the product's
+# wiring: its test directories, its header units and the binaries the drives
+# run.
+include("${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner/wiring.cmake")
 
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/runner" runner)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main" case_main)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/faults" faults_kit)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/test/scan" scan)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/memory/tests" memory_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/matcher/tests" matcher_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/text/tests" text_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/time/tests" time_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/core/digest/tests" digest_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/system/diag/tests" diag_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/log/tests" log_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/transport/tests" transport_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/system/platform/tests" platform_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/storage/sqlite/tests" storage_sqlite_tests)
-add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/storage/recordlog/tests" recordlog_tests)
 add_subdirectory("${PROJECT_SOURCE_DIR}/products/qiven3/format/tests" format_tests)
 add_subdirectory(support/fixtures)
 add_subdirectory(support/checked)
-if(QIVEN_HAL)
-  add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/services/compute/tests" compute_tests)
-endif()
 # The product's header units, the analysis's alone, in their pair
 # (support/headers/); the units' rule, which gives them, and the
 # foundation's pair are the root CMakeLists.txt's.
@@ -41,13 +25,4 @@ add_subdirectory(child)
 add_subdirectory(unit)
 add_subdirectory(fuzz)
 
-# The listing, after every module's tests; it waits for the binaries the
-# drives run: the runner's routes, memory's two demos, diag's fault program
-# and the binary that imports its library.
-qiven_list_tests(qiven_runner_demo qiven_memory_fail_demo qiven_memory_free_demo qiven_diag_fault
-  qiven_diag_fault_import)
-
-# The structure records, the structure preset alone.
-if(QIVEN_STRUCTURE)
-  add_subdirectory("${PROJECT_SOURCE_DIR}/foundation/devkit/structure" structure)
-endif()
+qiven_foundation_tests_end()

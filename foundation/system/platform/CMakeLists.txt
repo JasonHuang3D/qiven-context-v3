@@ -1,5 +1,5 @@
 # The platform, added by the root CMakeLists.txt, as its tests (tests/) are
-# by tests/CMakeLists.txt, where the case functions and qiven_case_main are
+# by the runner's wiring.cmake, where the case functions and qiven_case_main are
 # made.
 #
 # qiven_platform_targets(<suffix> <memory target>) makes qiven_platform with

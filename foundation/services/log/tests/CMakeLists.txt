@@ -1,6 +1,6 @@
 # Log's own tests: the log's cases, the static half's, and K13's binary
 # half, whose binary test_log.py reads; and K13's planted field. Added by
-# tests/CMakeLists.txt; qiven_add_cases is made in the runner's cases.cmake,
+# the runner's wiring.cmake; qiven_add_cases is made in the runner's cases.cmake,
 # qiven_faults and qiven_case_main in the kit's faults and case_main.
 qiven_add_cases(qiven_log_test LABELS fast fake
   SOURCES log_test.cpp log_static.cpp log_k13.cpp

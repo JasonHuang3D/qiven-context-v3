@@ -2,8 +2,8 @@
 # GPGPU), over memory alone, which a caller's targets link; and
 # qiven_compute_fake, its fake beside it, on the C++ standard library alone,
 # built on every system. Added by the root CMakeLists.txt when QIVEN_HAL is
-# on alone, as its tests (tests/) are by tests/CMakeLists.txt, where the
-# case functions and qiven_case_main are made.
+# on alone, as its tests (tests/) are by the runner's wiring.cmake, where
+# the case functions and qiven_case_main are made.
 add_library(qiven_compute STATIC
   src/hal.cpp
   include/qiven/compute/hal.hpp

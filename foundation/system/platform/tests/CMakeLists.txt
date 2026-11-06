@@ -1,5 +1,5 @@
 # The platform's own tests, each case binary as its sources need it. Added
-# by tests/CMakeLists.txt, where qiven_add_cases, qiven_faults and
+# by the runner's wiring.cmake, where qiven_add_cases, qiven_faults and
 # qiven_case_main are made. A case that reads a private header of the
 # Windows adapter (windows/facts.hpp) reaches the module's src/ by its own
 # include directory, written without .. (structure's B11).

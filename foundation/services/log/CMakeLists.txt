@@ -1,7 +1,7 @@
 # qiven_log: levelled JSON lines into a crash ring, each event of the
 # catalogue; json::encode from qiven_text, the arena from qiven_memory, the
 # ring from qiven_diag_ring (qiven/diag/ring.hpp). Its tests (tests/) are added by
-# tests/CMakeLists.txt, where the case functions and qiven_case_main are
+# the runner's wiring.cmake, where the case functions and qiven_case_main are
 # made. QIVEN_LOG_MIN, the build's minimum level, is every target's
 # (foundation/devkit/build/build.cmake), so that each sees one catalogue.
 #

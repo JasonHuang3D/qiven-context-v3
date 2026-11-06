@@ -1,7 +1,7 @@
 # The record log's own tests, over its own plain records, and their
 # support under support/, whose targets give this directory as their
 # include root, so that a caller's "support/stores/..." include holds.
-# Added by tests/CMakeLists.txt, where qiven_add_cases, qiven_faults and
+# Added by the runner's wiring.cmake, where qiven_add_cases, qiven_faults and
 # qiven_case_main are made.
 
 # qiven_recordlog_stores: the factory the store cases take and their tags,

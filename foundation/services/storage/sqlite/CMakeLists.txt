@@ -1,6 +1,6 @@
 # The SQLite wrapper, added by the root CMakeLists.txt. Its public header is
 # include/qiven/storage_sqlite/connection.hpp, its source src/sqlite.cpp;
-# its tests, under tests/, are added by tests/CMakeLists.txt.
+# its tests, under tests/, are added by the runner's wiring.cmake.
 #
 # qiven_storage_sqlite: the engine heap, Connection and Statement and their
 # typed error; the one target that links the vendored engine, qiven_sqlite,

@@ -1,9 +1,9 @@
-# The test tree's mechanism, which the test tree's CMake file
-# (tests/CMakeLists.txt) includes before every module's tests: case
-# binaries on qiven_runner, and the Python tests, each case and each Python
-# test its own CTest test with its labels.
+# The test tree's mechanism, which the runner's wiring (wiring.cmake, beside
+# it) includes before every module's tests: case binaries on qiven_runner,
+# and the Python tests, each case and each Python test its own CTest test
+# with its labels.
 #
-# A step after the build (qiven_list_tests, below, which the test tree calls
+# A step after the build (qiven_list_tests, below, which the wiring calls
 # after every module's tests) lists each case binary's cases (--list) and
 # each Python test's id, and writes one add_test() each into a file that the
 # CTest file of that directory includes. Every test carries cxx or py, the
