@@ -6,10 +6,11 @@ Layers devkit, core, system and services: the code any kit or product builds on.
 A module here names no product's concept and depends on no kit and no product, but for the parts a module's
 README names as awaiting a split, and devkit's `structure`, whose edges to qiven3's modules leave with its
 product data.
-The foundation cannot build alone yet: `foundation/CMakeLists.txt` does not exist, and the root `CMakeLists.txt` adds its
-modules among the product's directories. Devkit reads `tools/`, the repository's data (`devkit/README.md`). The foundation is rebuilt lowest first, in the owner's order: (a) its build alone, with the table's
+The foundation builds alone, with no product directory, by `foundation/CMakeLists.txt`, which names what it leaves out and why:
+`cmake -S foundation --preset alone`, `cmake --build build/alone`, `ctest --test-dir build/alone --no-tests=error -j 12`.
+Devkit reads `tools/`, the repository's data, from the checkout's root (`devkit/README.md`). The foundation is rebuilt lowest first, in the owner's order: (a) its build alone, with the table's
 reader and the watcher in devkit and Python's lowest layer; (b) devkit; (c) core; (d) system; (e) services; the product's at
-P4. That build ends step (a), and P5, the alone build, is step (a)'s.
+P4. That build and its line in the gates end step (a), P5's alone build being step (a)'s.
 
 - An edge goes down only, but devkit's test kit's edges to the modules its cases use, and `qiven_executable`'s, in `build`, to diag's entry targets; within a layer a module depends on another only by a declared edge; the graph has no cycle.
 - A dependency on what is not ours (an operating system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers private to that module or vendored; no foreign header reaches a header of ours; all other code calls only its own lower layers and the standard library (`DIRECTION-3.md`). What does not meet it today, each a named departure with its end, at the step that builds the member it needs, its consumer switching in that change:

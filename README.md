@@ -48,6 +48,13 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
   `ci-analysis`. Configure and build the `structure` preset before
   `ctest --preset full`: the structure tests it runs read that build's
   records.
+- The foundation alone, with no product directory, and those of its tests
+  that need no product: `cmake -S foundation --preset alone`, then
+  `cmake --build build/alone` and
+  `ctest --test-dir build/alone --no-tests=error -j 12`, or
+  `ctest --preset alone` from `foundation/`. The preset `alone` and the
+  presets' common part are in `foundation/CMakePresets.json`, which the
+  root's file includes.
 - The developer presets pin the toolchain (`QIVEN_PIN_TOOLS`): configure
   fails on any MSVC but 19.44.35228, any Windows SDK but 10.0.26100.0, any
   CMake but 4.4.3, any Ninja but 1.13.2, or any interpreter but CPython

@@ -12,6 +12,7 @@
 if(NOT MSVC)
   message(FATAL_ERROR "qiven: QIVEN_STRUCTURE reads MSVC's records; it is the structure preset's, on Windows")
 endif()
+# The interpreter, QIVEN_PYTHON's first (build.cmake).
 if(NOT Python3_EXECUTABLE)
   message(FATAL_ERROR "qiven: QIVEN_STRUCTURE writes its records with the interpreter: name it")
 endif()
