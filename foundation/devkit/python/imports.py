@@ -9,7 +9,7 @@ library alone, no tool.
 - read_file(path): the Imports of a file's bytes.
 
 Its ELF and glibc parts are retired (tools/README.md's Retired section).
-Its consumers: the watcher (foundation/devkit/test/runner/watch.py), which
+Its consumers: the watcher (foundation/devkit/test/harness/watch.py), which
 names, on a failed load, each import found nowhere, and K11
 (foundation/devkit/structure/tests/test_binaries.py), which holds every
 binary of a build to its system's list or its preset's residual.

@@ -11,7 +11,7 @@ so a repeat is refused whatever its cause."""
 
 import unittest
 
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 from foundation.devkit.structure import links
 
 # The links that failed on macOS, by their targets' names.

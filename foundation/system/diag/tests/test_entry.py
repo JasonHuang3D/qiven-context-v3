@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import process
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 PROBE = b"diag: entry\n"
 

@@ -18,7 +18,7 @@ import re
 import time
 import unittest
 
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 CHILD = "qiven3-child"
 SEED = 68

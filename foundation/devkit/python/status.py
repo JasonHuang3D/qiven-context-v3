@@ -1,6 +1,6 @@
 """Exit statuses by name: the one table the watcher
-(foundation/devkit/test/runner/watch.py), the
-Python tests' harness (foundation/devkit/test/runner/binaries.py) and
+(foundation/devkit/test/harness/watch.py), the
+Python tests' harness (foundation/devkit/test/harness/binaries.py) and
 the runner (tools/changed.py) name a status by, never as a bare number.
 
 A status is named in one line, "status: <value> <name>: <meaning>". A

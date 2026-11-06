@@ -1,5 +1,5 @@
 # The SQLite wrapper's own tests, over databases and an engine heap's
-# pages of the case's own. Added by the runner's wiring.cmake.
+# pages of the case's own. Added by harness' wiring.cmake.
 
 # sqlite's cases: the engine heap's page cache on its slots, a connection's
 # and two connections' at once, within the slots and past them; the

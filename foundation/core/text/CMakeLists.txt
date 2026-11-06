@@ -2,7 +2,7 @@
 # the parser's typed error (utf), the JSON value, scan and encode (json,
 # json_bytes behind it), and the strict parser and canonical bytes over a
 # key rule (canon); their instantiations over memory's allocator. Its tests
-# (tests/) are added by the runner's wiring.cmake.
+# (tests/) are added by harness' wiring.cmake.
 #
 # qiven_text_targets(<suffix> <memory target>) makes qiven_text with the
 # suffix, over the memory target given: "" over qiven_memory, and the

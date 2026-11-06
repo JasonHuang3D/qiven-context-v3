@@ -1,0 +1,31 @@
+# harness
+
+layer devkit, status built
+
+Version 0.1: the number of this file's change list, below, and of nothing else
+
+- **Holds:** the runner's tool half, meeting its C++ kit (`runner`) by process alone: `cases.cmake`, a case binary (`qiven_add_cases`) and the listing step (`qiven_list_tests`); `wiring.cmake`, the foundation's test directories and their end; `ctest_tests.cmake` and `list_tests.py`, each test listed behind the watcher; the watcher, `watch.py`; the dumps' bound, `dumps.py`; `binaries.py`, the build's binaries and options and a watched run
+- **Never holds:** C++; a case's registration or checks (`runner`); a binary's main (`case_main`); a fault run (`faults`)
+- **Contract:** none
+- **Interface:** `qiven_add_cases`, `qiven_list_tests`, `qiven_foundation_tests_end`; the package `foundation.devkit.test.harness`: `binaries`, and `list_tests` for `build`'s tests; the watcher's command line
+- **Files:** the seven above; `tests/`, the wiring's and the hang path's tests; `module.json`. `tests/CMakeLists.txt` and `foundation/CMakeLists.txt` include `wiring.cmake`
+- **Uses directly:** `python`'s `answer`, `build_tree`, `debugger`, `imports`, `process`, `status`, `system`, `table`; its tests, diag's `qiven_diag_fault` and the runner's cases
+- **Consumers rely on:** every test behind the watcher, its status in one last line, its exit the case's, past its limit a hang, 124; a test labelled with its module's name, `tools/changed.py`'s key; a Python test's skip read as skipped; a watched run by `run_watched` alone
+- **Parameters:** none
+- **Refuses:** the listing, failing the build: a module not imported, a test of no module or labels, a test directory with no `__init__.py`, `--leave-out <name>: no test of that id or package`. The watcher, status 2: no `--limit`, `--name` or command; `watch.py: <test>: the case cannot start: <reason>`
+- **The watcher:** `python -I -X faulthandler foundation/devkit/test/harness/watch.py --limit <s> --name <test> -- <command>...` runs the case, sets `QIVEN_WATCHER`, `QIVEN_DUMP_DIR` and `QIVEN_LOG`, names the status by `status` and a library missing at load by `imports`, and bounds `dumps/`. Past `--limit`: `debugger.hang_stacks`, at most 16 threads and 200 lines, and `<binary>-<pid>-hang.dmp`, or `hang: no debugger, no stacks`; the tree ended, status 124. Its worst case against CTest's 30 s (`AFTER_LIMIT`) is in `debugger`'s charter: `HANG_SECONDS` 12 s, `READER_WAIT` 5 s
+- **The dumps' bound:** `bound(directory, pid=None, kept=DUMPS_KEPT)`, 8: the newest `kept` `*.dmp` and every dump of `pid` stay, a line for each removed or not; `hang_dump(pid, binary, directory)`, the hang dump's one name
+- **`run_watched(command, name, env=None, cwd=None, limit=TIME_BOUND)`:** behind the watcher, `TIME_BOUND` 10 s, polled every `POLL`, 0.1 s, for windows, its tree ended past the limit and twice `AFTER`, 30 s: `(status, out, err, seconds, seen)`, the dumps' lines dropped
+- **A Python test's skip:** `OK \(skipped=[0-9]+\)[^a-z]+status: 0 passed`, its reason by `-v` (`ctest -V -R <name>`). Its limit: a pass printing that sentence reads as a skip, and a line with a lower-case letter between it and the status line as a pass
+- **The method, once:** Windows built; POSIX and macOS on paper, through `python`. A new kind of test is one more `qiven_add_test`. The watcher's start, measured once before `1612fde`: about 90 ms a test, ours 27.6 ms. A fake: none, the watcher fronts the real case. Proof: `test_hang` (`Hang` with a stand-in cdb, `fake`; K8, `debugger`), `test_wiring` (each test's command, labels, limit, skip; the presets), the dumps' bound by use
+
+## Changes
+
+Newest first, each entry its version, its date and the commit it describes.
+
+### 0.1, 2026-11-07, the commit that brings this entry
+
+The runner's tool half made a module of its own, by the owner's yes to step (b)'s challenge's Te-6: `cases.cmake`, `wiring.cmake`, `ctest_tests.cmake`, `list_tests.py`, `watch.py`, `dumps.py`, `binaries.py` and their tests, `tests/test_hang.py` and `tests/test_wiring.py`, moved from `foundation/devkit/test/runner/`, unchanged but for their own paths and the listing's placeholder label (`qiven.not_built`, `harness`); this charter made of the runner's sections on them, shortened to its bound.
+
+- **What a consumer does:** imports `foundation.devkit.test.harness` (`binaries`, `list_tests`) and includes `foundation/devkit/test/harness/wiring.cmake`; a row whose tests run it says `harness` in its `test_depends` (`build`'s).
+- **Known limits:** `tools/changed.py` selects a changed module's tests by its label alone: a change here runs `test_hang` and `test_wiring`, no longer the runner's cases, which a change to these files ran before. The runner's longer words on the watcher, the dumps' bound and the skip stand in its 0.1 text (`git show 051e1d4:foundation/devkit/test/runner/README.md`) and in `watch.py`'s docstring.

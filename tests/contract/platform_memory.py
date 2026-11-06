@@ -13,7 +13,7 @@ plus the file's size, run's plus its caps; pages(n) has none of its own.
 import itertools
 import sys
 
-from foundation.devkit.test.runner.binaries import debug_library, has_faults
+from foundation.devkit.test.harness.binaries import debug_library, has_faults
 
 KIB = 1 << 10
 MEMBER = 64 * KIB

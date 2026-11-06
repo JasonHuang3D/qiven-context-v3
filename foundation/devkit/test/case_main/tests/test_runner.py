@@ -5,8 +5,8 @@ reads it."""
 import unittest
 
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import SKIP_CODE, build_option
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import SKIP_CODE, build_option
 
 DEMO = "qiven_runner_demo"
 

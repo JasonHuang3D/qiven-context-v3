@@ -21,7 +21,7 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 # The two drives: the fake's, built on every system, and the Windows
 # adapter's, built on Windows alone.

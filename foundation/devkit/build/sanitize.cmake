@@ -24,7 +24,7 @@ if(MSVC)
   add_link_options(/INCREMENTAL:NO)
   # AddressSanitizer's runtime, a DLL beside the compiler, its debug form
   # under Debug: qiven_asan_runtime, its path, which the runner copies beside
-  # each test binary (foundation/devkit/test/runner/cases.cmake).
+  # each test binary (foundation/devkit/test/harness/cases.cmake).
   if(QIVEN_SANITIZE MATCHES "address")
     get_filename_component(qiven_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")

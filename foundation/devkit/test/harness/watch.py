@@ -1,7 +1,7 @@
 """The watcher: in front of every test CTest runs, and of each planted
 fault the drives run, it runs the case and names how it ended.
 
-    python -I -X faulthandler foundation/devkit/test/runner/watch.py --limit <s> --name <test> -- <command>...
+    python -I -X faulthandler foundation/devkit/test/harness/watch.py --limit <s> --name <test> -- <command>...
 
 - With QIVEN_BUILD naming the build, it sets QIVEN_DUMP_DIR to the
   build's dumps/ and QIVEN_LOG to the build's logs/<test>.jsonl, each
@@ -68,7 +68,7 @@ from foundation.devkit.python import imports
 from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-from foundation.devkit.test.runner.dumps import bound as dumps_bound, hang_dump
+from foundation.devkit.test.harness.dumps import bound as dumps_bound, hang_dump
 HANG = 124
 READER_WAIT = 5.0  # seconds the stream's reader is waited for after the case ends
 # The hang's debugger, found and run, within 12 s together: past them, the

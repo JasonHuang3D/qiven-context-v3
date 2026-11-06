@@ -33,8 +33,8 @@ stops.
 import json
 import os
 
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import debug_library, has_faults
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import debug_library, has_faults
 from tests.drive.session import DriveError
 
 MEMBER = 64 * 1024

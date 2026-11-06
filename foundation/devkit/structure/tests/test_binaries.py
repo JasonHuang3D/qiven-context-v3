@@ -11,8 +11,8 @@ import unittest
 
 from foundation.devkit.python import imports
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import build_option
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import build_option
 
 PLANTED = "qiven_diag_fault_import"
 PLANTED_LIBRARY = "qiven_diag_fault_lib"

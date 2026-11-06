@@ -3,7 +3,7 @@
 # directory's scope, after build.cmake, not through a directory of the
 # foundation's, so that the list and each module's variables reach what
 # follows. Each module's directory is added here, its build directory
-# foundation/<path> under the includer's; the runner's wiring walks the list
+# foundation/<path> under the includer's; harness' wiring walks the list
 # for each module's tests. The vendored engine first, whose pin fails a changed
 # amalgamation before anything builds (system/sqlite/CMakeLists.txt).
 set(qiven_foundation_modules

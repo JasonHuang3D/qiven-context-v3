@@ -30,7 +30,7 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 CLOCK_US = 1_792_229_400_123_000
 AT = "2026-10-17T09:30:00.123Z"

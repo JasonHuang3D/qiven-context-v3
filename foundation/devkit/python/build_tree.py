@@ -24,7 +24,7 @@ from foundation.devkit.python import status as status_table
 
 ROOT = Path(__file__).resolve().parents[3]
 _CACHE = "CMakeCache.txt"
-_CTEST = "QIVEN_CTEST"  # the ctest that runs a test, set by the runner's ctest_tests.cmake
+_CTEST = "QIVEN_CTEST"  # the ctest that runs a test, set by harness' ctest_tests.cmake
 
 # A test of ctest's listing: its command line, a list of strings, empty where
 # ctest gives none; its properties, {name: value}, as ctest's JSON holds them.

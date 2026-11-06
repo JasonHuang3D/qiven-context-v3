@@ -20,8 +20,8 @@ import unittest
 
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import build_option, run_watched
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import build_option, run_watched
 
 WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"

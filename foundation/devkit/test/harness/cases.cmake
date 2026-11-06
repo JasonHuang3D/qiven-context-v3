@@ -1,4 +1,4 @@
-# The test tree's mechanism, which the runner's wiring (wiring.cmake, beside
+# The test tree's mechanism, which harness' wiring (wiring.cmake, beside
 # it) includes before every module's tests: case binaries on qiven_runner,
 # and the Python tests, each case and each Python test its own CTest test
 # with its labels.
@@ -77,7 +77,7 @@ endfunction()
 # A case binary: its sources, linked with the log's main and the runner
 # (qiven_case_main); each case a CTest test labelled cxx, LABELS and its
 # module's name (its first source's module), under the watcher's limit by
-# its labels (the runner's ctest_tests.cmake).
+# its labels (harness' ctest_tests.cmake).
 function(qiven_add_cases target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "LABELS;SOURCES;LINK")
   if(NOT arg_SOURCES)
@@ -103,7 +103,7 @@ endfunction()
 # failing test below.
 function(qiven_list_tests)
   set(qiven_bin "${PROJECT_BINARY_DIR}/bin")
-  set(qiven_runner_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
+  set(qiven_harness_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
 
   # The AddressSanitizer runtime the build names (qiven_asan_runtime,
   # foundation/devkit/build/sanitize.cmake) beside each test binary: every
@@ -146,7 +146,7 @@ function(qiven_list_tests)
     endif()
     list(JOIN qiven_listing "," qiven_listing)
     set(qiven_python_args -D "PYTHON=${Python3_EXECUTABLE}" -D "LISTING=${qiven_listing}")
-    # every tree the listing discovers in (foundation/devkit/test/runner/list_tests.py)
+    # every tree the listing discovers in (foundation/devkit/test/harness/list_tests.py)
     qiven_python_globs("${qiven_root}" qiven_python_globs)
     file(GLOB_RECURSE qiven_python_files CONFIGURE_DEPENDS ${qiven_python_globs})
   else()
@@ -166,10 +166,10 @@ function(qiven_list_tests)
     COMMAND "${CMAKE_COMMAND}" -D "INPUTS=${qiven_inputs_file}" -D "OUT=${qiven_tests_file}"
       ${qiven_python_args} ${qiven_fuzz_args} -D "SOURCE=${qiven_root}" -D "BIN=${qiven_bin}"
       -D "BUILD=${PROJECT_BINARY_DIR}" -D "CTEST=${CMAKE_CTEST_COMMAND}" -D "SKIP=${QIVEN_SKIP_CODE}"
-      -P "${qiven_runner_dir}/ctest_tests.cmake"
+      -P "${qiven_harness_dir}/ctest_tests.cmake"
     DEPENDS ${qiven_case_binaries} ${qiven_fuzz_binaries} ${ARGN}
       ${qiven_runtime_files} "${qiven_inputs_file}"
-      "${qiven_runner_dir}/ctest_tests.cmake" "${qiven_runner_dir}/list_tests.py" ${qiven_python_files}
+      "${qiven_harness_dir}/ctest_tests.cmake" "${qiven_harness_dir}/list_tests.py" ${qiven_python_files}
       # the trees the table's reader reads, which labels each test by its module; the reader is one of the Python files
       "${qiven_trees_file}"
     COMMENT "Listing the C++ cases and the Python tests for CTest"
@@ -183,7 +183,7 @@ function(qiven_list_tests)
   include([==[${qiven_tests_file}]==])
 else()
   add_test(qiven.not_built [==[${CMAKE_COMMAND}]==] -E false)
-  set_tests_properties(qiven.not_built PROPERTIES LABELS \"cxx;py;fast;fake;runner\")
+  set_tests_properties(qiven.not_built PROPERTIES LABELS \"cxx;py;fast;fake;harness\")
   message(WARNING \"qiven: the tests are not listed yet: build first\")
 endif()
 ")

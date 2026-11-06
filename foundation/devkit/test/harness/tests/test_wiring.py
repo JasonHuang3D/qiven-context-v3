@@ -13,8 +13,8 @@ from pathlib import Path
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import system
 from foundation.devkit.python import table
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import SKIP_CODE
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import SKIP_CODE
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis"}
@@ -24,10 +24,10 @@ MODULES = {m["name"] for m in table.load(binaries.ROOT)["modules"]}
 # analysis build: analysis alone. Every other Python test drives a binary.
 STRUCTURE = "foundation.devkit.structure."
 ANALYSIS = "foundation.devkit.structure.tests.test_analysis."
-HERE = "foundation/devkit/test/runner/tests"
+HERE = "foundation/devkit/test/harness/tests"
 # A Python test's skip, as CTest reads it in the test's output.
 PYTHON_SKIP = r"OK \(skipped=[0-9]+\)[^a-z]+status: 0 passed"
-SELECT = "foundation.devkit.test.runner.tests.test_wiring.Select."
+SELECT = "foundation.devkit.test.harness.tests.test_wiring.Select."
 # The Windows adapter's own file cases, on Windows alone.
 WIN_FILES = "win_files."
 # A fuzz target's run, under libFuzzer alone: fuzz.<target>.
@@ -156,7 +156,7 @@ class Registered(unittest.TestCase):
         }
         self.assertTrue(analysis and all(name.startswith(ANALYSIS) for name in analysis))
         # The debugger cases, the debugger preset's alone, never fake, CI's.
-        self.assertIn("foundation.devkit.test.runner.tests.test_hang.HangStacks.test_K8_hang", expected["debugger"])
+        self.assertIn("foundation.devkit.test.harness.tests.test_hang.HangStacks.test_K8_hang", expected["debugger"])
         self.assertEqual(expected["fake"] & expected["debugger"], set())
         self.assertIn("runner.pass_status", expected["fast"])
         # win/files' cases in the fake selection, which every Windows job
@@ -164,7 +164,7 @@ class Registered(unittest.TestCase):
         win_files = {name for name in tests if name.startswith(WIN_FILES)}
         self.assertEqual(bool(win_files), system.WINDOWS)
         self.assertLessEqual(win_files, expected["fake"] & expected["fast"])
-        self.assertNotIn("foundation.devkit.test.runner.tests.test_wiring.Registered.test_presets", expected["fast"])
+        self.assertNotIn("foundation.devkit.test.harness.tests.test_wiring.Registered.test_presets", expected["fast"])
         self.assertTrue(labelled(tests, "py") and labelled(tests, "cxx"))
         for preset, names in expected.items():
             with self.subTest(preset=preset):

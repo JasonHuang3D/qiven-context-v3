@@ -16,7 +16,7 @@ import unittest
 
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 TRACE = b"k13.trace-marker"
 CONTROL = b"k13.info-control"

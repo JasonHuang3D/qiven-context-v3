@@ -1,7 +1,7 @@
 # Memory's own tests: the cases of memory, arena, pool and its frees, each
 # case its own CTest test; fail_fast's demo, which test_fail.py runs; and the
 # frees that end the process, which test_free.py runs. Added by
-# the runner's wiring.cmake; qiven_add_cases is made in the runner's cases.cmake,
+# harness' wiring.cmake; qiven_add_cases is made in harness' cases.cmake,
 # qiven_faults and qiven_case_main in the kit's faults and case_main.
 qiven_add_cases(qiven_memory_test LABELS fast fake
   SOURCES memory_test.cpp arena_test.cpp pool_test.cpp free_test.cpp

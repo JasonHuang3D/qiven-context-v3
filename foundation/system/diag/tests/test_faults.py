@@ -1,6 +1,6 @@
 """The diagnostic entry's planted faults, K1 to K5, K7 and K9: each plant of
 qiven_diag_fault (tests/faults/), run behind the watcher
-(foundation/devkit/test/runner/watch.py),
+(foundation/devkit/test/harness/watch.py),
 ends with its cause as the report's first line, its stack, its status named
 by the table (K12), no window, within the bounds; K6,
 qiven_diag_fault_import copied alone, its library missing at load; and K18,
@@ -51,8 +51,8 @@ from foundation.devkit.python import process
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import TIME_BOUND, build_option, run_watched, sanitized
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import TIME_BOUND, build_option, run_watched, sanitized
 
 FAULT = "qiven_diag_fault"
 CRTDBG = "qiven_diag_fault_crtdbg"

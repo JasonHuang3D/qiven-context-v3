@@ -21,7 +21,7 @@ from pathlib import Path
 from foundation.devkit.python import system
 from foundation.devkit.python import table
 from foundation.devkit.python.build_tree import ROOT
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 TREES = table.trees(ROOT)
 WINDOWS = system.WINDOWS

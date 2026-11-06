@@ -16,7 +16,7 @@ from foundation.devkit.python import process
 from foundation.devkit.python import table
 from foundation.devkit.python.build_tree import ROOT, cmake
 from foundation.devkit.structure import layers
-from foundation.devkit.test.runner import list_tests
+from foundation.devkit.test.harness import list_tests
 
 TREES = table.trees(ROOT)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
@@ -324,7 +324,7 @@ class TreesBuild(unittest.TestCase):
             root = Path(scratch)
             lines = "".join(f"{test_id}\tdrive\n" for test_id in starts)
             files = {"tests/__init__.py": "", "tests/drive/__init__.py": "", "foundation/core/m/tests/__init__.py": "",
-                     "foundation/devkit/test/runner/list_tests.py": f"print({lines!r}, end='')\n", "inputs.txt": ""}
+                     "foundation/devkit/test/harness/list_tests.py": f"print({lines!r}, end='')\n", "inputs.txt": ""}
             for test_id, start in starts.items():
                 module, cls, method = test_id.rsplit(".", 2)
                 files[module.replace(".", "/") + ".py"] = (f"import unittest\nclass {cls}(unittest.TestCase):\n"
@@ -335,7 +335,7 @@ class TreesBuild(unittest.TestCase):
             out = root / "out.cmake"
             args = [tool, f"-DINPUTS={root / 'inputs.txt'}", f"-DOUT={out}", f"-DSOURCE={root.as_posix()}", "-DBIN=b",
                     "-DBUILD=b", "-DCTEST=c", "-DSKIP=77", f"-DPYTHON={sys.executable}",
-                    "-P", str(ROOT / "foundation" / "devkit" / "test" / "runner" / "ctest_tests.cmake")]
+                    "-P", str(ROOT / "foundation" / "devkit" / "test" / "harness" / "ctest_tests.cmake")]
             succeeded(args)
             added = re.findall(r"(?m)^add_test\((.*)\)$", out.read_text(encoding="utf-8"))
             self.assertEqual(len(added), len(starts))

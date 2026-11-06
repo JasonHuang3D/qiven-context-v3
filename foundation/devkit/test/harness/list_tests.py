@@ -1,7 +1,7 @@
 """Print each Python test of the checkout for CTest, of the packages of the
 trees tools/trees.json walks and of its layers' trees: its id and its labels.
 
-Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
+Run from the checkout's root as python -I foundation/devkit/test/harness/list_tests.py
 [--trees <tree>...] [--leave-out <name>...]: --trees, the trees it walks, by default
 every one; --leave-out, tests it does not list, each by its id or a package's name,
 which it still imports: discover loads every module before any is left out.

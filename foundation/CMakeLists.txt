@@ -23,13 +23,13 @@ set(qiven_left_out
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_steps_name_composed
   # Judges the root's test presets, the product's selections, against this
   # tree's tests.
-  foundation.devkit.test.runner.tests.test_wiring.Registered.test_presets)
+  foundation.devkit.test.harness.tests.test_wiring.Registered.test_presets)
 list(LENGTH qiven_left_out qiven_count)
 message(STATUS "qiven: the foundation alone, ${qiven_count} names of Python tests left out (foundation/CMakeLists.txt)")
 
 include("${PROJECT_SOURCE_DIR}/devkit/build/build.cmake" NO_POLICY_SCOPE)
 include("${qiven_root}/foundation/devkit/build/top.cmake")
 include("${qiven_root}/foundation/devkit/build/modules.cmake")
-include("${qiven_root}/foundation/devkit/test/runner/wiring.cmake")
+include("${qiven_root}/foundation/devkit/test/harness/wiring.cmake")
 qiven_foundation_tests_end()
 qiven_top_end()

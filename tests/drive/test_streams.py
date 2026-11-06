@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 from tests.drive.session import FAKE, WINDOWS, wire
 
 # A result, a platform error and a request error, the last ending in CRLF.

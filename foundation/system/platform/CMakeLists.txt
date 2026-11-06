@@ -1,5 +1,5 @@
 # The platform, added by foundation/devkit/build/modules.cmake, as its tests (tests/) are
-# by the runner's wiring.cmake.
+# by harness' wiring.cmake.
 #
 # qiven_platform_targets(<suffix> <memory target>) makes qiven_platform with
 # the suffix, over the memory target given: "" over qiven_memory, and the

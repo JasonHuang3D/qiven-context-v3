@@ -14,7 +14,7 @@ import itertools
 import re
 from pathlib import Path
 
-from foundation.devkit.test.runner.binaries import debug_library, has_faults
+from foundation.devkit.test.harness.binaries import debug_library, has_faults
 
 # replace's temporary file beside its target, and stage's directory.
 TEMPORARY = re.compile(r"\.(?P<name>.+)\.[0-9a-f]{16}\.tmp")

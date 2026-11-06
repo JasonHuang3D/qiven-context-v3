@@ -3,7 +3,7 @@
 # foundation: it names no command. Its answer is a template on the
 # platform's standard output, in qiven/transport/wire.hpp; utf, which reads
 # the arguments strictly, is qiven_text's. Its tests (tests/) are added by
-# the runner's wiring.cmake.
+# harness' wiring.cmake.
 add_library(qiven_transport STATIC
   src/wire.cpp
   include/qiven/transport/wire.hpp

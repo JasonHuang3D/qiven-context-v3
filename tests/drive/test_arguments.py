@@ -23,8 +23,8 @@ from pathlib import Path
 
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import has_faults
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import has_faults
 from tests.drive.session import WINDOWS, Drive, DriveError
 
 POINTER = 8

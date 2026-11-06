@@ -6,7 +6,7 @@ report on standard error naming the fail-fast first."""
 import unittest
 
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 DEMO = "qiven_compute_fail_demo"
 

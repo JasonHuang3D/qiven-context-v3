@@ -17,7 +17,7 @@
       ],
       "test_depends": [
         "python",
-        "runner"
+        "harness"
       ],
       "paths": [
         "foundation/devkit/build/",

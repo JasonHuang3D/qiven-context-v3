@@ -11,7 +11,7 @@ Version 0.1: the number of this file's change list, below, and of nothing else
   - the content check (`content.py`, `content_findings`), B15's size check (`size.py`, `size_findings`), the analysis configuration against its list (`exemptions.py`), and the link lines of a Ninja build (`links.py`);
   - the modules' check (`modules.py`, the table kept true of the checkout), whose command line is `tools/loop_modules.py`;
   - among the rules' tests, K11 (`tests/test_binaries.py`), each binary of a build held to Windows' system libraries, their API sets (`foundation/devkit/python/system.py`'s `api_set`) or its preset's residual, the lists K11's own there, each binary read by `foundation/devkit/python/imports.py`;
-  - the Python import check (`python_imports.py`, `python_findings`, run by `tests/test_imports.py`): the standard library, the test tree's, this method's, the runner's Python half and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
+  - the Python import check (`python_imports.py`, `python_findings`, run by `tests/test_imports.py`): the standard library, the test tree's, this method's, `harness` and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
   - the product's header units
 - **Never holds:** a product's own paths, lists or cells as the method's code
 - **Contract:** none

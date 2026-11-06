@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 from tests.drive import session
 
 CPU = {"id": "cpu0", "back_end": "cpu", "name": "the CPU", "memory": 1 << 20}

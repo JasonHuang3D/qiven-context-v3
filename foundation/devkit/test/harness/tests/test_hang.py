@@ -25,7 +25,7 @@ faults and threads, K8 is skipped as the planted faults are.
 
 K8 drives the debugger: the label debugger, never fake, so CI never runs
 it. The runner (tools/changed.py) runs it under CTest by its module's
-label, runner, and the presets full and debugger hold it. It needs what is
+label, harness, and the presets full and debugger hold it. It needs what is
 said above: a debugger at hand and, on Windows, for plant_hang's name, a
 PDB beside the binaries. The watcher's other ends here are fake's.
 """
@@ -43,8 +43,8 @@ from foundation.devkit.python import debugger
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import AFTER, POLL, run_watched, sanitized
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import AFTER, POLL, run_watched, sanitized
 
 WINDOWS = system.WINDOWS
 FAULT = "qiven_diag_fault"

@@ -2,7 +2,7 @@
 # run time, the zone test_utc.py sets by TZ, print_at's budget and its fault
 # run; in one case binary, memory, whose arena and string the budget and
 # fault cases take, reached through qiven_faults, so that it is on the link
-# line once. Added by the runner's wiring.cmake.
+# line once. Added by harness' wiring.cmake.
 qiven_add_cases(qiven_time_test LABELS fast fake
   SOURCES utc_test.cpp
   LINK qiven_time qiven_faults)

@@ -4,7 +4,7 @@
 # the includer's. It reads qiven_root (build.cmake) and the one list of the
 # foundation's modules (modules.cmake, in the build's directory).
 #
-# At the include: the runner's mechanism (cases.cmake), before every
+# At the include: harness' mechanism (cases.cmake), before every
 # module's tests, which call its qiven_add_cases; then the kit's own test
 # directories and those of the list's modules that have one, each in
 # <module's last name>_tests. qiven_foundation_tests_end(), called once after

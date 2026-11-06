@@ -35,8 +35,8 @@ from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python.answer import LINE_POINTS
 from foundation.devkit.python.build_tree import ROOT
-from foundation.devkit.test.runner import binaries
-from foundation.devkit.test.runner.binaries import sanitized
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import sanitized
 
 FAULT = "qiven_diag_fault"
 DEBUG = ROOT / "tools" / "debug.py"

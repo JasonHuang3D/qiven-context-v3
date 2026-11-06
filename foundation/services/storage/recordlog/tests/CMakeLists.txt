@@ -1,7 +1,7 @@
 # The record log's own tests, over its own plain records, and their
 # support under support/, whose targets give this directory as their
 # include root, so that a caller's "support/stores/..." include holds.
-# Added by the runner's wiring.cmake.
+# Added by harness' wiring.cmake.
 
 # qiven_recordlog_stores: the factory the store cases take and their tags,
 # a header binding the in-memory store and the SQLite store on the fake

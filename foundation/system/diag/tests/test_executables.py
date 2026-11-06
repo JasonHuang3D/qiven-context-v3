@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 ROOT = binaries.ROOT
 CALL = re.compile(r"\badd_executable\s*\(")

@@ -10,8 +10,8 @@ layer tools, status built
   the repository's data read at the root, the trees the reader reads (`trees.json`); and its tests in
   `tests/`: the debugger's (`test_debug.py`). The debugger's pin is `debugger.py`'s, beside it
   (`foundation/devkit/python/debugger_pins.txt`, moved from `windows-pins.txt` here at `1612fde`).
-  The watcher, its dumps' bound and the watcher's hang path's tests are the runner's
-  (`foundation/devkit/test/runner/`).
+  The watcher, its dumps' bound and the watcher's hang path's tests are `harness`'
+  (`foundation/devkit/test/harness/`), the runner's tool half.
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
   system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers
   private to that module or vendored; no foreign header reaches a header of ours; all other code calls only

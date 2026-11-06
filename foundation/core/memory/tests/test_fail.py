@@ -6,7 +6,7 @@ diagnostic entry's report on standard error naming the kept cause first."""
 import unittest
 
 from foundation.devkit.python import system
-from foundation.devkit.test.runner import binaries
+from foundation.devkit.test.harness import binaries
 
 DEMO = "qiven_memory_fail_demo"
 

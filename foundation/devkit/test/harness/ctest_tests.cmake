@@ -11,7 +11,7 @@
 # acts first.
 cmake_minimum_required(VERSION 3.28)
 
-set(body "# Written by foundation/devkit/test/runner/ctest_tests.cmake after the build.\n")
+set(body "# Written by foundation/devkit/test/harness/ctest_tests.cmake after the build.\n")
 set(seen "")
 set(cases 0)
 set(python_tests 0)
@@ -48,7 +48,7 @@ function(qiven_add_test name labels serial directory)
   set(command "")
   set(watched ${ARGN})
   if(DEFINED PYTHON)
-    set(watched "${PYTHON}" -I -X faulthandler "${SOURCE}/foundation/devkit/test/runner/watch.py" --limit ${limit} --name "${name}" -- ${ARGN})
+    set(watched "${PYTHON}" -I -X faulthandler "${SOURCE}/foundation/devkit/test/harness/watch.py" --limit ${limit} --name "${name}" -- ${ARGN})
   endif()
   foreach(arg IN ITEMS ${watched})
     string(APPEND command " [==[${arg}]==]")
@@ -115,7 +115,7 @@ endif()
 
 if(DEFINED PYTHON)
   string(REPLACE "," ";" listing "${LISTING}")
-  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/runner/list_tests.py" ${listing}
+  execute_process(COMMAND "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/harness/list_tests.py" ${listing}
     WORKING_DIRECTORY "${SOURCE}"
     OUTPUT_VARIABLE listed ERROR_VARIABLE listed_err RESULT_VARIABLE status)
   if(NOT status EQUAL 0)

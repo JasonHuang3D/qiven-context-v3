@@ -18,7 +18,7 @@ import unittest
 
 from tests.contract.store_entries import (LANES, PERSON, SCOPE, Maker, exported, guard_of, header, id_of, scanned,
                                           snapshot)
-from foundation.devkit.test.runner.binaries import has_faults
+from foundation.devkit.test.harness.binaries import has_faults
 
 # The text's settings table, as the engine reads each back: application_id
 # 0x71763301 as a number.

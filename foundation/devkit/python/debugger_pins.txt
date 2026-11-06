@@ -1,5 +1,5 @@
 # The Windows tools the debugger wrapper (tools/debug.py) and the watcher's
-# hang path (foundation/devkit/test/runner/watch.py) run, by foundation/devkit/python/debugger.py: one pin a line,
+# hang path (foundation/devkit/test/harness/watch.py) run, by foundation/devkit/python/debugger.py: one pin a line,
 # KIND NAME VERSION SHA256 SOURCE. The source is the file's place in the
 # package it comes from, here WinDbg's of that version; a machine's copy, never
 # committed, is the file the environment variable QIVEN_CDB names. The version
