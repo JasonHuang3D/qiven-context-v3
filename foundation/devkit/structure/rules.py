@@ -1,6 +1,6 @@
 """The checker of the structure rules, B1, B2, B5 to B11, B13, B14, B17 and
 B32, whose lists lists.py holds; it also runs the safe subset's token rules,
-B18 to B31 (subset.py). B15 is test_size's, on its own line count; B12 and
+B18 to B31 (subset.py). B15 is size.py's, on its own line count; B12 and
 B16 have no rule until backup, forgetting and the map check are built.
 
 A rule reads includes, names and link edges from the compiler's and the
