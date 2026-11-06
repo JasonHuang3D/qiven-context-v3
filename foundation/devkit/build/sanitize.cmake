@@ -5,8 +5,8 @@
 if(MSVC)
   # cl ignores a combined /fsanitize=fuzzer,address with D9002, exit 0 even
   # under /WX: one option per sanitizer. /fsanitize=fuzzer makes each object
-  # name libFuzzer's library and main, so that a binary on wmain (qiven3,
-  # qiven3-child) takes libFuzzer's main and fails to link; the coverage
+  # name libFuzzer's library and main, so that a binary on wmain takes
+  # libFuzzer's main and fails to link; the coverage
   # options it implies stand for it, and the fuzz targets take it alone.
   # The counters' runtime, which /fsanitize=fuzzer would name, is named to
   # every link: sancov.lib on the DLL runtime libFuzzer needs.

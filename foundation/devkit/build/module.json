@@ -12,8 +12,13 @@
     {
       "name": "build",
       "layer": "whole-build",
-      "depends": [],
-      "test_depends": [],
+      "depends": [
+        "structure"
+      ],
+      "test_depends": [
+        "python",
+        "runner"
+      ],
       "paths": [
         "foundation/devkit/build/",
         "CMakeLists.txt",
