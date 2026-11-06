@@ -12,7 +12,9 @@
     {
       "name": "structure",
       "layer": "tooling",
-      "depends": [],
+      "depends": [
+        "python"
+      ],
       "test_depends": [
         "checked",
         "write",
