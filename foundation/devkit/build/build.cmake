@@ -9,7 +9,6 @@
 get_filename_component(qiven_root "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
 option(QIVEN_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
-option(QIVEN_HAL "Build qiven_compute, its fake and its cases" ON)
 option(QIVEN_STRUCTURE "Write the records the structure tests read" OFF)
 option(QIVEN_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
 option(QIVEN_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)
@@ -420,7 +419,7 @@ endif()
 set(QIVEN_LOG_LEVEL "${qiven_log_level}" CACHE INTERNAL "The log's minimum level in effect")
 add_compile_definitions(QIVEN_LOG_MIN=${qiven_log_level})
 
-message(STATUS "qiven: QIVEN_HAL ${QIVEN_HAL}, QIVEN_STRUCTURE ${QIVEN_STRUCTURE}, "
+message(STATUS "qiven: QIVEN_STRUCTURE ${QIVEN_STRUCTURE}, "
   "QIVEN_SYSTEM_HEAP ${QIVEN_SYSTEM_HEAP}, QIVEN_FAULTS ${QIVEN_FAULTS}")
 
 # Every binary in one directory: the tests find each there, and the

@@ -1,8 +1,8 @@
 # qiven_compute: the compute contract (CPU threads, vector instructions,
 # GPGPU), over memory alone, which a caller's targets link; and
 # qiven_compute_fake, its fake beside it, on the C++ standard library alone,
-# built on every system. Added by foundation/devkit/build/modules.cmake when
-# QIVEN_HAL is on alone, as its tests (tests/) are by the runner's wiring.cmake.
+# built on every system. Added by foundation/devkit/build/modules.cmake, as
+# its tests (tests/) are by the runner's wiring.cmake.
 add_library(qiven_compute STATIC
   src/hal.cpp
   include/qiven/compute/hal.hpp

@@ -45,13 +45,12 @@
 //
 // The adapter is made at its first platform operation, so an adapter that
 // cannot be made is a reply. --config overrides the configuration
-// location; the fake's is otherwise "<root>/qiven3". --hal fake is refused
-// by a build with QIVEN_HAL off, which has no HAL operation. --store, the
-// fake's drive alone, selects the store its store requests make, under
+// location; the fake's is otherwise "<root>/qiven3". --store, the fake's
+// drive alone, selects the store its store requests make, under
 // "<root>/stores" (driver/store_ops.hpp); without it there are none.
 //
 // This header is the drive's common half, no adapter's: its options, the
-// session's state (the HAL's, driver/hal_ops.hpp, in a build with it), the
+// session's state, the HAL's among it (driver/hal_ops.hpp), the
 // request helpers, adapter_for and current as a command's main calls them,
 // and the HAL's operations.
 
@@ -76,9 +75,7 @@
 #include "qiven/platform/platform.hpp"
 #include "qiven/text/json.hpp"
 
-#if defined(QIVEN3_DRIVE_HAL)
 #include "driver/hal_ops.hpp"
-#endif
 
 namespace qiven3::drive {
 
@@ -126,7 +123,7 @@ struct Faults {
 #endif
 
 // The state the drive's common operations keep: its options, the request's
-// record and, in a build with the HAL, the HAL's.
+// record and the HAL's.
 class Session {
 public:
     explicit Session(Options options) : options_(std::move(options)) {}
@@ -139,9 +136,7 @@ public:
 #if defined(QIVEN_FAULTS)
     Faults& faults() noexcept { return faults_; }
 #endif
-#if defined(QIVEN3_DRIVE_HAL)
     Hal& hal() noexcept { return hal_; }
-#endif
 
 private:
     Options options_;
@@ -149,9 +144,7 @@ private:
 #if defined(QIVEN_FAULTS)
     Faults faults_;
 #endif
-#if defined(QIVEN3_DRIVE_HAL)
     Hal hal_;
-#endif
 };
 
 // A request the drive cannot serve: the reply's kind "request".

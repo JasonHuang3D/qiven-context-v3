@@ -1,11 +1,12 @@
 # The drives the contract tests drive (driver/drive.hpp): qiven3-drive-fake
 # and, on Windows alone, qiven3-drive-windows, each compiling its
 # instantiation file over the common half. Each links current and
-# adapter_for, which a main alone links, and, with QIVEN_HAL on, the HAL's
-# fake.
+# adapter_for, which a main alone links, and the HAL's fake.
 add_library(qiven3_drive_common STATIC
   common.cpp
   drive.hpp
+  hal_ops.cpp
+  hal_ops.hpp
   platform_ops.hpp
   platform_ops_impl.hpp
   platform_child.hpp
@@ -17,12 +18,7 @@ target_include_directories(qiven3_drive_common PUBLIC "${PROJECT_SOURCE_DIR}/tes
   "${PROJECT_SOURCE_DIR}/foundation/devkit/test/case_main/include")
 # The request loop holds the process's log, kept for the entry's report.
 target_link_libraries(qiven3_drive_common PUBLIC qiven_platform qiven_memory qiven_log qiven_text
-  qiven_diag PRIVATE qiven_build qiven_platform_current)
-if(QIVEN_HAL)
-  target_sources(qiven3_drive_common PRIVATE hal_ops.cpp hal_ops.hpp)
-  target_compile_definitions(qiven3_drive_common PUBLIC QIVEN3_DRIVE_HAL)
-  target_link_libraries(qiven3_drive_common PUBLIC qiven_compute_fake)
-endif()
+  qiven_diag qiven_compute_fake PRIVATE qiven_build qiven_platform_current)
 
 # The fake's drive alone has the store's requests, over support/checked's
 # ruled factory (driver/store_ops.hpp), and location's commands on the fake.

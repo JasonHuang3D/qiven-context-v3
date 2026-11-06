@@ -27,8 +27,8 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 
 - Developer presets, on Windows with MSVC: `debug`, `release` (the build the
   full suite runs on), `asan`, `fuzz`, `structure` (the structure records),
-  `stack` (the frame bound), `analysis` (static analysis, then clang-tidy)
-  and `nohal` (no HAL).
+  `stack` (the frame bound) and `analysis` (static analysis, then
+  clang-tidy).
 - CI's presets, which share `build/ci`: `ci-windows`, `ci-asan`, `ci-stack`
   and `ci-analysis` on Windows with MSVC; `linux-gcc` and `linux-clang`
   (AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer),

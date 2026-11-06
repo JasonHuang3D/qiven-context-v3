@@ -162,13 +162,11 @@ class K14(unittest.TestCase):
         return lines
 
     def test_K14_fake(self):
-        hal = binaries.has_hal()
         root = self.place / "root"
         root.mkdir()
-        sent = requests(self.secret, self.cognition, root, hal=hal)
+        sent = requests(self.secret, self.cognition, root, hal=True)
         log = self.place / "fake.jsonl"
-        args = ["--root", root] + (["--hal", "fake"] if hal else [])
-        ran = self.drive(session.FAKE, args, sent, log)
+        ran = self.drive(session.FAKE, ["--root", root, "--hal", "fake"], sent, log)
         self.assertEqual(ran.status, 0, ran)
         lines = self.check_log(log, sent)
         # The control: the secret written into a copy is found.
@@ -177,16 +175,13 @@ class K14(unittest.TestCase):
 
     @unittest.skipUnless(system.WINDOWS,"not applicable: the Windows drive is Windows's alone")
     def test_K14_windows(self):
-        hal = binaries.has_hal()
-        sent = requests(self.secret, self.cognition, self.place, windows=True, hal=hal)
+        sent = requests(self.secret, self.cognition, self.place, windows=True, hal=True)
         log = self.place / "windows.jsonl"
-        ran = self.drive(session.WINDOWS, ["--hal", "fake"] if hal else [], sent, log)
+        ran = self.drive(session.WINDOWS, ["--hal", "fake"], sent, log)
         self.assertEqual(ran.status, 0, ran)
         self.check_log(log, sent)
 
     def test_K14_report(self):
-        if not binaries.has_hal():
-            self.skipTest("not applicable: the HAL is off, so no caller's mistake ends a drive")
         if binaries.build_option("QIVEN_SANITIZE"):
             self.skipTest("not applicable: under a sanitizer its report stands for the entry's")
         root = self.place / "root"

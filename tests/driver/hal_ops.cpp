@@ -1,7 +1,6 @@
-// The drive's HAL operations, on the HAL's fake (--hal fake), in a build
-// with QIVEN_HAL on alone (driver/hal_ops.hpp). The contract's operations
-// are templates on the compute C, instantiated for the fake; hal_fake and
-// hal_counts are the fake's own.
+// The drive's HAL operations (driver/hal_ops.hpp), on the HAL's fake
+// (--hal fake). The contract's operations are templates on the compute C,
+// instantiated for the fake; hal_fake and hal_counts are the fake's own.
 //
 // hal_fake gives both fakes, the drive's and the other one, its device set:
 // "threads", "vectors" by name, "devices" (each {"id", "back_end", "name",

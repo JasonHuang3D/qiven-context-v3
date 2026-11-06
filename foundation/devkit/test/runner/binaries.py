@@ -12,9 +12,8 @@ CTest names them itself. The watcher is WATCHER, watch.py beside this
 file, and its dumps' bound dumps.py, beside it.
 
 listed() gives the files of the build's binaries.txt. build_option() reads
-a cache variable of a build directory by
-foundation/devkit/python/build_tree.py, and
-has_faults(), debug_library(), has_hal() and sanitized() the build's
+a cache variable of the build by foundation/devkit/python/build_tree.py, and
+has_faults(), debug_library() and sanitized() the build's
 choices by it. run_watched() runs a command behind the watcher under a
 limit, TIME_BOUND unless given, polling it every POLL seconds for the
 windows it shows, drops the dumps' bound's lines from its standard error,
@@ -83,30 +82,24 @@ def unittest_run(*args, timeout=TIMEOUT):
     return process.run([sys.executable, "-I", "-m", "unittest", *args], cwd=ROOT, limit=timeout)
 
 
-def build_option(name, build=None):
-    """A cache variable of a build directory (QIVEN_BUILD's by default), or
-    None when the build has no cache or its cache does not set it."""
-    return (build_tree.options(build or directory("QIVEN_BUILD")) or {}).get(name)
+def build_option(name):
+    """A cache variable of the build, QIVEN_BUILD, or None when the build
+    has no cache or its cache does not set it."""
+    return (build_tree.options(directory("QIVEN_BUILD")) or {}).get(name)
 
 
-def has_faults(build=None):
+def has_faults():
     """Whether the build has QIVEN_FAULTS on, which is off unless set."""
-    value = build_option("QIVEN_FAULTS", build)
+    value = build_option("QIVEN_FAULTS")
     return value is not None and value.upper() in ("ON", "1", "TRUE", "YES", "Y")
 
 
-def debug_library(build=None):
+def debug_library():
     """Whether the build uses MSVC's debug library, whose debug iterators
     give each container a proxy that its constructor from an allocator,
     noexcept, takes from the allocator: a budget or a fault met there ends
     the process, so the budgets' plants and the fault sweeps do not apply."""
-    return system.WINDOWS and (build_option("CMAKE_BUILD_TYPE", build) or "") == "Debug"
-
-
-def has_hal(build=None):
-    """Whether the build has the HAL: QIVEN_HAL is on unless set off."""
-    value = build_option("QIVEN_HAL", build)
-    return value is None or value.upper() not in ("OFF", "0", "FALSE", "NO", "N")
+    return system.WINDOWS and (build_option("CMAKE_BUILD_TYPE") or "") == "Debug"
 
 
 def sanitized():

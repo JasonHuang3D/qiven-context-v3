@@ -21,13 +21,10 @@
 #include <utility>
 
 #include "driver/drive.hpp"
+#include "qiven/compute/hal.hpp"
 #include "qiven/memory/memory.hpp"
 #include "qiven/platform/current.hpp"
 #include "qiven/text/utf.hpp"
-
-#if defined(QIVEN3_DRIVE_HAL)
-#include "qiven/compute/hal.hpp"
-#endif
 
 #if defined(_WIN32)
 #include <fcntl.h>
@@ -115,12 +112,6 @@ std::optional<Options> read_options(int argc, char** argv, bool fake, std::strin
         why = "the fake's drive takes --root DIR";
         return std::nullopt;
     }
-#if !defined(QIVEN3_DRIVE_HAL)
-    if (options.hal_fake) {
-        why = "--hal fake: no HAL in this build (QIVEN_HAL off)";
-        return std::nullopt;
-    }
-#endif
     return options;
 }
 
@@ -306,9 +297,7 @@ const Operations& operations() {
         Operations all;
         all.emplace("adapter_for", adapter_for);
         all.emplace("current", current);
-#if defined(QIVEN3_DRIVE_HAL)
         add_hal_operations(all);
-#endif
         return all;
     }();
     return table;
@@ -318,7 +307,7 @@ std::optional<Value> common(Session& session, const std::string& name, ArgView r
     const auto found = operations().find(name);
     if (found == operations().end()) {
         throw RequestError(name.starts_with("hal_") && !session.options().hal_fake
-                               ? "no HAL here: " + name + " needs --hal fake in a build with it"
+                               ? "no HAL here: " + name + " needs --hal fake"
                                : "no operation '" + name + "'");
     }
     return found->second(session, request);
@@ -364,11 +353,9 @@ Value caught(std::string_view name) {
             typed("platform", qiven::platform::name(error.code), error.operation.view(), error.detail.view()));
     } catch (const qiven::memory::MemoryError& error) {
         return error_reply(typed("memory", qiven::memory::name(error.code), error.operation.view(), error.detail.view()));
-#if defined(QIVEN3_DRIVE_HAL)
     } catch (const qiven::compute::HalError& error) {
         return error_reply(
             typed("hal", qiven::compute::name(error.code), error.operation.view(), error.detail.view()));
-#endif
     } catch (const RequestError& error) {
         return error_reply(plain("request", error.what()));
     } catch (const std::exception& error) {

@@ -50,13 +50,6 @@
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_ANALYZE": "analysis"}
     },
     {
-      "name": "nohal",
-      "inherits": "here",
-      "displayName": "Without the HAL, MSVC (H6)",
-      "description": "QIVEN_HAL off: no qiven_compute, its fake or its cases, and no H case but H6",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_HAL": "OFF"}
-    },
-    {
       "name": "ci-windows",
       "inherits": "ci",
       "displayName": "CI on windows-latest, the image's MSVC",
@@ -149,7 +142,6 @@
     {"name": "structure", "configurePreset": "structure"},
     {"name": "stack", "configurePreset": "stack"},
     {"name": "analysis", "configurePreset": "analysis", "targets": ["all", "qiven_tidy"]},
-    {"name": "nohal", "configurePreset": "nohal"},
     {"name": "ci-windows", "configurePreset": "ci-windows"},
     {"name": "ci-asan", "configurePreset": "ci-asan"},
     {"name": "ci-stack", "configurePreset": "ci-stack"},
