@@ -2,7 +2,7 @@
 executable of CMake's records (executables.txt, each directory's executable
 targets, which foundation/devkit/build/top.cmake reads from CMake after every
 directory) is listed in the build's binaries.txt, which qiven_executable
-writes; and no CMakeLists.txt or CMake file but build.cmake's
+writes; and no CMakeLists.txt or CMake file but executable.cmake's
 qiven_executable calls add_executable. The control: a planted
 add_executable, caught.
 """
@@ -17,7 +17,7 @@ from foundation.devkit.test.runner import binaries
 ROOT = binaries.ROOT
 CALL = re.compile(r"\badd_executable\s*\(")
 # The one definition allowed: qiven_executable's own call.
-OWN = ("foundation/devkit/build/build.cmake", "add_executable(${name} ")
+OWN = ("foundation/system/diag/executable.cmake", "add_executable(${name} ")
 
 
 def executables(build):

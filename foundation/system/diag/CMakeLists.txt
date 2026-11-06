@@ -2,7 +2,7 @@
 # the report reads, core logic, a core target linking qiven_memory alone;
 # qiven_diag, the install, the report and Out, linking the ring; and
 # qiven_diag_entry, the entry point and the first initializer, an object
-# that qiven_executable gives every binary. qiven_diag and the entry are not
+# that qiven_executable (executable.cmake, included below) gives every binary. qiven_diag and the entry are not
 # core targets: they include the system's headers, link dbghelp on Windows,
 # and link the ring and qiven_memory alone of v3's. Its tests (tests/) are
 # added by the runner's wiring.cmake.
@@ -62,6 +62,8 @@ function(qiven_diag_targets suffix memory)
 endfunction()
 
 qiven_diag_targets("" qiven_memory)
+
+include("${CMAKE_CURRENT_LIST_DIR}/executable.cmake")
 
 # qiven_diag_entry_wide: the entry again for a binary whose entry is
 # wmain, the product's on Windows (qiven_executable's WIDE), starting the

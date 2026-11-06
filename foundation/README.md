@@ -12,7 +12,7 @@ Devkit reads `tools/`, the repository's data, from the checkout's root (`devkit/
 reader and the watcher in devkit and Python's lowest layer; (b) devkit; (c) core; (d) system; (e) services; the product's at
 P4. That build and its line in the gates end step (a), P5's alone build being step (a)'s.
 
-- An edge goes down only, but devkit's test kit's edges to the modules its cases use, and `qiven_executable`'s, in `build`, to diag's entry targets; within a layer a module depends on another only by a declared edge; the graph has no cycle.
+- An edge goes down only, but devkit's test kit's edges to the modules its cases use; within a layer a module depends on another only by a declared edge; the graph has no cycle.
 - A dependency on what is not ours (an operating system, a third-party library, an SDK) is ours to own: one foundation module wraps it, with its headers private to that module or vendored; no foreign header reaches a header of ours; all other code calls only its own lower layers and the standard library (`DIRECTION-3.md`). What does not meet it today, each a named departure with its end, at the step that builds the member it needs, its consumer switching in that change:
   - `tests/child/` and `tests/driver/common.cpp`: end at P4.
   - SQLite's two handle types and public engine header: end at step (d), where SQLite has one owner in `system/`,

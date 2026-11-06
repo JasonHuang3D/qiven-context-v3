@@ -1,6 +1,6 @@
 """The build's own Python tests: its globs and filters by trees.cmake and
-tidy_config.cmake, every executable made by qiven_executable, and the
-standard library's hardened mode, run from the root as
+tidy_config.cmake, and the standard library's hardened mode, run from the
+root as
 
     python -I -m unittest discover -v -s foundation/devkit/build/tests -t . -k '*<test id>'
 

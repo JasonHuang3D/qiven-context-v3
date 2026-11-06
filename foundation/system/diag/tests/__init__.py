@@ -1,5 +1,5 @@
-"""Diag's own Python tests: every binary of the build running the entry,
-run from the root as
+"""Diag's own Python tests: every executable made by qiven_executable and
+every binary of the build running the entry, run from the root as
 
     python -I -m unittest discover -v -s foundation/system/diag/tests -t . -k '*<test id>'
 
