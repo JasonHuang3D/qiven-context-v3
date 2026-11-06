@@ -11,7 +11,6 @@ Run as py -3.15 -I tools/changed.py, with no argument.
 import hashlib
 import json
 import os
-import re
 import sys
 import tempfile
 import time
@@ -28,6 +27,8 @@ from foundation.devkit.python import table as module_table
 from foundation.devkit.python.build_tree import ROOT
 
 TREE = "build/ci-windows"
+PRESET = "ci-windows"  # the tree's, which configures a tree that holds no cache
+JOBS = 12  # the tests a run runs at once
 RECORD = ROOT / TREE / "changed.json"
 LOG = RECORD.with_name("changed.log")  # ctest's output of the runner's last run, the failed tests' with it
 VCVARS_VER = "14.44.35207"  # the toolset, the tree's
@@ -37,22 +38,10 @@ USAGE = ("usage: py -3.15 -I tools/changed.py\n"
          "  builds build/ci-windows, then runs the tests of the modules changed since their tests\n"
          "  last ran (the record build/ci-windows/changed.json); exit 0 passed or none ran,\n"
          "  1 the build or a test failed, 2 it could not run")
-RESULT = re.compile(r"Test +#\d+: (\S+) +\.*\s*\**(.*?)\s+[\d.]+ sec\s*$")  # ctest's line of a test's result
-STEP = re.compile(r"\[\d+/\d+\]")  # Ninja's line of a step
-GLOBS = "Re-checking globbed directories..."  # the step of every build that checks CONFIGURE_DEPENDS globs, no rebuild
 
 
 class CannotRun(Exception):
     pass
-
-
-def capture(argv, env=None):
-    """(status, output) of argv from the checkout's root, stderr merged. CannotRun past its limit."""
-    try:
-        done = process.run(argv, cwd=ROOT, env=env, limit=STEP_SECONDS, err=process.MERGE, text=True)
-    except process.TimedOut as e:
-        raise CannotRun(str(e)) from e
-    return done.status, done.out
 
 
 def named(env, name):
@@ -72,27 +61,17 @@ def vcvars_env():
 
 
 def build(env, cmake):
-    """(status, the answer's build line, and on a failure every line the build printed but Ninja's step
-    lines: configure's or a regenerating build's CMake output, each FAILED: block, Ninja's last line). A
-    regenerating build is a step, CMake's rerun, though Ninja then finds no work to do; the globs' check,
-    which every build runs, is none."""
-    status, text = 0, ""
+    """(status, the answer's build line, and on a failure the lines of build_tree's Built)."""
     try:
         configured = build_tree.options(ROOT / TREE) is not None
     except (OSError, ValueError) as e:  # UnicodeDecodeError is a ValueError
         raise CannotRun(f"{TREE}'s cache: {e}") from e
-    if not configured:
-        status, text = capture([cmake, "--preset", "ci-windows", "-B", TREE], env)
-    if status == 0:
-        status, more = capture([cmake, "--build", TREE], env)
-        text += more
-    if status != 0:
-        return status, [f"build: failed, {status_table.line(status)}",
-                        *(line for line in text.splitlines() if not STEP.match(line))]
-    steps = sum(1 for line in text.splitlines() if STEP.match(line) and not line.endswith(GLOBS))
-    if not steps and "ninja: no work to do." in text:
+    built = build_tree.run_build(TREE, cmake, preset=None if configured else PRESET, env=env, limit=STEP_SECONDS)
+    if built.status != 0:
+        return built.status, [f"build: failed, {status_table.line(built.status)}", *built.lines]
+    if built.no_work:
         return 0, ["build: nothing to rebuild"]
-    return 0, [f"build: {steps} steps"]
+    return 0, [f"build: {built.steps} steps"]
 
 
 def files(table):
@@ -131,20 +110,6 @@ def select(tests, changed):
     return list(chosen)
 
 
-def run_tests(env, ctest, chosen):
-    """(ctest's status, {name: its result's word}, seconds), the names by a file outside the tree."""
-    handle, name = tempfile.mkstemp(prefix="qiven-changed-", suffix=".txt")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as out:
-            out.write("".join(f"{n}\n" for n in chosen))
-        start = time.monotonic()
-        status, text = capture([ctest, "--test-dir", TREE, "--tests-from-file", name,
-                                "--output-on-failure", "--output-log", str(LOG), "-j", "12"], env)
-        return status, {m[1]: m[2] for m in map(RESULT.search, text.splitlines()) if m}, time.monotonic() - start
-    finally:
-        os.remove(name)
-
-
 def write(record):
     """The record, whole, by a temporary file beside it and os.replace."""
     handle, name = tempfile.mkstemp(dir=RECORD.parent, prefix="changed-", suffix=".tmp")
@@ -176,7 +141,7 @@ def answer(lines):
     if record is None:
         write(now)
         lines.append("record: none before; written from the files as they stand, taken as tested by decision; no test run")
-        changed, chosen, results, code = {}, [], {}, 0
+        changed, chosen, code = {}, [], 0
     else:
         changed = {m: sorted(p for p in set(now.get(m, {})) | set(record.get(m, {}))
                              if now.get(m, {}).get(p) != record.get(m, {}).get(p)) for m in sorted(set(now) | set(record))}
@@ -187,21 +152,20 @@ def answer(lines):
         bare = [m for m in counted if not any(m in labels for labels in tests.values())]
         if bare:  # its cases lie in another module's row, or it has none: named, never silent
             lines.append(f"no test under its label, none run: {', '.join(bare)}")
-        chosen, results, code = select(tests, changed), {}, 0
+        chosen, code = select(tests, changed), 0
         if chosen:
-            status, results, seconds = run_tests(env, ctest, chosen)
-            words = list(results.values())
-            passed = words.count("Passed")
-            skipped = [n for n, w in results.items() if w.startswith("Skipped") or "Disabled" in w]
-            failed = [n for n, w in results.items() if w != "Passed" and n not in skipped]
-            lines.append(f"tests: {len(chosen)} of {', '.join(counted)}: {passed} passed, {len(failed)} failed, "
+            start = time.monotonic()
+            ran = build_tree.run_tests(TREE, ctest, chosen, log=LOG, jobs=JOBS, env=env, limit=STEP_SECONDS)
+            seconds = time.monotonic() - start
+            failed, skipped = ran.failed, ran.skipped
+            lines.append(f"tests: {len(chosen)} of {', '.join(counted)}: {ran.passed} passed, {len(failed)} failed, "
                          f"{len(skipped)} skipped, {seconds:.1f} s")
             if skipped:
                 cut = f" and {len(skipped) - 20} more" if len(skipped) > 20 else ""
                 lines.append(f"skipped: {', '.join(skipped[:20])}{cut}")
-            if failed or status != 0:
+            if failed or ran.status != 0:
                 cut = f" and {len(failed) - 20} more" if len(failed) > 20 else ""
-                lines.append(f"failed: {', '.join(failed[:20]) + cut or status_table.ctest_line(status)}, "
+                lines.append(f"failed: {', '.join(failed[:20]) + cut or status_table.ctest_line(ran.status)}, "
                              f"the log {TREE}/{LOG.name}")
                 code = 1
         else:
@@ -226,7 +190,7 @@ def main(argv):
     lines = []
     try:
         code = answer(lines)
-    except (CannotRun, git.GitFailed) as error:
+    except (CannotRun, git.GitFailed, process.TimedOut) as error:
         lines.append(f"cannot run: {error}")
         code = 2
     # the answer's bound, 40 lines with the exit's: the cut named
