@@ -7,7 +7,7 @@
 # for a binary on another runtime or memory.
 # WIDE, for a binary whose entry is wmain on Windows (the product's), takes
 # the entry's wide variant there.
-# Each library is on the link line once (foundation/devkit/structure/tests/test_links.py):
+# Each library is on the link line once (foundation/devkit/build/tests/test_links.py):
 # CMake keeps a binary's own list in its order, puts what they link after
 # it, and names a library again when one after it links it. So LINK names
 # a target before none that links it; qiven_diag, which links the ring the

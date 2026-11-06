@@ -20,10 +20,11 @@ LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "
           "fuzz", "bench", "drill", "gpu", "analysis"}
 MODULES = {m["name"] for m in table.load(binaries.ROOT)["modules"]}
 # The structure tests start no process but git and read no machine fact: fast,
-# and not drive; but the analysis tools' controls, which run the tools on the
-# analysis build: analysis alone. Every other Python test drives a binary.
+# and not drive. The analysis tools' controls, build's, which run the tools on
+# the analysis build: analysis alone. Every other Python test is labelled drive
+# by its package, whether it drives a binary or reads a build's files.
 STRUCTURE = "foundation.devkit.structure."
-ANALYSIS = "foundation.devkit.structure.tests.test_analysis."
+ANALYSIS = "foundation.devkit.build.tests.test_analysis."
 HERE = "foundation/devkit/test/harness/tests"
 # A Python test's skip, as CTest reads it in the test's output.
 PYTHON_SKIP = r"OK \(skipped=[0-9]+\)[^a-z]+status: 0 passed"
@@ -149,7 +150,7 @@ class Registered(unittest.TestCase):
             "fast": labelled(tests, "fast"),
             "asan": labelled(tests, "cxx") - fuzz,
             "fuzz": fuzz,
-            "structure": {name for name in tests if name.startswith(STRUCTURE)} - analysis,
+            "structure": {name for name in tests if name.startswith(STRUCTURE)},
             "analysis": analysis,
             "fake": labelled(tests, "fake"),
             "debugger": labelled(tests, "debugger"),

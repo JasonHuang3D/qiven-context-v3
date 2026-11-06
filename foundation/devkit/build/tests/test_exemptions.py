@@ -4,7 +4,8 @@ analysis build's, held there (test_analysis.TestTargets)."""
 
 import unittest
 
-from foundation.devkit.structure import exemptions, rules
+from foundation.devkit.build import exemptions
+from foundation.devkit.structure import rules
 
 ROOT = rules.ROOT
 

@@ -27,7 +27,7 @@ from pathlib import Path
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python.build_tree import ROOT
-from foundation.devkit.structure import exemptions
+from foundation.devkit.build import exemptions
 
 TEMPLATE = "foundation/core/memory/src/arena.cpp"
 TOOL_SECONDS = 600  # one tool over one planted file, on a loaded machine

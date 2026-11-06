@@ -44,7 +44,7 @@ PACKAGE_LABELS = {
 # A module, by its whole name, whose labels are its own, in place of its
 # package's: the analysis tools' controls, which run on the analysis build alone.
 MODULE_LABELS = {
-    "foundation.devkit.structure.tests.test_analysis": ("analysis",),
+    "foundation.devkit.build.tests.test_analysis": ("analysis",),
 }
 
 

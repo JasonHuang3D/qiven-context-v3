@@ -11,7 +11,7 @@ library alone, no tool.
 Its ELF and glibc parts are retired (tools/README.md's Retired section).
 Its consumers: the watcher (foundation/devkit/test/harness/watch.py), which
 names, on a failed load, each import found nowhere, and K11
-(foundation/devkit/structure/tests/test_binaries.py), which holds every
+(foundation/devkit/build/tests/test_binaries.py), which holds every
 binary of a build to its system's list or its preset's residual.
 """
 

@@ -91,7 +91,7 @@ function(qiven_top_end)
 
   # The targets that take test code's analysis, in every preset's
   # test-targets.txt, and beside it defined-targets.txt, every compiled target
-  # the preset defines, a plant's aside: foundation/devkit/structure/tests/test_analysis.py
+  # the preset defines, a plant's aside: foundation/devkit/build/tests/test_analysis.py
   # holds the analysis build's first to its list, and tells a listed target
   # defined without test code's analysis from one the preset does not define.
   qiven_test_targets(qiven_test_targets)

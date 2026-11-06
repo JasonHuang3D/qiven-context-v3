@@ -21,6 +21,8 @@ set(qiven_left_out
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_analysis_choice
   # Configures the root's analysis preset, the product's directories with it.
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_steps_name_composed
+  # Must read the links of the product's targets among the five that failed on macOS.
+  foundation.devkit.build.tests.test_links.Links.test_build
   # Judges the root's test presets, the product's selections, against this
   # tree's tests.
   foundation.devkit.test.harness.tests.test_wiring.Registered.test_presets)

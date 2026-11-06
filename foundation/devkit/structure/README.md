@@ -2,16 +2,16 @@
 
 layer devkit, status built
 
-Version 0.1: the number of this file's change list, below, and of nothing else
+Version 0.2: the number of this file's change list, below, and of nothing else
 
-- **Awaiting a split:** its product data (qiven3's paths, lists and cells, in `lists.py`, `rules.py` and `subset.py`, the angle include of `qiven3/` in `modules.py`'s `INCLUDE`, and in `tests/test_links.py` and `tests/test_line_endings.py`'s product files kept byte for byte and their directories) leaves for `products/qiven3`; its row's edges to qiven3's modules are the product's header units' (`tests/support/headers/`, `qiven3_headers` and `qiven3_test_headers`), each of which goes with its header's module when that module moves, in P4, its edges with it; the row's path and its exception stay until then, and an old place's path joins no row; the foundation's units are their modules' (each in its module's `tests/support/headers/`)
+- **Awaiting a split:** its product data (qiven3's paths, lists and cells, in `lists.py`, `rules.py` and `subset.py`, the angle include of `qiven3/` in `modules.py`'s `INCLUDE`, and in `tests/test_line_endings.py`'s product files kept byte for byte and their directories) leaves for `products/qiven3`; its row's edges to qiven3's modules are the product's header units' (`tests/support/headers/`, `qiven3_headers` and `qiven3_test_headers`), each of which goes with its header's module when that module moves, in P4, its edges with it; the row's path and its exception stay until then, and an old place's path joins no row; the foundation's units are their modules' (each in its module's `tests/support/headers/`)
 - **Holds:** the structure method in Python:
   - the lexer (`lexer.py`), which `build`'s header units read too, and the records (`records.py`, with `CMakeLists.txt`, the structure preset's step that writes them);
   - the rules for any code: the checker (`rules.py`), its lists as data (`lists.py`), the subset's token rules (`subset.py`), the tree's files through `python`'s `git` (`tree.py`), and a tree's modules and layers (`layers.py`);
-  - the content check (`content.py`, `content_findings`), B15's size check (`size.py`, `size_findings`), the analysis configuration against its list (`exemptions.py`), and the link lines of a Ninja build (`links.py`);
+  - the content check (`content.py`, `content_findings`) and B15's size check (`size.py`, `size_findings`);
   - the modules' check (`modules.py`, the table kept true of the checkout), whose command line is `tools/loop_modules.py`;
-  - among the rules' tests, K11 (`tests/test_binaries.py`), each binary of a build held to Windows' system libraries, their API sets (`foundation/devkit/python/system.py`'s `api_set`) or its preset's residual, the lists K11's own there, each binary read by `foundation/devkit/python/imports.py`;
-  - the Python import check (`python_imports.py`, `python_findings`, run by `tests/test_imports.py`): the standard library, the test tree's, this method's, `harness` and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
+  - the Python import check (`python_imports.py`, `python_findings`, run by `tests/test_imports.py`): the standard library, the test tree's, this method's, `build`'s two readers its tests use (`links.py`, `exemptions.py`), `harness` and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
+  - `tests/test_triggers.py`, CI's triggers and its unpinned images, the repository's cases, kept here: the repository's row has no tree, and one file of two cases does not justify a walked tree and a layer change (ARCH-037); an item for this module's end challenge and the test framework's design;
   - the product's header units
 - **Never holds:** a product's own paths, lists or cells as the method's code
 - **Contract:** none
@@ -33,7 +33,16 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.1, 2026-11-06, the commit that brings this entry
+### 0.2, 2026-11-07, the commit that brings this entry
+
+Each case to its subject's row, by the end challenges' St-3 with Bu-6.
+
+- **This file:** `links.py`, `exemptions.py` and K11 leave the Holds list; the Python import check names `build`'s two readers; the triggers' line says why they stay; the awaiting list no longer names `tests/test_links.py`.
+- **Members moved:** `links.py` and `exemptions.py` to `build` (`foundation/devkit/build/`), with their tests and the cases of build's subjects: the floors (`test_floors.py`), K11 (`test_binaries.py`), the links (`test_links.py`), the analysis controls (`test_analysis.py`) and the exemptions (`test_exemptions.py`), each whole. The import check allows `foundation.devkit.build`.
+- **What a consumer does:** imports `links` and `exemptions` from `foundation.devkit.build`; selects the moved cases by `build`'s label, not this module's name. The structure preset no longer runs them.
+- **Known limits:** `tests/test_triggers.py` stays until the repository's row can hold a test.
+
+### 0.1, 2026-11-06, `cdf16f1`
 
 The charter in the method's form, by step (b)'s design challenge.
 

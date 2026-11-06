@@ -34,7 +34,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 # Headers, not named modules: no module dependency scan.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # The C runtime linked statically, so that a binary imports the system's
-# libraries alone (K11, foundation/devkit/structure/tests/test_binaries.py); libFuzzer needs the DLL.
+# libraries alone (K11, foundation/devkit/build/tests/test_binaries.py); libFuzzer needs the DLL.
 if(QIVEN_SANITIZE MATCHES "fuzzer")
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 else()
@@ -269,7 +269,7 @@ endif()
 #   sdkddkver.h names NTDDI_WIN11_GE and _WIN32_WINNT_WIN10, so that a newer
 #   SDK hides what it declares past 24H2. Configure reads them under the
 #   build's flags, each set before sdkddkver.h, since its defaults may
-#   match; foundation/devkit/structure/tests/test_floors.py holds every compile command and
+#   match; foundation/devkit/build/tests/test_floors.py holds every compile command and
 #   source to them.
 # - Linux: no binary needs a glibc symbol version past GLIBC_2.39; K11's
 #   reading of it is retired (tools/README.md).
