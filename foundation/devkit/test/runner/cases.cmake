@@ -105,24 +105,17 @@ function(qiven_list_tests)
   set(qiven_bin "${PROJECT_BINARY_DIR}/bin")
   set(qiven_runner_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}")
 
-  # The AddressSanitizer runtime beside each test binary: every binary is
-  # written to one directory. The listing step runs the case binaries, so it
-  # waits for the copy (below): a binary started while the DLL is being
-  # written fails to load it.
+  # The AddressSanitizer runtime the build names (qiven_asan_runtime,
+  # foundation/devkit/build/sanitize.cmake) beside each test binary: every
+  # binary is written to one directory. The listing step runs the case
+  # binaries, so it waits for the copy (below): a binary started while the
+  # DLL is being written fails to load it.
   set(qiven_runtime_files "")
-  if(MSVC AND QIVEN_SANITIZE MATCHES "address")
-    get_filename_component(qiven_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-      set(qiven_asan_dll clang_rt.asan_dbg_dynamic-x86_64.dll)
-    else()
-      set(qiven_asan_dll clang_rt.asan_dynamic-x86_64.dll)
-    endif()
-    if(NOT EXISTS "${qiven_cl_dir}/${qiven_asan_dll}")
-      message(FATAL_ERROR "qiven: ${qiven_asan_dll} is not beside the compiler")
-    endif()
+  if(qiven_asan_runtime)
+    get_filename_component(qiven_asan_dll "${qiven_asan_runtime}" NAME)
     add_custom_command(OUTPUT "${qiven_bin}/${qiven_asan_dll}"
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${qiven_cl_dir}/${qiven_asan_dll}" "${qiven_bin}/"
-      DEPENDS "${qiven_cl_dir}/${qiven_asan_dll}"
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${qiven_asan_runtime}" "${qiven_bin}/"
+      DEPENDS "${qiven_asan_runtime}"
       VERBATIM)
     add_custom_target(qiven_asan_runtime ALL DEPENDS "${qiven_bin}/${qiven_asan_dll}")
     list(APPEND qiven_runtime_files "${qiven_bin}/${qiven_asan_dll}")

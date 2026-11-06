@@ -22,6 +22,20 @@ if(MSVC)
     endif()
   endforeach()
   add_link_options(/INCREMENTAL:NO)
+  # AddressSanitizer's runtime, a DLL beside the compiler, its debug form
+  # under Debug: qiven_asan_runtime, its path, which the runner copies beside
+  # each test binary (foundation/devkit/test/runner/cases.cmake).
+  if(QIVEN_SANITIZE MATCHES "address")
+    get_filename_component(qiven_cl_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(qiven_asan_runtime "${qiven_cl_dir}/clang_rt.asan_dbg_dynamic-x86_64.dll")
+    else()
+      set(qiven_asan_runtime "${qiven_cl_dir}/clang_rt.asan_dynamic-x86_64.dll")
+    endif()
+    if(NOT EXISTS "${qiven_asan_runtime}")
+      message(FATAL_ERROR "qiven: ${qiven_asan_runtime} is not beside the compiler")
+    endif()
+  endif()
 else()
   string(REPLACE "fuzzer" "fuzzer-no-link" qiven_sanitizers "${QIVEN_SANITIZE}")
   add_compile_options("-fsanitize=${qiven_sanitizers}" -fno-sanitize-recover=all
