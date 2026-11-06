@@ -94,7 +94,7 @@ ALLOWED = {
 # What the rows' cells allow by name, (rule, file, what), each with its
 # reason; rules.py's allowed() reads them. B22: SQLite declares
 # sqlite3_config variadic, the one place its interface needs varargs. B25:
-# the runner's own cases' two state globals, each by its declarator's name,
+# the runner's own cases' three state globals, each by its declarator's name,
 # at namespace scope alone. B28: the borrowing types, each with its lifetime
 # rule: Type is a type's members, Type::member that member alone.
 RUNNER_TEST = "foundation/devkit/test/runner/tests/runner_test.cpp"
@@ -105,6 +105,9 @@ CELLS = {
                                      "that runs the sample reads it",
     ("B25", RUNNER_TEST, "held_slots"): "as reached's: the pool slots a sample case holds past its end, chained, "
                                         "kept reachable under the system heap, which the case that runs it reads",
+    ("B25", RUNNER_TEST, "seen"): "as reached's: what a run's end was given, which the sample Ended, a plain "
+                                  "function that takes no state but its arguments, sets, and the case that "
+                                  "runs it reads",
     ("B28", "foundation/devkit/test/runner/include/qiven/runner/core.hpp", "Case::name"): "a case's name, a view of "
         "the registering macro's string literals, which have static storage and outlive every Case",
     ("B28", "foundation/system/platform/include/qiven/platform/platform.hpp", "Command"): "the platform's request to start a process, its fields "

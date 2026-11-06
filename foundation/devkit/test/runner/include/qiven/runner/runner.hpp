@@ -7,21 +7,8 @@
 // which holds the log, drains it into the output QIVEN_LOG names, and
 // names a PlatformError a case lets out).
 
-#include <chrono>
-#include <cstddef>
-
 #include "qiven/log/log.hpp"
 #include "qiven/runner/core.hpp"
-
-namespace qiven::test {
-
-// The event case.end in log: the case's name, its outcome "pass", "fail" or
-// "skip" by status, its milliseconds since start and held, the bytes its
-// allocators held. The main's Ended, which runner_test gives run_case.
-void case_ended(qiven::log::Log& log, const qiven::runner::Case& c, int status,
-                std::chrono::steady_clock::time_point start, std::size_t held);
-
-}  // namespace qiven::test
 
 #define QIVEN_CAT2(a, b) a##b
 #define QIVEN_CAT(a, b) QIVEN_CAT2(a, b)

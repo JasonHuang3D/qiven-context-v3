@@ -1,9 +1,11 @@
 // The runner's own cases, in process: each route of run_case and run_main.
 // test_runner.py, beside this file, drives the same routes through a
-// process, a crash among them. Each run's case.end is read back from a Log
-// of the case's own.
+// process, a crash among them. Each run's end is read by an Ended of its
+// own; the case main's, its case.end, is the case main's own case.
 
 #include <array>
+#include <chrono>
+#include <cstddef>
 #include <cstring>
 #include <span>
 #include <sstream>
@@ -12,9 +14,6 @@
 
 #include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/platform/platform.hpp"
-#include "qiven/case_main/cases.hpp"
-#include "qiven/case_main/journal.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {
@@ -27,34 +26,31 @@ Case sample(std::string_view name, qiven::runner::CaseFn fn = nullptr) {
     return Case{name, nullptr, fn};
 }
 
-// The Name of the case run() runs, which its case.end carries.
-constexpr qiven::log::Name sample_case = "sample.case";
-
-// A Log of a case's own, numbered 2, over an arena of its context.
-class Logged {
-public:
-    explicit Logged(Context& ctx)
-        : log(ctx.counted.arena(qiven::test::Journal::bytes), qiven::log::Count(2U), "runner-test") {}
-    // Its lines, oldest first.
-    [[nodiscard]] qiven::test::Lines lines() const { return qiven::test::Lines(log.ring().since(log.ring().first())); }
-    qiven::log::Log log;
+// What the last run's end was given.
+struct Seen {
+    int status = -1;
+    std::size_t held = 0;
 };
+Seen seen;
 
-// The output of run_case on a case of these bodies, its status, and its
-// log's last line.
+void seen_ended(qiven::log::Log& /*log*/, const Case& /*c*/, int status, std::chrono::steady_clock::time_point /*start*/,
+                std::size_t held) {
+    seen = Seen{status, held};
+}
+
+// The output of run_case on a case of these bodies, its status, and what
+// its end was given.
 struct Ran {
     int status;
     std::string out;
-    std::string event;
+    Seen ended;
 };
 
 Ran run(Context& ctx, qiven::runner::CaseFn fn) {
     std::ostringstream out;
-    Logged logged(ctx);
-    const int status = qiven::runner::run_case(Case{sample_case.text(), &sample_case, fn}, out, logged.log,
-                                              &qiven::test::case_ended);
-    const qiven::test::Lines lines = logged.lines();
-    return Ran{status, out.str(), lines.at(lines.size() - 1)};
+    seen = Seen{};
+    const int status = qiven::runner::run_case(sample("sample.case", fn), out, ctx.log, &seen_ended);
+    return Ran{status, out.str(), seen};
 }
 
 bool reached = false;
@@ -114,21 +110,16 @@ QIVEN_CASE(runner, pass_status) {
     CHECK_EQ(r.out, std::string("PASS sample.case\n"));
 }
 
-// case.end, its fields in the key order json writes them; ms the case's.
-QIVEN_CASE(runner, case_end) {
-    const Ran pass = run(qiven_ctx, &sample_pass);
-    CHECK(holds(pass.event, R"({"case":"sample.case","event":"case.end","held":0,"level":"info","log":2,"ms":)"));
-    CHECK(holds(pass.event, R"(,"op":0,"outcome":"pass","t":)"));
-    const Ran fail = run(qiven_ctx, &sample_fail_counts);
-    CHECK(holds(fail.event, R"("outcome":"fail")"));
-    const Ran skip = run(qiven_ctx, [](Context&) { QIVEN_SKIP("not applicable: here"); });
-    CHECK(holds(skip.event, R"("outcome":"skip")"));
-    const Ran thrown = run(qiven_ctx, [](Context&) { throw 7; });
-    CHECK(holds(thrown.event, R"("outcome":"fail")"));
+// The end given to Ended: the status and the bytes held.
+QIVEN_CASE(runner, ended_given) {
+    CHECK_EQ(run(qiven_ctx, &sample_pass).ended.status, qiven::runner::exit_pass);
+    CHECK_EQ(run(qiven_ctx, &sample_fail_counts).ended.status, qiven::runner::exit_fail);
+    CHECK_EQ(run(qiven_ctx, [](Context&) { QIVEN_SKIP("not applicable: here"); }).ended.status, qiven::runner::exit_skip);
+    CHECK_EQ(run(qiven_ctx, [](Context&) { throw 7; }).ended.status, qiven::runner::exit_fail);
     // The bytes held: the arena's 24 and the pool's 32.
     const Ran held = run(qiven_ctx, &sample_counted_held);
-    CHECK(holds(held.event, R"("held":56,)"));
-    CHECK(holds(held.event, R"("outcome":"fail")"));
+    CHECK_EQ(held.ended.held, 56U);
+    CHECK_EQ(held.ended.status, qiven::runner::exit_fail);
 }
 
 QIVEN_CASE(runner, fail_counts) {
@@ -165,17 +156,6 @@ QIVEN_CASE(runner, exception_fails) {
     CHECK(holds(other.out, "exception of an unknown type\n"));
 }
 
-QIVEN_CASE(runner, platform_error_named) {
-    const Ran r = run(qiven_ctx, [](Context&) {
-        throw qiven::platform::PlatformError(qiven::platform::Code::busy, "replace", "the target is held");
-    });
-    CHECK_EQ(r.status, qiven::runner::exit_fail);
-    CHECK(holds(r.out, "platform error busy: the target is held\n"));
-    CHECK(!holds(r.out, "unknown type"));
-    CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
-    CHECK(holds(r.event, R"("outcome":"fail")"));
-}
-
 QIVEN_CASE(runner, memory_error_named) {
     // A MemoryError has no base: its code's name, its operation and its
     // detail are named, and the case is counted failed.
@@ -184,7 +164,6 @@ QIVEN_CASE(runner, memory_error_named) {
     CHECK(holds(r.out, "memory error budget in arena: budget 64, request 80, held 16\n"));
     CHECK(!holds(r.out, "unknown type"));
     CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
-    CHECK(holds(r.event, R"("outcome":"fail")"));
 }
 
 QIVEN_CASE(runner, check_eq_shows) {
@@ -199,20 +178,19 @@ QIVEN_CASE(runner, list_sorted) {
     const std::array<std::string_view, 1> args{"--list"};
     std::ostringstream out;
     std::ostringstream err;
-    Logged logged(qiven_ctx);
-    CHECK_EQ(qiven::runner::run_main(args, cases, out, err, logged.log), qiven::runner::exit_pass);
+    CHECK_EQ(qiven::runner::run_main(args, cases, out, err, qiven_ctx.log), qiven::runner::exit_pass);
     CHECK_EQ(out.str(), std::string("a.x\na.y\nb.x\n"));
     CHECK_EQ(err.str(), std::string());
 }
 
 QIVEN_CASE(runner, run_refusals) {
     const std::vector<Case> cases{sample("a.x")};
-    Logged logged(qiven_ctx);
-    const auto status = [&logged](const std::vector<Case>& in, std::span<const std::string_view> args,
-                                  std::string& err_text) {
+    qiven::log::Log& log = qiven_ctx.log;
+    const auto status = [&log](const std::vector<Case>& in, std::span<const std::string_view> args,
+                               std::string& err_text) {
         std::ostringstream out;
         std::ostringstream err;
-        const int s = qiven::runner::run_main(args, in, out, err, logged.log);
+        const int s = qiven::runner::run_main(args, in, out, err, log);
         err_text = err.str();
         return s;
     };

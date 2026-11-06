@@ -1,6 +1,7 @@
 # The runner's own cases' configuration, on its parent's: runner_test.cpp
-# keeps its two state globals, reached and held_slots, at namespace scope,
-# each allowed by its name (B25's allowance, structure's subset.py CELLS);
+# keeps its three state globals, reached, held_slots and seen, at namespace
+# scope, each allowed by its name (B25's allowance, structure's subset.py
+# CELLS);
 # B25's token rule holds runner_demo.cpp.
 InheritParentConfig: true
 Checks: >-

@@ -9,7 +9,7 @@
 
 #include "qiven/log/log.hpp"
 #include "qiven/memory/arena.hpp"
-#include "qiven/case_main/cases.hpp"
+#include "log_cases.hpp"
 #include "qiven/runner/runner.hpp"
 
 namespace {

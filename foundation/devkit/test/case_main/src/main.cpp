@@ -15,6 +15,7 @@
 #include "qiven/log/log.hpp"
 #include "qiven/memory/fail.hpp"
 #include "qiven/platform/platform.hpp"
+#include "qiven/case_main/ended.hpp"
 #include "qiven/case_main/journal.hpp"
 #include "qiven/runner/runner.hpp"
 

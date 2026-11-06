@@ -16,7 +16,7 @@
 #include "qiven/log/log.hpp"
 #include "qiven/memory/arena.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/case_main/cases.hpp"
+#include "log_cases.hpp"
 #include "qiven/faults/faults.hpp"
 #include "qiven/runner/runner.hpp"
 

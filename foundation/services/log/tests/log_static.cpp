@@ -15,7 +15,7 @@
 #include "line.hpp"
 #include "qiven/log/log.hpp"
 #include "qiven/memory/memory.hpp"
-#include "qiven/case_main/cases.hpp"
+#include "log_cases.hpp"
 
 namespace {
 

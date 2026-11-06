@@ -1,8 +1,8 @@
 #pragma once
 
-// The log cases' own support (foundation/services/log/tests/log_*.cpp): a
-// ring's or a drain's lines as strings, a drain's output, the widest event
-// (eight 64-byte names), and the static half's report (log_static.cpp).
+// The log cases' own support (log_*.cpp, beside this file): a ring's or a
+// drain's lines as strings, a drain's output, the widest event (eight
+// 64-byte names), and the static half's report (log_static.cpp).
 
 #include <cstddef>
 #include <string>

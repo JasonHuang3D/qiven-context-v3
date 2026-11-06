@@ -1,7 +1,7 @@
 #pragma once
 
-// qiven_runner: the test runner, on the standard library and v3's memory
-// alone. A case is registered as "group.name" (qiven/runner/runner.hpp, the log's
+// qiven_runner: the test runner, on the standard library and v3's memory,
+// naming the log's Log and Name, declared below. A case is registered as "group.name" (qiven/runner/runner.hpp, the log's
 // QIVEN_CASE); a case binary lists its cases with --list and runs one with
 // --run NAME, the case's result its exit status. Each case is its own CTest
 // test. A case takes v3's allocators from its context, qiven_ctx.counted,
