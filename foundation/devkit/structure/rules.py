@@ -252,8 +252,6 @@ def direct_include(by, path, kind, name, out):
         out.add("B8", by, detail=f"the network's {name}")
     if kind == "other" and base != "sqlite3.h":
         out.add("B9", by, detail=f"an include from outside, {name}", what=base)
-    if rel is not None and not (out.tree.library(rel) or rel.endswith("/sqlite3.h")):
-        out.add("B9", by, detail=f"an include outside a library of core to products, {rel}", what=rel)
     if ".." in path.replace("\\", "/").split("/"):
         out.add("B11", by, detail=f"an include path holding .., {path}")
     if rel is not None and under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \

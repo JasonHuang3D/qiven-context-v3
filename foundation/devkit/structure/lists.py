@@ -9,8 +9,6 @@ import re
 from foundation.devkit.structure import layers, subset
 
 STRUCTURE = "foundation/devkit/structure/"
-# The test kit's directory: the runner, the case main and the kit's other modules, whose headers cases include.
-KIT = "foundation/devkit/test/"
 
 # The content rule's documented example values, each exempt by exact value,
 # with its source: a drive-letter path into a profile's root.
@@ -126,14 +124,6 @@ STATED = {
     ("B9", DIAG, "unistd.h"): "the diagnostic entry's write and _exit on Linux",
     ("B9", DIAG, "mman.h"): "the diagnostic entry's alternate stack on Linux",
     ("B9", DIAG, "prctl.h"): "the diagnostic entry's PR_SET_PTRACER for the watcher on Linux",
-    ("B9", layers.TESTS, KIT): "the test kit's public headers, which the cases and the drives include",
-    ("B9", layers.TESTS, layers.SUPPORT): "the test tree's own headers, which its sources include",
-    ("B9", layers.TESTS, f"{layers.TESTS}driver/"): "as tests/support/'s",
-    ("B9", layers.TESTS, layers.CHILD): "as tests/support/'s",
-    ("B9", KIT, KIT): "the test kit's headers, which its modules and their own cases include",
-    ("B9", "foundation/system/platform/tests/", "foundation/system/platform/tests/win_process_case.hpp"):
-        "the process cases' shared header, which platform's process cases include: tests/support/fixtures/'s "
-        "header, moved to platform's own tests/ with them (3469a57)",
     ("B17", "foundation/core/memory/src/arena.cpp", "new"): "operator new and delete with std::align_val_t: the system "
                                             "heap's blocks B19 allows memory/arena and memory/pool",
     ("B17", "foundation/core/memory/src/pool.cpp", "new"): "as arena.cpp's, and std::nothrow",
