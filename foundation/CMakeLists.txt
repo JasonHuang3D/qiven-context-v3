@@ -16,7 +16,7 @@ set(qiven_left_out
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_header_filter
   # Walk every tree of the checkout.
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_one_reader
-  foundation.devkit.build.tests.test_trees_build.TreesBuild.test_listing_reader
+  foundation.devkit.test.harness.tests.test_listing.Listing.test_listing_reader
   # Its answer for products/qiven3/tests/ rests on that module's module.json.
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_analysis_choice
   # Configures the root's analysis preset, the product's directories with it.
