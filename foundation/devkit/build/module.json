@@ -18,6 +18,7 @@
         "foundation/devkit/build/",
         "CMakeLists.txt",
         "CMakePresets.json",
+        "foundation/CMakeLists.txt",
         "foundation/CMakePresets.json",
         ".clang-tidy"
       ]

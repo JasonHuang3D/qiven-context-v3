@@ -2,7 +2,9 @@
 trees tools/trees.json walks and of its layers' trees: its id, its labels,
 serial, and its own limit.
 
-Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py.
+Run from the checkout's root as python -I foundation/devkit/test/runner/list_tests.py
+[--trees <tree>...] [--leave-out <name>...]: --trees, the trees it walks, by default
+every one; --leave-out, tests it does not list, each by its id or a package's name.
 Each line is "<id>\t<labels by commas>\t<0 or 1>\t<seconds or nothing>". A
 test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
@@ -21,6 +23,7 @@ __init__.py, which discover would pass over, fails the listing, and so the
 build.
 """
 
+import argparse
 import sys
 import unittest
 from pathlib import Path
@@ -85,23 +88,27 @@ def package(path, trees, homes):
     return parts[1] if len(parts) > 2 else "tests" if test and test != path else None
 
 
-def listed(root="."):
+def listed(root=".", kept=None, left_out=()):
     """([(id, labels, serial, limit or None)], [errors]) of the
-    tests discover finds in each package of the trees tools/trees.json
-    walks and of its layers' trees, from the checkout's root."""
+    tests discover finds in each package of the kept trees, by default the
+    trees tools/trees.json walks and its layers', from the checkout's root;
+    but those left_out names, each by its id or a package's name."""
     table = module_table.load(root)
     trees = table["trees"]
+    kept = trees.every if kept is None else kept
     homes = {home.rpartition("/")[0] for home in table["homes"].values()}
     loader = unittest.TestLoader()
     suite = unittest.TestSuite(loader.discover(str(package), top_level_dir=str(root))
-                               for package in packages(root, trees.every))
+                               for package in packages(root, kept))
     rows, errors = [], [f"{d.relative_to(root).as_posix()}: a test directory with no __init__.py"
-                        for d in unpackaged(root, trees.every)]
+                        for d in unpackaged(root, kept)]
     for test in walk(suite):
         test_id = test.id()
+        if f"{test_id}.".startswith(tuple(f"{name}." for name in left_out)):
+            continue
         error = getattr(test, "_exception", None)
         name = test_id.rsplit(".", 2)[0]  # the test's module
-        if error is not None or not name.startswith(tuple(f"{tree}." for tree in trees.every)):
+        if error is not None or not name.startswith(tuple(f"{tree}." for tree in kept)):
             errors.append(f"{test_id}: {error}")
             continue
         parts = name.split(".")
@@ -126,10 +133,11 @@ def listed(root="."):
 
 
 def main(argv):
-    if argv:
-        print(f"usage: list_tests.py, not {argv}", file=sys.stderr)
-        return 2
-    rows, errors = listed()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trees", nargs="+")
+    parser.add_argument("--leave-out", nargs="+", default=())
+    args = parser.parse_args(argv)
+    rows, errors = listed(kept=args.trees, left_out=args.leave_out)
     for test_id, labels, serial, limit in rows:
         print(f"{test_id}\t{','.join(labels)}\t{serial}\t{'' if limit is None else limit}")
     for error in errors:

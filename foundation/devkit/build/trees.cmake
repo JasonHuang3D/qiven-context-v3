@@ -10,7 +10,11 @@
 # and qiven_header_suffixes, its lists, in the caller's scope; with
 # qiven_source_suffix and qiven_header_suffix, the regular expressions
 # ending a path in one; qiven_tests, the top-level test tree; and
-# qiven_homes, each module directory of the checkout at qiven_root.
+# qiven_homes, each module directory of the checkout at qiven_root. qiven_kept
+# narrows the lists a walk reads; three stay whole: qiven_homes and
+# qiven_table_layers, the layers the table's globs walk, the table being read
+# whole, and qiven_analysed, whose top-level roots also name a module's own
+# tests/support/ and tests/child/ (qiven_analysed, below).
 macro(qiven_trees file)
   file(READ "${file}" qiven_trees_text)
   string(JSON qiven_tests GET "${qiven_trees_text}" tests)
@@ -27,6 +31,7 @@ macro(qiven_trees file)
     list(JOIN qiven_${qiven_key}_suffixes "|" qiven_${qiven_key}_suffix)
     string(REPLACE "." "[.]" qiven_${qiven_key}_suffix "(${qiven_${qiven_key}_suffix})$")
   endforeach()
+  set(qiven_table_layers ${qiven_layers})
   qiven_table_globs("${qiven_root}" qiven_globs)
   file(GLOB_RECURSE qiven_homes RELATIVE "${qiven_root}" ${qiven_globs})
   foreach(qiven_table IN LISTS qiven_tables)
@@ -35,7 +40,27 @@ macro(qiven_trees file)
     endif()
   endforeach()
   list(TRANSFORM qiven_homes REPLACE "/?module[.]json$" "")
+  foreach(qiven_key IN ITEMS layers walked included)
+    qiven_kept(qiven_${qiven_key})
+  endforeach()
 endmacro()
+
+# qiven_kept(<var>): var's paths, from the root, narrowed to those under
+# qiven_kept_tree, the one tree a project on top names where it builds no other
+# (foundation/CMakeLists.txt); with none named, var as it stands.
+function(qiven_kept var)
+  if(NOT DEFINED qiven_kept_tree)
+    return()
+  endif()
+  set(kept "")
+  foreach(path IN LISTS ${var})
+    qiven_under("${path}" "${qiven_kept_tree}" under)
+    if(under)
+      list(APPEND kept "${path}")
+    endif()
+  endforeach()
+  set(${var} ${kept} PARENT_SCOPE)
+endfunction()
 
 # qiven_header_globs(<root> <out> <tree>...): a glob under each tree of root
 # for each header suffix.
@@ -258,7 +283,7 @@ endfunction()
 # layers' trees, each module.json at any depth.
 function(qiven_table_globs root out)
   set(globs "")
-  foreach(layer IN LISTS qiven_layers)
+  foreach(layer IN LISTS qiven_table_layers)
     list(APPEND globs "${root}/${layer}/module.json")
   endforeach()
   set(${out} ${globs} PARENT_SCOPE)
