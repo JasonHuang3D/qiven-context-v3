@@ -18,8 +18,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
-        "QIVEN_PIN_TOOLS": "ON",
-        "Python3_EXECUTABLE": "$env{QIVEN_PYTHON}"
+        "QIVEN_PIN_TOOLS": "ON"
       }
     },
     {
@@ -82,7 +81,7 @@
       "inherits": "base",
       "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN_PYTHON, which the workflow sets",
       "binaryDir": "${sourceDir}/build/ci",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_FAULTS": "ON", "Python3_EXECUTABLE": "$env{QIVEN_PYTHON}"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_FAULTS": "ON"}
     },
     {
       "name": "ci-windows",

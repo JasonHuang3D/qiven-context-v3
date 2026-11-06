@@ -76,8 +76,8 @@ if(NOT MSVC AND NOT APPLE)
 endif()
 
 # The pins of this machine's toolchain, which QIVEN_PIN_TOOLS checks: MSVC
-# on Windows; in WSL2 g++ 13 and clang 18 as tools/linux-pins.txt, retired
-# (tools/README.md), had them.
+# on Windows; in WSL2 g++ 13 and clang 18, as the Linux pins had them before
+# their retirement (tools/README.md's Retired section).
 # CI leaves the option off and takes its image's tools.
 set(QIVEN_PIN_MSVC 19.44.35228)
 set(QIVEN_PIN_GCC 13.3.0)
@@ -86,6 +86,17 @@ set(QIVEN_PIN_SDK 10.0.26100.0)
 set(QIVEN_PIN_CMAKE 4.4.3)
 set(QIVEN_PIN_NINJA 1.13.2)
 set(QIVEN_PIN_PYTHON 3.15.0)
+
+# The interpreter, the configure's input from its environment beside the
+# toolset's: QIVEN_PYTHON names it and, set, comes before the cache's
+# Python3_EXECUTABLE; unset or empty, the cache's or the command line's
+# stays as it is, so that a configure without it keeps the tree's
+# interpreter and never empties it. No preset gives it a value.
+set(qiven_python_from "the cache or the command line")
+if(NOT "$ENV{QIVEN_PYTHON}" STREQUAL "")
+  set(Python3_EXECUTABLE "$ENV{QIVEN_PYTHON}" CACHE FILEPATH "The interpreter, from QIVEN_PYTHON where set" FORCE)
+  set(qiven_python_from "QIVEN_PYTHON")
+endif()
 
 message(STATUS "qiven: C++ compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "qiven: C compiler ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
@@ -138,7 +149,7 @@ if(QIVEN_PIN_TOOLS)
   endif()
   if(NOT Python3_EXECUTABLE)
     message(FATAL_ERROR "qiven: name the interpreter, CPython ${QIVEN_PIN_PYTHON}, "
-      "by Python3_EXECUTABLE (see README.md)")
+      "by QIVEN_PYTHON or Python3_EXECUTABLE (see README.md)")
   endif()
   message(STATUS "qiven: pinned tools hold: SDK ${qiven_sdk}, CMake ${CMAKE_VERSION}, Ninja ${qiven_ninja}")
 endif()
@@ -151,7 +162,7 @@ elseif(Python3_EXECUTABLE)
   find_package(Python3 3.15 REQUIRED COMPONENTS Interpreter)
 endif()
 if(Python3_EXECUTABLE)
-  message(STATUS "qiven: interpreter CPython ${Python3_VERSION}")
+  message(STATUS "qiven: interpreter CPython ${Python3_VERSION}, from ${qiven_python_from}")
 endif()
 
 # The flags of every core and test target, through qiven_build. RTTI is
@@ -379,7 +390,7 @@ endif()
 # Both options change the memory package's types, so every target sees them;
 # QIVEN_SYSTEM_HEAP all but the targets with QIVEN_POISONED set, memory's
 # own code and cases built a second time on the span's own blocks
-# (tests/unit/CMakeLists.txt).
+# (foundation/core/memory/tests/CMakeLists.txt).
 if(QIVEN_SYSTEM_HEAP)
   add_compile_definitions($<$<NOT:$<BOOL:$<TARGET_PROPERTY:QIVEN_POISONED>>>:QIVEN_SYSTEM_HEAP>)
 endif()
