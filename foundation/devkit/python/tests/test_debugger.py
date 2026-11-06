@@ -4,16 +4,13 @@ hang_debugger is the pinned cdb, or none with the pin's reason, never a cdb
 on PATH, which the pins refuse; in a CI job on Windows (GITHUB_ACTIONS
 "true") the image's cdb, unpinned, how naming the version its -version
 gives and its path, or, with none on PATH nor in the SDK's Debuggers/x64,
-NotFound saying where it looked. The cdb is a stand-in, cdb.cmd on PATH, the
-real start of a program; for a hang it also gives one thread's stack and the
-dump, which the runner's tests/test_hang.py takes from here for the watcher.
-hang_lines keeps 16 threads and 199 lines, with [cut], and a line within
+NotFound saying where it looked. The cdb is a stand-in, a one-line cdb.cmd on
+PATH that gives a -version, the real start of a program. hang_lines keeps 16 threads and 199 lines, with [cut], and a line within
 answer's bound: a broken bound floods the watcher's answer in silence.
 """
 
 import os
 import re
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,30 +21,12 @@ from foundation.devkit.python import debugger
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
 
-# A stand-in for a CI image's cdb: its -version, and for a hang one
-# thread's stack as ~*kn gives it and the dump .dump /mt names.
-STAND_IN = """import re, sys
-args = sys.argv[1:]
-if args == ["-version"]:
-    print("cdb version 10.0.99999.1")
-    sys.exit(0)
-commands = args[args.index("-c") + 1]
-print(f"0:000> cdb: Reading initial command '{commands}'")
-print("   0  Id: 1a2b.1c Suspend: 1 Teb: 00000000`00000000 Unfrozen")
-print("00 00000000`00000000 00000000`00000000 standin!wait+0x10")
-dump = re.search(r"\\.dump /mt (.+?); qd", commands)
-if dump:
-    open(dump.group(1), "wb").close()
-"""
-
-
 def stand_in(root):
-    """A stand-in cdb (cdb.cmd running STAND_IN) in root/bin: its path."""
+    """A stand-in for a CI image's cdb in root/bin, its -version alone: its
+    path."""
     (root / "bin").mkdir()
-    script = root / "cdb_stand_in.py"
-    script.write_text(STAND_IN, encoding="utf-8")
     cmd = root / "bin" / "cdb.cmd"
-    cmd.write_text(f'@"{sys.executable}" -I "{script}" %*\n', encoding="ascii")
+    cmd.write_text("@echo cdb version 10.0.99999.1\n", encoding="ascii")
     return cmd
 
 

@@ -14,8 +14,8 @@ The debugger is cdb.exe, pinned in foundation/devkit/python/debugger_pins.txt;
 Linux's, gdb, with tools/linux-pins.txt, is retired (tools/README.md's
 Retired section).
 In a CI job on Windows
-(GITHUB_ACTIONS "true") the watcher takes the image's cdb, here the stand-in
-cdb.cmd on PATH, which foundation/devkit/python/tests/test_debugger.py holds:
+(GITHUB_ACTIONS "true") the watcher takes the image's cdb, here a stand-in
+cdb.cmd on PATH, its -version, one thread's stack and the dump the watcher asks:
 its stacks and dump written, the status line carrying the debugger's how as
 the debugger gives it; with none, its reason so. The words of how and of the
 reason, and off CI never a cdb the pins refuse, are debugger's own, proven
@@ -43,7 +43,6 @@ from foundation.devkit.python import debugger
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 from foundation.devkit.python.answer import LINE_POINTS
-from foundation.devkit.python.tests.test_debugger import stand_in
 from foundation.devkit.test.runner import binaries
 from foundation.devkit.test.runner.binaries import AFTER, POLL, run_watched, sanitized
 
@@ -54,6 +53,31 @@ HANG = re.compile(r"^hang: past its limit of 3 s, (?P<threads>\d+) threads$")
 THREAD = debugger.CDB_THREAD
 # A frame of plant_hang: its own, or its lambda's, which its name qualifies.
 IN_PLANT = re.compile(r"[!\s`]plant_hang(?:[+'(\s]|$)")
+# A stand-in for a CI image's cdb: its -version, and for a hang one
+# thread's stack as ~*kn gives it and the dump .dump /mt names.
+STAND_IN = """import re, sys
+args = sys.argv[1:]
+if args == ["-version"]:
+    print("cdb version 10.0.99999.1")
+    sys.exit(0)
+commands = args[args.index("-c") + 1]
+print(f"0:000> cdb: Reading initial command '{commands}'")
+print("   0  Id: 1a2b.1c Suspend: 1 Teb: 00000000`00000000 Unfrozen")
+print("00 00000000`00000000 00000000`00000000 standin!wait+0x10")
+dump = re.search(r"\\.dump /mt (.+?); qd", commands)
+if dump:
+    open(dump.group(1), "wb").close()
+"""
+
+
+def stand_in(root):
+    """A stand-in cdb (cdb.cmd running STAND_IN) in root/bin: its path."""
+    (root / "bin").mkdir()
+    script = root / "cdb_stand_in.py"
+    script.write_text(STAND_IN, encoding="utf-8")
+    cmd = root / "bin" / "cdb.cmd"
+    cmd.write_text(f'@"{sys.executable}" -I "{script}" %*\n', encoding="ascii")
+    return cmd
 
 
 def debugger_reason():

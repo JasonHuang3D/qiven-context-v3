@@ -8,10 +8,11 @@ Ran, its status and output. start() starts one and holds it: Process, its
 streams, poll(), wait(limit) and end_tree().
 
 Standard input is closed unless data is given, or feed asks for a pipe.
-Output is bytes unless run() is asked for text. out and err take PIPE, a file
-open for it or INHERIT, the caller's own; err also MERGE, into out. A word of
-argv is a str, a Path, a number or bytes; one str is a whole command line, a
-compile database's. A program that cannot start raises the system's OSError.
+Output is bytes unless run() is asked for text. out and err take a pipe, the
+default, a file open for it or INHERIT, the caller's own; err also MERGE,
+into out. A word of argv is a str, a Path, a number or bytes; one str is a
+whole command line, a compile database's. A program that cannot start raises
+the system's OSError.
 """
 
 import os
@@ -22,7 +23,7 @@ from collections import namedtuple
 from foundation.devkit.python import status as status_table
 from foundation.devkit.python import system
 
-PIPE = subprocess.PIPE
+_PIPE = subprocess.PIPE
 MERGE = subprocess.STDOUT
 INHERIT = None
 LIMIT = 120  # seconds a run takes unless the caller says
@@ -89,12 +90,12 @@ def find(name, path=None):
     return shutil.which(name, path=path)
 
 
-def run(argv, *, data=None, env=None, cwd=None, limit=LIMIT, out=PIPE, err=PIPE, program=None, text=False):
+def run(argv, *, data=None, env=None, cwd=None, limit=LIMIT, out=_PIPE, err=_PIPE, program=None, text=False):
     """Runs a program to its end: Ran. `data`, bytes, on its input. `program`
     the file to start where argv[0] is not it. `text`: its output as UTF-8
     text, what does not decode replaced, each line's ending \\n. Past `limit`
     seconds its tree is ended, then TimedOut."""
-    child = _child(argv, subprocess.DEVNULL if data is None else PIPE, out, err, env, cwd, program)
+    child = _child(argv, subprocess.DEVNULL if data is None else _PIPE, out, err, env, cwd, program)
     try:
         written = child.communicate(data, timeout=limit)
     except subprocess.TimeoutExpired:
@@ -110,10 +111,10 @@ def run(argv, *, data=None, env=None, cwd=None, limit=LIMIT, out=PIPE, err=PIPE,
     return Ran(child.returncode, *_output(written, text))
 
 
-def start(argv, *, feed=False, env=None, cwd=None, out=PIPE, err=PIPE):
+def start(argv, *, feed=False, env=None, cwd=None, out=_PIPE, err=_PIPE):
     """Starts a program and holds it: Process. `feed`: its input a pipe, the
     caller's to write and close."""
-    return Process(argv, _child(argv, PIPE if feed else subprocess.DEVNULL, out, err, env, cwd, None))
+    return Process(argv, _child(argv, _PIPE if feed else subprocess.DEVNULL, out, err, env, cwd, None))
 
 
 def _words(argv):
