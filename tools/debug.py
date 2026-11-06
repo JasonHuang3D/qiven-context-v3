@@ -12,9 +12,10 @@ with a bounded plain-text transcript.
 - Actions. Before the run: --break <function> (a bare name in the binary's
   module) or <file>:<line>, and --watch <expression>, a write watch of 8
   bytes on the object it names, set at the first stop. At each stop (a
-  break, a watch or a fault), in this order: --locals, --stack, --threads
-  (every thread's stack), --print <expression>, then --step <n> (into) or
-  --next <n> (over), by source lines; then the run continues. A
+  break, a watch, a single step or a fault), in this order: --locals,
+  --stack, --threads (every thread's stack), --print <expression>, then
+  --step <n> (into) or --next <n> (over), by source lines; then the run
+  continues. A
   first-chance single step is the debugger's: a stop of its own, its line
   "stop <n>: Single step exception - code 80000004", answered gh, never
   handed to the program and never a fault. Every other first-chance
