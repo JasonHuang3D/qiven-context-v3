@@ -1,7 +1,8 @@
 """The test runner: build build/ci-windows first, then run the tests of each module whose
 files changed since its tests last ran, by the record
-build/ci-windows/changed.json; one answer of plain lines. The count and the selection take no
-document: a .md file is no module's changed file. ctest's output of each run stays in
+build/ci-windows/changed.json; one answer of plain lines, which names each test failed and each
+skipped. The count and the selection take no document: a .md file is no module's changed file. A
+row of the no-test layer is recorded, but never counted or named as having no test. ctest's output of each run stays in
 build/ci-windows/changed.log, which no other ctest in the tree writes over.
 
 Run as py -3.15 -I tools/changed.py, with no argument.
@@ -181,7 +182,9 @@ def answer(lines):
                              if now.get(m, {}).get(p) != record.get(m, {}).get(p)) for m in sorted(set(now) | set(record))}
         changed = {m: paths for m, paths in changed.items() if paths}
         lines.append("changed: " + (", ".join(f"{m} ({len(p)} files)" for m, p in changed.items()) or "none"))
-        bare = [m for m in changed if not any(m in labels for labels in tests.values())]
+        no_test = {m["name"] for m in table["modules"] if m["layer"] == "no-test"}  # a row of no test by design
+        counted = [m for m in changed if m not in no_test]
+        bare = [m for m in counted if not any(m in labels for labels in tests.values())]
         if bare:  # its cases lie in another module's row, or it has none: named, never silent
             lines.append(f"no test under its label, none run: {', '.join(bare)}")
         chosen, results, code = select(tests, changed), {}, 0
@@ -189,10 +192,13 @@ def answer(lines):
             status, results, seconds = run_tests(env, ctest, chosen)
             words = list(results.values())
             passed = words.count("Passed")
-            skipped = sum(1 for w in words if w.startswith("Skipped") or "Disabled" in w)
-            failed = [n for n, w in results.items() if w != "Passed" and not (w.startswith("Skipped") or "Disabled" in w)]
-            lines.append(f"tests: {len(chosen)} of {', '.join(changed)}: {passed} passed, {len(failed)} failed, "
-                         f"{skipped} skipped, {seconds:.1f} s")
+            skipped = [n for n, w in results.items() if w.startswith("Skipped") or "Disabled" in w]
+            failed = [n for n, w in results.items() if w != "Passed" and n not in skipped]
+            lines.append(f"tests: {len(chosen)} of {', '.join(counted)}: {passed} passed, {len(failed)} failed, "
+                         f"{len(skipped)} skipped, {seconds:.1f} s")
+            if skipped:
+                cut = f" and {len(skipped) - 20} more" if len(skipped) > 20 else ""
+                lines.append(f"skipped: {', '.join(skipped[:20])}{cut}")
             if failed or status != 0:
                 cut = f" and {len(failed) - 20} more" if len(failed) > 20 else ""
                 lines.append(f"failed: {', '.join(failed[:20]) + cut or status_table.ctest_line(status)}, "

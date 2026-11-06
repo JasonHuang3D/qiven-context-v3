@@ -16,9 +16,9 @@ foundation/devkit/python/table.py), by which the runner selects it
 
 A module that does not import, a test the one reader of test code
 (package(), below) says is no test code or puts in a package with no labels
-here, a file in no module, or a test directory with no
-__init__.py, which discover would pass over, fails the listing, and so the
-build.
+here, a file in no module, a test directory with no
+__init__.py, which discover would pass over, or a left-out name that matches
+no test, fails the listing, and so the build.
 """
 
 import argparse
@@ -90,7 +90,8 @@ def listed(root=".", kept=None, left_out=()):
     """([(id, labels)], [errors]) of the
     tests discover finds in each package of the kept trees, by default the
     trees tools/trees.json walks and its layers', from the checkout's root;
-    but those left_out names, each by its id or a package's name."""
+    but those left_out names, each by its id or a package's name, one that
+    matches no test an error."""
     table = module_table.load(root)
     trees = table["trees"]
     kept = trees.every if kept is None else kept
@@ -100,9 +101,13 @@ def listed(root=".", kept=None, left_out=()):
                                for package in packages(root, kept))
     rows, errors = [], [f"{d.relative_to(root).as_posix()}: a test directory with no __init__.py"
                         for d in unpackaged(root, kept)]
+    unmatched = dict.fromkeys(left_out)
     for test in walk(suite):
         test_id = test.id()
-        if f"{test_id}.".startswith(tuple(f"{name}." for name in left_out)):
+        matched = [name for name in left_out if f"{test_id}.".startswith(f"{name}.")]
+        if matched:
+            for name in matched:
+                unmatched.pop(name, None)
             continue
         error = getattr(test, "_exception", None)
         name = test_id.rsplit(".", 2)[0]  # the test's module
@@ -122,6 +127,7 @@ def listed(root=".", kept=None, left_out=()):
             errors.append(f"{test_id}: its file is in no module of the table")
             continue
         rows.append((test_id, labels + (owner[0],)))
+    errors += [f"--leave-out {name}: no test of that id or package" for name in unmatched]
     return rows, errors + [str(error) for error in loader.errors]
 
 

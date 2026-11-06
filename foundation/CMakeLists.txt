@@ -5,8 +5,9 @@ project(qiven LANGUAGES C CXX)
 # them that need no product. By the root's parts (../CMakeLists.txt), with the
 # trees narrowed to this one and the tests below left out of the listing.
 set(qiven_kept_tree foundation)  # trees.cmake's qiven_kept; the table stays whole
-# Left out by id, or by a package's name: no such test is defined here. Each
-# reads what only a whole checkout holds.
+# Left out by id, or by a package's name: no such test is defined here, and a
+# name that matches no test fails the listing. Each reads what only a whole
+# checkout holds.
 set(qiven_left_out
   # Its row's test_depends are the product's; it judges every tree, the whole
   # build's records and git's whole checkout.
