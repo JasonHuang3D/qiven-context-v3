@@ -98,9 +98,10 @@ class Listing(unittest.TestCase):
                  "tools/tests/test_x.py": "tests", "tests/test_x.py": None, "tests/drive/test_x.py": "drive",
                  "foundation/core/memory/tests/test_x.py": "tests",
                  "foundation/core/memory/tests/structure/test_x.py": "structure"}
+        homes = HOMES | {"tools", "foundation/core/memory"}  # the checkout's module directories and the paths'
         files = [p.relative_to(ROOT).as_posix() for tree in TREES.every for p in (ROOT / tree).rglob("test_*.py")]
-        got = {path: list_tests.package(path, TREES, HOMES) for path in [*files, *paths]}
+        got = {path: list_tests.package(path, TREES, homes) for path in [*files, *paths]}
         self.assertEqual({path: got[path] for path in paths}, paths)
-        self.assertEqual([p for p, kind in got.items() if kind is None and TREES.test_path(p, HOMES)],
+        self.assertEqual([p for p, kind in got.items() if kind is None and TREES.test_path(p, homes)],
                          ["tests/test_x.py"])
-        self.assertEqual([p for p, kind in got.items() if kind and not TREES.test_path(p, HOMES)], [])
+        self.assertEqual([p for p, kind in got.items() if kind and not TREES.test_path(p, homes)], [])

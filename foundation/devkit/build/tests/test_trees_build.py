@@ -18,6 +18,8 @@ from foundation.devkit.python.build_tree import ROOT, cmake
 from foundation.devkit.structure import layers
 
 TREES = table.trees(ROOT)
+SCENES = Path(__file__).with_name("scenes")  # the scenes' checkout: its tools/trees.json, the product's shape
+SCENE_TREES = table.trees(SCENES)
 SCRIPT = ROOT / "foundation" / "devkit" / "build" / "trees.cmake"
 COMPOSE = ROOT / "foundation" / "devkit" / "build" / "tidy_config.cmake"
 TEST_TIDY = "foundation/devkit/build/analysis-test.clang-tidy"
@@ -76,6 +78,12 @@ def composed_options(config):
         i for i, line in enumerate(block) if not line.startswith("  "))])
 
 
+def scene_root(scratch):
+    """The scenes' checkout copied to scratch, its root: the trees a scene reads."""
+    shutil.copytree(SCENES, scratch, dirs_exist_ok=True)
+    return Path(scratch)
+
+
 def scene():
     """A scratch checkout's files (path to text), each unit and own source
     including its header, and the units the rule wants of it."""
@@ -100,17 +108,19 @@ class TreesBuild(unittest.TestCase):
     ctest_labels = ("fake",)  # the fake selection runs it
     def test_header_filter(self):
         """The header filter is the analysed roots' and the layers' trees
-        under this checkout alone, either separator; no .clang-tidy names one;
-        the tidy steps take it."""
-        got = shown("filters")
-        trees = "|".join(t.replace("/", "[/\\]") for t in (*TREES.analysed, *TREES.layers))
+        under the scenes' checkout alone, either separator; no .clang-tidy of
+        this checkout names one; the tidy steps take it."""
+        with tempfile.TemporaryDirectory() as scratch:
+            root = scene_root(scratch)
+            got = shown("filters", root)
+        trees = "|".join(t.replace("/", "[/\\]") for t in (*SCENE_TREES.analysed, *SCENE_TREES.layers))
         filter_ = got["filter"]
         self.assertTrue(filter_.endswith(f"[/\\]({trees})[/\\]"), filter_)
         regex = re.compile(filter_.replace("[/\\]", "[/\\\\]"), re.IGNORECASE)
-        self.assertTrue(regex.search(f"{ROOT.as_posix()}/foundation/devkit/test/runner/include/qiven/runner/core.hpp"))
-        self.assertTrue(regex.search(str(ROOT / "src" / "memory" / "arena.hpp")))
-        self.assertFalse(regex.search(f"{ROOT.as_posix()}/tests/driver/drive.hpp"))
-        self.assertFalse(regex.search(f"{ROOT.parent.as_posix()}/src/any/x.hpp"), "a src/ beside the checkout")
+        self.assertTrue(regex.search(f"{root.as_posix()}/foundation/devkit/test/runner/include/qiven/runner/core.hpp"))
+        self.assertTrue(regex.search(str(root / "src" / "memory" / "arena.hpp")))
+        self.assertFalse(regex.search(f"{root.as_posix()}/tests/driver/drive.hpp"))
+        self.assertFalse(regex.search(f"{root.parent.as_posix()}/src/any/x.hpp"), "a src/ beside the checkout")
         for config in ROOT.rglob(".clang-tidy"):
             if "build" in config.relative_to(ROOT).parts[:1]:
                 continue
@@ -120,9 +130,7 @@ class TreesBuild(unittest.TestCase):
         """A header the analysis does not read under a layer, a module's own
         tests/, is excluded by its directory; none excluded where none is."""
         with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch)
-            (root / "tools").mkdir()
-            shutil.copy(ROOT / "tools" / "trees.json", root / "tools" / "trees.json")
+            root = scene_root(scratch)
             for header in ("foundation/core/m/include/qiven/m/m.hpp", "foundation/core/m/tests/t.hpp",
                            "foundation/core/m/module.json", "foundation/core/m/src/tests/read.hpp",
                            "foundation/core/m/tests/support/read.hpp"):
@@ -133,7 +141,7 @@ class TreesBuild(unittest.TestCase):
                             got["exclude"])
             (root / "foundation/core/m/tests/t.hpp").unlink()
             self.assertEqual(shown("filters", root)["exclude"], "")
-            for suffix in TREES.header_suffixes:
+            for suffix in SCENE_TREES.header_suffixes:
                 (root / f"foundation/core/m/tests/t{suffix}").write_text("", encoding="utf-8")
                 self.assertNotEqual(shown("filters", root)["exclude"], "", suffix)
                 (root / f"foundation/core/m/tests/t{suffix}").unlink()
@@ -154,9 +162,7 @@ class TreesBuild(unittest.TestCase):
         if tool is None:
             raise unittest.SkipTest("no cmake")
         with tempfile.TemporaryDirectory() as scratch:
-            root = Path(scratch)
-            (root / "tools").mkdir()
-            shutil.copy(ROOT / "tools" / "trees.json", root / "tools" / "trees.json")
+            root = scene_root(scratch)
             for name, text in files.items():
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_text(text, encoding="utf-8")
@@ -244,12 +250,12 @@ class TreesBuild(unittest.TestCase):
 
     def test_every_suffix(self):
         """A header of every suffix wants a unit; a source of every suffix, beside it or in src/, is its own."""
-        for suffix in TREES.header_suffixes:
+        for suffix in SCENE_TREES.header_suffixes:
             files, _ = scene()
             files[f"src/m/t{suffix}"] = ""
             self.assertIn(f"the header-only header src/m/t{suffix} has no unit, tests/support/headers/m_t.cpp",
                           self.units(files)[2])
-        for suffix in TREES.source_suffixes:
+        for suffix in SCENE_TREES.source_suffixes:
             files, wanted = scene()
             files |= {"src/m/t.hpp": "", f"src/m/t{suffix}": '#include "t.hpp"\n',
                       "kits/scene/include/qiven/scene/t.hpp": "", f"kits/scene/src/t{suffix}": '#include "qiven/scene/t.hpp"\n'}
@@ -292,13 +298,19 @@ class TreesBuild(unittest.TestCase):
 
     def test_analysis_choice(self):
         """The analysis chooses a source by its path, by the trees' rule, not
-        by the directory that defines its target."""
-        vendored = next(p for p in TREES.vendored if p.endswith(TREES.source_suffixes))
+        by the directory that defines its target: the scenes' checkout, its
+        module directories those the paths' answers rest on."""
+        vendored = next(p for p in SCENE_TREES.vendored if p.endswith(SCENE_TREES.source_suffixes))
         paths = ("foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "foundation/core/memory/tests/arena_test.cpp",
                  "tests/driver/driver.cpp", "foundation/core/memory/tests/arena_test.cpp", "kits/kp/src/kp.cpp",
                  "foundation/devkit/test/runner/tests/runner_test.cpp", "foundation/devkit/test/runner/src/runner.cpp",
                  "products/qiven3/tests/x/drive.cpp", vendored)
-        got = shown("analysed", paths=paths)
+        with tempfile.TemporaryDirectory() as scratch:
+            root = scene_root(scratch)
+            for home in ("foundation/core/memory", "products/qiven3"):
+                (root / home).mkdir(parents=True)
+                (root / home / "module.json").write_text("", encoding="utf-8")
+            got = shown("analysed", root=root, paths=paths)
         self.assertEqual([p for p in paths if got[p].startswith("TRUE")],
                          ["foundation/core/memory/src/arena.cpp", "tests/support/log/log.cpp", "tests/child/main.cpp", "kits/kp/src/kp.cpp",
                           "foundation/devkit/test/runner/tests/runner_test.cpp",

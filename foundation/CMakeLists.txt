@@ -12,13 +12,8 @@ set(qiven_left_out
   # Its row's test_depends are the product's; it judges every tree, the whole
   # build's records and git's whole checkout.
   foundation.devkit.structure.tests
-  # Reads every .clang-tidy of the checkout.
-  foundation.devkit.build.tests.test_trees_build.TreesBuild.test_header_filter
-  # Walk every tree of the checkout.
+  # Walks every tree of the checkout.
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_one_reader
-  foundation.devkit.test.harness.tests.test_listing.Listing.test_listing_reader
-  # Its answer for products/qiven3/tests/ rests on that module's module.json.
-  foundation.devkit.build.tests.test_trees_build.TreesBuild.test_analysis_choice
   # Configures the root's analysis preset, the product's directories with it.
   foundation.devkit.build.tests.test_trees_build.TreesBuild.test_steps_name_composed
   # Must read the links of the product's targets among the five that failed on macOS.

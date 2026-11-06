@@ -15,7 +15,7 @@ Version 0.2: the number of this file's change list, below, and of nothing else
   - `tidy_config.cmake`: a test source's composed clang-tidy configuration
   - the rule sets `analysis.ruleset` and `stack.ruleset`, the analysis exemptions `analysis-exemptions.json` and the test configuration over them (`analysis-test.ruleset`, `analysis-test.clang-tidy`)
   - two readers its tests use: the link lines of a Ninja build (`links.py`) and the analysis configuration against its list, `analysis-exemptions.json` (`exemptions.py`)
-  - its own Python tests (`tests/`): the trees' globs and filters, `test_trees_build.py`; the standard library's hardened mode, `test_hardened.py`; the floors, `test_floors.py`; K11, `test_binaries.py`, each binary of a build held to Windows' system libraries, their API sets (`foundation/devkit/python/system.py`'s `api_set`) or its preset's residual, the lists K11's own there, each binary read by `foundation/devkit/python/imports.py`; each library once on a link line, `test_links.py`; the analysis configuration against its list, `test_exemptions.py`; and the analysis tools' controls, `test_analysis.py`, labelled `analysis`, run on the analysis build alone
+  - its own Python tests (`tests/`): the trees' globs and filters, `test_trees_build.py`, with its scenes' trees, `tests/scenes/tools/trees.json`; the standard library's hardened mode, `test_hardened.py`; the floors, `test_floors.py`; K11, `test_binaries.py`, each binary of a build held to Windows' system libraries, their API sets (`foundation/devkit/python/system.py`'s `api_set`) or its preset's residual, the lists K11's own there, each binary read by `foundation/devkit/python/imports.py`; each library once on a link line, `test_links.py`; the analysis configuration against its list, `test_exemptions.py`; and the analysis tools' controls, `test_analysis.py`, labelled `analysis`, run on the analysis build alone
   - at the root, `CMakeLists.txt` (the composition: `build.cmake`, `top.cmake`, `modules.cmake`, the product's directories, `qiven_top_end()`), `CMakePresets.json` (the build's and test's presets, which includes `foundation/CMakePresets.json`) and `.clang-tidy`
   - in `foundation/`, `CMakeLists.txt` (the foundation alone, the project with no product directory, by the same parts: its `qiven_kept_tree`, and `qiven_left_out`, the Python tests it leaves out of the listing, each named with its reason) and `CMakePresets.json` (the presets' common part, `base`, `here`, `ci` and the test preset `here`; and `alone`, configure and test, disabled at the root, its tree `build/alone` under the root)
 - **Never holds:** C++ source, or Python source outside its `tests/` but the two readers its tests use; another module's target or tests; what makes an executable, diag's `qiven_executable`
@@ -39,7 +39,15 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.2, 2026-11-07, the commit that brings this entry
+### 0.3, 2026-11-07, the commit that brings this entry
+
+The scenes' trees, by the end challenges' Bu-7: `tests/scenes/tools/trees.json`, a checkout's trees of the product's shape, which the scenes copy into their scratch checkouts in place of the root's `tools/trees.json`. `test_header_filter` and `test_analysis_choice` judge the rule on it, the latter with the two module directories its answers rest on planted; `test_header_filter` still reads every `.clang-tidy` of the checkout.
+
+- **This file:** the Holds list names the scenes' trees.
+- **What a consumer does:** nothing: no member changes.
+- **Known limits:** the alone build no longer leaves out `test_header_filter`, `test_analysis_choice` or `harness`'s `test_listing_reader`; `test_one_reader` and `test_steps_name_composed` stay out. A foundation-only clone is not proven by it: `top.cmake` reads the root's `tools/trees.json` (Bu-8, an aim).
+
+### 0.2, 2026-11-07, `f78c42d`
 
 Each case to its subject's row, by the end challenges' St-3 with Bu-6.
 

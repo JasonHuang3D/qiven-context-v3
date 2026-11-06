@@ -23,7 +23,14 @@ Version 0.2: the number of this file's change list, below, and of nothing else
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.2, 2026-11-07, the commit that brings this entry
+### 0.3, 2026-11-07, the commit that brings this entry
+
+The scenes' trees, by the end challenges' Bu-7, `build`'s: `test_listing_reader` reads its planted paths' module directories (`tools`, `foundation/core/memory`) beside the checkout's, its assertions as they were.
+
+- **What a consumer does:** nothing: no member changes.
+- **Known limits:** the alone build runs `test_listing_reader`, no longer left out. Its walk reads the checkout's trees and table, as before.
+
+### 0.2, 2026-11-07, `fa3c767`
 
 The listing's cases to the listing's row, by the end challenges' Bu-6: `test_discovery`, `test_ctest_start` and `test_listing_reader` moved whole from `build`'s `tests/test_trees_build.py` into `tests/test_listing.py`, class `Listing`, labelled `fake` as before; the helper they need (`succeeded`, `Stopped`) and the trees' table they read (`TREES`, `HOMES`) copied with them, `build`'s test keeping its own.
 
