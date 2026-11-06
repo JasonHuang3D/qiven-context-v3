@@ -1,7 +1,7 @@
 # Included by build.cmake: the sanitizers of QIVEN_SANITIZE, on every
-# target. libFuzzer's main is linked into the fuzz targets alone
-# (tests/fuzz/CMakeLists.txt); every other target takes libFuzzer's
-# instrumentation without it.
+# target. libFuzzer's main is linked into the fuzz targets alone, by
+# qiven_fuzz_main (below, which tests/fuzz/CMakeLists.txt calls); every other
+# target takes libFuzzer's instrumentation without it.
 if(MSVC)
   # cl ignores a combined /fsanitize=fuzzer,address with D9002, exit 0 even
   # under /WX: one option per sanitizer. /fsanitize=fuzzer makes each object
@@ -48,3 +48,14 @@ else()
   endif()
 endif()
 message(STATUS "qiven: sanitizers ${QIVEN_SANITIZE}")
+
+# qiven_fuzz_main(<target>): libFuzzer's main on one fuzz target. MSVC's
+# /fsanitize=fuzzer on the target's own objects names it to the link;
+# elsewhere -fsanitize=fuzzer takes it at the link.
+function(qiven_fuzz_main target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /fsanitize=fuzzer)
+  else()
+    target_link_options(${target} PRIVATE -fsanitize=fuzzer)
+  endif()
+endfunction()

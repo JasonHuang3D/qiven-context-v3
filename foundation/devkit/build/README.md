@@ -2,14 +2,14 @@
 
 layer devkit, status built
 
-Version 0.2: the number of this file's change list, below, and of nothing else
+Version 0.5: the number of this file's change list, below, and of nothing else
 
 - **Awaiting a split:** its product data, which stays here until the product's move (P4): `qiven3-child`, `qiven3_fixtures` and `qiven3_test_headers` in `analysis-exemptions.json`; the product's units' place in `header_units.cmake`; `qiven3-child` in `top.cmake`'s comment on the analysed roots; the product's paths in `tests/test_trees_build.py`'s `test_analysis_choice`, and the product's pair of header units (`qiven3_headers`, `qiven3_test_headers`) in its `test_steps_name_composed`; the product's targets among the five links `tests/test_links.py` must read. The root's product directories and the presets `bench` and `drill` are the composition's, the consumer's, in this row only because it holds those files
 - **Holds:**
   - `build.cmake`: `qiven_root`, the checkout's root, from which every repository path of the foundation's CMake starts; the options, pins (MSVC's `19.44.35228`, whose toolset, `14.44.35207`, `tools/changed.py`'s `VCVARS_VER` names a second time for its tree, `ci-windows`, which no pin checks: a bump changes both; CI unpinned, by `python`'s allowance for `ci.yml`), compiler flags, hardening, sanitizers, clean binaries and analysis
   - `top.cmake`: what the project on top holds, by the same parts in whichever project: the trees, the tidy configuration, the codemodel query, `enable_testing` and the header units' rule at its one include, and `qiven_top_end()`, called last: the foundation's pair of header units for the analysis, `qiven_headers` and `qiven_test_headers`, `binaries.txt`, `executables.txt`, `test-targets.txt`, `defined-targets.txt` and the clang-tidy steps
   - `modules.cmake`: the one list of the foundation's modules, `qiven_foundation_modules`, each added there, at the top project's scope
-  - `sanitize.cmake`: the sanitizers of `QIVEN_SANITIZE` on every target, and the name of the sanitizer's runtime; `tidy_database.cmake`
+  - `sanitize.cmake`: the sanitizers of `QIVEN_SANITIZE` on every target, the name of the sanitizer's runtime, and `qiven_fuzz_main`, libFuzzer's main on one fuzz target; `tidy_database.cmake`
   - `trees.cmake`: the trees of `tools/trees.json`, the globs and filters taken from them, and `qiven_kept`, the one filter, narrowing the walks to the `qiven_kept_tree` a project on top names, the table read whole
   - `header_units.cmake`: the header units, their places and names, and the function that makes a pair of them, which `trees.cmake` includes
   - `tidy_config.cmake`: a test source's composed clang-tidy configuration
@@ -20,7 +20,7 @@ Version 0.2: the number of this file's change list, below, and of nothing else
   - in `foundation/`, `CMakeLists.txt` (the foundation alone, the project with no product directory, by the same parts: its `qiven_kept_tree`, and `qiven_left_out`, the Python tests it leaves out of the listing, each named with its reason) and `CMakePresets.json` (the presets' common part, `base`, `here`, `ci` and the test preset `here`; and `alone`, configure and test, disabled at the root, its tree `build/alone` under the root)
 - **Never holds:** C++ source, or Python source outside its `tests/` but the two readers its tests use; another module's target or tests; what makes an executable, diag's `qiven_executable`
 - **Contract:** none
-- **Interface:** no header: the function `qiven_top_end`, the variables `qiven_root` and `qiven_foundation_modules`, the interface target `qiven_build`, the `QIVEN_` options and cache variables (`QIVEN_PIN_TOOLS`, `QIVEN_STRUCTURE`, `QIVEN_SYSTEM_HEAP`, `QIVEN_FAULTS`, `QIVEN_SANITIZE`, `QIVEN_ANALYZE`, `QIVEN_LOG_MIN`), and the presets; for its tests, the package `foundation.devkit.build`'s `links` and `exemptions`, imported normally
+- **Interface:** no header: the functions `qiven_top_end` and, in a `QIVEN_SANITIZE` build, `qiven_fuzz_main`, the variables `qiven_root` and `qiven_foundation_modules`, the interface target `qiven_build`, the `QIVEN_` options and cache variables (`QIVEN_PIN_TOOLS`, `QIVEN_STRUCTURE`, `QIVEN_SYSTEM_HEAP`, `QIVEN_FAULTS`, `QIVEN_SANITIZE`, `QIVEN_ANALYZE`, `QIVEN_LOG_MIN`), and the presets; for its tests, the package `foundation.devkit.build`'s `links` and `exemptions`, imported normally
 - **Files:** the `present` paths of module.json: this directory, its `tests/` among them, the root's three files and `foundation/`'s two
 - **Uses:** `structure`'s lexer (`structure/lexer.py`), which `header_units.cmake` runs at configure, and its `subset`, which `exemptions.py` reads, its row's `depends`; its tests, `python` and `harness` (`run_watched`, a build's directory and options), its `test_depends`, and `structure`'s `layers` and `rules`
 - **Consumers rely on:** one set of warnings as errors for every target of ours, through `qiven_build`; the vendored SQLite engine at its own level, warnings not errors (`foundation/system/sqlite/CMakeLists.txt`); the presets' compilers, sanitizers and analysis; clean binaries: no source, toolset or SDK path of the building machine in an object, a library or a binary, and the same bytes from the same sources, for a tree under the root
@@ -39,7 +39,14 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.4, 2026-11-07, the commit that brings this entry
+### 0.5, 2026-11-07, the commit that brings this entry
+
+The fuzz targets' flag comes here from `tests/fuzz/CMakeLists.txt`, the rest of the end challenges' Bu-4: `qiven_fuzz_main(<target>)`, in `sanitize.cmake`, gives one target libFuzzer's main, as MSVC's compile option or elsewhere's link option. No target's flags change.
+
+- **This file:** the Holds list and the Interface name it; the version line, left at 0.2 by 0.3 and 0.4, follows.
+- **What a consumer does:** a fuzz target calls it, in a build whose `QIVEN_SANITIZE` names `fuzzer`; `sanitize.cmake` is included only when `QIVEN_SANITIZE` is set.
+
+### 0.4, 2026-11-07, `4adb15c`
 
 The label `fast` back on the cases 0.2 moved from `structure`, but the analysis controls (2282): the floors, K11, the links and the exemptions, by each class's `ctest_labels`. Each starts no process but git and reads no machine fact, the structure tests' measure (`harness`'s `tests/test_wiring.py`), and each took under a second.
 
