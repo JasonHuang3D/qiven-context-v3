@@ -7,8 +7,9 @@ layer tools, status built
   `foundation/devkit/structure/modules.py`, the table's reader `foundation/devkit/python/table.py`), the
   old places' base `loop_base.json`, which `loop_base.py` writes, the debugger agents drive (`debug.py`, cdb
   found, checked and driven by `foundation/devkit/python/debugger.py`) and the fuzz seeds (`fuzz_seeds.py`);
-  the repository's data read at the root, the trees the reader reads (`trees.json`) and the debugger's pin
-  (`windows-pins.txt`, read by `debugger.py`); and its tests in `tests/`: the debugger's (`test_debug.py`).
+  the repository's data read at the root, the trees the reader reads (`trees.json`); and its tests in
+  `tests/`: the debugger's (`test_debug.py`). The debugger's pin is `debugger.py`'s, beside it
+  (`foundation/devkit/python/debugger_pins.txt`, moved from `windows-pins.txt` here at `1612fde`).
   The watcher, its dumps' bound and the watcher's hang path's tests are the runner's
   (`foundation/devkit/test/runner/`).
 - **Never holds:** C++ that a product's program links. A dependency on what is not ours (an operating
@@ -87,5 +88,9 @@ later changes to be made again; the commit after it shows every line cut with th
   moved to `foundation/devkit/test/runner/` (`6161164`): the command brings them back at their old places. A
   restore needs `status`'s, `system`'s, `process`'s, `git`'s, `table`'s, `build_tree`'s, `answer`'s and
   `debugger`'s moves and the watcher's move to the runner made again in the files it brings back, and Linux
-  returns through `system`'s POSIX back end, not by this command alone. Last commit `e0cb5c4`:
+  returns through `system`'s POSIX back end, not by this command alone. Since then the imports reader has
+  moved to `foundation/devkit/python/imports.py`, K11's lists into `structure`'s `tests/test_binaries.py`
+  (`68734ca`), and the debugger's pin from `tools/windows-pins.txt` to
+  `foundation/devkit/python/debugger_pins.txt` (`1612fde`): a restore makes these two moves again too, in
+  the files it brings back, which name the old places. Last commit `e0cb5c4`:
   `git restore --source=e0cb5c4 -- tools/debug_gdb.py tools/linux-pins.txt tools/debug.py tools/debuggers.py tools/dumps.py tools/watch.py tools/module.json tools/tests/test_debug.py tools/tests/test_hang.py foundation/devkit/structure/hardening.py foundation/devkit/structure/imports.py foundation/devkit/structure/README.md foundation/devkit/structure/tests/test_hardening.py foundation/devkit/structure/tests/test_binaries.py foundation/devkit/build/build.cmake foundation/devkit/test/runner/cases.cmake foundation/devkit/test/runner/ctest_tests.cmake foundation/system/diag/tests/test_faults.py`
