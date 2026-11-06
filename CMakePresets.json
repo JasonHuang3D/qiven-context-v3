@@ -229,7 +229,7 @@
       "displayName": "The cases that drive cdb, run here alone, never CI's",
       "configurePreset": "release",
       "filter": {"include": {"label": "^debugger$"}},
-      "execution": {"noTestsAction": "error", "jobs": 1}
+      "execution": {"noTestsAction": "error"}
     },
     {
       "name": "fake",

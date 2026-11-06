@@ -15,7 +15,7 @@
 //   failfast   qiven::memory::fail_fast("plant")
 //   out        "out: plant" through diag::Out, twice; exit 0
 //   hang       the main thread and one more, each blocked for ever
-//   watch      a counter written three times, 1, 2 and 3; exit 0
+//   watch      after 200 ms, a counter written three times, 1, 2 and 3; exit 0
 //   span       a read of a span's element past its end, which the hardened
 //              library stops before the read
 //   span-in    the same read in bounds, span's control; exit 0
@@ -154,7 +154,10 @@ QIVEN_PLANT int plant_failfast() { qiven::memory::fail_fast("plant"); }
 // unoptimized so that the debugger finds it at each of its lines. The
 // break's line writes another local: cdb leaves a break by one step of its
 // instruction, and a first write in that step would be caught, or not, in
-// the same trap as the step.
+// the same trap as the step. main waits 200 ms before it, so that the thread
+// Windows's loader pool starts late comes before the break: that thread's
+// create event falling on a resume loses the stop. No event says the pool is
+// done, so the wait is by time.
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma optimize("", off)
 #define QIVEN_UNOPTIMIZED
@@ -217,6 +220,7 @@ int main(int argc, char** argv) {
         return plant_hang();
     }
     if (plant == "watch") {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         return plant_watch();
     }
     if (plant == "span" || plant == "span-in") {

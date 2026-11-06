@@ -15,8 +15,16 @@ with a bounded plain-text transcript.
   break, a watch or a fault), in this order: --locals, --stack, --threads
   (every thread's stack), --print <expression>, then --step <n> (into) or
   --next <n> (over), by source lines; then the run continues. A
-  first-chance exception goes to the case's own handlers, unseen; its
-  second chance is the fault, the last stop.
+  first-chance single step is the debugger's: a stop of its own, its line
+  "stop <n>: Single step exception - code 80000004", answered gh, never
+  handed to the program and never a fault. Every other first-chance
+  exception goes to the case's own handlers, unseen; its second chance is
+  the fault, the last stop.
+- A thread's create event falling on the resume from a stop makes the debug
+  engine lose that stop's bookkeeping, on both cdbs: a data breakpoint's trap
+  comes as that raw single step, its rip where the plain stop's stands, the
+  write done; or the step off a break is lost, and the same breakpoint hits
+  again at the same rip, each later stop one later.
 - Bounds. At most --stops stops (5), --lines lines (200, at most 1,000),
   the last line among them, each at most 300 code points, cut with [cut],
   and --seconds seconds (60, at most 600), after which the debugger and
@@ -59,6 +67,7 @@ from foundation.devkit.python.debugger import FRAMES
 
 EXIT = re.compile(r"^Exit process [0-9a-f]+:[0-9a-f]+, code (?P<code>[0-9a-f]+)$")
 CHANCE = re.compile(r"\s*\((?:first chance|!!! second chance !!!|first/second chance not available)\)$")
+SINGLE_STEP = "code 80000004 (first chance)"
 WATCHER = "watch.py"
 
 
@@ -137,10 +146,11 @@ def run_session(cdb, args, binary, out):
         event = cdb.event()
         if cdb.ended or not event:
             return f"could not run: {binary.name}: the debugger ended", 2
-        if "first chance" in event:
+        step = SINGLE_STEP in event
+        if "first chance" in event and not step:
             go = "gn"  # to the case's own handlers
             continue
-        go = "g"
+        go = "gh" if step else "g"  # the debugger's own trap, never the case's
         final = outcome_of(event)
         if final and final[1] == 0:
             return final
