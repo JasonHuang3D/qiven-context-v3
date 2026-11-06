@@ -16,8 +16,9 @@ public names (dumpbin /linkermember:1); the targets' link edges (CMake's
 --graphviz, from a configure of SOURCE in a directory of its own);
 index.json, naming each; and index.d, the step's depfile, naming each
 file index.json digests, so that its change or removal reruns the step.
-foundation/system/sqlite/src/sqlite3.c, the one vendored file, has its
-object's names recorded, for what it defines, and no includes.
+A vendored file, tools/trees.json's vendored (foundation/system/sqlite/src/
+sqlite3.c the one compiled), has its object's names recorded, for what it
+defines, and no includes.
 """
 
 import concurrent.futures
@@ -36,7 +37,6 @@ from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.python import table
 
-VENDORED = "foundation/system/sqlite/src/sqlite3.c"
 # The runtimes a /MT build links, the static C runtime's (the structure
 # build's); oldnames.lib, POSIX names, is not one.
 RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")
@@ -66,14 +66,14 @@ def rel_posix(path, root):
         return None
 
 
-def record_one(entry, root, out, dumpbin):
+def record_one(entry, root, out, dumpbin, vendored_files):
     """One compile command: its includes and its object's symbols."""
     source = rel_posix(entry["file"], root)
     obj = Path(entry["directory"], entry["output"])
     parts = obj.as_posix().split("/")
     target = next((p[:-4] for p in parts if p.endswith(".dir")), "")
     key = target + "__" + (source or obj.name).replace("/", "_")
-    vendored = source == VENDORED
+    vendored = source in vendored_files
     if not vendored:
         includes = run(entry["command"] + " /showIncludes /Zs", cwd=entry["directory"], shell_text=True)
         (out / "includes" / (key + ".txt")).write_text(includes, encoding="utf-8")
@@ -115,9 +115,9 @@ def record(source, build_dir, out, dumpbin):
         (out / sub).mkdir(parents=True)
     root = Path(os.path.normpath(source))
     db = json.loads(Path(build_dir, "compile_commands.json").read_text(encoding="utf-8"))
-    entries = list(db)
+    entries, vendored_files = list(db), table.trees(root).vendored
     with concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 4) as pool:
-        objects = list(pool.map(lambda e: record_one(e, root, out, dumpbin), entries))
+        objects = list(pool.map(lambda e: record_one(e, root, out, dumpbin, vendored_files), entries))
     libs = {}
     for name in RUNTIME_LIBS + NETWORK_LIBS:
         text = run([dumpbin, "/nologo", "/linkermember:1", str(find_lib(name))])

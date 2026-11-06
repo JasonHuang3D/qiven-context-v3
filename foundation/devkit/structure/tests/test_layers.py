@@ -1,8 +1,7 @@
 """The structure rules' scopes by the tree's table (layers.py), with no
-build's records: core logic (B17) by layer, held in every file of src/ it
-held when src/ was its literal root, never in devkit's runner, layer 0, nor
-in the vendored SQLite, layer 2's, nor in test code; B9's own headers a
-library's."""
+build's records: core logic (B17) by layer, never in devkit's runner, layer
+0, nor in the vendored SQLite, layer 2's, nor in test code; memory's
+library code core's."""
 
 import unittest
 
@@ -10,51 +9,15 @@ from foundation.devkit.structure import layers, rules
 
 TREE = layers.of(rules.ROOT)
 CXX = layers.CXX
-# Where core logic was read: src/, and memory's, matcher's, text's, time's, digest's, format's, compute's,
-# platform's and recordlog's library code, in src/ until their moves (compute's fake and platform's, each a
-# library's since its move from tests/support/, with them), and storage_sqlite's, recordlog's until its move;
-# the entry's headers, cognition's values in src/ until their move; and diag's, with the log's ring, the
-# log's and the wire's, in src/ until their moves.
-OLD_SRC = ("src/", "foundation/core/memory/include/", "foundation/core/memory/src/",
-           "foundation/core/matcher/include/", "foundation/core/matcher/src/",
-           "foundation/core/text/include/", "foundation/core/text/src/", "foundation/core/time/include/",
-           "foundation/core/digest/include/", "foundation/core/digest/src/",
-           "products/qiven3/format/include/", "products/qiven3/format/src/", "products/qiven3/entry/include/",
-           "foundation/services/compute/include/", "foundation/services/compute/src/",
-           "foundation/system/platform/include/", "foundation/system/platform/src/",
-           "foundation/services/storage/recordlog/include/", "foundation/services/storage/recordlog/src/",
-           "foundation/services/storage/sqlite/include/", "foundation/services/storage/sqlite/src/",
-           "foundation/system/diag/include/", "foundation/system/diag/src/",
-           "foundation/services/log/include/", "foundation/services/log/src/",
-           "foundation/services/transport/include/", "foundation/services/transport/src/")
-
-
-def files():
-    return rules.source_files(rules.ROOT)
-
-
-def was_core(rel):
-    """Core logic as it was read, src/ its literal root, memory's, matcher's, text's, time's, digest's,
-    format's, the entry's, compute's, platform's, recordlog's, storage_sqlite's, diag's, log's and transport's
-    code at their new places."""
-    return rel.startswith(OLD_SRC) and not rules.under(rel, rules.NOT_CORE) and not rules.is_instantiation(rel)
 
 
 class Core(unittest.TestCase):
 
-    def test_kept(self):
-        """Each file core logic held with src/ its root, it holds."""
-        held = [rel for rel in files() if rel.endswith(CXX) and was_core(rel)]
-        self.assertGreater(len(held), 100)
-        self.assertEqual([rel for rel in held if not rules.is_core(rel, TREE)], [])
-
     def test_outside(self):
-        """No file outside src/ and memory's, matcher's, text's, time's, digest's, format's, the entry's,
-        compute's, platform's, recordlog's, storage_sqlite's, diag's, log's and transport's code is core logic
-        today: the runner, devkit's, the vendored SQLite, system's, and test code are outside it."""
-        self.assertEqual([rel for rel in files() if rel.endswith(CXX) and rules.is_core(rel, TREE)
-                          and not was_core(rel)], [])
-        runner = [rel for rel in files() if rel.startswith(rules.RUNNER) and rel.endswith(CXX)]
+        """The runner, devkit's, the vendored SQLite, system's, and test code are outside core logic; memory's
+        arena is in it, core's."""
+        runner = [rel for rel in rules.source_files(rules.ROOT)
+                  if rel.startswith(TREE.directory("runner")) and rel.endswith(CXX)]
         self.assertGreaterEqual(len(runner), 4)
         self.assertEqual(TREE.layer(runner[0]), "devkit")
         self.assertEqual(TREE.layer("foundation/system/sqlite/src/sqlite3.c"), "system")
@@ -63,11 +26,6 @@ class Core(unittest.TestCase):
                 self.assertFalse(rules.is_core(rel, TREE))
         self.assertTrue(rules.is_core("foundation/core/memory/src/arena.cpp", TREE))
         self.assertEqual(TREE.layer("foundation/core/memory/src/arena.cpp"), "core")
-
-    def test_b9_libraries(self):
-        """B9's own headers: a library's of core to products, as src/ was."""
-        self.assertEqual([rel for rel in files() if TREE.library(rel) != rel.startswith(OLD_SRC)
-                          and rel.endswith(CXX)], [])
 
 
 if __name__ == "__main__":

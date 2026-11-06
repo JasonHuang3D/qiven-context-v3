@@ -1,7 +1,7 @@
-"""The structure rules' lists, B1, B2, B5 to B17 and B32, as data, which
-rules.py's checker reads. STATED holds the allowances the text states beyond
-the rows' cells, each with its reason; an allowance the text lacks has no
-place here.
+"""The structure rules' lists, B1, B2, B5 to B11, B13, B14, B17 and B32, as
+data, which rules.py's checker reads. STATED holds the allowances the text
+states beyond the rows' cells, each with its reason; an allowance the text
+lacks has no place here.
 """
 
 import re
@@ -102,8 +102,6 @@ ALLOWED = {
     # link to dbghelp and its variants' (foundation/system/diag/CMakeLists.txt).
     "B5": ("foundation/system/platform/src/windows/", layers.CHILD, "qiven_platform_windows", DIAG + "src/",
            "qiven_diag", "qiven_diag_crtdbg", "qiven_diag_poisoned"),
-    "B11": ("tests/compat/r",),
-    "B14": (f"{layers.SUPPORT}goldens",),
     **subset.ALLOWED,
 }
 # The allowances the text states beyond the rows' cells, (rule, file, what),
@@ -122,11 +120,8 @@ STATED = {
                                                                   "its one target over them",
     ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
                                                                  "files' version, source, digests and options",
-    ("B1", "tests/audit/read_audit.", "sqlite3"): "the read audit the test tree plans, which names sqlite3 to check "
-                                                  "its absence: its text alone, and B1's include still refused",
     ("B9", DIAG, "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
                               "and its report hook",
-    ("B9", DIAG, "signal.h"): "the diagnostic entry's handlers on Linux",
     ("B9", DIAG, "execinfo.h"): "the diagnostic entry's backtrace on Linux",
     ("B9", DIAG, "unistd.h"): "the diagnostic entry's write and _exit on Linux",
     ("B9", DIAG, "mman.h"): "the diagnostic entry's alternate stack on Linux",
@@ -172,23 +167,11 @@ ALLOWANCES = (*subset.CELLS, *STATED)
 EXEMPT = {
     "B1": {STRUCTURE: "the structure checks, which name what they forbid: sqlite3 in B1's text rule, its include "
                       "and its link, as data and in their cases' scratch files"},
-    "B2": {STRUCTURE: "as B1's: the git names and CreateProcessW B2's rules refuse"},
-    "B14": {STRUCTURE: "as B1's: the goldens path B14's literal rule refuses"},
 }
-# B12 and B13 name what exists alone: the reader's, the bundle's, backup's,
-# forgetting's and the map check's paths and targets come back with each
-# module's row when it is built. A target is matched by its exact name, a
-# variant by its own.
-# B12: the modules and targets that never reach backup or forgetting; its
-# headers and links none until those modules are built.
-B12_FILES = (RECORDLOG, "src/entry/", "products/qiven3/entry/", "foundation/system/platform/",
-             "foundation/core/text/", "foundation/core/digest/", "products/qiven3/format/", "src/qiven3/location.",
-             "foundation/services/transport/")
-B12_TARGETS = frozenset(("qiven_recordlog", "qiven3_entry", "qiven_matcher", "qiven3_secret", "qiven_platform",
-                         "qiven_platform_windows", "qiven_platform_current", "qiven_text", "qiven_time",
-                         "qiven_digest", "qiven3_format", "qiven3_location", "qiven_transport"))
-B12_HEADERS = ()
-B12_LINKS = ()
+# B13 names what exists alone: a module not built yet comes back with its
+# paths and targets with its row. A target is matched by its exact name, a
+# variant by its own. B12, what never reaches backup or forgetting, has no
+# list and no rule until those modules are built.
 # B13: the reader's includes, its targets' links and its calls of the
 # platform's writes (PLATFORM_WRITES, rules.py's token pass), the reader's
 # part built today the entry: its files by path, the secret check's out of

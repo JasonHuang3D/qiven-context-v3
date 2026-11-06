@@ -1,6 +1,7 @@
-"""The checker of the structure rules, B1, B2, B5 to B17 and B32, whose
-lists lists.py holds; it also runs the safe subset's token rules, B18 to B31
-(subset.py).
+"""The checker of the structure rules, B1, B2, B5 to B11, B13, B14, B17 and
+B32, whose lists lists.py holds; it also runs the safe subset's token rules,
+B18 to B31 (subset.py). B15 is test_size's, on tree.py's line count; B12 and
+B16 have no rule until backup, forgetting and the map check are built.
 
 A rule reads includes, names and link edges from the compiler's and the
 build's records (records.py writes and reads them), and strings,
@@ -20,19 +21,14 @@ from foundation.devkit.python.build_tree import ROOT
 from foundation.devkit.structure import layers, subset
 from foundation.devkit.structure.lexer import lex
 from foundation.devkit.structure.lists import (
-    ADAPTER_HEADERS, ALLOWANCES, ALLOWED, B12_FILES, B12_HEADERS, B12_LINKS, B12_TARGETS, B13_FILES, B13_HEADERS,
-    B13_LINKS, B13_OPEN, B13_SECRET, B13_TARGETS, B17_HEADERS, B17_NAMES, B32_BYTES, CONTRACT, CORE_NAMED,
-    CRT_IO_HEADERS, CXX_SOURCES, ENGINE, EXEMPT, FS_PREFIX, FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES,
-    LIBRARY_SHAPES, LINKER_NAMES, LOAD_NAMES, LOAD_PREFIX, NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS,
-    PLATFORM_WRITES, PROCESS_NAMES, SDK_DIRS, SPAWN_EXEC, STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES,
-    WRITE_NAMES)
+    ADAPTER_HEADERS, ALLOWANCES, ALLOWED, B13_FILES, B13_HEADERS, B13_LINKS, B13_OPEN, B13_SECRET, B13_TARGETS,
+    B17_HEADERS, B17_NAMES, B32_BYTES, CONTRACT, CORE_NAMED, CRT_IO_HEADERS, CXX_SOURCES, ENGINE, EXEMPT, FS_PREFIX,
+    FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES, LIBRARY_SHAPES, LINKER_NAMES, LOAD_NAMES, LOAD_PREFIX,
+    NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS, PLATFORM_WRITES, PROCESS_NAMES, SDK_DIRS, SPAWN_EXEC,
+    STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES, WRITE_NAMES)
 from foundation.devkit.structure.records import Records, command_include_dirs
-# The tree's files (tree.py), which the size, line-end, content and import tests read here too.
-from foundation.devkit.structure.tree import is_text, line_count, source_files, text_attributes
-
-VENDORED = "foundation/system/sqlite/src/sqlite3.c"
-# The runner's directory, from the table: its headers every case includes.
-RUNNER = layers.of(ROOT).directory("runner")
+# The tree's files (tree.py), which the line-end, content and import tests read here too.
+from foundation.devkit.structure.tree import is_text, source_files, text_attributes
 
 Finding = namedtuple("Finding", "rule where kind detail")
 
@@ -132,17 +128,13 @@ def app_namespace(tokens, i):
 
 
 def source_rules(root, files, out):
-    """B1's text, B2's and B14's strings, B13's and B17's tokens, B15's lines,
-    B32's bytes in every file .gitattributes treats as text.
+    """B1's text, B2's and B14's strings, B13's and B17's tokens, B32's bytes
+    in every file .gitattributes treats as text.
     Gives the files holding a goldens path, for B14's writes."""
     goldens = set()
     attributes = text_attributes(root)
     for rel in files:
         data = (root / rel).read_bytes()
-        name = rel.rsplit("/", 1)[-1]
-        if name.endswith((*CXX_SOURCES, ".py", ".cmake")) or name == "CMakeLists.txt":
-            if line_count(data) > 600 and rel not in layers.VENDORED:
-                out.add("B15", rel, detail=f"{line_count(data)} lines")
         found = B32_BYTES.search(data) if is_text(rel, attributes) else None
         if found:
             line = data.count(b"\n", 0, found.start()) + 1
@@ -151,7 +143,7 @@ def source_rules(root, files, out):
         text = data.decode("utf-8", "replace")
         if layers.layered(rel) and "sqlite3" in text:
             out.add("B1", rel, detail="the text sqlite3", what="sqlite3")
-        if not rel.endswith(CXX_SOURCES) or rel == VENDORED:
+        if not rel.endswith(CXX_SOURCES) or rel in layers.VENDORED:
             continue
         tokens = lex(text)[0]
         for i, (kind, value, line) in enumerate(tokens):
@@ -186,7 +178,7 @@ def include_rules(records, out):
             if kind == "sdk":
                 system.append((depth, name))
             by = relative(os.path.normpath(includer), root)
-            if by is None or by == VENDORED or (by, path) in seen:
+            if by is None or by in layers.VENDORED or (by, path) in seen:
                 continue
             seen.add((by, path))
             direct_include(by, path, kind, name, out)
@@ -231,7 +223,7 @@ def directive_rules(records, root, files, out):
         for _, path, _ in obj.includes:
             resolved.setdefault(path.replace("\\", "/").lower().rsplit("/", 1)[-1], path)
     for by in files:
-        if not by.endswith(CXX_SOURCES) or by == VENDORED:
+        if not by.endswith(CXX_SOURCES) or by in layers.VENDORED:
             continue
         for form, name in directives(lex((root / by).read_text(encoding="utf-8", errors="replace"))[0]):
             here = by.rsplit("/", 1)[0] if "/" in by else "."
@@ -264,12 +256,9 @@ def direct_include(by, path, kind, name, out):
         out.add("B9", by, detail=f"an include outside a library of core to products, {rel}", what=rel)
     if ".." in path.replace("\\", "/").split("/"):
         out.add("B11", by, detail=f"an include path holding .., {path}")
-    if rel is not None:
-        if under(by, B12_FILES) and under(rel, B12_HEADERS):
-            out.add("B12", by, detail=f"includes {rel}")
-        if under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \
-                and not rel.startswith(B13_OPEN):
-            out.add("B13", by, detail=f"includes {rel}")
+    if rel is not None and under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \
+            and not rel.startswith(B13_OPEN):
+        out.add("B13", by, detail=f"includes {rel}")
     if is_core(by, out.tree) or is_instantiation(by):
         if kind == "std":
             ok = name in B17_HEADERS
@@ -360,8 +349,6 @@ def link_rules(records, out):
                 out.add("B17", target, "link", f"a core target links {dep}", force=True)
     for target in sorted(shapes):
         reached = records.closure(target)
-        if target in B12_TARGETS and any(d in B12_LINKS for d in reached):
-            out.add("B12", target, detail="reaches backup or forgetting")
         if target in B13_TARGETS and any(d in B13_LINKS for d in reached):
             out.add("B13", target, detail="the reader's target reaches " + ", ".join(
                 sorted(d for d in reached if d in B13_LINKS)))
