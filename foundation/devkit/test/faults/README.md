@@ -12,7 +12,7 @@ Version 0.1: the number of this file's change list, below, and of nothing else
 - **Uses directly:** memory (`Countdown`), log (`Log`, `Name`, `Count`, `Types`, `Level`, `event`) and the runner (`registry`, `Case`), `parts.hpp` registering a fault run's cases in its registry
 - **Consumers rely on:** an operation run with its k-th allocation or platform call failed, for k from 1 until it completes; each case's log
 - **Parameters:** none
-- **Refuses:** nothing itself: `run_faults` counts a fault run that does not end in the operation's typed error (`untyped`) or whose check fails (`unchecked`), and a case fails only by checking those counts
+- **Refuses:** in `run_faults`, nothing: it counts a fault run that does not end in the operation's typed error (`untyped`) or whose check fails (`unchecked`), and a case fails only by checking those counts; a fault run's parts refuse a binary that drops a part's case or registers one past them: `registered()` answers it, and each part's case checks that answer
 - **Compatibility, extensibility and performance:** no system call and no conditional on a system: the countdown is memory's, and a platform's failing call the fake's, Windows built, no Linux build. A new fault point is its module's seam, no code here; a new operation one call of `run_faults`. One thread, a run for each k up to `limit`, 100000 by default, each part of a fault run within 30 s on every job; not measured here
 - **A fake and errors:** none, the module's countdown standing in; its proof `faults.counts`, skipped in a build without `QIVEN_FAULTS`, and every module's fault cases by use. It has no error of its own: an operation's error is what it counts, and a part's case dropped is refused by `registered()`
 

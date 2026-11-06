@@ -27,7 +27,7 @@ The method, once, for the module, which wraps nothing:
 - **Extensibility:** a new rule is a row of `lists.py` or `subset.py` and a branch of its checker, an allowance a row with its reason, and a rule with no consumer goes; a new tree is a value of `tools/trees.json`
 - **Performance:** the structure preset at 12 jobs, alone, measured once at `9d4dd9c`: 17 tests in 13.46 s, the slowest 12.64 s; a test past 60 s is killed, and a kill under other builds' load is read as load first, by one rerun alone
 - **A fake:** none: each rule reads the real checkout and the real build's records, with its planted controls in its tests; a tool or a check here is proven by use
-- **Errors:** a finding is a test's failure, with its file and rule. A record that is stale after a C++ change reads as a failing Tree test until `cmake --build build/structure` runs. `tools/loop_modules.py .` with no build reports 0 errors where the links give 14 (the kit's rows cut of `text` and `diag`): the links' half reads the build's codemodel, so a change to a row's edges runs it with `BUILD` given
+- **Errors:** a finding is a test's failure, with its file and rule. A record that is stale after a C++ change reads as a failing Tree test until `cmake --build build/structure` runs. `tools/loop_modules.py .` with no build reported 0 errors where the links gave 14 (the kit's rows cut of `text` and `diag`), read at `73b57fc` by (b)'s design challenge, 2026-11-06; at `ee70977`, 2026-11-07, both gave 0 errors, `build/ci-windows` given. The links' half reads the build's codemodel, so a change to a row's edges runs it with `BUILD` given
 
 ## Changes
 

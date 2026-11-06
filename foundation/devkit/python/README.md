@@ -185,7 +185,7 @@ The method for `debugger`:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.8, 2026-11-06, the commit that brings this entry
+### 0.8, 2026-11-06, `960abcd`
 
 `QIVEN_HAL` and the `nohal` preset gone, by step (b)'s design challenge, and with them H6's `tests/contract/test_hal_build.py`, one reader of `build_tree.options`.
 
