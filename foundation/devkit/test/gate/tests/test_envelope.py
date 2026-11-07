@@ -7,10 +7,10 @@ import unittest
 from foundation.devkit.test.gate import envelope
 
 
-def red(number, preset="ci-windows"):
-    return {"test": f"m{number % 3}.Case{number}.{'x' * 60}", "outcome": "failed", "ran": False,
+def red(number, preset="ci-windows", modules=3):
+    return {"test": f"m{number % modules}.Case{number}.{'x' * 60}", "outcome": "failed", "ran": False,
             "since": "run:20261107T100000Z-aaaa", "preset": preset, "flips": 0, "log": "L" * 100,
-            "modules": [f"m{number % 3}"]}
+            "modules": [f"m{number % modules}"]}
 
 
 class Codes(unittest.TestCase):
@@ -46,7 +46,7 @@ class Bound(unittest.TestCase):
         data = answer["data"]
         self.assertLessEqual(len(answer["next_action"]), 300)
         self.assertLessEqual(len(data["red"]), envelope.RED_FULL)
-        counted = sum(n for by in data["red_more"].values() for n in by.values())
+        counted = sum(by if isinstance(by, int) else sum(by.values()) for by in data["red_more"].values())
         self.assertEqual(len(data["red"]) + counted, len(reds))  # no red uncounted
         for name in envelope.LISTS:
             self.assertLessEqual(len(data[name]), envelope.LIST_MOST)
@@ -65,6 +65,14 @@ class Bound(unittest.TestCase):
         cut = [name for name in envelope.LISTS if data["more"].get(name)]
         first = next(i for i, name in enumerate(envelope.LISTS) if data["more"].get(name, 0) > 30)
         self.assertTrue(all(not data[name] for name in envelope.LISTS[first + 1:]), cut)
+
+    def test_reds_by_configuration(self):
+        """G-4 replayed: 600 reds over 3 configurations of 200 modules each,
+        their counts by module past the room: counted by configuration, the
+        first 20 in full, data never cut to its reason."""
+        reds = [red(n, preset, modules=200) for preset in ("ci-windows", "alone", "asan") for n in range(200)]
+        data = self.check("TESTS_FAILED", envelope.BOUND, reds, {})
+        self.assertEqual((len(data["red"]), data["red_more"]), (20, {"ci-windows": 180, "alone": 200, "asan": 200}))
 
     def test_lists_at_twenty(self):
         """Short lists: each at most 20 entries, the rest in more; a list cut

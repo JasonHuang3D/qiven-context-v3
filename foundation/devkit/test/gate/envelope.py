@@ -1,11 +1,13 @@
 """The answer, by the test framework's design: one JSON object on one line,
 v2's envelope fields, within its bound, never passed: 8,192 bytes, a refusal's
 4,096. Its fixed part is never cut, each line clipped by python's answer; the
-reds come next, the first RED_FULL in full and every further one counted under
-its configuration and its module; the other lists fill the rest, each at most
+reds come next, each with its ask, the first RED_FULL in full and every further
+one counted under its configuration and its module, past the room under its
+configuration alone, none dropped; the other lists fill the rest, each at most
 LIST_MOST entries, in LISTS' order, `more` counting what was cut. A gate's
-answer is one envelope, `data.steps` an entry a step, its code the worst
-step's. This directory's README states each member.
+answer is one envelope, `data.steps` an entry a step, its preset and tree; its
+code and next action from the gate's reds as they stand after every step, each
+step's own code first. This directory's README states each member.
 """
 
 import json
@@ -77,17 +79,25 @@ def action(code, words):
     return None if VERB[code] is None else bounded.clip(f"{VERB[code]}: {words}")
 
 
-def red_action(red, owners, command=COMMAND):
-    """The next action of a kept red, the gate named that owns it and lists it."""
+def ask(red, owners, command=COMMAND):
+    """The ask of a kept red: the gate that owns it and lists it, a test's red
+    with its `--again`."""
     gate = f"{command} {owner(red, owners)}"
+    return gate if red.get("build") is not None else f"{gate} --again test:{red['test']}"
+
+
+def red_action(red, owners=None, command=COMMAND):
+    """The next action of a kept red: its entry's ask, else the one of the gate
+    that owns it and lists it."""
+    asked = red.get("ask") or ask(red, owners or {}, command)
     # The gate and the ask first, so that the clip at 300 code points never cuts them.
     if red.get("build") is not None:
-        return action("RED_KEPT", f"{gate}, the red ending when that tree builds: the build of {red['preset']} "
+        return action("RED_KEPT", f"{asked}, the red ending when that tree builds: the build of {red['preset']} "
                                   f"failed since {red['since']}: {red['build']}")
     if red["outcome"] == "flaky":
-        return action("TESTS_FLAKY", f"{gate} --again test:{red['test']}, after a look at it live and its fix: "
+        return action("TESTS_FLAKY", f"{asked}, after a look at it live and its fix: "
                                      f"flaky in {red['preset']}, {red['flips']} flips, since {red['since']}")
-    return action("RED_KEPT", f"{gate} --again test:{red['test']}, fixed outside its key or its cause gone: "
+    return action("RED_KEPT", f"{asked}, fixed outside its key or its cause gone: "
                               f"{red['outcome']} in {red['preset']} since {red['since']}, its output in {red['log']}")
 
 
@@ -110,56 +120,75 @@ def _module(red):
     return (red.get("modules") or ["no module"])[0]
 
 
-def bounded_line(code, next_action, operation_id, detail_ref, fixed, reds, lists):
+def _counted(reds, alone=False):
+    """The reds counted, {preset: {module: count}}, or {preset: count} alone."""
+    found = {}
+    for red in reds:
+        if alone:
+            found[red["preset"]] = found.get(red["preset"], 0) + 1
+        else:
+            by = found.setdefault(red["preset"], {})
+            by[_module(red)] = by.get(_module(red), 0) + 1
+    return found
+
+
+def bounded_line(code, next_action, operation_id, detail_ref, fixed, reds, lists, more=None, weights=None):
     """The answer's one line, within its bound: `fixed`, data's fixed part,
     never cut; `reds`, the red entries in their order; `lists`, {name: entries}
-    of LISTS. The reds past RED_FULL, or past the room, are counted in
-    data.red_more, {preset: {module: count}}; a list's entries past LIST_MOST
-    or the room, and every list after the first cut, are counted in data.more."""
+    of LISTS; `more`, {name: count} of a list's entries cut before, counted in
+    data.more; `weights`, {name: [count]}, what each entry of a list counts in
+    data.more when cut, 1 where absent. The reds past RED_FULL, or past the
+    room, are counted in data.red_more, {preset: {module: count}}, or, where
+    those counts pass the room, {preset: count}; a list's entries past
+    LIST_MOST or the room, and every list after the first cut, are counted in
+    data.more."""
     bound = REFUSAL_BOUND if code in REFUSALS else BOUND
     envelope = {"status": STATUS[code], "code": code, "next_action": next_action and bounded.clip(next_action),
                 "operation_id": operation_id, "detail_ref": detail_ref, "data": _clipped(fixed)}
-    data = envelope["data"]
-    pending = {name: [_clipped(e) for e in lists.get(name, ())] for name in LISTS}
+    data, before, weights = envelope["data"], dict(more or {}), weights or {}
+    pending = {}
+    for name in LISTS:
+        entries = [_clipped(e) for e in lists.get(name, ())]
+        pending[name] = list(zip(entries, weights.get(name) or [1] * len(entries)))
     reds = [_clipped(r) for r in reds]
 
-    def more():  # what is not yet in, every pending entry counted: an upper bound of the final count
-        return {name: len(entries) for name, entries in pending.items() if entries}
+    def cut():  # what is not yet in, every pending entry counted: an upper bound of the final count
+        found = {name: before.get(name, 0) + sum(weight for _, weight in entries) for name, entries in pending.items()}
+        return {name: count for name, count in found.items() if count}
 
-    def counted(rest):
-        found = {}
-        for red in rest:
-            by = found.setdefault(red["preset"], {})
-            by[_module(red)] = by.get(_module(red), 0) + 1
-        return found
+    def fits(**fields):
+        return _bytes({**envelope, "data": {**data, "more": cut(), **fields}}) <= bound
 
     data["red"], data["red_more"] = [], {}
     data.update({name: [] for name in LISTS})  # every key in from the first trial, as in the final line
     for place, red in enumerate(reds):
-        rest = reds[place + 1:]
-        trial = {**envelope, "data": {**data, "red": data["red"] + [red], "red_more": counted(rest), "more": more()}}
-        if place >= RED_FULL or _bytes(trial) > bound:
-            data["red_more"] = counted(reds[place:])
+        rest, trial = reds[place + 1:], data["red"] + [red]
+        if place >= RED_FULL or not (fits(red=trial, red_more=_counted(rest))
+                                     or fits(red=trial, red_more=_counted(rest, alone=True))):
             break
         data["red"].append(red)
+    rest = reds[len(data["red"]):]
+    data["red_more"] = _counted(rest)
+    if not fits():  # the counts by module past the room: by configuration alone, none dropped
+        data["red_more"] = _counted(rest, alone=True)
     for red in data["red"]:
         red.pop("modules", None)
         red.pop("labels", None)
     full = False  # the room is spent: this list and every one after are cut
     for name in LISTS:
         entries = pending[name]
-        for place, entry in enumerate(entries):
+        for place, (entry, _) in enumerate(entries):
             pending[name] = entries[place + 1:]
-            trial = {**envelope, "data": {**data, name: data[name] + [entry], "more": more()}}
-            full = full or _bytes(trial) > bound
+            full = full or not fits(**{name: data[name] + [entry]})
             if full or place >= LIST_MOST:
                 pending[name] = entries[place:]
                 break
             data[name].append(entry)
-    data["more"] = more()
+    data["more"] = cut()
     line = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
-    if len(line.encode("utf-8")) > bound:  # the fixed part alone past the bound: named, never passed
-        envelope["data"] = {"reason": "the answer's fixed part passed its bound; the run's log names all"}
+    if len(line.encode("utf-8")) > bound:  # the fixed part alone past the bound: named, every red counted
+        envelope["data"] = {"reason": "the answer's fixed part passed its bound; the run's log names all",
+                            "red_more": _counted(reds, alone=True)}
         line = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
     return line
 
@@ -167,21 +196,34 @@ def bounded_line(code, next_action, operation_id, detail_ref, fixed, reds, lists
 _COUNTS = ("passed", "skipped", "failed", "flaky", "not_started")
 
 
+_OF_REDS = ("RED_KEPT", "PLANNED", "PASSED", "NOTHING_TO_RUN")  # a step's codes that its reading of reds decides
+
+
+def _own(step):
+    """A step's code of its own run, the reds it read aside: its code, or, of
+    _OF_REDS, PLANNED, PASSED or NOTHING_TO_RUN by its plan and selection."""
+    if step["code"] not in _OF_REDS:
+        return step["code"]
+    if not step["selected"]["tests"]:
+        return "NOTHING_TO_RUN"
+    return "PLANNED" if step["plan"] else "PASSED"
+
+
 def answer(run, steps, reach=None):
     """(the gate's one line, its exit status) of its steps' answers, each
-    run.step's dictionary, in their order, at the run id `run`: its code the
-    worst step's, or NO_TESTS where an ask names no test of any step (each
-    step's `unmatched`), its next action and detail_ref that step's; the counts
-    summed; every red of each configuration once, a configuration's own step's
-    over another step's reading of it; each list in step order, its entries
-    named by their configuration where the gate has more than one step;
-    `reach`, {preset: why} of each step its reach left out, in data.reach."""
-    nowhere = [a for a in steps[0].get("unmatched", ()) if all(a in s.get("unmatched", ()) for s in steps)]
-    code = worst([s["code"] for s in steps] + (["NO_TESTS"] if nowhere else []))
-    first = next((s for s in steps if s["code"] == code), None)
-    if first is None:  # the gate's own NO_TESTS: no step that ran lists an ask
-        first = {**steps[0], "next_action": action("NO_TESTS", f"--again {', '.join(nowhere)} names no test of "
-                                                               f"any step of the gate")}
+    run.step's dictionary, in their order, at the run id `run`: every red of
+    each configuration once, a configuration's own step's over another step's
+    reading of it, so the reds as they stand after every step; its code the
+    first in CODES' order of each step's own (`_own`), RED_KEPT where a red
+    stands, and NO_TESTS where an ask names no test of any step (each step's
+    `unmatched`), never the worst step's: a red a later step ended fails no
+    gate; its next
+    action the first red's on RED_KEPT, else that of the first step of its
+    code, whose reason and journal are the gate's, the reason counting every
+    red; the counts summed; each list in step order, its entries named by
+    their configuration where the gate has more than one step, each step's
+    `more` and the skipped list's skips counted in data.more; `reach`,
+    {preset: why} of each step its reach left out, in data.reach."""
     stepped = {s["preset"] for s in steps}
     reds, read = [], set()
     for each in steps:
@@ -192,9 +234,24 @@ def answer(run, steps, reach=None):
                 read.add(preset)
                 reds += found
     reds.sort(key=lambda r: not r.get("ran"))
+    nowhere = [a for a in steps[0].get("unmatched", ()) if all(a in s.get("unmatched", ()) for s in steps)]
+    code = worst([_own(s) for s in steps] + (["RED_KEPT"] if reds else []) + (["NO_TESTS"] if nowhere else []))
+    first = next((s for s in steps if s["code"] == code), None) or next((s for s in steps if _own(s) == code), None)
+    if code == "RED_KEPT":
+        first, next_action = first or steps[0], red_action(reds[0])
+    elif first is None:  # the gate's own NO_TESTS: no step that ran lists an ask
+        first, next_action = steps[0], action("NO_TESTS", f"--again {', '.join(nowhere)} names no test of "
+                                                          f"any step of the gate")
+    elif first["code"] == code:
+        next_action = first["next_action"]
+    else:  # a plan whose reds read are gone: its own words were a red's
+        next_action = action(code, f"{first['selected']['tests']} tests, about {first['selected']['expected']} s: "
+                                   f"the gate again without --plan")
     many = len(steps) > 1
     lists = {name: [f"{s['preset']}: {e}" if many else e for s in steps for e in s["lists"].get(name, ())]
              for name in LISTS}
+    weights = {"skipped": [int(e.split(":", 1)[0]) for s in steps for e in s["lists"].get("skipped", ())]}
+    more = {name: sum(s.get("more", {}).get(name, 0) for s in steps) for name in LISTS}
 
     def summed(field, names):
         return {n: sum(s[field][n] for s in steps) for n in names}
@@ -204,20 +261,21 @@ def answer(run, steps, reach=None):
     modules = "no module" if not left_out["tests"] else \
         "every module" + (f" but {', '.join(changed)}" if changed else "")
 
-    fixed = {"reason": first["reason"], "store": "new" if any(s["store"] == "new" for s in steps) else None,
+    reason = "; ".join(part for part in (first["reason"], f"{len(reds)} red kept" if reds else "") if part)
+    fixed = {"reason": reason, "store": "new" if any(s["store"] == "new" for s in steps) else None,
              "plan": any(s["plan"] for s in steps), "build": {"steps": sum(s["build"]["steps"] for s in steps)},
              "selected": {**summed("selected", ("tests", "unknown")),
                           "seconds": round(sum(s["selected"]["seconds"] for s in steps), 1),
                           "expected": round(sum(s["selected"]["expected"] for s in steps), 1)},
              "left_out": {"modules": modules, **left_out},
              "counts": summed("counts", _COUNTS),
-             "steps": [{"preset": s["preset"], "code": s["code"], "seconds": s["seconds"],
+             "steps": [{"preset": s["preset"], "tree": s["tree"], "code": s["code"], "seconds": s["seconds"],
                         "counts": {"selected": s["selected"]["tests"], **s["counts"],
                                    "left_out": s["left_out"]["tests"]}} for s in steps]}
     if reach:
         fixed["reach"] = dict(reach)
     detail = first["journal"] or next((s["journal"] for s in steps if s["journal"]), None)
     spelled = f"run:{run}"
-    line = bounded_line(code, first["next_action"], spelled, detail or f"runtime://operation/{spelled}", fixed,
-                        reds, lists)
+    line = bounded_line(code, next_action, spelled, detail or f"runtime://operation/{spelled}", fixed, reds, lists,
+                        more=more, weights=weights)
     return line, exit_status(code)

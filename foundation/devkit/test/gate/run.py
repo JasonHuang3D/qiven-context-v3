@@ -219,7 +219,8 @@ def step(root, one, tools, *, run, gate, argv, asks=(), plan=False, jobs=JOBS, o
     else the ask is left in `unmatched` for the gate (envelope.answer)."""
     began, owners, preset, where = clock(), owners or {}, one.preset, store.place(root, one.preset)
     tree = tree_of(preset)
-    answer = {"preset": preset, "code": None, "next_action": None, "seconds": 0.0, "journal": None, "reason": "",
+    answer = {"preset": preset, "tree": tree, "code": None, "next_action": None, "seconds": 0.0, "journal": None,
+              "reason": "", "more": {},
               "store": None, "build": {"steps": 0}, "counts": dict.fromkeys(
                   ("passed", "skipped", "failed", "flaky", "not_started"), 0),
               "selected": {"tests": 0, "seconds": 0.0, "expected": 0.0, "unknown": 0},
@@ -230,6 +231,8 @@ def step(root, one, tools, *, run, gate, argv, asks=(), plan=False, jobs=JOBS, o
 
     def done(code, words=""):
         answer["code"] = code
+        for red in answer["red"] + [r for found in answer["others"].values() for r in found]:
+            red["ask"] = envelope.ask(red, owners, command)  # every red's, its owner's
         if code in ("RED_KEPT", "TESTS_FLAKY"):
             first = next((r for r in answer["red"] if code != "TESTS_FLAKY" or r.get("outcome") == "flaky"),
                          None) or next((r for p in answer["others"].values() for r in p), None)
@@ -398,7 +401,7 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         left = list(picked.left_out.values())
         answer["left_out"] = {"tests": len(left), "green_at_key": sum(k["colour"] == states.GREEN for k in left),
                               "red_at_key": sum(k["colour"] == states.RED for k in left)}
-        answer["reason"] = _reason(built, changed, picked, answer["red"])
+        answer["reason"] = _reason(built, changed, picked)
         answer["unmatched"] = list(picked.unmatched)
         if picked.unmatched and alone:
             keep_state()
@@ -455,9 +458,10 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
             else:
                 counts["failed"] += 1
         reasons = collections.Counter(r.why for r in ran.values() if r.outcome == "skipped")
-        lists["skipped"] = [f"{count}: {why}" for why, count in reasons.most_common(SKIP_REASONS)]
+        common = reasons.most_common()
+        lists["skipped"] = [f"{count}: {why}" for why, count in common[:SKIP_REASONS]]
+        answer["more"]["skipped"] = sum(count for _, count in common[SKIP_REASONS:])  # every further reason's skips
         answer["red"] = sorted(reds(state, preset, where, ran, spelled), key=lambda r: not r["ran"])
-        answer["reason"] = _reason(built, changed, picked, answer["red"])  # the reds as they stand after the run
         if not keep_state():
             return end("INTERNAL", faults[-1])
         if any(f.startswith("ctest's exit") for f in faults):
@@ -479,11 +483,11 @@ def _kept(answer):
     return "RED_KEPT" if answer["red"] or any(answer["others"].values()) else None
 
 
-def _reason(built, changed, picked, kept):
-    """The step's one line of why it ran what it ran."""
+def _reason(built, changed, picked):
+    """The step's one line of why it ran what it ran; the gate's answer counts
+    its reds after it (envelope.answer)."""
     rebuilt = "nothing rebuilt" if built.no_work else f"{built.steps} build steps"
     files = f"{len(changed)} modules changed" if changed else "no module file changed"
     why = collections.Counter(picked.selected.values())
     ran = ", ".join(f"{count} {reason}" for reason, count in sorted(why.items())) or "no test selected"
-    red = sum(1 for r in kept if not r.get("ran"))
-    return f"{rebuilt}, {files}; {ran}" + (f"; {red} red kept" if red else "")
+    return f"{rebuilt}, {files}; {ran}"

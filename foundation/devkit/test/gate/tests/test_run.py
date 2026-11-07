@@ -19,9 +19,10 @@ def testcase(name, outcome):
     if outcome == "fail":
         return (f"<testcase name={quoteattr(name)} time=\"2.0\" status=\"fail\"><failure message=\"Failed\"/>"
                 f"<system-out>status: 1 failed</system-out></testcase>")
-    if outcome == "skip":
+    if outcome.startswith("skip"):  # "skip", or "skip:<its reason>"
         return (f"<testcase name={quoteattr(name)} time=\"0.5\" status=\"notrun\">"
-                f"<skipped message=\"SKIP_RETURN_CODE=125\"/><system-out>SKIP {name}: no cdb\n"
+                f"<skipped message=\"SKIP_RETURN_CODE=125\"/><system-out>SKIP {name}: "
+                f"{outcome.partition(':')[2] or 'no cdb'}\n"
                 f"status: 125 skipped</system-out></testcase>")
     return f"<testcase name={quoteattr(name)} time=\"1.5\" status=\"run\"><system-out>status: 0</system-out></testcase>"
 
@@ -48,7 +49,7 @@ class Fake:
         Path(junit_file).write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<testsuite>{cases}</testsuite>\n',
                                     encoding="utf-8")
         Path(log).write_text("log\n", encoding="utf-8")
-        return 8 if any(self.outcomes.get(n, "pass") not in ("pass", "skip") for n in names) else 0
+        return 8 if any(not self.outcomes.get(n, "pass").startswith(("pass", "skip")) for n in names) else 0
 
 
 class Step(unittest.TestCase):
@@ -302,3 +303,32 @@ class Step(unittest.TestCase):
         self.assertEqual((gone["code"], gone["lists"]["gone"]),
                          ("NOTHING_TO_RUN", ["configuration asan: in no presets file, its 1 reds ended by its going"]))
         self.assertFalse(store.place(self.root, "asan").exists())
+
+    def test_gate_after_every_step(self):
+        """G-1 and the on-site's findings replayed: the reason counts every red
+        kept, of every configuration, each red with its ask, each step with its
+        tree; the code and next action come from the reds after every step, so
+        a red a later step ends fails no gate."""
+        self.go(Fake(outcomes={"a.one": "fail", "a.two": "fail"}), preset="asan")
+        answer, _ = self.line(self.go(Fake(outcomes={"b.three": "fail"})))
+        self.assertTrue(answer["data"]["reason"].endswith("; 3 red kept"), answer["data"]["reason"])
+        self.assertEqual([r["ask"] for r in answer["data"]["red"]],
+                         [f"{envelope.COMMAND} presets --again test:{name}" for name in ("b.three", "a.one", "a.two")])
+        self.files = key.Files({"a": {"a/x.cpp": "5"}, "b": {"b/y.cpp": "6"}}, {})
+        structure = self.go(Fake(), alone=False)
+        asan = self.go(Fake(), preset="asan", alone=False)
+        self.assertEqual((structure["code"], asan["code"]), ("RED_KEPT", "PASSED"))
+        answer, status = self.line(structure, asan)
+        self.assertEqual((answer["code"], status, answer["data"]["red"], answer["next_action"]),
+                         ("PASSED", 0, [], None))
+        self.assertEqual([(s["preset"], s["tree"]) for s in answer["data"]["steps"]],
+                         [("ci-windows", "build/ci-windows"), ("asan", "build/asan")])
+
+    def test_skips_counted(self):
+        """The on-site's finding replayed: past 10 reasons, every further
+        reason's skips counted in data.more, 12 reasons of 2 skips each."""
+        listing = {f"a.s{n:02d}": ["a"] for n in range(24)}
+        outcomes = {name: f"skip:why {n // 2}" for n, name in enumerate(listing)}
+        answer, _ = self.line(self.go(Fake(listing=listing, outcomes=outcomes)))
+        self.assertEqual((len(answer["data"]["skipped"]), answer["data"]["more"]), (10, {"skipped": 4}))
+        self.assertEqual(answer["data"]["counts"]["skipped"], 24)
