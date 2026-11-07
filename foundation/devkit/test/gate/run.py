@@ -10,6 +10,7 @@ README states each member.
 
 import collections
 import json
+import os
 import re
 import shutil
 import sys
@@ -18,6 +19,7 @@ from collections import namedtuple
 from pathlib import Path
 
 from foundation.devkit.python import build_tree
+from foundation.devkit.python import debugger
 from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.python import table as module_table
@@ -27,6 +29,7 @@ JOBS = 12  # the tests a run runs at once
 STEP_SECONDS = 7200  # a build's or a test run's limit
 BUILD_LINES = 20  # the failed build's lines kept in its red
 SKIP_REASONS = 10  # the skipped list's reasons, each with its count
+_CDB_VARIABLE = "QIVEN_CDB"  # names the pinned cdb, debugger's variable
 _ERROR = re.compile(r"FAILED:|error|CMake Error", re.IGNORECASE)  # a build's line that names its failure
 
 # A step of a gate: its configure preset; source, the directory whose presets
@@ -42,7 +45,8 @@ Tools = namedtuple("Tools", "env cmake ctest")
 
 
 class Missing(Exception):
-    """A tool missing: vcvars, cmake, ctest or ninja, the gate's TOOL_MISSING."""
+    """A tool missing: vcvars, cmake, ctest, ninja or the pinned cdb, the
+    gate's TOOL_MISSING."""
 
 
 def tree_of(preset):
@@ -50,9 +54,24 @@ def tree_of(preset):
     return f"build/{preset}"
 
 
+def _find_debugger():
+    """Missing, naming QIVEN_CDB and the pin, where the variable is unset or
+    names a file off its pin: debugger.find's own check, the variable set, so
+    that the SDK's cdb is never taken."""
+    pinned = debugger.pin()
+    pinned = f"the pin {pinned[0]}, {pinned[2]}" if pinned else "no pin"
+    if not os.environ.get(_CDB_VARIABLE):
+        raise Missing(f"{_CDB_VARIABLE} unset: it names the pinned cdb, {pinned}")
+    try:
+        debugger.find()
+    except (debugger.NotFound, OSError) as reason:
+        raise Missing(f"{_CDB_VARIABLE} off its pin, {pinned}: {reason}") from reason
+
+
 def find_tools(version, setup=None):
-    """The Tools of the toolset at `version`, vcvars `setup` or found; Missing
-    naming what is not there."""
+    """The Tools of the toolset at `version`, vcvars `setup` or found, once
+    the pinned cdb is found (_find_debugger); Missing naming what is not
+    there."""
     try:
         env = system.toolset_env(version, setup)
     except system.Failed as reason:
@@ -63,6 +82,7 @@ def find_tools(version, setup=None):
     absent = [name for name, file in found.items() if not file]
     if absent:
         raise Missing(f"not on vcvars' PATH: {', '.join(absent)}")
+    _find_debugger()
     return Tools(env, found["cmake"], found["ctest"])
 
 

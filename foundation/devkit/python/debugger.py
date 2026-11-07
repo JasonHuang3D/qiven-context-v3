@@ -11,7 +11,8 @@ Absent, a NotFound, where neither exists, and NotFound where one is off its
 pin, the line naming the variable, where the variable names no file, or where
 there is no pin line: a machine with an SDK and no variable fails, never
 skips. It runs with -sins, so that no environment's symbol path or server is
-read, and -y the binary's directory.
+read, and -y the binary's directory. pin() is that pin line's version,
+digest and source, which the test gate names where it refuses a cdb.
 hang_stacks(pid, binary, dump, limit) is every thread's stack of a running
 process, by the debugger attached without stopping it, and its dump at the
 path its caller names, bounded: at most HANG_THREADS threads and HANG_LINES
@@ -99,6 +100,12 @@ def _pin(kind, name):
     return None
 
 
+def pin():
+    """(version, digest, source) of the pinned cdb, the pin file's line
+    "debugger cdb", or None where there is none."""
+    return _pin("debugger", "cdb")
+
+
 def _read(stream, chunks):
     """Puts what stream gives on the queue chunks, then None at its end."""
     while True:
@@ -139,7 +146,7 @@ def find(limit=_VERSION_SECONDS):
     """The pinned cdb's path once its SHA-256 and its -version, run within
     limit seconds, hold: the file QIVEN_CDB names, else the SDK's. NotFound
     (Absent when neither exists)."""
-    found = _pin("debugger", "cdb")
+    found = pin()
     if found is None:
         raise NotFound(f"no line 'debugger cdb' in {_PINS.name}")
     version, digest, source = found

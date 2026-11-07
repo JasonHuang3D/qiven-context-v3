@@ -13,7 +13,8 @@ selection and narrows nothing. --plan builds and selects, runs no test, and
 answers the selection's count and its expected time. Exit 0 for an answer
 whose status is ok, 1 for any other, 2 for a usage error, its usage on
 standard error and no answer. QIVEN_VCVARS names vcvars64.bat where it is
-not found.
+not found. QIVEN_CDB names the pinned cdb, a tool as vcvars is: unset, or
+naming a file off its pin, each step answers TOOL_MISSING, no test run.
 """
 
 import argparse
