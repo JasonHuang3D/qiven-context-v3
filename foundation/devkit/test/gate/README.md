@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.6: the number of this file's change list, below, and of nothing else
+Version 0.7: the number of this file's change list, below, and of nothing else
 
 - **Holds:** the test framework's module, by its design, below `tools/gate.py`, its one consumer: `key.py`, each file's digest by git, a test's modules, its key and the checkout's code id; `junit.py`, each selected test's outcome read from CTest's JUnit (D-6); `states.py`, a test's record, its state and colour, why it is selected, and each transition of the design's table of the states, with the gone and a failed build's red; `store.py`, the store of one configuration under `.local/states/<preset>/`: its lock, `state.json` with its format, a run's journal, the tree's and the run's ids, the retention of the runs' files, and another configuration's `state.json` read for its reds; `selection.py`, the selection by key, the ask and the plan's expected time; `gates.py`, a gates file read and checked, its steps, each configuration's owners and whether a step's reach leaves it out; `run.py`, a step's run in the order of a run, from its lock to its answer, the build tools reached through a runner; `envelope.py`, the codes, the next action and the answer's one line within its bound, a gate's from its steps'; its tests in `tests/`, label `gate`
 - **Never holds:** a command line, a gate's steps or its data (`tools/gate.py`, `tools/gates.json`); a start of a build tool, which `python`'s `build_tree` makes; a call to the system or to git, which `python`'s `system` and `git` make; a result carried: a record names an earlier run's outcome as that run's
@@ -64,12 +64,12 @@ The method for `selection`:
 
 The method for `gates`:
 
-- **Members:** `FORMAT`, 1, a gates file's; `BadGates`, a gates file unreadable or not in its form, one line naming where; `load(path)`, the gates file's data, checked: its format and toolset, each owner a gate of it, each gate's steps, each step a preset and only `preset`, `source`, `select`, `labels`, `pattern`, `repeat` and `reach`, its first step with no reach; `steps_of(gate, root)`, `[(run.Step, its reach or None)]`, each step's targets its build preset's in root's presets files (`run.targets`); `owners_of(data)`, `{preset: [(gate, labels, pattern)]}`, of the gate the owners name for the preset, then of `envelope.OWNER`, each one's step of that preset (`envelope.owner`); `matcher(reach, trees)`, whether a path from the root is in a reach, `trees` the table's trees; `out_of_reach(root, step, reach, files, trees, asks=())`, why a step is left out by its reach, or `None` where it runs
-- **The reach:** a step runs where its configuration has no store or an unreadable one (its own answer names it), where a file of its reach changed since its configuration's last run (git's blob ids, `key.Files`, against its `state.json`'s), or where an ask names a test it lists by its store's records, each test's labels its record's (`selection.asked`, `envelope.lists`): an ask adds to the selection whatever the step's reach. Else it is left out, its reason the run it stands on, and, with asks, that no ask names a test it lists. A reach is `paths`, each a path or a directory ending in `/`, or `trees` with `suffixes`, names of `trees.json`'s lists, a suffix itself where it starts with `.`
+- **Members:** `FORMAT`, 1, a gates file's; `BadGates`, a gates file unreadable or not in its form, one line naming where; `load(path)`, the gates file's data, checked: its format and toolset, each owner a gate of it, each gate's steps, each step a preset and only `preset`, `source`, `select`, `labels`, `pattern`, `repeat` and `reach`, its first step with no reach; `steps_of(gate, root)`, `[(run.Step, its reach or None)]`, each step's targets its build preset's in root's presets files (`run.targets`); `owners_of(data)`, `{preset: [(gate, labels, pattern)]}`, of the gate the owners name for the preset, then of `envelope.OWNER`, each one's step of that preset (`envelope.owner`); `matcher(reach, trees)`, whether a path from the root is in a reach, `trees` the table's trees; `out_of_reach(root, step, reach, files, trees, asks=())`, why a step is left out by its reach, or `None` where it runs, a kept build red of its configuration among them
+- **The reach:** a step runs where its configuration has no store or an unreadable one (its own answer names it), where its `state.json` holds a kept build red (`build` not null), whatever its reach and asks, so that its build runs and the change that fixes the build, wherever it lies, ends the red, where a file of its reach changed since its configuration's last run (git's blob ids, `key.Files`, against its `state.json`'s), or where an ask names a test it lists by its store's records, each test's labels its record's (`selection.asked`, `envelope.lists`): an ask adds to the selection whatever the step's reach. Else it is left out, its reason the run it stands on, and, with asks, that no ask names a test it lists. A reach is `paths`, each a path or a directory ending in `/`, or `trees` with `suffixes`, names of `trees.json`'s lists, a suffix itself where it starts with `.`
 - **Compatibility:** one `json` read of the file and one of a `state.json`: no call to the system
 - **Extensibility:** another step field is one more name in `STEP_FIELDS` and its check in `load`; another reach, one more field in `REACH_FIELDS` and its part of `matcher`
 - **Performance:** a step's reach reads its configuration's `state.json` once, before its build, each ask tried on each record
-- **A fake:** none needed. Its proof: `tests/test_gates.py`, on planted gates files and a planted store: each refusal of `load`, the steps with their targets, the owners and a red's ask, `commit`'s for a release red its step lists, the matcher, and the reach by files and by asks
+- **A fake:** none needed. Its proof: `tests/test_gates.py`, on planted gates files and a planted store: each refusal of `load`, the steps with their targets, the owners and a red's ask, `commit`'s for a release red its step lists, the matcher, and the reach by files, by asks and by a kept build red
 - **Errors:** `BadGates` from `load` alone; a store `out_of_reach` cannot read runs the step
 
 The method for `run`:
@@ -96,6 +96,15 @@ The method for `envelope`:
 ## Changes
 
 Newest first, each entry its version, its date and the commit it describes.
+
+### 0.7, 2026-11-07, the commit that brings this entry
+
+A kept build red runs its step, its reach aside, the reviewer's ruling on the gate's finding H-1: a failed release build's red is owned by `commit`, whose release step ran only by its reach, and `--again red` read only the store's test records, so a build fixed by a file outside that reach was never built there and every `commit` after kept the red.
+
+- **What changed, by member:** `gates.out_of_reach` returns `None`, the step runs, wherever its configuration's `state.json` holds a kept build red (`build` not null), whatever its reach and asks: its build runs, so the change that fixes the build ends the red, and the red's next action, `commit`'s command, names that run. One rule for every step with a reach, the release tree's and the analysis tree's. No ask, no owner and no code changed but this.
+- **This file:** `gates`' Members, The reach and its proof; this version; this entry. `gates.py`'s docstring of `out_of_reach`; `tools/gate.py`'s docstring and `tools/gates.json`'s `commit` `about`.
+- **What a consumer does:** nothing new: `tools/gate.py` leaves out a step only where `gates.out_of_reach` says why. Before the build's fix, `commit`'s release step builds and fails again, `BUILD_FAILED`, the red kept at its first `since`; after it, the step builds, ends the red (`state.json`'s `build` null) and runs its selection.
+- **Known limits:** a step with a kept build red builds on every run of its gate until the build passes, its reach aside; the red's end shows only as the step's code, the answer's red list without it and its `state.json`'s `build` null, no list naming an ended build red.
 
 ### 0.6, 2026-11-07, the commit that brings this entry
 

@@ -135,16 +135,18 @@ def _asks_listed(one, tests, asks):
 
 def out_of_reach(root, one, reach, files, trees, asks=()):
     """Why the step one, a run.Step, is left out by its reach, or None where
-    it runs: no store, an unreadable one (the step answers it), a file of its
-    reach changed since its configuration's last run (files', key.Files, blob
-    ids against its state.json's), or an ask of asks naming a test it lists
-    by its store's records: an ask adds to the selection whatever the step's
-    reach."""
+    it runs: no store, an unreadable one (the step answers it), a kept build
+    red in its state.json (its build not null), whatever its reach and asks,
+    so that its build runs and the change that fixes it, wherever it lies,
+    ends the red (H-1), a file of its reach changed since its configuration's
+    last run (files', key.Files, blob ids against its state.json's), or an
+    ask of asks naming a test it lists by its store's records: an ask adds
+    to the selection whatever the step's reach."""
     try:
         state = store.read(store.place(root, one.preset))
     except store.Internal:
         return None
-    if state is None:
+    if state is None or state.get("build") is not None:
         return None
     now, before = _ids(files.modules, files.unowned), _ids(state["modules"], state["unowned"])
     held = matcher(reach, trees)

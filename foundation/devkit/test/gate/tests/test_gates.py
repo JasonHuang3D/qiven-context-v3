@@ -2,8 +2,9 @@
 load's checks, steps_of's steps with their build presets' targets,
 owners_of's owners and the gate a red's ask names, the reach's matcher, and
 out_of_reach, a step its reach leaves out run where an ask names a test it
-lists (G-5). Wrong in silence, a gate skips a step it owes, or a red's ask
-sends its fix to a gate that never ends it."""
+lists (G-5) and where its configuration holds a kept build red (H-1). Wrong
+in silence, a gate skips a step it owes, or a red's ask sends its fix to a
+gate that never ends it."""
 
 import json
 import tempfile
@@ -109,7 +110,9 @@ class Owners(unittest.TestCase):
     def test_release_red_asks_commit(self):
         """G-5: a release red its commit step lists names commit, a debugger
         label or none; one it does not list falls to presets; a daily red names
-        commit, an asan red its one-tree gate."""
+        commit, an asan red its one-tree gate; a release build's red names
+        commit, with no ask, its release step running and building while that
+        red is kept, whatever its reach (H-1, Reach.test_build_red)."""
         owners = gates.owners_of(PLANTED)
         self.assertEqual(owners["release"], [("commit", None, PATTERN), ("presets", None, None)])
         for labels in (["py", "tooling"], ["debugger", "tooling"]):
@@ -188,6 +191,24 @@ class Reach(Scratch):
         state["tests"][LISTED]["outcome"] = "failed"
         store.write(place, state)
         self.assertIsNone(self.why("red"))
+
+    def test_build_red(self):
+        """H-1: a kept build red runs the step, no file of its reach changed,
+        with no ask and with an ask of a test it does not list, so that its
+        build runs and the fix, wherever it lies, ends the red; the red ended,
+        it is left out as before."""
+        place = self.plant()
+        state = store.read(place)
+        state["build"] = {"since": RUN, "run": RUN, "lines": ["a.cpp(1): error C1083"]}
+        store.write(place, state)
+        self.assertIsNone(self.why())
+        self.assertIsNone(self.why(f"test:{UNLISTED}"))
+        self.assertIsNone(self.why("red"))
+        state["build"] = None
+        store.write(place, state)
+        self.assertEqual(self.why(), f"left out by its reach: no file of it changed since {RUN}")
+        self.assertEqual(self.why(f"test:{UNLISTED}"),
+                         f"left out by its reach: no file of it changed since {RUN}, no ask names a test it lists")
 
 
 if __name__ == "__main__":

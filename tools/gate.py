@@ -2,9 +2,11 @@
 steps in order, a step a configuration's build, its selection and its ctest,
 by the module foundation/devkit/test/gate (its README holds the method;
 gates.py reads this file), and prints one answer, a JSON envelope on one
-line. A step with a reach runs only where a file of its reach changed since
-its configuration's last run, or where an ask names a test its store's
-records show it lists; the answer names each step its reach left out. A
+line. A step with a reach runs only where its configuration holds a kept
+build red, so that the change that fixes the build ends it, where a file of
+its reach changed since its configuration's last run, or where an ask names
+a test its store's records show it lists; the answer names each step its
+reach left out. A
 red's ask names the gate that owns its configuration, gates.json's owners
 (commit the daily tree's and the release tree's).
 
