@@ -3,7 +3,9 @@ lock before any read; the store, the tools, the table; the build; the
 listing; the keys and the code id; the selection; ctest; the JUnit;
 state.json; retention; the end line; the step's answer. A refusal writes no
 file of its run; a failed build writes only its red to state.json; an
-interrupted run skips it. The build tools are reached through a runner, the
+interrupted run skips it, its answer naming every kept red; a plan writes its
+journal and its build's red alone, no red ended; git failing mid-step is
+INTERNAL, the journal ended. The build tools are reached through a runner, the
 real one python's build_tree; its tests plant their own. This directory's
 README states each member.
 """
@@ -20,6 +22,7 @@ from pathlib import Path
 
 from foundation.devkit.python import build_tree
 from foundation.devkit.python import debugger
+from foundation.devkit.python import git
 from foundation.devkit.python import process
 from foundation.devkit.python import system
 from foundation.devkit.python import table as module_table
@@ -299,6 +302,10 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         except store.Internal as fault:
             faults.append(str(fault))
             raise _Stop("INTERNAL", str(fault))
+        except git.GitFailed as fault:  # git failing mid-step: INTERNAL, its journal ended (G-7)
+            faults.append(str(fault))
+            journal.write("end", ended=True, code="INTERNAL")
+            raise _Stop("INTERNAL", str(fault))
         journal.write("header", run=spelled, gate=gate, preset=preset, tree=tree_id, code=code,
                       argv=[str(word) for word in argv], start=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
 
@@ -363,8 +370,6 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         except (build_tree.ListingFailed, key.NoModule) as error:
             journal.write("listing", failed=str(error))
             return build_failed([str(error)], f"the listing of {preset}: {error}")
-        states.build_passed(state)
-        answer["red"] = reds(state, preset, where)
         journal.write("listing", tests=len(listed))
 
         changed = _changed(files.modules, state["modules"])
@@ -376,19 +381,39 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         lists["untested"] = [m for m, _ in changed if m not in no_test and m not in labelled]
         tests = state["tests"]
         gone = states.gone(tests, listed)
-        lists["gone"] = [f"{name}: listed no more" + (f", its red ({states.state(tests[name])}) ended by its going"
-                                                      if states.is_red(tests[name]) else "") for name in gone]
-        for other in gone_configurations:
-            count = len(answer["others"].pop(other, []))
-            named_gone.append(other)
-            lists["gone"].append(f"configuration {other}: in no presets file" +
-                                 (f", its {count} reds ended by its going" if count else ""))
 
+        def name_gone(ending):
+            """The gone tests and configurations named, their reds ended only
+            where this run's state.json ends them; a plan's and an interrupted
+            run's kept and reported (G-3, G-6)."""
+            lists["gone"] = [f"{name}: listed no more" + (f", its red ({states.state(tests[name])}) ended by its going"
+                                                          if ending and states.is_red(tests[name]) else "")
+                             for name in gone]
+            for other in gone_configurations:
+                count = len(answer["others"].pop(other, [])) if ending else 0
+                if ending:
+                    named_gone.append(other)
+                lists["gone"].append(f"configuration {other}: in no presets file" +
+                                     (f", its {count} reds ended by its going" if count else ""))
+
+        def passed(ran=()):
+            """Past the listing, a run's state.json: its failed build's red, its
+            gone tests' and its gone configurations' ended, then keep_state; a
+            plan writes none (G-6)."""
+            states.build_passed(state)
+            name_gone(True)
+            for name in gone:
+                tests.pop(name, None)
+            answer["red"] = sorted(reds(state, preset, where, ran, spelled), key=lambda r: not r["ran"])
+            return keep_state()
+
+        name_gone(False)
         chosen = _filtered(listed, one)
         if not listed or not chosen:
             words = f"the tree {tree} lists no test" if not listed else \
                 f"the step {preset} (labels {one.labels}, pattern {one.pattern}) lists no test"
-            keep_state()
+            if not plan:
+                passed()
             return end("NO_TESTS", words)
         picked = selection.choose(chosen, tests, keys, tree_id, asks, one.every)
         for name, why in picked.selected.items():
@@ -404,11 +429,10 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         answer["reason"] = _reason(built, changed, picked)
         answer["unmatched"] = list(picked.unmatched)
         if picked.unmatched and alone:
-            keep_state()
+            if not plan:
+                passed()
             return end("NO_TESTS", f"--again {', '.join(picked.unmatched)} names no test of {preset}")
-        if plan:
-            if not keep_state():
-                return end("INTERNAL", faults[-1])
+        if plan:  # its journal alone past the build: no record, no red ended, no store dropped (G-6)
             again = "".join(f" --again {selection.spelled(one)}" for one in asks)
             return end(_kept(answer) or ("PLANNED" if names else "NOTHING_TO_RUN"),
                        f"{len(names)} tests, about {expected.seconds} s"
@@ -446,8 +470,6 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
                 tests[name] = {**tests[name], "modules": modules[name], "labels": list(listed[name])}
             else:
                 tests.pop(name, None)
-        for name in gone:
-            tests.pop(name, None)
         state.update(tree=tree_id, code=code, run=spelled, modules=files.modules, unowned=files.unowned)
         counts = answer["counts"]
         for name, outcome in ((n, r.outcome) for n, r in ran.items()):
@@ -461,8 +483,7 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         common = reasons.most_common()
         lists["skipped"] = [f"{count}: {why}" for why, count in common[:SKIP_REASONS]]
         answer["more"]["skipped"] = sum(count for _, count in common[SKIP_REASONS:])  # every further reason's skips
-        answer["red"] = sorted(reds(state, preset, where, ran, spelled), key=lambda r: not r["ran"])
-        if not keep_state():
+        if not passed(ran):
             return end("INTERNAL", faults[-1])
         if any(f.startswith("ctest's exit") for f in faults):
             return end("INTERNAL", next(f for f in faults if f.startswith("ctest's exit")))

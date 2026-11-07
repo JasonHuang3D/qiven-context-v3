@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
-from foundation.devkit.python import build_tree, process
+from foundation.devkit.python import build_tree, git, process
 from foundation.devkit.test.gate import envelope, key, run, selection, store
 
 TABLE = {"modules": [{"name": "a", "layer": "devkit"}, {"name": "b", "layer": "devkit"}]}
@@ -60,13 +60,13 @@ class Step(unittest.TestCase):
         self.files = key.Files({"a": {"a/x.cpp": "1"}, "b": {"b/y.cpp": "2"}}, {})
         self.count = 0
 
-    def go(self, fake, preset="ci-windows", asks=(), plan=False, known=None, alone=True, one=None):
+    def go(self, fake, preset="ci-windows", asks=(), plan=False, known=None, alone=True, one=None, read_files=None):
         self.count += 1
         self.run = f"20261107T1000{self.count:02d}Z-abcd"
         return run.step(self.root, one or run.Step(preset), lambda: fake, run=self.run, gate="commit",
                         argv=["tools/gate.py", "commit"], asks=[selection.ask(a) for a in asks], plan=plan,
-                        known=known, read_table=lambda root: TABLE, read_files=lambda root, table: self.files,
-                        alone=alone)
+                        known=known, read_table=lambda root: TABLE,
+                        read_files=read_files or (lambda root, table: self.files), alone=alone)
 
     def state(self, preset="ci-windows"):
         return store.read(store.place(self.root, preset))
@@ -215,16 +215,66 @@ class Step(unittest.TestCase):
         self.assertIn("ctest did not start: ctest: no such file", refused["lists"]["faults"])
 
     def test_plan(self):
-        """A plan builds and selects, runs nothing and writes no test record."""
+        """A plan builds and selects, runs nothing and writes no state.json."""
         fake = Fake()
         planned = self.go(fake, plan=True)
         self.assertEqual((planned["code"], planned["selected"]["tests"], planned["selected"]["unknown"], fake.ran,
-                          self.state()["tests"]), ("PLANNED", 3, 3, [], {}))
+                          self.state()), ("PLANNED", 3, 3, [], None))
         self.assertEqual(self.line(planned)[1], 1)
         self.go(fake)
         again = self.go(fake, asks=["module:a"], plan=True)
         self.assertEqual((again["code"], again["selected"]["expected"]), ("PLANNED", 1.5))
         self.assertIn("--again module:a", again["next_action"])
+
+    def test_plan_ends_nothing(self):
+        """G-6 replayed: a plan writes its journal and its build's red alone:
+        its build's red, a gone test's and a gone configuration's kept and
+        reported, none named ended, state.json and that store untouched."""
+        self.go(Fake(outcomes={"a.one": "fail"}), preset="asan")
+        fake = Fake(outcomes={"b.three": "fail"})
+        self.go(fake)
+        fake.built = 1
+        self.go(fake)
+        before = self.state()
+        fake.built = 0
+        fake.listed.pop("b.three")
+        planned = self.go(fake, plan=True, known={"ci-windows"})
+        self.assertEqual((planned["code"], self.state(), [r.get("build", r.get("test")) for r in planned["red"]],
+                          list(planned["others"])), ("RED_KEPT", before, ["FAILED: a/x.obj", "b.three"], ["asan"]))
+        self.assertEqual(planned["lists"]["gone"],
+                         ["b.three: listed no more", "configuration asan: in no presets file"])
+        self.assertTrue(store.place(self.root, "asan").exists())
+
+    def test_interrupted_keeps_reds(self):
+        """G-3 replayed: a ctest stopped once a failed build's tree built again
+        answers every kept red, the build's and a gone configuration's among
+        them, none named ended, state.json and that store untouched."""
+        self.go(Fake(outcomes={"a.one": "fail"}), preset="asan")
+        fake = Fake(built=1)
+        self.go(fake)
+        before = self.state()
+        fake.built = 0
+
+        def stopped(tree, names, *, junit_file, log, jobs, repeat):
+            raise process.TimedOut("ctest", 7200)
+        fake.run = stopped
+        answer = self.go(fake, known={"ci-windows"})
+        self.assertEqual((answer["code"], self.state(), [r.get("build") for r in answer["red"]],
+                          list(answer["others"])), ("INTERRUPTED", before, ["FAILED: a/x.obj"], ["asan"]))
+        self.assertEqual(answer["lists"]["gone"], ["configuration asan: in no presets file"])
+        self.assertTrue(store.place(self.root, "asan").exists())
+
+    def test_git_failed(self):
+        """G-7 replayed: git failing mid-step is INTERNAL with its answer, the
+        journal ended."""
+        def failed(root, table):
+            raise git.GitFailed("git ls-files: exit 128")
+        answer = self.go(Fake(), read_files=failed)
+        self.assertEqual((answer["code"], answer["lists"]["faults"], self.line(answer)[0]["code"]),
+                         ("INTERNAL", ["git ls-files: exit 128"], "INTERNAL"))
+        where = store.place(self.root, "ci-windows")
+        journal = store.run_file(where, self.run, ".jsonl").read_text(encoding="utf-8").splitlines()
+        self.assertEqual((json.loads(journal[-1])["kind"], store.unended(where)), ("end", []))
 
     def test_gone_and_unended(self):
         """A test listed no more is named once with its red, its record dropped;
@@ -247,7 +297,7 @@ class Step(unittest.TestCase):
     def test_ask_no_test(self):
         self.go(Fake())
         self.assertEqual(self.go(Fake(), asks=["test:none"])["code"], "NO_TESTS")
-        self.assertEqual(self.go(Fake(listing={}))["code"], "NO_TESTS")
+        self.assertEqual((self.go(Fake(listing={}))["code"], self.state()["tests"]), ("NO_TESTS", {}))
 
     def test_ask_across_steps(self):
         """In a gate of several steps an ask is NO_TESTS only where no step
