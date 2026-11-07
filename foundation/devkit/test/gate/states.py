@@ -1,7 +1,7 @@
 """A test's record, its state and colour, why its key selects it, and each
 transition of the states' table of the test framework's design; the tests
-gone, and a failed build's red, its configuration's. A flake is a red. This
-directory's README states the table as it is built.
+gone, and a failed build's red, its configuration's. A flake is a red, and a
+skip ends no red. This directory's README states the table as it is built.
 """
 
 from foundation.devkit.test.gate import junit
@@ -38,8 +38,9 @@ def reason(record, key, tree):
 def after(record, key, tree, code, run, ran):
     """The record after `ran`, a junit.Ran, ran at `run` with `key`, `tree`
     and the code id `code`: a new dictionary; the record itself, no
-    transition, for a NOT_STARTED."""
-    if ran.outcome == junit.NOT_STARTED:
+    transition, for a NOT_STARTED, and for a skip of a red record, a flake
+    among them, at any key: a red ends only by a passing run."""
+    if ran.outcome == junit.NOT_STARTED or (ran.outcome == "skipped" and record is not None and is_red(record)):
         return record
     green = ran.outcome in junit.GREEN
     new = {"key": key, "tree": tree, "code": code, "outcome": ran.outcome, "seconds": ran.seconds}

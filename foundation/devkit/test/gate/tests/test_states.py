@@ -86,6 +86,16 @@ class Rows(unittest.TestCase):
                 self.check(new, *row)
                 self.assertEqual(new["tree"], "t2")
 
+    def test_skip(self):
+        """A skip ends no red: a red or flaky record, at any key, tree or code
+        id, is kept as it was; a new record skipped is green since this run."""
+        for old in (record("failed", flips=1), record("passed", flaky=True, flips=2), record("timeout", key="k0")):
+            for code, tree in ((CODE, TREE), ("c2", TREE), (CODE, "t2")):
+                with self.subTest(state=states.state(old), key=old["key"], code=code, tree=tree):
+                    self.assertIs(after(old, SKIPPED, code=code, tree=tree), old)
+        self.check(after(None, SKIPPED), "skipped", False, NOW, 0)
+        self.assertEqual(states.colour(after(None, SKIPPED)), "green")
+
     def test_no_transition(self):
         """A NOT_STARTED makes no transition: the record as it was."""
         old = record("failed", flips=1)

@@ -114,6 +114,37 @@ class Step(unittest.TestCase):
         self.assertEqual(self.line(fixed)[1], 0)
         self.assertEqual(self.go(fake)["code"], "NOTHING_TO_RUN")
 
+    def test_skip_ends_no_red(self):
+        """G-2 replayed: a skip of a red, at its code id or another, keeps it
+        red with its since, no flake, the skip and its reason named; a pass at
+        another code id ends it; a skip of a green stays green, never passed."""
+        fake = Fake(outcomes={"a.two": "fail"})
+        self.go(fake)
+        since = f"run:{self.run}"
+        for flips, flaky in ((0, False), (1, True)):  # a red, then a flake, skipped at the code id it was red at
+            fake.outcomes = {"a.two": "skip"}
+            same = self.go(fake, asks=["test:a.two"])
+            record = self.state()["tests"]["a.two"]
+            self.assertEqual((same["code"], same["counts"]["skipped"], same["counts"]["flaky"], record["since"],
+                              record["flips"], record["flaky"]), ("RED_KEPT", 1, 0, since, flips, flaky))
+            fake.outcomes = {}
+            if not flaky:
+                self.assertEqual(self.go(fake, asks=["test:a.two"])["code"], "TESTS_FLAKY")
+        fake.outcomes = {"a.two": "skip"}
+        self.files = key.Files({"a": {"a/x.cpp": "1"}, "b": {"b/y.cpp": "3"}}, {})
+        other = self.go(fake, asks=["test:a.two"])
+        record = self.state()["tests"]["a.two"]
+        self.assertEqual((other["code"], fake.ran[-1], other["counts"]["passed"], other["counts"]["skipped"],
+                          record["since"], record["flaky"]), ("RED_KEPT", ["a.two", "b.three"], 1, 1, since, True))
+        red = self.line(other)[0]["data"]["red"][0]
+        self.assertEqual((red["test"], red["since"], red["ran"], red["skipped"]), ("a.two", since, True, "no cdb"))
+        fake.outcomes = {"a.one": "skip"}
+        fixed = self.go(fake, asks=["test:a.two", "test:a.one"])
+        self.assertEqual((fixed["code"], fixed["counts"]["passed"], fixed["counts"]["skipped"], fixed["red"]),
+                         ("PASSED", 1, 1, []))
+        self.assertEqual((self.state()["tests"]["a.two"]["since"], self.state()["tests"]["a.one"]["outcome"]),
+                         (f"run:{self.run}", "skipped"))
+
     def test_no_module(self):
         """A test of no module (a fuzz target's cxx;fuzz) is a listing error in
         a keyed step, and run and recorded, no module, in a step that runs all."""

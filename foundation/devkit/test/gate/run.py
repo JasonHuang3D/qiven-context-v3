@@ -146,14 +146,19 @@ def targets(root, preset):
 
 
 def _red(name, record, preset, where, ran):
-    return {"test": name, "outcome": states.state(record), "ran": ran, "since": record["since"], "preset": preset,
-            "flips": record["flips"], "log": str(store.run_file(where, record["since"].removeprefix("run:"), ".log")),
-            "modules": record.get("modules", []), "labels": record.get("labels")}
+    found = {"test": name, "outcome": states.state(record), "ran": name in ran, "since": record["since"],
+             "preset": preset, "flips": record["flips"],
+             "log": str(store.run_file(where, record["since"].removeprefix("run:"), ".log")),
+             "modules": record.get("modules", []), "labels": record.get("labels")}
+    if name in ran and ran[name].outcome == "skipped":  # kept red, the skip and its reason named
+        found["skipped"] = ran[name].why
+    return found
 
 
 def reds(state, preset, where, ran=(), now=None):
     """The red entries of a state.json: its failed build's, then each red test's,
-    `ran` naming the tests that ran in this run, `now` its spelled id."""
+    `ran`, {name: junit.Ran}, the tests that ran in this run, a red's skip
+    named in its entry's `skipped`, `now` its spelled id."""
     found = []
     if state.get("build"):
         build = state["build"]
@@ -164,7 +169,7 @@ def reds(state, preset, where, ran=(), now=None):
     for name in sorted(state["tests"]):
         record = state["tests"][name]
         if states.is_red(record):
-            found.append(_red(name, record, preset, where, name in ran))
+            found.append(_red(name, record, preset, where, ran))
     return found
 
 
@@ -445,8 +450,8 @@ def _ran(root, one, runner, table, read_files, run, gate, argv, asks, plan, jobs
         for name, outcome in ((n, r.outcome) for n, r in ran.items()):
             if outcome == junit.NOT_STARTED:
                 counts["not_started"] += 1
-            elif outcome in junit.GREEN:
-                counts["flaky" if tests[name]["flaky"] else outcome] += 1
+            elif outcome in junit.GREEN:  # a skip is no flake, a skipped flake's record kept
+                counts["flaky" if outcome == "passed" and tests[name]["flaky"] else outcome] += 1
             else:
                 counts["failed"] += 1
         reasons = collections.Counter(r.why for r in ran.values() if r.outcome == "skipped")
