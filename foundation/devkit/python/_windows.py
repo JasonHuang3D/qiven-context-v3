@@ -8,6 +8,8 @@ reach no other caller.
 
 import _winapi
 import ctypes
+import errno
+import msvcrt
 import os
 import re
 import subprocess
@@ -42,6 +44,24 @@ TOOLSET_SECONDS = 120
 API_SET = re.compile(r"(?:api|ext)-ms-win(?:-[a-z0-9]+)+-l[0-9]+-[0-9]+-[0-9]+\.dll", re.ASCII)
 KITS = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots"
 VC_COMPONENT = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+KILL_ON_JOB_CLOSE = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+EXTENDED_LIMITS = 9  # JobObjectExtendedLimitInformation
+# msvcrt.locking's answer where another holds the byte.
+LOCK_HELD = (errno.EACCES, errno.EDEADLOCK)
+_job = []  # the job kill_on_close made, its one handle, never closed: the system closes it with this process
+
+
+class _BasicLimits(ctypes.Structure):  # JOBOBJECT_BASIC_LIMIT_INFORMATION
+    _fields_ = [("process_time", ctypes.c_int64), ("job_time", ctypes.c_int64), ("flags", wintypes.DWORD),
+                ("min_working_set", ctypes.c_size_t), ("max_working_set", ctypes.c_size_t),
+                ("processes", wintypes.DWORD), ("affinity", ctypes.c_size_t), ("priority", wintypes.DWORD),
+                ("scheduling", wintypes.DWORD)]
+
+
+class _ExtendedLimits(ctypes.Structure):  # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    _fields_ = [("basic", _BasicLimits), ("io", ctypes.c_uint64 * 6), ("process_memory", ctypes.c_size_t),
+                ("job_memory", ctypes.c_size_t), ("peak_process_memory", ctypes.c_size_t),
+                ("peak_job_memory", ctypes.c_size_t)]
 
 
 class _ProcessEntry(ctypes.Structure):  # PROCESSENTRY32W
@@ -72,6 +92,10 @@ _kernel32.GetLogicalDrives.argtypes = ()
 _kernel32.GetLogicalDrives.restype = wintypes.DWORD
 _kernel32.GetDriveTypeW.argtypes = (wintypes.LPCWSTR,)
 _kernel32.GetDriveTypeW.restype = wintypes.UINT
+_kernel32.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+_kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+_kernel32.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD)
+_kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
 
 
 def _system_error(member, call):
@@ -237,6 +261,44 @@ def make_junction(target, link):
         _winapi.CreateJunction(str(target), str(link))
     except OSError as e:
         raise Failed(f"system.make_junction: CreateJunction of {link} to {target}: {e}") from e
+
+
+def kill_on_close():
+    if _job:
+        return
+    job = _kernel32.CreateJobObjectW(None, None)
+    if not job:
+        raise _system_error("kill_on_close", "CreateJobObjectW")
+    limits = _ExtendedLimits()
+    limits.basic.flags = KILL_ON_JOB_CLOSE
+    if not _kernel32.SetInformationJobObject(job, EXTENDED_LIMITS, ctypes.byref(limits), ctypes.sizeof(limits)):
+        error = _system_error("kill_on_close", "SetInformationJobObject")
+        _kernel32.CloseHandle(job)  # no process is in it yet
+        raise error
+    if not _kernel32.AssignProcessToJobObject(job, _kernel32.GetCurrentProcess()):
+        error = _system_error("kill_on_close", "AssignProcessToJobObject")
+        _kernel32.CloseHandle(job)
+        raise error
+    _job.append(job)
+
+
+def lock_byte(fd, offset):
+    os.lseek(fd, offset, os.SEEK_SET)
+    try:
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    except OSError as e:
+        if e.errno in LOCK_HELD:
+            return False
+        raise Failed(f"system.lock_byte: locking at {offset}: {e}") from e
+    return True
+
+
+def unlock_byte(fd, offset):
+    os.lseek(fd, offset, os.SEEK_SET)
+    try:
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    except OSError as e:
+        raise Failed(f"system.unlock_byte: unlocking at {offset}: {e}") from e
 
 
 def _subst(member, argv):

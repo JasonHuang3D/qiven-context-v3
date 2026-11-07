@@ -1,7 +1,7 @@
 """Exit statuses by name: the one table the watcher
 (foundation/devkit/test/harness/watch.py), the
 Python tests' harness (foundation/devkit/test/harness/binaries.py) and
-the runner (tools/changed.py) name a status by, never as a bare number.
+build_tree's listing name a status by, never as a bare number.
 
 A status is named in one line, "status: <value> <name>: <meaning>". A
 process's status is as subprocess gives it: on Windows the exit code, a

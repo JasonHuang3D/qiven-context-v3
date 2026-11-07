@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.5: the number of this file's change list, below, and of nothing else
+Version 0.6: the number of this file's change list, below, and of nothing else
 
 - **Holds:** the runner's tool half, meeting its C++ kit (`runner`) by process alone: `cases.cmake`, a case binary (`qiven_add_cases`) and the listing step (`qiven_list_tests`); `wiring.cmake`, the foundation's test directories and their end; `ctest_tests.cmake` and `list_tests.py`, each test listed behind the watcher, and the checks of each module registered from the table (`list_tests.CHECKS`): `rules.<M>` for each module holding a file of git's listing, labelled `fast`, M and `structure`, run by `structure`'s `checks.Check.test_<M>`; `exemptions.<M>` for each module holding a `.clang-tidy` or `.ruleset`, labelled `fast`, M and `build`, run by `build`'s `checks.Exemptions.test_<M>`; the watcher, `watch.py`; Python's case entry, `case.py`; the dumps' bound, `dumps.py`; `binaries.py`, the build's binaries and options and a watched run
 - **Never holds:** C++; a case's registration or checks (`runner`); a binary's main (`case_main`); a fault run (`faults`)
@@ -10,7 +10,7 @@ Version 0.5: the number of this file's change list, below, and of nothing else
 - **Interface:** `qiven_add_cases`, `qiven_list_tests`, `qiven_foundation_tests_end`; the package `foundation.devkit.test.harness`: `binaries`; the watcher's and the case entry's command lines
 - **Files:** the eight above; `tests/`, their tests; `module.json`. `tests/CMakeLists.txt` and `foundation/CMakeLists.txt` include `wiring.cmake`
 - **Uses directly:** `python`'s `answer`, `build_tree`, `debugger`, `imports`, `process`, `status`, `system`, `table`; its tests, diag's `qiven_diag_fault` and the runner's cases
-- **Consumers rely on:** every test behind the watcher, its status in one last line, its exit the case's, past its limit a hang, 124; a test labelled with its module's name, `tools/changed.py`'s key, but a module's check, labelled with the module it judges and its rules' module (one label where they are one), so a change to either selects it; a skip its exit, 125, in both languages, read by `SKIP_RETURN_CODE`, its reason printed; a watched run by `run_watched` alone
+- **Consumers rely on:** every test behind the watcher, its status in one last line, its exit the case's, past its limit a hang, 124; a test labelled with its module's name, which `gate` reads into the test's key (its labels that name a module), but a module's check, labelled with the module it judges and its rules' module (one label where they are one), so a change to either selects it; a skip its exit, 125, in both languages, read by `SKIP_RETURN_CODE`, its reason printed; a watched run by `run_watched` alone
 - **Parameters:** none
 - **Refuses:** the listing, failing the build: no git to list the files by, a test of no module or labels, a test directory with no `__init__.py`, `--leave-out <name>: no test of that id or package`. The watcher, status 2: no `--limit`, `--name` or command; `watch.py: <test>: the case cannot start: <reason>`. The case entry, status 2: no `--skip` or id
 - **The watcher:** `python -I -X faulthandler foundation/devkit/test/harness/watch.py --limit <s> --name <test> -- <command>...` runs the case, sets `QIVEN_WATCHER`, `QIVEN_DUMP_DIR` and `QIVEN_LOG`, names the status by `status` and a library missing at load by `imports`, and bounds `dumps/`. Past `--limit`: `debugger.hang_stacks`, at most 16 threads and 200 lines, and `<binary>-<pid>-hang.dmp`, or `hang: no debugger, no stacks`; the tree ended, status 124. Its worst case against CTest's 30 s (`AFTER_LIMIT`) is in `debugger`'s charter: `HANG_SECONDS` 12 s, `READER_WAIT` 5 s
@@ -23,7 +23,15 @@ Version 0.5: the number of this file's change list, below, and of nothing else
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.5, 2026-11-07, the commit that brings this entry
+### 0.6, 2026-11-07, the commit that brings this entry
+
+`tools/changed.py` is retired, `tools/gate.py` gating in its place (the test framework's design, its fourth commit): the lines that named it as the runner name the gate.
+
+- **This file:** the Consumers line's key; this entry.
+- **Files changed:** `list_tests.py`'s docstring and `tests/test_hang.py`'s, their words of the runner alone.
+- **What a consumer does:** nothing.
+
+### 0.5, 2026-11-07, `eb9faa4`
 
 The checks per module registered, by the test framework's design, its second commit: the listing gives a line `<name>\t<labels>\t<id>` for each module's `rules.<M>` and `exemptions.<M>`, whose CTest name is not its case id; `ctest_tests.cmake` reads the third field; the listing step reruns when a table file or an analysis configuration file changes, or one comes or goes (`check_files.txt`, as `python_files.txt`). `test_wiring`'s `Registered` holds a module's check to its two labels and its case id.
 

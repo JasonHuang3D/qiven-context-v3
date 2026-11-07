@@ -19,9 +19,10 @@ Under a sanitizer, whose runtime takes the process's faults, they are
 skipped too.
 
 Every case here drives the debugger: the label debugger, never fake, so
-CI never runs them; the runner (tools/changed.py) runs them under CTest
-by their module's label, tooling, and the presets full and debugger hold
-them.
+CI never runs them; the gate (tools/gate.py) runs them under CTest by
+their key, their module's label tooling among it, and in the release tree
+by the debugger gate (tools/gates.json); the presets full and debugger
+hold them.
 """
 
 import re

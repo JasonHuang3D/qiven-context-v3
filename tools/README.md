@@ -2,13 +2,17 @@
 
 layer tools, status built
 
-- **Holds:** front ends alone, the developer tooling in Python above `foundation/devkit/`: the test runner
-  (`changed.py`), the modules' check's command line (`loop_modules.py`; the check is
+- **Holds:** front ends alone, the developer tooling in Python above `foundation/devkit/`: the test gate's
+  command line (`gate.py`, its method the module `foundation/devkit/test/gate/`) and the gates it runs, as
+  data (`gates.json`: each gate's steps, a configure preset, its selection by key or whole, its labels or
+  name pattern, its repeat and its reach; the gate that owns each configuration; the toolset), the modules'
+  check's command line (`loop_modules.py`; the check is
   `foundation/devkit/structure/modules.py`, the table's reader `foundation/devkit/python/table.py`), the
   old places' base `loop_base.json`, which `loop_base.py` writes, the debugger agents drive (`debug.py`, cdb
   found, checked and driven by `foundation/devkit/python/debugger.py`) and the fuzz seeds (`fuzz_seeds.py`);
   the repository's data read at the root, the trees the reader reads (`trees.json`); and its tests in
-  `tests/`: the debugger's (`test_debug.py`). The debugger's pin is `debugger.py`'s, beside it
+  `tests/`: the debugger's (`test_debug.py`) and the modules' check by its command line
+  (`test_loop_modules.py`, a test of the tree in place of a hand step). The debugger's pin is `debugger.py`'s, beside it
   (`foundation/devkit/python/debugger_pins.txt`, moved from `windows-pins.txt` here at `1612fde`).
   The watcher, its dumps' bound and the watcher's hang path's tests are `harness`'
   (`foundation/devkit/test/harness/`), the runner's tool half.
@@ -30,6 +34,16 @@ A retired part has left the tree, so that no build, test, check or text keeps it
 git. Each is listed with the last commit that holds it and the one command that restores its files. A
 part cut from a file that stays comes back with that file whole as it stood at that commit, the file's
 later changes to be made again; the commit after it shows every line cut with the part.
+
+- **The test runner `changed.py`:** the runner by a record of each module's files
+  (`build/ci-windows/changed.json`), replaced by `gate.py`, by the test framework's design, which gates
+  every commit from the commit that retires it; it had no tests of its own. With it, inside a file then
+  kept, what only it used: `build_tree.run_tests` with its `Results` and `_RESULT`
+  (`foundation/devkit/python/build_tree.py`). A restore brings back a second tool that gates nothing and
+  the toolset named a third time, and `build_tree.py` without the same commit's `run_ctest` and
+  `run_build`'s `source` and `targets`, which `gate`'s `run.py` calls: made again in the file it brings
+  back. Last commit `2d9cbed`:
+  `git restore --source=2d9cbed -- tools/changed.py tools/module.json foundation/devkit/python/build_tree.py`
 
 - **The loop with its parts:** the edit loop and the parts only it used, eight files: `loop.py`,
   `loop_fuzz`, `loop_jobs`, `loop_linux`, `loop_select`, `loop_tiers`, `loop_windows` and `linux_pins`.

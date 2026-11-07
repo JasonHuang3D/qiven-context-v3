@@ -1,7 +1,7 @@
 """One bounded answer: the lines a tool prints within its bound, the cut
-named. The runner's answer (tools/changed.py), the debugger's transcript
-(tools/debug.py) and the hang's stacks (debugger.py) are bounded by
-it; the tests read a line's bound here.
+named. The gate's answer (foundation/devkit/test/gate, each string
+clipped), the debugger's transcript (tools/debug.py) and the hang's
+stacks (debugger.py) are bounded by it; the tests read a line's bound here.
 
 - LINE_POINTS: a line's code points at most, the cut's marker within them.
 - CUT: the cut's marker, "[cut]".

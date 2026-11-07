@@ -2,8 +2,9 @@
 through process, with its argv and its decoding. This directory's README states
 each member's call on each system.
 
-find() finds git. tracked() and attributes() read a checkout, as git finds its
-repository from there; full_hash() and files_at() read root's own .git.
+find() finds git. tracked(), blob_ids() and attributes() read a checkout, as
+git finds its repository from there; full_hash() and files_at() read root's
+own .git.
 reading_env() is the environment under which git reads the same whatever the
 host's git config says; tracked() and attributes() take it as env.
 
@@ -18,6 +19,7 @@ from foundation.devkit.python import process
 
 _LIMIT = 300  # seconds a run of git takes
 _SAID = 500  # characters kept of the end of what git said on a failure
+_SUBMODULE = "160000"  # a gitlink's mode in the index: a commit's id, no file
 
 
 class GitFailed(Exception):
@@ -34,6 +36,36 @@ def tracked(root, others=False, env=None):
     order; with others, the untracked ones no ignore file names too."""
     argv = ["ls-files", "-z", *(("-co", "--exclude-standard") if others else ())]
     return [name for name in _read(argv, cwd=root, env=env).split("\0") if name]
+
+
+def blob_ids(root, env=None):
+    """{name: git's blob id} of each file under root, from root, that git
+    tracks and the worktree holds, or that is untracked and no ignore file
+    names: the index's id where git reports the file unchanged, hash-object's,
+    by the same filters, where git reports it modified or untracked. A
+    tracked file gone from the worktree, or a submodule, is not named. Three
+    runs of git, four where a file is modified or untracked."""
+    ids, gone = {}, set(_deleted(root, env))
+    for entry in _read(["ls-files", "-z", "--stage"], cwd=root, env=env).split("\0"):
+        head, _, name = entry.partition("\t")
+        mode, _, rest = head.partition(" ")
+        if name and mode != _SUBMODULE and name not in gone:
+            ids[name] = rest.partition(" ")[0]
+    argv = ["ls-files", "-z", "-m", "-o", "--exclude-standard"]
+    fresh = sorted({name for name in _read(argv, cwd=root, env=env).split("\0") if name and name not in gone})
+    if fresh:
+        data = "".join(f"{name}\n" for name in fresh).encode("utf-8")
+        answered = _read(["hash-object", "--stdin-paths"], cwd=root, env=env, data=data).split()
+        if len(answered) != len(fresh):
+            raise GitFailed(f"git hash-object --stdin-paths: {len(answered)} ids for {len(fresh)} files")
+        ids.update(zip(fresh, answered))
+    return ids
+
+
+def _deleted(root, env=None):
+    """The names of the files git tracks under root, from root, that the
+    worktree no longer holds."""
+    return [name for name in _read(["ls-files", "-z", "-d"], cwd=root, env=env).split("\0") if name]
 
 
 def attributes(root, paths, names, env=None):

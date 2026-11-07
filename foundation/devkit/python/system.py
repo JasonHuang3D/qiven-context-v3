@@ -152,6 +152,26 @@ def sdk_root():
     return _back("sdk_root").sdk_root()
 
 
+def kill_on_close():
+    """This process put in a job that the system ends whole when this process
+    ends, however it ends: each process it starts afterwards, and theirs,
+    starts inside it. Once a process; a later call does nothing."""
+    _back("kill_on_close").kill_on_close()
+
+
+def lock_byte(fd, offset):
+    """The system's lock on the one byte at `offset` of the open file `fd`,
+    taken without waiting: True where taken, False where another holds it.
+    It moves the file's position to `offset`."""
+    return _back("lock_byte").lock_byte(fd, offset)
+
+
+def unlock_byte(fd, offset):
+    """The lock lock_byte took on the byte at `offset` of `fd` released. It
+    moves the file's position to `offset`."""
+    _back("unlock_byte").unlock_byte(fd, offset)
+
+
 def toolset_env(version, setup=None):
     """The environment of the native toolset at `version`, a dictionary:
     `setup` names the toolset's own setup script, or None to find it. Failed,

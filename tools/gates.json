@@ -1,0 +1,94 @@
+{
+  "format": 1,
+  "toolset": "14.44.35207",
+  "owners": {
+    "ci-windows": "commit",
+    "structure": "structure",
+    "analysis": "analysis",
+    "release": "debugger",
+    "alone": "alone",
+    "asan": "asan",
+    "fuzz": "fuzz"
+  },
+  "gates": {
+    "commit": {
+      "about": "every commit: the daily tree by key, the checks among its tests; then, by reach, the analysis tree where a C++ file under the analysed roots changed, the analysis gating from the turn it was ruled to, and the hang and debugger cases where the watcher or a debugger changed; no structure step, the records being the daily tree's build steps",
+      "steps": [
+        {"preset": "ci-windows", "select": "changed"},
+        {"preset": "analysis", "select": "changed", "labels": "^analysis$",
+         "reach": {"trees": ["layers", "analysed"], "suffixes": ["source_suffixes", "header_suffixes"]}},
+        {"preset": "release", "select": "changed",
+         "pattern": "^(foundation[.]devkit[.]test[.]harness[.]tests[.]test_hang|foundation[.]devkit[.]python[.]tests[.]test_debugger|tools[.]tests[.]test_debug)[.]",
+         "reach": {"paths": ["foundation/devkit/test/harness/watch.py", "foundation/devkit/test/harness/dumps.py",
+                             "foundation/devkit/test/harness/tests/test_hang.py", "foundation/devkit/python/debugger.py",
+                             "foundation/devkit/python/debugger_pins.txt", "foundation/devkit/python/tests/test_debugger.py",
+                             "tools/debug.py", "tools/tests/test_debug.py"]}}
+      ]
+    },
+    "turn-end": {
+      "about": "the reviewer's whole list at a turn's end, in the work checkout, nothing else running there: each step all, asan's tests and fuzz's targets among them",
+      "steps": [
+        {"preset": "structure", "select": "all", "pattern": "^foundation[.]devkit[.]structure[.]"},
+        {"preset": "analysis", "select": "all", "labels": "^analysis$"},
+        {"preset": "ci-windows", "select": "all"},
+        {"preset": "release", "select": "all", "labels": "^debugger$", "repeat": 6},
+        {"preset": "alone", "source": "foundation", "select": "all"},
+        {"preset": "asan", "select": "all", "labels": "^cxx$"},
+        {"preset": "fuzz", "select": "all", "labels": "^fuzz$"}
+      ]
+    },
+    "presets": {
+      "about": "every Windows configure preset once, at (f): each by its test preset's selection where one is bound to it, else its every test",
+      "steps": [
+        {"preset": "debug", "select": "all"},
+        {"preset": "release", "select": "all"},
+        {"preset": "asan", "select": "all", "labels": "^cxx$"},
+        {"preset": "fuzz", "select": "all", "labels": "^fuzz$"},
+        {"preset": "structure", "select": "all", "pattern": "^foundation[.]devkit[.]structure[.]"},
+        {"preset": "stack", "select": "all"},
+        {"preset": "analysis", "select": "all", "labels": "^analysis$"},
+        {"preset": "ci-windows", "select": "all"},
+        {"preset": "ci-asan", "select": "all", "labels": "^cxx$"},
+        {"preset": "ci-stack", "select": "all"},
+        {"preset": "ci-analysis", "select": "all", "labels": "^analysis$"},
+        {"preset": "alone", "source": "foundation", "select": "all"}
+      ]
+    },
+    "reconstruction": {
+      "about": "the full suite at the reconstruction's end: each of the Windows set's presets, by the test presets bound to it, the debugger's six among release's",
+      "steps": [
+        {"preset": "debug", "select": "all"},
+        {"preset": "release", "select": "all", "repeat": 6},
+        {"preset": "asan", "select": "all", "labels": "^cxx$"},
+        {"preset": "fuzz", "select": "all", "labels": "^fuzz$"},
+        {"preset": "structure", "select": "all", "pattern": "^foundation[.]devkit[.]structure[.]"},
+        {"preset": "stack", "select": "all"},
+        {"preset": "analysis", "select": "all", "labels": "^analysis$"}
+      ]
+    },
+    "structure": {
+      "about": "the structure tree alone, its structure tests, by key",
+      "steps": [{"preset": "structure", "select": "changed", "pattern": "^foundation[.]devkit[.]structure[.]"}]
+    },
+    "analysis": {
+      "about": "the analysis tree alone, its controls after the analysis build and clang-tidy, by key",
+      "steps": [{"preset": "analysis", "select": "changed", "labels": "^analysis$"}]
+    },
+    "debugger": {
+      "about": "the release tree's cases that drive cdb, by key, each until it fails, six times at most",
+      "steps": [{"preset": "release", "select": "changed", "labels": "^debugger$", "repeat": 6}]
+    },
+    "alone": {
+      "about": "the foundation alone, configured from foundation/, its every test by key",
+      "steps": [{"preset": "alone", "source": "foundation", "select": "changed"}]
+    },
+    "asan": {
+      "about": "the C++ cases under AddressSanitizer, by key",
+      "steps": [{"preset": "asan", "select": "changed", "labels": "^cxx$"}]
+    },
+    "fuzz": {
+      "about": "each fuzz target for its bounded time, whole: the targets carry no module, so no key selects them",
+      "steps": [{"preset": "fuzz", "select": "all", "labels": "^fuzz$"}]
+    }
+  }
+}

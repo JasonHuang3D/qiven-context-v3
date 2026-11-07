@@ -17,8 +17,8 @@ test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
 its class names in ctest_labels, then the name of the
 module of the table its file is in (the tree's module.json files, read by
-foundation/devkit/python/table.py), by which the runner selects it
-(tools/changed.py); the labels also give the watcher's limit for its tests
+foundation/devkit/python/table.py), by which the gate keys it
+(tools/gate.py); the labels also give the watcher's limit for its tests
 (ctest_tests.cmake, beside this file).
 
 A module that does not import, a test the one reader of test code

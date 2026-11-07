@@ -18,9 +18,10 @@
       ],
       "paths": [
         "tools/__init__.py",
-        "tools/changed.py",
         "tools/debug*",
         "tools/fuzz_seeds.py",
+        "tools/gate.py",
+        "tools/gates.json",
         "tools/loop*",
         "tools/tests/",
         "tools/trees.json"

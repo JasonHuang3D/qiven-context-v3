@@ -2,7 +2,7 @@
 
 layer devkit, status built
 
-Version 0.5: the number of this file's change list, below, and of nothing else
+Version 0.6: the number of this file's change list, below, and of nothing else
 
 - **Awaiting a split:** its product data (qiven3's paths, lists and cells, in `lists.py`, `rules.py` and `subset.py`, the angle include of `qiven3/` in `modules.py`'s `INCLUDE`, and in `tests/test_line_endings.py`'s product files kept byte for byte and their directories) leaves for `products/qiven3`; its row's edges to qiven3's modules are the product's header units' (`tests/support/headers/`, `qiven3_headers` and `qiven3_test_headers`), each of which goes with its header's module when that module moves, in P4, its edges with it; the row's path and its exception stay until then, and an old place's path joins no row; the foundation's units are their modules' (each in its module's `tests/support/headers/`)
 - **Holds:** the structure method in Python:
@@ -11,7 +11,7 @@ Version 0.5: the number of this file's change list, below, and of nothing else
   - the checks of one module, `rules.<M>` (`checks.py`): over the files of one module of the table, read against the whole listing, `file_rules`, M's own allowance rows, the content check, the Python imports, B15's size, K15 (`log_includes.py`), the include edges and, on a build that makes the records, the directives of M's C++ files no record reaches, by name (`rules.unreached_rules`); `harness` registers one for each module, labelled M and `structure`, so a change to M or to this module runs it;
   - the content check (`content.py`, `content_findings`) and B15's size check (`size.py`, `size_findings`), each over a set of files;
   - the modules' check (`modules.py`, the table kept true of the checkout), whose command line is `tools/loop_modules.py`; its `check` takes a `subset` whose include edges it reads and `whole`, the table, the ownership and the link edges;
-  - the Python import check (`python_imports.py`, `python_findings`, run by each module's check): the standard library, the test tree's, this method's, `build`'s two readers its tests use (`links.py`, `exemptions.py`), `harness` and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
+  - the Python import check (`python_imports.py`, `python_findings`, run by each module's check): the standard library, the test tree's, this method's, `build`'s two readers its tests use (`links.py`, `exemptions.py`), `harness`, `gate` (`tools/gate.py`'s module) and Python's lowest layer alone, no `importlib` or `runpy`, no `ctypes`, `winreg` or `_winapi` but in `foundation/devkit/python/_windows.py`, and no change of `sys.path` but its `append`;
   - `tests/test_triggers.py`, CI's triggers and its unpinned images, the repository's cases, kept here: the repository's row has no tree, and one file of two cases does not justify a walked tree and a layer change (ARCH-037); an item for this module's end challenge and the test framework's design;
   - the product's header units
 - **Never holds:** a product's own paths, lists or cells as the method's code
@@ -34,7 +34,15 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.5, 2026-11-07, the commit that brings this entry
+### 0.6, 2026-11-07, the commit that brings this entry
+
+The Python import check admits `gate`, the test framework's module (its fourth commit), beside `harness`: `tools/gate.py` and `gate`'s own tests import it.
+
+- **This file:** the Holds line of the Python import check.
+- **Members changed:** `python_imports.GATE`, new, one of the packages `python_findings` admits.
+- **What a consumer does:** nothing.
+
+### 0.5, 2026-11-07, `2d9cbed`
 
 The records and their rules as build steps, by the test framework's design, its third commit (its D-4, records as build steps): the records are the daily tree's, made per object by its compile, and the whole records step goes.
 

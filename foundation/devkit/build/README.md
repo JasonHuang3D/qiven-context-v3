@@ -2,11 +2,11 @@
 
 layer devkit, status built
 
-Version 0.6: the number of this file's change list, below, and of nothing else
+Version 0.7: the number of this file's change list, below, and of nothing else
 
 - **Awaiting a split:** its product data, which stays here until the product's move (P4): `qiven3-child`, `qiven3_fixtures` and `qiven3_test_headers` in `analysis-exemptions.json`; the product's units' place in `header_units.cmake`; `qiven3-child` in `top.cmake`'s comment on the analysed roots; the product's paths in `tests/test_trees_build.py`'s `test_analysis_choice`, and the product's pair of header units (`qiven3_headers`, `qiven3_test_headers`) in its `test_steps_name_composed`; the product's targets among the five links `tests/test_links.py` must read. The root's product directories and the presets `bench` and `drill` are the composition's, the consumer's, in this row only because it holds those files
 - **Holds:**
-  - `build.cmake`: `qiven_root`, the checkout's root, from which every repository path of the foundation's CMake starts; the options, pins (MSVC's `19.44.35228`, whose toolset, `14.44.35207`, `tools/changed.py`'s `VCVARS_VER` names a second time for its tree, `ci-windows`, which no pin checks: a bump changes both; CI unpinned, by `python`'s allowance for `ci.yml`), compiler flags, hardening, sanitizers, clean binaries and analysis
+  - `build.cmake`: `qiven_root`, the checkout's root, from which every repository path of the foundation's CMake starts; the options, pins (MSVC's `19.44.35228`, whose toolset, `14.44.35207`, `tools/gates.json`'s `toolset` names a second time for every tree `tools/gate.py` builds, which no pin checks: a bump changes both; CI unpinned, by `python`'s allowance for `ci.yml`), compiler flags, hardening, sanitizers, clean binaries and analysis
   - `top.cmake`: what the project on top holds, by the same parts in whichever project: the trees, the tidy configuration, the codemodel query, `enable_testing` and the header units' rule at its one include, and `qiven_top_end()`, called last: the foundation's pair of header units for the analysis, `qiven_headers` and `qiven_test_headers`, `binaries.txt`, `executables.txt`, `test-targets.txt`, `defined-targets.txt` and the clang-tidy steps
   - `modules.cmake`: the one list of the foundation's modules, `qiven_foundation_modules`, each added there, at the top project's scope
   - `sanitize.cmake`: the sanitizers of `QIVEN_SANITIZE` on every target, the name of the sanitizer's runtime, and `qiven_fuzz_main`, libFuzzer's main on one fuzz target; `tidy_database.cmake`
@@ -40,7 +40,14 @@ The method, once, for the module, which wraps nothing:
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.6, 2026-11-07, the commit that brings this entry
+### 0.7, 2026-11-07, the commit that brings this entry
+
+`tools/changed.py` is retired, `tools/gate.py` gating in its place (the test framework's design, its fourth commit): the toolset the pins name is named a second time in `tools/gates.json`, its `toolset`.
+
+- **This file:** the Holds line of `build.cmake`'s pins; this entry.
+- **What a consumer does:** nothing.
+
+### 0.6, 2026-11-07, `eb9faa4`
 
 The exemptions' check per module, by the test framework's design, its second commit (its D-4, checks per module): `exemptions.findings` takes a module's files as its scope, and `checks.py` holds `exemptions.<M>`, which `harness` registers for each module holding a `.clang-tidy` or `.ruleset`, so a change to that module or to this one runs its match.
 

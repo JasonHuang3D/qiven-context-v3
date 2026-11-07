@@ -12,9 +12,9 @@ where it is given; else the ctest QIVEN_CTEST names, the one that runs the
 test, and the cmake beside it; else the one on PATH; None where none is.
 tests(build) is ctest's listing of build: each test's name to its Test, its
 command and its properties; ListingFailed, one line, where it cannot be had.
-run_build(build, ...) and run_tests(build, ...) run a build and tests of build
-under a limit, from ROOT, and read what CMake, Ninja and CTest print: Built and
-Results.
+run_build(build, ...) runs a build of build under a limit, from ROOT, and
+reads what CMake and Ninja print: Built. run_ctest(build, ...) runs tests of
+build into a JUnit file and a log, and answers ctest's status alone.
 """
 
 import json
@@ -30,7 +30,6 @@ from foundation.devkit.python import status as status_table
 ROOT = Path(__file__).resolve().parents[3]
 _CACHE = "CMakeCache.txt"
 _CTEST = "QIVEN_CTEST"  # the ctest that runs a test, set by harness' ctest_tests.cmake
-_RESULT = re.compile(r"Test +#\d+: (\S+) +\.*\s*\**(.*?)\s+[\d.]+ sec\s*$")  # ctest's line of a test's result
 _STEP = re.compile(r"\[\d+/\d+\]")  # Ninja's line of a step
 _GLOBS = "Re-checking globbed directories..."  # the step of every build that checks CONFIGURE_DEPENDS globs, no rebuild
 _NO_WORK = "ninja: no work to do."
@@ -45,10 +44,6 @@ Test = namedtuple("Test", "command properties")
 # lines (configure's or a regenerating build's CMake output, each FAILED: block,
 # Ninja's last line).
 Built = namedtuple("Built", "status steps no_work lines")
-
-# A test run: ctest's status; passed, how many; failed and skipped, the names,
-# in the order ctest ended them.
-Results = namedtuple("Results", "status passed failed skipped")
 
 
 class ListingFailed(Exception):
@@ -116,43 +111,51 @@ def tests(build, args=(), tool=None, env=None):
         raise ListingFailed(f"{shown}: its answer is no listing: {type(e).__name__}: {e}") from e
 
 
-def _run(argv, env, limit):
-    """(status, output) of argv from ROOT, stderr merged."""
-    done = process.run(argv, cwd=ROOT, env=env, limit=limit, err=process.MERGE, text=True)
+def _run(argv, env, limit, cwd=ROOT):
+    """(status, output) of argv from cwd, ROOT by default, stderr merged."""
+    done = process.run(argv, cwd=cwd, env=env, limit=limit, err=process.MERGE, text=True)
     return done.status, done.out
 
 
-def run_build(build, tool, *, preset, env, limit):
+def run_build(build, tool, *, preset, env, limit, source=None, targets=None):
     """Built of the build directory build, absolute or from ROOT: tool, its
-    cmake, configures it by the preset preset where one is given, then builds
-    it unless that failed; env its environment, limit each run's. A cmake that
-    cannot start raises the system's OSError; past limit, process.TimedOut."""
+    cmake, configures it by the preset preset where one is given, from the
+    directory source, absolute or from ROOT, whose presets file names it
+    (ROOT where None), then builds it unless that failed, the targets
+    targets where given, else its default; env its environment, limit each
+    run's. A cmake that cannot start raises the system's OSError; past limit,
+    process.TimedOut."""
     status, text = 0, ""
     if preset:
-        status, text = _run([tool, "--preset", preset, "-B", build], env, limit)
+        status, text = _run([tool, "--preset", preset, "-B", str(ROOT / build)], env, limit,
+                            cwd=ROOT / (source or "."))
     if status == 0:
-        status, more = _run([tool, "--build", build], env, limit)
+        status, more = _run([tool, "--build", build, *(["--target", *targets] if targets else [])], env, limit)
         text += more
     lines = text.splitlines()
     steps = sum(1 for line in lines if _STEP.match(line) and not line.endswith(_GLOBS))
     return Built(status, steps, not steps and _NO_WORK in text, [line for line in lines if not _STEP.match(line)])
 
 
-def run_tests(build, tool, names, *, log, jobs, env, limit):
-    """Results of the tests names of the build directory build, absolute or
-    from ROOT, the names by a file outside the tree: tool, its ctest, runs them
-    jobs at once, its output in the file log, a failed test's with it; env its
-    environment, limit the run's. A ctest that cannot start raises the system's
-    OSError; past limit, process.TimedOut."""
+def run_ctest(build, tool, names, *, junit, log, jobs, repeat=None, env, limit):
+    """ctest's status over the tests names of the build directory build,
+    absolute or from ROOT, the names by a file outside the tree: tool, its
+    ctest, runs them jobs at once, until-fail repeat times where repeat is
+    given; its JUnit in the file junit, the head of each output kept, its
+    output in the file log, a failed test's with it, none of it read here
+    (what it prints is held in memory and dropped);
+    no test selected an error; env its environment, limit the run's. A ctest
+    that cannot start raises the system's OSError; past limit,
+    process.TimedOut."""
     handle, listed = tempfile.mkstemp(prefix="qiven-tests-", suffix=".txt")
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as out:
             out.write("".join(f"{n}\n" for n in names))
-        status, text = _run([tool, "--test-dir", build, "--tests-from-file", listed,
-                             "--output-on-failure", "--output-log", log, "-j", jobs], env, limit)
+        again = ["--repeat", f"until-fail:{repeat}"] if repeat else []
+        done = process.run([tool, "--test-dir", str(build), "--tests-from-file", listed, "--no-tests=error",
+                            "--output-junit", str(junit), "--test-output-truncation", "head",
+                            "--output-on-failure", "--output-log", str(log), "-j", str(jobs), *again],
+                           cwd=ROOT, env=env, limit=limit)
     finally:
         os.remove(listed)
-    words = {m[1]: m[2] for m in map(_RESULT.search, text.splitlines()) if m}
-    skipped = [n for n, w in words.items() if w.startswith("Skipped") or "Disabled" in w]
-    return Results(status, list(words.values()).count("Passed"),
-                   [n for n, w in words.items() if w != "Passed" and n not in skipped], skipped)
+    return done.status
