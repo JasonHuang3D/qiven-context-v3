@@ -149,6 +149,11 @@ function(qiven_list_tests)
     # every tree the listing discovers in (foundation/devkit/test/harness/list_tests.py)
     qiven_python_globs("${qiven_root}" qiven_python_globs)
     file(GLOB_RECURSE qiven_python_files CONFIGURE_DEPENDS ${qiven_python_globs})
+    # Their names, rewritten only when they change: a file deleted leaves no
+    # newer input, so this list reruns the listing, which drops its tests.
+    list(JOIN qiven_python_files "\n" qiven_python_names)
+    file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/python_files.txt" CONTENT "${qiven_python_names}\n")
+    list(APPEND qiven_python_files "${PROJECT_BINARY_DIR}/python_files.txt")
   else()
     message(STATUS "qiven: no interpreter named; the Python tests are not registered")
   endif()
