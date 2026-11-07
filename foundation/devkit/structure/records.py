@@ -1,61 +1,53 @@
-"""The structure records: what the structure tests read, written by the
-structure preset's build. The standard library, Python's lowest layer
-(foundation/devkit/python, its system's output_text for the tools' output
-and its build_tree for the build's cache),
-and the trees every check walks, its table's (foundation/devkit/python/table.py).
+"""The structure records: what the structure rules read, each written by a
+step of the build that records it (steps.py), into the build's structure/
+directory. The standard library, Python's lowest layer
+(foundation/devkit/python, its process for the tools, its system's
+output_text for their output), and the trees every check walks, its table's
+(foundation/devkit/python/table.py).
 
-Run after every target is built, as
+- An object's record, objects/<key>.json, written by its compile: its
+  includes as the compile's own /showIncludes reports them, its symbols
+  (dumpbin /symbols), its source, target and compile command. A vendored
+  file, tools/trees.json's vendored (foundation/system/sqlite/src/sqlite3.c
+  the one compiled), has its object's names recorded, for what it defines,
+  and no includes.
+- names.json: the C and C++ runtimes' public names and the network's import
+  libraries' (dumpbin /linkermember:1).
+- targets.dot: the targets' link edges, CMake's --graphviz over a configure
+  of the tree's sources with the tree's own cache, in a directory of its own.
 
-    python -I foundation/devkit/structure/records.py SOURCE BUILD CMAKE DUMPBIN
-
-it writes BUILD/structure/: for each compile command of
-compile_commands.json, its includes as the compiler reports them
-(the command rerun with /showIncludes /Zs: Ninja consumes the build's own)
-and its object's symbols (dumpbin /symbols); the C and C++ runtimes'
-public names (dumpbin /linkermember:1); the targets' link edges (CMake's
---graphviz, from a configure of SOURCE in a directory of its own);
-index.json, naming each; and index.d, the step's depfile, naming each
-file index.json digests, so that its change or removal reruns the step.
-A vendored file, tools/trees.json's vendored (foundation/system/sqlite/src/
-sqlite3.c the one compiled), has its object's names recorded, for what it
-defines, and no includes.
+Each file is written only where its content changes, so that a step reading
+it reruns at a change of what it reads alone.
 """
 
-import concurrent.futures
-import hashlib
 import json
 import os
 import shutil
-import sys
 from collections import namedtuple
 from pathlib import Path
 
-# Under -I the checkout is off sys.path: its root appended, so that the standard library still wins.
-sys.path.append(str(Path(__file__).resolve().parents[3]))
-from foundation.devkit.python import build_tree
 from foundation.devkit.python import process
 from foundation.devkit.python import system
-from foundation.devkit.python import table
 
-# The runtimes a /MT build links, the static C runtime's (the structure
-# build's); oldnames.lib, POSIX names, is not one.
+# The runtimes a /MT build links, the static C runtime's (the trees with
+# records); oldnames.lib, POSIX names, is not one.
 RUNTIME_LIBS = ("libcmt.lib", "libcpmt.lib", "libvcruntime.lib", "libucrt.lib")
 # The network's import libraries, so that an import from one is named.
 NETWORK_LIBS = ("ws2_32.lib", "winhttp.lib", "wininet.lib")
-TOOL_SECONDS = 900  # one tool's run: a preprocessing compile, dumpbin, or CMake's configure
+TOOL_SECONDS = 900  # one tool's run: a compile, dumpbin, or CMake's configure
+
+Object = namedtuple("Object", "source target includes undefined weak defined command vendored")
 
 
-def run(command, cwd=None, shell_text=False):
-    """A tool's standard output, as text. `command` a list, or a compile
-    database's whole line (shell_text); SystemExit where it fails or passes
-    its limit."""
+def run(command, cwd=None):
+    """A tool's standard output, as text; SystemExit where it fails or passes its limit."""
     try:
         done = process.run(command, cwd=cwd, limit=TOOL_SECONDS)
     except process.TimedOut as e:
         raise SystemExit(f"records: {e}") from e
     if done.status != 0:
         text = system.output_text(done.out + done.err, "replace")
-        raise SystemExit(f"records: {command if shell_text else command[:3]} gave {done.status}:\n{text}")
+        raise SystemExit(f"records: {command[:3]} gave {done.status}:\n{text}")
     return system.output_text(done.out, "replace")
 
 
@@ -66,24 +58,67 @@ def rel_posix(path, root):
         return None
 
 
-def record_one(entry, root, out, dumpbin, vendored_files):
-    """One compile command: its includes and its object's symbols."""
-    source = rel_posix(entry["file"], root)
-    obj = Path(entry["directory"], entry["output"])
-    parts = obj.as_posix().split("/")
-    target = next((p[:-4] for p in parts if p.endswith(".dir")), "")
-    key = target + "__" + (source or obj.name).replace("/", "_")
-    vendored = source in vendored_files
-    if not vendored:
-        includes = run(entry["command"] + " /showIncludes /Zs", cwd=entry["directory"], shell_text=True)
-        (out / "includes" / (key + ".txt")).write_text(includes, encoding="utf-8")
-    symbols = run([dumpbin, "/nologo", "/symbols", str(obj)])
-    (out / "symbols" / (key + ".txt")).write_text(symbols, encoding="utf-8")
+def target_of(obj):
+    """The target an object path's <target>.dir names."""
+    return next((p[:-4] for p in Path(obj).as_posix().split("/") if p.endswith(".dir")), "")
+
+
+def key_of(target, source, obj):
+    return target + "__" + (source or Path(obj).name).replace("/", "_")
+
+
+def write_if_changed(path, text):
+    """Writes text to path where it is not there already; whether it wrote."""
+    path = Path(path)
+    if path.is_file() and path.read_text(encoding="utf-8") == text:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="\n")
+    return True
+
+
+def write_json(path, value):
+    return write_if_changed(path, json.dumps(value, indent=1, sort_keys=True) + "\n")
+
+
+def object_record(root, source, absolute, obj, command, shown, dumpbin, vendored_files):
+    """One compiled object's record: its includes, from its compile's
+    /showIncludes output (shown), and its symbols."""
+    rel = rel_posix(source, root)
+    vendored = rel in vendored_files
+    undefined, weak, defined = read_symbols(run([dumpbin, "/nologo", "/symbols", str(obj)]))
     return {
-        "source": source, "absolute": entry["file"], "target": target,
-        "command": entry["command"], "includes": "includes/" + key + ".txt",
-        "symbols": "symbols/" + key + ".txt", "vendored": vendored,
+        "source": rel, "absolute": absolute, "target": target_of(obj), "command": command, "vendored": vendored,
+        "includes": [] if vendored else [list(i) for i in read_includes(shown, absolute)],
+        "undefined": sorted(undefined), "weak": sorted(weak), "defined": sorted(defined),
     }
+
+
+def read_object(path):
+    entry = json.loads(Path(path).read_text(encoding="utf-8"))
+    return Object(entry["source"], entry["target"], [tuple(i) for i in entry["includes"]], set(entry["undefined"]),
+                  set(entry["weak"]), set(entry["defined"]), entry["command"], bool(entry["vendored"]))
+
+
+def objects_by_target(root, out):
+    """{target: [its objects' record paths]}, from the build's compile commands (the steps' copy in OUT)."""
+    found = {}
+    for entry in json.loads((Path(out) / "compile_commands.json").read_text(encoding="utf-8")):
+        obj = Path(entry["directory"], entry["output"])
+        target = target_of(obj)
+        name = key_of(target, rel_posix(entry["file"], root), obj) + ".json"
+        found.setdefault(target, []).append(Path(out) / "objects" / name)
+    return found
+
+
+def tree_records(root, out):
+    """The Records of every object of the build whose structure/ directory
+    is OUT, by its compile commands; None where the build makes none. An
+    object with no record yet is left out."""
+    if not (Path(out) / "compile_commands.json").is_file():
+        return None
+    paths = [p for listed in objects_by_target(root, out).values() for p in listed]
+    return Records(root, [read_object(p) for p in paths if p.is_file()])
 
 
 def find_lib(name):
@@ -93,81 +128,27 @@ def find_lib(name):
     raise SystemExit(f"records: {name} is on no directory of LIB; run from the toolset's environment")
 
 
-def graph(source, build_dir, out, cmake, cache):
-    """The link edges: CMake's --graphviz over a configure of its own."""
-    scratch = out / "graph-build"
-    shutil.rmtree(scratch, ignore_errors=True)
-    scratch.mkdir(parents=True)
-    # The compiler found once: CMake reads its own record of each compiler.
-    version = Path(build_dir, "CMakeFiles")
-    for found in version.glob("[0-9]*.[0-9]*"):
-        if found.is_dir():
-            shutil.copytree(found, scratch / "CMakeFiles" / found.name)
-    (out / "graph").mkdir(exist_ok=True)
-    run([cmake, "-S", str(source), "-B", str(scratch), "-G", "Ninja",
-         "--graphviz=" + str(out / "graph" / "targets.dot")] + [f"-D{k}={v}" for k, v in cache.items()])
-
-
-def record(source, build_dir, out, dumpbin):
-    """The include and symbol records of every compile command of build_dir."""
-    shutil.rmtree(out, ignore_errors=True)
-    for sub in ("includes", "symbols", "runtime"):
-        (out / sub).mkdir(parents=True)
-    root = Path(os.path.normpath(source))
-    db = json.loads(Path(build_dir, "compile_commands.json").read_text(encoding="utf-8"))
-    entries, vendored_files = list(db), table.trees(root).vendored
-    with concurrent.futures.ThreadPoolExecutor(os.cpu_count() or 4) as pool:
-        objects = list(pool.map(lambda e: record_one(e, root, out, dumpbin, vendored_files), entries))
-    libs = {}
-    for name in RUNTIME_LIBS + NETWORK_LIBS:
-        text = run([dumpbin, "/nologo", "/linkermember:1", str(find_lib(name))])
-        (out / "runtime" / (name + ".txt")).write_text(text, encoding="utf-8")
-        libs[name] = "runtime/" + name + ".txt"
-    return {"source_root": str(root), "objects": objects, "libraries": libs,
-            "runtime": list(RUNTIME_LIBS), "network": list(NETWORK_LIBS),
-            "graph": "graph/targets.dot"}
-
-
-def digests(root):
-    """Each source file's SHA-256, so that a test finds the records stale."""
-    found, trees = {}, table.trees(root)
-    for top in trees.every:
-        for path in sorted(Path(root, top).rglob("*")):
-            if path.suffix in trees.cxx_suffixes and path.is_file():
-                found[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+def library_names(dumpbin):
+    """{"runtime": names, "network": names}, each library's public names."""
+    found = {}
+    for part, names in (("runtime", RUNTIME_LIBS), ("network", NETWORK_LIBS)):
+        found[part] = sorted(set().union(*(read_linker_member(run([dumpbin, "/nologo", "/linkermember:1",
+                                                                   str(find_lib(n))])) for n in names)))
     return found
 
 
-def write_index(out, index):
-    (out / "index.json").write_text(json.dumps(index, indent=1, sort_keys=True), encoding="utf-8")
-
-
-def write_depfile(out, source, recorded):
-    """Ninja's depfile of the step: index.json depends on each recorded file, by its absolute path."""
-    def name(path):
-        return path.as_posix().replace(" ", "\\ ")
-    inputs = " \\\n  ".join(name(source / rel) for rel in recorded)
-    (out / "index.d").write_text(f"{name(out / 'index.json')}: {inputs}\n", encoding="utf-8", newline="\n")
-
-
-def main(argv):
-    source, build_dir, cmake, dumpbin = (Path(a) for a in argv[1:5])
-    out = build_dir / "structure"
-    index = record(source, build_dir, out, dumpbin)
-    names = ("CMAKE_BUILD_TYPE", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER", "CMAKE_MAKE_PROGRAM")
-    cache = build_tree.options(build_dir)
-    if cache is None:
-        raise SystemExit(f"records: {build_dir} holds no cache: configure it first")
-    graph(source, build_dir, out, cmake, {name: cache[name] for name in names if name in cache})
-    index["digests"] = digests(source)
-    write_depfile(out, source, index["digests"])
-    write_index(out, index)
-    print(f"records: {len(index['objects'])} objects")
-    return 0
-
-
-# Reading the records, for the rules (rules.py).
-Object = namedtuple("Object", "source target includes undefined weak defined command vendored")
+def graph(source, build_dir, scratch, cmake, defines):
+    """The link edges' text: CMake's --graphviz over a configure of source
+    in scratch, given defines (-DNAME:TYPE=VALUE), the tree's cache."""
+    shutil.rmtree(scratch, ignore_errors=True)
+    scratch.mkdir(parents=True)
+    # The compiler found once: CMake reads its own record of each compiler.
+    for found in Path(build_dir, "CMakeFiles").glob("[0-9]*.[0-9]*"):
+        if found.is_dir():
+            shutil.copytree(found, scratch / "CMakeFiles" / found.name)
+    dot = scratch / "targets.dot"
+    run([cmake, "-S", str(source), "-B", str(scratch), "-G", "Ninja", "--graphviz=" + str(dot)] + list(defines))
+    return dot.read_text(encoding="utf-8")
 
 
 def read_includes(text, absolute):
@@ -246,26 +227,15 @@ def command_include_dirs(command):
 
 
 class Records:
-    def __init__(self, directory):
-        self.directory = Path(directory)
-        index = json.loads((self.directory / "index.json").read_text(encoding="utf-8"))
-        self.root = Path(index["source_root"])
-        self.digests = index.get("digests", {})
-        self.objects = []
-        for entry in index["objects"]:
-            undefined, weak, defined = read_symbols(self.read(entry["symbols"]))
-            includes = [] if entry.get("vendored") else read_includes(self.read(entry["includes"]),
-                                                                       entry["absolute"])
-            self.objects.append(Object(entry["source"], entry["target"], includes, undefined, weak, defined,
-                                       entry["command"], bool(entry.get("vendored"))))
-        self.runtime, self.network = set(), set()
-        for name, path in index["libraries"].items():
-            (self.runtime if name in index["runtime"] else self.network).update(
-                read_linker_member(self.read(path)))
-        self.shapes, self.edges = read_graph(self.read(index["graph"]))
+    """Records of a set of objects, with the runtimes' and the network's
+    names and the link edges where a rule reads them."""
 
-    def read(self, name):
-        return (self.directory / name).read_text(encoding="utf-8")
+    def __init__(self, root, objects, names=None, graph_text=None):
+        self.root = Path(root)
+        self.objects = list(objects)
+        self.runtime = set((names or {}).get("runtime", ()))
+        self.network = set((names or {}).get("network", ()))
+        self.shapes, self.edges = read_graph(graph_text) if graph_text else ({}, {})
 
     def closure(self, target):
         seen, todo = set(), [target]
@@ -275,16 +245,3 @@ class Records:
                     seen.add(dep)
                     todo.append(dep)
         return seen
-
-    def stale(self):
-        """The recorded files changed or gone since the records were written."""
-        return sorted(rel for rel, digest in self.digests.items()
-                      if not (self.root / rel).is_file() or sha256(self.root / rel) != digest)
-
-
-def sha256(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))

@@ -32,7 +32,7 @@
       "name": "structure",
       "inherits": "here",
       "displayName": "Structure records, MSVC",
-      "description": "Includes: Ninja consumes the compiler's /showIncludes, so the build reruns each core source's compile_commands.json command with /showIncludes into a file. Names: dumpbin /symbols of each object. Link edges: CMake's --graphviz output. The structure tests read these files.",
+      "description": "The daily tree's structure steps without QIVEN_FAULTS and with its tools pinned: each object's record from its compile's own /showIncludes and dumpbin /symbols, the rules per object, per target over its link closure and over CMake's --graphviz link graph (foundation/devkit/structure/steps.py)",
       "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_STRUCTURE": "ON"}
     },
     {
@@ -54,25 +54,27 @@
       "inherits": "ci",
       "displayName": "CI on windows-latest, the image's MSVC",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
-      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl"}
+      "description": "The daily tree: its build makes each object's structure record and applies the structure rules, per object, per target and over the link graph (foundation/devkit/structure/steps.py)",
+      "cacheVariables": {"CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl", "QIVEN_STRUCTURE": "ON"}
     },
     {
       "name": "ci-asan",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as asan",
-      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address", "QIVEN_SYSTEM_HEAP": "ON"}
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "RelWithDebInfo", "QIVEN_SANITIZE": "address", "QIVEN_SYSTEM_HEAP": "ON",
+                         "QIVEN_STRUCTURE": "OFF"}
     },
     {
       "name": "ci-stack",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as stack",
-      "cacheVariables": {"QIVEN_ANALYZE": "stack"}
+      "cacheVariables": {"QIVEN_ANALYZE": "stack", "QIVEN_STRUCTURE": "OFF"}
     },
     {
       "name": "ci-analysis",
       "inherits": "ci-windows",
       "displayName": "CI on windows-latest, the image's MSVC: as analysis",
-      "cacheVariables": {"QIVEN_ANALYZE": "analysis"}
+      "cacheVariables": {"QIVEN_ANALYZE": "analysis", "QIVEN_STRUCTURE": "OFF"}
     },
     {
       "name": "linux-gcc",

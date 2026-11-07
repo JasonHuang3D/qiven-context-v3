@@ -26,7 +26,8 @@ endforeach()
 # The listing, after every test the build defines; it waits for the
 # binaries the drives run: a case binary's routes, memory's two demos, diag's
 # fault program and the binary that imports its library. Then the structure
-# records, the structure preset alone.
+# steps, in a tree that sets QIVEN_STRUCTURE (the daily tree and the
+# structure preset).
 function(qiven_foundation_tests_end)
   qiven_list_tests(qiven_runner_demo qiven_memory_fail_demo qiven_memory_free_demo qiven_diag_fault
     qiven_diag_fault_import)

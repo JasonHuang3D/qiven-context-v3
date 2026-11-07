@@ -26,7 +26,7 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 `ctest --preset <name>` tests. Nothing is installed.
 
 - Developer presets, on Windows with MSVC: `debug`, `release` (the build the
-  full suite runs on), `asan`, `fuzz`, `structure` (the structure records),
+  full suite runs on), `asan`, `fuzz`, `structure` (the structure steps without `QIVEN_FAULTS`),
   `stack` (the frame bound) and `analysis` (static analysis, then
   clang-tidy).
 - CI's presets, which share `build/ci`: `ci-windows`, `ci-asan`, `ci-stack`
@@ -45,9 +45,10 @@ into `build/<name>/`, `cmake --build --preset <name>` builds and
 - Test presets select by label: `full`, `fast`, `structure`, `asan`,
   `fuzz`, `bench`, `drill`, `analysis` and `debugger` (the cases that drive
   a debugger, never CI's); and, for CI, `fake` (the cases on the fakes) and
-  `ci-analysis`. Configure and build the `structure` preset before
-  `ctest --preset full`: the structure tests it runs read that build's
-  records.
+  `ci-analysis`. The build of `ci-windows` and of `structure` makes each
+  object's structure record and applies the structure rules, a finding
+  failing it; the structure tests read the records of the build they run
+  on.
 - The foundation alone, with no product directory, and those of its tests
   that need no product: `cmake -S foundation --preset alone`, then
   `cmake --build build/alone` and

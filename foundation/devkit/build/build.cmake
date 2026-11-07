@@ -9,7 +9,7 @@
 get_filename_component(qiven_root "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
 option(QIVEN_PIN_TOOLS "Fail configure on any compiler, SDK, CMake, Ninja or interpreter but the pinned ones; off on CI, which is unpinned" OFF)
-option(QIVEN_STRUCTURE "Write the records the structure tests read" OFF)
+option(QIVEN_STRUCTURE "Make each object's structure record and apply the structure rules as steps of the build, a finding failing it" OFF)
 option(QIVEN_SYSTEM_HEAP "Send each block of v3's arenas and pools to the system heap, for AddressSanitizer; the counts and budgets unchanged" OFF)
 option(QIVEN_FAULTS "Give the arenas, pools and fake platform their failing countdown" OFF)
 set(QIVEN_SANITIZE "" CACHE STRING "Sanitizers for every target: empty, address, fuzzer,address; elsewhere address,undefined, thread, fuzzer,address,undefined or memory")

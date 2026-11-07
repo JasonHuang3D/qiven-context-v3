@@ -9,12 +9,15 @@ identifiers and #include directives from the sources by the rules' lexer
 (lexer.py), and the tree's files by tree.py, through git; no rule reads C++ by a
 regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
-file's bytes for those git cannot fix. check() applies every rule to a set
-of a tree's files and gives its findings; its two halves are file_rules(),
-the rules each file's own bytes decide, which checks.py runs over one
-module's files, and record_rules(), the rules over the structure build's
-records, which tests/test_boundaries.py runs over the tree. Each allowance
-row is one half's (half()): a row is controlled where its half runs.
+file's bytes for those git cannot fix. The rules have two halves:
+file_rules(), the rules each file's own bytes decide, which checks.py runs
+over one module's files, and the rules over the records, which the build's
+steps apply (steps.py): object_rules() over one object's record,
+defined_name_rules() over a target's link closure, link_rules() over the
+graph; and unreached_rules(), the directives of the files no record of the
+tree reaches, by name, which checks.py runs over one module's. Each allowance row is one half's (half()): a row is controlled where
+its half runs, the records' by tests/test_boundaries.py over the rows the
+steps used.
 """
 
 import os
@@ -30,7 +33,7 @@ from foundation.devkit.structure.lists import (
     FS_READS, GIT_COMMANDS, GIT_LITERALS, GIT_LOWER_PREFIXES, LIBRARY_SHAPES, LINKER_NAMES, LOAD_NAMES, LOAD_PREFIX,
     NET_HEADERS, NET_LIBS, NOT_CORE, NOT_CORE_TARGETS, PLATFORM_WRITES, PROCESS_NAMES, SDK_DIRS, SPAWN_EXEC,
     STD_HEADERS, STREAM_MODES, STREAM_TYPES, WRITE_CLASSES, WRITE_NAMES)
-from foundation.devkit.structure.records import Records, command_include_dirs
+from foundation.devkit.structure.records import command_include_dirs
 # The tree's files (tree.py), which the line-end, content and import tests read here too.
 from foundation.devkit.structure.tree import source_files, text_files
 
@@ -54,7 +57,7 @@ def allows(rule, where, what=None):
 # module's check (checks.py), every other by Tree.test_rules.
 ROWS = frozenset({(r, p) for table in (ALLOWED, EXEMPT) for r, ps in table.items() for p in ps}
                  | set(ALLOWANCES))
-# The rules file_rules() alone gives, and those record_rules() alone gives.
+# The rules file_rules() alone gives, and those the records' steps alone give.
 FILE_RULES = frozenset(f"B{n}" for n in range(18, 33))  # the subset's B18 to B31, and B32
 RECORD_RULES = frozenset(("B5", "B6", "B7", "B8", "B9", "B10", "B11"))
 
@@ -135,18 +138,28 @@ class Findings:
     (used), and that tree's table (layers.Layers), v3's when none is given."""
 
     def __init__(self, tree=None):
-        self.found, self.used = set(), set()
+        self.found, self.used, self.lines = set(), set(), {}
         self.tree = tree or layers.of(ROOT)
 
-    def add(self, rule, where, kind="", detail="", what=None, force=False):
+    def add(self, rule, where, kind="", detail="", what=None, force=False, line=None):
         """A finding, but where the rule allows it of where or what, as they
-        stand or as the top-level tests/ would hold them."""
+        stand or as the top-level tests/ would hold them; line, where's line
+        that holds it, where one does."""
         places = (where, self.tree.as_tests(where))
         rows = set() if force else set().union(*(allows(rule, w, x) for w in places
                                                  for x in (what, self.tree.as_tests(what))))
         self.used |= rows
         if not rows:
-            self.found.add(Finding(rule, where, kind, detail))
+            finding = Finding(rule, where, kind, detail)
+            self.found.add(finding)
+            if line is not None:
+                self.lines.setdefault(finding, line)
+
+    def errors(self):
+        """Each finding as a compiler names an error: file(line): error rule: what."""
+        return [f"{f.where}({self.lines[f]}): error {f.rule}: {f.kind + ' ' if f.kind else ''}{f.detail}"
+                if f in self.lines else f"{f.where}: error {f.rule}: {f.kind + ' ' if f.kind else ''}{f.detail}"
+                for f in sorted(self.found)]
 
 
 def is_goldens(value):
@@ -208,46 +221,64 @@ def source_rules(root, files, out):
     return goldens
 
 
+def directive_lines(root, rel, cache):
+    """{a header's last name, lowered: the line of rel's first #include of it}, rel's lexed once."""
+    if rel not in cache:
+        found = {}
+        path = root / rel
+        if path.is_file():
+            for _, name, line in directives(lex(path.read_text(encoding="utf-8", errors="replace"))[0]):
+                found.setdefault(name.replace("\\", "/").lower().rsplit("/", 1)[-1], line)
+        cache[rel] = found
+    return cache[rel]
+
+
 def include_rules(records, out):
-    root, seen = records.root, set()
+    root, seen, lines = records.root, set(), {}
+
+    def line_of(by, path):
+        return directive_lines(root, by, lines).get(path.replace("\\", "/").lower().rsplit("/", 1)[-1])
+
     for obj in records.objects:
         if obj.vendored:
             continue
         checked = is_core_object(obj, out.tree) or is_instantiation(obj.source)
-        system = []
+        system, top = [], None
         for includer, path, depth in obj.includes:
+            top = path if depth == 1 else top
             kind, name = classify(path, root)
             if kind == "sdk":
-                system.append((depth, name))
+                system.append((depth, name, top))
             by = relative(os.path.normpath(includer), root)
             if by is None or by in layers.VENDORED or (by, path) in seen:
                 continue
             seen.add((by, path))
-            direct_include(by, path, kind, name, out)
+            direct_include(by, path, kind, name, out, line_of(by, path))
         if checked and system:
-            depth, name = min(system)
-            out.add("B17", obj.source, "os", f"{len(system)} operating system headers, {name} at depth {depth}")
+            depth, name, top = min(system)
+            out.add("B17", obj.source, "os", f"{len(system)} operating system headers, {name} at depth {depth}",
+                    line=line_of(obj.source, top) if obj.source else None)
         for directory in command_include_dirs(obj.command):
             if ".." in directory.replace("\\", "/").split("/"):
                 out.add("B11", obj.source, detail=f"the include directory {directory}")
 
 
 def directives(tokens):
-    """Each #include's header as written: ('"', name) or ('<', name)."""
+    """Each #include's header as written, with its line: ('"', name, line) or ('<', name, line)."""
     found = []
     for i in range(len(tokens) - 2):
         if tokens[i][1] != "#" or tokens[i + 1][1] != "include" or tokens[i][2] != tokens[i + 1][2]:
             continue
         head = tokens[i + 2]
         if head[0] == "header":
-            found.append(('"', head[1]))
+            found.append(('"', head[1], head[2]))
         elif head[1] == "<":
             parts = []
             for kind, value, line in tokens[i + 3:]:
                 if value == ">" or line != head[2]:
                     break
                 parts.append(value)
-            found.append(("<", "".join(parts)))
+            found.append(("<", "".join(parts), head[2]))
     return found
 
 
@@ -267,7 +298,7 @@ def directive_rules(records, root, files, out):
     for by in files:
         if not by.endswith(CXX_SOURCES) or by in layers.VENDORED:
             continue
-        for form, name in directives(lex((root / by).read_text(encoding="utf-8", errors="replace"))[0]):
+        for form, name, line in directives(lex((root / by).read_text(encoding="utf-8", errors="replace"))[0]):
             here = by.rsplit("/", 1)[0] if "/" in by else "."
             candidates = [here] + roots if form == '"' else []
             found = next((root / base / name for base in candidates if (root / base / name).is_file()), None)
@@ -277,28 +308,41 @@ def directive_rules(records, root, files, out):
                 kind, what = ("std", name.lower()) if name.lower() in STD_HEADERS else ("other", name.lower())
             else:
                 kind, what = classify(resolved[name.lower().rsplit("/", 1)[-1]], root)
-            direct_include(by, name, kind, what, out)
+            direct_include(by, name, kind, what, out, line)
 
 
-def direct_include(by, path, kind, name, out):
-    """The rules on one include by one of v3's files."""
+def own_files(records, root):
+    """The files one record's directives are read in: its sources and the
+    tree's files they include, but a vendored file and the build's own,
+    under build/, which no rule judges by its path alone."""
+    files = set()
+    for obj in records.objects:
+        if obj.vendored:
+            continue
+        files.add(obj.source)
+        files.update(relative(os.path.normpath(path), root) for _, path, _ in obj.includes)
+    return sorted(f for f in files if f is not None and not f.startswith("build/") and f not in layers.VENDORED)
+
+
+def direct_include(by, path, kind, name, out, line=None):
+    """The rules on one include by one of v3's files, at its line where known."""
     base = name.rsplit("/", 1)[-1]
     rel = name if kind == "v3" else None
     if base == "sqlite3.h":
-        out.add("B1", by, detail="includes sqlite3.h")
+        out.add("B1", by, detail="includes sqlite3.h", line=line)
     if kind == "sdk":
-        out.add("B5", by, detail=f"a Windows SDK header, {name}", what=base)
+        out.add("B5", by, detail=f"a Windows SDK header, {name}", what=base, line=line)
     if kind != "v3" and base in CRT_IO_HEADERS:
-        out.add("B6", by, detail=f"the C runtime's {name}", what=base)
+        out.add("B6", by, detail=f"the C runtime's {name}", what=base, line=line)
     if kind != "v3" and name.endswith(NET_HEADERS):
-        out.add("B8", by, detail=f"the network's {name}")
+        out.add("B8", by, detail=f"the network's {name}", line=line)
     if kind == "other" and base != "sqlite3.h":
-        out.add("B9", by, detail=f"an include from outside, {name}", what=base)
+        out.add("B9", by, detail=f"an include from outside, {name}", what=base, line=line)
     if ".." in path.replace("\\", "/").split("/"):
-        out.add("B11", by, detail=f"an include path holding .., {path}")
+        out.add("B11", by, detail=f"an include path holding .., {path}", line=line)
     if rel is not None and under(by, B13_FILES) and not under(by, B13_SECRET) and under(rel, B13_HEADERS) \
             and not rel.startswith(B13_OPEN):
-        out.add("B13", by, detail=f"includes {rel}")
+        out.add("B13", by, detail=f"includes {rel}", line=line)
     if is_core(by, out.tree) or is_instantiation(by):
         if kind == "std":
             ok = name in B17_HEADERS
@@ -310,7 +354,7 @@ def direct_include(by, path, kind, name, out):
         else:
             ok = False
         if not ok:
-            out.add("B17", by, "include", f"a direct include off the list, {name}", what=name)
+            out.add("B17", by, "include", f"a direct include off the list, {name}", what=name, line=line)
 
 
 def strip_imp(name):
@@ -327,18 +371,14 @@ def b17_name(full):
             or (bare.startswith(FS_PREFIX) and bare not in FS_READS))
 
 
-def name_rules(records, goldens, out):
-    objects = records.objects
-    core_defined = set().union(*(o.defined for o in objects if is_core_object(o, out.tree) or o.vendored))
-    every_defined = set().union(*(o.defined for o in objects))
-    by_target = {}
-    for o in objects:
-        by_target.setdefault(o.target, set()).update(o.defined)
-    for obj in objects:
+def local_name_rules(records, goldens, out):
+    """The rules on the names each object uses by itself, B2, B6, B7, B8,
+    B10 and B14: an object's record and the network's names decide them."""
+    for obj in records.objects:
         if obj.vendored:
             continue
-        src, names = obj.source, obj.undefined | obj.weak
-        for full in sorted(names):
+        src = obj.source
+        for full in sorted(obj.undefined | obj.weak):
             bare = strip_imp(full)
             if bare == "CreateProcessW":
                 out.add("B2", src, detail="CreateProcessW")
@@ -350,12 +390,49 @@ def name_rules(records, goldens, out):
                 out.add("B7", src, detail=f"a process by another route, {bare}")
             if bare in LOAD_NAMES or bare.startswith(LOAD_PREFIX):
                 out.add("B10", src, detail=bare)
-            if full.startswith("__imp_") and full not in records.runtime and full not in every_defined:
-                out.add("B5", src, detail=f"an import from a Windows library, {bare}", what=full)
             if full in records.network:
                 out.add("B8", src, detail=f"an import from the network's libraries, {bare}")
             if src in goldens and (bare in WRITE_NAMES or b17_name(full)):
                 out.add("B14", src, detail=f"a write in a file naming the goldens, {bare}", force=True)
+
+
+def object_rules(records, root, out):
+    """The rules one object's record decides alone (records: that object's,
+    or a target's objects): its includes, its sources' and their included
+    files' directives, and the names it uses by itself."""
+    include_rules(records, out)
+    files = own_files(records, root)
+    directive_rules(records, root, files, out)
+    local_name_rules(records, goldens_of(root, files), out)
+
+
+def unreached_rules(records, root, files, out):
+    """The direct-include rules, by name, on the directives of those of files
+    no record of a tree reaches (records: its every object): a source none of
+    its objects compiles, a header none of its compiles includes, such as
+    another platform's. A file a record reaches is its object's step's
+    (object_rules)."""
+    reached = set(own_files(records, root)) | {o.source for o in records.objects}
+    directive_rules(records, root, [rel for rel in files if rel not in reached], out)
+
+
+def defined_name_rules(records, out):
+    """The rules over the names the objects of records define, B5's import
+    and B17's name: records are a target's link closure, whose objects
+    define what its own may use."""
+    objects = records.objects
+    core_defined = set().union(*(o.defined for o in objects if is_core_object(o, out.tree) or o.vendored))
+    every_defined = set().union(*(o.defined for o in objects))
+    by_target = {}
+    for o in objects:
+        by_target.setdefault(o.target, set()).update(o.defined)
+    for obj in objects:
+        if obj.vendored:
+            continue
+        src, names = obj.source, obj.undefined | obj.weak
+        for full in sorted(names):
+            if full.startswith("__imp_") and full not in records.runtime and full not in every_defined:
+                out.add("B5", src, detail=f"an import from a Windows library, {strip_imp(full)}", what=full)
         if not (is_core_object(obj, out.tree) or is_instantiation(src)):
             continue
         known = core_defined | records.runtime
@@ -415,50 +492,3 @@ def goldens_of(root, files):
                                       for kind, value, _ in lex(data.decode("utf-8", "replace"))[0]):
             found.add(rel)
     return found
-
-
-def record_rules(records, root, files, goldens, out):
-    """The rules over the records: the includes, the directives of files'
-    C++ sources, the names and the links; goldens, the files holding a
-    goldens path (goldens_of())."""
-    include_rules(records, out)
-    directive_rules(records, root, files, out)
-    name_rules(records, goldens, out)
-    link_rules(records, out)
-
-
-def check(records, root=None, files=None):
-    """Every rule over files of one tree, by default its every file: its Findings."""
-    root = Path(root or records.root)
-    out = Findings(layers.of(root))
-    files = source_files(root) if files is None else files
-    goldens = file_rules(root, files, out)
-    record_rules(records, root, files, goldens, out)
-    return out
-
-
-def records_directory():
-    """The structure build's records: this build's, else the structure preset's."""
-    build = os.environ.get("QIVEN_BUILD")
-    if build and (Path(build) / "structure" / "index.json").is_file():
-        return Path(build) / "structure"
-    return ROOT / "build" / "structure" / "structure"
-
-
-def current_records():
-    """The structure build's Records, which must be there and current."""
-    directory = records_directory()
-    if not (directory / "index.json").is_file():
-        raise AssertionError(f"no structure records at {directory}: build the structure preset first")
-    records = Records(directory)
-    stale = records.stale()
-    if stale:
-        raise AssertionError("the structure records are older than " + ", ".join(stale[:5])
-                             + ": build the structure preset again")
-    return records
-
-
-def findings():
-    """The Findings of every rule over v3's tree, from the structure build's
-    records, which must be there and current."""
-    return check(current_records(), ROOT)

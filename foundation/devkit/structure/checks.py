@@ -12,17 +12,24 @@ with B26's configuration); the rows, each allowance row of the file half
 M's findings; the content check (content.py), on Windows, where it reads
 this machine's paths; the Python imports (python_imports.py); B15's size
 (size.py); K15 (log_includes.py); and the includes, each C++ file's
-include edges and unresolved includes (modules.check, given the subset).
+include edges and unresolved includes (modules.check, given the subset);
+and, on a build that makes the structure records (QIVEN_BUILD), the
+direct-include rules on the directives of M's C++ files none of its records
+reaches, by name (rules.unreached_rules): another platform's sources and
+headers, which no step of this build reads. A change elsewhere that makes
+one of M's files reached or unreached, M's own files unchanged, shows at
+rules.<M>'s next run or the whole run.
 The rules over the records, and every row not one module's, are
 tests/test_boundaries.py's; the table, each file's ownership and the link
 edges, tests/test_modules.py's."""
 
+import os
 import unittest
 from pathlib import Path
 
 from foundation.devkit.python import system
 from foundation.devkit.python import table as module_table
-from foundation.devkit.structure import content, layers, log_includes, modules, python_imports, rules, size
+from foundation.devkit.structure import content, layers, log_includes, modules, python_imports, records, rules, size
 from foundation.devkit.structure.tree import source_files
 
 
@@ -45,10 +52,12 @@ def own_rows(files, listing, owner, tree, module):
     return {row for row in rows if all(owner.get(rel) == module for rel in listing if rules.holds(row, rel, tree))}
 
 
-def findings(root, module, listing=None, machine=True):
+def findings(root, module, listing=None, machine=True, build=None):
     """{part: [finding]} of module's check over root's tree; listing, the
     tree's every file, by default tree.py's; machine, whether the content
-    part runs, reading this machine's paths and names."""
+    part runs, reading this machine's paths and names; build, a build
+    directory whose structure records the unreached part reads, where it
+    makes them."""
     root = Path(root)
     listing = source_files(root) if listing is None else listing
     tree = layers.of(root)
@@ -68,6 +77,11 @@ def findings(root, module, listing=None, machine=True):
     }
     if machine:
         found["content"] = content.content_findings(root, files, content.machine_paths(), content.machine_names())
+    tree_records = records.tree_records(root, Path(build) / "structure") if build else None
+    if tree_records is not None:
+        unreached = rules.Findings(tree)
+        rules.unreached_rules(tree_records, root, files, unreached)
+        found["unreached"] = sorted(unreached.found)
     return found
 
 
@@ -75,7 +89,7 @@ class Check(unittest.TestCase):
     """rules.<M>: no finding over module M's files of v3's tree, a method test_<M> for each module of the table."""
 
     def check(self, module):
-        found = findings(rules.ROOT, module, machine=system.WINDOWS)
+        found = findings(rules.ROOT, module, machine=system.WINDOWS, build=os.environ.get("QIVEN_BUILD"))
         for part, items in found.items():
             with self.subTest(part=part):
                 self.assertEqual(items, [])
