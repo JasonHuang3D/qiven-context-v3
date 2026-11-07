@@ -2,13 +2,13 @@
 
 layer devkit, status built
 
-Version 0.5: the number of this file's change list, below, and of nothing else
+Version 0.6: the number of this file's change list, below, and of nothing else
 
-- **Holds:** the test framework's module, by its design, below `tools/gate.py`, its one consumer: `key.py`, each file's digest by git, a test's modules, its key and the checkout's code id; `junit.py`, each selected test's outcome read from CTest's JUnit (D-6); `states.py`, a test's record, its state and colour, why it is selected, and each transition of the design's table of the states, with the gone and a failed build's red; `store.py`, the store of one configuration under `.local/states/<preset>/`: its lock, `state.json` with its format, a run's journal, the tree's and the run's ids, the retention of the runs' files, and another configuration's `state.json` read for its reds; `selection.py`, the selection by key, the ask and the plan's expected time; `run.py`, a step's run in the order of a run, from its lock to its answer, the build tools reached through a runner; `envelope.py`, the codes, the next action and the answer's one line within its bound, a gate's from its steps'; its tests in `tests/`, label `gate`
+- **Holds:** the test framework's module, by its design, below `tools/gate.py`, its one consumer: `key.py`, each file's digest by git, a test's modules, its key and the checkout's code id; `junit.py`, each selected test's outcome read from CTest's JUnit (D-6); `states.py`, a test's record, its state and colour, why it is selected, and each transition of the design's table of the states, with the gone and a failed build's red; `store.py`, the store of one configuration under `.local/states/<preset>/`: its lock, `state.json` with its format, a run's journal, the tree's and the run's ids, the retention of the runs' files, and another configuration's `state.json` read for its reds; `selection.py`, the selection by key, the ask and the plan's expected time; `gates.py`, a gates file read and checked, its steps, each configuration's owners and whether a step's reach leaves it out; `run.py`, a step's run in the order of a run, from its lock to its answer, the build tools reached through a runner; `envelope.py`, the codes, the next action and the answer's one line within its bound, a gate's from its steps'; its tests in `tests/`, label `gate`
 - **Never holds:** a command line, a gate's steps or its data (`tools/gate.py`, `tools/gates.json`); a start of a build tool, which `python`'s `build_tree` makes; a call to the system or to git, which `python`'s `system` and `git` make; a result carried: a record names an earlier run's outcome as that run's
 - **Contract:** none
 - **Interface:** no header: the package `foundation.devkit.test.gate`, imported normally, as `python`'s README says of a script under `-I`. Its members, by file, are in the method's Members lines below; a name used only inside its file takes a leading underscore
-- **Files:** `__init__.py`, `key.py`, `junit.py`, `states.py`, `store.py`, `selection.py`, `run.py`, `envelope.py`, `tests/` and this directory's `module.json`
+- **Files:** `__init__.py`, `key.py`, `junit.py`, `states.py`, `store.py`, `selection.py`, `gates.py`, `run.py`, `envelope.py`, `tests/` and this directory's `module.json`
 - **Consumers rely on:** a test's key and the code id by `key` alone, its files' digests git's blob ids; an outcome by `junit.read` alone, every selected test answered, `not_started` for one that did not start; a record's change by `states.after` alone, which makes no transition for a `not_started`; the store by `store` alone: one run a configuration under its lock, `state.json` replaced whole or not at all, an unreadable one `Internal`, never no store; a step's answer by `run.step` alone, which never raises for the store, the tools or the table but answers their code; the line by `envelope.answer` alone, never past its bound, every red in it named or counted
 - **Parameters:** none
 - **Refuses:** a test of no module of the table, `key.NoModule`; a store another run holds, `store.Locked`, naming its holder; a `state.json` or a tree's id it cannot read, after 5 tries over 2 s where the file is held, `store.Unreadable`; a write that fails, after the same tries, `store.WriteFailed`; the last two are `store.Internal`
@@ -54,13 +54,23 @@ The method for `store`:
 
 The method for `selection`:
 
-- **Members:** `ASKS`, `("test", "module", "red")`; `Ask`, `(kind, name)`, `name` `None` for `red`; `ask(text)`, the `Ask` that `test:<name>`, `module:<name>` or `red` spells, `ValueError` for any other text, the command line's usage error; `spelled(ask)`, as written; `Selection`, `(selected, left_out, unmatched)`: `selected`, `{name: reason}` in the listing's order, `new`, `changed`, `rebuilt` or `asked`; `left_out`, `{name: {"colour", "since"}}`; `unmatched`, the asks' texts that name no test, `red` never among them; `choose(listed, records, keys, tree, asks=(), every=False)`, the selection of `{name: labels}` by the records, the keys and the tree's id, `every` a step's `select: all`; `Plan`, `(tests, seconds, unknown)`; `plan(names, records, jobs)`, the larger of the last durations' sum over the jobs and the longest one, a test with no duration counted in `unknown`
+- **Members:** `ASKS`, `("test", "module", "red")`; `Ask`, `(kind, name)`, `name` `None` for `red`; `ask(text)`, the `Ask` that `test:<name>`, `module:<name>` or `red` spells, `ValueError` for any other text, the command line's usage error; `spelled(ask)`, as written; `asked(ask, name, labels, record)`, whether the ask names that test, by the ask's rule below, `record` its record or `None`, the one rule `choose` and `gates.out_of_reach` read; `Selection`, `(selected, left_out, unmatched)`: `selected`, `{name: reason}` in the listing's order, `new`, `changed`, `rebuilt` or `asked`; `left_out`, `{name: {"colour", "since"}}`; `unmatched`, the asks' texts that name no test, `red` never among them; `choose(listed, records, keys, tree, asks=(), every=False)`, the selection of `{name: labels}` by the records, the keys and the tree's id, `every` a step's `select: all`; `Plan`, `(tests, seconds, unknown)`; `plan(names, records, jobs)`, the larger of the last durations' sum over the jobs and the longest one, a test with no duration counted in `unknown`
 - **The ask:** `test:<name>` the test of that name; `module:<name>` each test a label of which names it; `red` each test whose record is red, a flake among them, of the step's own configuration. An ask adds and narrows nothing; a test the key selects keeps the key's reason. `red` with no red kept adds nothing and is no `NO_TESTS` (the lead's answer, turn 93)
 - **Compatibility:** no call: dictionaries
-- **Extensibility:** another ask is one more kind in `ASKS` and one more branch of `_asked`
+- **Extensibility:** another ask is one more kind in `ASKS` and one more branch of `asked`
 - **Performance:** one pass over the listing, each ask tried on each test
 - **A fake:** none needed. Its proof: `tests/test_selection.py`, each reason, each ask, `every` and the plan's time
 - **Errors:** `ValueError` from `ask` alone
+
+The method for `gates`:
+
+- **Members:** `FORMAT`, 1, a gates file's; `BadGates`, a gates file unreadable or not in its form, one line naming where; `load(path)`, the gates file's data, checked: its format and toolset, each owner a gate of it, each gate's steps, each step a preset and only `preset`, `source`, `select`, `labels`, `pattern`, `repeat` and `reach`, its first step with no reach; `steps_of(gate, root)`, `[(run.Step, its reach or None)]`, each step's targets its build preset's in root's presets files (`run.targets`); `owners_of(data)`, `{preset: [(gate, labels, pattern)]}`, of the gate the owners name for the preset, then of `envelope.OWNER`, each one's step of that preset (`envelope.owner`); `matcher(reach, trees)`, whether a path from the root is in a reach, `trees` the table's trees; `out_of_reach(root, step, reach, files, trees, asks=())`, why a step is left out by its reach, or `None` where it runs
+- **The reach:** a step runs where its configuration has no store or an unreadable one (its own answer names it), where a file of its reach changed since its configuration's last run (git's blob ids, `key.Files`, against its `state.json`'s), or where an ask names a test it lists by its store's records, each test's labels its record's (`selection.asked`, `envelope.lists`): an ask adds to the selection whatever the step's reach. Else it is left out, its reason the run it stands on, and, with asks, that no ask names a test it lists. A reach is `paths`, each a path or a directory ending in `/`, or `trees` with `suffixes`, names of `trees.json`'s lists, a suffix itself where it starts with `.`
+- **Compatibility:** one `json` read of the file and one of a `state.json`: no call to the system
+- **Extensibility:** another step field is one more name in `STEP_FIELDS` and its check in `load`; another reach, one more field in `REACH_FIELDS` and its part of `matcher`
+- **Performance:** a step's reach reads its configuration's `state.json` once, before its build, each ask tried on each record
+- **A fake:** none needed. Its proof: `tests/test_gates.py`, on planted gates files and a planted store: each refusal of `load`, the steps with their targets, the owners and a red's ask, `commit`'s for a release red its step lists, the matcher, and the reach by files and by asks
+- **Errors:** `BadGates` from `load` alone; a store `out_of_reach` cannot read runs the step
 
 The method for `run`:
 
@@ -86,6 +96,15 @@ The method for `envelope`:
 ## Changes
 
 Newest first, each entry its version, its date and the commit it describes.
+
+### 0.6, 2026-11-07, the commit that brings this entry
+
+An ask runs the step that lists its test, its reach aside, the reviewer's ruling on the gate's finding G-5: a step its reach left out ran for no ask, and a release red the commit gate's step lists named the debugger gate's ask, or `presets`' where it had no `debugger` label.
+
+- **What changed, by member:** `gates` is new: `load`, `steps_of`, `owners_of`, `matcher` and `out_of_reach`, moved from `tools/gate.py`, where they were untested, so that the module's tests hold them; `out_of_reach` runs a step its reach leaves out where an ask names a test the step lists by its store's records, each test's labels its record's. `selection.asked`, before `_asked`, is public, its rule as before, the one rule `choose` and `out_of_reach` read.
+- **This file:** Holds, Files, `selection`'s Members and Extensibility, `gates`' method, new; this version; this entry. `gates.py`'s and `selection.py`'s docstrings.
+- **What a consumer does:** `tools/gate.py` reads `tools/gates.json` by `gates.load`, its steps by `gates.steps_of`, its owners by `gates.owners_of`, and leaves out a step only where `gates.out_of_reach` says why, given the run's asks; it keeps its command line, the steps in order and the printing. `tools/gates.json`'s owners name `commit` for `release`, so that a release red's ask is `commit`'s where that step lists the test, else `presets`'.
+- **Known limits:** an ask of a test the step's store has no record of yet, a test new to its tree, leaves the step out by its reach until a file of its reach changes; the one-tree gate of its tree runs it.
 
 ### 0.5, 2026-11-07, the commit that brings this entry
 

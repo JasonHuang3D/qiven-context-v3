@@ -40,7 +40,10 @@ def spelled(one):
     return one.kind if one.name is None else f"{one.kind}:{one.name}"
 
 
-def _asked(one, name, labels, record):
+def asked(one, name, labels, record):
+    """Whether the Ask `one` names the test `name` of `labels` and `record`,
+    its state.json record or None: test:<name> by its name, module:<name> by
+    a label, red by a red record."""
     if one.kind == "test":
         return name == one.name
     if one.kind == "module":
@@ -59,7 +62,7 @@ def choose(listed, records, keys, tree, asks=(), every=False):
         record = records.get(name)
         why = states.reason(record, keys[name], tree)
         for one in asks:
-            if _asked(one, name, labels, record):
+            if asked(one, name, labels, record):
                 hit[one] = True
                 why = why or ASKED
         why = why or (ASKED if every else None)

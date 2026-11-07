@@ -5,14 +5,14 @@
     "ci-windows": "commit",
     "structure": "structure",
     "analysis": "analysis",
-    "release": "debugger",
+    "release": "commit",
     "alone": "alone",
     "asan": "asan",
     "fuzz": "fuzz"
   },
   "gates": {
     "commit": {
-      "about": "every commit: the daily tree by key, the checks among its tests; then, by reach, the analysis tree where a C++ file under the analysed roots changed, the analysis gating from the turn it was ruled to, and the hang and debugger cases where the watcher or a debugger changed; no structure step, the records being the daily tree's build steps",
+      "about": "every commit: the daily tree by key, the checks among its tests; then, by reach, the analysis tree where a C++ file under the analysed roots changed, the analysis gating from the turn it was ruled to, and the hang and debugger cases where the watcher or a debugger changed; a step its reach leaves out runs where an ask names a test it lists; the owner of the daily tree's and the release tree's reds; no structure step, the records being the daily tree's build steps",
       "steps": [
         {"preset": "ci-windows", "select": "changed"},
         {"preset": "analysis", "select": "changed", "labels": "^analysis$",
