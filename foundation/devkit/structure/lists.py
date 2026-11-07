@@ -118,6 +118,9 @@ STATED = {
                                                                   "its one target over them",
     ("B1", "foundation/system/sqlite/src/README.md", "sqlite3"): "that module's vendoring record: the vendored "
                                                                  "files' version, source, digests and options",
+    ("B1", "foundation/devkit/build/tests/scenes/tools/trees.json", "sqlite3"): "build's test fixture, whose vendored "
+                                                                              "line copies tools/trees.json's, "
+                                                                              "naming the vendored SQLite's files",
     ("B9", DIAG + "src/", "crtdbg.h"): "the diagnostic entry: the debug runtime's reports to standard error, "
                                        "and its report hook",
     ("B9", DIAG + "src/", "execinfo.h"): "the diagnostic entry's backtrace on Linux",
