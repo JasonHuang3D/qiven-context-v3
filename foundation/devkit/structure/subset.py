@@ -524,6 +524,8 @@ def config_rules(root, files, add):
     clang-tidy's defaults, where the check is off."""
     for rel in files:
         name = rel.rsplit("/", 1)[-1]
+        if not name.endswith((".clang-tidy", ".ruleset")):
+            continue
         text = (root / rel).read_bytes().decode("utf-8", "replace")
         if name.endswith(".clang-tidy"):
             on = tidy_inherits(text)

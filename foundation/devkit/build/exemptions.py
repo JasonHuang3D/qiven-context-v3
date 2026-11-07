@@ -59,26 +59,45 @@ def rule_set_off(rel, text, data, add):
     return {("msvc", rule.get("Id"), scope) for rule in tree.iter("Rule") if rule.get("Action") not in ON}
 
 
-def findings(root, files):
-    """Each (file, detail) where the configuration and the list part."""
+def sources(tool, scope, data):
+    """The files that may turn an entry of tool and scope off: a directory's
+    .clang-tidy, the root's for every file, the test code's file of its tool,
+    or, for MSVC's every file, each rule set of the list but the test code's."""
+    if tool == "clang-tidy":
+        return {".clang-tidy" if scope == EVERY else data["test_code"]["clang-tidy"] if scope == TEST
+                else scope + ".clang-tidy"}
+    test = data["test_code"]["msvc"]
+    return {test} if scope == TEST else set(data["rule_sets"]) - {test}
+
+
+def findings(root, files, scope=None):
+    """Each (file, detail) where the configuration and the list part, files
+    the tree's every file. scope, some of files, one module's (exemptions.<M>,
+    checks.py beside this file), narrows the match both ways to its
+    configuration files and the entries they may turn off (sources()); the
+    list's own findings, a rule set it names that is not there, two entries
+    and an entry with no reason, are the whole match's."""
     found = []
     add = lambda where, detail: found.append((where, detail))
     if LIST not in files:
         return [(LIST, "no list")]
     data = json.loads((root / LIST).read_text(encoding="utf-8"))
+    mine = set(files) if scope is None else set(scope)
     off = {}
-    for rel in files:
+    for rel in sorted(mine):
         reader = tidy_off if rel.endswith(".clang-tidy") else rule_set_off if rel.endswith(".ruleset") else None
         if reader:
             text = (root / rel).read_text(encoding="utf-8-sig")
             off.update({key: rel for key in reader(rel, text, data, add)})
-    for rel in sorted(set(data["rule_sets"]) - set(files)):
-        add(rel, "a rule set of the list that is not there")
     listed = [(entry["tool"], entry["check"], entry["scope"]) for entry in data["exemptions"]]
     for key in sorted(set(off) - set(listed)):
         add(off[key], f"{key} is off with no entry of the list")
-    for key in sorted(set(listed) - set(off)):
+    for key in sorted(k for k in set(listed) - set(off) if scope is None or sources(k[0], k[2], data) & mine):
         add(LIST, f"{key}: an entry that nothing turns off")
+    if scope is not None:
+        return sorted(found)
+    for rel in sorted(set(data["rule_sets"]) - set(files)):
+        add(rel, "a rule set of the list that is not there")
     for key in sorted(key for key in set(listed) if listed.count(key) > 1):
         add(LIST, f"{key}: two entries")
     for entry in data["exemptions"]:

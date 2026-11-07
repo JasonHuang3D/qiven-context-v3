@@ -1,10 +1,9 @@
-"""B32: in every file git treats as text, every file outside .gitattributes'
--text paths, no byte git cannot fix: no lone CR (a CR before no LF) and no
-control byte but tab and LF; a CR before an LF is git's to fix, and passes.
-Each finding names the file and the first line holding such a byte. Over
-every file of the checkout's working tree; and, as git reads the checkout's
-.gitattributes, the files git keeps byte for byte KEPT's alone and the code
-beside them text with eol=lf, git under an environment of the case's own:
+"""B32's other half: B32 itself, in every file git treats as text no byte
+git cannot fix, is each module's check's (rules.<M>,
+foundation/devkit/structure/checks.py, by rules.source_rules). Here, as git
+reads the checkout's .gitattributes, the files git keeps byte for byte
+KEPT's alone and the code beside them text with eol=lf, git under an
+environment of the case's own:
 foundation/devkit/python/git.py's reading_env, which reads no inherited GIT_
 variable and no system or global config or attributes, so that its commands
 read the same whatever the host's git config says (CI's Windows images set
@@ -33,16 +32,7 @@ def kept(rel):
     return rel in KEPT or rel.startswith(tuple(k for k in KEPT if k.endswith("/")))
 
 
-def line_ending_findings(root):
-    out = rules.Findings()
-    rules.source_rules(root, rules.source_files(root), out)
-    return sorted((f.where, f.detail) for f in out.found if f.rule == "B32")
-
-
 class LineEndings(unittest.TestCase):
-    def test_tree(self):
-        self.assertEqual(line_ending_findings(rules.ROOT), [])
-
     def test_as_git_reads(self):
         """The files git keeps byte for byte, each tracked file's text
         attribute unset, are KEPT's, each of them tracked; and every other

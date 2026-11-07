@@ -1,7 +1,9 @@
-"""The modules' check whole over the real checkout, as tools/loop_modules.py
-runs it: the table files, each table directory's README.md, each contract,
-each tracked file's module, each include edge and, given the build tree
-ctest names (QIVEN_BUILD), each link edge by its codemodel."""
+"""The modules' check of the whole tree over the real checkout: the table
+files, each table directory's README.md, each contract, each tracked file's
+module and, given the build tree ctest names (QIVEN_BUILD), each link edge
+by its codemodel. Each file's include edges are its module's check's
+(rules.<M>, foundation/devkit/structure/checks.py); tools/loop_modules.py
+runs both halves."""
 
 import os
 import unittest
@@ -20,7 +22,7 @@ class FullCheck(unittest.TestCase):
         files = git.tracked(root)  # as run() takes them, one git process
         table, errors = modules.tree(root, files)
         targets = modules.codemodel(build, root) if build else None
-        errors += modules.check(table, files, lambda f: (root / f).read_bytes(), targets, [])
+        errors += modules.check(table, files, lambda f: (root / f).read_bytes(), targets, [], subset=())
         self.assertEqual(errors, [])
         readmes = [p.replace("module.json", "README.md") for p in table["trees"].table_files(root)]
         self.assertTrue(readmes and all(p in files for p in readmes), [p for p in readmes if p not in files])

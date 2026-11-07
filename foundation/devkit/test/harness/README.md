@@ -2,17 +2,17 @@
 
 layer devkit, status built
 
-Version 0.4: the number of this file's change list, below, and of nothing else
+Version 0.5: the number of this file's change list, below, and of nothing else
 
-- **Holds:** the runner's tool half, meeting its C++ kit (`runner`) by process alone: `cases.cmake`, a case binary (`qiven_add_cases`) and the listing step (`qiven_list_tests`); `wiring.cmake`, the foundation's test directories and their end; `ctest_tests.cmake` and `list_tests.py`, each test listed behind the watcher; the watcher, `watch.py`; Python's case entry, `case.py`; the dumps' bound, `dumps.py`; `binaries.py`, the build's binaries and options and a watched run
+- **Holds:** the runner's tool half, meeting its C++ kit (`runner`) by process alone: `cases.cmake`, a case binary (`qiven_add_cases`) and the listing step (`qiven_list_tests`); `wiring.cmake`, the foundation's test directories and their end; `ctest_tests.cmake` and `list_tests.py`, each test listed behind the watcher, and the checks of each module registered from the table (`list_tests.CHECKS`): `rules.<M>` for each module holding a file of git's listing, labelled `fast`, M and `structure`, run by `structure`'s `checks.Check.test_<M>`; `exemptions.<M>` for each module holding a `.clang-tidy` or `.ruleset`, labelled `fast`, M and `build`, run by `build`'s `checks.Exemptions.test_<M>`; the watcher, `watch.py`; Python's case entry, `case.py`; the dumps' bound, `dumps.py`; `binaries.py`, the build's binaries and options and a watched run
 - **Never holds:** C++; a case's registration or checks (`runner`); a binary's main (`case_main`); a fault run (`faults`)
 - **Contract:** none
 - **Interface:** `qiven_add_cases`, `qiven_list_tests`, `qiven_foundation_tests_end`; the package `foundation.devkit.test.harness`: `binaries`; the watcher's and the case entry's command lines
 - **Files:** the eight above; `tests/`, their tests; `module.json`. `tests/CMakeLists.txt` and `foundation/CMakeLists.txt` include `wiring.cmake`
 - **Uses directly:** `python`'s `answer`, `build_tree`, `debugger`, `imports`, `process`, `status`, `system`, `table`; its tests, diag's `qiven_diag_fault` and the runner's cases
-- **Consumers rely on:** every test behind the watcher, its status in one last line, its exit the case's, past its limit a hang, 124; a test labelled with its module's name, `tools/changed.py`'s key; a skip its exit, 125, in both languages, read by `SKIP_RETURN_CODE`, its reason printed; a watched run by `run_watched` alone
+- **Consumers rely on:** every test behind the watcher, its status in one last line, its exit the case's, past its limit a hang, 124; a test labelled with its module's name, `tools/changed.py`'s key, but a module's check, labelled with the module it judges and its rules' module (one label where they are one), so a change to either selects it; a skip its exit, 125, in both languages, read by `SKIP_RETURN_CODE`, its reason printed; a watched run by `run_watched` alone
 - **Parameters:** none
-- **Refuses:** the listing, failing the build: a module not imported, a test of no module or labels, a test directory with no `__init__.py`, `--leave-out <name>: no test of that id or package`. The watcher, status 2: no `--limit`, `--name` or command; `watch.py: <test>: the case cannot start: <reason>`. The case entry, status 2: no `--skip` or id
+- **Refuses:** the listing, failing the build: no git to list the files by, a test of no module or labels, a test directory with no `__init__.py`, `--leave-out <name>: no test of that id or package`. The watcher, status 2: no `--limit`, `--name` or command; `watch.py: <test>: the case cannot start: <reason>`. The case entry, status 2: no `--skip` or id
 - **The watcher:** `python -I -X faulthandler foundation/devkit/test/harness/watch.py --limit <s> --name <test> -- <command>...` runs the case, sets `QIVEN_WATCHER`, `QIVEN_DUMP_DIR` and `QIVEN_LOG`, names the status by `status` and a library missing at load by `imports`, and bounds `dumps/`. Past `--limit`: `debugger.hang_stacks`, at most 16 threads and 200 lines, and `<binary>-<pid>-hang.dmp`, or `hang: no debugger, no stacks`; the tree ended, status 124. Its worst case against CTest's 30 s (`AFTER_LIMIT`) is in `debugger`'s charter: `HANG_SECONDS` 12 s, `READER_WAIT` 5 s
 - **The dumps' bound:** `bound(directory, pid=None, kept=DUMPS_KEPT)`, 8: the newest `kept` `*.dmp` and every dump of `pid` stay, a line for each removed or not; `hang_dump(pid, binary, directory)`, the hang dump's one name
 - **`run_watched(command, name, env=None, cwd=None, limit=TIME_BOUND)`:** behind the watcher, `TIME_BOUND` 10 s, polled every `POLL`, 0.1 s, for windows, its tree ended past the limit and twice `AFTER`, 30 s: `(status, out, err, seconds, seen)`, the dumps' lines dropped
@@ -23,7 +23,14 @@ Version 0.4: the number of this file's change list, below, and of nothing else
 
 Newest first, each entry its version, its date and the commit it describes.
 
-### 0.4, 2026-11-07, the commit that brings this entry
+### 0.5, 2026-11-07, the commit that brings this entry
+
+The checks per module registered, by the test framework's design, its second commit: the listing gives a line `<name>\t<labels>\t<id>` for each module's `rules.<M>` and `exemptions.<M>`, whose CTest name is not its case id; `ctest_tests.cmake` reads the third field; the listing step reruns when a table file or an analysis configuration file changes, or one comes or goes (`check_files.txt`, as `python_files.txt`). `test_wiring`'s `Registered` holds a module's check to its two labels and its case id.
+
+- **What a consumer does:** a reader of the listing takes the optional third field; a runner selects a module's checks by the module's label or its rules' module's.
+- **Known limits:** the listing reads git's files (`python`'s `git`), one process at each listing; a module of a project on top is listed by its files under the kept trees.
+
+### 0.4, 2026-11-07, `925a5f0`
 
 Python's case entry, by the test framework's design, its first commit (E-22, E-32, 2258): `case.py` runs one test by its id and exits 125 on a skip, its reason printed; every test's skip is `SKIP_RETURN_CODE`; the regular expression on unittest's sentence and the watcher's status line, and its limits (a pass printing that sentence read as a skip, a line between them making a skip a pass), are retired. `binaries.py`'s `CASE` and `case_run` replace `unittest_run`; `test_wiring` and `test_listing` read the new command.
 

@@ -154,6 +154,23 @@ function(qiven_list_tests)
     list(JOIN qiven_python_files "\n" qiven_python_names)
     file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/python_files.txt" CONTENT "${qiven_python_names}\n")
     list(APPEND qiven_python_files "${PROJECT_BINARY_DIR}/python_files.txt")
+    # The table's files, by which the listing names each module's check
+    # (rules.<M>), and the analysis configuration files, by which it names
+    # exemptions.<M>: their names too, as the Python files'.
+    set(qiven_check_globs "${qiven_root}/.clang-tidy")
+    foreach(tree IN LISTS qiven_walked qiven_layers)
+      list(APPEND qiven_check_globs "${qiven_root}/${tree}/module.json" "${qiven_root}/${tree}/.clang-tidy"
+        "${qiven_root}/${tree}/*.ruleset")
+    endforeach()
+    file(GLOB_RECURSE qiven_check_files CONFIGURE_DEPENDS ${qiven_check_globs})
+    foreach(qiven_table IN LISTS qiven_tables)
+      if(EXISTS "${qiven_root}/${qiven_table}")
+        list(APPEND qiven_check_files "${qiven_root}/${qiven_table}")
+      endif()
+    endforeach()
+    list(JOIN qiven_check_files "\n" qiven_check_names)
+    file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/check_files.txt" CONTENT "${qiven_check_names}\n")
+    list(APPEND qiven_python_files ${qiven_check_files} "${PROJECT_BINARY_DIR}/check_files.txt")
   else()
     message(STATUS "qiven: no interpreter named; the Python tests are not registered")
   endif()

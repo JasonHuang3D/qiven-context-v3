@@ -1,6 +1,9 @@
 """The CTest wiring: one whole test id run by Python's case entry, and each
 test's labels and properties as the test presets select them: each labelled
-with one module's name (the table, foundation/devkit/python/table.py), behind
+with one module's name (the table, foundation/devkit/python/table.py), but a
+module's check (rules.<M>, exemptions.<M>, list_tests.CHECKS), labelled with
+two, the module it judges and its rules' module, one where they are one,
+and run by its case id, not its name; behind
 the watcher, under its limit by its labels (a slow test 1,800 s, a fast one
 60 s, any other 300 s), CTest's TIMEOUT 30 s past it, its skip its exit in
 both languages and a fuzz target's run alone."""
@@ -15,6 +18,7 @@ from foundation.devkit.python import system
 from foundation.devkit.python import table
 from foundation.devkit.test.harness import binaries
 from foundation.devkit.test.harness.binaries import SKIP_CODE
+from foundation.devkit.test.harness.list_tests import CHECKS
 
 LABELS = {"cxx", "py", "fast", "fake", "debugger", "slow", "machine", "drive", "oracle",
           "fuzz", "bench", "drill", "gpu", "analysis"}
@@ -76,11 +80,20 @@ class Registered(unittest.TestCase):
         self.assertIn("runner.pass_status", tests)
         self.assertIn(SELECT + "test_ab", tests)
         self.assertFalse([name for name in tests if name.startswith("demo.")])
+        self.assertIn("rules.structure", tests)
+        self.assertIn("exemptions.build", tests)
         watch = binaries.WATCHER
         for name, (watched, props) in tests.items():
             with self.subTest(name=name):
                 labels = set(props["LABELS"])
-                self.assertEqual(len(labels & MODULES), 1, labels)  # its module's, by which the runner selects it
+                check = next(((prefix, rules, case) for prefix, rules, case, _ in CHECKS if name.startswith(prefix)),
+                             None)
+                if check:  # the module it judges and its rules' module, by which a change to either selects it
+                    judged = name[len(check[0]):]
+                    self.assertEqual(labels, {"py", "fast", judged, check[1]})
+                    self.assertIn(judged, MODULES)
+                else:
+                    self.assertEqual(len(labels & MODULES), 1, labels)  # its module's, by which the runner selects it
                 labels -= MODULES - LABELS
                 self.assertLessEqual(labels, LABELS)
                 self.assertEqual(len(labels & {"cxx", "py"}), 1)
@@ -97,9 +110,12 @@ class Registered(unittest.TestCase):
                 if "py" in labels:
                     self.assertEqual(command[1], "-I")
                     self.assertEqual(Path(command[2]), binaries.CASE)
-                    self.assertEqual(command[3:], ["--skip", str(SKIP_CODE), name])
+                    case = check[2] + name[len(check[0]):] if check else name
+                    self.assertEqual(command[3:], ["--skip", str(SKIP_CODE), case])
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
-                    if name.startswith(ANALYSIS):
+                    if check:
+                        self.assertNotIn("drive", labels)
+                    elif name.startswith(ANALYSIS):
                         self.assertEqual(labels, {"py", "analysis"})
                     elif name.startswith(STRUCTURE):
                         self.assertIn("fast", labels)

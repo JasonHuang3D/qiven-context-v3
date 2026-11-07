@@ -9,8 +9,12 @@ identifiers and #include directives from the sources by the rules' lexer
 (lexer.py), and the tree's files by tree.py, through git; no rule reads C++ by a
 regular expression. The text rules are
 B1's, a substring search for sqlite3, and B32's, a search of each text
-file's bytes for those git cannot fix. check() applies every rule to v3's
-tree and gives its findings.
+file's bytes for those git cannot fix. check() applies every rule to a set
+of a tree's files and gives its findings; its two halves are file_rules(),
+the rules each file's own bytes decide, which checks.py runs over one
+module's files, and record_rules(), the rules over the structure build's
+records, which tests/test_boundaries.py runs over the tree. Each allowance
+row is one half's (half()): a row is controlled where its half runs.
 """
 
 import os
@@ -46,9 +50,38 @@ def allows(rule, where, what=None):
             | {(r, f, w) for r, f, w in ALLOWANCES if r == rule and match(where, f) and match(what, w)})
 
 
-# Every allowance row, as allows() gives it; the rules over the tree use each (Tree.test_rules).
+# Every allowance row, as allows() gives it; the rules over the tree use each: a file row by its
+# module's check (checks.py), every other by Tree.test_rules.
 ROWS = frozenset({(r, p) for table in (ALLOWED, EXEMPT) for r, ps in table.items() for p in ps}
                  | set(ALLOWANCES))
+# The rules file_rules() alone gives, and those record_rules() alone gives.
+FILE_RULES = frozenset(f"B{n}" for n in range(18, 33))  # the subset's B18 to B31, and B32
+RECORD_RULES = frozenset(("B5", "B6", "B7", "B8", "B9", "B10", "B11"))
+
+
+def half(row):
+    """The half of the rules whose findings row can allow: "file", "records"
+    or "both". A target's row is the records'; B1's with a what, its text's;
+    B17's with a what, an include's, which the records' half reads."""
+    rule, where = row[0], row[1]
+    if "/" not in where:
+        return "records"
+    if rule in FILE_RULES or (rule == "B1" and len(row) == 3):
+        return "file"
+    if rule in RECORD_RULES or (rule == "B17" and len(row) == 3):
+        return "records"
+    return "both"
+
+
+def holds(row, rel, tree):
+    """Whether row's path holds rel, as it stands or as the top-level tests/ would hold it."""
+    places = (rel, tree.as_tests(rel))
+    return any(under(w, (row[1],)) if len(row) == 2 else match(w, row[1]) for w in places)
+
+
+def row_files(files, tree):
+    """{row: the files of files its path holds} for every row of ROWS that names a path."""
+    return {row: [rel for rel in files if holds(row, rel, tree)] for row in ROWS if "/" in row[1]}
 
 
 def match(value, key):
@@ -361,18 +394,46 @@ def link_rules(records, out):
                 sorted(d for d in reached if d in B13_LINKS)))
 
 
-def check(records, root=None):
-    """Every rule over one tree: its Findings."""
-    root = Path(root or records.root)
-    out = Findings(layers.of(root))
-    files = source_files(root)
+def file_rules(root, files, out):
+    """The rules each of files decides by its own bytes: source_rules()'s and
+    the subset's (subset.check). Gives the files holding a goldens path."""
     goldens = source_rules(root, files, out)
+    subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what),
+                 out.tree)
+    return goldens
+
+
+def goldens_of(root, files):
+    """The C++ files of files holding a goldens path, B14's, each lexed only
+    where its bytes hold the word."""
+    found = set()
+    for rel in files:
+        if not rel.endswith(CXX_SOURCES) or rel in layers.VENDORED:
+            continue
+        data = (root / rel).read_bytes()
+        if b"goldens" in data and any(kind == "str" and is_goldens(value)
+                                      for kind, value, _ in lex(data.decode("utf-8", "replace"))[0]):
+            found.add(rel)
+    return found
+
+
+def record_rules(records, root, files, goldens, out):
+    """The rules over the records: the includes, the directives of files'
+    C++ sources, the names and the links; goldens, the files holding a
+    goldens path (goldens_of())."""
     include_rules(records, out)
     directive_rules(records, root, files, out)
     name_rules(records, goldens, out)
     link_rules(records, out)
-    subset.check(root, files, lambda rule, where, kind, detail, what: out.add(rule, where, kind, detail, what),
-                 out.tree)
+
+
+def check(records, root=None, files=None):
+    """Every rule over files of one tree, by default its every file: its Findings."""
+    root = Path(root or records.root)
+    out = Findings(layers.of(root))
+    files = source_files(root) if files is None else files
+    goldens = file_rules(root, files, out)
+    record_rules(records, root, files, goldens, out)
     return out
 
 
@@ -384,9 +445,8 @@ def records_directory():
     return ROOT / "build" / "structure" / "structure"
 
 
-def findings():
-    """The Findings over v3's tree, from the structure build's records,
-    which must be there and current."""
+def current_records():
+    """The structure build's Records, which must be there and current."""
     directory = records_directory()
     if not (directory / "index.json").is_file():
         raise AssertionError(f"no structure records at {directory}: build the structure preset first")
@@ -395,4 +455,10 @@ def findings():
     if stale:
         raise AssertionError("the structure records are older than " + ", ".join(stale[:5])
                              + ": build the structure preset again")
-    return check(records, ROOT)
+    return records
+
+
+def findings():
+    """The Findings of every rule over v3's tree, from the structure build's
+    records, which must be there and current."""
+    return check(current_records(), ROOT)

@@ -120,15 +120,21 @@ if(DEFINED PYTHON)
     if(line STREQUAL "")
       continue()
     endif()
-    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)\t([a-z0-9_,]+)$")
+    # "<id>\t<labels>", or "<name>\t<labels>\t<id>" for a module's check,
+    # whose CTest name is not its id.
+    if(NOT line MATCHES "^([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+)\t([a-z0-9_,]+)(\t([A-Za-z0-9_]+\\.[A-Za-z0-9_.]+))?$")
       message(FATAL_ERROR "the Python listing gave a malformed line: '${line}'")
     endif()
+    set(name "${CMAKE_MATCH_1}")
     set(id "${CMAKE_MATCH_1}")
+    if(CMAKE_MATCH_4)
+      set(id "${CMAKE_MATCH_4}")
+    endif()
     string(REPLACE "," ";" labels "py,${CMAKE_MATCH_2}")
     # From the root, by its case entry, which runs that one id and exits
     # SKIP on a skip, its reason printed.
     set(test_command "${PYTHON}" -I "${SOURCE}/foundation/devkit/test/harness/case.py" --skip ${SKIP} "${id}")
-    qiven_add_test("${id}" "${labels}" FALSE "${SOURCE}" ${test_command})
+    qiven_add_test("${name}" "${labels}" FALSE "${SOURCE}" ${test_command})
     math(EXPR python_tests "${python_tests} + 1")
   endforeach()
 endif()

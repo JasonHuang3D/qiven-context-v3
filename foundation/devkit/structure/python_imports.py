@@ -8,7 +8,8 @@ _winapi but in system's Windows back end,
 foundation/devkit/python/_windows.py, the one module wrapping them; and no
 change of sys.path but the one form a script under -I needs for that
 layer, sys.path.append of the root, so that the standard library still
-wins. python_findings() applies it; tests/test_imports.py, over v3's tree."""
+wins. python_findings() applies it to a set of files; checks.py, to each
+module's files of v3's tree."""
 
 import ast
 import sys

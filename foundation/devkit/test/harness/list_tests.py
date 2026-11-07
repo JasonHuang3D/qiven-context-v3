@@ -5,7 +5,14 @@ Run from the checkout's root as python -I foundation/devkit/test/harness/list_te
 [--trees <tree>...] [--leave-out <name>...]: --trees, the trees it walks, by default
 every one; --leave-out, tests it does not list, each by its id or a package's name,
 which it still imports: discover loads every module before any is left out.
-Each line is "<id>\t<labels by commas>". A
+Each line is "<id>\t<labels by commas>", or "<name>\t<labels by
+commas>\t<id>" for a test whose CTest name is not its id: the checks of
+each module, from the table (checks(), below), rules.<M> for each module M
+that holds a file of git's listing, run by structure's checks.py and
+labelled fast, M and structure, and exemptions.<M> for each module that
+holds a .clang-tidy or .ruleset file, run by build's checks.py and labelled
+fast, M and build; rules.structure and exemptions.build carry their one
+module's label. A
 test's labels are its package's, by its whole name where PACKAGE_LABELS
 names it so, or its module's where MODULE_LABELS names it, below, and those
 its class names in ctest_labels, then the name of the
@@ -28,6 +35,7 @@ from pathlib import Path
 
 # Under -I the checkout is off sys.path; appended, so that the standard library still wins.
 sys.path.append(str(Path(__file__).resolve().parents[4]))
+from foundation.devkit.python import git
 from foundation.devkit.python import table as module_table
 
 # The labels of each package of tests/ that holds Python tests.
@@ -46,6 +54,29 @@ PACKAGE_LABELS = {
 MODULE_LABELS = {
     "foundation.devkit.build.tests.test_analysis": ("analysis",),
 }
+# The checks of each module: (CTest name's prefix, the module of the rules, the case id's prefix, which files
+# give a module its test).
+CHECKS = (
+    ("rules.", "structure", "foundation.devkit.structure.checks.Check.test_", lambda rel: True),
+    ("exemptions.", "build", "foundation.devkit.build.checks.Exemptions.test_",
+     lambda rel: rel.endswith((".clang-tidy", ".ruleset"))),
+)
+
+
+def checks(root, table, kept):
+    """[(name, labels, id)] of the checks of each module (CHECKS): a module's
+    when it holds one of git's files, tracked or not ignored, that the
+    working tree holds, under the kept trees where a project on top names
+    them, each file under its first owning module."""
+    files = [rel for rel in git.tracked(Path(root), others=True) if (Path(root) / rel).is_file()]
+    if kept is not None:
+        files = [rel for rel in files if rel.startswith(tuple(f"{tree}/" for tree in kept))]
+    owner = module_table.owners(table, files)
+    rows = []
+    for prefix, rules_module, case, takes in CHECKS:
+        held = sorted({names[0] for rel, names in owner.items() if names and takes(rel)})
+        rows += [(prefix + name, tuple(dict.fromkeys(("fast", name, rules_module))), case + name) for name in held]
+    return rows
 
 
 def walk(suite):
@@ -87,13 +118,15 @@ def package(path, trees, homes):
 
 
 def listed(root=".", kept=None, left_out=()):
-    """([(id, labels)], [errors]) of the
+    """([(name, labels, id)], [errors]) of the
     tests discover finds in each package of the kept trees, by default the
-    trees tools/trees.json walks and its layers', from the checkout's root;
+    trees tools/trees.json walks and its layers', from the checkout's root,
+    each named by its id, and of the checks of each module (checks());
     but those left_out names, each by its id or a package's name, one that
     matches no test an error."""
     table = module_table.load(root)
     trees = table["trees"]
+    named = checks(root, table, kept)
     kept = trees.every if kept is None else kept
     homes = {home.rpartition("/")[0] for home in table["homes"].values()}
     loader = unittest.TestLoader()
@@ -126,9 +159,9 @@ def listed(root=".", kept=None, left_out=()):
         if not owner:
             errors.append(f"{test_id}: its file is in no module of the table")
             continue
-        rows.append((test_id, labels + (owner[0],)))
+        rows.append((test_id, labels + (owner[0],), test_id))
     errors += [f"--leave-out {name}: no test of that id or package" for name in unmatched]
-    return rows, errors + [str(error) for error in loader.errors]
+    return rows + named, errors + [str(error) for error in loader.errors]
 
 
 def main(argv):
@@ -137,8 +170,8 @@ def main(argv):
     parser.add_argument("--leave-out", nargs="+", default=())
     args = parser.parse_args(argv)
     rows, errors = listed(kept=args.trees, left_out=args.leave_out)
-    for test_id, labels in rows:
-        print(f"{test_id}\t{','.join(labels)}")
+    for name, labels, test_id in rows:
+        print(f"{name}\t{','.join(labels)}" + (f"\t{test_id}" if test_id != name else ""))
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0

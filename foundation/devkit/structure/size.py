@@ -1,15 +1,12 @@
 """B15: no .hpp, .cpp, .py or CMake file over 600 lines, its LFs and one
 unended line counted; the vendored files, tools/trees.json's vendored, are
-outside the count. size_findings() applies it to every file of a checkout;
-tests/test_size.py, to v3's.
+outside the count. size_findings() applies it to a set of a checkout's
+files; checks.py, to each module's.
 
-Read from the tree alone, its files by tree.py through git, no record, no
-build and no table, so that a long file is reported beside a broken table:
-this file and its test import nothing that reads the table, as rules.py
-does."""
+Read from the files alone, no record and no build, and with no table of
+its own: the files are given."""
 
 from foundation.devkit.structure import layers
-from foundation.devkit.structure.tree import source_files
 
 BOUND = 600
 
@@ -19,9 +16,10 @@ def line_count(data):
     return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
 
 
-def size_findings(root):
+def size_findings(root, files):
+    """The files of files, relative to root, past the bound."""
     found = []
-    for rel in source_files(root):
+    for rel in files:
         name = rel.rsplit("/", 1)[-1]
         counted = name.endswith((*layers.CXX, ".py", ".cmake")) or name == "CMakeLists.txt"
         if counted and rel not in layers.VENDORED and line_count((root / rel).read_bytes()) > BOUND:

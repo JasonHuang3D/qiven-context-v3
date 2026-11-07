@@ -333,14 +333,22 @@ def resolve(trees, including, name, tracked, roots, angle=False, homes=()):
     return None
 
 
-def check(table, files, read, targets=None, left=None):
+def check(table, files, read, targets=None, left=None, subset=None, whole=True, owner=None):
     """Every error: the table's, each file's ownership, each include edge and
     unresolved include and, with targets [(name, [tracked sources], [linked
     target names])], each link edge. read(path) gives a tracked file's bytes;
-    a vendored file's unresolved include goes to the list left, if given."""
-    errors, trees = check_table(table), table["trees"]
-    owner = module_table.owners(table, files)
+    a vendored file's unresolved include goes to the list left, if given.
+    subset, some of files, narrows the includes read to its files, resolved
+    against files (a module's check, checks.py); whole false leaves out the
+    table's errors, the ownership and the link edges, the whole tree's.
+    owner, if given, is module_table.owners(table, files), read once."""
+    errors, trees = check_table(table) if whole else [], table["trees"]
+    targets = targets if whole else None
+    mine = set(files) if subset is None else set(subset)
+    owner = module_table.owners(table, files) if owner is None else owner
     for f, names in sorted(owner.items()):
+        if not whole:
+            break
         if not names:
             errors.append(f"file {f}: in no module")
         elif len(names) > 1:
@@ -373,7 +381,7 @@ def check(table, files, read, targets=None, left=None):
         return source == target or target in closure[tests].get(source, ()) or (code and target in shared)
 
     tracked, roots = set(files), include_roots(trees, files)
-    for f in sorted(files):
+    for f in sorted(mine):
         if not f.endswith(trees.cxx_suffixes) or f not in module:
             continue
         data = read(f)

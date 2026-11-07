@@ -4,7 +4,8 @@ the secret check's twelve patterns, or a name of the specification's own
 repository: its name, its directories' and its files', or a reference into
 its text by a ruling's or a section's number (REFERENCE); nor a name of
 this machine, its user's or its own, where it stands as a component of a
-path. content_findings() applies it; tests/test_content.py, over v3's tree.
+path. content_findings() applies it to a set of files; checks.py, to each
+module's files of v3's tree.
 
 The paths are read when the check runs (machine_paths()), so that this
 file holds none: the
