@@ -1,9 +1,9 @@
-"""The CTest wiring: one whole test id selected by -k, and each test's labels
-and properties as the test presets select them: each labelled with one
-module's name (the table, foundation/devkit/python/table.py), behind the
-watcher, under its limit by its labels (a slow test 1,800 s, a fast one 60 s,
-any other 300 s), CTest's TIMEOUT 30 s past it, its skip (a C++ case's exit,
-a Python test's sentence) and a fuzz target's run alone."""
+"""The CTest wiring: one whole test id run by Python's case entry, and each
+test's labels and properties as the test presets select them: each labelled
+with one module's name (the table, foundation/devkit/python/table.py), behind
+the watcher, under its limit by its labels (a slow test 1,800 s, a fast one
+60 s, any other 300 s), CTest's TIMEOUT 30 s past it, its skip its exit in
+both languages and a fuzz target's run alone."""
 
 import json
 import re
@@ -25,9 +25,6 @@ MODULES = {m["name"] for m in table.load(binaries.ROOT)["modules"]}
 # by its package, whether it drives a binary or reads a build's files.
 STRUCTURE = "foundation.devkit.structure."
 ANALYSIS = "foundation.devkit.build.tests.test_analysis."
-HERE = "foundation/devkit/test/harness/tests"
-# A Python test's skip, as CTest reads it in the test's output.
-PYTHON_SKIP = r"OK \(skipped=[0-9]+\)[^a-z]+status: 0 passed"
 SELECT = "foundation.devkit.test.harness.tests.test_wiring.Select."
 # The Windows adapter's own file cases, on Windows alone.
 WIN_FILES = "win_files."
@@ -38,7 +35,7 @@ SLOW_LIMIT, FAST_LIMIT, OTHER_LIMIT, AFTER_LIMIT = 1800, 60, 300, 30
 
 
 class Select(unittest.TestCase):
-    """Two ids, one the other's prefix: a substring selects both."""
+    """Two ids, one the other's prefix: the case entry runs the shorter alone."""
     ctest_labels = ("fake",)
 
     def test_a(self):
@@ -46,14 +43,6 @@ class Select(unittest.TestCase):
 
     def test_ab(self):
         self.assertTrue(True)
-
-
-def top_package(name):
-    """Where discover starts for a Python test: the shortest leading part of
-    its id that is a directory of the root holding an __init__.py."""
-    parts = name.split(".")
-    return next("/".join(parts[:n]) for n in range(1, len(parts))
-                if (binaries.ROOT.joinpath(*parts[:n]) / "__init__.py").is_file())
 
 
 def ran_count(ran):
@@ -65,13 +54,9 @@ class PythonSide(unittest.TestCase):
     ctest_labels = ("fake",)
 
     def test_whole_id(self):
-        common = ["discover", "-s", HERE, "-t", "."]
-        whole = binaries.unittest_run(*common, "-k", "*" + SELECT + "test_a")
+        whole = binaries.case_run(SELECT + "test_a")
         self.assertEqual(whole.status, 0, whole.err.decode("utf-8", "replace"))
         self.assertEqual(ran_count(whole), 1)
-        part = binaries.unittest_run(*common, "-k", SELECT + "test_a")
-        self.assertEqual(part.status, 0, part.err.decode("utf-8", "replace"))
-        self.assertEqual(ran_count(part), 2)
 
 
 def ctest_tests(*args):
@@ -99,11 +84,8 @@ class Registered(unittest.TestCase):
                 labels -= MODULES - LABELS
                 self.assertLessEqual(labels, LABELS)
                 self.assertEqual(len(labels & {"cxx", "py"}), 1)
-                if "py" in labels:
-                    self.assertEqual(props["SKIP_REGULAR_EXPRESSION"], [PYTHON_SKIP])
-                    self.assertNotIn("SKIP_RETURN_CODE", props)
-                else:
-                    self.assertEqual(props["SKIP_RETURN_CODE"], SKIP_CODE)
+                self.assertEqual(props["SKIP_RETURN_CODE"], SKIP_CODE)
+                self.assertNotIn("SKIP_REGULAR_EXPRESSION", props)
                 # Behind the watcher, under its limit; then the test's own command.
                 self.assertEqual(watched[1:4], ["-I", "-X", "faulthandler"])
                 self.assertEqual(Path(watched[4]), watch)
@@ -113,10 +95,9 @@ class Registered(unittest.TestCase):
                 self.assertEqual(int(watched[6]), limit)
                 self.assertEqual(float(props["TIMEOUT"]), limit + AFTER_LIMIT)
                 if "py" in labels:
-                    self.assertEqual(
-                        command[1:],
-                        ["-I", "-m", "unittest", "discover", "-v", "-s", top_package(name), "-t", ".", "-k", "*" + name],
-                    )
+                    self.assertEqual(command[1], "-I")
+                    self.assertEqual(Path(command[2]), binaries.CASE)
+                    self.assertEqual(command[3:], ["--skip", str(SKIP_CODE), name])
                     self.assertEqual(Path(props["WORKING_DIRECTORY"]), binaries.ROOT)
                     if name.startswith(ANALYSIS):
                         self.assertEqual(labels, {"py", "analysis"})

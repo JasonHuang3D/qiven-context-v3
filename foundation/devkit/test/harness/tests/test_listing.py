@@ -1,7 +1,7 @@
 """The listing (list_tests.py) and CTest's start of each Python test it lists
 (ctest_tests.cmake): the packages it discovers in, the directories of tests
-discover would pass over, each listed test run from its top package, and a
-test's package by the one reader of test code."""
+discover would pass over, each listed test run by its id through the case
+entry (case.py), and a test's package by the one reader of test code."""
 
 import re
 import sys
@@ -54,20 +54,21 @@ class Listing(unittest.TestCase):
                              ["kits/k/tests", "tests/plain"])
 
     def test_ctest_start(self):
-        """CTest runs each listed Python test by its id from its top package:
-        one under tests/ as discover -s tests, one moved into a module's own
+        """CTest runs each listed Python test by its id through the case
+        entry, the checkout's: one under tests/, one moved into a module's own
         tests/ from there; both run and pass."""
         tool = cmake()
         if tool is None:
             raise unittest.SkipTest("no cmake")
-        starts = {"tests.drive.test_a.A.test_a": "tests",
-                  "foundation.core.m.tests.test_b.B.test_b": "foundation/core/m/tests"}
+        starts = ("tests.drive.test_a.A.test_a", "foundation.core.m.tests.test_b.B.test_b")
+        entry = "foundation/devkit/test/harness/case.py"
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
             lines = "".join(f"{test_id}\tdrive\n" for test_id in starts)
             files = {"tests/__init__.py": "", "tests/drive/__init__.py": "", "foundation/core/m/tests/__init__.py": "",
-                     "foundation/devkit/test/harness/list_tests.py": f"print({lines!r}, end='')\n", "inputs.txt": ""}
-            for test_id, start in starts.items():
+                     "foundation/devkit/test/harness/list_tests.py": f"print({lines!r}, end='')\n", "inputs.txt": "",
+                     entry: (ROOT / entry).read_text(encoding="utf-8")}
+            for test_id in starts:
                 module, cls, method = test_id.rsplit(".", 2)
                 files[module.replace(".", "/") + ".py"] = (f"import unittest\nclass {cls}(unittest.TestCase):\n"
                                                            f"    def {method}(self):\n        pass\n")
@@ -84,8 +85,8 @@ class Listing(unittest.TestCase):
             for line in added:
                 name, *words = re.findall(r"\[==\[(.*?)\]==\]", line)
                 command = words[words.index("--") + 1:]
-                self.assertEqual(command[1:], ["-I", "-m", "unittest", "discover", "-v", "-s", starts[name], "-t",
-                                               ".", "-k", f"*{name}"])
+                self.assertIn(name, starts)
+                self.assertEqual(command[1:], ["-I", f"{root.as_posix()}/{entry}", "--skip", "77", name])
                 done = process.run([sys.executable, *command[1:]], cwd=root, text=True)
                 self.assertEqual(done.status, 0, done.err)
                 self.assertIn("Ran 1 test", done.err)

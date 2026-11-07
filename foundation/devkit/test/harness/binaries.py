@@ -9,7 +9,8 @@ build directory; QIVEN_CTEST, the ctest of the build, which
 foundation/devkit/python/build_tree.py reads with the cmake beside it and
 the build's listing. A test run outside
 CTest names them itself. The watcher is WATCHER, watch.py beside this
-file, and its dumps' bound dumps.py, beside it.
+file, and its dumps' bound dumps.py, beside it; Python's case entry is
+CASE, case.py beside it, which case_run() runs one test by.
 
 listed() gives the files of the build's binaries.txt. build_option() reads
 a cache variable of the build by foundation/devkit/python/build_tree.py, and
@@ -36,12 +37,14 @@ from foundation.devkit.python.build_tree import ROOT
 # A process the tests start ends within this many seconds, or fails.
 TIMEOUT = process.LIMIT
 
-# A case binary's skip, the C++ runner's exit_skip
-# (foundation/devkit/test/runner/include/qiven/runner/core.hpp).
+# A test's skip: a case binary's, the C++ runner's exit_skip
+# (foundation/devkit/test/runner/include/qiven/runner/core.hpp), and a
+# Python test's, its case entry's.
 SKIP_CODE = 125
 
-# The watcher, in front of every test.
+# The watcher, in front of every test, and Python's case entry behind it.
 WATCHER = ROOT / "foundation" / "devkit" / "test" / "harness" / "watch.py"
+CASE = WATCHER.with_name("case.py")
 
 # A watched run's bound in seconds and its poll's period; the watcher's
 # seconds past its limit at most, the 30 s CTest leaves it
@@ -81,9 +84,10 @@ def run(name, args=(), data=None, cwd=None, timeout=TIMEOUT):
     return process.run([path(name), *args], data=data, cwd=cwd, limit=timeout)
 
 
-def unittest_run(*args, timeout=TIMEOUT):
-    """Runs this interpreter's unittest from the root, as CTest does."""
-    return process.run([sys.executable, "-I", "-m", "unittest", *args], cwd=ROOT, limit=timeout)
+def case_run(test_id, timeout=TIMEOUT):
+    """Runs one Python test by this interpreter and its case entry, CASE,
+    from the root, as CTest does."""
+    return process.run([sys.executable, "-I", CASE, "--skip", str(SKIP_CODE), test_id], cwd=ROOT, limit=timeout)
 
 
 def build_option(name):
