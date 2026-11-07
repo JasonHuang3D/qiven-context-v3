@@ -19,12 +19,12 @@ Version 0.2: the number of this file's change list, below, and of nothing else
 
 ## Changes
 
-### 0.2, 2026-11-07, the commit that brings this entry
+### 0.2, 2026-11-07, `e972112`
 
 The tool half moved to its own module, `harness` (`foundation/devkit/test/harness/`), by the owner's yes to step (b)'s challenge's Te-6: `cases.cmake`, `wiring.cmake`, `ctest_tests.cmake`, `list_tests.py`, `watch.py`, `dumps.py`, `binaries.py`, `tests/test_hang.py`, `tests/test_wiring.py` and `tests/__init__.py`. This file loses their lines (the Holds and Files clauses, the Interface's CMake functions and Python module, the Python half among its uses, the listing's and the watcher's refusals, the sections on the watcher, the dumps' bound, `run_watched` and a Python test's skip, and their compatibility, performance and proofs); the rest stands, not cut to its bound.
 
 - **What a consumer does:** its import of `binaries` or `list_tests`, and its `include()` of `wiring.cmake`, names `foundation.devkit.test.harness` or `foundation/devkit/test/harness/`; a row whose tests run them says `harness` in its `test_depends` (`build`'s). A consumer of the C++ kit does nothing.
 
-### 0.1, 2026-11-06, the commit that brings this entry
+### 0.1, 2026-11-06, `cdf16f1`
 
 The charter in the method's form, by step (b)'s design challenge: the method stated once, a version and this list; what the module uses directly, its row's `text` and `diag` being link closure; the watcher's, the dumps' bound's, `run_watched`'s and the skip's sections each one line, their words kept; the Interface line and the skip's limit. What a consumer does: nothing, no member changing.
