@@ -1,0 +1,5 @@
+[project]
+name = "qiven-devkit"
+version = "0.1.0"
+description = "The workbench a package is built, checked and tested with: a core that names no language, and one part per language."
+requires-python = ">=3.11"
