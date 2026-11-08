@@ -1,0 +1,13 @@
+{
+  "layers": ["foundation", "kits", "products"],
+  "walked": ["src", "tests", "tools"],
+  "analysed": ["src", "tests/support", "tests/child", "foundation/devkit/test/runner/tests"],
+  "included": ["src", "tests", "foundation/services/storage/recordlog/tests"],
+  "tests": "tests",
+  "support": "tests/support",
+  "child": "tests/child",
+  "vendored": ["foundation/system/sqlite/src/sqlite3.c", "foundation/system/sqlite/include/qiven/sqlite/sqlite3.h"],
+  "tables": ["module.json", "tools/module.json"],
+  "source_suffixes": [".c", ".cc", ".cpp", ".cxx"],
+  "header_suffixes": [".h", ".hh", ".hpp", ".hxx", ".inc", ".inl", ".ipp", ".tpp"]
+}

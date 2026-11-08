@@ -1,0 +1,34 @@
+{
+  "name": "write",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/write/build.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "write",
+      "layer": "product",
+      "depends": [
+        "entry",
+        "matcher",
+        "digest",
+        "format",
+        "memory",
+        "platform"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/write/",
+        "tests/unit/write.cmake",
+        "tests/unit/write_*",
+        "tests/support/fixtures/kept_bed.hpp"
+      ]
+    }
+  ]
+}

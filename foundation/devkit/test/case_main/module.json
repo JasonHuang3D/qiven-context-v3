@@ -1,0 +1,29 @@
+{
+  "name": "case_main",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "case_main",
+      "layer": "support",
+      "depends": [
+        "memory",
+        "log",
+        "text",
+        "diag",
+        "platform",
+        "runner"
+      ],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/test/case_main/"
+      ]
+    }
+  ]
+}

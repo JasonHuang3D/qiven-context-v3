@@ -1,0 +1,27 @@
+{
+  "name": "harness",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-11-07",
+  "parameters": [],
+  "present": [
+    {
+      "name": "harness",
+      "layer": "support",
+      "depends": [
+        "python"
+      ],
+      "test_depends": [
+        "diag",
+        "runner"
+      ],
+      "paths": [
+        "foundation/devkit/test/harness/"
+      ]
+    }
+  ]
+}

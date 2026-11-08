@@ -1,0 +1,241 @@
+// The runner's own cases, in process: each route of run_case and run_main.
+// The case main's test_runner.py (foundation/devkit/test/case_main/tests/)
+// drives the same routes through a process, a crash among them. Each run's end is read by an Ended of its
+// own; the case main's, its case.end, is the case main's own case.
+
+#include <array>
+#include <chrono>
+#include <cstddef>
+#include <cstring>
+#include <span>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
+#include "qiven/log/log.hpp"
+#include "qiven/memory/memory.hpp"
+#include "qiven/runner/runner.hpp"
+
+namespace {
+
+using qiven::runner::Case;
+using qiven::runner::Context;
+
+// A case of name, of body fn, with no Name of the log's.
+Case sample(std::string_view name, qiven::runner::CaseFn fn = nullptr) {
+    return Case{name, nullptr, fn};
+}
+
+// What the last run's end was given.
+struct Seen {
+    int status = -1;
+    std::size_t held = 0;
+};
+Seen seen;
+
+void seen_ended(qiven::log::Log& /*log*/, const Case& /*c*/, int status, std::chrono::steady_clock::time_point /*start*/,
+                std::size_t held) {
+    seen = Seen{status, held};
+}
+
+// The output of run_case on a case of these bodies, its status, and what
+// its end was given.
+struct Ran {
+    int status;
+    std::string out;
+    Seen ended;
+};
+
+Ran run(Context& ctx, qiven::runner::CaseFn fn) {
+    std::ostringstream out;
+    seen = Seen{};
+    const int status = qiven::runner::run_case(sample("sample.case", fn), out, ctx.log, &seen_ended);
+    return Ran{status, out.str(), seen};
+}
+
+bool reached = false;
+
+bool holds(const std::string& text, const char* part) {
+    return text.find(part) != std::string::npos;
+}
+
+// The sample cases' bodies, at namespace scope: a lambda in a case taking its
+// own qiven_ctx would shadow the case's.
+void sample_pass(Context& qiven_ctx) { CHECK(1 + 1 == 2); }
+
+void sample_fail_counts(Context& qiven_ctx) {
+    CHECK(1 == 2);
+    CHECK(2 == 3);
+    CHECK(3 == 3);
+}
+
+void sample_require_stops(Context& qiven_ctx) {
+    REQUIRE(false);
+    reached = true;
+}
+
+void sample_check_eq(Context& qiven_ctx) { CHECK_EQ(std::string("ab"), std::string("ac")); }
+
+void sample_counted_none_held(Context& qiven_ctx) {
+    qiven::memory::Arena& arena = qiven_ctx.counted.arena(4096);
+    const qiven::memory::String text("a text past the string's own small buffer",
+                                      qiven::memory::Allocator<char>(arena));
+    CHECK(arena.used() > text.size());
+    qiven::memory::Pool& pool = qiven_ctx.counted.pool(32, 4096);
+    pool.free(pool.allocate());
+    qiven::memory::Heap& heap = qiven_ctx.counted.heap(8192);
+    heap.free(heap.allocate(100));
+}
+
+// The pool slots sample_counted_held holds, the last first, each holding
+// the one before it in its first bytes. Under QIVEN_SYSTEM_HEAP a slot is
+// the system heap's: held from here, it stays reachable, and LeakSanitizer
+// reports no leak of it, while any other block lost still is one. The
+// runner's count is what reads the bytes as held.
+void* held_slots = nullptr;
+
+void sample_counted_held(Context& qiven_ctx) {
+    static_cast<void>(qiven_ctx.counted.arena(4096).allocate(24, 8));
+    void* slot = qiven_ctx.counted.pool(32, 4096).allocate();
+    std::memcpy(slot, std::as_bytes(std::span(&held_slots, 1)).data(), sizeof held_slots);
+    held_slots = slot;
+    static_cast<void>(qiven_ctx.counted.arena(64));
+}
+
+}  // namespace
+
+QIVEN_CASE(runner, pass_status) {
+    const Ran r = run(qiven_ctx, &sample_pass);
+    CHECK_EQ(r.status, qiven::runner::exit_pass);
+    CHECK_EQ(r.out, std::string("PASS sample.case\n"));
+}
+
+// The end given to Ended: the status and the bytes held.
+QIVEN_CASE(runner, ended_given) {
+    CHECK_EQ(run(qiven_ctx, &sample_pass).ended.status, qiven::runner::exit_pass);
+    CHECK_EQ(run(qiven_ctx, &sample_fail_counts).ended.status, qiven::runner::exit_fail);
+    CHECK_EQ(run(qiven_ctx, [](Context&) { QIVEN_SKIP("not applicable: here"); }).ended.status, qiven::runner::exit_skip);
+    CHECK_EQ(run(qiven_ctx, [](Context&) { throw 7; }).ended.status, qiven::runner::exit_fail);
+    // The bytes held: the arena's 24 and the pool's 32.
+    const Ran held = run(qiven_ctx, &sample_counted_held);
+    CHECK_EQ(held.ended.held, 56U);
+    CHECK_EQ(held.ended.status, qiven::runner::exit_fail);
+}
+
+QIVEN_CASE(runner, fail_counts) {
+    const Ran r = run(qiven_ctx, &sample_fail_counts);
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK(holds(r.out, "): CHECK failed: 1 == 2\n"));
+    CHECK(holds(r.out, "): CHECK failed: 2 == 3\n"));
+    CHECK(!holds(r.out, "3 == 3"));
+    CHECK(holds(r.out, "FAIL sample.case: 2 failed\n"));
+}
+
+QIVEN_CASE(runner, require_stops) {
+    reached = false;
+    const Ran r = run(qiven_ctx, &sample_require_stops);
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK(!reached);
+    CHECK(holds(r.out, "stopped by a failed REQUIRE\n"));
+    CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
+}
+
+QIVEN_CASE(runner, skip_code) {
+    CHECK_EQ(qiven::runner::exit_skip, 125);
+    const Ran r = run(qiven_ctx, [](Context&) { QIVEN_SKIP("not applicable: no files here"); });
+    CHECK_EQ(r.status, qiven::runner::exit_skip);
+    CHECK_EQ(r.out, std::string("SKIP sample.case: not applicable: no files here\n"));
+}
+
+QIVEN_CASE(runner, exception_fails) {
+    const Ran r = run(qiven_ctx, [](Context&) { throw std::runtime_error("out of the case"); });
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK(holds(r.out, "exception: out of the case\n"));
+    const Ran other = run(qiven_ctx, [](Context&) { throw 7; });
+    CHECK_EQ(other.status, qiven::runner::exit_fail);
+    CHECK(holds(other.out, "exception of an unknown type\n"));
+}
+
+QIVEN_CASE(runner, memory_error_named) {
+    // A MemoryError has no base: its code's name, its operation and its
+    // detail are named, and the case is counted failed.
+    const Ran r = run(qiven_ctx, [](Context&) { throw qiven::memory::MemoryError::budget("arena", 64, 80, 16); });
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK(holds(r.out, "memory error budget in arena: budget 64, request 80, held 16\n"));
+    CHECK(!holds(r.out, "unknown type"));
+    CHECK(holds(r.out, "FAIL sample.case: 1 failed\n"));
+}
+
+QIVEN_CASE(runner, check_eq_shows) {
+    const Ran r = run(qiven_ctx, &sample_check_eq);
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK(holds(r.out, "): CHECK_EQ failed: std::string(\"ab\") == std::string(\"ac\")\n"));
+    CHECK(holds(r.out, "  left:  ab\n  right: ac\n"));
+}
+
+QIVEN_CASE(runner, list_sorted) {
+    const std::vector<Case> cases{sample("b.x"), sample("a.y"), sample("a.x")};
+    const std::array<std::string_view, 1> args{"--list"};
+    std::ostringstream out;
+    std::ostringstream err;
+    CHECK_EQ(qiven::runner::run_main(args, cases, out, err, qiven_ctx.log), qiven::runner::exit_pass);
+    CHECK_EQ(out.str(), std::string("a.x\na.y\nb.x\n"));
+    CHECK_EQ(err.str(), std::string());
+}
+
+QIVEN_CASE(runner, run_refusals) {
+    const std::vector<Case> cases{sample("a.x")};
+    qiven::log::Log& log = qiven_ctx.log;
+    const auto status = [&log](const std::vector<Case>& in, std::span<const std::string_view> args,
+                               std::string& err_text) {
+        std::ostringstream out;
+        std::ostringstream err;
+        const int s = qiven::runner::run_main(args, in, out, err, log);
+        err_text = err.str();
+        return s;
+    };
+    // The command lines given.
+    const std::array<std::string_view, 2> run_unknown{"--run", "a.y"};
+    const std::array<std::string_view, 1> run_bare{"--run"};
+    const std::array<std::string_view, 2> list_more{"--list", "a.x"};
+    const std::array<std::string_view, 3> run_more{"--run", "a.x", "a.x"};
+    const std::array<std::string_view, 1> list{"--list"};
+    std::string err;
+    CHECK_EQ(status(cases, run_unknown, err), qiven::runner::exit_usage);
+    CHECK_EQ(err, std::string("no such case: a.y\n"));
+    CHECK_EQ(status(cases, {}, err), qiven::runner::exit_usage);
+    CHECK_EQ(err, std::string("usage: --list | --run NAME\n"));
+    CHECK_EQ(status(cases, run_bare, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, list_more, err), qiven::runner::exit_usage);
+    CHECK_EQ(status(cases, run_more, err), qiven::runner::exit_usage);
+    const std::vector<Case> twice{sample("a.x"), sample("a.x")};
+    CHECK_EQ(status(twice, list, err), qiven::runner::exit_usage);
+    CHECK_EQ(err, std::string("two cases are named a.x\n"));
+    const std::vector<Case> part{sample("a.")};
+    CHECK_EQ(status(part, list, err), qiven::runner::exit_usage);
+    CHECK_EQ(err, std::string("a case has an incomplete name: 'a.'\n"));
+}
+
+QIVEN_CASE(runner, registry_holds_self) {
+    bool found = false;
+    for (const Case& c : qiven::runner::registry()) {
+        found = found || c.name == "runner.registry_holds_self";
+    }
+    CHECK(found);
+}
+
+QIVEN_CASE(runner, counted_none_held) {
+    const Ran r = run(qiven_ctx, &sample_counted_none_held);
+    CHECK_EQ(r.status, qiven::runner::exit_pass);
+    CHECK_EQ(r.out, std::string("PASS sample.case\n"));
+}
+
+QIVEN_CASE(runner, counted_held) {
+    const void* const before = held_slots;
+    const Ran r = run(qiven_ctx, &sample_counted_held);
+    CHECK(held_slots != nullptr && held_slots != before);
+    CHECK_EQ(r.status, qiven::runner::exit_fail);
+    CHECK_EQ(r.out, std::string("held at the case's end: arena 1, 24 bytes\n"
+                                "held at the case's end: pool 1, 32 bytes\n"
+                                "FAIL sample.case: 2 failed\n"));
+}

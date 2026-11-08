@@ -1,0 +1,22 @@
+{
+  "name": "python",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-11-05",
+  "parameters": [],
+  "present": [
+    {
+      "name": "python",
+      "layer": "tooling",
+      "depends": [],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/python/"
+      ]
+    }
+  ]
+}

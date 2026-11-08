@@ -1,0 +1,32 @@
+{
+  "name": "build",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "build",
+      "layer": "whole-build",
+      "depends": [
+        "structure"
+      ],
+      "test_depends": [
+        "python",
+        "harness"
+      ],
+      "paths": [
+        "foundation/devkit/build/",
+        "CMakeLists.txt",
+        "CMakePresets.json",
+        "foundation/CMakeLists.txt",
+        "foundation/CMakePresets.json",
+        ".clang-tidy"
+      ]
+    }
+  ]
+}

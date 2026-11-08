@@ -1,0 +1,22 @@
+{
+  "name": "sqlite",
+  "layer": "system",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/system/sqlite/include/qiven/sqlite/sqlite3.h",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "sqlite",
+      "layer": "foundation",
+      "depends": [],
+      "test_depends": [],
+      "paths": [
+        "foundation/system/sqlite/"
+      ]
+    }
+  ]
+}

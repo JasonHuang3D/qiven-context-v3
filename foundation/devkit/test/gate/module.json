@@ -1,0 +1,24 @@
+{
+  "name": "gate",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-11-07",
+  "parameters": [],
+  "present": [
+    {
+      "name": "gate",
+      "layer": "tooling",
+      "depends": [
+        "python"
+      ],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/test/gate/"
+      ]
+    }
+  ]
+}

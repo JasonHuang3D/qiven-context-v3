@@ -1,0 +1,26 @@
+{
+  "name": "faults",
+  "layer": "devkit",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/devkit/test/faults/include/qiven/faults/faults.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "faults",
+      "layer": "foundation",
+      "depends": [
+        "memory",
+        "log",
+        "runner"
+      ],
+      "test_depends": [],
+      "paths": [
+        "foundation/devkit/test/faults/"
+      ]
+    }
+  ]
+}

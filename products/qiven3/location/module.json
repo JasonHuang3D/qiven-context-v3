@@ -1,0 +1,33 @@
+{
+  "name": "location",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/qiven3/location.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "location",
+      "layer": "product",
+      "depends": [
+        "platform",
+        "memory",
+        "entry",
+        "recordlog",
+        "wire"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/qiven3/location*",
+        "tests/unit/location.cmake",
+        "tests/unit/location_*",
+        "tests/support/fixtures/location_bed.hpp"
+      ]
+    }
+  ]
+}

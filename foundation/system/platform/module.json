@@ -1,0 +1,41 @@
+{
+  "name": "platform",
+  "layer": "system",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/system/platform/include/qiven/platform/platform.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "config_leaf",
+      "default": null,
+      "built": true
+    },
+    {
+      "name": "open_bound",
+      "default": null,
+      "built": true
+    }
+  ],
+  "present": [
+    {
+      "name": "platform",
+      "layer": "foundation",
+      "depends": [
+        "digest",
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/system/platform/CMakeLists.txt",
+        "foundation/system/platform/include/",
+        "foundation/system/platform/src/",
+        "foundation/system/platform/tests/"
+      ]
+    }
+  ]
+}

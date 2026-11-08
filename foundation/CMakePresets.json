@@ -1,0 +1,61 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {"major": 3, "minor": 28, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"}
+    },
+    {
+      "name": "here",
+      "hidden": true,
+      "inherits": "base",
+      "description": "This machine: the pinned MSVC, SDK, CMake, Ninja and CPython, from a shell vcvars64.bat -vcvars_ver=14.44.35207 set up; the interpreter from QIVEN_PYTHON or a user preset",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "QIVEN_PIN_TOOLS": "ON"
+      }
+    },
+    {
+      "name": "ci",
+      "hidden": true,
+      "inherits": "base",
+      "description": "CI, a runtime evaluation on the runners' latest images: the image's compiler, CMake and Ninja, unpinned, QIVEN_PIN_TOOLS off; every CI preset shares one build directory, which the fake test preset reads; the interpreter from QIVEN_PYTHON, which the workflow sets",
+      "binaryDir": "${sourceDir}/build/ci",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_FAULTS": "ON"}
+    },
+    {
+      "name": "alone",
+      "inherits": "here",
+      "displayName": "The foundation alone, MSVC: no product directory",
+      "description": "cmake -S foundation --preset alone: the foundation's targets and the tests of them that need no product, as ci-windows builds them; not from the root, whose file includes this one; its tree under the root's build/, the one ignored",
+      "binaryDir": "${sourceParentDir}/build/alone",
+      "condition": {"type": "allOf", "conditions": [
+        {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
+        {"type": "equals", "lhs": "${sourceDirName}", "rhs": "foundation"}
+      ]},
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "QIVEN_FAULTS": "ON"}
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "here",
+      "hidden": true,
+      "output": {"outputOnFailure": true},
+      "execution": {"jobs": 12}
+    },
+    {
+      "name": "alone",
+      "inherits": "here",
+      "displayName": "The foundation's tests, on the foundation's build",
+      "configurePreset": "alone",
+      "condition": {"type": "equals", "lhs": "${sourceDirName}", "rhs": "foundation"},
+      "execution": {"noTestsAction": "error"}
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "checked",
+  "layer": "products",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "src/checked/stores.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "checked",
+      "layer": "product",
+      "depends": [
+        "recordlog",
+        "entry",
+        "secret",
+        "format",
+        "memory",
+        "platform"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "src/checked/",
+        "tests/support/checked/",
+        "tests/unit/checked.cmake",
+        "tests/unit/checked_*",
+        "tests/support/fixtures/stage_book.hpp"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "tools",
+  "layer": "tools",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": null,
+  "adopted": "2026-10-31",
+  "parameters": [],
+  "present": [
+    {
+      "name": "tooling",
+      "layer": "tooling",
+      "depends": [],
+      "test_depends": [
+        "platform"
+      ],
+      "paths": [
+        "tools/__init__.py",
+        "tools/debug*",
+        "tools/fuzz_seeds.py",
+        "tools/gate.py",
+        "tools/gates.json",
+        "tools/loop*",
+        "tools/tests/",
+        "tools/trees.json"
+      ]
+    }
+  ]
+}

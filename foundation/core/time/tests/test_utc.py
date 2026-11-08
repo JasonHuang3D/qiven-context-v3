@@ -1,0 +1,48 @@
+"""utc reads no time zone: qiven_time_test's cases, each run as a process
+under TZ CST-8 and again under TZ UTC0, pass under both, and the zone case
+reports the C runtime's local offset, 28,800 seconds and 0, so the zone
+was the process's while the vectors gave the same results. The fault run
+may skip, as it does in a build without fault injection.
+"""
+
+import os
+import unittest
+
+from foundation.devkit.python import process
+from foundation.devkit.test.harness import binaries
+from foundation.devkit.test.harness.binaries import SKIP_CODE
+
+CASES = "qiven_time_test"
+# Each zone and the offset from UTC, in seconds, it gives the C runtime.
+ZONES = {"CST-8": 28800, "UTC0": 0}
+
+
+def run(args, zone):
+    """The case binary with `args`, under TZ `zone`."""
+    env = dict(os.environ)
+    env["TZ"] = zone
+    return process.run([binaries.path(CASES), *args], env=env)
+
+
+class UtcZones(unittest.TestCase):
+    ctest_labels = ("fake",)
+
+    def test_cases_under_each_zone(self):
+        listed = run(["--list"], "UTC0")
+        self.assertEqual(listed.status, 0, listed)
+        names = [line.split("\t")[0] for line in listed.out.decode("ascii").splitlines() if line]
+        self.assertIn("utc.zone", names)
+        self.assertIn("utc.vectors", names)
+        for zone, offset in ZONES.items():
+            for name in names:
+                with self.subTest(zone=zone, case=name):
+                    ran = run(["--run", name], zone)
+                    # The fault run skips in a build without fault injection.
+                    allowed = (0, SKIP_CODE) if name == "utc.faults" else (0,)
+                    self.assertIn(ran.status, allowed, ran)
+                    if name == "utc.zone":
+                        self.assertIn(f"utc.zone: local offset {offset} s".encode("ascii"), ran.out)
+
+
+if __name__ == "__main__":
+    unittest.main()

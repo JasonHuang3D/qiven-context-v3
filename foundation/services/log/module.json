@@ -1,0 +1,34 @@
+{
+  "name": "log",
+  "layer": "services",
+  "status": "built",
+  "platforms": [
+    "windows"
+  ],
+  "contract": "foundation/services/log/include/qiven/log/log.hpp",
+  "adopted": "2026-10-31",
+  "parameters": [
+    {
+      "name": "catalogue",
+      "default": null,
+      "built": true
+    }
+  ],
+  "present": [
+    {
+      "name": "log",
+      "layer": "foundation",
+      "depends": [
+        "diag",
+        "text",
+        "memory"
+      ],
+      "test_depends": [
+        "faults"
+      ],
+      "paths": [
+        "foundation/services/log/"
+      ]
+    }
+  ]
+}

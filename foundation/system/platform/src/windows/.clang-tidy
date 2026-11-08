@@ -1,0 +1,6 @@
+# The Windows adapter's own configuration, on its parent's (B23): a Win32
+# structure's own union is read here alone (OVERLAPPED, LARGE_INTEGER,
+# PROPVARIANT).
+InheritParentConfig: true
+Checks: >-
+  -cppcoreguidelines-pro-type-union-access
