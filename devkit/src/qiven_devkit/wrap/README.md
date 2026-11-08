@@ -214,3 +214,176 @@ pattern and the value it holds.
 
 `setup_env.FakeSetupEnvironment(answers)`: the call name `setup capture`,
 with the arguments of `environment` by keyword.
+
+## CMake: `cmake`
+
+```
+cmake.CMake(program, env, limit)
+```
+
+One `CMake` is CMake's wrapper: it configures a build tree and reads back
+what the tree recorded. Its `program`, `env` and `limit` hold for each of its
+calls. Every source and tree it is given is an absolute path, else a
+`ValueError`: a relative one would be read from a directory nobody named.
+
+| Method | Call name | What it gives |
+|---|---|---|
+| `configure(source, tree, *, preset=None, generator=None, entries={})` | `cmake configure` | Configures `tree` from the sources in `source`, by exactly one of `preset` (a configure preset of the presets file in `source`: `cmake --preset <preset> -B <tree>`, run in `source`) or `generator` (`cmake -S <source> -B <tree> -G <generator>`). `entries` `{name: value}` are cache entries, each passed as `-D<name>=<value>`; a name that is empty or holds `=` is a `ValueError`, and so is a value with whitespace at either end, which CMake would drop from it. Nothing is returned. |
+| `cache(tree)` | `cmake cache` | `{name: value}` of every entry of the tree's cache, as CMake recorded it, internal entries included, each value the text CMake holds. Starts no program. |
+
+The cache is read through CMake's file API, never by parsing
+`CMakeCache.txt`. Before each configure, `configure` writes a query for the
+cache, `tree/.cmake/api/v1/query/client-qiven-devkit/cache-v2`, an empty
+file. CMake answers the query each time it generates the tree, its own
+reruns during a build included, in `tree/.cmake/api/v1/reply/`. `cache`
+reads the reply index whose name is greatest (the current one, by the file
+API's rule), the client's `cache-v2` reply it names, and checks its form: kind
+`cache`, major version 2, each entry a name and a string value, no name
+twice. The reply is CMake's documented machine form. It keeps a value as it
+is, trailing spaces included, which the text of `CMakeCache.txt` quotes.
+
+What `cache` gives is what the tree's last generate recorded. A configure
+that failed before it generated leaves the earlier reply in place.
+
+Errors: the call base's own, under the call names above. A configure that
+fails (a CMake error, a preset the presets file does not hold) is `Failed`,
+with CMake's last lines. A tree with no reply index, or one whose index
+names no reply to this client's query, is `cmake.NotConfigured` (answer
+`not configured`): the tree was never generated with the query in place,
+which is the case for a tree configured by any other means. A reply that is
+not JSON, is not in the form above, or answers the query with an error is
+`Unreadable`.
+
+Not here: building a tree, which is Ninja's (below), and installing it,
+which is for the part that installs.
+
+`cmake.FakeCMake(answers)`: the call names above, with the methods'
+arguments by keyword (`source`, `tree`, `preset`, `generator`, `entries`).
+
+## Ninja: `ninja`
+
+```
+ninja.Ninja(program, env, limit)
+  .build(tree, targets=()) -> Built
+```
+
+One `Ninja` is Ninja's wrapper. `build` (call name `ninja build`) runs the
+program in `tree`, the directory that holds the tree's `build.ninja` (an
+absolute path, else a `ValueError`), and
+builds `targets` (Ninja's default where none are given). `program` is the
+Ninja the tree was generated for; a CMake tree records it as
+`CMAKE_MAKE_PROGRAM` in its cache. A tree of the generator `Ninja
+Multi-Config` is not here.
+
+**The route.** A build goes through Ninja directly, not through
+`cmake --build`. Ninja is the program that runs the steps and prints what it
+ran; `cmake --build` starts it and passes its output through. Building
+through CMake would put the reading of Ninja's report into CMake's wrapper,
+or one call across two wrappers. Built directly, CMake's wrapper configures
+and reads the cache, Ninja's builds and reads its report, and each tool has
+one wrapper. Nothing is lost: when its build files are out of date, Ninja
+reruns CMake itself, by the rule CMake wrote into them.
+
+**The report.** Ninja prints one status line for each step that runs. The
+call sets `NINJA_STATUS` in the environment it hands Ninja to its own form,
+`@ninja-step %f/%t@ `, replacing any value the caller's `env` holds, so a
+step's line is told from what a step's command printed. A status line
+names the step by its description in the build file, or by its command
+where it has none. Ninja does not end a command's output with a line end
+of its own, so a status line can follow such output on the same line: the
+form is found anywhere in a line, and what stands before it is the earlier
+command's output.
+
+`Built(steps, nothing, said)`:
+
+- `steps`, the name of each step that ran, in the order Ninja printed them.
+  Ninja first brings its own build files up to date, and the steps of that
+  are listed too (in a CMake tree, the re-check of `CONFIGURE_DEPENDS`
+  globs, run by every build, and a rerun of CMake).
+- `nothing`, true where Ninja said `ninja: no work to do.`: none of the
+  targets asked needed a step. Ninja says it after it has brought its own
+  build files up to date, so `nothing` can be true while `steps` names those
+  steps. That is the build tool's own word that nothing was rebuilt.
+- `said`, every other line Ninja wrote, of its output then of its standard
+  error: what the steps' commands printed, and Ninja's own messages.
+
+A step's name must be UTF-8, else the answer is `Unreadable`. The other
+lines are decoded as UTF-8 with errors replaced: they are for a reader.
+A build that ends with status 0 and holds neither a step nor Ninja's
+`no work to do.` is `Unreadable`, as is one that ran a step after it said
+there was no work.
+
+Errors: the call base's own, under `ninja build`. A build in which a step
+failed is `ninja.BuildFailed` (answer `build failed`), which holds the
+`Built` of what ran as `built`, and `failed`, the text after `FAILED: ` of
+each failed step's line (its exit code and its outputs, in Ninja's words).
+Any other status that is not 0, such as a target Ninja does not know or a
+directory with no `build.ninja`, is `Failed`, with Ninja's last lines.
+
+Not here: which steps rebuilt what a later part selects by, and whether a
+step a generator adds to every build counts as a rebuild. wrap reports;
+the caller reads.
+
+`ninja.FakeNinja(answers)`: the call name `ninja build`, with `tree` and
+`targets` by keyword.
+
+## CTest: `ctest`
+
+```
+ctest.CTest(program, env, limit)
+```
+
+One `CTest` is CTest's wrapper: it lists a build tree's tests and runs a
+selection of them. Its `program`, `env` and `limit` hold for each of its
+calls. Every call runs CTest in `tree`, an absolute path (else a
+`ValueError`), with `--test-dir <tree>` and `--no-tests=error`. A tree that holds no `CTestTestfile.cmake` is
+`ctest.NoTestFile` (answer `no test file`), and CTest is not started: CTest
+reads such a tree as one with no tests, or ends with status 1 and no word.
+
+| Method | Call name | What it gives |
+|---|---|---|
+| `listing(tree)` | `ctest listing` | `{name: Test}` of every test of the tree, from `--show-only=json-v1`. A tree with no test gives `{}`: CTest answers its listing with status 0 whatever `--no-tests` says. |
+| `run(tree, names, *, junit, jobs, repeat=None, log=None)` | `ctest run` | `Ran` of the tests `names`, run `jobs` at once, their results written by CTest to the file `junit` in JUnit's form and read back. `repeat`, where given, runs each until it fails, at most that many times; `log`, where given, is the file CTest writes its own output to. `junit` and `log` are absolute paths. |
+
+`Test(command, properties)`: `command` is the test's command line, a list of
+strings, or None where CTest gives none (a test not available in the tree's
+configuration). `properties` is `{name: value}`, each value as CTest's JSON
+holds it (a list for `LABELS`, a number for `TIMEOUT`). The listing is
+decoded whole and checked: kind `ctestInfo`, major version 1, each test a
+name, each property a name and a value, no test's or property's name twice.
+Any other answer, or one that is not UTF-8 JSON, is `Unreadable`. Other
+fields of a test (its backtrace, its configuration) are not read.
+
+The run takes the names by a file, `--tests-from-file`, written next to
+`junit` as `<junit>.names` (one name a line, UTF-8), and kept: the run's
+record of what was asked. A name that is empty or holds a line break is a
+`ValueError`; a name asked twice is asked once. A file left at `junit` by an
+earlier run is removed before CTest starts, so it is never read as this
+run's. CTest writes its own working files under `tree/Testing/`.
+
+`Ran(status, results, absent)`:
+
+- `status`, CTest's: 0 when every test it ran passed, 8 when one did not.
+- `results`, `{name: Result}` of each test the JUnit holds.
+  `Result(status, message, time)`: `status` is the testcase's status in
+  CTest's own words, `message` the message of its `failure` or `skipped`
+  element (None where it has neither), `time` its seconds. The words, as
+  CTest 4.4 writes them: `run`, the test passed; `fail`, it failed
+  (message `Failed`, or `Timeout` past its time limit); `notrun`, it did not
+  run, either skipped by its own word (message `SKIP_RETURN_CODE=<n>`) or
+  not started (message `Unable to find executable`), which CTest counts as a
+  failure; `disabled`, the test is disabled. wrap reads none of them as a
+  pass or a failure: that is the caller's.
+- `absent`, each name asked that the JUnit does not hold, in the order
+  asked. CTest drops a name that is no test of the tree without a word, and
+  runs the rest, so such a name is never a result, and never a pass.
+
+The JUnit is decoded whole and checked: a `testsuite` root, each testcase a
+name that was asked and a status of the four above, no name twice, a time
+that is a number. Under `repeat`, it holds each test once, its last run.
+Any other file, or none, is `Unreadable`. When the JUnit holds no test,
+none of `names` is a test of the tree: `ctest.NoTests` (answer `no tests`).
+A status other than 0 and 8 is `Failed`.
+
+`ctest.FakeCTest(answers)`: the call names above, with the methods'
+arguments by keyword.
