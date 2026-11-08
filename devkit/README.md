@@ -68,5 +68,8 @@ devkit/
   README.md           this specification
   pyproject.toml      the package's metadata: no dependency, no launcher
   src/qiven_devkit/   the import package
+    install.py        devkit's own installer
+    wrap/             the one way devkit starts a foreign program: the call
+                      base, a wrapper and its fake per tool (its README.md)
   tests/              devkit's tests, run by unittest as above
 ```
