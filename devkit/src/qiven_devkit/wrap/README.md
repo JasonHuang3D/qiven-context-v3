@@ -54,6 +54,38 @@ call.call(name, program, args, *, env, cwd, limit, data=None, takes=(0,), said="
 `Answer(name, status, out, err)`: the program's status, and its output as
 bytes. It is returned only when `status` is one of `takes`.
 
+### A held program: `start`
+
+```
+call.start(name, program, args, *, env, cwd, limit) -> Running
+```
+
+For a program the caller talks to while it runs, such as a debugger.
+`program`, `env`, `cwd` and `limit` are taken as `call` takes them, and the
+program starts as `call` starts one: suspended, with no window, into a job
+object of its own, and only then run. Its standard input is a pipe the caller
+writes to. Its output and its standard error are one pipe, in the order the
+program wrote them. `limit` covers the program's whole life, from its start.
+
+`Running` (`name`, `file`, `pid`, `limit`). `name` is the call name its
+errors carry; a wrapper that holds a program for several calls sets it to
+the call in hand.
+
+- `send(data)` writes bytes to its standard input. A program that no longer
+  reads it (it has ended) is `Failed`, with its status where it has one.
+- `read(seconds)` gives the next bytes it wrote, waiting at most `seconds`:
+  `b""` where none came in that time, None once its output has ended, which
+  is when every process holding the pipe has ended.
+- `wait(seconds)` gives its status once it has ended, None where it still
+  runs after `seconds`.
+- `close()` ends every process still in the job, waits up to 10 s for them to
+  be gone, and lets go of the job. A `with` block closes it on leaving,
+  whatever ends the block. A held program is ended at its close, unlike a
+  `call`'s leftovers: it is held because it does not end by itself. If the
+  caller's process is killed, the job is not ended.
+- A `send`, `read` or `wait` that reaches the limit ends the whole job and
+  raises `Slow`. One made after `close` is a `ValueError`.
+
 ### Errors
 
 Each error is a `call.CallError`, whose fields are `call` (the call's name),
@@ -63,7 +95,7 @@ Each error is a `call.CallError`, whose fields are `call` (the call's name),
 | Error | `answer` | When |
 |---|---|---|
 | `Missing` | missing | No file at the path the caller gave, no file for the bare name on the `PATH` of `env`, or no `PATH` in `env`. |
-| `Slow` | slow | The program started and passed its limit. It is present: its whole tree has been ended. `limit` holds the limit. The reason says how many of its processes were still alive 10 s after they were ended, if any. |
+| `Slow` | slow | The program started and passed its limit. It is present: its whole tree has been ended. `limit` holds the limit. The reason says how many of its processes were still alive 10 s after they were ended, if any. The output of a program past its limit is not kept. |
 | `Failed` | failed | The program ran and ended with a status not in `takes`. `status` holds the status, and the reason holds the program's last lines: up to 20 lines of its standard error, or of its output when its standard error is empty, decoded by `said` with errors replaced. A program that exists but could not be started is also `Failed`, with `status` None and the system's reason. |
 | `Unreadable` | unreadable | The program answered, but not in the form the call reads. A wrapper raises it when it parses an answer. |
 
@@ -387,3 +419,134 @@ A status other than 0 and 8 is `Failed`.
 
 `ctest.FakeCTest(answers)`: the call names above, with the methods'
 arguments by keyword.
+
+## cdb: `cdb`
+
+```
+cdb.Pin(version, sha256)
+cdb.Cdb(env, pin)
+```
+
+One `Cdb` is the wrapper of cdb, the console debugger of Windows: it finds
+cdb on its pin, reads every thread's stack of a running process, and holds a
+session on a program it starts or on a dump. cdb is the file that the
+variable `QIVEN_CDB` of `env` names, and `env` is the environment cdb, and
+every program it starts, runs under. `pin` is the caller's: the version that
+cdb's `-version` gives and the SHA-256 of the file, in hex. wrap holds no
+pin, looks in no default place and searches no SDK.
+
+| Method | Call name | What it gives |
+|---|---|---|
+| `find(limit)` | `cdb find` | The path of cdb, once the file is on its pin. |
+| `stacks(pid, *, symbols, frames, limit, dump=None)` | `cdb stacks` | `Stacks` of the running process `pid`, and its dump written to `dump`. |
+| `session(program, args, *, symbols, cwd, limit)` | `cdb session` | A `Session` on `program`, started under cdb with `args`, at its first stop. |
+| `dump(file, *, symbols, limit)` | `cdb dump` | A `Session` on the dump `file`. |
+
+`stacks`, `session` and `dump` find cdb first, within their own limit; a
+`Cdb` finds it once, and keeps the path it found for its later calls.
+
+**Finding.** `QIVEN_CDB` unset or empty in `env` is `Missing`, and so is a
+value that is not an absolute path or names no file; the reason names the
+variable and the pin. A file whose SHA-256 is not the pin's is
+`cdb.OffPin` (answer `off its pin`), naming the variable, the file and both
+digests. Then `cdb -version` runs: a version other than the pin's is
+`OffPin`, naming both versions; an answer with no version is `Unreadable`;
+past its limit it is `Slow`, never `Missing`. None of these is a skip: no
+answer of `find` reads as "no cdb, nothing to do".
+
+**Each start** of cdb passes `-sins`, so that no symbol path or server is
+read from the environment, `-lines`, for source lines, and `-y` with
+`symbols`, the directories where the binaries' symbols are, joined by `;`
+(no `-y` where there are none). A directory holding `;` is a `ValueError`.
+
+**Stacks.** `cdb -pv -p <pid> -c "~*kn <frames>; .echo @cdb-stacks-end@;
+.dump /mt <dump>; qd"`, standard input closed. cdb attaches without
+stopping the process: its threads are suspended while cdb reads them, and
+resumed when it detaches (`qd`). The mark tells the stacks from what cdb
+writes after them. A file left at `dump` is removed before cdb starts, so
+it is never read as this run's. `frames` is a number above 0. A `dump`
+that is not an absolute path, or holds whitespace, `;` or `"`, is a
+`ValueError`: cdb would read it as more than one word.
+
+`Stacks(threads, dump, said)`:
+
+- `threads`, each thread's `Thread(header, frames)`, in cdb's order:
+  `header` is the thread's line as cdb wrote it (`.  0  Id: 4d20.13d8
+  Suspend: 1 ...`), `frames` each frame's line, the columns' heads dropped.
+- `dump`, the path where a file is there after the run, else None.
+- `said`, cdb's lines after the stacks, the dump's words among them.
+
+No mark in the answer means the commands never ran: cdb could not attach,
+`cdb.NotAttached` (answer `not attached`), with cdb's last lines, such as
+`Unable to examine process id ..., Win32 error 0n87`. A mark with no thread
+before it is `Unreadable`. Past its limit, the run is `Slow`: what cdb wrote
+is not kept, and a process cdb was reading when it was ended may be left
+with its threads suspended.
+
+**A session** starts `cdb <program> <args>` held, by `call.start`, its
+`limit` covering the whole session. `program` is an absolute path, else a
+`ValueError`, and `args` are passed after it as they are. The session reads
+cdb's banner to the program's first stop, then turns source lines on
+(`.lines -e`) and steps by source line (`l+t`). A dump's session starts
+`cdb -z <file>` and reads its banner.
+
+Each method of a session sends cdb one command line and reads its answer:
+what cdb writes up to its next prompt (`<n>:<n>> ` at the end of the
+output, then 0.05 s with nothing more). The answer is a list of lines,
+decoded as UTF-8 with errors replaced, the prompt, empty lines and cdb's
+noise dropped: module loads, an event's first line (`.lastevent` gives the
+event), `Breakpoint <n> hit`, checksum warnings, NatVis lines and `quit:`.
+The program writes to the same pipe, so its own output is among the lines.
+Text handed to a method that holds a line break or `;` is a `ValueError`:
+cdb would read it as two commands.
+
+| Method | Call name | What it sends; what it gives |
+|---|---|---|
+| `break_at(spec, binary)` | `cdb break` | `bp`: a breakpoint on a function or a `file:line` in the module of `binary`, unless `spec` names a module (`module!name`). cdb names a module by its file's stem, each character other than a letter, a digit or `_` as `_` (`cdb.module(binary)`). A `file:line` is quoted, so that cdb reads it as a source line. Its lines. |
+| `watch(expression)` | `cdb watch` | `ba w8`: a watch of writes to the 8 bytes of the object the C++ expression names. Its lines. |
+| `resume()` | `cdb resume` | Runs the program on to its next stop: a `Stop`. |
+| `locals()` | `cdb locals` | `dv /t /v`: the frame's locals, each with its type and address. |
+| `stack(frames)` | `cdb stack` | `kn <frames>`: the current thread's stack. |
+| `threads(frames)` | `cdb threads` | `~*kn <frames>`: every thread's stack. |
+| `evaluate(expression)` | `cdb evaluate` | `?? <expression>`: its value, as C++. |
+| `step(count)` | `cdb step` | `t <count>`: steps source lines, into calls. |
+| `step_over(count)` | `cdb step over` | `p <count>`: steps source lines, over calls. |
+| `exception_context()` | `cdb exception context` | `.ecxr`: the frame set to the exception's context. |
+| `dump_event()` | `cdb dump event` | A dump's event, as a `Stop` with no lines. |
+| `quit()` | `cdb quit` | `q`, which ends the program, then cdb's end, waited up to 10 s. Nothing. |
+
+`Stop(event, lines, exited, fault, own)`: `event` is the last event's text
+as `.lastevent` gives it, cdb's chance mark taken off; `lines` the lines
+of the resume; `exited` the process's exit status where the event is its
+exit, else None; `fault` true for a second-chance exception, the program's
+last stop; `own` true for the debugger's own single step, below.
+
+**What `resume` answers.** It sends `g`, then `.lastevent`:
+
+- A first-chance exception other than a single step is the program's: it
+  is passed to the program's own handlers (`gn`), unseen, and the run goes
+  on to the next stop.
+- A first-chance single step (code `80000004`) is the debugger's own. A
+  thread's create event falling on the resume from a stop makes the debug
+  engine lose that stop, and the lost stop comes as a raw single step. It
+  is returned as a `Stop` with `own` true, and the next `resume` answers it
+  `gh`, handled, never passed to the program: passed on, the debugger's own
+  trap would be the program's fault.
+
+In a dump's `Stop`, `fault` is true for an event with an exception's code
+that is not an exit: a dump names no chance.
+
+A session closes by `close()`, or on leaving a `with` block, which ends
+cdb's tree, the program in it. Errors: the call base's own, each under its
+method's call name. cdb's output ending in the middle of a session is
+`Failed`, with cdb's status and its last lines. A `.lastevent` that names
+no event is `Unreadable`. Past the session's limit, any method is `Slow`,
+and cdb's tree is ended.
+
+Not here: a pin's file or its form, which is the caller's; which cdb a
+machine uses; what a caller prints of the stacks, and how much.
+
+`cdb.FakeCdb(answers)`: the call names of `Cdb`'s methods, with their
+arguments by keyword. `cdb.FakeSession(answers)`: the call names of a
+session's methods, with their arguments by keyword; its `close` does
+nothing.
